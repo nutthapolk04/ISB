@@ -20,7 +20,7 @@ PowerSchool sync will not clobber them.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 from app.api.deps import get_current_user, require_role
 from app.core.database import get_db
+from app.models.customer import Customer
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.schemas.user import (
@@ -117,6 +118,10 @@ class UserPayerLookupResponse(BaseModel):
     wallet_id: int
     wallet_balance: float
     is_active: bool
+    # Department association (if user belongs to a department — enables auto-fill in dept payment)
+    department_id: Optional[int] = None
+    department_code: Optional[str] = None
+    department_name: Optional[str] = None
 
 
 @router.get("/by-username/{username}", response_model=UserPayerLookupResponse)
@@ -155,6 +160,9 @@ def get_user_payer_by_username(
         wallet_id=w.id,
         wallet_balance=float(w.balance),
         is_active=bool(target.is_active),
+        department_id=target.department_id,
+        department_code=target.department.department_code if target.department else None,
+        department_name=target.department.department_name if target.department else None,
     )
 
 
@@ -190,7 +198,122 @@ def get_user_payer_by_card(
         wallet_id=w.id,
         wallet_balance=float(w.balance),
         is_active=bool(target.is_active),
+        department_id=target.department_id,
+        department_code=target.department.department_code if target.department else None,
+        department_name=target.department.department_name if target.department else None,
     )
+
+
+# ── Family lookup (POS: search by employee code or family code) ──────────────
+
+class FamilyMemberLookup(BaseModel):
+    entity_type: str  # "user" or "customer"
+    id: int
+    name: str
+    role: Optional[str] = None
+    grade: Optional[str] = None
+    photo_url: Optional[str] = None
+    allergies: Optional[str] = None
+    card_frozen: bool = False
+    wallet_id: Optional[int] = None
+    wallet_balance: Optional[float] = None
+    customer_code: Optional[str] = None
+    student_code: Optional[str] = None
+    username: Optional[str] = None
+
+
+class FamilyLookupResponse(BaseModel):
+    family_code: Optional[str]
+    members: List[FamilyMemberLookup]
+
+
+def _customer_to_member(db: Session, c: Customer) -> FamilyMemberLookup:
+    WalletService.ensure_wallet_for_customer(db, c.id)
+    wallet = db.query(Wallet).filter(Wallet.customer_id == c.id).first()
+    return FamilyMemberLookup(
+        entity_type="customer",
+        id=c.id,
+        name=c.name,
+        role="student",
+        grade=c.grade,
+        photo_url=c.photo_url,
+        allergies=c.allergies,
+        card_frozen=bool(c.card_frozen),
+        wallet_id=wallet.id if wallet else None,
+        wallet_balance=float(wallet.balance) if wallet else None,
+        customer_code=c.customer_code,
+        student_code=c.student_code,
+    )
+
+
+def _user_to_member(db: Session, u: User) -> FamilyMemberLookup:
+    w = WalletService.ensure_wallet_for_user(db, u.id)
+    db.commit()
+    db.refresh(w)
+    return FamilyMemberLookup(
+        entity_type="user",
+        id=u.id,
+        name=u.full_name or u.username,
+        role=u.role,
+        photo_url=u.photo_url,
+        wallet_id=w.id,
+        wallet_balance=float(w.balance),
+        username=u.username,
+    )
+
+
+@router.get("/family-lookup", response_model=FamilyLookupResponse)
+def family_lookup(
+    q: str = Query(..., description="Employee username or family code"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("cashier", "manager", "admin", "kitchen")
+    ),
+):
+    """Resolve a user (by username) or family group (by family_code) for POS use.
+
+    Returns the matched user + all family members (spouse + children) with
+    wallet balances. Used when a customer does not have their card.
+    """
+    q = q.strip()
+    members: List[FamilyMemberLookup] = []
+    family_code: Optional[str] = None
+
+    # Try by username first
+    user = db.query(User).filter(User.username == q).first()
+
+    if user:
+        family_code = user.family_code
+        members.append(_user_to_member(db, user))
+        if family_code:
+            # Add other users in same family (spouse/partner)
+            for u in db.query(User).filter(
+                User.family_code == family_code, User.id != user.id
+            ).all():
+                members.append(_user_to_member(db, u))
+            # Add children (customers with same family_code)
+            for c in db.query(Customer).filter(
+                Customer.family_code == family_code, Customer.is_active.is_(True)
+            ).all():
+                members.append(_customer_to_member(db, c))
+        db.commit()
+        return FamilyLookupResponse(family_code=family_code, members=members)
+
+    # Try by family_code directly
+    family_users = db.query(User).filter(User.family_code == q).all()
+    family_customers = db.query(Customer).filter(
+        Customer.family_code == q, Customer.is_active.is_(True)
+    ).all()
+    if family_users or family_customers:
+        family_code = q
+        for u in family_users:
+            members.append(_user_to_member(db, u))
+        for c in family_customers:
+            members.append(_customer_to_member(db, c))
+        db.commit()
+        return FamilyLookupResponse(family_code=family_code, members=members)
+
+    raise HTTPException(status_code=404, detail="ไม่พบข้อมูล: ลองใช้รหัสพนักงานหรือรหัสครอบครัว")
 
 
 # ── Detail ───────────────────────────────────────────────────────────────────

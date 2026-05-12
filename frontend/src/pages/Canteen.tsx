@@ -28,6 +28,7 @@ import {
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
+import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -68,7 +69,26 @@ export default function Canteen() {
   const [rfidOpen, setRfidOpen] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [deptOpen, setDeptOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  // ── Departments (for department payment option) ──────────────────────────
+  const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
+  const [shopAllowsDept, setShopAllowsDept] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<DepartmentOption[]>("/departments/");
+        if (!cancelled) setDepartmentOptions(data);
+      } catch { /* tolerate */ }
+      try {
+        const meta = await api.get<{ allow_department_charge?: boolean }>(`/shops/${CANTEEN_SHOP_ID}`);
+        if (!cancelled) setShopAllowsDept(meta.allow_department_charge ?? false);
+      } catch { /* tolerate */ }
+    })();
+    return () => { cancelled = true; };
+  }, [CANTEEN_SHOP_ID]);
 
   const [successOpen, setSuccessOpen] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<{
@@ -182,10 +202,11 @@ export default function Canteen() {
 
   // ── Checkout ───────────────────────────────────────────────────────────
   const doCheckout = async (
-    backendPaymentMethod: "wallet" | "cash" | "other" | "edc",
+    backendPaymentMethod: "wallet" | "cash" | "other" | "edc" | "department",
     payer?:
       | { kind: "customer"; customerId: number }
-      | { kind: "user"; userId: number },
+      | { kind: "user"; userId: number }
+      | { kind: "department"; departmentId: number },
   ) => {
     setConfirming(true);
     try {
@@ -196,6 +217,7 @@ export default function Canteen() {
         payer_kind: payer?.kind ?? "customer",
         customer_id: payer?.kind === "customer" ? payer.customerId : undefined,
         payer_user_id: payer?.kind === "user" ? payer.userId : undefined,
+        payer_department_id: payer?.kind === "department" ? payer.departmentId : undefined,
         shop_id: CANTEEN_SHOP_ID,
         items: cart.items.map((i) => ({
           product_variant_id: i.id,
@@ -251,6 +273,7 @@ export default function Canteen() {
     setRfidOpen(false);
     setCashOpen(false);
     setQrOpen(false);
+    setDeptOpen(false);
     setMethodPickerOpen(false);
     setCartOpen(false);
   };
@@ -260,7 +283,18 @@ export default function Canteen() {
     if (method === "wallet") setRfidOpen(true);
     else if (method === "cash") setCashOpen(true);
     else if (method === "edc") void handleConfirmEdc();
+    else if (method === "department") setDeptOpen(true);
     else setQrOpen(true);
+  };
+
+  const handleConfirmDept = async (deptId: number, _empCode: string | null) => {
+    try {
+      const amount = cart.total;
+      const res = await doCheckout("department", { kind: "department", departmentId: deptId });
+      finalizeSuccess(res.receipt_number, amount, null);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
+    }
   };
 
   const handleConfirmWallet = async (payer: WalletPayer) => {
@@ -524,6 +558,9 @@ export default function Canteen() {
         open={methodPickerOpen}
         onOpenChange={setMethodPickerOpen}
         total={cart.total}
+        methods={shopAllowsDept
+          ? ["wallet", "cash", "qr", "edc", "department"]
+          : ["wallet", "cash", "qr", "edc"]}
         onSelect={handleSelectMethod}
       />
       <RfidPaymentModal
@@ -557,6 +594,15 @@ export default function Canteen() {
           setMethodPickerOpen(true);
         }}
         onConfirm={handleConfirmQr}
+        confirming={confirming}
+      />
+      <DepartmentPaymentModal
+        open={deptOpen}
+        onOpenChange={setDeptOpen}
+        total={cart.total}
+        departments={departmentOptions}
+        onBack={() => { setDeptOpen(false); setMethodPickerOpen(true); }}
+        onConfirm={handleConfirmDept}
         confirming={confirming}
       />
       <ReceiptSuccessModal

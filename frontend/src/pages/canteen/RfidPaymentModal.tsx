@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Building2,
   CreditCard,
   AlertTriangle,
   ShieldAlert,
@@ -15,7 +16,9 @@ import {
   UserCircle2,
   Loader2,
   ArrowLeft,
+  Users,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +47,10 @@ export interface UserPayerLookup {
   wallet_id: number;
   wallet_balance: number;
   is_active: boolean;
+  // Department auto-fill (set when user is a staff member linked to a dept)
+  department_id?: number | null;
+  department_code?: string | null;
+  department_name?: string | null;
 }
 
 // Discriminated union — one place that captures whichever wallet kind paid.
@@ -60,8 +67,29 @@ interface RfidPaymentModalProps {
   confirming: boolean;
 }
 
-type Stage = "detect" | "identity";
-type PayerKind = "customer" | "user";
+type Stage = "detect" | "identity" | "family";
+type PayerKind = "customer" | "user" | "family";
+
+interface FamilyMember {
+  entity_type: "user" | "customer";
+  id: number;
+  name: string;
+  role?: string | null;
+  grade?: string | null;
+  photo_url?: string | null;
+  allergies?: string | null;
+  card_frozen?: boolean;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
+  customer_code?: string | null;
+  student_code?: string | null;
+  username?: string | null;
+}
+
+interface FamilyLookupResult {
+  family_code?: string | null;
+  members: FamilyMember[];
+}
 
 export function RfidPaymentModal({
   open,
@@ -78,6 +106,11 @@ export function RfidPaymentModal({
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentLookupResult | null>(null);
   const [userPayer, setUserPayer] = useState<UserPayerLookup | null>(null);
+  // Family search state
+  const [familyQuery, setFamilyQuery] = useState("");
+  const [familyResult, setFamilyResult] = useState<FamilyLookupResult | null>(null);
+  const [familyLoading, setFamilyLoading] = useState(false);
+  const [familyError, setFamilyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -87,63 +120,138 @@ export function RfidPaymentModal({
       setLookupError(null);
       setStudent(null);
       setUserPayer(null);
+      setFamilyQuery("");
+      setFamilyResult(null);
+      setFamilyError(null);
     }
   }, [open]);
 
+  /**
+   * Auto-detect who owns this card/code — tries all identity types in order:
+   *   1. Customer by card UID (student RFID)
+   *   2. User by card UID    (staff / parent RFID)
+   *   3. Customer by code    (student code fallback)
+   *   4. User by username    (employee login fallback)
+   * Sets payerKind automatically so no tab pre-selection is needed.
+   */
   const lookup = async (query: string) => {
     const q = query.trim();
     if (!q) return;
     setLookupLoading(true);
     setLookupError(null);
     try {
-      if (payerKind === "user") {
-        // Try card UID first; fall back to username (mirrors student behavior)
-        let result: UserPayerLookup;
-        try {
-          result = await api.get<UserPayerLookup>(
-            `/users/by-card/${encodeURIComponent(q)}`,
-          );
-        } catch (e) {
-          if (e instanceof ApiError && e.status === 404) {
-            result = await api.get<UserPayerLookup>(
-              `/users/by-username/${encodeURIComponent(q)}`,
-            );
-          } else {
-            throw e;
-          }
-        }
-        setUserPayer(result);
-        setStudent(null);
-      } else {
-        // Try card UID first; fall back to student code
-        let result: StudentLookupResult;
-        try {
-          result = await api.get<StudentLookupResult>(
-            `/customers/by-card/${encodeURIComponent(q)}`,
-          );
-        } catch (e) {
-          if (e instanceof ApiError && e.status === 404) {
-            result = await api.get<StudentLookupResult>(
-              `/customers/by-code/${encodeURIComponent(q)}`,
-            );
-          } else {
-            throw e;
-          }
-        }
+      // 1. Student/customer card UID
+      try {
+        const result = await api.get<StudentLookupResult>(
+          `/customers/by-card/${encodeURIComponent(q)}`,
+        );
         setStudent(result);
         setUserPayer(null);
+        setPayerKind("customer");
+        setStage("identity");
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
+
+      // 2. Staff/parent card UID
+      try {
+        const result = await api.get<UserPayerLookup>(
+          `/users/by-card/${encodeURIComponent(q)}`,
+        );
+        setUserPayer(result);
+        setStudent(null);
+        setPayerKind("user");
+        setStage("identity");
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+
+      // 3. Customer by student code
+      try {
+        const result = await api.get<StudentLookupResult>(
+          `/customers/by-code/${encodeURIComponent(q)}`,
+        );
+        setStudent(result);
+        setUserPayer(null);
+        setPayerKind("customer");
+        setStage("identity");
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+
+      // 4. User by username
+      const result = await api.get<UserPayerLookup>(
+        `/users/by-username/${encodeURIComponent(q)}`,
+      );
+      setUserPayer(result);
+      setStudent(null);
+      setPayerKind("user");
       setStage("identity");
     } catch (e) {
       setLookupError(
         e instanceof ApiError
           ? e.detail
-          : payerKind === "user"
-            ? "User not found"
-            : "Card not recognized",
+          : "ไม่พบข้อมูล — ลองสแกนใหม่หรือค้นหาครอบครัว",
       );
     } finally {
       setLookupLoading(false);
+    }
+  };
+
+  const lookupFamily = async () => {
+    const q = familyQuery.trim();
+    if (!q) return;
+    setFamilyLoading(true);
+    setFamilyError(null);
+    setFamilyResult(null);
+    try {
+      const result = await api.get<FamilyLookupResult>(
+        `/users/family-lookup?q=${encodeURIComponent(q)}`,
+      );
+      setFamilyResult(result);
+      setStage("family");
+    } catch (e) {
+      setFamilyError(
+        e instanceof ApiError ? e.detail : "ไม่พบข้อมูล",
+      );
+    } finally {
+      setFamilyLoading(false);
+    }
+  };
+
+  const selectFamilyMember = (member: FamilyMember) => {
+    if (member.entity_type === "user" && member.wallet_id != null && member.wallet_balance != null) {
+      setUserPayer({
+        user_id: member.id,
+        username: member.username ?? String(member.id),
+        full_name: member.name,
+        role: member.role ?? "",
+        photo_url: member.photo_url ?? null,
+        wallet_id: member.wallet_id,
+        wallet_balance: member.wallet_balance,
+        is_active: true,
+      });
+      setStudent(null);
+      setPayerKind("user");
+      setStage("identity");
+    } else if (member.entity_type === "customer") {
+      setStudent({
+        id: member.id,
+        name: member.name,
+        grade: member.grade ?? null,
+        photo_url: member.photo_url ?? null,
+        allergies: member.allergies ?? null,
+        card_frozen: member.card_frozen ?? false,
+        wallet_balance: member.wallet_balance ?? null,
+        customer_code: member.customer_code ?? String(member.id),
+        student_code: member.student_code ?? null,
+      });
+      setUserPayer(null);
+      setPayerKind("customer");
+      setStage("identity");
     }
   };
 
@@ -193,17 +301,27 @@ export function RfidPaymentModal({
       <DialogContent className="sm:max-w-lg canteen-modal-pop">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {stage === "identity" && (
+            {(stage === "identity" || stage === "family") && (
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={() => {
-                  setStage("detect");
-                  setStudent(null);
-                  setUserPayer(null);
-                  setCardInput("");
+                  if (stage === "family") {
+                    setStage("detect");
+                    setFamilyResult(null);
+                  } else if (stage === "identity" && familyResult) {
+                    // came from family list — go back there
+                    setStage("family");
+                    setStudent(null);
+                    setUserPayer(null);
+                  } else {
+                    setStage("detect");
+                    setStudent(null);
+                    setUserPayer(null);
+                    setCardInput("");
+                  }
                 }}
-                aria-label="Back to card detection"
+                aria-label="Back"
                 className="-ml-2 h-7 w-7"
                 disabled={confirming}
               >
@@ -211,66 +329,29 @@ export function RfidPaymentModal({
               </Button>
             )}
             {stage === "detect"
-              ? payerKind === "user"
-                ? "พนักงาน / ผู้ปกครอง"
-                : "Tap Student Card"
-              : "Verify Identity"}
+              ? "แตะบัตรหรือใส่รหัส"
+              : stage === "family"
+                ? "เลือกผู้ชำระเงิน"
+                : "Verify Identity"}
           </DialogTitle>
         </DialogHeader>
 
         {stage === "detect" && (
           <div className="flex flex-col items-center gap-4 py-4">
-            {/* Payer kind toggle */}
-            <div className="grid w-full grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPayerKind("customer");
-                  setCardInput("");
-                  setLookupError(null);
-                }}
-                className={cn(
-                  "rounded-md border-2 px-3 py-2 text-sm font-semibold transition",
-                  payerKind === "customer"
-                    ? "border-amber-500 bg-amber-50 text-amber-900"
-                    : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
-                )}
-              >
-                นักเรียน
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPayerKind("user");
-                  setCardInput("");
-                  setLookupError(null);
-                }}
-                className={cn(
-                  "rounded-md border-2 px-3 py-2 text-sm font-semibold transition",
-                  payerKind === "user"
-                    ? "border-amber-500 bg-amber-50 text-amber-900"
-                    : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
-                )}
-              >
-                พนักงาน / ผู้ปกครอง
-              </button>
+            {/* Unified RFID ring — works for all payer types */}
+            <div className="canteen-rfid-ring">
+              <CreditCard className="h-16 w-16" />
             </div>
+            <p className="text-sm text-muted-foreground text-center">
+              แตะบัตรนักเรียน / พนักงาน / ผู้ปกครอง
+              <br />
+              <span className="text-xs">ระบบจะระบุตัวตนอัตโนมัติ</span>
+            </p>
 
-            {payerKind === "customer" && (
-              <>
-                <div className="canteen-rfid-ring">
-                  <CreditCard className="h-16 w-16" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Waiting for card…
-                </p>
-              </>
-            )}
+            {/* Single unified card / code input */}
             <div className="w-full space-y-2">
               <label className="text-xs font-medium text-muted-foreground">
-                {payerKind === "user"
-                  ? "Username หรือ Badge code"
-                  : "Or enter card UID / student code"}
+                Card UID / รหัสนักเรียน / username พนักงาน
               </label>
               <div className="flex gap-2">
                 <Input
@@ -279,11 +360,7 @@ export function RfidPaymentModal({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") lookup(cardInput);
                   }}
-                  placeholder={
-                    payerKind === "user"
-                      ? "เช่น manager_canteen_thai"
-                      : "e.g. RFID-0001 or 85001"
-                  }
+                  placeholder="สแกนบัตร หรือพิมพ์รหัส…"
                   autoFocus
                   disabled={lookupLoading}
                 />
@@ -294,7 +371,7 @@ export function RfidPaymentModal({
                   {lookupLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    "Look up"
+                    "ค้นหา"
                   )}
                 </Button>
               </div>
@@ -302,8 +379,123 @@ export function RfidPaymentModal({
                 <p className="text-xs text-destructive">{lookupError}</p>
               )}
             </div>
+
+            {/* Family search — secondary option for no-card cases */}
+            <div className="w-full border-t border-dashed pt-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPayerKind("family");
+                  setCardInput("");
+                  setLookupError(null);
+                  setFamilyQuery("");
+                  setFamilyError(null);
+                  setFamilyResult(null);
+                }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
+              >
+                <Users className="h-3.5 w-3.5" />
+                ไม่มีบัตร? ค้นหาครอบครัวด้วยรหัสพนักงาน
+              </button>
+
+              {payerKind === "family" && (
+                <div className="space-y-2">
+                  <div className="rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-900">
+                    <strong>ค้นหาโดยไม่มีบัตร</strong> — พิมพ์ username พนักงาน หรือรหัสครอบครัว
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={familyQuery}
+                      onChange={(e) => setFamilyQuery(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") lookupFamily(); }}
+                      placeholder="เช่น somchair หรือ FAM001"
+                      autoFocus
+                      disabled={familyLoading}
+                    />
+                    <Button
+                      onClick={lookupFamily}
+                      disabled={familyLoading || !familyQuery.trim()}
+                    >
+                      {familyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ค้นหา"}
+                    </Button>
+                  </div>
+                  {familyError && (
+                    <p className="text-xs text-destructive">{familyError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <Button variant="ghost" onClick={onBack} className="mt-2">
               Change payment method
+            </Button>
+          </div>
+        )}
+
+        {/* Family member list */}
+        {stage === "family" && familyResult && (
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              พบ {familyResult.members.length} คน
+              {familyResult.family_code && <> · รหัสครอบครัว <code className="font-mono text-xs bg-muted px-1 rounded">{familyResult.family_code}</code></>}
+              {" "}— เลือกผู้ชำระเงิน
+            </p>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {familyResult.members.map((member) => {
+                const isFrozen = member.card_frozen;
+                const bal = member.wallet_balance ?? 0;
+                const afterPay = bal - total;
+                return (
+                  <button
+                    key={`${member.entity_type}-${member.id}`}
+                    type="button"
+                    onClick={() => selectFamilyMember(member)}
+                    disabled={isFrozen}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
+                      isFrozen
+                        ? "border-red-200 bg-red-50 opacity-60 cursor-not-allowed"
+                        : "border-border bg-card hover:border-amber-400 hover:bg-amber-50/50 cursor-pointer",
+                    )}
+                  >
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      {member.photo_url ? (
+                        <img src={member.photo_url} alt={member.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <UserCircle2 className="h-7 w-7 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-sm truncate">{member.name}</span>
+                        <Badge variant="secondary" className="h-4 text-[10px] px-1">
+                          {member.entity_type === "user" ? (member.role ?? "staff") : `Grade ${member.grade ?? "?"}`}
+                        </Badge>
+                        {isFrozen && <Badge variant="destructive" className="h-4 text-[10px] px-1">Frozen</Badge>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {member.entity_type === "user" ? `@${member.username}` : (member.student_code ?? member.customer_code)}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={cn("text-sm font-bold tabular-nums", bal < 0 ? "text-destructive" : "text-foreground")}>
+                        ฿{bal.toFixed(2)}
+                      </div>
+                      <div className={cn("text-[10px] tabular-nums", afterPay < 0 ? "text-amber-600" : "text-emerald-600")}>
+                        → ฿{afterPay.toFixed(2)}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setStage("detect"); setFamilyResult(null); }}
+              className="w-full"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" /> ค้นหาใหม่
             </Button>
           </div>
         )}
@@ -330,8 +522,16 @@ export function RfidPaymentModal({
                   {payerKind === "user" ? userPayer?.full_name : student?.name}
                 </div>
                 {payerKind === "user" ? (
-                  <div className="text-xs text-muted-foreground capitalize">
-                    @{userPayer?.username} · {userPayer?.role}
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground capitalize">
+                      @{userPayer?.username} · {userPayer?.role}
+                    </div>
+                    {userPayer?.department_name && (
+                      <div className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[11px] text-rose-700 font-medium">
+                        <Building2 className="h-3 w-3" />
+                        {userPayer.department_name} ({userPayer.department_code})
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground">

@@ -425,12 +425,14 @@ def seed():
     upsert_shop("bookstore",  "Bookstore",      "fifo",     "ร้านหนังสือ — FIFO")
     upsert_shop("canteen",    "ISB Canteen",    "avg_cost",
                 "Tablet canteen POS — RFID-first, warm yellow theme",
-                module="canteen")
+                allow_department_charge=True, module="canteen")
     # Demo canteens (multi-shop capability)
     upsert_shop("canteen_thai",   "Thai Kitchen",    "avg_cost",
-                "ครัวอาหารไทย — ข้าว ก๋วยเตี๋ยว ต้มยำ", module="canteen")
+                "ครัวอาหารไทย — ข้าว ก๋วยเตี๋ยว ต้มยำ",
+                allow_department_charge=True, module="canteen")
     upsert_shop("canteen_drinks", "Drinks & Snacks", "avg_cost",
-                "เครื่องดื่มและของว่าง", module="canteen")
+                "เครื่องดื่มและของว่าง",
+                allow_department_charge=True, module="canteen")
 
     # ── Categories ─────────────────────────────────────────────────────────
     print("\nSeeding categories...")
@@ -917,6 +919,29 @@ def seed():
             db.flush()
             db.add(Wallet(department_id=dept.id, balance=credit, is_active=True))
             print(f"  + Department: {name} ({code}) — credit ฿{credit:,}")
+
+    db.commit()
+
+    # ── Link demo staff users to departments (for card-tap auto-fill) ───────
+    print("\nLinking staff users to departments...")
+    from app.models.user import User as _U2
+    from app.models.department import Department as _Dept2
+    STAFF_DEPT_MAP = [
+        # (username_or_email_fragment, department_code)
+        ("jirawatj@isb.ac.th",   "DEPT-ADMIN"),
+        ("angkanan@isb.ac.th",   "DEPT-ADMIN"),
+        ("phatthab@isb.ac.th",   "DEPT-ACADEMIC"),
+        ("chadb@isb.ac.th",      "DEPT-ACADEMIC"),
+    ]
+    for login_id, dept_code in STAFF_DEPT_MAP:
+        dept = db.query(_Dept2).filter(_Dept2.department_code == dept_code).first()
+        if not dept:
+            continue
+        u = db.query(_U2).filter(_U2.username == login_id).first()
+        if u and u.department_id != dept.id:
+            u.department_id = dept.id
+            print(f"  = {login_id} → {dept_code}")
+    db.commit()
 
     # ── "Other" cardholder demo rows (no card, no wallet by default) ────────
     OTHER_DEMO = [

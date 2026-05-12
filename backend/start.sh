@@ -154,12 +154,16 @@ run('''
 # === P1: shop_products.photo_url for menu images (canteen + coop) ===
 run('ALTER TABLE shop_products ADD COLUMN photo_url VARCHAR(500)', 'shop_products.photo_url')
 
-# === P2.2: department charge coop-only ===
+# === P2.2: department charge (coop + all canteens) ===
 run('ALTER TABLE shops ADD COLUMN allow_department_charge BOOLEAN NOT NULL DEFAULT false',
     'shops.allow_department_charge')
-# Backfill existing coop shop (demo data). Multi-coop deployments should set this per-shop.
-run(\"UPDATE shops SET allow_department_charge = true WHERE id = 'coop'\",
-    'coop allow_department_charge backfill', ok_if_exists=False)
+# Backfill all shops that should allow department charges.
+run(\"UPDATE shops SET allow_department_charge = true WHERE id IN ('coop','canteen','canteen_thai','canteen_drinks')\",
+    'shops allow_department_charge backfill', ok_if_exists=False)
+
+# === P2.2b: user→department FK for card-tap auto-fill ===
+run('ALTER TABLE users ADD COLUMN department_id INTEGER REFERENCES departments(id) ON DELETE SET NULL',
+    'users.department_id')
 
 # === P2.3: EDC audit fields on receipts ===
 run('ALTER TABLE receipts ADD COLUMN edc_terminal_ref VARCHAR(50)', 'receipts.edc_terminal_ref')

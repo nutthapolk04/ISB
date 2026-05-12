@@ -50,12 +50,15 @@ class User(Base):
     customer_type = Column(String(20), nullable=True)             # "Staff" | "Parent" (PS enum)
     # Sitemap v2 — shop scoping for cashiers/managers
     shop_id = Column(String(50), ForeignKey("shops.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Department association — staff members linked to their department for dept-charge auto-fill
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     shop = relationship("Shop")
+    department = relationship("Department", foreign_keys=[department_id])
     wallet = relationship(
         "Wallet",
         back_populates="user",
