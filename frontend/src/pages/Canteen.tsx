@@ -182,7 +182,7 @@ export default function Canteen() {
 
   // ── Checkout ───────────────────────────────────────────────────────────
   const doCheckout = async (
-    backendPaymentMethod: "wallet" | "cash" | "qr_promptpay" | "edc",
+    backendPaymentMethod: "wallet" | "cash" | "other" | "edc",
     payer?:
       | { kind: "customer"; customerId: number }
       | { kind: "user"; userId: number },
@@ -321,7 +321,7 @@ export default function Canteen() {
   const handleConfirmQr = async () => {
     try {
       const amount = cart.total;
-      const res = await doCheckout("qr_promptpay");
+      const res = await doCheckout("other");
       finalizeSuccess(res.receipt_number, amount, null);
     } catch (e) {
       toast.error(

@@ -379,7 +379,7 @@ const Store = () => {
       } else if (method === "cash") {
         backendMethod = "cash";
       } else {
-        backendMethod = "qr_promptpay";
+        backendMethod = "other";
       }
 
       if (priceMode === "internal" && !requesterUserId) {
