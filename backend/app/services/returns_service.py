@@ -87,6 +87,73 @@ class ReturnsService:
             db.refresh(rr)
         return created
 
+    # ── Create return without receipt ─────────────────────────────────────────
+
+    @staticmethod
+    def create_return_without_receipt(
+        db: Session,
+        *,
+        items: List[dict],
+        reason: str,
+        customer_name: Optional[str] = None,
+        notes: Optional[str] = None,
+        user_id: int,
+    ) -> List[ReturnRequest]:
+        """Create return requests without linking to a specific receipt.
+
+        Used when customer doesn't have a receipt but product is confirmed as store merchandise.
+        Generates a special receipt ID with NO-RCPT prefix.
+        """
+        import time
+
+        created: List[ReturnRequest] = []
+
+        # Generate a unique placeholder receipt ID
+        no_receipt_id = f"NO-RCPT-{int(time.time())}"
+
+        for item in items:
+            # Validate product exists in the specified shop
+            product = (
+                db.query(ShopProduct)
+                .filter(
+                    ShopProduct.product_code == item["productCode"],
+                    ShopProduct.shop_id == item["shopId"],
+                    ShopProduct.is_active == True,
+                )
+                .first()
+            )
+            if not product:
+                raise ValueError(
+                    f"Product '{item['productCode']}' not found in shop '{item['shopId']}'"
+                )
+
+            # Build reason with customer info if provided
+            full_reason = reason
+            if customer_name:
+                full_reason = f"{reason} (Customer: {customer_name})"
+            if notes:
+                full_reason = f"{full_reason} | Notes: {notes}"
+
+            rr = ReturnRequest(
+                receipt_id=no_receipt_id,
+                product_code=item["productCode"],
+                product_name=item["productName"],
+                quantity=item["returnQuantity"],  # For no-receipt returns, quantity = returnQuantity
+                return_quantity=item["returnQuantity"],
+                price=item.get("unitPrice", 0),
+                reason=full_reason,
+                status=ReturnStatus.pending,
+                return_status="full-return",
+                created_by=user_id,
+            )
+            db.add(rr)
+            created.append(rr)
+
+        db.commit()
+        for rr in created:
+            db.refresh(rr)
+        return created
+
     # ── List returns ─────────────────────────────────────────────────────────
 
     @staticmethod

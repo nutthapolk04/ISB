@@ -14,6 +14,7 @@ from app.api.v1 import (
     products, auth, shops, inventory, pos, returns, wallets, customers,
     family, users, users_admin, sync,
     admin_cardholders, admin_departments, admin_audit, admin_settings, departments, reports,
+    uom, bundles,
 )
 
 # Create database tables
@@ -78,6 +79,8 @@ app.include_router(admin_audit.router, prefix="/api/v1/admin", tags=["Admin Audi
 app.include_router(admin_settings.router, prefix="/api/v1/admin/settings", tags=["Admin Settings"])
 app.include_router(departments.router, prefix="/api/v1/departments", tags=["Departments"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(uom.router, prefix="/api/v1/uom", tags=["Units of Measure"])
+app.include_router(bundles.router, prefix="/api/v1/shops", tags=["Product Bundles"])
 
 
 # Exception handlers

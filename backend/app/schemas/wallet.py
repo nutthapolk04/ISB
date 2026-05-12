@@ -93,3 +93,19 @@ class TopupIntentResponse(BaseModel):
     created_at: datetime
 
 
+class CashierTopupRequest(BaseModel):
+    """Request for cashier to top-up a customer wallet with cash."""
+    amount: float = Field(gt=0, description="Top-up amount in THB")
+    notes: Optional[str] = Field(None, max_length=500)
+
+
+class CashierTopupResponse(BaseModel):
+    """Response after cashier top-up."""
+    wallet_id: int
+    customer_name: str
+    amount: float
+    balance_before: float
+    balance_after: float
+    transaction_id: int
+
+

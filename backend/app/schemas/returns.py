@@ -47,6 +47,23 @@ class CreateReturnRequest(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class ReturnWithoutReceiptItemPayload(BaseModel):
+    """Item payload for returns without a receipt - requires product lookup by barcode/code."""
+    productCode: str
+    productName: str
+    returnQuantity: int = Field(ge=1)
+    unitPrice: float = Field(ge=0)
+    shopId: str
+
+
+class CreateReturnWithoutReceiptRequest(BaseModel):
+    """Create a return without linking to a specific receipt."""
+    items: List[ReturnWithoutReceiptItemPayload] = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    customerName: Optional[str] = None  # Optional customer info for record-keeping
+    notes: Optional[str] = None
+
+
 # ── Update Return Request ───────────────────────────────────────────────────
 
 class UpdateReturnRequest(BaseModel):

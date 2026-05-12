@@ -18,6 +18,7 @@ from app.models.shop import (
     MenuOptionGroup, MenuOption, ProductOrderHistory,
 )
 from app.models.fifo_lot import FifoLot
+from app.models.unit_of_measure import UnitOfMeasure
 from app.schemas.shop import (
     ShopProductCreate, ShopProductUpdate, ShopProductResponse,
     ShopCategoryCreate, ShopCategoryUpdate, ShopCategoryResponse,
@@ -65,6 +66,8 @@ def _product_to_response(p: ShopProduct) -> ShopProductResponse:
     # p.option_groups is a relationship; loading it here is OK — list_products
     # eagerly joinedloads it to avoid N+1.
     has_options = bool(getattr(p, "option_groups", None))
+    # UOM info (eagerly loaded or lazy)
+    uom = getattr(p, "uom", None)
     return ShopProductResponse(
         id=p.id,
         shop_id=p.shop_id,
@@ -83,6 +86,9 @@ def _product_to_response(p: ShopProduct) -> ShopProductResponse:
         color=p.color,
         sort_order=p.sort_order,
         has_options=has_options,
+        uom_id=p.uom_id,
+        uom_code=uom.code if uom else None,
+        uom_name=uom.name if uom else None,
     )
 
 
@@ -184,7 +190,7 @@ def list_products(
     q = (
         db.query(ShopProduct)
         .filter(ShopProduct.shop_id == shop_id)
-        .options(selectinload(ShopProduct.option_groups))
+        .options(selectinload(ShopProduct.option_groups), selectinload(ShopProduct.uom))
     )
     if not include_inactive:
         q = q.filter(ShopProduct.is_active == True)
@@ -335,6 +341,7 @@ def _create_product_in_shop(
         avg_cost=body.avg_cost,
         stock=body.stock,
         min_stock=body.min_stock,
+        uom_id=body.uom_id,
     )
     db.add(product)
     db.flush()
@@ -456,6 +463,9 @@ def update_product(
     # while omitting fields the client didn't send.
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
+        # uom_id=0 means clear the UOM
+        if field == "uom_id" and value == 0:
+            value = None
         setattr(product, field, value)
     db.flush()
     # Log audit entry if prices changed

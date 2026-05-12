@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp } from "lucide-react";
+import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { InfoCallout } from "@/components/InfoCallout";
@@ -31,11 +31,15 @@ interface ReturnRow {
 }
 interface ReturnReportData { rows: ReturnRow[]; total_refund: number; total_exchange: number; }
 
+interface SalesByPaymentRow { payment_method: string; receipt_count: number; total: number; }
+interface SalesByPaymentReportData { rows: SalesByPaymentRow[]; grand_total: number; total_receipts: number; }
+
 const REPORT_DEFS: { type: string; icon: typeof FileText; needsRange: boolean }[] = [
-  { type: "salesReport",      icon: FileText,       needsRange: true },
-  { type: "topSellingReport", icon: TrendingUp,     needsRange: true },
-  { type: "stockReport",      icon: Package,        needsRange: false },
-  { type: "returnReport",     icon: ArrowLeftRight, needsRange: true },
+  { type: "salesReport",         icon: FileText,       needsRange: true },
+  { type: "topSellingReport",    icon: TrendingUp,     needsRange: true },
+  { type: "salesByPaymentReport", icon: CreditCard,    needsRange: true },
+  { type: "stockReport",         icon: Package,        needsRange: false },
+  { type: "returnReport",        icon: ArrowLeftRight, needsRange: true },
 ];
 
 const BOM = String.fromCharCode(0xfeff);
@@ -114,6 +118,17 @@ const Reports = () => {
         }
         csv += `\n${t("reports.grandTotal")},,${data.grand_total.toFixed(2)}\n`;
         csv += `${t("reports.receiptCount")},${data.receipt_count},\n`;
+      } else if (selectedReportType === "salesByPaymentReport") {
+        const data = await api.get<SalesByPaymentReportData>(
+          `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+        );
+        csv += `${t("reports.colPaymentMethod") || "Payment Method"},${t("reports.colReceiptCount") || "Receipt Count"},${t("reports.colTotal")}\n`;
+        for (const r of data.rows) {
+          const methodLabel = t(`payment.${r.payment_method}`) || r.payment_method;
+          csv += `${csvEscape(methodLabel)},${r.receipt_count},${r.total.toFixed(2)}\n`;
+        }
+        csv += `\n${t("reports.grandTotal")},,${data.grand_total.toFixed(2)}\n`;
+        csv += `${t("reports.totalReceipts") || "Total Receipts"},${data.total_receipts},\n`;
       } else if (selectedReportType === "stockReport") {
         const stockShopParam = shopParam.replace(/^&/, "?");
         const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);

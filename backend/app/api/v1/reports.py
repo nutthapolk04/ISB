@@ -30,6 +30,21 @@ class SalesRow(BaseModel):
     total: float
 
 
+class SalesByPaymentRow(BaseModel):
+    payment_method: str
+    receipt_count: int
+    total: float
+
+
+class SalesByPaymentReport(BaseModel):
+    date_from: date
+    date_to: date
+    shop_id: Optional[str]
+    rows: List[SalesByPaymentRow]
+    grand_total: float
+    total_receipts: int
+
+
 class SalesReport(BaseModel):
     date_from: date
     date_to: date
@@ -141,6 +156,58 @@ def sales_report(
         rows=rows,
         grand_total=grand_total,
         receipt_count=len(receipt_ids),
+    )
+
+
+@router.get("/sales-by-payment", response_model=SalesByPaymentReport)
+def sales_by_payment_report(
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    shop_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Sales report grouped by payment method."""
+    effective_shop_id = _scope_shop(current_user, shop_id)
+    start, end = _date_range(date_from, date_to)
+
+    q = db.query(
+        Receipt.payment_method,
+        func.count(Receipt.id).label("receipt_count"),
+        func.sum(Receipt.total).label("total"),
+    ).filter(
+        Receipt.transaction_date >= start,
+        Receipt.transaction_date <= end,
+        Receipt.status == ReceiptStatus.ACTIVE,
+    )
+
+    if effective_shop_id:
+        q = q.filter(Receipt.shop_id == effective_shop_id)
+
+    agg = q.group_by(Receipt.payment_method).order_by(func.sum(Receipt.total).desc()).all()
+
+    rows: List[SalesByPaymentRow] = []
+    grand_total = 0.0
+    total_receipts = 0
+    for r in agg:
+        method_name = r.payment_method.value if hasattr(r.payment_method, 'value') else str(r.payment_method)
+        line_total = float(r.total or 0)
+        count = int(r.receipt_count or 0)
+        rows.append(SalesByPaymentRow(
+            payment_method=method_name,
+            receipt_count=count,
+            total=line_total,
+        ))
+        grand_total += line_total
+        total_receipts += count
+
+    return SalesByPaymentReport(
+        date_from=date_from,
+        date_to=date_to,
+        shop_id=effective_shop_id,
+        rows=rows,
+        grand_total=grand_total,
+        total_receipts=total_receipts,
     )
 
 

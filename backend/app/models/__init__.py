@@ -25,6 +25,8 @@ from app.models.sync_log import SyncLog
 from app.models.sync_audit_log import SyncAuditLog
 from app.models.family_profile import FamilyProfile
 from app.models.system_setting import SystemSetting
+from app.models.unit_of_measure import UnitOfMeasure
+from app.models.bundle import ProductBundle, BundleItem
 
 __all__ = [
     "User", "Role", "Permission",
@@ -48,4 +50,7 @@ __all__ = [
     "SyncLog", "SyncAuditLog",
     "FamilyProfile",
     "SystemSetting",
+    "UnitOfMeasure",
+    "ProductBundle",
+    "BundleItem",
 ]

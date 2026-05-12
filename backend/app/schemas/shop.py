@@ -79,6 +79,7 @@ class ShopProductCreate(BaseModel):
     stock: int = Field(default=0)
     min_stock: int = Field(default=0, ge=0)
     color: Optional[str] = None
+    uom_id: Optional[int] = None  # Unit of measure ID
 
 
 class ShopProductUpdate(BaseModel):
@@ -94,6 +95,7 @@ class ShopProductUpdate(BaseModel):
     # Explicit null clears the photo (keeps value at Cloudinary for recovery).
     photo_url: Optional[str] = None
     color: Optional[str] = None
+    uom_id: Optional[int] = None  # Unit of measure ID (0 or null to clear)
 
 
 class ShopProductResponse(BaseModel):
@@ -114,6 +116,10 @@ class ShopProductResponse(BaseModel):
     color: Optional[str] = None
     sort_order: int = 0
     has_options: bool = False  # true iff the product has ≥1 menu option group
+    # Unit of measure
+    uom_id: Optional[int] = None
+    uom_code: Optional[str] = None
+    uom_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -21,6 +21,7 @@ from app.models.user import User
 from app.models.shop import ShopProduct
 from app.schemas.returns import (
     CreateReturnRequest,
+    CreateReturnWithoutReceiptRequest,
     UpdateReturnRequest,
     ProcessRefundRequest,
     ProcessExchangeRequest,
@@ -55,6 +56,32 @@ def create_return(
         return [_rr_to_response(rr) for rr in returns]
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.post("/returns/create-without-receipt", response_model=List[ReturnRequestResponse])
+def create_return_without_receipt(
+    payload: CreateReturnWithoutReceiptRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager")),
+):
+    """Create return requests without linking to a specific receipt.
+
+    Used when customer doesn't have a receipt but product is confirmed as store merchandise.
+    Stock will be returned to inventory upon approval.
+    """
+    items = [item.model_dump() for item in payload.items]
+    try:
+        returns = ReturnsService.create_return_without_receipt(
+            db,
+            items=items,
+            reason=payload.reason,
+            customer_name=payload.customerName,
+            notes=payload.notes,
+            user_id=current_user.id,
+        )
+        return [_rr_to_response(rr) for rr in returns]
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/returns", response_model=List[ReturnRequestResponse])

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Search, ShoppingCart, UtensilsCrossed, UserSearch } from "lucide-react";
+import { Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
@@ -30,6 +30,7 @@ import { QrPaymentModal } from "./canteen/QrPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
+import { CashierTopupModal } from "@/components/CashierTopupModal";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -72,6 +73,7 @@ export default function Canteen() {
   const [qrOpen, setQrOpen] = useState(false);
   const [deptOpen, setDeptOpen] = useState(false);
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   // ── Departments (for department payment option) ──────────────────────────
@@ -440,6 +442,15 @@ export default function Canteen() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setTopupOpen(true)}
+              className="gap-1.5"
+            >
+              <Wallet className="h-4 w-4" />
+              <span className="hidden sm:inline">เติมเงิน</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setMemberSearchOpen(true)}
               className="gap-1.5"
             >
@@ -627,6 +638,10 @@ export default function Canteen() {
       <MemberSearchModal
         open={memberSearchOpen}
         onOpenChange={setMemberSearchOpen}
+      />
+      <CashierTopupModal
+        open={topupOpen}
+        onOpenChange={setTopupOpen}
       />
     </div>
   );

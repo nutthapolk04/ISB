@@ -16,6 +16,7 @@ import {
   Package,
   CreditCard,
   UserSearch,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ import { DepartmentPaymentModal, type DepartmentOption } from "./store/Departmen
 import { EdcPaymentModal } from "./store/EdcPaymentModal";
 import UserPicker from "@/components/UserPicker";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
+import { CashierTopupModal } from "@/components/CashierTopupModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -158,6 +160,7 @@ const Store = () => {
   const [edcOpen, setEdcOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
 
@@ -822,6 +825,15 @@ const Store = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setTopupOpen(true)}
+              className="gap-1.5"
+            >
+              <Wallet className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("store.topup", "เติมเงิน")}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setMemberSearchOpen(true)}
               className="gap-1.5"
             >
@@ -1126,6 +1138,12 @@ const Store = () => {
       <MemberSearchModal
         open={memberSearchOpen}
         onOpenChange={setMemberSearchOpen}
+      />
+
+      {/* Cashier top-up */}
+      <CashierTopupModal
+        open={topupOpen}
+        onOpenChange={setTopupOpen}
       />
     </div>
   );

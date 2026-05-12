@@ -114,6 +114,7 @@ class ShopProduct(Base):
     barcode = Column(String(100), nullable=True, index=True)
     name = Column(String(255), nullable=False, index=True)
     category = Column(String(100), nullable=False, default="ทั่วไป")
+    uom_id = Column(Integer, ForeignKey("units_of_measure.id"), nullable=True)  # Unit of measure
     external_price = Column(Numeric(10, 2), nullable=False, default=0)
     internal_price = Column(Numeric(10, 2), nullable=False, default=0)
     vat_percent = Column(Numeric(5, 2), nullable=False, default=7)
@@ -139,6 +140,7 @@ class ShopProduct(Base):
         cascade="all, delete-orphan",
         order_by="MenuOptionGroup.sort_order",
     )
+    uom = relationship("UnitOfMeasure", foreign_keys=[uom_id])
 
     def __repr__(self):
         return f"<ShopProduct(id={self.id}, shop='{self.shop_id}', name='{self.name}')>"

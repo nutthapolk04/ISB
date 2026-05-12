@@ -16,6 +16,7 @@ from app.schemas.wallet import (
     TopupRequest, TopupIntentResponse,
     AdjustBalanceRequest,
     SiblingTransferRequest, SiblingTransferResponse,
+    CashierTopupRequest, CashierTopupResponse,
 )
 from app.services.wallet_service import WalletService
 from app.models.receipt import Receipt
@@ -214,6 +215,56 @@ def parent_confirm_topup(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ── Cashier/Manager: cash top-up at POS ─────────────────────────────────────
+
+@router.post("/{wallet_id}/cashier-topup", response_model=CashierTopupResponse)
+def cashier_topup(
+    wallet_id: int,
+    payload: CashierTopupRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("cashier", "manager", "admin")),
+):
+    """Cashier or manager top-ups a customer wallet with cash at POS.
+
+    This is a direct top-up that doesn't require the QR payment flow.
+    The cashier receives cash from the customer and immediately credits their wallet.
+    """
+    from app.models.customer import Customer
+
+    w = WalletService.get_wallet(db, wallet_id)
+    if not w:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+
+    # Get customer name for response
+    customer_name = "Unknown"
+    if w.customer_id:
+        customer = db.query(Customer).filter(Customer.id == w.customer_id).first()
+        if customer:
+            customer_name = customer.name or f"Customer #{customer.id}"
+    elif w.user_id:
+        user = db.query(User).filter(User.id == w.user_id).first()
+        if user:
+            customer_name = user.full_name or user.username
+
+    try:
+        tx = WalletService.adjust_balance(
+            db,
+            wallet_id=wallet_id,
+            amount=payload.amount,
+            admin_user_id=current_user.id,
+            reason=f"Cash top-up at POS" + (f" - {payload.notes}" if payload.notes else ""),
+            reference_ticket=None,
+        )
+        return CashierTopupResponse(
+            wallet_id=wallet_id,
+            customer_name=customer_name,
+            amount=payload.amount,
+            balance_before=float(tx.balance_before),
+            balance_after=float(tx.balance_after),
+            transaction_id=tx.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Family transfer (parent moves money between own + children's wallets) ──

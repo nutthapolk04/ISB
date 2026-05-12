@@ -3,6 +3,7 @@ import { useParams, useNavigate, Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import Inventory from "./Inventory";
+import Bundles from "./Bundles";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight } from "lucide-react";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -184,6 +185,10 @@ const ShopDetail = () => {
             <Package className="h-4 w-4" />
             {t("management.tabInventory")}
           </TabsTrigger>
+          <TabsTrigger value="bundles" className="gap-2">
+            <Layers className="h-4 w-4" />
+            {t("management.tabBundles") || "Bundles"}
+          </TabsTrigger>
           <TabsTrigger value="audit" className="gap-2" onClick={fetchAuditLogs}>
             <History className="h-4 w-4" />
             {t("auditLog.title")}
@@ -238,6 +243,11 @@ const ShopDetail = () => {
         {/* ── Tab: Inventory ─────────────────────────────────────────────── */}
         <TabsContent value="inventory">
           <Inventory lockedShopId={shopId} shopType={shopType} />
+        </TabsContent>
+
+        {/* ── Tab: Bundles ──────────────────────────────────────────────── */}
+        <TabsContent value="bundles">
+          <Bundles lockedShopId={shopId} />
         </TabsContent>
 
         {/* ── Tab: Audit Log ────────────────────────────────────────────── */}
