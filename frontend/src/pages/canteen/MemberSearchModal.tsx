@@ -1,0 +1,305 @@
+import { useState, useEffect, useCallback } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Search,
+  UserCircle2,
+  Loader2,
+  AlertTriangle,
+  X,
+} from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { StudentLookupResult } from "./RfidPaymentModal";
+
+interface MemberSearchModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Called when a member is selected - returns the student profile */
+  onSelect?: (member: StudentLookupResult) => void;
+}
+
+export function MemberSearchModal({
+  open,
+  onOpenChange,
+  onSelect,
+}: MemberSearchModalProps) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<StudentLookupResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<StudentLookupResult | null>(null);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setResults([]);
+      setError(null);
+      setSelectedMember(null);
+    }
+  }, [open]);
+
+  // Debounced search
+  const searchMembers = useCallback(async (searchQuery: string) => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setError(null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.get<StudentLookupResult[]>(
+        `/customers/search?q=${encodeURIComponent(q)}&limit=10`
+      );
+      setResults(data);
+      if (data.length === 0) {
+        setError("ไม่พบข้อมูล");
+      }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "เกิดข้อผิดพลาด");
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Debounce effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchMembers(query);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, searchMembers]);
+
+  const handleSelect = (member: StudentLookupResult) => {
+    setSelectedMember(member);
+  };
+
+  const handleConfirm = () => {
+    if (selectedMember && onSelect) {
+      onSelect(selectedMember);
+      onOpenChange(false);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedMember(null);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-amber-500" />
+            ค้นหาสมาชิก
+          </DialogTitle>
+        </DialogHeader>
+
+        {!selectedMember ? (
+          // Search mode
+          <div className="space-y-4">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="พิมพ์ชื่อ หรือรหัสนักเรียน..."
+                className="pl-9"
+                autoFocus
+              />
+              {loading && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา
+            </p>
+
+            {/* Results list */}
+            {results.length > 0 && (
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {results.map((member) => (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => handleSelect(member)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
+                      member.card_frozen
+                        ? "border-red-200 bg-red-50 opacity-60"
+                        : "border-border bg-card hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    {/* Photo */}
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      {member.photo_url ? (
+                        <img
+                          src={member.photo_url}
+                          alt={member.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <UserCircle2 className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-sm truncate">
+                          {member.name}
+                        </span>
+                        {member.grade && (
+                          <Badge variant="secondary" className="h-4 text-[10px] px-1">
+                            Grade {member.grade}
+                          </Badge>
+                        )}
+                        {member.card_frozen && (
+                          <Badge variant="destructive" className="h-4 text-[10px] px-1">
+                            Frozen
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {member.student_code ?? member.customer_code}
+                      </div>
+                    </div>
+
+                    {/* Balance */}
+                    <div className="text-right shrink-0">
+                      <div
+                        className={cn(
+                          "text-sm font-bold tabular-nums",
+                          (member.wallet_balance ?? 0) < 0
+                            ? "text-destructive"
+                            : "text-foreground"
+                        )}
+                      >
+                        ฿{(member.wallet_balance ?? 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && !loading && (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                {error}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {query.length >= 2 && results.length === 0 && !loading && !error && (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                กำลังค้นหา...
+              </div>
+            )}
+          </div>
+        ) : (
+          // Selected member detail view
+          <div className="space-y-4">
+            {/* Member card */}
+            <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
+                {selectedMember.photo_url ? (
+                  <img
+                    src={selectedMember.photo_url}
+                    alt={selectedMember.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-amber-400">
+                    <UserCircle2 className="h-16 w-16" />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xl font-bold truncate">
+                  {selectedMember.name}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {selectedMember.student_code ?? selectedMember.customer_code}
+                  {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
+                </div>
+                <div className="mt-2 text-lg font-bold tabular-nums">
+                  ยอดเงินคงเหลือ:{" "}
+                  <span
+                    className={cn(
+                      (selectedMember.wallet_balance ?? 0) < 0
+                        ? "text-destructive"
+                        : "text-emerald-600"
+                    )}
+                  >
+                    ฿{(selectedMember.wallet_balance ?? 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Allergy warning */}
+            {selectedMember.allergies && (
+              <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <div>
+                  <div className="font-semibold">Allergies</div>
+                  <div className="text-xs">{selectedMember.allergies}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Frozen warning */}
+            {selectedMember.card_frozen && (
+              <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <div>
+                  <div className="font-semibold">บัตรถูกระงับ</div>
+                  <div className="text-xs">
+                    ไม่สามารถทำรายการได้ กรุณาติดต่อผู้ปกครองหรือแอดมิน
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setSelectedMember(null)}
+              >
+                <X className="h-4 w-4 mr-1" />
+                ค้นหาใหม่
+              </Button>
+              {onSelect && (
+                <Button
+                  className="flex-1 bg-amber-500 hover:bg-amber-600"
+                  onClick={handleConfirm}
+                  disabled={selectedMember.card_frozen}
+                >
+                  เลือกสมาชิกนี้
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

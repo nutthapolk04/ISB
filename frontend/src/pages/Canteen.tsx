@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Search, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { Search, ShoppingCart, UtensilsCrossed, UserSearch } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
@@ -29,6 +29,7 @@ import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
+import { MemberSearchModal } from "./canteen/MemberSearchModal";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -70,6 +71,7 @@ export default function Canteen() {
   const [cashOpen, setCashOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [deptOpen, setDeptOpen] = useState(false);
+  const [memberSearchOpen, setMemberSearchOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   // ── Departments (for department payment option) ──────────────────────────
@@ -435,6 +437,15 @@ export default function Canteen() {
                 </button>
               </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMemberSearchOpen(true)}
+              className="gap-1.5"
+            >
+              <UserSearch className="h-4 w-4" />
+              <span className="hidden sm:inline">ค้นหาสมาชิก</span>
+            </Button>
             <Badge
               variant="outline"
               className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
@@ -558,9 +569,7 @@ export default function Canteen() {
         open={methodPickerOpen}
         onOpenChange={setMethodPickerOpen}
         total={cart.total}
-        methods={shopAllowsDept
-          ? ["wallet", "cash", "qr", "edc", "department"]
-          : ["wallet", "cash", "qr", "edc"]}
+        methods={["wallet", "cash", "qr", "edc"]}
         onSelect={handleSelectMethod}
       />
       <RfidPaymentModal
@@ -614,6 +623,10 @@ export default function Canteen() {
         studentName={lastReceipt?.studentName ?? null}
         studentPhotoUrl={lastReceipt?.studentPhotoUrl ?? null}
         studentGrade={lastReceipt?.studentGrade ?? null}
+      />
+      <MemberSearchModal
+        open={memberSearchOpen}
+        onOpenChange={setMemberSearchOpen}
       />
     </div>
   );

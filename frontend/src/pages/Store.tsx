@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   Package,
   CreditCard,
+  UserSearch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,7 @@ import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { EdcPaymentModal } from "./store/EdcPaymentModal";
 import UserPicker from "@/components/UserPicker";
+import { MemberSearchModal } from "./canteen/MemberSearchModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -155,6 +157,7 @@ const Store = () => {
   const [deptOpen, setDeptOpen] = useState(false);
   const [edcOpen, setEdcOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [memberSearchOpen, setMemberSearchOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
 
@@ -505,11 +508,7 @@ const Store = () => {
     doCheckout("edc", { edcRefs: refs });
 
   // ── Available payment methods ───────────────────────────────────────────
-  const availableMethods: CanteenPaymentMethod[] = useMemo(() => {
-    const base: CanteenPaymentMethod[] = ["wallet", "cash", "qr", "edc"];
-    if (canUseDeptCharge) base.splice(3, 0, "department"); // before edc
-    return base;
-  }, [canUseDeptCharge]);
+  const availableMethods: CanteenPaymentMethod[] = ["wallet", "cash", "qr", "edc"];
 
   // ── Cart panel renderer (reused for desktop + mobile sheet) ─────────────
   // NOTE: this is a plain render-fn, NOT a React component. Defining a
@@ -819,11 +818,22 @@ const Store = () => {
             </h1>
             <p className="page-description">{t("store.scanEmptyHint")}</p>
           </div>
-          {user?.shopName && (
-            <Badge variant="outline" className="text-sm font-medium px-3 py-1">
-              {user.shopName}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMemberSearchOpen(true)}
+              className="gap-1.5"
+            >
+              <UserSearch className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("store.searchMember", "ค้นหาสมาชิก")}</span>
+            </Button>
+            {user?.shopName && (
+              <Badge variant="outline" className="text-sm font-medium px-3 py-1">
+                {user.shopName}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Search with suggestion dropdown */}
@@ -1110,6 +1120,12 @@ const Store = () => {
         studentName={lastReceipt?.studentName ?? null}
         studentPhotoUrl={lastReceipt?.studentPhotoUrl ?? null}
         studentGrade={lastReceipt?.studentGrade ?? null}
+      />
+
+      {/* Member search */}
+      <MemberSearchModal
+        open={memberSearchOpen}
+        onOpenChange={setMemberSearchOpen}
       />
     </div>
   );

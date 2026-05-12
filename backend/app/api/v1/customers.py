@@ -80,6 +80,49 @@ def _authz_access_customer(db: Session, user: User, customer: Customer):
 
 # ── Lookup endpoints (used by cashier at POS) ────────────────────────────────
 
+@router.get("/search", response_model=List[StudentProfileResponse])
+def search_customers(
+    q: str,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("cashier", "manager", "admin", "kitchen")
+    ),
+):
+    """Search customers by name or student code (partial match).
+
+    Used by POS cashiers to find a student when they don't have their card.
+    """
+    q = q.strip()
+    if len(q) < 2:
+        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+
+    search_pattern = f"%{q}%"
+    customers = (
+        db.query(Customer)
+        .options(joinedload(Customer.wallet))
+        .filter(
+            Customer.is_active == True,
+            (
+                Customer.name.ilike(search_pattern) |
+                Customer.student_code.ilike(search_pattern) |
+                Customer.customer_code.ilike(search_pattern)
+            )
+        )
+        .order_by(Customer.name)
+        .limit(limit)
+        .all()
+    )
+
+    # Ensure wallets exist
+    for c in customers:
+        if not c.wallet:
+            WalletService.ensure_wallet_for_customer(db, c.id)
+    db.commit()
+
+    return [_to_profile(c) for c in customers]
+
+
 @router.get("/by-code/{code}", response_model=StudentProfileResponse)
 def get_customer_by_code(
     code: str,
