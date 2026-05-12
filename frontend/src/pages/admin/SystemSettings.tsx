@@ -1,0 +1,147 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { api, ApiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, AlertTriangle, Settings as SettingsIcon } from "lucide-react";
+
+interface SettingsResponse {
+  allow_negative_user_wallet?: boolean;
+  allow_negative_customer_wallet?: boolean;
+  [key: string]: unknown;
+}
+
+export default function SystemSettings() {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [allowUserNeg, setAllowUserNeg] = useState(false);
+  const [allowCustomerNeg, setAllowCustomerNeg] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<SettingsResponse>("/admin/settings/");
+      setAllowUserNeg(!!data.allow_negative_user_wallet);
+      setAllowCustomerNeg(!!data.allow_negative_customer_wallet);
+    } catch (e) {
+      toast({
+        title: t("admin.settings.loadFailed", "Failed to load settings"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const update = async (key: string, value: boolean, setter: (v: boolean) => void) => {
+    const previous = key === "allow_negative_user_wallet" ? allowUserNeg : allowCustomerNeg;
+    setter(value);
+    setSavingKey(key);
+    try {
+      await api.put(`/admin/settings/${key}`, { value });
+      toast({ title: t("admin.settings.saved", "Setting saved") });
+    } catch (e) {
+      setter(previous);
+      toast({
+        title: t("admin.settings.saveFailed", "Failed to save"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  return (
+    <div className="p-4 sm:p-6 max-w-3xl space-y-4 sm:space-y-6">
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" size="sm" className="h-10">
+          <Link to="/admin">
+            <ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.settings.back", "Back")}
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <SettingsIcon className="h-7 w-7 text-primary" />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("admin.settings.title", "System Settings")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t("admin.settings.subtitle", "Runtime feature flags for the whole system")}
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            {t("admin.settings.negativePolicyTitle", "Wallet Negative Balance Policy")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">
+                {t("admin.settings.allowUserNeg", "Allow User wallet to go negative")}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "admin.settings.allowUserNegHint",
+                  "Staff and parent personal wallets can go below 0 when this is ON.",
+                )}
+              </p>
+            </div>
+            <Switch
+              checked={allowUserNeg}
+              disabled={loading || savingKey === "allow_negative_user_wallet"}
+              onCheckedChange={(v) => update("allow_negative_user_wallet", v, setAllowUserNeg)}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">
+                {t("admin.settings.allowCustomerNeg", "Allow Customer wallet to go negative")}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "admin.settings.allowCustomerNegHint",
+                  "Student/visitor wallets can go below 0 when this is ON. When OFF, admin can still grant per-customer overdraft via 'negative credit limit'.",
+                )}
+              </p>
+            </div>
+            <Switch
+              checked={allowCustomerNeg}
+              disabled={loading || savingKey === "allow_negative_customer_wallet"}
+              onCheckedChange={(v) =>
+                update("allow_negative_customer_wallet", v, setAllowCustomerNeg)
+              }
+            />
+          </div>
+
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <p>
+              {t(
+                "admin.settings.deptNote",
+                "Department wallets always allow negative balance — this policy does not apply to them. Admin manual adjustments also bypass these flags (they have their own audit trail).",
+              )}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

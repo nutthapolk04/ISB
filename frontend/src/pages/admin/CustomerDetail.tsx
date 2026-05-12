@@ -1,0 +1,711 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { api, ApiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { IconButton } from "@/components/IconButton";
+import { InfoCallout } from "@/components/InfoCallout";
+import { toast } from "@/hooks/use-toast";
+import {
+  ArrowLeft, Camera, CreditCard, GraduationCap, Lock, Unlock, Upload, User as UserIcon,
+  AlertTriangle, Edit3, Save, X, Wifi, ShieldAlert,
+} from "lucide-react";
+
+interface StudentProfile {
+  id: number;
+  customer_code: string;
+  student_code?: string | null;
+  name: string;
+  grade?: string | null;
+  school_type?: string | null;
+  photo_url?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  allergies?: string | null;
+  dietary_notes?: string | null;
+  allergy_override_note?: string | null;
+  card_uid?: string | null;
+  card_frozen: boolean;
+  daily_limit?: number | null;
+  negative_credit_limit?: number | null;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
+}
+
+interface Transaction {
+  id: number;
+  transaction_type: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  description?: string | null;
+  shop_name?: string | null;
+  created_at: string;
+}
+
+interface FamilyLink {
+  id: number;
+  parent_user_id: number;
+  parent_username?: string | null;
+  parent_full_name?: string | null;
+  child_customer_id: number;
+  child_name?: string | null;
+  child_student_code?: string | null;
+  relation: string;
+}
+
+const formatTHB = (n: number) =>
+  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
+
+const formatDate = (iso: string, lang: string) =>
+  new Date(iso).toLocaleString(lang === "th" ? "th-TH" : "en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+export default function CustomerDetail() {
+  const { t, i18n } = useTranslation();
+  const { customerId } = useParams<{ customerId: string }>();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allLinks, setAllLinks] = useState<FamilyLink[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Allergy editor
+  const [editingAllergy, setEditingAllergy] = useState(false);
+  const [allergyDraft, setAllergyDraft] = useState({ allergies: "", dietary_notes: "", allergy_override_note: "" });
+  const [savingAllergy, setSavingAllergy] = useState(false);
+
+  // Card binding dialog
+  const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [cardUidDraft, setCardUidDraft] = useState("");
+  const [bindingCard, setBindingCard] = useState(false);
+  const [webusbReading, setWebusbReading] = useState(false);
+
+  // Daily limit editor
+  const [dailyLimitDraft, setDailyLimitDraft] = useState<string>("");
+  const [savingLimit, setSavingLimit] = useState(false);
+
+  // Negative credit limit editor
+  const [negLimitDraft, setNegLimitDraft] = useState<string>("");
+  const [savingNegLimit, setSavingNegLimit] = useState(false);
+
+  // Photo upload
+  const [uploading, setUploading] = useState(false);
+
+  // Graduation dialog
+  const [gradDialogOpen, setGradDialogOpen] = useState(false);
+  const [gradTargetId, setGradTargetId] = useState<string>("");
+  const [graduating, setGraduating] = useState(false);
+
+  // Freeze toggle
+  const [togglingFreeze, setTogglingFreeze] = useState(false);
+
+  const loadAll = async () => {
+    if (!customerId) return;
+    try {
+      const p = await api.get<StudentProfile>(`/customers/${customerId}`);
+      setProfile(p);
+      setAllergyDraft({
+        allergies: p.allergies ?? "",
+        dietary_notes: p.dietary_notes ?? "",
+        allergy_override_note: p.allergy_override_note ?? "",
+      });
+      setDailyLimitDraft(p.daily_limit != null ? String(p.daily_limit) : "");
+      setNegLimitDraft(p.negative_credit_limit != null ? String(p.negative_credit_limit) : "");
+      setCardUidDraft(p.card_uid ?? "");
+      if (p.wallet_id) {
+        const txs = await api.get<Transaction[]>(`/wallets/${p.wallet_id}/transactions`);
+        setTransactions(txs.slice(0, 10));
+      }
+      const links = await api.get<FamilyLink[]>("/family/links");
+      setAllLinks(links);
+    } catch (e) {
+      toast({
+        title: t("admin.customer.loadError"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, [customerId]);
+
+  // Parent user_ids linked to this customer
+  const parentIdsForThisChild = useMemo(() => {
+    if (!profile) return new Set<number>();
+    return new Set(
+      allLinks.filter((l) => l.child_customer_id === profile.id).map((l) => l.parent_user_id),
+    );
+  }, [allLinks, profile]);
+
+  // Siblings = other children linked to the same parent(s)
+  const siblings = useMemo(() => {
+    if (!profile) return [] as { id: number; name: string; student_code?: string | null }[];
+    const sibMap = new Map<number, { id: number; name: string; student_code?: string | null }>();
+    for (const l of allLinks) {
+      if (parentIdsForThisChild.has(l.parent_user_id) && l.child_customer_id !== profile.id) {
+        sibMap.set(l.child_customer_id, {
+          id: l.child_customer_id,
+          name: l.child_name || `#${l.child_customer_id}`,
+          student_code: l.child_student_code,
+        });
+      }
+    }
+    return Array.from(sibMap.values());
+  }, [allLinks, parentIdsForThisChild, profile]);
+
+  const parents = useMemo(() => {
+    if (!profile) return [] as FamilyLink[];
+    return allLinks.filter((l) => l.child_customer_id === profile.id);
+  }, [allLinks, profile]);
+
+  const handleSaveAllergy = async () => {
+    if (!profile) return;
+    setSavingAllergy(true);
+    try {
+      await api.patch(`/customers/${profile.id}/allergies`, allergyDraft);
+      toast({ title: t("admin.customer.allergySaved") });
+      setEditingAllergy(false);
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.allergySaveError"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setSavingAllergy(false);
+    }
+  };
+
+  const handleBindCard = async () => {
+    if (!profile) return;
+    setBindingCard(true);
+    try {
+      await api.patch(`/customers/${profile.id}/card`, { card_uid: cardUidDraft.trim() || null });
+      toast({ title: cardUidDraft ? t("admin.customer.cardBound") : t("admin.customer.cardUnboundToast") });
+      setCardDialogOpen(false);
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setBindingCard(false);
+    }
+  };
+
+  const handleWebUSBRead = async () => {
+    // WebUSB requires user gesture + HTTPS. Chrome-only. Best-effort integration:
+    // Prompt user to pick a USB device. If an NFC reader (ACR122U) is selected,
+    // we can't actually read from it without a protocol library — so this stub
+    // just documents the pathway and falls back to manual input.
+    if (!("usb" in navigator)) {
+      toast({
+        title: t("admin.customer.browserNoWebUsb"),
+        description: t("admin.customer.browserNoWebUsbDesc"),
+        variant: "destructive",
+      });
+      return;
+    }
+    setWebusbReading(true);
+    try {
+      // @ts-expect-error: navigator.usb is not in standard TS lib
+      const device = await navigator.usb.requestDevice({ filters: [] });
+      toast({
+        title: t("admin.customer.readerConnected"),
+        description: t("admin.customer.readerConnectedDesc", { name: device.productName || "reader" }),
+      });
+    } catch {
+      toast({
+        title: t("admin.customer.readerNotPicked"),
+        description: t("admin.customer.readerNotPickedDesc"),
+      });
+    } finally {
+      setWebusbReading(false);
+    }
+  };
+
+  const handleSaveDailyLimit = async () => {
+    if (!profile) return;
+    setSavingLimit(true);
+    try {
+      const v = dailyLimitDraft.trim() === "" ? null : parseFloat(dailyLimitDraft);
+      await api.patch(`/customers/${profile.id}/limit`, { daily_limit: v });
+      toast({ title: t("admin.customer.dailyLimitSaved") });
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.allergySaveError"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setSavingLimit(false);
+    }
+  };
+
+  const handleSaveNegLimit = async () => {
+    if (!profile) return;
+    setSavingNegLimit(true);
+    try {
+      const v = negLimitDraft.trim() === "" ? null : parseFloat(negLimitDraft);
+      await api.patch(`/customers/${profile.id}/negative-limit`, { negative_credit_limit: v });
+      toast({ title: t("admin.customer.negLimitSaved") });
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.allergySaveError"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setSavingNegLimit(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await api.postFormData(`/customers/${profile.id}/photo`, form);
+      toast({ title: t("admin.customer.photoUploaded") });
+      loadAll();
+    } catch (err) {
+      toast({ title: t("admin.customer.photoUploadFailed"), description: err instanceof ApiError ? err.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleToggleFreeze = async () => {
+    if (!profile) return;
+    setTogglingFreeze(true);
+    try {
+      await api.post(`/customers/${profile.id}/freeze`, { frozen: !profile.card_frozen });
+      toast({ title: profile.card_frozen ? t("admin.customer.cardUnfrozen") : t("admin.customer.cardFrozen") });
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setTogglingFreeze(false);
+    }
+  };
+
+  const handleGraduate = async () => {
+    if (!profile) return;
+    if (!window.confirm(t("admin.customer.gradConfirmOne", { name: profile.name }))) return;
+    setGraduating(true);
+    try {
+      const resp = await api.post<{
+        message: string; transferred_amount: number; transferred_to_customer_id?: number | null;
+      }>(`/customers/${profile.id}/graduate`, {
+        transfer_to_customer_id: gradTargetId ? parseInt(gradTargetId) : null,
+      });
+      toast({
+        title: t("admin.customer.gradDone"),
+        description: resp.message,
+      });
+      setGradDialogOpen(false);
+      navigate("/admin/wallet-adjust");
+    } catch (e) {
+      toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setGraduating(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-4 sm:p-6 text-muted-foreground">{t("admin.customer.loading")}</div>;
+  }
+  if (!profile) {
+    return <div className="p-4 sm:p-6 text-destructive">{t("admin.customer.notFound")}</div>;
+  }
+
+  const initials = profile.name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+
+  return (
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl">
+      <Button asChild variant="ghost" size="sm" className="w-fit">
+        <Link to="/admin/wallet-adjust"><ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.customer.back")}</Link>
+      </Button>
+
+      {/* Header card */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start">
+            <div className="relative">
+              <Avatar className="h-24 w-24">
+                {profile.photo_url && <AvatarImage src={profile.photo_url} alt={profile.name} />}
+                <AvatarFallback className="text-xl">{initials}</AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 rounded-full bg-primary text-primary-foreground p-1.5 shadow"
+                title={t("admin.customer.uploadPhoto")}
+              >
+                {uploading ? <Upload className="h-3.5 w-3.5 animate-pulse" /> : <Camera className="h-3.5 w-3.5" />}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <h1 className="text-2xl font-bold">{profile.name}</h1>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {profile.student_code && <Badge variant="secondary">{profile.student_code}</Badge>}
+                  <Badge variant="outline">{profile.customer_code}</Badge>
+                  {profile.grade && <Badge variant="outline"><GraduationCap className="h-3 w-3 mr-0.5" />{profile.grade}</Badge>}
+                  {profile.school_type && <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">{profile.school_type}</Badge>}
+                  {profile.card_frozen && (
+                    <Badge variant="destructive"><Lock className="h-3 w-3 mr-0.5" />{t("admin.customer.frozenBadge")}</Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-md bg-primary/5 p-4">
+                <p className="text-xs text-muted-foreground">{t("admin.customer.balance")}</p>
+                <p className={`text-3xl font-bold font-mono ${(profile.wallet_balance ?? 0) < 0 ? "text-destructive" : "text-primary"}`}>
+                  {formatTHB(profile.wallet_balance ?? 0)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <Button
+                variant={profile.card_frozen ? "outline" : "destructive"}
+                size="sm"
+                onClick={handleToggleFreeze}
+                disabled={togglingFreeze}
+              >
+                {profile.card_frozen ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
+                {profile.card_frozen ? t("admin.customer.unfreezeCard") : t("admin.customer.freezeCard")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGradDialogOpen(true)}
+              >
+                <GraduationCap className="h-4 w-4 mr-1" /> {t("admin.customer.markGraduated")}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Allergy info */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" /> {t("admin.customer.allergyTitle")}
+            </CardTitle>
+            {!editingAllergy ? (
+              <Button variant="ghost" size="sm" onClick={() => setEditingAllergy(true)}>
+                <Edit3 className="h-4 w-4" />
+              </Button>
+            ) : (
+              <div className="flex gap-1">
+                <IconButton
+                  tooltip={t("admin.customer.tooltip.cancelEdit")}
+                  onClick={() => { setEditingAllergy(false); setAllergyDraft({ allergies: profile.allergies ?? "", dietary_notes: profile.dietary_notes ?? "", allergy_override_note: profile.allergy_override_note ?? "" }); }}
+                >
+                  <X className="h-4 w-4" />
+                </IconButton>
+                <IconButton
+                  tooltip={t("admin.customer.tooltip.saveEdit")}
+                  onClick={handleSaveAllergy}
+                  disabled={savingAllergy}
+                >
+                  <Save className="h-4 w-4" />
+                </IconButton>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {editingAllergy ? (
+              <>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.allergiesLabel")}</Label>
+                  <Textarea rows={2} value={allergyDraft.allergies} onChange={(e) => setAllergyDraft({ ...allergyDraft, allergies: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.dietaryNotes")}</Label>
+                  <Textarea rows={2} value={allergyDraft.dietary_notes} onChange={(e) => setAllergyDraft({ ...allergyDraft, dietary_notes: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs text-destructive font-semibold flex items-center gap-1">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    {t("admin.customer.overrideNote")}
+                  </Label>
+                  <InfoCallout
+                    id="customer.allergyOverride"
+                    variant="warn"
+                    title={t("admin.customer.info.allergyOverride.title")}
+                    className="my-2"
+                  >
+                    {t("admin.customer.info.allergyOverride.body")}
+                  </InfoCallout>
+                  <Textarea rows={2} value={allergyDraft.allergy_override_note} onChange={(e) => setAllergyDraft({ ...allergyDraft, allergy_override_note: e.target.value })} placeholder={t("admin.customer.overridePlaceholder")} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.allergiesHeading")}</p>
+                  <p className="text-sm">{profile.allergies || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.dietaryNotes")}</p>
+                  <p className="text-sm">{profile.dietary_notes || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+                {profile.allergy_override_note && (
+                  <div className="rounded-md border-2 border-destructive bg-destructive/10 p-2">
+                    <p className="text-xs text-destructive font-bold flex items-center gap-1">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      {t("admin.customer.overrideBadge")}
+                    </p>
+                    <p className="text-sm text-destructive">{profile.allergy_override_note}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Card & limits */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="h-4 w-4" /> {t("admin.customer.cardLimitsTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">{t("admin.customer.cardUid")}</p>
+                <p className="font-mono text-sm">{profile.card_uid || <span className="text-muted-foreground italic">{t("admin.customer.cardNotBound")}</span>}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setCardDialogOpen(true)}>
+                <CreditCard className="h-4 w-4 mr-1" /> {profile.card_uid ? t("admin.customer.changeCard") : t("admin.customer.bindCardBtn")}
+              </Button>
+            </div>
+
+            <Separator />
+
+            <InfoCallout
+              id="customer.limits"
+              variant="info"
+              title={t("admin.customer.info.limits.title")}
+            >
+              {t("admin.customer.info.limits.body")}
+            </InfoCallout>
+
+            <div>
+              <Label className="text-xs">{t("admin.customer.dailyLimit")}</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type="number" min="0" step="0.01" value={dailyLimitDraft} onChange={(e) => setDailyLimitDraft(e.target.value)} placeholder={t("admin.customer.dailyLimitPlaceholder")} />
+                <Button size="sm" onClick={handleSaveDailyLimit} disabled={savingLimit}>{t("admin.customer.save")}</Button>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">{t("admin.customer.negativeLimit")}</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type="number" min="0" step="0.01" value={negLimitDraft} onChange={(e) => setNegLimitDraft(e.target.value)} placeholder={t("admin.customer.negativeLimitPlaceholder")} />
+                <Button size="sm" onClick={handleSaveNegLimit} disabled={savingNegLimit}>{t("admin.customer.save")}</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Family links */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserIcon className="h-4 w-4" /> {t("admin.customer.familyTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {parents.length === 0 && <p className="text-sm text-muted-foreground italic">{t("admin.customer.noParents")}</p>}
+            {parents.map((l) => (
+              <div key={l.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                <div>
+                  <p className="font-medium">{l.parent_full_name || l.parent_username}</p>
+                  <p className="text-xs text-muted-foreground">@{l.parent_username} · {l.relation}</p>
+                </div>
+              </div>
+            ))}
+            {siblings.length > 0 && (
+              <>
+                <Separator className="my-2" />
+                <p className="text-xs text-muted-foreground">{t("admin.customer.siblingsCount", { count: siblings.length })}</p>
+                {siblings.map((s) => (
+                  <Link key={s.id} to={`/admin/customer/${s.id}`} className="flex items-center justify-between rounded-md border p-2 text-sm hover:bg-muted/50">
+                    <div>
+                      <p className="font-medium">{s.name}</p>
+                      {s.student_code && <p className="text-xs text-muted-foreground">{s.student_code}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent transactions */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t("admin.customer.recentTransactions")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            {transactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">{t("admin.customer.noTransactions")}</p>
+            ) : (
+              transactions.map((tx) => {
+                const isCredit = ["TOPUP", "REFUND"].includes(tx.transaction_type) || (tx.transaction_type === "ADJUSTMENT" && tx.balance_after > tx.balance_before);
+                return (
+                  <div key={tx.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate">{tx.description || tx.transaction_type}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(tx.created_at, i18n.language)}
+                        {tx.shop_name && <> · {tx.shop_name}</>}
+                      </p>
+                    </div>
+                    <p className={`font-mono text-sm font-semibold shrink-0 ml-2 ${isCredit ? "text-green-600" : "text-destructive"}`}>
+                      {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Card bind dialog */}
+      <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.customer.bindDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("admin.customer.bindDialogDesc")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t("admin.customer.cardUid")}</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={cardUidDraft}
+                  onChange={(e) => setCardUidDraft(e.target.value.toUpperCase())}
+                  placeholder={t("admin.customer.bindPlaceholder")}
+                  className="font-mono"
+                />
+                <IconButton
+                  tooltip={t("admin.customer.pickReader")}
+                  variant="outline"
+                  onClick={handleWebUSBRead}
+                  disabled={webusbReading}
+                >
+                  <Wifi className="h-4 w-4" />
+                </IconButton>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>{t("admin.customer.bindReaderHint")}</span>
+              </p>
+            </div>
+            {profile.card_uid && (
+              <div className="rounded-md bg-muted p-2 text-xs">
+                <span className="text-muted-foreground">{t("admin.customer.currentUid")}</span>
+                <span className="font-mono">{profile.card_uid}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            {profile.card_uid && (
+              <Button variant="outline" onClick={() => { setCardUidDraft(""); handleBindCard(); }} disabled={bindingCard}>
+                {t("admin.customer.unbindButton")}
+              </Button>
+            )}
+            <Button onClick={handleBindCard} disabled={bindingCard}>
+              {bindingCard ? t("admin.customer.saving") : t("admin.customer.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Graduation dialog */}
+      <Dialog open={gradDialogOpen} onOpenChange={setGradDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.customer.gradDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("admin.customer.gradDialogDesc")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("admin.customer.gradBalanceToTransfer")}</span>
+                <span className="font-mono font-semibold">{formatTHB(profile.wallet_balance ?? 0)}</span>
+              </div>
+            </div>
+            {siblings.length > 0 ? (
+              <div>
+                <Label>{t("admin.customer.gradTransferTo")}</Label>
+                <Select value={gradTargetId} onValueChange={setGradTargetId}>
+                  <SelectTrigger><SelectValue placeholder={siblings.length === 1 ? `${siblings[0].name} (auto)` : t("admin.customer.gradSelectDest")} /></SelectTrigger>
+                  <SelectContent>
+                    {siblings.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name} {s.student_code ? `(${s.student_code})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {siblings.length === 1 && (
+                  <p className="text-xs text-muted-foreground mt-1">{t("admin.customer.gradSingleSiblingHint")}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-amber-700 bg-amber-50 rounded-md p-2 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{t("admin.customer.gradNoSiblings")}</span>
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGradDialogOpen(false)} disabled={graduating}>
+              {t("admin.customer.cancel")}
+            </Button>
+            <Button onClick={handleGraduate} disabled={graduating}>
+              {graduating ? t("admin.customer.gradRunning") : t("admin.customer.gradConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Python backend
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+
+# Lock files (keep package-lock.json)
+bun.lockb

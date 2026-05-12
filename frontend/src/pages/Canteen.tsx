@@ -1,0 +1,574 @@
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { InfoCallout } from "@/components/InfoCallout";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Search, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
+import type { SelectedOptionGroup } from "./canteen/menuOptionTypes";
+import { CategoryTabs } from "./canteen/CategoryTabs";
+import { ProductGrid } from "./canteen/ProductGrid";
+import { CanteenCart } from "./canteen/CanteenCart";
+import { DiscountModal } from "./canteen/DiscountModal";
+import MenuOptionModal from "./canteen/MenuOptionModal";
+import {
+  PaymentMethodPicker,
+  type CanteenPaymentMethod,
+} from "./canteen/PaymentMethodPicker";
+import {
+  RfidPaymentModal,
+  type StudentLookupResult,
+  type WalletPayer,
+} from "./canteen/RfidPaymentModal";
+import { CashPaymentModal } from "./canteen/CashPaymentModal";
+import { QrPaymentModal } from "./canteen/QrPaymentModal";
+import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
+
+/** Fallback when user has no shopId (e.g., admin browsing canteen) */
+const DEFAULT_CANTEEN_SHOP_ID = "canteen";
+
+interface ShopProductApiShape {
+  id: number;
+  product_code: string;
+  name: string;
+  category: string;
+  external_price: number;
+  internal_price: number;
+  stock: number;
+  has_options?: boolean;
+  color?: string | null;
+}
+
+
+interface CheckoutResponse {
+  receipt_number: string;
+  total: number;
+}
+
+export default function Canteen() {
+  const { user } = useAuth();
+  // Cashier/manager → their shop; admin viewer → fallback to "canteen"
+  const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
+  const cart = useCanteenCart();
+  const [products, setProducts] = useState<CanteenProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  // Per-shop pricing model — single-pricing canteens hide the Retail/Internal
+  // toggle entirely. Defaults to dual until the shop meta loads.
+  const [usesDualPricing, setUsesDualPricing] = useState(true);
+
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [methodPickerOpen, setMethodPickerOpen] = useState(false);
+  const [rfidOpen, setRfidOpen] = useState(false);
+  const [cashOpen, setCashOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState<{
+    number: string;
+    amount: number;
+    remainingBalance: number | null;
+    studentName?: string | null;
+    studentPhotoUrl?: string | null;
+    studentGrade?: string | null;
+  } | null>(null);
+
+  // Product being customised in the MenuOptionModal.
+  const [optionTarget, setOptionTarget] = useState<CanteenProduct | null>(null);
+
+  // Mobile cart sheet (shown below lg breakpoint).
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const handleProductTap = (product: CanteenProduct) => {
+    if (product.hasOptions) {
+      setOptionTarget(product);
+    } else {
+      cart.addItem(product);
+    }
+  };
+
+  const handleOptionsConfirmed = (groups: SelectedOptionGroup[]) => {
+    if (!optionTarget) return;
+    cart.addItemWithOptions(optionTarget, groups);
+    setOptionTarget(null);
+  };
+
+  // ── Load canteen products ──────────────────────────────────────────────
+  const loadProducts = async () => {
+    setProductsLoading(true);
+    try {
+      const data = await api.get<ShopProductApiShape[]>(
+        `/shops/${CANTEEN_SHOP_ID}/products`,
+      );
+      setProducts(
+        data.map((p) => ({
+          id: p.id,
+          productCode: p.product_code,
+          name: p.name,
+          price: Number(p.external_price),
+          internalPrice: Number(p.internal_price),
+          category: p.category,
+          stock: p.stock,
+          hasOptions: Boolean(p.has_options),
+          color: p.color ?? null,
+        })),
+      );
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError
+          ? e.detail
+          : "Could not load canteen products",
+      );
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [CANTEEN_SHOP_ID]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ uses_dual_pricing?: boolean }>(`/shops/${CANTEEN_SHOP_ID}`)
+      .then((meta) => {
+        if (!cancelled) setUsesDualPricing(meta.uses_dual_pricing ?? true);
+      })
+      .catch(() => {
+        // Fail-open: keep default true so existing behaviour is preserved.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [CANTEEN_SHOP_ID]);
+
+  // Single-pricing shops never enter "internal" mode — pin to retail.
+  useEffect(() => {
+    if (!usesDualPricing && cart.priceMode !== "retail") {
+      cart.setPriceMode("retail");
+    }
+  }, [usesDualPricing, cart]);
+
+  // ── Filtering ──────────────────────────────────────────────────────────
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of products) {
+      counts[p.category] = (counts[p.category] ?? 0) + 1;
+    }
+    return counts;
+  }, [products]);
+
+  const visibleProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return products.filter((p) => {
+      if (activeCategory !== "All" && p.category !== activeCategory)
+        return false;
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.productCode.toLowerCase().includes(q)
+      );
+    });
+  }, [products, search, activeCategory]);
+
+  // ── Checkout ───────────────────────────────────────────────────────────
+  const doCheckout = async (
+    backendPaymentMethod: "wallet" | "cash" | "qr_promptpay" | "edc",
+    payer?:
+      | { kind: "customer"; customerId: number }
+      | { kind: "user"; userId: number },
+  ) => {
+    setConfirming(true);
+    try {
+      const payload = {
+        transaction_mode:
+          cart.priceMode === "internal" ? "internal_issue" : "sale",
+        payment_method: backendPaymentMethod,
+        payer_kind: payer?.kind ?? "customer",
+        customer_id: payer?.kind === "customer" ? payer.customerId : undefined,
+        payer_user_id: payer?.kind === "user" ? payer.userId : undefined,
+        shop_id: CANTEEN_SHOP_ID,
+        items: cart.items.map((i) => ({
+          product_variant_id: i.id,
+          quantity: i.quantity,
+          unit_price:
+            cart.priceMode === "internal" ? i.internalPrice : i.price,
+          // Cashier-entered one-time override (null when untouched). Backend
+          // bills the line at this value; unit_price stays as the catalog price.
+          price_override: i.priceOverride ?? null,
+          discount: 0,
+          options: i.selectedOptions.flatMap((g) =>
+            g.options.map((o) => ({
+              option_id: o.id,
+              quantity: o.quantity,
+            })),
+          ),
+        })),
+        discount: cart.billDiscountAmount,
+      };
+      const res = await api.post<CheckoutResponse>("/pos/checkout", payload);
+      return res;
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const finalizeSuccess = (
+    receiptNumber: string,
+    amount: number,
+    remainingBalance: number | null,
+    student?: StudentLookupResult | null,
+  ) => {
+    setLastReceipt({
+      number: receiptNumber,
+      amount,
+      remainingBalance,
+      studentName: student?.name ?? null,
+      studentPhotoUrl: student?.photo_url ?? null,
+      studentGrade: student?.grade ?? null,
+    });
+    setSuccessOpen(true);
+    // Optimistic stock update
+    setProducts((prev) =>
+      prev.map((p) => {
+        const cartItem = cart.items.find((c) => c.id === p.id);
+        return cartItem
+          ? { ...p, stock: p.stock - cartItem.quantity }
+          : p;
+      }),
+    );
+    cart.clearCart();
+    // Close payment modals
+    setRfidOpen(false);
+    setCashOpen(false);
+    setQrOpen(false);
+    setMethodPickerOpen(false);
+    setCartOpen(false);
+  };
+
+  const handleSelectMethod = (method: CanteenPaymentMethod) => {
+    setMethodPickerOpen(false);
+    if (method === "wallet") setRfidOpen(true);
+    else if (method === "cash") setCashOpen(true);
+    else if (method === "edc") void handleConfirmEdc();
+    else setQrOpen(true);
+  };
+
+  const handleConfirmWallet = async (payer: WalletPayer) => {
+    try {
+      const amount = cart.total;
+      if (payer.kind === "customer") {
+        const student = payer.student;
+        const currentBalance = Number(student.wallet_balance ?? 0);
+        const res = await doCheckout("wallet", {
+          kind: "customer",
+          customerId: student.id,
+        });
+        finalizeSuccess(
+          res.receipt_number,
+          amount,
+          currentBalance - amount,
+          student,
+        );
+        return;
+      }
+      // payer.kind === "user"
+      const u = payer.user;
+      const currentBalance = Number(u.wallet_balance ?? 0);
+      const res = await doCheckout("wallet", {
+        kind: "user",
+        userId: u.user_id,
+      });
+      finalizeSuccess(res.receipt_number, amount, currentBalance - amount, {
+        // Reuse the receipt-success modal slot for the payer name + photo so
+        // cashier sees confirmation of who was charged.
+        id: u.user_id,
+        name: u.full_name,
+        customer_code: u.username,
+        student_code: u.username,
+        grade: u.role,
+        photo_url: u.photo_url ?? null,
+        wallet_balance: u.wallet_balance,
+      } as StudentLookupResult);
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError ? e.detail : "Checkout failed",
+      );
+    }
+  };
+
+  const handleConfirmCash = async () => {
+    try {
+      const amount = cart.total;
+      const res = await doCheckout("cash");
+      finalizeSuccess(res.receipt_number, amount, null);
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError ? e.detail : "Checkout failed",
+      );
+    }
+  };
+
+  const handleConfirmQr = async () => {
+    try {
+      const amount = cart.total;
+      const res = await doCheckout("qr_promptpay");
+      finalizeSuccess(res.receipt_number, amount, null);
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError ? e.detail : "Checkout failed",
+      );
+    }
+  };
+
+  const handleConfirmEdc = async () => {
+    try {
+      const amount = cart.total;
+      const res = await doCheckout("edc");
+      finalizeSuccess(res.receipt_number, amount, null);
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError ? e.detail : "Checkout failed",
+      );
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────
+  return (
+    <div className="canteen-layout">
+      {/* Main — catalog */}
+      <div className="canteen-content">
+        {/* Header */}
+        <div className="page-header flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="page-title flex items-center gap-2">
+              <UtensilsCrossed className="h-7 w-7 text-amber-500" />
+              Canteen POS
+            </h1>
+            <p className="page-description">
+              Tap a dish to add it to the order — then charge via wallet, cash
+              or QR.
+            </p>
+          </div>
+          <InfoCallout
+            id="canteen.retailVsInternal"
+            variant="tip"
+            title="Retail vs Internal"
+            className="mt-2 max-w-xl"
+          >
+            <strong>Retail</strong> = ราคาขายปกติสำหรับลูกค้า ·{" "}
+            <strong>Internal</strong> = ราคาพนักงาน/ครอบครัว/ใช้ภายในองค์กร
+          </InfoCallout>
+          <div className="flex items-center gap-3">
+            {usesDualPricing && (
+              <div
+                className="flex items-center gap-1 rounded-full bg-muted p-1"
+                role="group"
+                aria-label="Price mode"
+              >
+                <button
+                  type="button"
+                  onClick={() => cart.setPriceMode("retail")}
+                  className={cn(
+                    "px-3 py-1 text-xs font-semibold rounded-full transition",
+                    cart.priceMode === "retail"
+                      ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Retail
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cart.setPriceMode("internal")}
+                  className={cn(
+                    "px-3 py-1 text-xs font-semibold rounded-full transition",
+                    cart.priceMode === "internal"
+                      ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Internal
+                </button>
+              </div>
+            )}
+            <Badge
+              variant="outline"
+              className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
+            >
+              ISB Canteen
+            </Badge>
+          </div>
+        </div>
+
+        {/* Search + categories */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search dishes…"
+              className="pl-9 h-11 bg-card/90"
+            />
+          </div>
+          <CategoryTabs
+            active={activeCategory}
+            onChange={setActiveCategory}
+            counts={categoryCounts}
+          />
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-y-auto p-1 pb-24 lg:pb-2">
+          <ProductGrid
+            products={visibleProducts}
+            lastAddedProductId={null}
+            onAdd={handleProductTap}
+            loading={productsLoading}
+            priceMode={cart.priceMode}
+          />
+        </div>
+      </div>
+
+      {/* Desktop cart panel — visible ≥lg, hidden below */}
+      <CanteenCart
+        items={cart.items}
+        subtotal={cart.subtotal}
+        billDiscountMode={cart.billDiscountMode}
+        billDiscountValue={cart.billDiscountValue}
+        billDiscountAmount={cart.billDiscountAmount}
+        total={cart.total}
+        priceMode={cart.priceMode}
+        priceFor={cart.priceFor}
+        unitPriceFor={cart.unitPriceFor}
+        onIncrement={cart.incrementLine}
+        onDecrement={cart.decrementLine}
+        onRemove={cart.removeLine}
+        onSetLinePrice={cart.setLinePriceOverride}
+        onOpenDiscount={() => setDiscountOpen(true)}
+        onClearDiscount={cart.clearDiscount}
+        onCharge={() => setMethodPickerOpen(true)}
+      />
+
+      {/* Mobile floating cart trigger — visible <lg when cart has items */}
+      {cart.items.length > 0 && (
+        <Button
+          onClick={() => setCartOpen(true)}
+          className="lg:hidden fixed bottom-4 right-4 z-40 h-14 px-5 rounded-full text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/50"
+        >
+          <ShoppingCart className="h-5 w-5 mr-2" />
+          <span className="tabular-nums">
+            ฿{cart.total.toFixed(0)} · {cart.items.reduce((s, i) => s + i.quantity, 0)}
+          </span>
+        </Button>
+      )}
+
+      {/* Mobile cart sheet */}
+      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col lg:hidden">
+          <CanteenCart
+            asSheet
+            items={cart.items}
+            subtotal={cart.subtotal}
+            billDiscountMode={cart.billDiscountMode}
+            billDiscountValue={cart.billDiscountValue}
+            billDiscountAmount={cart.billDiscountAmount}
+            total={cart.total}
+            priceMode={cart.priceMode}
+            priceFor={cart.priceFor}
+            unitPriceFor={cart.unitPriceFor}
+            onIncrement={cart.incrementLine}
+            onDecrement={cart.decrementLine}
+            onRemove={cart.removeLine}
+            onSetLinePrice={cart.setLinePriceOverride}
+            onOpenDiscount={() => setDiscountOpen(true)}
+            onClearDiscount={cart.clearDiscount}
+            onCharge={() => {
+              setCartOpen(false);
+              setMethodPickerOpen(true);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
+
+      {/* Menu option modal */}
+      <MenuOptionModal
+        shopId={CANTEEN_SHOP_ID}
+        product={optionTarget}
+        basePrice={optionTarget ? cart.priceFor(optionTarget) : 0}
+        onClose={() => setOptionTarget(null)}
+        onConfirm={handleOptionsConfirmed}
+      />
+
+      {/* Modals */}
+      <DiscountModal
+        open={discountOpen}
+        onOpenChange={setDiscountOpen}
+        subtotal={cart.subtotal}
+        initialMode={cart.billDiscountMode}
+        initialValue={cart.billDiscountValue}
+        onApply={cart.setBillDiscount}
+        onClear={cart.clearDiscount}
+      />
+      <PaymentMethodPicker
+        open={methodPickerOpen}
+        onOpenChange={setMethodPickerOpen}
+        total={cart.total}
+        onSelect={handleSelectMethod}
+      />
+      <RfidPaymentModal
+        open={rfidOpen}
+        onOpenChange={setRfidOpen}
+        total={cart.total}
+        onBack={() => {
+          setRfidOpen(false);
+          setMethodPickerOpen(true);
+        }}
+        onConfirm={handleConfirmWallet}
+        confirming={confirming}
+      />
+      <CashPaymentModal
+        open={cashOpen}
+        onOpenChange={setCashOpen}
+        total={cart.total}
+        onBack={() => {
+          setCashOpen(false);
+          setMethodPickerOpen(true);
+        }}
+        onConfirm={handleConfirmCash}
+        confirming={confirming}
+      />
+      <QrPaymentModal
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        total={cart.total}
+        onBack={() => {
+          setQrOpen(false);
+          setMethodPickerOpen(true);
+        }}
+        onConfirm={handleConfirmQr}
+        confirming={confirming}
+      />
+      <ReceiptSuccessModal
+        open={successOpen}
+        onClose={() => setSuccessOpen(false)}
+        receiptNumber={lastReceipt?.number ?? ""}
+        amount={lastReceipt?.amount ?? 0}
+        remainingBalance={lastReceipt?.remainingBalance ?? null}
+        studentName={lastReceipt?.studentName ?? null}
+        studentPhotoUrl={lastReceipt?.studentPhotoUrl ?? null}
+        studentGrade={lastReceipt?.studentGrade ?? null}
+      />
+    </div>
+  );
+}

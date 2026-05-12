@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ISB Logo">
+  <rect width="512" height="512" fill="#f3f4f6"/>
+  <polygon points="256,120 60,300 452,300" fill="#eacb46"/>
+  <polygon points="256,158 154,264 358,264" fill="#d4362a"/>
+  <polygon points="256,158 358,264 256,264" fill="#b6352a"/>
+  <text
+    x="256"
+    y="430"
+    text-anchor="middle"
+    font-family="Times New Roman, serif"
+    font-size="190"
+    fill="#111111"
+  >
+    ISB
+  </text>
+</svg>

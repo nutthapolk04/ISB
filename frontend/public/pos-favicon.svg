@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="POS Icon">
+  <defs>
+    <linearGradient id="posGrad" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#posGrad)"/>
+  <path d="M22 16h20v31l-3-2-3 2-3-2-3 2-3-2-3 2V16z" fill="#fff"/>
+  <path d="M26 23h12M26 29h12M26 35h8" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+</svg>

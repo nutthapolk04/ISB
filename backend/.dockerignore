@@ -1,0 +1,37 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Git / OS
+.git/
+.gitignore
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Tests / docs
+tests/
+*.md
+README*
+
+# Local artifacts (created by Dockerfile)
+uploads/
+reports/
+
+# Misc
+*.log

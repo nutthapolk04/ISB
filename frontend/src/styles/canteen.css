@@ -1,0 +1,155 @@
+/* Canteen POS — tablet-optimized premium animations & layout */
+
+@layer components {
+  /*
+   * Lock layout to exact viewport height at lg+ so the cart panel can have
+   * its own internal scroll and the Charge button stays pinned at the
+   * bottom. Below lg, layout grows naturally (mobile uses sheet drawer).
+   */
+  .canteen-layout {
+    @apply flex min-h-[calc(100svh-3.5rem)] bg-gradient-to-br from-amber-50/40 via-transparent to-orange-50/30
+           lg:h-[calc(100svh-3.5rem)] lg:min-h-0 lg:overflow-hidden;
+  }
+
+  .canteen-content {
+    @apply flex-1 flex flex-col min-h-0 gap-4 p-4 sm:p-6;
+  }
+
+  /* Desktop: side panel ≥lg (pinned full-height). Below lg: hidden — use sheet instead. */
+  .canteen-cart-panel {
+    @apply hidden lg:flex lg:h-full lg:w-[22rem] xl:w-[26rem] flex-col border-l border-border/70 bg-card/95 shadow-[-8px_0_24px_-18px_rgba(251,146,60,0.35)];
+  }
+
+  /* Sheet variant: fills SheetContent, no border since sheet already has one */
+  .canteen-cart-sheet {
+    @apply flex h-full w-full flex-col bg-card;
+  }
+
+  .canteen-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  }
+
+  @media (min-width: 640px) {
+    .canteen-grid {
+      grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    }
+  }
+
+  .canteen-product-card {
+    @apply relative overflow-hidden rounded-2xl border border-amber-200/60 bg-card shadow-sm
+           transition-all duration-200 cursor-pointer select-none
+           hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/50 hover:border-amber-300
+           active:scale-[0.98];
+  }
+
+  /* Custom-color treatment: soft ring + tinted glow on hover. Requires
+   * inline style to set --card-color (e.g. "#ff5733"). */
+  .canteen-product-card[data-card-color="true"] {
+    border-color: var(--card-color);
+    box-shadow:
+      0 0 0 2px var(--card-color),
+      0 1px 3px color-mix(in srgb, var(--card-color) 25%, transparent);
+  }
+
+  .canteen-product-card[data-card-color="true"]:hover {
+    border-color: var(--card-color);
+    box-shadow:
+      0 0 0 2px var(--card-color),
+      0 14px 32px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
+  }
+
+  /* Store POS tile — same color-ring treatment */
+  .pos-product-tile[data-card-color="true"] {
+    border-color: var(--card-color);
+    box-shadow:
+      0 0 0 2px var(--card-color),
+      0 1px 3px color-mix(in srgb, var(--card-color) 25%, transparent);
+  }
+
+  .pos-product-tile[data-card-color="true"]:hover {
+    border-color: var(--card-color);
+    box-shadow:
+      0 0 0 2px var(--card-color),
+      0 12px 24px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
+  }
+
+  .canteen-product-card-image {
+    @apply relative aspect-square w-full overflow-hidden bg-gradient-to-br;
+  }
+
+  .canteen-product-card-badge {
+    @apply pointer-events-none absolute inset-0 flex items-center justify-center
+           bg-emerald-500/85 text-white text-4xl font-bold opacity-0;
+  }
+
+  .canteen-product-card[data-added="true"] {
+    animation: canteen-card-bounce 0.45s ease-out;
+  }
+
+  .canteen-product-card[data-added="true"] .canteen-product-card-badge {
+    animation: canteen-check-pop 0.45s ease-out;
+  }
+
+  .canteen-rfid-ring {
+    @apply relative flex h-40 w-40 items-center justify-center rounded-full
+           bg-gradient-to-br from-amber-100 to-orange-200 text-amber-700;
+  }
+
+  .canteen-rfid-ring::before,
+  .canteen-rfid-ring::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--primary) / 0.45);
+    animation: canteen-rfid-pulse 1.6s ease-out infinite;
+  }
+
+  .canteen-rfid-ring::after {
+    animation-delay: 0.8s;
+  }
+
+  .canteen-success-check {
+    @apply relative flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500 text-white;
+    animation: canteen-modal-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .canteen-success-check svg {
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: canteen-check-draw 0.55s ease-out 0.15s forwards;
+  }
+
+  .canteen-modal-pop {
+    animation: canteen-modal-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+}
+
+@keyframes canteen-card-bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes canteen-check-pop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  35%  { opacity: 1; transform: scale(1.05); }
+  75%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+@keyframes canteen-rfid-pulse {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  80%  { transform: scale(1.6); opacity: 0;    }
+  100% { transform: scale(1.6); opacity: 0;    }
+}
+
+@keyframes canteen-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes canteen-modal-pop {
+  0%   { transform: scale(0.75); opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
