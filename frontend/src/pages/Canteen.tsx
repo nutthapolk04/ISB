@@ -680,10 +680,8 @@ export default function Canteen() {
         open={memberSearchOpen}
         onOpenChange={setMemberSearchOpen}
         onSelect={(member) => {
-          console.log("Member selected:", member);
           setPreSelectedMember(member);
           setMemberSearchOpen(false);
-          // Don't open RFID modal - just set the member for later payment
         }}
       />
       <CashierTopupModal

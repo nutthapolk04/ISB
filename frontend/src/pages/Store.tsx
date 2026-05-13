@@ -17,6 +17,8 @@ import {
   CreditCard,
   UserSearch,
   Wallet,
+  UserCircle2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -26,7 +28,7 @@ import { cn } from "@/lib/utils";
 import { PaymentMethodPicker, type CanteenPaymentMethod } from "./canteen/PaymentMethodPicker";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
-import { RfidPaymentModal, type WalletPayer } from "./canteen/RfidPaymentModal";
+import { RfidPaymentModal, type WalletPayer, type StudentLookupResult } from "./canteen/RfidPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { EdcPaymentModal } from "./store/EdcPaymentModal";
@@ -163,6 +165,8 @@ const Store = () => {
   const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
+  // Pre-selected member from search (for direct wallet charge)
+  const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
 
   // ── Department charge gating ────────────────────────────────────────────
   const canUseDeptCharge = useMemo(() => {
@@ -289,6 +293,7 @@ const Store = () => {
     setCart([]);
     setLastAddedId(null);
     setBillDiscountValue("");
+    setPreSelectedMember(null);
     toast.success(t("store.cartCleared"));
   };
 
@@ -460,6 +465,7 @@ const Store = () => {
       setRequesterUserId(null);
       setBillDiscountValue("");
       setBillDiscountMode("amount");
+      setPreSelectedMember(null);
       setMethodPickerOpen(false);
       setWalletOpen(false);
       setCashOpen(false);
@@ -475,11 +481,29 @@ const Store = () => {
   };
 
   // ── Open payment picker ─────────────────────────────────────────────────
-  const handleOpenPayment = () => {
+  const handleOpenPayment = async () => {
     if (cart.length === 0) {
       toast.error(t("store.pleaseAddProducts"));
       return;
     }
+
+    // If member is pre-selected, charge directly via wallet
+    if (preSelectedMember) {
+      setConfirming(true);
+      try {
+        const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
+        await doCheckout("wallet", {
+          payer: { kind: "customer", student: preSelectedMember },
+        });
+        setPreSelectedMember(null);
+      } catch (e) {
+        // Error already handled in doCheckout
+      } finally {
+        setConfirming(false);
+      }
+      return;
+    }
+
     setMethodPickerOpen(true);
   };
 
@@ -563,6 +587,45 @@ const Store = () => {
           </div>
         )}
       </div>
+
+      {/* Selected Member */}
+      {preSelectedMember && (
+        <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+              {preSelectedMember.photo_url ? (
+                <img
+                  src={preSelectedMember.photo_url}
+                  alt={preSelectedMember.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-amber-400">
+                  <UserCircle2 className="h-8 w-8" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-sm truncate">{preSelectedMember.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {preSelectedMember.student_code ?? preSelectedMember.customer_code}
+                {preSelectedMember.grade && ` · Grade ${preSelectedMember.grade}`}
+              </div>
+              <div className="text-sm font-bold tabular-nums text-emerald-600">
+                ฿{(preSelectedMember.wallet_balance ?? 0).toFixed(2)}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreSelectedMember(null)}
+              className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
+              aria-label="ยกเลิกสมาชิก"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cart items */}
       <div className="flex-1 overflow-y-auto">
@@ -1138,6 +1201,10 @@ const Store = () => {
       <MemberSearchModal
         open={memberSearchOpen}
         onOpenChange={setMemberSearchOpen}
+        onSelect={(member) => {
+          setPreSelectedMember(member);
+          setMemberSearchOpen(false);
+        }}
       />
 
       {/* Cashier top-up */}

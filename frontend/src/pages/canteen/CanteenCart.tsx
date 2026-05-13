@@ -61,9 +61,6 @@ export function CanteenCart({
 }: CanteenCartProps) {
   const { t } = useTranslation();
   const isEmpty = items.length === 0;
-
-  // Debug: log selectedMember
-  console.log("CanteenCart selectedMember:", selectedMember);
   const discountLabel =
     billDiscountValue > 0
       ? billDiscountMode === "percent"
