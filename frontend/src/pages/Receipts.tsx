@@ -13,13 +13,15 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Search, Eye, Download, Loader2 } from "lucide-react";
+import { Receipt, Search, Eye, Download, Loader2, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // ── Scope constants ──────────────────────────────────────────────────────────
 
@@ -131,6 +133,31 @@ const Receipts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptApi | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // ── Void / cancel ───────────────────────────────────────────────────────
+  const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [voidLoading, setVoidLoading] = useState(false);
+
+  const canVoid = user?.role === "admin" || user?.role === "manager";
+
+  const handleVoidConfirm = async () => {
+    if (!voidTarget) return;
+    setVoidLoading(true);
+    try {
+      const updated = await api.post<ReceiptApi>(`/pos/void/${voidTarget.id}`, {
+        reason: voidReason.trim() || null,
+      });
+      setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+      toast.success(`ยกเลิก ${voidTarget.receipt_number} สำเร็จ — เงินคืนเข้ากระเป๋าแล้ว`);
+      setVoidTarget(null);
+      setVoidReason("");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail : "ยกเลิกใบเสร็จไม่สำเร็จ");
+    } finally {
+      setVoidLoading(false);
+    }
+  };
   // Admin-only picker for store scope (coop / sports / bookstore / all)
   const [pickedStoreShop, setPickedStoreShop] = useState<StoreShopPick>("all");
 
@@ -349,6 +376,18 @@ const Receipts = () => {
                         <IconButton tooltip={t("receipts.tooltip.download")}>
                           <Download className="h-4 w-4" />
                         </IconButton>
+                        {canVoid && receipt.status === "active" && (
+                          <IconButton
+                            tooltip="ยกเลิก / Void"
+                            onClick={() => {
+                              setVoidTarget(receipt);
+                              setVoidReason("");
+                            }}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Ban className="h-4 w-4" />
+                          </IconButton>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -358,6 +397,57 @@ const Receipts = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Void Confirmation Dialog ─────────────────────────────────────── */}
+      <Dialog open={!!voidTarget} onOpenChange={(v) => { if (!v && !voidLoading) setVoidTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Ban className="h-5 w-5" />
+              ยกเลิกใบเสร็จ
+            </DialogTitle>
+            <DialogDescription>
+              {voidTarget?.receipt_number} · ฿{voidTarget?.total.toLocaleString()}
+              {" "}— หากชำระด้วย Wallet เงินจะคืนเข้ากระเป๋าอัตโนมัติ
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-sm font-medium">เหตุผลการยกเลิก (ไม่บังคับ)</label>
+              <Textarea
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="เช่น สั่งผิดรายการ / ลูกค้าเปลี่ยนใจ"
+                rows={2}
+                className="mt-1.5 resize-none"
+                disabled={voidLoading}
+              />
+            </div>
+            <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
+              ⚠ การยกเลิกไม่สามารถย้อนกลับได้
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setVoidTarget(null)}
+              disabled={voidLoading}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={handleVoidConfirm}
+              disabled={voidLoading}
+            >
+              {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              ยืนยัน Void
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Receipt Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

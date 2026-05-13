@@ -568,19 +568,26 @@ class POSService:
             )
             db.add(movement)
 
-        # Refund wallet if receipt was wallet-paid (WALLET or CARD_TAP)
-        if receipt.payment_method in (PaymentMethod.WALLET, PaymentMethod.CARD_TAP) and receipt.customer_id:
-            wallet = db.query(Wallet).filter(Wallet.customer_id == receipt.customer_id).first()
-            if wallet:
-                balance_before = Decimal(str(wallet.balance))
+        # Refund wallet for any wallet-based payment (customer, user, or department)
+        if receipt.payment_method in (PaymentMethod.WALLET, PaymentMethod.CARD_TAP):
+            refund_wallet: Wallet | None = None
+            if receipt.customer_id:
+                refund_wallet = db.query(Wallet).filter(Wallet.customer_id == receipt.customer_id).first()
+            elif receipt.payer_user_id:
+                refund_wallet = db.query(Wallet).filter(Wallet.user_id == receipt.payer_user_id).first()
+            elif receipt.payer_department_id:
+                refund_wallet = db.query(Wallet).filter(Wallet.department_id == receipt.payer_department_id).first()
+
+            if refund_wallet:
+                balance_before = Decimal(str(refund_wallet.balance))
                 amount_dec = Decimal(str(receipt.total))
-                wallet.balance = balance_before + amount_dec
+                refund_wallet.balance = balance_before + amount_dec
                 wtx = WalletTransaction(
-                    wallet_id=wallet.id,
+                    wallet_id=refund_wallet.id,
                     transaction_type=WalletTransactionType.REFUND,
                     amount=amount_dec,
                     balance_before=balance_before,
-                    balance_after=wallet.balance,
+                    balance_after=refund_wallet.balance,
                     reference_type="receipt_void",
                     reference_id=receipt.id,
                     description=f"Void refund for receipt {receipt.receipt_number}",
