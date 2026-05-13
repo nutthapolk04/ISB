@@ -114,6 +114,15 @@ class ReceiptItemResponse(BaseModel):
         from_attributes = True
 
 
+class PayerDetail(BaseModel):
+    name: str
+    code: Optional[str] = None
+    grade: Optional[str] = None
+    photo_url: Optional[str] = None
+    role: str
+    wallet_balance: Optional[float] = None
+
+
 class ReceiptResponse(BaseModel):
     id: int
     receipt_number: str
@@ -125,6 +134,7 @@ class ReceiptResponse(BaseModel):
     payer_department_id: Optional[int] = None
     payer_label: Optional[str] = None  # Display name of the payer (customer/user/department)
     payer_kind: Optional[Literal["customer", "user", "department"]] = None
+    payer_detail: Optional[PayerDetail] = None
     requester_user_id: Optional[int] = None
     requester_name: Optional[str] = None
     shop_id: Optional[str] = None
