@@ -129,9 +129,9 @@ def void_receipt(
     receipt_id: int,
     payload: Optional[VoidReceiptRequest] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
-    """Void a receipt and restore stock. Admin OR manager of the receipt's shop."""
+    """Void a receipt and restore stock. Admin, manager, or cashier."""
     target = db.query(Receipt).filter(Receipt.id == receipt_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="Receipt not found")

@@ -21,7 +21,27 @@ import {
   UserCircle2,
   X,
   Palette,
+  GripVertical,
+  ArrowUpDown,
+  Check,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
@@ -72,6 +92,34 @@ interface LastReceipt {
   studentGrade?: string;
 }
 
+// ── Sortable card wrapper (must be defined outside Store to avoid hook remounts) ──
+
+function SortableCard({
+  id,
+  reorderMode,
+  children,
+}: {
+  id: number;
+  reorderMode: boolean;
+  children: (handleProps: React.HTMLAttributes<HTMLElement>, isDragging: boolean) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: String(id) });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: "relative",
+      }}
+    >
+      {children(reorderMode ? { ...attributes, ...listeners } : {}, isDragging)}
+    </div>
+  );
+}
+
 const Store = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -99,7 +147,64 @@ const Store = () => {
       setColorSaving(false);
     }
   };
-  const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; allow_department_charge: boolean }>>([]);
+  // ── Product reorder ─────────────────────────────────────────────────────
+  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderDirty, setReorderDirty] = useState(false);
+  const [sortVersions, setSortVersions] = useState<Record<string, number>>({});
+  const [reorderSaving, setReorderSaving] = useState(false);
+  const canManageOrder = user?.role === "admin" || user?.role === "manager";
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setAllProducts((prev) => {
+      const sid = user?.shopId;
+      const shopProds = sid ? prev.filter((p) => p.subMerchantId === sid) : prev;
+      const others = sid ? prev.filter((p) => p.subMerchantId !== sid) : [];
+      const oldIdx = shopProds.findIndex((p) => String(p.id) === String(active.id));
+      const newIdx = shopProds.findIndex((p) => String(p.id) === String(over.id));
+      if (oldIdx === -1 || newIdx === -1) return prev;
+      setReorderDirty(true);
+      return [...arrayMove(shopProds, oldIdx, newIdx), ...others];
+    });
+  };
+
+  const saveReorder = async () => {
+    const sid = user?.shopId;
+    if (!sid) return;
+    setReorderSaving(true);
+    try {
+      const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
+      const sortMap: Record<string, number> = {};
+      shopProds.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
+      const version = sortVersions[sid] ?? 1;
+      const result = await api.post<{ version: number; updated: number }>(
+        `/shops/${sid}/products/reorder`,
+        { version, sort_map: sortMap },
+      );
+      setSortVersions((prev) => ({ ...prev, [sid]: result.version }));
+      setReorderMode(false);
+      setReorderDirty(false);
+      toast.success("บันทึกลำดับสินค้าเรียบร้อย");
+    } catch (e: any) {
+      if (e?.status === 409 || e?.detail?.current_version) {
+        toast.error("มีการแก้ไขลำดับจากอุปกรณ์อื่น กรุณาลองใหม่");
+        const newVer = e?.detail?.current_version;
+        if (newVer && sid) setSortVersions((prev) => ({ ...prev, [sid]: newVer }));
+      } else {
+        toast.error(e instanceof ApiError ? e.detail : "บันทึกลำดับไม่สำเร็จ");
+      }
+    } finally {
+      setReorderSaving(false);
+    }
+  };
+
+  const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,10 +212,15 @@ const Store = () => {
       const result: Product[] = [];
       let shopsList: Array<{ id: string; allow_department_charge: boolean }> = [];
       try {
-        shopsList = await api.get<Array<{ id: string; allow_department_charge: boolean }>>(
+        shopsList = await api.get<Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }>>(
           "/shops/?active_only=true",
         );
-        if (!cancelled) setShopsMeta(shopsList);
+        if (!cancelled) {
+          setShopsMeta(shopsList);
+          const vmap: Record<string, number> = {};
+          shopsList.forEach((s) => { if (s.products_order_version) vmap[s.id] = s.products_order_version; });
+          setSortVersions(vmap);
+        }
       } catch { /* ignore */ }
 
       const shopIds: string[] = user?.shopId ? [user.shopId] : shopsList.map((s) => s.id);
@@ -926,6 +1036,40 @@ const Store = () => {
               <UserSearch className="h-4 w-4" />
               <span className="hidden sm:inline">{t("store.searchMember", "ค้นหาสมาชิก")}</span>
             </Button>
+            {canManageOrder && user?.shopId && (
+              reorderMode ? (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setReorderMode(false); setReorderDirty(false); }}
+                    className="gap-1.5"
+                  >
+                    <X className="h-4 w-4" />
+                    ยกเลิก
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={saveReorder}
+                    disabled={!reorderDirty || reorderSaving}
+                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Check className="h-4 w-4" />
+                    {reorderSaving ? "กำลังบันทึก…" : "บันทึกลำดับ"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReorderMode(true)}
+                  className="gap-1.5"
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">จัดลำดับ</span>
+                </Button>
+              )
+            )}
             {user?.shopName && (
               <Badge variant="outline" className="text-sm font-medium px-3 py-1">
                 {user.shopName}
@@ -1027,189 +1171,158 @@ const Store = () => {
           const cats = Array.from(
             new Set(allProducts.map((p) => p.category).filter(Boolean)),
           ).sort();
-          const gridProducts = allProducts.filter((p) =>
-            gridCategory === "All" ? true : p.category === gridCategory,
-          );
-          return (
-            <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border/60 bg-card/40 p-3 gap-3">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
-                {(["All", ...cats]).map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setGridCategory(c)}
-                    className={cn(
-                      "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
-                      gridCategory === c
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
-                    )}
-                  >
-                    {c === "All" ? t("store.allCategories", "ทั้งหมด") : c}
-                  </button>
-                ))}
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
-                  {gridProducts.map((p) => {
-                    const displayPrice =
-                      priceMode === "internal" ? (p.internalPrice ?? p.price) : p.price;
-                    const lowStock = p.stock <= 0;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => addToCart(p)}
-                        data-card-color={p.color ? "true" : undefined}
-                        className={cn(
-                          "pos-product-tile group relative flex flex-col rounded-lg border bg-card p-2 text-left transition active:scale-[0.98]",
-                          !p.color && "border-border/60 hover:border-primary hover:shadow-sm",
-                        )}
-                        style={
-                          p.color
-                            ? ({
-                                "--card-color": p.color,
-                                ...(!p.photoUrl && { backgroundColor: p.color + "18" }),
-                              } as React.CSSProperties)
-                            : undefined
-                        }
-                      >
-                        <div
-                          className="relative h-20 w-full overflow-hidden rounded-md"
-                          style={p.color ? { backgroundColor: p.color } : undefined}
-                        >
-                          {p.photoUrl ? (
-                            <img
-                              src={p.photoUrl}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className={cn(
-                              "flex h-full w-full items-center justify-center",
-                              p.color ? "text-white/70" : "text-muted-foreground/60",
-                            )}>
-                              <Package className="h-7 w-7" />
-                            </div>
-                          )}
-                          <span
-                            className={cn(
-                              "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
-                              lowStock
-                                ? "bg-destructive text-destructive-foreground"
-                                : "bg-background/90 text-foreground",
-                            )}
-                          >
-                            {lowStock
-                              ? t("store.outOfStock", "หมด")
-                              : `${t("store.stockLabel", "คงเหลือ")} ${p.stock}`}
-                          </span>
-                        </div>
-                        <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight">
-                          {p.name}
-                        </div>
-                        <div className="mt-auto pt-1 flex items-center justify-between">
-                          <span className="text-sm font-bold tabular-nums text-primary">
-                            ฿{displayPrice.toLocaleString()}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {/* Quick color edit — uses shadcn Popover to avoid overflow/z-index issues */}
-                            <Popover
-                              open={colorEditId === p.id}
-                              onOpenChange={(open) => {
-                                if (open) {
-                                  setColorEditId(p.id);
-                                  setColorEditValue(p.color ?? "#4ade80");
-                                } else {
-                                  setColorEditId(null);
-                                }
-                              }}
-                            >
-                              <PopoverTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="rounded p-0.5 transition hover:bg-muted"
-                                  title="ตั้งสีการ์ด"
-                                >
-                                  <Palette
-                                    className="h-3.5 w-3.5"
-                                    style={{ color: p.color ?? undefined }}
-                                  />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-56 p-3 space-y-3"
-                                onClick={(e) => e.stopPropagation()}
-                                side="top"
-                                align="end"
-                              >
-                                <p className="text-xs font-semibold">สีการ์ด</p>
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="color"
-                                    value={colorEditValue}
-                                    onChange={(e) => setColorEditValue(e.target.value)}
-                                    className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={colorEditValue}
-                                    onChange={(e) => setColorEditValue(e.target.value)}
-                                    className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background"
-                                    placeholder="#4ade80"
-                                  />
-                                </div>
-                                {/* Preset swatches */}
-                                <div className="flex gap-1.5 flex-wrap">
-                                  {["#f87171","#fb923c","#fbbf24","#4ade80","#34d399","#60a5fa","#a78bfa","#f472b6","#94a3b8"].map((c) => (
-                                    <button
-                                      key={c}
-                                      type="button"
-                                      onClick={() => setColorEditValue(c)}
-                                      className={cn(
-                                        "h-6 w-6 rounded-full border-2 transition",
-                                        colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105",
-                                      )}
-                                      style={{ backgroundColor: c }}
-                                    />
-                                  ))}
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => saveProductColor(p, null)}
-                                    disabled={colorSaving}
-                                    className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition"
-                                  >
-                                    ล้างสี
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => saveProductColor(p, colorEditValue)}
-                                    disabled={colorSaving}
-                                    className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition"
-                                  >
-                                    {colorSaving ? "…" : "บันทึก"}
-                                  </button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                            <Badge variant="outline" className="text-[10px] px-1 py-0">
-                              {p.category}
-                            </Badge>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {gridProducts.length === 0 && (
-                    <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-                      {t("store.noItemsInCategory", "ไม่มีสินค้าในหมวดหมู่นี้")}
+          // In reorder mode: show all products for this shop (no category filter)
+          const gridProducts = reorderMode
+            ? allProducts.filter((p) => !user?.shopId || p.subMerchantId === user.shopId)
+            : allProducts.filter((p) =>
+                gridCategory === "All" ? true : p.category === gridCategory,
+              );
+
+          const cardContent = (p: Product, handleProps: React.HTMLAttributes<HTMLElement>) => {
+            const displayPrice = priceMode === "internal" ? (p.internalPrice ?? p.price) : p.price;
+            const lowStock = p.stock <= 0;
+            return (
+              <button
+                type="button"
+                onClick={reorderMode ? undefined : () => addToCart(p)}
+                data-card-color={p.color ? "true" : undefined}
+                className={cn(
+                  "pos-product-tile group relative flex flex-col rounded-lg border bg-card p-2 text-left transition w-full",
+                  !p.color && !reorderMode && "border-border/60 hover:border-primary hover:shadow-sm",
+                  reorderMode && "cursor-default select-none",
+                )}
+                style={
+                  p.color
+                    ? ({
+                        "--card-color": p.color,
+                        ...(!p.photoUrl && { backgroundColor: p.color + "18" }),
+                      } as React.CSSProperties)
+                    : undefined
+                }
+                {...(reorderMode ? handleProps : {})}
+              >
+                {/* Drag handle indicator */}
+                {reorderMode && (
+                  <div className="absolute top-1 left-1 z-10 rounded bg-background/80 p-0.5 shadow">
+                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                )}
+                <div
+                  className="relative h-20 w-full overflow-hidden rounded-md"
+                  style={p.color ? { backgroundColor: p.color } : undefined}
+                >
+                  {p.photoUrl ? (
+                    <img src={p.photoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className={cn(
+                      "flex h-full w-full items-center justify-center",
+                      p.color ? "text-white/70" : "text-muted-foreground/60",
+                    )}>
+                      <Package className="h-7 w-7" />
                     </div>
                   )}
+                  <span className={cn(
+                    "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
+                    lowStock ? "bg-destructive text-destructive-foreground" : "bg-background/90 text-foreground",
+                  )}>
+                    {lowStock ? t("store.outOfStock", "หมด") : `${t("store.stockLabel", "คงเหลือ")} ${p.stock}`}
+                  </span>
                 </div>
+                <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight">{p.name}</div>
+                <div className="mt-auto pt-1 flex items-center justify-between">
+                  <span className="text-sm font-bold tabular-nums text-primary">฿{displayPrice.toLocaleString()}</span>
+                  <div className="flex items-center gap-1">
+                    {!reorderMode && (
+                      <Popover
+                        open={colorEditId === p.id}
+                        onOpenChange={(open) => {
+                          if (open) { setColorEditId(p.id); setColorEditValue(p.color ?? "#4ade80"); }
+                          else { setColorEditId(null); }
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded p-0.5 transition hover:bg-muted"
+                            title="ตั้งสีการ์ด"
+                          >
+                            <Palette className="h-3.5 w-3.5" style={{ color: p.color ?? undefined }} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-3 space-y-3" onClick={(e) => e.stopPropagation()} side="top" align="end">
+                          <p className="text-xs font-semibold">สีการ์ด</p>
+                          <div className="flex items-center gap-2">
+                            <input type="color" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0" />
+                            <input type="text" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background" placeholder="#4ade80" />
+                          </div>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {["#f87171","#fb923c","#fbbf24","#4ade80","#34d399","#60a5fa","#a78bfa","#f472b6","#94a3b8"].map((c) => (
+                              <button key={c} type="button" onClick={() => setColorEditValue(c)}
+                                className={cn("h-6 w-6 rounded-full border-2 transition", colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => saveProductColor(p, null)} disabled={colorSaving} className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition">ล้างสี</button>
+                            <button type="button" onClick={() => saveProductColor(p, colorEditValue)} disabled={colorSaving} className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition">{colorSaving ? "…" : "บันทึก"}</button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">{p.category}</Badge>
+                  </div>
+                </div>
+              </button>
+            );
+          };
+
+          return (
+            <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border/60 bg-card/40 p-3 gap-3">
+              {/* Category filter — hidden in reorder mode */}
+              {!reorderMode && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
+                  {(["All", ...cats]).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setGridCategory(c)}
+                      className={cn(
+                        "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
+                        gridCategory === c
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
+                      )}
+                    >
+                      {c === "All" ? t("store.allCategories", "ทั้งหมด") : c}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {reorderMode && (
+                <p className="text-xs text-muted-foreground shrink-0">
+                  <GripVertical className="inline h-3 w-3 mr-1" />
+                  ลากการ์ดเพื่อเปลี่ยนลำดับ แล้วกด "บันทึกลำดับ"
+                </p>
+              )}
+              <div className="flex-1 overflow-y-auto">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={gridProducts.map((p) => String(p.id))} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
+                      {gridProducts.map((p) => (
+                        <SortableCard key={p.id} id={p.id} reorderMode={reorderMode}>
+                          {(handleProps, _isDragging) => cardContent(p, handleProps)}
+                        </SortableCard>
+                      ))}
+                      {gridProducts.length === 0 && (
+                        <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
+                          {t("store.noItemsInCategory", "ไม่มีสินค้าในหมวดหมู่นี้")}
+                        </div>
+                      )}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           );

@@ -154,7 +154,7 @@ const Receipts = () => {
   const [voidReason, setVoidReason] = useState("");
   const [voidLoading, setVoidLoading] = useState(false);
 
-  const canVoid = user?.role === "admin" || user?.role === "manager";
+  const canVoid = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
 
   const handleVoidConfirm = async () => {
     if (!voidTarget) return;
