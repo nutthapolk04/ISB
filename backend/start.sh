@@ -320,6 +320,67 @@ run('ALTER TABLE shop_products ADD COLUMN is_active BOOLEAN DEFAULT true NOT NUL
 # run(\"DELETE FROM shops WHERE id='cafeteria'\", 'delete cafeteria shop', ok_if_exists=False)
 print('  = cafeteria→canteen migration (skipped - already completed)')
 
+# === UOM (Unit of Measure) feature ===
+run('''
+    CREATE TABLE IF NOT EXISTS units_of_measure (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(20) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        name_en VARCHAR(100),
+        base_uom_id INTEGER,
+        conversion_factor NUMERIC(10,4) NOT NULL DEFAULT 1,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+''', 'units_of_measure table')
+run('CREATE INDEX IF NOT EXISTS ix_uom_code ON units_of_measure(code)', 'uom idx code')
+run('ALTER TABLE shop_products ADD COLUMN uom_id INTEGER REFERENCES units_of_measure(id)',
+    'shop_products.uom_id')
+# Seed default UOM values
+run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('PCS', 'ชิ้น', 'Piece') ON CONFLICT (code) DO NOTHING\",
+    'uom seed PCS', ok_if_exists=False)
+run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('BOX', 'กล่อง', 'Box') ON CONFLICT (code) DO NOTHING\",
+    'uom seed BOX', ok_if_exists=False)
+run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('SET', 'ชุด', 'Set') ON CONFLICT (code) DO NOTHING\",
+    'uom seed SET', ok_if_exists=False)
+run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('PACK', 'แพ็ค', 'Pack') ON CONFLICT (code) DO NOTHING\",
+    'uom seed PACK', ok_if_exists=False)
+
+# === Product Bundles / Grade Sets ===
+run('''
+    CREATE TABLE IF NOT EXISTS product_bundles (
+        id SERIAL PRIMARY KEY,
+        shop_id VARCHAR(50) NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+        bundle_code VARCHAR(50) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        external_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+        internal_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+        photo_url VARCHAR(500),
+        color VARCHAR(50),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+''', 'product_bundles table')
+run('CREATE INDEX IF NOT EXISTS ix_product_bundles_shop ON product_bundles(shop_id)', 'product_bundles idx shop')
+run('CREATE INDEX IF NOT EXISTS ix_product_bundles_code ON product_bundles(bundle_code)', 'product_bundles idx code')
+
+run('''
+    CREATE TABLE IF NOT EXISTS bundle_items (
+        id SERIAL PRIMARY KEY,
+        bundle_id INTEGER NOT NULL REFERENCES product_bundles(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+''', 'bundle_items table')
+run('CREATE INDEX IF NOT EXISTS ix_bundle_items_bundle ON bundle_items(bundle_id)', 'bundle_items idx bundle')
+run('CREATE INDEX IF NOT EXISTS ix_bundle_items_product ON bundle_items(product_id)', 'bundle_items idx product')
+
 # === Demo May-2026: receipt_items.price_override (one-time POS override) ===
 # Cashier can edit a line price at checkout. Original `unit_price` keeps the
 # catalog price, `price_override` records the value charged for that line so we
