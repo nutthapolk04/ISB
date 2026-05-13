@@ -14,6 +14,7 @@ from app.api.deps import get_current_user, require_role, user_can_access_shop
 from app.models.receipt import Receipt
 from app.models.shop import ShopProduct
 from app.models.user import User
+from app.models.wallet import Wallet
 from app.schemas.pos import CheckoutPayload, ReceiptResponse, VoidReceiptRequest
 from app.services.pos_service import POSService
 
@@ -123,7 +124,7 @@ def get_receipt(
     if receipt.shop_id and not user_can_access_shop(current_user, receipt.shop_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail=f"Receipt belongs to shop '{receipt.shop_id}' which is outside your scope")
-    return _receipt_to_response(receipt)
+    return _receipt_to_response(receipt, db=db)
 
 
 @router.post("/void/{receipt_id}", response_model=ReceiptResponse)
@@ -150,7 +151,7 @@ def void_receipt(
 
 # ── Helper ───────────────────────────────────────────────────────────────────
 
-def _receipt_to_response(receipt) -> dict:
+def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
     """Convert Receipt ORM to response dict with nested product info."""
     items = []
     for item in receipt.items:
@@ -192,6 +193,46 @@ def _receipt_to_response(receipt) -> dict:
     if getattr(receipt, "requester_user_id", None) and getattr(receipt, "requester", None):
         requester_name = receipt.requester.full_name
 
+    # ── Enrich payer details for wallet-based payments ───────────────────────
+    payer_detail: Optional[dict] = None
+    if db and payer_kind in ("customer", "user", "department"):
+        if payer_kind == "customer" and getattr(receipt, "customer", None):
+            c = receipt.customer
+            wallet = db.query(Wallet).filter(Wallet.customer_id == c.id).first()
+            payer_detail = {
+                "name": c.name,
+                "code": c.student_code or c.customer_code,
+                "grade": getattr(c, "grade", None),
+                "photo_url": getattr(c, "photo_url", None),
+                "role": "student",
+                "wallet_balance": float(wallet.balance) if wallet else None,
+            }
+        elif payer_kind == "user" and getattr(receipt, "payer_user", None):
+            u = receipt.payer_user
+            wallet = db.query(Wallet).filter(Wallet.user_id == u.id).first()
+            dept_name = None
+            if getattr(u, "department", None):
+                dept_name = u.department.department_name
+            payer_detail = {
+                "name": u.full_name,
+                "code": u.username,
+                "grade": dept_name,          # re-use "grade" slot for dept/role label
+                "photo_url": getattr(u, "photo_url", None),
+                "role": u.role or "staff",
+                "wallet_balance": float(wallet.balance) if wallet else None,
+            }
+        elif payer_kind == "department" and getattr(receipt, "payer_department", None):
+            d = receipt.payer_department
+            wallet = db.query(Wallet).filter(Wallet.department_id == d.id).first()
+            payer_detail = {
+                "name": d.department_name,
+                "code": d.department_code,
+                "grade": None,
+                "photo_url": None,
+                "role": "department",
+                "wallet_balance": float(wallet.balance) if wallet else None,
+            }
+
     return {
         "id": receipt.id,
         "receipt_number": receipt.receipt_number,
@@ -203,6 +244,7 @@ def _receipt_to_response(receipt) -> dict:
         "payer_department_id": receipt.payer_department_id,
         "payer_kind": payer_kind,
         "payer_label": payer_label,
+        "payer_detail": payer_detail,
         "requester_user_id": getattr(receipt, "requester_user_id", None),
         "requester_name": requester_name,
         "shop_id": receipt.shop_id,

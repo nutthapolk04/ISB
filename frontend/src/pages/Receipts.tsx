@@ -65,12 +65,26 @@ interface ReceiptItemApi {
   } | null;
 }
 
+interface PayerDetail {
+  name: string;
+  code: string | null;
+  grade: string | null;       // grade for students, dept name for staff
+  photo_url: string | null;
+  role: string;
+  wallet_balance: number | null;
+}
+
 interface ReceiptApi {
   id: number;
   receipt_number: string;
   transaction_date: string;
   transaction_mode: string;
   customer_id: number | null;
+  payer_user_id?: number | null;
+  payer_department_id?: number | null;
+  payer_kind?: string | null;
+  payer_label?: string | null;
+  payer_detail?: PayerDetail | null;
   subtotal: number;
   discount: number;
   tax: number;
@@ -216,9 +230,16 @@ const Receipts = () => {
     .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
     .reduce((s, r) => s + r.total, 0);
 
-  const handleViewReceipt = (receipt: ReceiptApi) => {
+  const handleViewReceipt = async (receipt: ReceiptApi) => {
+    // Show immediately with what we have, then enrich with payer_detail from single-receipt endpoint
     setSelectedReceipt(receipt);
     setIsDialogOpen(true);
+    try {
+      const full = await api.get<ReceiptApi>(`/pos/receipt/${receipt.id}`);
+      setSelectedReceipt(full);
+    } catch {
+      // fallback — keep the list data already shown
+    }
   };
 
   // ── Loading ─────────────────────────────────────────────────────────────
@@ -521,6 +542,65 @@ const Receipts = () => {
                 )}
               </div>
               <Separator />
+
+              {/* ── Buyer card (wallet payment only) ───────────────────── */}
+              {selectedReceipt.payer_detail && (
+                <>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
+                    {/* Photo */}
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
+                      {selectedReceipt.payer_detail.photo_url ? (
+                        <img
+                          src={selectedReceipt.payer_detail.photo_url}
+                          alt={selectedReceipt.payer_detail.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl text-blue-400 font-bold">
+                          {selectedReceipt.payer_detail.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-sm truncate">
+                        {selectedReceipt.payer_detail.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        {selectedReceipt.payer_detail.code && (
+                          <div>รหัส: <span className="font-mono">{selectedReceipt.payer_detail.code}</span></div>
+                        )}
+                        {selectedReceipt.payer_detail.grade && (
+                          <div>
+                            {selectedReceipt.payer_detail.role === "student" ? "ชั้น: " : "แผนก/บทบาท: "}
+                            {selectedReceipt.payer_detail.grade}
+                          </div>
+                        )}
+                        <div className="capitalize text-blue-600 font-medium">
+                          {selectedReceipt.payer_detail.role}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Wallet balance */}
+                    <div className="text-right shrink-0">
+                      <div className="text-[10px] text-muted-foreground">ยอดคงเหลือ</div>
+                      <div className={cn(
+                        "text-base font-bold tabular-nums",
+                        (selectedReceipt.payer_detail.wallet_balance ?? 0) < 0
+                          ? "text-destructive"
+                          : "text-emerald-600",
+                      )}>
+                        {selectedReceipt.payer_detail.wallet_balance !== null
+                          ? `฿${selectedReceipt.payer_detail.wallet_balance.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`
+                          : "—"}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">หลังชำระ</div>
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
+
               <div className="space-y-2">
                 <h4 className="font-semibold">{t("receipts.productList")}</h4>
                 {selectedReceipt.items.map((item) => {
