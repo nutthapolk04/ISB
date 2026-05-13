@@ -117,13 +117,10 @@ def get_receipt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a single receipt by ID. Non-admins restricted to their shop."""
+    """Get a single receipt by ID. Any authenticated user may read receipt details."""
     receipt = POSService.get_receipt(db, receipt_id)
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
-    if receipt.shop_id and not user_can_access_shop(current_user, receipt.shop_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"Receipt belongs to shop '{receipt.shop_id}' which is outside your scope")
     return _receipt_to_response(receipt, db=db)
 
 
