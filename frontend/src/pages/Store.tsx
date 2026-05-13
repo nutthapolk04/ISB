@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { IconButton } from "@/components/IconButton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,19 +83,6 @@ const Store = () => {
   const [colorEditId, setColorEditId] = useState<number | null>(null);
   const [colorEditValue, setColorEditValue] = useState("#e2e8f0");
   const [colorSaving, setColorSaving] = useState(false);
-  const colorPickerRef = useRef<HTMLDivElement>(null);
-
-  // Close color picker when clicking outside
-  useEffect(() => {
-    if (colorEditId === null) return;
-    const handler = (e: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
-        setColorEditId(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [colorEditId]);
 
   const saveProductColor = async (product: Product, color: string | null) => {
     setColorSaving(true);
@@ -104,11 +92,11 @@ const Store = () => {
         prev.map((p) => (p.id === product.id ? { ...p, color } : p)),
       );
       toast.success("บันทึกสีเรียบร้อย");
+      setColorEditId(null);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.detail : "บันทึกสีไม่สำเร็จ");
     } finally {
       setColorSaving(false);
-      setColorEditId(null);
     }
   };
   const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; allow_department_charge: boolean }>>([]);
@@ -1126,88 +1114,93 @@ const Store = () => {
                             ฿{displayPrice.toLocaleString()}
                           </span>
                           <div className="flex items-center gap-1">
-                            {/* Quick color edit button */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setColorEditId(colorEditId === p.id ? null : p.id);
-                                setColorEditValue(p.color ?? "#e2e8f0");
+                            {/* Quick color edit — uses shadcn Popover to avoid overflow/z-index issues */}
+                            <Popover
+                              open={colorEditId === p.id}
+                              onOpenChange={(open) => {
+                                if (open) {
+                                  setColorEditId(p.id);
+                                  setColorEditValue(p.color ?? "#4ade80");
+                                } else {
+                                  setColorEditId(null);
+                                }
                               }}
-                              className={cn(
-                                "rounded p-0.5 transition opacity-0 group-hover:opacity-100",
-                                colorEditId === p.id
-                                  ? "opacity-100 bg-muted"
-                                  : "hover:bg-muted",
-                              )}
-                              title="ตั้งสีการ์ด"
                             >
-                              <Palette className="h-3.5 w-3.5 text-muted-foreground" />
-                            </button>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="rounded p-0.5 transition hover:bg-muted"
+                                  title="ตั้งสีการ์ด"
+                                >
+                                  <Palette
+                                    className="h-3.5 w-3.5"
+                                    style={{ color: p.color ?? undefined }}
+                                  />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-56 p-3 space-y-3"
+                                onClick={(e) => e.stopPropagation()}
+                                side="top"
+                                align="end"
+                              >
+                                <p className="text-xs font-semibold">สีการ์ด</p>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={colorEditValue}
+                                    onChange={(e) => setColorEditValue(e.target.value)}
+                                    className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={colorEditValue}
+                                    onChange={(e) => setColorEditValue(e.target.value)}
+                                    className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background"
+                                    placeholder="#4ade80"
+                                  />
+                                </div>
+                                {/* Preset swatches */}
+                                <div className="flex gap-1.5 flex-wrap">
+                                  {["#f87171","#fb923c","#fbbf24","#4ade80","#34d399","#60a5fa","#a78bfa","#f472b6","#94a3b8"].map((c) => (
+                                    <button
+                                      key={c}
+                                      type="button"
+                                      onClick={() => setColorEditValue(c)}
+                                      className={cn(
+                                        "h-6 w-6 rounded-full border-2 transition",
+                                        colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105",
+                                      )}
+                                      style={{ backgroundColor: c }}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => saveProductColor(p, null)}
+                                    disabled={colorSaving}
+                                    className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition"
+                                  >
+                                    ล้างสี
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => saveProductColor(p, colorEditValue)}
+                                    disabled={colorSaving}
+                                    className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition"
+                                  >
+                                    {colorSaving ? "…" : "บันทึก"}
+                                  </button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                             <Badge variant="outline" className="text-[10px] px-1 py-0">
                               {p.category}
                             </Badge>
                           </div>
                         </div>
-
-                        {/* Color picker popover */}
-                        {colorEditId === p.id && (
-                          <div
-                            ref={colorPickerRef}
-                            onClick={(e) => e.stopPropagation()}
-                            className="absolute bottom-full left-0 right-0 z-20 mb-1 rounded-xl border border-border bg-popover shadow-lg p-3 space-y-2"
-                          >
-                            <p className="text-[11px] font-semibold text-muted-foreground">สีการ์ด</p>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={colorEditValue}
-                                onChange={(e) => setColorEditValue(e.target.value)}
-                                className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0"
-                              />
-                              <input
-                                type="text"
-                                value={colorEditValue}
-                                onChange={(e) => setColorEditValue(e.target.value)}
-                                className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background"
-                                placeholder="#e2e8f0"
-                              />
-                            </div>
-                            {/* Preset swatches */}
-                            <div className="flex gap-1.5 flex-wrap">
-                              {["#f87171","#fb923c","#fbbf24","#4ade80","#34d399","#60a5fa","#a78bfa","#f472b6","#e2e8f0"].map((c) => (
-                                <button
-                                  key={c}
-                                  type="button"
-                                  onClick={() => setColorEditValue(c)}
-                                  className={cn(
-                                    "h-6 w-6 rounded-full border-2 transition",
-                                    colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105",
-                                  )}
-                                  style={{ backgroundColor: c }}
-                                />
-                              ))}
-                            </div>
-                            <div className="flex gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => saveProductColor(p, null)}
-                                disabled={colorSaving}
-                                className="flex-1 rounded-md border border-border bg-background py-1 text-[11px] text-muted-foreground hover:bg-muted transition"
-                              >
-                                ล้างสี
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => saveProductColor(p, colorEditValue)}
-                                disabled={colorSaving}
-                                className="flex-1 rounded-md bg-primary py-1 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition"
-                              >
-                                {colorSaving ? "…" : "บันทึก"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </button>
                     );
                   })}
