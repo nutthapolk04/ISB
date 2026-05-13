@@ -142,13 +142,10 @@ export function RfidPaymentModal({
         setFamilyResult(null);
         setFamilyError(null);
       }
-    } else {
-      // Modal closed - clear pre-selected member
-      if (onClearPreSelected) {
-        onClearPreSelected();
-      }
     }
-  }, [open, preSelectedMember, onClearPreSelected]);
+    // Note: Don't clear preSelectedMember when modal closes -
+    // it's managed by parent component for the Order panel display
+  }, [open, preSelectedMember]);
 
   /**
    * Auto-detect who owns this card/code — tries all identity types in order:
