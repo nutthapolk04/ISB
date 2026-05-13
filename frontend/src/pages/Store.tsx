@@ -1037,20 +1037,23 @@ const Store = () => {
                         key={p.id}
                         type="button"
                         onClick={() => addToCart(p)}
-                        data-card-color={p.photoUrl && p.color ? "true" : undefined}
+                        data-card-color={p.color ? "true" : undefined}
                         className={cn(
                           "pos-product-tile group flex flex-col rounded-lg border bg-card p-2 text-left transition active:scale-[0.98]",
-                          !(p.photoUrl && p.color) && "border-border/60 hover:border-primary hover:shadow-sm",
+                          !p.color && "border-border/60 hover:border-primary hover:shadow-sm",
                         )}
                         style={
-                          p.photoUrl && p.color
-                            ? ({ "--card-color": p.color } as React.CSSProperties)
+                          p.color
+                            ? ({
+                                "--card-color": p.color,
+                                ...(!p.photoUrl && { backgroundColor: p.color + "18" }),
+                              } as React.CSSProperties)
                             : undefined
                         }
                       >
                         <div
-                          className="relative h-20 w-full overflow-hidden rounded-md bg-muted"
-                          style={!p.photoUrl && p.color ? { backgroundColor: p.color } : undefined}
+                          className="relative h-20 w-full overflow-hidden rounded-md"
+                          style={p.color ? { backgroundColor: p.color } : undefined}
                         >
                           {p.photoUrl ? (
                             <img
@@ -1060,7 +1063,10 @@ const Store = () => {
                               loading="lazy"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-muted-foreground/60">
+                            <div className={cn(
+                              "flex h-full w-full items-center justify-center",
+                              p.color ? "text-white/70" : "text-muted-foreground/60",
+                            )}>
                               <Package className="h-7 w-7" />
                             </div>
                           )}
