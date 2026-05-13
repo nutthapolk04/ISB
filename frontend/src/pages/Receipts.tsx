@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -414,12 +415,38 @@ const Receipts = () => {
           <div className="space-y-3 py-2">
             <div>
               <label className="text-sm font-medium">เหตุผลการยกเลิก (ไม่บังคับ)</label>
+              {/* Preset reason chips */}
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[
+                  "ทำรายการผิด",
+                  "ลูกค้าเปลี่ยนใจ",
+                  "สินค้าหมด",
+                  "ราคาไม่ถูกต้อง",
+                  "ชำระเงินซ้ำ",
+                  "ทดสอบระบบ",
+                ].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    disabled={voidLoading}
+                    onClick={() => setVoidReason(r)}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs transition",
+                      voidReason === r
+                        ? "border-destructive bg-destructive/10 text-destructive font-semibold"
+                        : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
+                    )}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
               <Textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
-                placeholder="เช่น สั่งผิดรายการ / ลูกค้าเปลี่ยนใจ"
+                placeholder="หรือพิมพ์เหตุผลเอง…"
                 rows={2}
-                className="mt-1.5 resize-none"
+                className="mt-2 resize-none"
                 disabled={voidLoading}
               />
             </div>
