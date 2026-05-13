@@ -1,4 +1,4 @@
-import { Minus, Plus, Trash2, Percent, CreditCard, UtensilsCrossed, Pencil } from "lucide-react";
+import { Minus, Plus, Trash2, Percent, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/IconButton";
@@ -10,6 +10,7 @@ import type {
   BillDiscountMode,
   PriceMode,
 } from "@/hooks/useCanteenCart";
+import type { StudentLookupResult } from "./RfidPaymentModal";
 
 interface CanteenCartProps {
   items: CanteenCartItem[];
@@ -31,6 +32,10 @@ interface CanteenCartProps {
   onCharge: () => void;
   /** When rendered inside a mobile Sheet, suppress the aside-style panel chrome. */
   asSheet?: boolean;
+  /** Pre-selected member for payment */
+  selectedMember?: StudentLookupResult | null;
+  /** Clear the selected member */
+  onClearMember?: () => void;
 }
 
 export function CanteenCart({
@@ -51,6 +56,8 @@ export function CanteenCart({
   onClearDiscount,
   onCharge,
   asSheet = false,
+  selectedMember,
+  onClearMember,
 }: CanteenCartProps) {
   const { t } = useTranslation();
   const isEmpty = items.length === 0;
@@ -78,6 +85,47 @@ export function CanteenCart({
           {items.reduce((s, i) => s + i.quantity, 0) === 1 ? "" : "s"}
         </p>
       </div>
+
+      {/* Selected Member */}
+      {selectedMember && (
+        <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+              {selectedMember.photo_url ? (
+                <img
+                  src={selectedMember.photo_url}
+                  alt={selectedMember.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-amber-400">
+                  <UserCircle2 className="h-8 w-8" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-sm truncate">{selectedMember.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {selectedMember.student_code ?? selectedMember.customer_code}
+                {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
+              </div>
+              <div className="text-sm font-bold tabular-nums text-emerald-600">
+                ฿{(selectedMember.wallet_balance ?? 0).toFixed(2)}
+              </div>
+            </div>
+            {onClearMember && (
+              <button
+                type="button"
+                onClick={onClearMember}
+                className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
+                aria-label="ยกเลิกสมาชิก"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <Separator />
 

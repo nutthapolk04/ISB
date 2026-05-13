@@ -382,6 +382,38 @@ export default function Canteen() {
     }
   };
 
+  // Handle charge button - if member is pre-selected, charge directly
+  const handleCharge = async () => {
+    if (preSelectedMember) {
+      // Direct wallet charge for pre-selected member
+      setConfirming(true);
+      try {
+        const amount = cart.total;
+        const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
+        const res = await doCheckout("wallet", {
+          kind: "customer",
+          customerId: preSelectedMember.id,
+        });
+        finalizeSuccess(
+          res.receipt_number,
+          amount,
+          currentBalance - amount,
+          preSelectedMember,
+        );
+        setPreSelectedMember(null);
+      } catch (e) {
+        toast.error(
+          e instanceof ApiError ? e.detail : "Checkout failed",
+        );
+      } finally {
+        setConfirming(false);
+      }
+    } else {
+      // No member selected - show payment method picker
+      setMethodPickerOpen(true);
+    }
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="canteen-layout">
@@ -515,7 +547,9 @@ export default function Canteen() {
         onSetLinePrice={cart.setLinePriceOverride}
         onOpenDiscount={() => setDiscountOpen(true)}
         onClearDiscount={cart.clearDiscount}
-        onCharge={() => setMethodPickerOpen(true)}
+        onCharge={handleCharge}
+        selectedMember={preSelectedMember}
+        onClearMember={() => setPreSelectedMember(null)}
       />
 
       {/* Mobile floating cart trigger — visible <lg when cart has items */}
@@ -553,8 +587,10 @@ export default function Canteen() {
             onClearDiscount={cart.clearDiscount}
             onCharge={() => {
               setCartOpen(false);
-              setMethodPickerOpen(true);
+              handleCharge();
             }}
+            selectedMember={preSelectedMember}
+            onClearMember={() => setPreSelectedMember(null)}
           />
         </SheetContent>
       </Sheet>
@@ -646,7 +682,7 @@ export default function Canteen() {
         onSelect={(member) => {
           setPreSelectedMember(member);
           setMemberSearchOpen(false);
-          setRfidOpen(true);
+          // Don't open RFID modal - just set the member for later payment
         }}
       />
       <CashierTopupModal
