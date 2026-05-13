@@ -196,42 +196,51 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
     # ── Enrich payer details for wallet-based payments ───────────────────────
     payer_detail: Optional[dict] = None
     if db and payer_kind in ("customer", "user", "department"):
-        if payer_kind == "customer" and getattr(receipt, "customer", None):
-            c = receipt.customer
-            wallet = db.query(Wallet).filter(Wallet.customer_id == c.id).first()
-            payer_detail = {
-                "name": c.name,
-                "code": c.student_code or c.customer_code,
-                "grade": getattr(c, "grade", None),
-                "photo_url": getattr(c, "photo_url", None),
-                "role": "student",
-                "wallet_balance": float(wallet.balance) if wallet else None,
-            }
-        elif payer_kind == "user" and getattr(receipt, "payer_user", None):
-            u = receipt.payer_user
-            wallet = db.query(Wallet).filter(Wallet.user_id == u.id).first()
-            dept_name = None
-            if getattr(u, "department", None):
-                dept_name = u.department.department_name
-            payer_detail = {
-                "name": u.full_name,
-                "code": u.username,
-                "grade": dept_name,          # re-use "grade" slot for dept/role label
-                "photo_url": getattr(u, "photo_url", None),
-                "role": u.role or "staff",
-                "wallet_balance": float(wallet.balance) if wallet else None,
-            }
-        elif payer_kind == "department" and getattr(receipt, "payer_department", None):
-            d = receipt.payer_department
-            wallet = db.query(Wallet).filter(Wallet.department_id == d.id).first()
-            payer_detail = {
-                "name": d.department_name,
-                "code": d.department_code,
-                "grade": None,
-                "photo_url": None,
-                "role": "department",
-                "wallet_balance": float(wallet.balance) if wallet else None,
-            }
+        if payer_kind == "customer" and receipt.customer_id:
+            from app.models.customer import Customer as _Customer
+            c = db.query(_Customer).filter(_Customer.id == receipt.customer_id).first()
+            if c:
+                wallet = db.query(Wallet).filter(Wallet.customer_id == c.id).first()
+                payer_detail = {
+                    "name": c.name,
+                    "code": c.student_code or c.customer_code,
+                    "grade": getattr(c, "grade", None),
+                    "photo_url": getattr(c, "photo_url", None),
+                    "role": "student",
+                    "wallet_balance": float(wallet.balance) if wallet else None,
+                }
+        elif payer_kind == "user" and receipt.payer_user_id:
+            from app.models.user import User as _User
+            u = db.query(_User).filter(_User.id == receipt.payer_user_id).first()
+            if u:
+                wallet = db.query(Wallet).filter(Wallet.user_id == u.id).first()
+                from app.models.department import Department as _Dept
+                dept_name = None
+                if getattr(u, "department_id", None):
+                    d = db.query(_Dept).filter(_Dept.id == u.department_id).first()
+                    if d:
+                        dept_name = d.department_name
+                payer_detail = {
+                    "name": u.full_name,
+                    "code": u.username,
+                    "grade": dept_name,
+                    "photo_url": getattr(u, "photo_url", None),
+                    "role": u.role or "staff",
+                    "wallet_balance": float(wallet.balance) if wallet else None,
+                }
+        elif payer_kind == "department" and receipt.payer_department_id:
+            from app.models.department import Department as _Dept
+            d = db.query(_Dept).filter(_Dept.id == receipt.payer_department_id).first()
+            if d:
+                wallet = db.query(Wallet).filter(Wallet.department_id == d.id).first()
+                payer_detail = {
+                    "name": d.department_name,
+                    "code": d.department_code,
+                    "grade": None,
+                    "photo_url": None,
+                    "role": "department",
+                    "wallet_balance": float(wallet.balance) if wallet else None,
+                }
 
     return {
         "id": receipt.id,
