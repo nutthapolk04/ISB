@@ -75,6 +75,8 @@ export default function Canteen() {
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // Pre-selected member from search (for "ready to pay" flow)
+  const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
 
   // ── Departments (for department payment option) ──────────────────────────
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
@@ -589,10 +591,13 @@ export default function Canteen() {
         total={cart.total}
         onBack={() => {
           setRfidOpen(false);
+          setPreSelectedMember(null);
           setMethodPickerOpen(true);
         }}
         onConfirm={handleConfirmWallet}
         confirming={confirming}
+        preSelectedMember={preSelectedMember}
+        onClearPreSelected={() => setPreSelectedMember(null)}
       />
       <CashPaymentModal
         open={cashOpen}
@@ -638,6 +643,11 @@ export default function Canteen() {
       <MemberSearchModal
         open={memberSearchOpen}
         onOpenChange={setMemberSearchOpen}
+        onSelect={(member) => {
+          setPreSelectedMember(member);
+          setMemberSearchOpen(false);
+          setRfidOpen(true);
+        }}
       />
       <CashierTopupModal
         open={topupOpen}

@@ -65,6 +65,10 @@ interface RfidPaymentModalProps {
   onBack: () => void;
   onConfirm: (payer: WalletPayer) => Promise<void>;
   confirming: boolean;
+  /** Pre-selected member from search (skips to identity stage) */
+  preSelectedMember?: StudentLookupResult | null;
+  /** Clear the pre-selected member after use */
+  onClearPreSelected?: () => void;
 }
 
 type Stage = "detect" | "identity" | "family";
@@ -98,6 +102,8 @@ export function RfidPaymentModal({
   onBack,
   onConfirm,
   confirming,
+  preSelectedMember,
+  onClearPreSelected,
 }: RfidPaymentModalProps) {
   const [stage, setStage] = useState<Stage>("detect");
   const [payerKind, setPayerKind] = useState<PayerKind>("customer");
@@ -114,17 +120,35 @@ export function RfidPaymentModal({
 
   useEffect(() => {
     if (open) {
-      setStage("detect");
-      setPayerKind("customer");
-      setCardInput("");
-      setLookupError(null);
-      setStudent(null);
-      setUserPayer(null);
-      setFamilyQuery("");
-      setFamilyResult(null);
-      setFamilyError(null);
+      // If we have a pre-selected member, skip to identity stage
+      if (preSelectedMember) {
+        setStudent(preSelectedMember);
+        setUserPayer(null);
+        setPayerKind("customer");
+        setStage("identity");
+        setCardInput("");
+        setLookupError(null);
+        setFamilyQuery("");
+        setFamilyResult(null);
+        setFamilyError(null);
+      } else {
+        setStage("detect");
+        setPayerKind("customer");
+        setCardInput("");
+        setLookupError(null);
+        setStudent(null);
+        setUserPayer(null);
+        setFamilyQuery("");
+        setFamilyResult(null);
+        setFamilyError(null);
+      }
+    } else {
+      // Modal closed - clear pre-selected member
+      if (onClearPreSelected) {
+        onClearPreSelected();
+      }
     }
-  }, [open]);
+  }, [open, preSelectedMember, onClearPreSelected]);
 
   /**
    * Auto-detect who owns this card/code — tries all identity types in order:
