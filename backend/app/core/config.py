@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # CORS — set as comma-separated string: "https://app.vercel.app,http://localhost:5173"
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://localhost:8080"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://localhost:8080,https://isb-beta.vercel.app,https://isb-production.vercel.app"
 
     # File Upload
     UPLOAD_DIR: str = "./uploads"

@@ -309,14 +309,16 @@ run(\"UPDATE users SET shop_id='canteen'   WHERE username IN ('manager_canteen',
 # Defensive: shop_products.is_active (column exists in model; ensure DB has it for Canteen Menu toggle)
 run('ALTER TABLE shop_products ADD COLUMN is_active BOOLEAN DEFAULT true NOT NULL', 'shop_products.is_active')
 
-# Merge legacy cafeteria shop → canteen (idempotent — no-op if cafeteria absent)
-run(\"UPDATE shop_products    SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen products', ok_if_exists=False)
-run(\"UPDATE shop_categories  SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen categories', ok_if_exists=False)
-run(\"UPDATE shop_movements   SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen movements', ok_if_exists=False)
-run(\"UPDATE fifo_lots        SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen fifo', ok_if_exists=False)
-run(\"UPDATE receipts         SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen receipts', ok_if_exists=False)
-run(\"UPDATE users            SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen users', ok_if_exists=False)
-run(\"DELETE FROM shops WHERE id='cafeteria'\", 'delete cafeteria shop', ok_if_exists=False)
+# Merge legacy cafeteria shop → canteen (SKIPPED - migration already completed, kept for history)
+# Safety: These migrations were one-time only. Re-running could cause issues.
+# run(\"UPDATE shop_products    SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen products', ok_if_exists=False)
+# run(\"UPDATE shop_categories  SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen categories', ok_if_exists=False)
+# run(\"UPDATE shop_movements   SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen movements', ok_if_exists=False)
+# run(\"UPDATE fifo_lots        SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen fifo', ok_if_exists=False)
+# run(\"UPDATE receipts         SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen receipts', ok_if_exists=False)
+# run(\"UPDATE users            SET shop_id='canteen' WHERE shop_id='cafeteria'\", 'cafeteria→canteen users', ok_if_exists=False)
+# run(\"DELETE FROM shops WHERE id='cafeteria'\", 'delete cafeteria shop', ok_if_exists=False)
+print('  = cafeteria→canteen migration (skipped - already completed)')
 
 # === Demo May-2026: receipt_items.price_override (one-time POS override) ===
 # Cashier can edit a line price at checkout. Original `unit_price` keeps the
