@@ -214,11 +214,12 @@ def get_return_history(
 @router.get("/receipts/search")
 def search_receipts(
     receiptId: Optional[str] = Query(None),
+    studentCode: Optional[str] = Query(None, description="Search by student_code or customer_code"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
-    """Search for a receipt by number (used in return flow)."""
-    result = ReturnsService.search_receipt(db, receipt_id=receiptId)
+    """Search for a receipt by number or student code (used in return flow)."""
+    result = ReturnsService.search_receipt(db, receipt_id=receiptId, student_code=studentCode)
     if not result:
         raise HTTPException(status_code=404, detail="Receipt not found")
     return {"receipt": result}

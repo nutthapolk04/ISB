@@ -275,7 +275,10 @@ const Returns = () => {
     }
 
     try {
-      const data = await api.get<{ receipt?: Receipt & { shopId?: string } }>(`/receipts/search?receiptId=${encodeURIComponent(searchReceiptId)}`);
+      const params = new URLSearchParams();
+      if (searchReceiptId) params.set("receiptId", searchReceiptId);
+      if (searchStudent) params.set("studentCode", searchStudent);
+      const data = await api.get<{ receipt?: Receipt & { shopId?: string } }>(`/receipts/search?${params}`);
       if (data.receipt) {
         setSelectedReceipt(data.receipt);
         setSelectedItems({});

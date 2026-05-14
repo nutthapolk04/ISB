@@ -399,14 +399,36 @@ class ReturnsService:
         db: Session,
         *,
         receipt_id: Optional[str] = None,
+        student_code: Optional[str] = None,
     ) -> Optional[dict]:
-        if not receipt_id:
+        if not receipt_id and not student_code:
             return None
-        receipt = (
-            db.query(Receipt)
-            .filter(Receipt.receipt_number.ilike(f"%{receipt_id}%"))
-            .first()
-        )
+
+        if student_code and not receipt_id:
+            # Look up customer by student_code or customer_code
+            from app.models.customer import Customer
+            customer = (
+                db.query(Customer)
+                .filter(
+                    (Customer.student_code == student_code) |
+                    (Customer.customer_code == student_code)
+                )
+                .first()
+            )
+            if not customer:
+                return None
+            receipt = (
+                db.query(Receipt)
+                .filter(Receipt.customer_id == customer.id)
+                .order_by(desc(Receipt.created_at))
+                .first()
+            )
+        else:
+            receipt = (
+                db.query(Receipt)
+                .filter(Receipt.receipt_number.ilike(f"%{receipt_id}%"))
+                .first()
+            )
         if not receipt:
             return None
 
