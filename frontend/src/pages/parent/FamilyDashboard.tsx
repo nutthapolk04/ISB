@@ -82,13 +82,7 @@ export default function FamilyDashboard() {
             {isStudent ? t("parent.dashboard.studentDescription") : t("parent.dashboard.description")}
           </p>
         </div>
-        {!isStudent && children.length >= 2 && (
-          <Button asChild variant="outline" className="h-11 w-full sm:w-auto">
-            <Link to="/parent/transfer">
-              <ArrowLeftRight className="h-4 w-4 mr-1.5" /> {t("parent.dashboard.transferSiblings")}
-            </Link>
-          </Button>
-        )}
+        {/* Transfer between wallets is admin-only — button intentionally removed */}
       </div>
 
       {loading && (
@@ -214,12 +208,7 @@ export default function FamilyDashboard() {
                   {t("parent.dashboard.topUp")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-amber-300 hover:bg-amber-100">
-                <Link to={`/parent/transfer?from=${ownWallet.id}`}>
-                  <ArrowLeftRight className="h-4 w-4 mr-1" />
-                  {t("parent.dashboard.transfer")}
-                </Link>
-              </Button>
+              {/* Transfer button removed — wallet transfers are admin-only */}
               <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-amber-300 hover:bg-amber-100">
                 <Link to={`/parent/wallet/own?tab=history`}>
                   <History className="h-4 w-4 mr-1" />

@@ -289,14 +289,11 @@ def transfer_within_family(
     payload: SiblingTransferRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("parent", "staff", "cashier", "manager", "kitchen", "admin")
+        require_role("staff", "cashier", "manager", "kitchen", "admin")
     ),
 ):
-    """Move funds between any two wallets in the caller's family.
-
-    Supported directions: parent's own ↔ child, child ↔ child, child ↔ parent.
-    The caller must be able to access BOTH wallets (own wallet, or a child via
-    `parent_child_links`); admins bypass the family check.
+    """Move funds between any two wallets. Parent-initiated transfers are disabled
+    (anti-money-laundering policy); only staff/admin may perform wallet transfers.
     """
     is_admin = current_user.is_superuser or current_user.role == "admin"
     try:

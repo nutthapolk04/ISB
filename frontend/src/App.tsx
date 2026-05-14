@@ -249,8 +249,8 @@ const App = () => (
                   <Route path="/parent/profile/:customerId" element={<StudentProfile />} />
                 </Route>
 
-                {/* Transfer — student excluded (no inter-wallet transfers) */}
-                <Route element={<RequireRole roles={["parent", "staff", "admin"]} />}>
+                {/* Transfer — parent-initiated transfers disabled (admin-only per policy) */}
+                <Route element={<RequireRole roles={["staff", "admin"]} />}>
                   <Route path="/parent/transfer" element={<Transfer />} />
                 </Route>
 
