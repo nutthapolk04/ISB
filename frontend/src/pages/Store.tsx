@@ -152,7 +152,7 @@ const Store = () => {
   const [reorderDirty, setReorderDirty] = useState(false);
   const [sortVersions, setSortVersions] = useState<Record<string, number>>({});
   const [reorderSaving, setReorderSaving] = useState(false);
-  const canManageOrder = user?.role === "admin" || user?.role === "manager";
+  const canManageOrder = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

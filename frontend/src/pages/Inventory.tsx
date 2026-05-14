@@ -2147,14 +2147,14 @@ function ProductFormFields({
         <div>
           <Label>{t("inventory.uom", "หน่วยนับ")}</Label>
           <Select
-            value={form.uomId ? String(form.uomId) : ""}
-            onValueChange={(v) => setForm({ ...form, uomId: v ? parseInt(v) : "" })}
+            value={form.uomId ? String(form.uomId) : "__none__"}
+            onValueChange={(v) => setForm({ ...form, uomId: v === "__none__" ? "" : parseInt(v) })}
           >
             <SelectTrigger>
               <SelectValue placeholder={t("inventory.selectUom", "เลือกหน่วย")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">-</SelectItem>
+              <SelectItem value="__none__">-</SelectItem>
               {uoms.map((u) => (
                 <SelectItem key={u.id} value={String(u.id)}>
                   {u.name} ({u.code})
