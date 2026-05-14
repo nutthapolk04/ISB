@@ -2,6 +2,12 @@
 FastAPI Application Entry Point
 Bookstore POS System Backend
 """
+import logging
+import os
+import subprocess
+import sys
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,11 +25,57 @@ from app.api.v1 import (
     uom, bundles, price_panels,
 )
 
-# Create database tables
+logger = logging.getLogger(__name__)
+
+# Create database tables (idempotent — won't drop existing data)
 Base.metadata.create_all(bind=engine)
+
+
+def _auto_seed_if_empty():
+    """Run seed.py if the database has no shops yet (prototype convenience).
+    Safe to call every startup — seed.py uses upsert logic so it won't duplicate data.
+    """
+    from app.core.database import SessionLocal
+    from app.models.shop import Shop
+    db = SessionLocal()
+    try:
+        count = db.query(Shop).count()
+    except Exception:
+        count = -1
+    finally:
+        db.close()
+
+    if count == 0:
+        logger.info("[auto-seed] No shops found — running seed.py to populate demo data…")
+        seed_script = os.path.join(os.path.dirname(__file__), "..", "seed.py")
+        seed_script = os.path.normpath(seed_script)
+        try:
+            result = subprocess.run(
+                [sys.executable, seed_script],
+                cwd=os.path.normpath(os.path.join(os.path.dirname(__file__), "..")),
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+            if result.returncode == 0:
+                logger.info("[auto-seed] Seed completed successfully.")
+            else:
+                logger.warning(f"[auto-seed] Seed exited with code {result.returncode}:\n{result.stderr}")
+        except Exception as e:
+            logger.warning(f"[auto-seed] Failed to run seed: {e}")
+    else:
+        logger.debug(f"[auto-seed] {count} shop(s) found — skipping seed.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _auto_seed_if_empty()
+    yield
+
 
 # Initialize FastAPI application
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="Production-grade POS system for bookstores and educational institutions",
