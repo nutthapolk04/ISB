@@ -14,6 +14,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Wallet as WalletIcon, CheckCircle2, Clock, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
+import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 
 // Demo May-2026 — Topup channel limits & fee.
 // Fee is UI-only for now (not persisted on payment_intents) — wallet still
@@ -85,6 +86,8 @@ export default function WalletDetail() {
   const [confirming, setConfirming] = useState(false);
   const [intent, setIntent] = useState<TopupIntent | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
+  const [gatewayOpen, setGatewayOpen] = useState(false);
+  const [pendingAmt, setPendingAmt] = useState(0);
 
   const locale = i18n.language === "en" ? "en-US" : "th-TH";
   const formatDate = (iso: string) =>
@@ -157,28 +160,8 @@ export default function WalletDetail() {
     }
 
     if (paymentMethod === "credit_card") {
-      setCreating(true);
-      try {
-        await new Promise((r) => setTimeout(r, 2500));
-        const resp = await api.post<TopupIntent>(
-          `/wallets/${profile.wallet_id}/topup`,
-          { amount: amt, payment_method: "credit_card" },
-        );
-        await api.post(`/wallets/topup/${resp.ref_code}/parent-confirm`, {});
-        await loadData();
-        toast({
-          title: t("parent.wallet.topupSuccess"),
-          description: t("parent.wallet.topupSuccessDesc", { amount: formatTHB(amt), fee: formatTHB(fee) }),
-        });
-      } catch (e) {
-        toast({
-          title: t("parent.wallet.topupFailed"),
-          description: e instanceof ApiError ? e.detail : "Unknown error",
-          variant: "destructive",
-        });
-      } finally {
-        setCreating(false);
-      }
+      setPendingAmt(amt);
+      setGatewayOpen(true);
       return;
     }
 
@@ -221,6 +204,35 @@ export default function WalletDetail() {
       });
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleGatewaySuccess = async () => {
+    setGatewayOpen(false);
+    if (!profile?.wallet_id) return;
+    setCreating(true);
+    try {
+      const resp = await api.post<TopupIntent>(
+        `/wallets/${profile.wallet_id}/topup`,
+        { amount: pendingAmt, payment_method: "credit_card" },
+      );
+      await api.post(`/wallets/topup/${resp.ref_code}/parent-confirm`, {});
+      await loadData();
+      toast({
+        title: t("parent.wallet.topupSuccess"),
+        description: t("parent.wallet.topupSuccessDesc", {
+          amount: formatTHB(pendingAmt),
+          fee: formatTHB(Math.round(pendingAmt * CREDIT_FEE_RATE * 100) / 100),
+        }),
+      });
+    } catch (e) {
+      toast({
+        title: t("parent.wallet.topupFailed"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -448,6 +460,14 @@ export default function WalletDetail() {
           })}
         </CardContent>
       </Card>}
+
+      <KrungsriGatewayDialog
+        open={gatewayOpen}
+        amount={pendingAmt}
+        fee={Math.round(pendingAmt * CREDIT_FEE_RATE * 100) / 100}
+        onSuccess={handleGatewaySuccess}
+        onCancel={() => setGatewayOpen(false)}
+      />
 
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent className="max-w-sm sm:max-w-md">
