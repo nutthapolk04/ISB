@@ -346,6 +346,12 @@ def _create_product_in_shop(
     db.add(product)
     db.flush()
 
+    # Auto-register product in all existing price panels for this shop
+    from app.models.price_panel import PricePanel as _PricePanel, PricePanelItem as _PricePanelItem
+    existing_panels = db.query(_PricePanel).filter(_PricePanel.shop_id == shop.id).all()
+    for panel in existing_panels:
+        db.add(_PricePanelItem(panel_id=panel.id, product_id=product.id, price=None))
+
     if body.stock > 0:
         import datetime
         if shop.shop_type.value == "fifo":

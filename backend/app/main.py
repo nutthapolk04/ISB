@@ -9,12 +9,14 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 
+from app.models import price_panel as _price_panel_models  # noqa: F401 — ensures tables are created
+
 # Import routers
 from app.api.v1 import (
     products, auth, shops, inventory, pos, returns, wallets, customers,
     family, users, users_admin, sync,
     admin_cardholders, admin_departments, admin_audit, admin_settings, departments, reports,
-    uom, bundles,
+    uom, bundles, price_panels,
 )
 
 # Create database tables
@@ -81,6 +83,7 @@ app.include_router(departments.router, prefix="/api/v1/departments", tags=["Depa
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(uom.router, prefix="/api/v1/uom", tags=["Units of Measure"])
 app.include_router(bundles.router, prefix="/api/v1/shops", tags=["Product Bundles"])
+app.include_router(price_panels.router, prefix="/api/v1/shops", tags=["Price Panels"])
 
 
 # Exception handlers

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -16,7 +16,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -42,6 +45,41 @@ interface AuditLogEntry {
   user_username: string | null;
   user_full_name: string | null;
 }
+
+interface PricePanel {
+  id: number;
+  shop_id: string;
+  name: string;
+  color: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+interface PricePanelItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  external_price: number;
+  panel_price: number | null;
+}
+
+const PANEL_COLORS = [
+  { value: "blue", label: "Blue", class: "bg-blue-500" },
+  { value: "green", label: "Green", class: "bg-green-500" },
+  { value: "orange", label: "Orange", class: "bg-orange-500" },
+  { value: "red", label: "Red", class: "bg-red-500" },
+  { value: "purple", label: "Purple", class: "bg-purple-500" },
+  { value: "gray", label: "Gray", class: "bg-gray-500" },
+];
+
+const panelColorBadgeClass: Record<string, string> = {
+  blue: "bg-blue-100 text-blue-700 border-blue-300",
+  green: "bg-green-100 text-green-700 border-green-300",
+  orange: "bg-orange-100 text-orange-700 border-orange-300",
+  red: "bg-red-100 text-red-700 border-red-300",
+  purple: "bg-purple-100 text-purple-700 border-purple-300",
+  gray: "bg-gray-100 text-gray-700 border-gray-300",
+};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +143,139 @@ const ShopDetail = () => {
       setAuditLoading(false);
     }
   }, [shopId]);
+
+  // ── Price Panels state ──────────────────────────────────────────────────
+  const [panels, setPanels] = useState<PricePanel[]>([]);
+  const [panelsLoading, setPanelsLoading] = useState(false);
+  const [expandedPanelId, setExpandedPanelId] = useState<number | null>(null);
+  const [panelItems, setPanelItems] = useState<Record<number, PricePanelItem[]>>({});
+  const [panelItemsLoading, setPanelItemsLoading] = useState<Record<number, boolean>>({});
+  const [newPanelDialogOpen, setNewPanelDialogOpen] = useState(false);
+  const [newPanelName, setNewPanelName] = useState("");
+  const [newPanelColor, setNewPanelColor] = useState<string>("");
+  const [newPanelSaving, setNewPanelSaving] = useState(false);
+  const [editPanelDialogOpen, setEditPanelDialogOpen] = useState(false);
+  const [editPanelTarget, setEditPanelTarget] = useState<PricePanel | null>(null);
+  const [editPanelName, setEditPanelName] = useState("");
+  const [editPanelColor, setEditPanelColor] = useState("");
+  const [editPanelSaving, setEditPanelSaving] = useState(false);
+  // Track cell edit values: panelId -> productId -> string value
+  const [cellDrafts, setCellDrafts] = useState<Record<number, Record<number, string>>>({});
+
+  const fetchPanels = useCallback(async () => {
+    if (!shopId) return;
+    setPanelsLoading(true);
+    try {
+      const data = await api.get<PricePanel[]>(`/shops/${shopId}/price-panels`);
+      setPanels(data);
+    } catch {
+      toast.error("Failed to load price panels");
+    } finally {
+      setPanelsLoading(false);
+    }
+  }, [shopId]);
+
+  const fetchPanelItems = useCallback(async (panelId: number) => {
+    if (!shopId) return;
+    setPanelItemsLoading((prev) => ({ ...prev, [panelId]: true }));
+    try {
+      const data = await api.get<PricePanelItem[]>(`/shops/${shopId}/price-panels/${panelId}/items`);
+      setPanelItems((prev) => ({ ...prev, [panelId]: data }));
+      // Initialize cell drafts
+      const drafts: Record<number, string> = {};
+      data.forEach((item) => {
+        drafts[item.product_id] = item.panel_price != null ? String(item.panel_price) : "";
+      });
+      setCellDrafts((prev) => ({ ...prev, [panelId]: drafts }));
+    } catch {
+      toast.error("Failed to load panel items");
+    } finally {
+      setPanelItemsLoading((prev) => ({ ...prev, [panelId]: false }));
+    }
+  }, [shopId]);
+
+  const handleTogglePanel = (panelId: number) => {
+    if (expandedPanelId === panelId) {
+      setExpandedPanelId(null);
+    } else {
+      setExpandedPanelId(panelId);
+      if (!panelItems[panelId]) {
+        fetchPanelItems(panelId);
+      }
+    }
+  };
+
+  const handleCreatePanel = async () => {
+    if (!shopId || !newPanelName.trim()) return;
+    setNewPanelSaving(true);
+    try {
+      await api.post(`/shops/${shopId}/price-panels`, {
+        name: newPanelName.trim(),
+        color: newPanelColor || null,
+      });
+      toast.success("Price panel created");
+      setNewPanelDialogOpen(false);
+      setNewPanelName("");
+      setNewPanelColor("");
+      await fetchPanels();
+    } catch (err: any) {
+      toast.error(err?.detail ?? "Failed to create panel");
+    } finally {
+      setNewPanelSaving(false);
+    }
+  };
+
+  const handleEditPanel = async () => {
+    if (!shopId || !editPanelTarget) return;
+    setEditPanelSaving(true);
+    try {
+      await api.patch(`/shops/${shopId}/price-panels/${editPanelTarget.id}`, {
+        name: editPanelName.trim() || undefined,
+        color: editPanelColor || undefined,
+      });
+      toast.success("Panel updated");
+      setEditPanelDialogOpen(false);
+      setEditPanelTarget(null);
+      await fetchPanels();
+    } catch (err: any) {
+      toast.error(err?.detail ?? "Failed to update panel");
+    } finally {
+      setEditPanelSaving(false);
+    }
+  };
+
+  const handleDeletePanel = async (panel: PricePanel) => {
+    if (!shopId) return;
+    if (!window.confirm(`Delete panel "${panel.name}"? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/shops/${shopId}/price-panels/${panel.id}`);
+      toast.success("Panel deleted");
+      if (expandedPanelId === panel.id) setExpandedPanelId(null);
+      await fetchPanels();
+    } catch (err: any) {
+      toast.error(err?.detail ?? "Failed to delete panel");
+    }
+  };
+
+  const handleCellBlur = async (panelId: number, productId: number) => {
+    if (!shopId) return;
+    const rawValue = cellDrafts[panelId]?.[productId] ?? "";
+    const trimmed = rawValue.trim();
+    const price = trimmed === "" ? null : parseFloat(trimmed);
+    if (trimmed !== "" && (isNaN(price!) || price! < 0)) return;
+    try {
+      await api.patch(`/shops/${shopId}/price-panels/${panelId}/items/${productId}`, { price });
+      // Update local state
+      setPanelItems((prev) => ({
+        ...prev,
+        [panelId]: (prev[panelId] ?? []).map((item) =>
+          item.product_id === productId ? { ...item, panel_price: price } : item,
+        ),
+      }));
+    } catch {
+      toast.error("Failed to save price");
+    }
+  };
 
   const handleSaveShopInfo = async () => {
     if (!shopId) return;
@@ -185,6 +356,10 @@ const ShopDetail = () => {
             <Package className="h-4 w-4" />
             {t("management.tabInventory")}
           </TabsTrigger>
+          <TabsTrigger value="pricePanels" className="gap-2" onClick={fetchPanels}>
+            <Tag className="h-4 w-4" />
+            Price Panels
+          </TabsTrigger>
           <TabsTrigger value="bundles" className="gap-2">
             <Layers className="h-4 w-4" />
             {t("management.tabBundles") || "Bundles"}
@@ -243,6 +418,252 @@ const ShopDetail = () => {
         {/* ── Tab: Inventory ─────────────────────────────────────────────── */}
         <TabsContent value="inventory">
           <Inventory lockedShopId={shopId} shopType={shopType} />
+        </TabsContent>
+
+        {/* ── Tab: Price Panels ─────────────────────────────────────────── */}
+        <TabsContent value="pricePanels" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Named price tiers for this shop. Each panel overrides prices per product.
+            </p>
+            <Button size="sm" onClick={() => setNewPanelDialogOpen(true)}>
+              + New Panel
+            </Button>
+          </div>
+
+          {panelsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : panels.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground text-sm">
+                No price panels yet. Click "New Panel" to create one.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {panels.map((panel) => (
+                <Card key={panel.id}>
+                  <CardContent className="p-0">
+                    {/* Panel header row */}
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePanel(panel.id)}
+                          className="flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors"
+                        >
+                          {expandedPanelId === panel.id
+                            ? <ChevronUp className="h-4 w-4" />
+                            : <ChevronDown className="h-4 w-4" />}
+                          {panel.name}
+                        </button>
+                        {panel.color && (
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${panelColorBadgeClass[panel.color] ?? ""}`}
+                          >
+                            {panel.color}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => {
+                            setEditPanelTarget(panel);
+                            setEditPanelName(panel.name);
+                            setEditPanelColor(panel.color ?? "");
+                            setEditPanelDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-destructive hover:text-destructive"
+                          onClick={() => handleDeletePanel(panel)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Expanded items table */}
+                    {expandedPanelId === panel.id && (
+                      <div className="border-t">
+                        {panelItemsLoading[panel.id] ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : (panelItems[panel.id] ?? []).length === 0 ? (
+                          <p className="text-center text-sm text-muted-foreground py-6">
+                            No products in this shop.
+                          </p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-28">Code</TableHead>
+                                <TableHead>Product</TableHead>
+                                <TableHead className="w-32 text-right">Ext. Price</TableHead>
+                                <TableHead className="w-36 text-right">Panel Price</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {(panelItems[panel.id] ?? []).map((item) => {
+                                const draftVal = cellDrafts[panel.id]?.[item.product_id] ?? "";
+                                const panelFloat = item.panel_price;
+                                const differs = panelFloat != null && panelFloat !== item.external_price;
+                                return (
+                                  <TableRow key={item.product_id}>
+                                    <TableCell className="font-mono text-xs text-muted-foreground">
+                                      {item.product_code}
+                                    </TableCell>
+                                    <TableCell className="text-sm font-medium">
+                                      {item.product_name}
+                                    </TableCell>
+                                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                                      ฿{item.external_price.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="—"
+                                        value={draftVal}
+                                        onChange={(e) =>
+                                          setCellDrafts((prev) => ({
+                                            ...prev,
+                                            [panel.id]: {
+                                              ...(prev[panel.id] ?? {}),
+                                              [item.product_id]: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                        onBlur={() => handleCellBlur(panel.id, item.product_id)}
+                                        className={`h-7 w-28 text-right text-xs ml-auto ${differs ? "border-yellow-400 bg-yellow-50" : ""}`}
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* New Panel Dialog */}
+          <Dialog open={newPanelDialogOpen} onOpenChange={setNewPanelDialogOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>New Price Panel</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label>Panel Name *</Label>
+                  <Input
+                    value={newPanelName}
+                    onChange={(e) => setNewPanelName(e.target.value)}
+                    placeholder="e.g. ราคาทั่วไป"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Color (optional)</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewPanelColor("")}
+                      className={`rounded-full border-2 px-3 py-1 text-xs transition ${newPanelColor === "" ? "border-foreground font-semibold" : "border-transparent bg-muted"}`}
+                    >
+                      None
+                    </button>
+                    {PANEL_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setNewPanelColor(c.value)}
+                        className={`rounded-full border-2 px-3 py-1 text-xs text-white transition ${c.class} ${newPanelColor === c.value ? "border-foreground scale-105" : "border-transparent opacity-80 hover:opacity-100"}`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setNewPanelDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreatePanel} disabled={newPanelSaving || !newPanelName.trim()}>
+                  {newPanelSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Panel Dialog */}
+          <Dialog open={editPanelDialogOpen} onOpenChange={setEditPanelDialogOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Edit Panel</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label>Panel Name</Label>
+                  <Input
+                    value={editPanelName}
+                    onChange={(e) => setEditPanelName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Color</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditPanelColor("")}
+                      className={`rounded-full border-2 px-3 py-1 text-xs transition ${editPanelColor === "" ? "border-foreground font-semibold" : "border-transparent bg-muted"}`}
+                    >
+                      None
+                    </button>
+                    {PANEL_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setEditPanelColor(c.value)}
+                        className={`rounded-full border-2 px-3 py-1 text-xs text-white transition ${c.class} ${editPanelColor === c.value ? "border-foreground scale-105" : "border-transparent opacity-80 hover:opacity-100"}`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditPanelDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEditPanel} disabled={editPanelSaving}>
+                  {editPanelSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ── Tab: Bundles ──────────────────────────────────────────────── */}

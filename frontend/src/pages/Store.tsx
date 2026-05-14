@@ -60,6 +60,21 @@ import { CashierTopupModal } from "@/components/CashierTopupModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface PricePanel {
+  id: number;
+  name: string;
+  color: string | null;
+}
+
+const panelColorClass: Record<string, string> = {
+  blue: "bg-blue-100 text-blue-700 border-blue-300",
+  green: "bg-green-100 text-green-700 border-green-300",
+  orange: "bg-orange-100 text-orange-700 border-orange-300",
+  red: "bg-red-100 text-red-700 border-red-300",
+  purple: "bg-purple-100 text-purple-700 border-purple-300",
+  gray: "bg-gray-100 text-gray-700 border-gray-300",
+};
+
 interface Product {
   id: number;
   productCode: string;
@@ -206,6 +221,12 @@ const Store = () => {
 
   const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }>>([]);
 
+  // ── Price panels ────────────────────────────────────────────────────────
+  const [panels, setPanels] = useState<PricePanel[]>([]);
+  const [activePanelId, setActivePanelId] = useState<number | null>(null);
+  // panelPrices: panelId -> productId -> price
+  const [panelPrices, setPanelPrices] = useState<Record<number, Record<number, number>>>({});
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -245,6 +266,39 @@ const Store = () => {
         } catch { /* shop unavailable */ }
       }
       if (!cancelled) setAllProducts(result);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.shopId]);
+
+  // ── Fetch price panels for shop-scoped users ────────────────────────────
+  useEffect(() => {
+    if (!user?.shopId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const panelList = await api.get<PricePanel[]>(`/shops/${user.shopId}/price-panels`);
+        if (cancelled) return;
+        setPanels(panelList);
+        // Fetch items for each panel
+        const priceMap: Record<number, Record<number, number>> = {};
+        await Promise.all(
+          panelList.map(async (panel) => {
+            try {
+              const items = await api.get<Array<{ product_id: number; panel_price: number | null }>>(
+                `/shops/${user.shopId}/price-panels/${panel.id}/items`,
+              );
+              const productMap: Record<number, number> = {};
+              items.forEach((item) => {
+                if (item.panel_price != null) {
+                  productMap[item.product_id] = item.panel_price;
+                }
+              });
+              priceMap[panel.id] = productMap;
+            } catch { /* panel fetch failed — skip */ }
+          }),
+        );
+        if (!cancelled) setPanelPrices(priceMap);
+      } catch { /* shop has no panels — tolerate */ }
     })();
     return () => { cancelled = true; };
   }, [user?.shopId]);
@@ -350,6 +404,14 @@ const Store = () => {
         .slice(0, 6)
     : [];
 
+  // Panel-aware price lookup for a product (used when adding to cart)
+  const getPrice = (p: Product): number => {
+    if (activePanelId != null && panelPrices[activePanelId]?.[p.id] != null) {
+      return panelPrices[activePanelId][p.id];
+    }
+    return p.price;
+  };
+
   const getPriceForItem = (item: CartItem) => {
     if (item.priceOverride != null) return item.priceOverride;
     return priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price;
@@ -385,6 +447,10 @@ const Store = () => {
   // ── Cart actions ────────────────────────────────────────────────────────
   const addToCart = useCallback(
     (product: Product) => {
+      const panelPrice =
+        activePanelId != null && panelPrices[activePanelId]?.[product.id] != null
+          ? panelPrices[activePanelId][product.id]
+          : null;
       setCart((prev) => {
         const existing = prev.find((i) => i.id === product.id);
         if (existing) {
@@ -393,12 +459,12 @@ const Store = () => {
           }
           return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
         }
-        return [...prev, { ...product, quantity: 1 }];
+        return [...prev, { ...product, quantity: 1, priceOverride: panelPrice }];
       });
       setLastAddedId(product.id);
       toast.success(t("store.itemAdded", { name: product.name }), { duration: 1000 });
     },
-    [t],
+    [t, activePanelId, panelPrices],
   );
 
   const updateQuantity = (id: number, change: number) => {
@@ -1139,7 +1205,7 @@ const Store = () => {
                     <p className="font-bold text-primary text-sm tabular-nums">
                       ฿{(priceMode === "internal"
                         ? p.internalPrice ?? p.price
-                        : p.price
+                        : getPrice(p)
                       ).toLocaleString()}
                     </p>
                     <Badge variant="outline" className="text-xs">{p.category}</Badge>
@@ -1166,6 +1232,44 @@ const Store = () => {
           {t("store.searchHintToClear")}
         </p>
 
+        {/* Panel selector — only shown for shop-scoped users with panels */}
+        {user?.shopId && panels.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">ราคา:</span>
+            <button
+              type="button"
+              onClick={() => setActivePanelId(null)}
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
+                activePanelId === null
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
+              )}
+            >
+              ราคาทั่วไป
+            </button>
+            {panels.map((panel) => (
+              <button
+                key={panel.id}
+                type="button"
+                onClick={() => setActivePanelId(panel.id)}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
+                  activePanelId === panel.id
+                    ? panel.color && panelColorClass[panel.color]
+                      ? `border-2 ${panelColorClass[panel.color]} font-bold`
+                      : "border-primary bg-primary text-primary-foreground"
+                    : panel.color && panelColorClass[panel.color]
+                    ? `border ${panelColorClass[panel.color]} opacity-70 hover:opacity-100`
+                    : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
+                )}
+              >
+                {panel.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Browse grid */}
         {allProducts.length > 0 && (() => {
           const cats = Array.from(
@@ -1179,7 +1283,9 @@ const Store = () => {
               );
 
           const cardContent = (p: Product, handleProps: React.HTMLAttributes<HTMLElement>) => {
-            const displayPrice = priceMode === "internal" ? (p.internalPrice ?? p.price) : p.price;
+            const displayPrice = priceMode === "internal"
+              ? (p.internalPrice ?? p.price)
+              : getPrice(p);
             const lowStock = p.stock <= 0;
             return (
               <button
