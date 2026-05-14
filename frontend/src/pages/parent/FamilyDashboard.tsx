@@ -190,6 +190,11 @@ export default function FamilyDashboard() {
                       {ownWallet.name}
                     </span>
                   )}
+                  {ownWallet.username && (
+                    <Badge variant="outline" className="text-xs font-mono">
+                      {ownWallet.username}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>

@@ -393,7 +393,8 @@ export default function WalletDetail() {
         </CardContent>
       </Card>
 
-      <Card ref={historyRef}>
+      <div ref={historyRef} />
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-lg">{t("parent.wallet.recentTitle")}</CardTitle>
           {!profile.is_own_user_wallet && (
