@@ -120,6 +120,107 @@ def my_children(
     return result
 
 
+# ── Admin: family context of a student ──────────────────────────────────────
+
+class ParentSummary(BaseModel):
+    user_id: int
+    username: str
+    full_name: Optional[str] = None
+    role: str
+    photo_url: Optional[str] = None
+    wallet_id: Optional[int] = None
+    wallet_balance: Optional[float] = None
+    relation: str
+
+
+class StudentFamilyContext(BaseModel):
+    student_customer_id: int
+    parents: List[ParentSummary]
+    siblings: List[ChildSummary]
+
+
+@router.get("/context/{student_code}", response_model=StudentFamilyContext)
+def student_family_context(
+    student_code: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Return parents and siblings of a student identified by student_code or customer_code."""
+    customer = (
+        db.query(Customer)
+        .options(joinedload(Customer.wallet))
+        .filter(
+            (Customer.student_code == student_code) | (Customer.customer_code == student_code)
+        )
+        .first()
+    )
+    if not customer:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    parent_links = (
+        db.query(ParentChildLink)
+        .filter(ParentChildLink.child_customer_id == customer.id)
+        .all()
+    )
+
+    parents: List[ParentSummary] = []
+    siblings: List[ChildSummary] = []
+    seen_sibling_ids: set = set()
+
+    for pl in parent_links:
+        parent = db.query(User).filter(User.id == pl.parent_user_id).first()
+        if not parent:
+            continue
+
+        from app.services.wallet_service import WalletService as _WS
+        pw = _WS.ensure_wallet_for_user(db, parent.id)
+        db.commit()
+        db.refresh(pw)
+
+        parents.append(ParentSummary(
+            user_id=parent.id,
+            username=parent.username,
+            full_name=parent.full_name,
+            role=parent.role or "parent",
+            photo_url=parent.photo_url,
+            wallet_id=pw.id,
+            wallet_balance=float(pw.balance),
+            relation=pl.relation,
+        ))
+
+        # Siblings: other children of the same parent
+        sibling_links = (
+            db.query(ParentChildLink)
+            .filter(
+                ParentChildLink.parent_user_id == parent.id,
+                ParentChildLink.child_customer_id != customer.id,
+            )
+            .all()
+        )
+        for sl in sibling_links:
+            if sl.child_customer_id in seen_sibling_ids:
+                continue
+            seen_sibling_ids.add(sl.child_customer_id)
+            sib = (
+                db.query(Customer)
+                .options(joinedload(Customer.wallet))
+                .filter(Customer.id == sl.child_customer_id)
+                .first()
+            )
+            if sib:
+                if not sib.wallet:
+                    _WS.ensure_wallet_for_customer(db, sib.id)
+                    db.commit()
+                    db.refresh(sib)
+                siblings.append(_child_summary(sl, sib))
+
+    return StudentFamilyContext(
+        student_customer_id=customer.id,
+        parents=parents,
+        siblings=siblings,
+    )
+
+
 # ── Admin: children of any user ──────────────────────────────────────────────
 
 @router.get("/by-user/{user_id}", response_model=List[ChildSummary])

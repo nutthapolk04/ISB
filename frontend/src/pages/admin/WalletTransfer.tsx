@@ -18,6 +18,7 @@ import {
   Wallet as WalletIcon,
   ArrowLeftRight,
   CheckCircle2,
+  Users,
 } from "lucide-react";
 
 interface ParentInfo {
@@ -51,6 +52,23 @@ interface TransferTarget {
   direction: "parent_to_child" | "child_to_parent";
 }
 
+interface ParentSummary {
+  user_id: number;
+  username: string;
+  full_name: string | null;
+  role: string;
+  photo_url: string | null;
+  wallet_id: number | null;
+  wallet_balance: number | null;
+  relation: string;
+}
+
+interface StudentFamilyContext {
+  student_customer_id: number;
+  parents: ParentSummary[];
+  siblings: ChildSummary[];
+}
+
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
@@ -67,6 +85,9 @@ export default function WalletTransfer() {
   const [children, setChildren] = useState<ChildSummary[]>([]);
   const [loadingChildren, setLoadingChildren] = useState(false);
 
+  // Student family context (when found user is a student)
+  const [studentContext, setStudentContext] = useState<StudentFamilyContext | null>(null);
+
   // Transfer panel state
   const [target, setTarget] = useState<TransferTarget | null>(null);
   const [amount, setAmount] = useState("");
@@ -81,15 +102,31 @@ export default function WalletTransfer() {
     setParent(null);
     setChildren([]);
     setTarget(null);
+    setStudentContext(null);
     try {
       const p = await api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(q)}`);
       setParent(p);
-      setLoadingChildren(true);
-      try {
-        const ch = await api.get<ChildSummary[]>(`/family/by-user/${p.user_id}`);
-        setChildren(ch);
-      } finally {
-        setLoadingChildren(false);
+
+      if (p.role === "student") {
+        // Student: fetch parent(s) + siblings
+        setLoadingChildren(true);
+        try {
+          const ctx = await api.get<StudentFamilyContext>(`/family/context/${encodeURIComponent(q)}`);
+          setStudentContext(ctx);
+        } catch {
+          // No family linked — fine, just show empty
+        } finally {
+          setLoadingChildren(false);
+        }
+      } else {
+        // Parent/staff: fetch their children
+        setLoadingChildren(true);
+        try {
+          const ch = await api.get<ChildSummary[]>(`/family/by-user/${p.user_id}`);
+          setChildren(ch);
+        } finally {
+          setLoadingChildren(false);
+        }
       }
     } catch (e) {
       setSearchError(e instanceof ApiError ? e.detail : t("admin.walletTransfer.lookupFailed"));
@@ -248,8 +285,123 @@ export default function WalletTransfer() {
         </Card>
       )}
 
+      {/* Student family context */}
+      {parent?.role === "student" && (
+        <div className="space-y-4">
+          {loadingChildren && (
+            <div className="space-y-3">
+              {[1, 2].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+            </div>
+          )}
+
+          {!loadingChildren && studentContext && (
+            <>
+              {/* Parents */}
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <UserRound className="h-3.5 w-3.5" />
+                  {t("admin.walletTransfer.studentParents", "ผู้ปกครอง")}
+                </h2>
+                {studentContext.parents.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-4 text-center text-muted-foreground text-sm">
+                      {t("admin.walletTransfer.noParents", "ไม่มีผู้ปกครองที่เชื่อมกับบัญชีนี้")}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {studentContext.parents.map((par) => (
+                      <Card key={par.user_id} className="border-amber-200 bg-amber-50/50">
+                        <CardContent className="pt-3 pb-3">
+                          <div className="flex items-center gap-3">
+                            {par.photo_url ? (
+                              <img src={par.photo_url} alt={par.full_name ?? par.username}
+                                className="h-10 w-10 shrink-0 rounded-full object-cover border-2 border-amber-300" />
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900">
+                                <UserRound className="h-5 w-5" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{par.full_name ?? par.username}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge variant="outline" className="text-xs font-mono bg-white">{par.username}</Badge>
+                                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-900 capitalize">{par.relation}</Badge>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-muted-foreground">{t("admin.walletTransfer.balance")}</p>
+                              <p className="font-bold text-sm text-amber-900">
+                                {par.wallet_balance != null ? formatTHB(par.wallet_balance) : "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Siblings */}
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  {t("admin.walletTransfer.studentSiblings", "พี่น้อง")}
+                </h2>
+                {studentContext.siblings.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-4 text-center text-muted-foreground text-sm">
+                      {t("admin.walletTransfer.noSiblings", "ไม่มีพี่น้องที่เชื่อมกับครอบครัวนี้")}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {studentContext.siblings.map((sib) => (
+                      <Card key={sib.customer_id} className="border-muted">
+                        <CardContent className="pt-3 pb-3">
+                          <div className="flex items-center gap-3">
+                            {sib.photo_url ? (
+                              <img src={sib.photo_url} alt={sib.name}
+                                className="h-10 w-10 shrink-0 rounded-full object-cover border border-primary/20" />
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                <UserRound className="h-5 w-5" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{sib.name}</p>
+                              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                {sib.student_code && (
+                                  <Badge variant="secondary" className="text-xs">{sib.student_code}</Badge>
+                                )}
+                                {sib.grade && (
+                                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                                    <GraduationCap className="h-3 w-3" />{sib.grade}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-muted-foreground">{t("admin.walletTransfer.balance")}</p>
+                              <p className="font-bold text-sm">
+                                {sib.wallet_balance != null ? formatTHB(sib.wallet_balance) : "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Children */}
-      {parent && (
+      {parent && parent.role !== "student" && (
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             {t("admin.walletTransfer.linkedChildren")}
