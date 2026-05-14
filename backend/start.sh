@@ -291,6 +291,9 @@ run('''
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
 ''', 'audit_logs table')
+# Backfill shop_id on tables created before this column was added
+run('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS shop_id VARCHAR(50)',
+    'audit_logs.shop_id')
 run('CREATE INDEX IF NOT EXISTS ix_audit_logs_entity ON audit_logs(entity_type, entity_id)',
     'audit_logs idx entity')
 run('CREATE INDEX IF NOT EXISTS ix_audit_logs_shop ON audit_logs(shop_id)',
@@ -337,14 +340,14 @@ run('''
 run('CREATE INDEX IF NOT EXISTS ix_uom_code ON units_of_measure(code)', 'uom idx code')
 run('ALTER TABLE shop_products ADD COLUMN uom_id INTEGER REFERENCES units_of_measure(id)',
     'shop_products.uom_id')
-# Seed default UOM values
-run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('PCS', 'ชิ้น', 'Piece') ON CONFLICT (code) DO NOTHING\",
+# Seed default UOM values — include conversion_factor to satisfy NOT NULL on older tables
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('PCS', 'ชิ้น', 'Piece', 1) ON CONFLICT (code) DO NOTHING\",
     'uom seed PCS', ok_if_exists=False)
-run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('BOX', 'กล่อง', 'Box') ON CONFLICT (code) DO NOTHING\",
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('BOX', 'กล่อง', 'Box', 1) ON CONFLICT (code) DO NOTHING\",
     'uom seed BOX', ok_if_exists=False)
-run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('SET', 'ชุด', 'Set') ON CONFLICT (code) DO NOTHING\",
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('SET', 'ชุด', 'Set', 1) ON CONFLICT (code) DO NOTHING\",
     'uom seed SET', ok_if_exists=False)
-run(\"INSERT INTO units_of_measure (code, name, name_en) VALUES ('PACK', 'แพ็ค', 'Pack') ON CONFLICT (code) DO NOTHING\",
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('PACK', 'แพ็ค', 'Pack', 1) ON CONFLICT (code) DO NOTHING\",
     'uom seed PACK', ok_if_exists=False)
 
 # === Product Bundles / Grade Sets ===
@@ -382,15 +385,15 @@ run('CREATE INDEX IF NOT EXISTS ix_bundle_items_bundle ON bundle_items(bundle_id
 run('CREATE INDEX IF NOT EXISTS ix_bundle_items_product ON bundle_items(product_id)', 'bundle_items idx product')
 
 # === Demo May-2026: receipt_items.price_override (one-time POS override) ===
-# Cashier can edit a line price at checkout. Original `unit_price` keeps the
-# catalog price, `price_override` records the value charged for that line so we
+# Cashier can edit a line price at checkout. Original unit_price keeps the
+# catalog price, price_override records the value charged for that line so we
 # can detect overrides on receipts/audit without re-reading product history.
 run('ALTER TABLE receipt_items ADD COLUMN price_override NUMERIC(10,2)',
     'receipt_items.price_override')
 
 # === Demo May-2026: shop_products.sort_order + shops.products_order_version ===
 # Per-shop product display order. Sort_order is the per-row position; the
-# `products_order_version` on shops increments on every reorder so concurrent
+# products_order_version on shops increments on every reorder so concurrent
 # editors see a 409 conflict and can reconcile via the history table below.
 run('ALTER TABLE shop_products ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
     'shop_products.sort_order')
@@ -538,6 +541,13 @@ run('CREATE INDEX IF NOT EXISTS ix_sync_audit_log_id ON sync_audit_logs(sync_log
 run('CREATE INDEX IF NOT EXISTS ix_sync_audit_entity ON sync_audit_logs(entity_type, entity_id)',
     'sync_audit idx entity')
 
+# === Canteen multi-stall: users.shop_module (area manager module assignment) ===
+run('ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_module VARCHAR(20)',
+    'users.shop_module')
+# Backfill shop_module for existing canteen users who have a shop_id starting with 'canteen'
+run(\"UPDATE users SET shop_module = 'canteen' WHERE shop_id IN (SELECT id FROM shops WHERE module = 'canteen') AND shop_module IS NULL\",
+    'users.shop_module backfill canteen', ok_if_exists=False)
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),
@@ -579,6 +589,7 @@ required_cols = [
     ('wallets', 'department_id'),
     ('receipts', 'payer_department_id'),
     ('receipts', 'requester_user_id'),
+    ('users', 'shop_module'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',
@@ -613,7 +624,7 @@ else:
 # Backward-compat heads-up for the negative-balance policy change (2026-05-08).
 # Customer/user wallets that are already negative from the legacy "negative-allowed"
 # era will be blocked from POS purchases until they top up to ≥ 0 (or admin grants
-# `customer.negative_credit_limit`). This is informational only — does NOT fail boot.
+# customer.negative_credit_limit). This is informational only — does NOT fail boot.
 echo "=== Negative-balance backward-compat check ==="
 python -c "
 from sqlalchemy import text
