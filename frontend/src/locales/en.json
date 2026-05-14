@@ -1645,7 +1645,16 @@
       "txAdjCredit": "Adjustment (credit)",
       "txAdjDebit": "Adjustment (debit)",
       "historyFailed": "Failed to load history",
-      "loadFailed": "Failed to load data"
+      "loadFailed": "Failed to load data",
+      "receiptTitle": "Receipt detail",
+      "receiptNotFound": "Receipt details not available",
+      "itemName": "Item",
+      "itemQty": "Qty",
+      "itemPrice": "Price",
+      "itemTotal": "Total",
+      "totalAmount": "Total charged",
+      "paymentMethod": "Payment",
+      "receiptDate": "Date"
     },
     "studentProfile": {
       "cardFrozen": "Card frozen",

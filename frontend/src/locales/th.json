@@ -1643,7 +1643,16 @@
       "txAdjCredit": "ปรับยอด (เพิ่ม)",
       "txAdjDebit": "ปรับยอด (หัก)",
       "historyFailed": "โหลดประวัติไม่สำเร็จ",
-      "loadFailed": "โหลดข้อมูลไม่สำเร็จ"
+      "loadFailed": "โหลดข้อมูลไม่สำเร็จ",
+      "receiptTitle": "รายละเอียดใบเสร็จ",
+      "receiptNotFound": "ไม่พบรายละเอียดใบเสร็จ",
+      "itemName": "รายการ",
+      "itemQty": "จำนวน",
+      "itemPrice": "ราคา",
+      "itemTotal": "รวม",
+      "totalAmount": "ยอดรวม",
+      "paymentMethod": "ชำระโดย",
+      "receiptDate": "วันที่"
     },
     "studentProfile": {
       "cardFrozen": "ระงับการใช้งาน",
