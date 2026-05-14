@@ -384,7 +384,10 @@ export default function TransactionHistory() {
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("parent.transactions.totalAmount")}</span>
                   <span className="tabular-nums text-destructive">
-                    -{formatTHB(receiptDetail.total_amount)}
+                    -{formatTHB(
+                      Number(receiptDetail.total_amount) ||
+                      receiptDetail.items.reduce((s, i) => s + Number(i.line_total), 0)
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
