@@ -1078,7 +1078,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{t("inventory.allCategories")}</SelectItem>
-                      {categories.map((c) => (
+                      {categories.filter((c) => c.name).map((c) => (
                         <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -2132,7 +2132,7 @@ function ProductFormFields({
                 <SelectValue placeholder={t("inventory.selectCategory")} />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
+                {categories.filter((c) => c.name).map((c) => (
                   <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
