@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
@@ -71,8 +71,9 @@ const formatTHB = (n: number) =>
 
 export default function WalletDetail() {
   const { customerId } = useParams<{ customerId: string }>();
-  const [searchParams] = useSearchParams();
-  const historyRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const activeTab = searchParams.get("tab") === "history" ? "history" : "topup";
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -142,12 +143,6 @@ export default function WalletDetail() {
     loadData();
   }, [effectiveId]);
 
-  // Scroll to history section when ?tab=history is in URL
-  useEffect(() => {
-    if (searchParams.get("tab") === "history" && historyRef.current && !loading) {
-      setTimeout(() => historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-    }
-  }, [searchParams, loading]);
 
   const handleCreateTopup = async () => {
     if (!profile?.wallet_id) return;
@@ -284,7 +279,27 @@ export default function WalletDetail() {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Tab toggle */}
+      <div className="flex gap-2">
+        <Button
+          variant={activeTab === "topup" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSearchParams({})}
+        >
+          <WalletIcon className="h-4 w-4 mr-1.5" />
+          {t("parent.wallet.topUpTitle")}
+        </Button>
+        <Button
+          variant={activeTab === "history" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSearchParams({ tab: "history" })}
+        >
+          <History className="h-4 w-4 mr-1.5" />
+          {t("parent.wallet.recentTitle")}
+        </Button>
+      </div>
+
+      {activeTab === "topup" && <Card>
         <CardHeader>
           <CardTitle className="text-lg">{t("parent.wallet.topUpTitle")}</CardTitle>
         </CardHeader>
@@ -391,10 +406,9 @@ export default function WalletDetail() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <div ref={historyRef} />
-      <Card>
+      {activeTab === "history" && <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-lg">{t("parent.wallet.recentTitle")}</CardTitle>
           {!profile.is_own_user_wallet && (
@@ -433,7 +447,7 @@ export default function WalletDetail() {
             );
           })}
         </CardContent>
-      </Card>
+      </Card>}
 
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent className="max-w-sm sm:max-w-md">
