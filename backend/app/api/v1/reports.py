@@ -99,6 +99,18 @@ def _scope_shop(current_user: User, shop_id: Optional[str]) -> Optional[str]:
     return own
 
 
+def _effective_module(current_user: User, module: Optional[str]) -> Optional[str]:
+    """For null-shop managers (area managers), derive the module filter.
+    Single-shop users: no module filter needed (already scoped by shop_id).
+    """
+    if current_user.is_superuser or current_user.role == "admin":
+        return module
+    if getattr(current_user, "shop_id", None):
+        return None  # single-shop user — shop_id already scopes the query
+    own_module = getattr(current_user, "shop_module", None)
+    return own_module or module
+
+
 def _date_range(date_from: date, date_to: date) -> tuple[datetime, datetime]:
     """Convert date range to UTC datetime bounds (inclusive end of day)."""
     start = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
@@ -113,10 +125,12 @@ def sales_report(
     date_from: date = Query(...),
     date_to: date = Query(...),
     shop_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     effective_shop_id = _scope_shop(current_user, shop_id)
+    effective_module = None if effective_shop_id else _effective_module(current_user, module)
     start, end = _date_range(date_from, date_to)
 
     receipt_q = db.query(Receipt.id).filter(
@@ -126,6 +140,10 @@ def sales_report(
     )
     if effective_shop_id:
         receipt_q = receipt_q.filter(Receipt.shop_id == effective_shop_id)
+    elif effective_module:
+        module_shop_ids = [r[0] for r in db.query(Shop.id).filter(Shop.module == effective_module, Shop.is_active == True).all()]
+        if module_shop_ids:
+            receipt_q = receipt_q.filter(Receipt.shop_id.in_(module_shop_ids))
 
     receipt_ids = [row[0] for row in receipt_q.all()]
 
@@ -164,11 +182,13 @@ def sales_by_payment_report(
     date_from: date = Query(...),
     date_to: date = Query(...),
     shop_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Sales report grouped by payment method."""
     effective_shop_id = _scope_shop(current_user, shop_id)
+    effective_module = None if effective_shop_id else _effective_module(current_user, module)
     start, end = _date_range(date_from, date_to)
 
     q = db.query(
@@ -183,6 +203,10 @@ def sales_by_payment_report(
 
     if effective_shop_id:
         q = q.filter(Receipt.shop_id == effective_shop_id)
+    elif effective_module:
+        module_shop_ids = [r[0] for r in db.query(Shop.id).filter(Shop.module == effective_module, Shop.is_active == True).all()]
+        if module_shop_ids:
+            q = q.filter(Receipt.shop_id.in_(module_shop_ids))
 
     agg = q.group_by(Receipt.payment_method).order_by(func.sum(Receipt.total).desc()).all()
 
@@ -214,10 +238,12 @@ def sales_by_payment_report(
 @router.get("/stock", response_model=StockReport)
 def stock_report(
     shop_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     effective_shop_id = _scope_shop(current_user, shop_id)
+    effective_module = None if effective_shop_id else _effective_module(current_user, module)
 
     q = (
         db.query(ShopProduct, Shop.name.label("shop_name"))
@@ -226,6 +252,8 @@ def stock_report(
     )
     if effective_shop_id:
         q = q.filter(ShopProduct.shop_id == effective_shop_id)
+    elif effective_module:
+        q = q.filter(Shop.module == effective_module)
 
     rows: List[StockRow] = []
     for product, shop_name in q.order_by(ShopProduct.shop_id, ShopProduct.name).all():
@@ -247,10 +275,12 @@ def returns_report(
     date_from: date = Query(...),
     date_to: date = Query(...),
     shop_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     effective_shop_id = _scope_shop(current_user, shop_id)
+    effective_module = None if effective_shop_id else _effective_module(current_user, module)
     start, end = _date_range(date_from, date_to)
 
     # ReturnRequest.receipt_id stores receipt_number (string), not the FK id.
@@ -264,6 +294,12 @@ def returns_report(
         receipt_numbers_q = db.query(Receipt.receipt_number).filter(
             Receipt.shop_id == effective_shop_id
         )
+        receipt_numbers = {row[0] for row in receipt_numbers_q.all()}
+        rows_raw = [r for r in q.order_by(ReturnRequest.created_at.desc()).all()
+                    if r.receipt_id in receipt_numbers]
+    elif effective_module:
+        module_shop_ids = {r[0] for r in db.query(Shop.id).filter(Shop.module == effective_module, Shop.is_active == True).all()}
+        receipt_numbers_q = db.query(Receipt.receipt_number).filter(Receipt.shop_id.in_(module_shop_ids))
         receipt_numbers = {row[0] for row in receipt_numbers_q.all()}
         rows_raw = [r for r in q.order_by(ReturnRequest.created_at.desc()).all()
                     if r.receipt_id in receipt_numbers]

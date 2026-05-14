@@ -35,7 +35,9 @@
     "adminWalletAdjust": "Wallet Adjustment",
     "adminWalletTransfer": "Wallet Transfer",
     "adminCards": "Card Management",
-    "adminStudents": "Students"
+    "adminStudents": "Students",
+    "groupCanteenManagement": "Canteen Management",
+    "canteenManagement": "Canteen Stalls"
   },
   "serverStatus": {
     "label": "Server",
@@ -405,6 +407,8 @@
     "profitLossReportDesc": "Monthly profit and loss summary",
     "departmentExpenseReport": "Department Expense Report",
     "departmentExpenseReportDesc": "Expense summary by department",
+    "canteenScope": "Canteen Scope",
+    "canteenScopeAll": "All Canteen Stalls (Consolidated)",
     "selectDateRange": "Select Date Range",
     "selectDateRangeDesc": "Please select date range for the report",
     "startDate": "Start Date",
@@ -1244,7 +1248,10 @@
     "back": "Back",
     "or": "or",
     "quantity": "Quantity",
-    "selectProduct": "Select Product"
+    "selectProduct": "Select Product",
+    "active": "Active",
+    "inactive": "Inactive",
+    "loading": "Loading…"
   },
   "auditLog": {
     "title": "Change History",
@@ -1683,5 +1690,12 @@
       "invalidLimit": "Please enter a valid amount",
       "limitSaved": "Daily limit saved"
     }
+  },
+  "canteenMgmt": {
+    "title": "Canteen Management",
+    "description": "Manage all canteen stalls — menus, categories, and settings",
+    "noStalls": "No canteen stalls found",
+    "menu": "Menu",
+    "reports": "Reports"
   }
 }

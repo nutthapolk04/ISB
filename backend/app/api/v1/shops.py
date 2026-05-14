@@ -23,13 +23,16 @@ router = APIRouter()
 @router.get("/", response_model=List[ShopResponse])
 def list_shops(
     active_only: bool = Query(True),
+    module: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_user),
 ):
-    """List all shops (active by default)."""
+    """List all shops (active by default). Optional module filter: 'canteen' | 'store'."""
     q = db.query(Shop)
     if active_only:
         q = q.filter(Shop.is_active == True)
+    if module:
+        q = q.filter(Shop.module == module)
     return q.order_by(Shop.id).all()
 
 

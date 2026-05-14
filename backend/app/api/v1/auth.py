@@ -95,6 +95,11 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     service = AuthService(db)
     permissions = service.get_user_permissions(current_user)
 
+    # Derive shop_module: explicit column wins, then fall back to shop.module
+    shop_module = current_user.shop_module
+    if not shop_module and current_user.shop:
+        shop_module = getattr(current_user.shop, "module", None)
+
     user_response = UserResponse(
         id=current_user.id,
         username=current_user.username,
@@ -107,6 +112,8 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
             RoleResponse(id=r.id, name=r.name, description=r.description)
             for r in current_user.roles
         ],
+        shop_id=current_user.shop_id,
+        shop_module=shop_module,
     )
 
     return MeResponse(user=user_response, permissions=permissions)

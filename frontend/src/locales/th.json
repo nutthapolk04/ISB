@@ -35,7 +35,9 @@
     "adminWalletAdjust": "ปรับยอดกระเป๋าเงิน",
     "adminWalletTransfer": "โอนเงินระหว่างกระเป๋า",
     "adminCards": "จัดการบัตร",
-    "adminStudents": "รายชื่อนักเรียน"
+    "adminStudents": "รายชื่อนักเรียน",
+    "groupCanteenManagement": "จัดการโรงอาหาร",
+    "canteenManagement": "จุดขายทั้งหมด"
   },
   "serverStatus": {
     "label": "เซิร์ฟเวอร์",
@@ -405,6 +407,8 @@
     "profitLossReportDesc": "สรุปกำไรขาดทุนรายเดือน",
     "departmentExpenseReport": "รายงานการใช้จ่ายแบ่งตามแผนก",
     "departmentExpenseReportDesc": "สรุปการใช้จ่ายแยกตามแผนก/หน่วยงาน",
+    "canteenScope": "ขอบเขตโรงอาหาร",
+    "canteenScopeAll": "ทุกจุดขาย (รวมทั้งหมด)",
     "selectDateRange": "เลือกช่วงวันที่",
     "selectDateRangeDesc": "กรุณาเลือกช่วงวันที่สำหรับออกรายงาน",
     "startDate": "วันที่เริ่มต้น",
@@ -1244,7 +1248,10 @@
     "back": "กลับ",
     "or": "หรือ",
     "quantity": "จำนวน",
-    "selectProduct": "เลือกสินค้า"
+    "selectProduct": "เลือกสินค้า",
+    "active": "ใช้งาน",
+    "inactive": "ปิดใช้งาน",
+    "loading": "กำลังโหลด…"
   },
   "auditLog": {
     "title": "ประวัติการเปลี่ยนแปลง",
@@ -1681,5 +1688,12 @@
       "invalidLimit": "กรุณาระบุจำนวนเงินที่ถูกต้อง",
       "limitSaved": "บันทึกวงเงินรายวันแล้ว"
     }
+  },
+  "canteenMgmt": {
+    "title": "จัดการโรงอาหาร",
+    "description": "จัดการจุดขายทั้งหมดในโรงอาหาร — เมนู หมวดหมู่ และตั้งค่าต่างๆ",
+    "noStalls": "ไม่พบจุดขายในโรงอาหาร",
+    "menu": "เมนู",
+    "reports": "รายงาน"
   }
 }

@@ -46,6 +46,7 @@ import UserDetail from "./pages/admin/users/UserDetail";
 import CardManagement from "./pages/admin/CardManagement";
 import CanteenMenuPage from "./pages/canteen/CanteenMenuPage";
 import CanteenShopDetail from "./pages/canteen/CanteenShopDetail";
+import CanteenManagementOverview from "./pages/canteen/CanteenManagementOverview";
 import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
 
@@ -189,7 +190,8 @@ const App = () => (
                   </Route>
                   {/* Legacy redirect — Canteen Users merged into /users */}
                   <Route path="/canteen/users" element={<Navigate to="/users" replace />} />
-                  <Route element={<RequireRole roles={["admin"]} />}>
+                  <Route element={<RequireRole roles={["admin", "manager"]} />}>
+                    <Route path="/canteen/management" element={<CanteenManagementOverview />} />
                     <Route path="/canteen/management/:shopId" element={<CanteenShopDetail />} />
                     <Route path="/canteen/reports" element={<Reports />} />
                   </Route>

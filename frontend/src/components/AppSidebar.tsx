@@ -58,7 +58,14 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.canteenPos",       url: "/canteen",           icon: UtensilsCrossed, roles: ["manager", "cashier"] },
       { titleKey: "nav.canteenReceipts",  url: "/canteen/receipts",  icon: Receipt,         roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.canteenProducts",  url: "/canteen/products",  icon: Package,         roles: ["manager"] },
-      { titleKey: "nav.canteenReports",   url: "/canteen/reports",   icon: BarChart3,       roles: ["admin"] },
+      { titleKey: "nav.canteenReports",   url: "/canteen/reports",   icon: BarChart3,       roles: ["admin", "manager"] },
+    ],
+  },
+  {
+    labelKey: "nav.groupCanteenManagement",
+    module: "canteen",
+    items: [
+      { titleKey: "nav.canteenManagement", url: "/canteen/management", icon: Building2, roles: ["manager", "admin"], matchPrefix: true },
     ],
   },
   {

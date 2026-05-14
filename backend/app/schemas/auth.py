@@ -33,6 +33,8 @@ class UserResponse(BaseModel):
     is_superuser: bool
     role: Optional[str] = None
     roles: List[RoleResponse] = []
+    shop_id: Optional[str] = None
+    shop_module: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

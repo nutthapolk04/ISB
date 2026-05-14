@@ -50,6 +50,8 @@ class User(Base):
     customer_type = Column(String(20), nullable=True)             # "Staff" | "Parent" (PS enum)
     # Sitemap v2 — shop scoping for cashiers/managers
     shop_id = Column(String(50), ForeignKey("shops.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Canteen multi-stall: "canteen" | "store" | null. Populated at user creation for area managers (shop_id=null)
+    shop_module = Column(String(20), nullable=True)
     # Department association — staff members linked to their department for dept-charge auto-fill
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

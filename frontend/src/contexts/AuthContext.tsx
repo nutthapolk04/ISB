@@ -54,6 +54,7 @@ const MOCK_USERS: (AuthUser & { password: string })[] = [
   { id: 4,  username: "cashier_sports",          password: "cashier",   fullName: "Cashier (Sports)",              role: "cashier", allRoles: ["cashier"],           activeRole: "cashier", shopId: "sports",         shopName: "Sports Shop",       shopModule: "store"   },
   { id: 6,  username: "cashier_book",            password: "cashier",   fullName: "Cashier (Book)",                role: "cashier", allRoles: ["cashier"],           activeRole: "cashier", shopId: "bookstore",      shopName: "Bookstore",         shopModule: "store"   },
   { id: 10, username: "manager_canteen",         password: "manager",   fullName: "Manager (Canteen)",             role: "manager", allRoles: ["manager"],           activeRole: "manager", shopId: "canteen",        shopName: "ISB Canteen",       shopModule: "canteen" },
+  { id: 16, username: "manager_canteen_area",   password: "manager",   fullName: "Manager (Canteen Area)",        role: "manager", allRoles: ["manager"],           activeRole: "manager", shopId: null,             shopName: "All Canteen Stalls",shopModule: "canteen" },
   { id: 11, username: "cashier_canteen",         password: "cashier",   fullName: "Cashier (Canteen)",             role: "cashier", allRoles: ["cashier"],           activeRole: "cashier", shopId: "canteen",        shopName: "ISB Canteen",       shopModule: "canteen" },
   { id: 12, username: "manager_canteen_thai",    password: "manager",   fullName: "Manager (Thai Kitchen)",        role: "manager", allRoles: ["manager"],           activeRole: "manager", shopId: "canteen_thai",   shopName: "Thai Kitchen",      shopModule: "canteen" },
   { id: 13, username: "cashier_canteen_thai",    password: "cashier",   fullName: "Cashier (Thai Kitchen)",        role: "cashier", allRoles: ["cashier"],           activeRole: "cashier", shopId: "canteen_thai",   shopName: "Thai Kitchen",      shopModule: "canteen" },
@@ -182,6 +183,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .filter((r: UserRole) => r !== resolvedRole);
         const allRoles: UserRole[] = [...new Set([resolvedRole, ...secondaryRoles])];
         const shopId = backendUser.shop_id ?? mockMatch?.shopId ?? null;
+        // shop_module from backend wins; fall back to mock match or heuristic
+        const backendModule = (backendUser.shop_module as AppModule | undefined) ?? null;
         authUser = {
           id: backendUser.id,
           username: backendUser.username,
@@ -191,10 +194,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           activeRole: resolvedRole,
           shopId,
           shopName: mockMatch?.shopName ?? null,
-          shopModule: mockMatch?.shopModule ?? moduleOf(shopId),
+          shopModule: backendModule ?? mockMatch?.shopModule ?? moduleOf(shopId),
         };
-        // Authoritative: fetch shop metadata to get .module from backend
-        if (shopId) {
+        // Authoritative: fetch shop metadata to get .module from backend (only if shop_module not in /me response)
+        if (shopId && !backendModule) {
           try {
             const shopRes = await fetch(`${API_BASE_URL}/shops/${shopId}`, {
               headers: { Authorization: `Bearer ${data.access_token}` },

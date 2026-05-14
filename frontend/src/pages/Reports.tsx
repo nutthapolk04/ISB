@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -8,6 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -17,6 +24,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+
+interface CanteenShop { id: string; name: string; }
 
 interface SalesRow { product_name: string; quantity: number; total: number; }
 interface SalesReportData { rows: SalesRow[]; grand_total: number; receipt_count: number; }
@@ -75,6 +84,16 @@ const Reports = () => {
   const [endDate, setEndDate] = useState("");
   const [exporting, setExporting] = useState(false);
 
+  // Canteen area manager: null shopId but shopModule=canteen → show stall selector
+  const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && user?.role !== "admin";
+  const [canteenStalls, setCanteenStalls] = useState<CanteenShop[]>([]);
+  const [selectedStall, setSelectedStall] = useState<string>("all");
+
+  useEffect(() => {
+    if (!isCanteenAreaMgr) return;
+    api.get<CanteenShop[]>("/shops?module=canteen").then(setCanteenStalls).catch(() => {});
+  }, [isCanteenAreaMgr]);
+
   const currentDef = REPORT_DEFS.find((d) => d.type === selectedReportType);
   const needsRange = currentDef?.needsRange ?? true;
 
@@ -82,12 +101,20 @@ const Reports = () => {
     setSelectedReportType(reportType);
     setStartDate("");
     setEndDate("");
+    setSelectedStall("all");
     setIsDatePickerOpen(true);
   };
 
-  const shopParam = user?.shopId && user?.role !== "admin"
-    ? `&shop_id=${encodeURIComponent(user.shopId)}`
-    : "";
+  // Build scope query param
+  const shopParam = (() => {
+    if (user?.role === "admin") return "";
+    if (isCanteenAreaMgr) {
+      return selectedStall === "all"
+        ? "&module=canteen"
+        : `&shop_id=${encodeURIComponent(selectedStall)}`;
+    }
+    return user?.shopId ? `&shop_id=${encodeURIComponent(user.shopId)}` : "";
+  })();
 
   const handleExportExcel = async () => {
     if (needsRange && (!startDate || !endDate)) {
@@ -215,6 +242,23 @@ const Reports = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {isCanteenAreaMgr && (
+              <div className="space-y-2">
+                <Label>{t("reports.canteenScope")}</Label>
+                <Select value={selectedStall} onValueChange={setSelectedStall}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("reports.canteenScopeAll")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("reports.canteenScopeAll")}</SelectItem>
+                    {canteenStalls.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {needsRange && (
               <div className="space-y-2">
                 <Label htmlFor="dateRange">
