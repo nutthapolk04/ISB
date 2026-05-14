@@ -62,7 +62,7 @@ const emptyForm: BundleFormData = {
 };
 
 const COLORS = [
-  { value: "", label: "Default" },
+  { value: "__default__", label: "Default" },
   { value: "#FF6B6B", label: "Red" },
   { value: "#4ECDC4", label: "Teal" },
   { value: "#45B7D1", label: "Blue" },
@@ -517,8 +517,8 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
               <div>
                 <Label>{t("bundles.color") || "Card Color"}</Label>
                 <Select
-                  value={formData.color}
-                  onValueChange={(v) => setFormData({ ...formData, color: v })}
+                  value={formData.color || "__default__"}
+                  onValueChange={(v) => setFormData({ ...formData, color: v === "__default__" ? "" : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t("bundles.selectColor") || "Select color"} />
@@ -527,7 +527,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                     {COLORS.map((c) => (
                       <SelectItem key={c.value} value={c.value}>
                         <div className="flex items-center gap-2">
-                          {c.value && (
+                          {c.value !== "__default__" && (
                             <div
                               className="w-4 h-4 rounded border"
                               style={{ backgroundColor: c.value }}
