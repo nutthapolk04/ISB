@@ -120,6 +120,38 @@ def my_children(
     return result
 
 
+# ── Admin: children of any user ──────────────────────────────────────────────
+
+@router.get("/by-user/{user_id}", response_model=List[ChildSummary])
+def children_of_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Return all children linked to any parent user (admin-only)."""
+    links = (
+        db.query(ParentChildLink)
+        .filter(ParentChildLink.parent_user_id == user_id)
+        .all()
+    )
+    result = []
+    for link in links:
+        c = (
+            db.query(Customer)
+            .options(joinedload(Customer.wallet))
+            .filter(Customer.id == link.child_customer_id)
+            .first()
+        )
+        if not c:
+            continue
+        if not c.wallet:
+            WalletService.ensure_wallet_for_customer(db, c.id)
+            db.commit()
+            db.refresh(c)
+        result.append(_child_summary(link, c))
+    return result
+
+
 # ── Admin: manage links ──────────────────────────────────────────────────────
 
 @router.get("/links", response_model=List[LinkResponse])

@@ -37,6 +37,7 @@ import StudentProfile from "./pages/parent/StudentProfile";
 import Transfer from "./pages/parent/Transfer";
 import FamilyLinks from "./pages/admin/FamilyLinks";
 import WalletAdjust from "./pages/admin/WalletAdjust";
+import WalletTransfer from "./pages/admin/WalletTransfer";
 import DepartmentAdjust from "./pages/admin/DepartmentAdjust";
 import CustomerDetail from "./pages/admin/CustomerDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -232,6 +233,7 @@ const App = () => (
                   <Route path="/admin" element={<AdminDashboard />} />
                   <Route path="/admin/families" element={<FamilyLinks />} />
                   <Route path="/admin/wallet-adjust" element={<WalletAdjust />} />
+                  <Route path="/admin/wallet-transfer" element={<WalletTransfer />} />
                   <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
                   <Route path="/admin/audit-logs" element={<AuditLogList />} />
                   <Route path="/admin/settings" element={<SystemSettings />} />
