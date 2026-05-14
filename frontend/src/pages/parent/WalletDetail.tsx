@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
@@ -71,6 +71,8 @@ const formatTHB = (n: number) =>
 
 export default function WalletDetail() {
   const { customerId } = useParams<{ customerId: string }>();
+  const [searchParams] = useSearchParams();
+  const historyRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -139,6 +141,13 @@ export default function WalletDetail() {
   useEffect(() => {
     loadData();
   }, [effectiveId]);
+
+  // Scroll to history section when ?tab=history is in URL
+  useEffect(() => {
+    if (searchParams.get("tab") === "history" && historyRef.current && !loading) {
+      setTimeout(() => historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    }
+  }, [searchParams, loading]);
 
   const handleCreateTopup = async () => {
     if (!profile?.wallet_id) return;
@@ -384,7 +393,7 @@ export default function WalletDetail() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card ref={historyRef}>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-lg">{t("parent.wallet.recentTitle")}</CardTitle>
           {!profile.is_own_user_wallet && (
