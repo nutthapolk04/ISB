@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   LogIn,
   Mail,
@@ -18,8 +20,23 @@ import {
   Wallet as WalletIcon,
   Sparkles,
   ArrowLeftRight,
-  CreditCard,
+  ShieldCheck,
+  MessageSquare,
+  ChevronLeft,
 } from "lucide-react";
+
+type SsoStep = "email" | "otp" | "pdpa" | null;
+
+const MOCK_OTP = "247831";
+
+const GoogleLogo = () => (
+  <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+  </svg>
+);
 
 // Demo accounts highlighted for the wallet feature: each entry pre-fills the
 // login form so demo viewers can jump straight into the relevant flow.
@@ -88,9 +105,11 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
-  // Google SSO inline form state
-  const [googleSSOOpen, setGoogleSSOOpen] = useState(false);
+  // Google SSO multi-step state
+  const [ssoStep, setSsoStep] = useState<SsoStep>(null);
   const [googleEmail, setGoogleEmail] = useState("");
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) navigate("/", { replace: true });
@@ -127,9 +146,24 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSSOSubmit = async (e: React.FormEvent) => {
+  const handleGoogleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!googleEmail.trim()) return;
+    setOtpValue("");
+    setOtpError(false);
+    setSsoStep("otp");
+  };
+
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpValue === MOCK_OTP) {
+      setSsoStep("pdpa");
+    } else {
+      setOtpError(true);
+    }
+  };
+
+  const handlePdpaAccept = async () => {
     setSsoLoading(true);
     setError("");
     const result = await loginWithMockSSO(googleEmail.trim());
@@ -138,8 +172,15 @@ const Login = () => {
       navigate("/", { replace: true });
     } else {
       setError(result.error ?? "SSO login failed");
-      setGoogleSSOOpen(false);
+      setSsoStep(null);
     }
+  };
+
+  const resetSso = () => {
+    setSsoStep(null);
+    setGoogleEmail("");
+    setOtpValue("");
+    setOtpError(false);
   };
 
   const handleMockSSO = async () => {
@@ -223,66 +264,148 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Google SSO — inline email form */}
-            {!googleSSOOpen ? (
+            {/* Google SSO — multi-step flow */}
+            {ssoStep === null && (
               <Button
                 type="button"
                 variant="outline"
                 className="w-full gap-2"
-                onClick={() => { setGoogleSSOOpen(true); setGoogleEmail(""); setError(""); }}
+                onClick={() => { setSsoStep("email"); setGoogleEmail(""); setError(""); }}
                 disabled={loading || ssoLoading}
               >
-                {/* Google "G" logo */}
-                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                </svg>
+                <GoogleLogo />
                 Sign in with Google (Mock)
               </Button>
-            ) : (
-              <form onSubmit={handleGoogleSSOSubmit} className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                  </svg>
-                  Sign in with Google (Mock SSO)
+            )}
+
+            {/* Step 1: Email */}
+            {ssoStep === "email" && (
+              <form onSubmit={handleGoogleEmailSubmit} className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+                    <GoogleLogo />
+                    Sign in with Google
+                  </div>
+                  <button type="button" onClick={resetSso} className="text-muted-foreground hover:text-foreground">
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
                 </div>
-                <p className="text-[11px] text-blue-700/80">กรอก ISB email เพื่อสร้างหรือเข้าสู่บัญชี parent</p>
+                <p className="text-xs text-blue-700/80">กรอก ISB Google email ของคุณ</p>
                 <Input
                   type="email"
                   autoFocus
                   placeholder="your@isb.ac.th"
                   value={googleEmail}
                   onChange={(e) => setGoogleEmail(e.target.value)}
-                  disabled={ssoLoading}
                   className="bg-white"
                 />
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={!googleEmail.trim()}
+                >
+                  Next
+                </Button>
+              </form>
+            )}
+
+            {/* Step 2: OTP */}
+            {ssoStep === "otp" && (
+              <form onSubmit={handleOtpSubmit} className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+                    <MessageSquare className="h-4 w-4" />
+                    2-Step Verification
+                  </div>
+                  <button type="button" onClick={() => setSsoStep("email")} className="text-muted-foreground hover:text-foreground">
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-blue-700/80">
+                  Google ส่งรหัส OTP ไปที่ <span className="font-medium">{googleEmail}</span>
+                </p>
+                <div className="rounded-md bg-blue-100/80 border border-blue-200 px-3 py-2 text-xs text-blue-800">
+                  <span className="font-medium">Demo OTP:</span>{" "}
+                  <span className="font-mono tracking-widest font-bold">{MOCK_OTP}</span>
+                </div>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    pattern={REGEXP_ONLY_DIGITS}
+                    value={otpValue}
+                    onChange={(v) => { setOtpValue(v); setOtpError(false); }}
+                    autoFocus
+                  >
+                    <InputOTPGroup>
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <InputOTPSlot key={i} index={i} />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                {otpError && (
+                  <p className="text-xs text-destructive text-center">รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่</p>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={otpValue.length < 6}
+                >
+                  Verify
+                </Button>
+              </form>
+            )}
+
+            {/* Step 3: PDPA Consent */}
+            {ssoStep === "pdpa" && (
+              <div className="rounded-lg border border-green-200 bg-green-50/50 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
+                  <ShieldCheck className="h-4 w-4" />
+                  นโยบายความเป็นส่วนตัว (PDPA)
+                </div>
+                <div className="rounded-md bg-white border border-green-100 p-3 max-h-48 overflow-y-auto text-xs text-foreground/80 space-y-2 leading-relaxed">
+                  <p className="font-semibold text-foreground">การเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล</p>
+                  <p>โรงเรียนนานาชาติกรุงเทพ (ISB) เก็บรวบรวมข้อมูลส่วนบุคคลของท่านเพื่อวัตถุประสงค์ดังต่อไปนี้:</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>การบริหารจัดการระบบชำระเงินและกระเป๋าเงินอิเล็กทรอนิกส์ (Schooney)</li>
+                    <li>การติดตามและบริหารจัดการค่าใช้จ่ายของนักเรียนในโรงอาหารและสหกรณ์</li>
+                    <li>การแจ้งเตือนและรายงานการใช้จ่ายแก่ผู้ปกครอง</li>
+                    <li>การปฏิบัติตามข้อกำหนดทางกฎหมายและระเบียบของโรงเรียน</li>
+                  </ul>
+                  <p className="font-semibold text-foreground">ข้อมูลที่เก็บรวบรวม</p>
+                  <p>ชื่อ-นามสกุล, อีเมล, รูปภาพ, รหัสนักเรียน, ประวัติการทำธุรกรรม และข้อมูลอุปกรณ์</p>
+                  <p className="font-semibold text-foreground">การเปิดเผยข้อมูล</p>
+                  <p>ISB จะไม่เปิดเผยข้อมูลส่วนบุคคลของท่านแก่บุคคลภายนอก เว้นแต่เป็นไปตามที่กฎหมายกำหนด</p>
+                  <p className="font-semibold text-foreground">สิทธิ์ของเจ้าของข้อมูล</p>
+                  <p>ท่านมีสิทธิ์เข้าถึง แก้ไข ลบ และคัดค้านการประมวลผลข้อมูลส่วนบุคคลของท่านได้ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)</p>
+                  <p>ติดต่อ DPO: <span className="font-mono">privacy@isb.ac.th</span></p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  การกด "ยอมรับ" ถือว่าท่านได้อ่านและยินยอมให้ ISB เก็บรวบรวมและใช้ข้อมูลส่วนบุคคลตามนโยบายข้างต้น
+                </p>
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => setGoogleSSOOpen(false)}
+                    onClick={resetSso}
                     disabled={ssoLoading}
                   >
-                    Cancel
+                    ปฏิเสธ
                   </Button>
                   <Button
-                    type="submit"
+                    type="button"
                     size="sm"
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={ssoLoading || !googleEmail.trim()}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    onClick={handlePdpaAccept}
+                    disabled={ssoLoading}
                   >
-                    {ssoLoading ? "Signing in…" : "Continue"}
+                    <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+                    {ssoLoading ? "กำลังเข้าสู่ระบบ…" : "ยอมรับและเข้าสู่ระบบ"}
                   </Button>
                 </div>
-              </form>
+              </div>
             )}
 
             <Button
