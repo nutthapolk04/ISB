@@ -46,6 +46,9 @@ class SalesByPaymentReport(BaseModel):
     rows: List[SalesByPaymentRow]
     grand_total: float
     total_receipts: int
+    retail_total: float          # grand total EXCLUDING department rows
+    department_total: float      # sum of DEPARTMENT rows only
+    department_receipts: int     # count of DEPARTMENT receipts
 
 
 class SalesReport(BaseModel):
@@ -216,6 +219,9 @@ def sales_by_payment_report(
     rows: List[SalesByPaymentRow] = []
     grand_total = 0.0
     total_receipts = 0
+    retail_total = 0.0
+    department_total = 0.0
+    department_receipts = 0
     for r in agg:
         method_name = r.payment_method.value if hasattr(r.payment_method, 'value') else str(r.payment_method)
         line_total = float(r.total or 0)
@@ -227,6 +233,11 @@ def sales_by_payment_report(
         ))
         grand_total += line_total
         total_receipts += count
+        if method_name.upper() == "DEPARTMENT":
+            department_total += line_total
+            department_receipts += count
+        else:
+            retail_total += line_total
 
     return SalesByPaymentReport(
         date_from=date_from,
@@ -235,6 +246,9 @@ def sales_by_payment_report(
         rows=rows,
         grand_total=grand_total,
         total_receipts=total_receipts,
+        retail_total=retail_total,
+        department_total=department_total,
+        department_receipts=department_receipts,
     )
 
 

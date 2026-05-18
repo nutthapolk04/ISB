@@ -41,7 +41,14 @@ interface ReturnRow {
 interface ReturnReportData { rows: ReturnRow[]; total_refund: number; total_exchange: number; }
 
 interface SalesByPaymentRow { payment_method: string; receipt_count: number; total: number; }
-interface SalesByPaymentReportData { rows: SalesByPaymentRow[]; grand_total: number; total_receipts: number; }
+interface SalesByPaymentReportData {
+  rows: SalesByPaymentRow[];
+  grand_total: number;
+  total_receipts: number;
+  retail_total: number;
+  department_total: number;
+  department_receipts: number;
+}
 
 const REPORT_DEFS: { type: string; icon: typeof FileText; needsRange: boolean }[] = [
   { type: "salesReport",         icon: FileText,       needsRange: true },
@@ -151,11 +158,14 @@ const Reports = () => {
         );
         csv += `${t("reports.colPaymentMethod") || "Payment Method"},${t("reports.colReceiptCount") || "Receipt Count"},${t("reports.colTotal")}\n`;
         for (const r of data.rows) {
+          if (r.payment_method.toUpperCase() === "DEPARTMENT") continue;
           const methodLabel = t(`payment.${r.payment_method}`) || r.payment_method;
           csv += `${csvEscape(methodLabel)},${r.receipt_count},${r.total.toFixed(2)}\n`;
         }
-        csv += `\n${t("reports.grandTotal")},,${data.grand_total.toFixed(2)}\n`;
-        csv += `${t("reports.totalReceipts") || "Total Receipts"},${data.total_receipts},\n`;
+        csv += `\n${t("reports.grandTotal")},,${data.retail_total.toFixed(2)}\n`;
+        csv += `${t("reports.totalReceipts") || "Total Receipts"},${data.total_receipts - data.department_receipts},\n`;
+        csv += `\nDepartment Use (Internal) — ยอดเบิกภายใน,,\n`;
+        csv += `Department Use,${data.department_receipts},${data.department_total.toFixed(2)}\n`;
       } else if (selectedReportType === "stockReport") {
         const stockShopParam = shopParam.replace(/^&/, "?");
         const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);
@@ -282,6 +292,20 @@ const Reports = () => {
                 {selectedReportType && t(`reports.${selectedReportType}Desc`)}
               </p>
             </div>
+
+            {selectedReportType === "salesByPaymentReport" && (
+              <div className="border border-dashed border-muted-foreground/40 bg-muted/40 rounded-lg p-3 space-y-1">
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Department Use (Internal)
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ยอดเบิกภายใน (Department Use) แยกจากยอดขายปกติ
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Grand Total ในรายงานนี้แสดงเฉพาะยอดขายปกติ — ไม่รวม Department Use
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
