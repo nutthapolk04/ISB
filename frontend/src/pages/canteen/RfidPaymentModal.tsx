@@ -34,8 +34,13 @@ export interface StudentLookupResult {
   daily_limit?: number | null;
   negative_credit_limit?: number | null;
   wallet_balance?: number | null;
+  wallet_id?: number | null;
   customer_code: string;
   student_code?: string | null;
+  family_code?: string | null;
+  customer_kind?: string | null;
+  /** Set when this result is a User-based payer (parent/staff/teacher). */
+  user_id?: number | null;
 }
 
 export interface UserPayerLookup {
@@ -122,9 +127,25 @@ export function RfidPaymentModal({
     if (open) {
       // If we have a pre-selected member, skip to identity stage
       if (preSelectedMember) {
-        setStudent(preSelectedMember);
-        setUserPayer(null);
-        setPayerKind("customer");
+        if (preSelectedMember.user_id != null) {
+          // User-based payer (parent / staff / teacher) found via search
+          setUserPayer({
+            user_id: preSelectedMember.user_id,
+            username: preSelectedMember.customer_code,
+            full_name: preSelectedMember.name,
+            role: preSelectedMember.customer_kind ?? "parent",
+            photo_url: preSelectedMember.photo_url ?? null,
+            wallet_id: preSelectedMember.wallet_id ?? 0,
+            wallet_balance: preSelectedMember.wallet_balance ?? 0,
+            is_active: true,
+          });
+          setStudent(null);
+          setPayerKind("user");
+        } else {
+          setStudent(preSelectedMember);
+          setUserPayer(null);
+          setPayerKind("customer");
+        }
         setStage("identity");
         setCardInput("");
         setLookupError(null);

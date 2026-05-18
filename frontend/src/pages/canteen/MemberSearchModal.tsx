@@ -117,7 +117,7 @@ export function MemberSearchModal({
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="พิมพ์ชื่อ หรือรหัสนักเรียน..."
+                placeholder="ชื่อ / รหัสนักเรียน / username / บัตร / รหัสครอบครัว..."
                 className="pl-9"
                 autoFocus
               />
@@ -169,6 +169,14 @@ export function MemberSearchModal({
                             Grade {member.grade}
                           </Badge>
                         )}
+                        {member.user_id != null && (
+                          <Badge className="h-4 text-[10px] px-1 bg-blue-100 text-blue-700 border-blue-200">
+                            {member.customer_kind === "parent" ? "ผู้ปกครอง"
+                              : member.customer_kind === "staff" ? "พนักงาน"
+                              : member.customer_kind === "teacher" ? "ครู"
+                              : member.customer_kind ?? "สมาชิก"}
+                          </Badge>
+                        )}
                         {member.card_frozen && (
                           <Badge variant="destructive" className="h-4 text-[10px] px-1">
                             Frozen
@@ -176,7 +184,7 @@ export function MemberSearchModal({
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {member.student_code ?? member.customer_code}
+                        {member.user_id != null ? member.customer_code : (member.student_code ?? member.customer_code)}
                       </div>
                     </div>
 

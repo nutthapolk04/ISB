@@ -30,6 +30,9 @@ class StudentProfileResponse(BaseModel):
     # Wallet summary
     wallet_id: Optional[int] = None
     wallet_balance: Optional[float] = None
+    # Set when this result originates from the users table (parent / staff / teacher).
+    # Frontend uses this to route to the user-payer flow instead of customer flow.
+    user_id: Optional[int] = None
 
 
 class FreezeCardRequest(BaseModel):

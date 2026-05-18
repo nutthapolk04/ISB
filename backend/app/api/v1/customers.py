@@ -30,6 +30,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _user_to_search_profile(u: User) -> StudentProfileResponse:
+    """Map a User row (parent/staff/teacher) to the search-result shape."""
+    wallet = u.wallet
+    return StudentProfileResponse(
+        id=u.id,
+        user_id=u.id,            # signals "user-based payer" to the frontend
+        customer_code=u.username,
+        student_code=None,
+        name=u.full_name or u.username,
+        grade=None,
+        school_type=None,
+        customer_kind=u.role or "user",
+        photo_url=u.photo_url,
+        email=u.email,
+        card_uid=u.card_uid,
+        card_frozen=False,
+        family_code=u.family_code,
+        external_id=u.external_id,
+        wallet_id=wallet.id if wallet else None,
+        wallet_balance=float(wallet.balance) if wallet else None,
+        allergies=getattr(u, "allergies", None),
+    )
+
+
 def _to_profile(c: Customer) -> StudentProfileResponse:
     wallet = c.wallet
     return StudentProfileResponse(
@@ -90,15 +114,18 @@ def search_customers(
         require_role("cashier", "manager", "admin", "kitchen")
     ),
 ):
-    """Search customers by name or student code (partial match).
+    """Search all members — students (Customer table) + parents/staff/teachers (User table).
 
-    Used by POS cashiers to find a student when they don't have their card.
+    Matches on: name, student_code, customer_code, card_uid, family_code,
+                external_id, email, phone, username.
     """
     q = q.strip()
     if len(q) < 2:
         raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
 
     search_pattern = f"%{q}%"
+
+    # ── 1. Students / departments (Customer table) ──────────────────────────
     customers = (
         db.query(Customer)
         .options(joinedload(Customer.wallet))
@@ -108,7 +135,11 @@ def search_customers(
                 Customer.name.ilike(search_pattern) |
                 Customer.student_code.ilike(search_pattern) |
                 Customer.customer_code.ilike(search_pattern) |
-                Customer.card_uid.ilike(search_pattern)
+                Customer.card_uid.ilike(search_pattern) |
+                Customer.family_code.ilike(search_pattern) |
+                Customer.external_id.ilike(search_pattern) |
+                Customer.email.ilike(search_pattern) |
+                Customer.phone.ilike(search_pattern)
             )
         )
         .order_by(Customer.name)
@@ -122,7 +153,32 @@ def search_customers(
             WalletService.ensure_wallet_for_customer(db, c.id)
     db.commit()
 
-    return [_to_profile(c) for c in customers]
+    # ── 2. Parents / staff / teachers (User table) ───────────────────────────
+    users = (
+        db.query(User)
+        .options(joinedload(User.wallet))
+        .filter(
+            User.is_active == True,
+            User.role.in_(["parent", "staff", "teacher", "visitor"]),
+            (
+                User.full_name.ilike(search_pattern) |
+                User.username.ilike(search_pattern) |
+                User.email.ilike(search_pattern) |
+                User.family_code.ilike(search_pattern) |
+                User.external_id.ilike(search_pattern) |
+                User.card_uid.ilike(search_pattern)
+            )
+        )
+        .order_by(User.full_name)
+        .limit(limit)
+        .all()
+    )
+
+    results: List[StudentProfileResponse] = [_to_profile(c) for c in customers]
+    results += [_user_to_search_profile(u) for u in users]
+    # Sort combined list by name, then trim to limit
+    results.sort(key=lambda r: r.name.lower())
+    return results[:limit * 2]  # allow up to 2× limit so both sources are visible
 
 
 @router.get("/by-code/{code}", response_model=StudentProfileResponse)
