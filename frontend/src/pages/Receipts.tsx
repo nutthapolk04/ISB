@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,13 +142,7 @@ const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
   <text x="256" y="430" text-anchor="middle" font-family="Times New Roman, serif" font-size="190" fill="#111111">ISB</text>
 </svg>`;
 
-interface SchoolInfo {
-  name: string;
-  address: string;
-  taxId: string;
-  phone: string;
-  logoUrl: string;
-}
+import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 
 function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string | null): string {
   const paymentLabel = PAYMENT_LABELS[r.payment_method] ?? r.payment_method;
@@ -262,19 +257,12 @@ const Receipts = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { pathname } = useLocation();
+  const schoolInfo = useSchoolInfo();
 
   // ── Module scope detection (from URL) ───────────────────────────────────
   const moduleScope: ModuleScope = pathname.startsWith("/canteen")
     ? "canteen"
     : "store";
-
-  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
-    name: "International School Bangkok",
-    address: "",
-    taxId: "",
-    phone: "",
-    logoUrl: "",
-  });
 
   const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -340,18 +328,7 @@ const Receipts = () => {
     }
   }, [queryParams]);
 
-  useEffect(() => {
-    fetchReceipts();
-    api.get<Record<string, string>>("/admin/settings/school").then((d) => {
-      setSchoolInfo({
-        name: d.school_name || "International School Bangkok",
-        address: d.school_address || "",
-        taxId: d.school_tax_id || "",
-        phone: d.school_phone || "",
-        logoUrl: d.school_logo_url || "",
-      });
-    }).catch(() => {});
-  }, [fetchReceipts]);
+  useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const filteredReceipts = receipts.filter((r) => {

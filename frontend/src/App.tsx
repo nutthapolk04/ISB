@@ -10,6 +10,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ServerStatusIndicator } from "@/components/ServerStatusIndicator";
 import { ReSyncControl } from "@/components/ReSyncControl";
 import { AuthProvider, useAuth, UserRole } from "@/contexts/AuthContext";
+import { SchoolInfoProvider } from "@/contexts/SchoolInfoContext";
 import { RequireModule } from "@/components/guards/RequireModule";
 import { Button } from "@/components/ui/button";
 import { LogOut, UserIcon, KeyRound, RefreshCcw, Wallet } from "lucide-react";
@@ -167,6 +168,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <SchoolInfoProvider>
           <Routes>
             {/* Public route */}
             <Route path="/login" element={<Login />} />
@@ -271,6 +273,7 @@ const App = () => (
               </Route>
             </Route>
           </Routes>
+          </SchoolInfoProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

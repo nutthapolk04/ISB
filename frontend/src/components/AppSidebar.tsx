@@ -22,6 +22,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth, UserRole, moduleOf, type AppModule } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 
 import {
   Sidebar,
@@ -122,6 +123,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { t } = useTranslation();
   const { hasRole, user } = useAuth();
+  const school = useSchoolInfo();
 
   const isActive = (item: MenuItem) =>
     item.matchPrefix
@@ -144,13 +146,21 @@ export function AppSidebar() {
           <SidebarGroupLabel className="h-auto px-4 py-4">
             {open && (
               <div className="flex items-center gap-3">
-                <img
-                  src="/isb-logo.svg"
-                  alt="ISB logo"
-                  className="h-11 w-11 shrink-0 rounded-md object-contain"
-                />
+                {school.logoUrl ? (
+                  <img
+                    src={school.logoUrl}
+                    alt="school logo"
+                    className="h-11 w-11 shrink-0 rounded-md object-contain"
+                  />
+                ) : (
+                  <img
+                    src="/isb-logo.svg"
+                    alt="ISB logo"
+                    className="h-11 w-11 shrink-0 rounded-md object-contain"
+                  />
+                )}
                 <span className="text-sidebar-foreground text-[1.518rem] font-bold">
-                  {t("nav.systemTitle")}
+                  {school.name || t("nav.systemTitle")}
                 </span>
               </div>
             )}
