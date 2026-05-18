@@ -8,6 +8,7 @@ Usage:
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -27,18 +28,21 @@ def create_audit_log(
     Insert a row into audit_logs.  Uses raw SQL (consistent with project pattern)
     so it works even if the ORM model hasn't been imported/mapped yet.
 
-    Supported actions: UPDATE_PRICE, DELETE_PRODUCT, UPDATE_PRODUCT
+    Supported actions: UPDATE_PRICE, DELETE_PRODUCT, UPDATE_PRODUCT, CREATE, VOID,
+                       UPDATE_BALANCE, UPDATE_SETTING
     changes format:
       UPDATE_PRICE  → {"old": {"external_price": X, "internal_price": Y}, "new": {...}}
       DELETE_PRODUCT → {"snapshot": {"name": ..., "external_price": ..., "stock": ...}}
     """
-    import json
+    changes_json = json.dumps(changes, default=str)
+    # Use explicit cast via SQL function to avoid ::jsonb syntax issues with psycopg2
     db.execute(
         text("""
             INSERT INTO audit_logs
                 (entity_type, entity_id, entity_name, shop_id, action, changes_json, user_id)
             VALUES
-                (:entity_type, :entity_id, :entity_name, :shop_id, :action, :changes_json::jsonb, :user_id)
+                (:entity_type, :entity_id, :entity_name, :shop_id, :action,
+                 CAST(:changes_json AS JSONB), :user_id)
         """),
         {
             "entity_type": entity_type,
@@ -46,7 +50,7 @@ def create_audit_log(
             "entity_name": entity_name,
             "shop_id": shop_id,
             "action": action,
-            "changes_json": json.dumps(changes, default=str),
+            "changes_json": changes_json,
             "user_id": user_id,
         },
     )

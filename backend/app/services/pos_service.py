@@ -18,8 +18,11 @@ from app.models.customer import Customer
 from app.models.wallet import Wallet, WalletTransaction, WalletTransactionType
 from app.services.wallet_service import WalletService
 from app.services.settings_service import SettingsService
+import logging
 from app.services.audit_service import create_audit_log
 from app.core.errors import BusinessRuleError
+
+_audit_logger = logging.getLogger("audit")
 from decimal import Decimal
 from app.services.inventory_service import (
     calc_new_avg_cost,
@@ -468,7 +471,8 @@ class POSService:
                 user_id=user_id,
             )
             db.commit()
-        except Exception:
+        except Exception as exc:
+            _audit_logger.warning("audit log failed for receipt %s: %s", receipt.id, exc)
             db.rollback()  # restore session — receipt is already committed above
 
         return receipt
@@ -629,7 +633,8 @@ class POSService:
                 user_id=user_id,
             )
             db.commit()
-        except Exception:
+        except Exception as exc:
+            _audit_logger.warning("audit log failed for void receipt %s: %s", receipt.id, exc)
             db.rollback()
 
         return receipt
