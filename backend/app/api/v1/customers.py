@@ -212,15 +212,15 @@ def get_customer_by_card(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Look up student by NFC card UID."""
+    """Look up student by NFC card UID (case-insensitive)."""
     c = (
         db.query(Customer)
         .options(joinedload(Customer.wallet))
-        .filter(Customer.card_uid == uid)
+        .filter(Customer.card_uid.ilike(uid))
         .first()
     )
     if not c:
-        raise HTTPException(status_code=404, detail="Card not registered")
+        raise HTTPException(status_code=404, detail="ไม่พบบัตรนี้ในระบบ")
     if not c.wallet:
         WalletService.ensure_wallet_for_customer(db, c.id)
         db.commit()

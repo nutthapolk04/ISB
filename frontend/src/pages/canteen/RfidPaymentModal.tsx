@@ -469,7 +469,7 @@ export function RfidPaymentModal({
             </div>
 
             <Button variant="ghost" onClick={onBack} className="mt-2">
-              Change payment method
+              เปลี่ยนวิธีชำระเงิน
             </Button>
           </div>
         )}
