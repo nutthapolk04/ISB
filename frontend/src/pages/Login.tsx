@@ -10,7 +10,6 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   LogIn,
-  Mail,
   UtensilsCrossed,
   Store,
   GraduationCap,
@@ -183,23 +182,6 @@ const Login = () => {
     setOtpError(false);
   };
 
-  const handleMockSSO = async () => {
-    const email = window.prompt(
-      "Enter your ISB email (mock SSO — auto-creates a parent account)",
-      "parent@isbd.th",
-    );
-    if (!email) return;
-    setSsoLoading(true);
-    setError("");
-    const result = await loginWithMockSSO(email.trim());
-    setSsoLoading(false);
-    if (result.success) {
-      navigate("/", { replace: true });
-    } else {
-      setError(result.error ?? "SSO login failed");
-    }
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-6">
@@ -290,7 +272,7 @@ const Login = () => {
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                 </div>
-                <p className="text-xs text-blue-700/80">กรอก ISB Google email ของคุณ</p>
+                <p className="text-xs text-blue-700/80">Enter your ISB Google email</p>
                 <Input
                   type="email"
                   autoFocus
@@ -322,7 +304,7 @@ const Login = () => {
                   </button>
                 </div>
                 <p className="text-xs text-blue-700/80">
-                  Google ส่งรหัส OTP ไปที่ <span className="font-medium">{googleEmail}</span>
+                  Google sent an OTP code to <span className="font-medium">{googleEmail}</span>
                 </p>
                 <div className="rounded-md bg-blue-100/80 border border-blue-200 px-3 py-2 text-xs text-blue-800">
                   <span className="font-medium">Demo OTP:</span>{" "}
@@ -344,7 +326,7 @@ const Login = () => {
                   </InputOTP>
                 </div>
                 {otpError && (
-                  <p className="text-xs text-destructive text-center">รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่</p>
+                  <p className="text-xs text-destructive text-center">Invalid OTP code. Please try again.</p>
                 )}
                 <Button
                   type="submit"
@@ -361,27 +343,27 @@ const Login = () => {
               <div className="rounded-lg border border-green-200 bg-green-50/50 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
                   <ShieldCheck className="h-4 w-4" />
-                  นโยบายความเป็นส่วนตัว (PDPA)
+                  Privacy Policy (PDPA)
                 </div>
                 <div className="rounded-md bg-white border border-green-100 p-3 max-h-48 overflow-y-auto text-xs text-foreground/80 space-y-2 leading-relaxed">
-                  <p className="font-semibold text-foreground">การเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล</p>
-                  <p>โรงเรียนนานาชาติกรุงเทพ (ISB) เก็บรวบรวมข้อมูลส่วนบุคคลของท่านเพื่อวัตถุประสงค์ดังต่อไปนี้:</p>
+                  <p className="font-semibold text-foreground">Collection and Use of Personal Data</p>
+                  <p>International School Bangkok (ISB) collects your personal data for the following purposes:</p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>การบริหารจัดการระบบชำระเงินและกระเป๋าเงินอิเล็กทรอนิกส์ (Schooney)</li>
-                    <li>การติดตามและบริหารจัดการค่าใช้จ่ายของนักเรียนในโรงอาหารและสหกรณ์</li>
-                    <li>การแจ้งเตือนและรายงานการใช้จ่ายแก่ผู้ปกครอง</li>
-                    <li>การปฏิบัติตามข้อกำหนดทางกฎหมายและระเบียบของโรงเรียน</li>
+                    <li>Administration of the payment and e-wallet system (Schooney)</li>
+                    <li>Tracking and managing student spending at canteens and the cooperative store</li>
+                    <li>Notifying and reporting spending activity to parents</li>
+                    <li>Complying with legal requirements and school regulations</li>
                   </ul>
-                  <p className="font-semibold text-foreground">ข้อมูลที่เก็บรวบรวม</p>
-                  <p>ชื่อ-นามสกุล, อีเมล, รูปภาพ, รหัสนักเรียน, ประวัติการทำธุรกรรม และข้อมูลอุปกรณ์</p>
-                  <p className="font-semibold text-foreground">การเปิดเผยข้อมูล</p>
-                  <p>ISB จะไม่เปิดเผยข้อมูลส่วนบุคคลของท่านแก่บุคคลภายนอก เว้นแต่เป็นไปตามที่กฎหมายกำหนด</p>
-                  <p className="font-semibold text-foreground">สิทธิ์ของเจ้าของข้อมูล</p>
-                  <p>ท่านมีสิทธิ์เข้าถึง แก้ไข ลบ และคัดค้านการประมวลผลข้อมูลส่วนบุคคลของท่านได้ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)</p>
-                  <p>ติดต่อ DPO: <span className="font-mono">privacy@isb.ac.th</span></p>
+                  <p className="font-semibold text-foreground">Data Collected</p>
+                  <p>Full name, email, photo, student ID, transaction history, and device information.</p>
+                  <p className="font-semibold text-foreground">Data Disclosure</p>
+                  <p>ISB will not disclose your personal data to third parties except as required by law.</p>
+                  <p className="font-semibold text-foreground">Data Subject Rights</p>
+                  <p>You have the right to access, rectify, erase, and object to the processing of your personal data under the Personal Data Protection Act B.E. 2562 (PDPA).</p>
+                  <p>Contact DPO: <span className="font-mono">privacy@isb.ac.th</span></p>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  การกด "ยอมรับ" ถือว่าท่านได้อ่านและยินยอมให้ ISB เก็บรวบรวมและใช้ข้อมูลส่วนบุคคลตามนโยบายข้างต้น
+                  By clicking "Accept", you acknowledge that you have read and consent to ISB collecting and using your personal data under the policy above.
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -392,7 +374,7 @@ const Login = () => {
                     onClick={resetSso}
                     disabled={ssoLoading}
                   >
-                    ปฏิเสธ
+                    Decline
                   </Button>
                   <Button
                     type="button"
@@ -402,22 +384,11 @@ const Login = () => {
                     disabled={ssoLoading}
                   >
                     <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-                    {ssoLoading ? "กำลังเข้าสู่ระบบ…" : "ยอมรับและเข้าสู่ระบบ"}
+                    {ssoLoading ? "Signing in…" : "Accept & Sign In"}
                   </Button>
                 </div>
               </div>
             )}
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleMockSSO}
-              disabled={loading || ssoLoading}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              {ssoLoading ? "Redirecting…" : "Login with ISB Microsoft (Mock)"}
-            </Button>
 
             {/* Featured wallet demo accounts — click to log in directly */}
             <div className="mt-4 rounded-md border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3 space-y-2.5">
