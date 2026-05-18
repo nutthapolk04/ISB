@@ -243,7 +243,7 @@ export default function Canteen() {
           // Cashier-entered one-time override (null when untouched). Backend
           // bills the line at this value; unit_price stays as the catalog price.
           price_override: i.priceOverride ?? null,
-          discount: 0,
+          discount: cart.lineDiscountAmountFor(i),
           options: i.selectedOptions.flatMap((g) =>
             g.options.map((o) => ({
               option_id: o.id,
@@ -561,6 +561,8 @@ export default function Canteen() {
         onDecrement={cart.decrementLine}
         onRemove={cart.removeLine}
         onSetLinePrice={cart.setLinePriceOverride}
+        onSetLineDiscount={cart.setLineDiscount}
+        lineDiscountAmountFor={cart.lineDiscountAmountFor}
         onOpenDiscount={() => setDiscountOpen(true)}
         onClearDiscount={cart.clearDiscount}
         onClearCart={cart.clearCart}
@@ -600,6 +602,8 @@ export default function Canteen() {
             onDecrement={cart.decrementLine}
             onRemove={cart.removeLine}
             onSetLinePrice={cart.setLinePriceOverride}
+            onSetLineDiscount={cart.setLineDiscount}
+            lineDiscountAmountFor={cart.lineDiscountAmountFor}
             onOpenDiscount={() => setDiscountOpen(true)}
             onClearDiscount={cart.clearDiscount}
             onClearCart={cart.clearCart}

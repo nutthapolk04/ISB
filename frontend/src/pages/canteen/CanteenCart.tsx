@@ -1,6 +1,7 @@
 import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/IconButton";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,7 @@ import { getCanteenImage, getCanteenFallback } from "./canteenImages";
 import type {
   CanteenCartItem,
   BillDiscountMode,
+  LineDiscountMode,
   PriceMode,
 } from "@/hooks/useCanteenCart";
 import type { StudentLookupResult } from "./RfidPaymentModal";
@@ -27,6 +29,10 @@ interface CanteenCartProps {
   onRemove: (cartLineId: string) => void;
   /** Cashier price override — pass `null` to clear. */
   onSetLinePrice: (cartLineId: string, price: number | null) => void;
+  /** Per-line discount. pass null value to clear. */
+  onSetLineDiscount: (cartLineId: string, value: number | null, mode: LineDiscountMode) => void;
+  /** Computed discount amount (฿) for a single line. */
+  lineDiscountAmountFor: (item: CanteenCartItem) => number;
   onOpenDiscount: () => void;
   onClearDiscount: () => void;
   onClearCart: () => void;
@@ -53,6 +59,8 @@ export function CanteenCart({
   onDecrement,
   onRemove,
   onSetLinePrice,
+  onSetLineDiscount,
+  lineDiscountAmountFor,
   onOpenDiscount,
   onClearDiscount,
   onClearCart,
@@ -159,7 +167,8 @@ export function CanteenCart({
               const fb = getCanteenFallback(item.category);
               const FallbackIcon = fb.Icon;
               const unit = unitPriceFor(item);
-              const lineTotal = unit * item.quantity;
+              const lineDisc = lineDiscountAmountFor(item);
+              const lineTotal = Math.max(0, unit * item.quantity - lineDisc);
               return (
                 <li
                   key={item.cartLineId}
@@ -190,6 +199,13 @@ export function CanteenCart({
                         {item.priceOverride != null && (
                           <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">
                             แก้ราคา
+                          </span>
+                        )}
+                        {(item.lineDiscountValue ?? 0) > 0 && (
+                          <span className="shrink-0 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800">
+                            ลด {item.lineDiscountMode === "amount"
+                              ? `฿${item.lineDiscountValue}`
+                              : `${item.lineDiscountValue}%`}
                           </span>
                         )}
                       </div>
@@ -223,6 +239,44 @@ export function CanteenCart({
                         <span className="font-medium text-foreground">
                           ฿{lineTotal.toFixed(2)}
                         </span>
+                      </div>
+                      {/* Per-item discount row */}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[10px] text-muted-foreground">ส่วนลด:</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0"
+                          value={item.lineDiscountValue ?? ""}
+                          onChange={(e) => {
+                            const raw = parseFloat(e.target.value);
+                            const mode = item.lineDiscountMode ?? "percent";
+                            const max = mode === "percent" ? 100 : unit * item.quantity;
+                            const v = isNaN(raw) ? null : Math.min(Math.max(0, raw), max);
+                            onSetLineDiscount(item.cartLineId, v, mode);
+                          }}
+                          className="h-5 w-14 text-right text-[10px] px-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next: LineDiscountMode = (item.lineDiscountMode ?? "percent") === "percent" ? "amount" : "percent";
+                            onSetLineDiscount(item.cartLineId, item.lineDiscountValue ?? null, next);
+                          }}
+                          className="h-5 px-1.5 text-[10px] font-bold rounded border border-border bg-background hover:bg-muted"
+                        >
+                          {(item.lineDiscountMode ?? "percent") === "percent" ? "%" : "฿"}
+                        </button>
+                        {(item.lineDiscountValue ?? 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => onSetLineDiscount(item.cartLineId, null, item.lineDiscountMode ?? "percent")}
+                            className="h-5 px-1 text-[10px] text-destructive rounded hover:bg-destructive/10"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

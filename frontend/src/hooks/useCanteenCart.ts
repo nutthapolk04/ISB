@@ -13,6 +13,8 @@ export interface CanteenProduct {
   color?: string | null;
 }
 
+export type LineDiscountMode = "percent" | "amount";
+
 export interface CanteenCartItem extends CanteenProduct {
   /** Stable per-line identifier (so same product with different options are distinct lines). */
   cartLineId: string;
@@ -22,6 +24,10 @@ export interface CanteenCartItem extends CanteenProduct {
   optionsTotal: number;
   /** Cashier-entered one-time price override for this line (excludes options). */
   priceOverride?: number | null;
+  /** Per-line discount value (in % or ฿ depending on lineDiscountMode). */
+  lineDiscountValue?: number;
+  /** Whether lineDiscountValue is a percentage or absolute amount. Default "percent". */
+  lineDiscountMode?: LineDiscountMode;
 }
 
 export type BillDiscountMode = "percent" | "amount";
@@ -49,6 +55,10 @@ export interface CanteenCartState {
   removeLine: (cartLineId: string) => void;
   /** Set or clear (null) a one-time price override for the given line. */
   setLinePriceOverride: (cartLineId: string, price: number | null) => void;
+  /** Set per-line discount. pass null value to clear. */
+  setLineDiscount: (cartLineId: string, value: number | null, mode: LineDiscountMode) => void;
+  /** Computed discount amount (฿) for a single cart line. */
+  lineDiscountAmountFor: (item: CanteenCartItem) => number;
   setBillDiscount: (mode: BillDiscountMode, value: number) => void;
   clearDiscount: () => void;
   clearCart: () => void;
@@ -204,6 +214,40 @@ export function useCanteenCart(): CanteenCartState {
     [],
   );
 
+  const setLineDiscount = useCallback(
+    (cartLineId: string, value: number | null, mode: LineDiscountMode) => {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.cartLineId === cartLineId
+            ? {
+                ...i,
+                lineDiscountValue: value === null || isNaN(value as number) || (value as number) < 0 ? undefined : (value as number),
+                lineDiscountMode: mode,
+              }
+            : i,
+        ),
+      );
+    },
+    [],
+  );
+
+  const lineDiscountAmountFor = useCallback(
+    (item: CanteenCartItem): number => {
+      const val = item.lineDiscountValue;
+      if (!val || val <= 0) return 0;
+      const base = item.priceOverride != null
+        ? item.priceOverride
+        : priceMode === "internal" ? item.internalPrice : item.price;
+      const gross = (base + item.optionsTotal) * item.quantity;
+      if (item.lineDiscountMode === "amount") {
+        return Math.min(gross, val);
+      }
+      // percent (default)
+      return Math.min(gross, Math.round((gross * val / 100) * 100) / 100);
+    },
+    [priceMode],
+  );
+
   const setBillDiscount = useCallback(
     (mode: BillDiscountMode, value: number) => {
       setBillDiscountMode(mode);
@@ -249,7 +293,14 @@ export function useCanteenCart(): CanteenCartState {
         const base = i.priceOverride != null
           ? i.priceOverride
           : priceMode === "internal" ? i.internalPrice : i.price;
-        return sum + (base + i.optionsTotal) * i.quantity;
+        const gross = (base + i.optionsTotal) * i.quantity;
+        const disc = (() => {
+          const val = i.lineDiscountValue;
+          if (!val || val <= 0) return 0;
+          if (i.lineDiscountMode === "amount") return Math.min(gross, val);
+          return Math.min(gross, Math.round((gross * val / 100) * 100) / 100);
+        })();
+        return sum + gross - disc;
       }, 0),
     [items, priceMode],
   );
@@ -289,6 +340,8 @@ export function useCanteenCart(): CanteenCartState {
     decrementLine,
     removeLine,
     setLinePriceOverride,
+    setLineDiscount,
+    lineDiscountAmountFor,
     setBillDiscount,
     clearDiscount,
     clearCart,
