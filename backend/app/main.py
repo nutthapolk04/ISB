@@ -4,7 +4,9 @@ Bookstore POS System Backend
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -30,6 +32,9 @@ app = FastAPI(
     description="Production-grade POS system for bookstores and educational institutions",
     debug=settings.DEBUG,
 )
+
+# Trust Railway's reverse proxy so HTTPS scheme is preserved in redirects
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Configure CORS
 app.add_middleware(
