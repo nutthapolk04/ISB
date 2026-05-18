@@ -37,6 +37,16 @@ Base.metadata.create_all(bind=engine)
 print('  ✓ base tables ensured')
 " || { echo '!!! Base table creation failed' >&2; exit 1; }
 
+# === Pre-patch: critical columns that must exist before seed runs ===
+# Run these in their own python call so a failure in the main block never blocks them.
+python -c "
+from sqlalchemy import text
+from app.core.database import engine
+with engine.begin() as conn:
+    conn.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(64)'))
+print('  + users.session_token (pre-patch)')
+" 2>/dev/null || echo "  = users.session_token (pre-patch skipped — ok)"
+
 echo "=== Applying schema patches ==="
 python -c "
 import sys
