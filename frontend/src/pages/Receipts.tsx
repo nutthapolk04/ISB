@@ -131,6 +131,99 @@ function fmtDateOnly(iso: string): string {
   }
 }
 
+// ── Print / PDF ───────────────────────────────────────────────────────────────
+
+function buildReceiptHtml(r: ReceiptApi): string {
+  const paymentLabel = PAYMENT_LABELS[r.payment_method] ?? r.payment_method;
+  const itemRows = r.items.map((item) => {
+    const name = item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
+    const optionLines = item.options?.groups.flatMap((g) =>
+      g.options.map((o) => {
+        const price = o.price_delta > 0 ? ` +฿${(o.price_delta * o.quantity).toLocaleString()}` : "";
+        return `<div class="opt">+ ${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""}${price}</div>`;
+      }),
+    ).join("") ?? "";
+    const discountLine = item.discount > 0
+      ? `<div class="row disc"><span>ส่วนลด</span><span>-฿${item.discount.toLocaleString()}</span></div>`
+      : "";
+    return `
+      <div class="row">
+        <span>${name} ×${item.quantity}</span>
+        <span>฿${item.line_total.toLocaleString()}</span>
+      </div>
+      ${optionLines}
+      ${discountLine}`;
+  }).join("");
+
+  const discountSection = r.discount > 0
+    ? `<div class="row small"><span>ส่วนลดท้ายบิล</span><span>-฿${r.discount.toLocaleString()}</span></div>`
+    : "";
+  const taxSection = r.tax > 0
+    ? `<div class="row small"><span>ภาษี</span><span>฿${r.tax.toLocaleString()}</span></div>`
+    : "";
+  const payerSection = r.payer_label
+    ? `<div class="row small"><span>ผู้ชำระ</span><span>${r.payer_label}</span></div>`
+    : "";
+  const voidedSection = r.status !== "active"
+    ? `<div class="voided">*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***</div>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>ใบเสร็จ ${r.receipt_number}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sarabun', 'Courier New', monospace; font-size: 12px;
+         width: 80mm; margin: 0 auto; padding: 8px; color: #111; }
+  h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
+  .center { text-align: center; }
+  .sub { font-size: 11px; color: #555; text-align: center; margin-bottom: 6px; }
+  hr { border: none; border-top: 1px dashed #888; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 2px 0; }
+  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 6px; }
+  .opt { padding-left: 12px; font-size: 11px; color: #666; }
+  .disc { color: #c00; font-size: 11px; }
+  .small { font-size: 11px; color: #555; }
+  .total { font-size: 15px; font-weight: bold; margin-top: 4px; }
+  .voided { text-align: center; color: #c00; font-weight: bold;
+             font-size: 13px; margin: 6px 0; border: 1px solid #c00; padding: 3px; }
+  @media print { @page { margin: 0; size: 80mm auto; } }
+</style>
+</head>
+<body>
+  <h1>ISB</h1>
+  <p class="sub">ใบเสร็จรับเงิน / Receipt</p>
+  ${voidedSection}
+  <hr/>
+  <div class="row"><span>เลขที่</span><span>${r.receipt_number}</span></div>
+  <div class="row small"><span>วันที่</span><span>${fmtDate(r.transaction_date)}</span></div>
+  ${payerSection}
+  <div class="row small"><span>ชำระด้วย</span><span>${paymentLabel}</span></div>
+  <hr/>
+  ${itemRows}
+  <hr/>
+  <div class="row small"><span>ยอดรวม</span><span>฿${r.subtotal.toLocaleString()}</span></div>
+  ${discountSection}
+  ${taxSection}
+  <div class="row total"><span>รวมสุทธิ</span><span>฿${r.total.toLocaleString()}</span></div>
+  <hr/>
+  <p class="center sub">ขอบคุณที่ใช้บริการ</p>
+</body>
+</html>`;
+}
+
+function printReceipt(r: ReceiptApi): void {
+  const win = window.open("", "_blank", "width=400,height=600");
+  if (!win) return;
+  win.document.write(buildReceiptHtml(r));
+  win.document.close();
+  win.focus();
+  // Small delay so fonts/styles settle before print dialog opens
+  setTimeout(() => { win.print(); win.close(); }, 300);
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 const Receipts = () => {
@@ -395,7 +488,10 @@ const Receipts = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </IconButton>
-                        <IconButton tooltip={t("receipts.tooltip.download")}>
+                        <IconButton
+                          tooltip={t("receipts.tooltip.download")}
+                          onClick={() => printReceipt(receipt)}
+                        >
                           <Download className="h-4 w-4" />
                         </IconButton>
                         {canVoid && receipt.status === "active" && (
@@ -674,7 +770,7 @@ const Receipts = () => {
                   ฿{selectedReceipt.total.toLocaleString()}
                 </span>
               </div>
-              <Button className="w-full" variant="outline">
+              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt)}>
                 <Download className="h-4 w-4 mr-2" />
                 {t("receipts.download")}
               </Button>
