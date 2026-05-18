@@ -3,6 +3,9 @@ Canteen API Routes
 POST /api/v1/canteen/{shop_id}/close-day  — summarise today's receipts and return EOD report
 """
 from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
+
+TZ_BKK = ZoneInfo("Asia/Bangkok")
 from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -58,9 +61,9 @@ def close_day(
             ),
         )
 
-    today = date.today()
-    start = datetime.combine(today, time.min, tzinfo=timezone.utc)
-    end = datetime.combine(today, time.max, tzinfo=timezone.utc)
+    today = datetime.now(TZ_BKK).date()
+    start = datetime.combine(today, time.min, tzinfo=TZ_BKK)
+    end = datetime.combine(today, time.max, tzinfo=TZ_BKK)
 
     # ── Active receipts for this shop today ──────────────────────────────────
     receipts = (

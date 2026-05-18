@@ -3,6 +3,9 @@ Admin Audit Log API — paginated read of audit_logs table for admins.
 Uses raw SQL to avoid ORM enum-mapping issues (action column is VARCHAR in DB).
 """
 from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
+
+TZ_BKK = ZoneInfo("Asia/Bangkok")
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -63,11 +66,11 @@ def list_audit_logs(
         conditions.append("al.user_id = :user_id")
         params["user_id"] = user_id
     if date_from:
-        start = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+        start = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
         conditions.append("al.created_at >= :date_from")
         params["date_from"] = start
     if date_to:
-        end = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+        end = datetime.combine(date_to, time.max, tzinfo=TZ_BKK)
         conditions.append("al.created_at <= :date_to")
         params["date_to"] = end
 

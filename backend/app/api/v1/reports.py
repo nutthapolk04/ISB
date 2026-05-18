@@ -5,6 +5,9 @@ Returns shapes ready for CSV export. All endpoints accept optional shop_id
 to scope; admins can query any shop, others are clamped to their own.
 """
 from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
+
+TZ_BKK = ZoneInfo("Asia/Bangkok")
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -112,9 +115,9 @@ def _effective_module(current_user: User, module: Optional[str]) -> Optional[str
 
 
 def _date_range(date_from: date, date_to: date) -> tuple[datetime, datetime]:
-    """Convert date range to UTC datetime bounds (inclusive end of day)."""
-    start = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
-    end = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+    """Convert date range to Asia/Bangkok datetime bounds (inclusive end of day)."""
+    start = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
+    end = datetime.combine(date_to, time.max, tzinfo=TZ_BKK)
     return start, end
 
 
