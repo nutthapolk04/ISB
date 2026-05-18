@@ -141,7 +141,15 @@ const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
   <text x="256" y="430" text-anchor="middle" font-family="Times New Roman, serif" font-size="190" fill="#111111">ISB</text>
 </svg>`;
 
-function buildReceiptHtml(r: ReceiptApi, shopName?: string | null): string {
+interface SchoolInfo {
+  name: string;
+  address: string;
+  taxId: string;
+  phone: string;
+  logoUrl: string;
+}
+
+function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string | null): string {
   const paymentLabel = PAYMENT_LABELS[r.payment_method] ?? r.payment_method;
   const itemRows = r.items.map((item) => {
     const name = item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
@@ -178,6 +186,15 @@ function buildReceiptHtml(r: ReceiptApi, shopName?: string | null): string {
   const shopLine = shopName
     ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>`
     : "";
+  const logoHtml = school.logoUrl
+    ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />`
+    : ISB_LOGO_SVG;
+  const addressLine = school.address
+    ? `<p class="sub">${school.address}</p>`
+    : "";
+  const taxPhoneLine = (school.taxId || school.phone)
+    ? `<p class="sub">${school.taxId ? `เลขภาษี: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `โทร: ${school.phone}` : ""}</p>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="th">
@@ -205,8 +222,10 @@ function buildReceiptHtml(r: ReceiptApi, shopName?: string | null): string {
 </style>
 </head>
 <body>
-  <div class="logo-wrap">${ISB_LOGO_SVG}</div>
-  <h1>International School Bangkok</h1>
+  <div class="logo-wrap">${logoHtml}</div>
+  <h1>${school.name}</h1>
+  ${addressLine}
+  ${taxPhoneLine}
   ${shopLine}
   <p class="sub">ใบเสร็จรับเงิน / Receipt</p>
   ${voidedSection}
@@ -228,10 +247,10 @@ function buildReceiptHtml(r: ReceiptApi, shopName?: string | null): string {
 </html>`;
 }
 
-function printReceipt(r: ReceiptApi, shopName?: string | null): void {
+function printReceipt(r: ReceiptApi, school: SchoolInfo, shopName?: string | null): void {
   const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;
-  win.document.write(buildReceiptHtml(r, shopName));
+  win.document.write(buildReceiptHtml(r, school, shopName));
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); win.close(); }, 300);
@@ -248,6 +267,14 @@ const Receipts = () => {
   const moduleScope: ModuleScope = pathname.startsWith("/canteen")
     ? "canteen"
     : "store";
+
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
+    name: "International School Bangkok",
+    address: "",
+    taxId: "",
+    phone: "",
+    logoUrl: "",
+  });
 
   const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -313,7 +340,18 @@ const Receipts = () => {
     }
   }, [queryParams]);
 
-  useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
+  useEffect(() => {
+    fetchReceipts();
+    api.get<Record<string, string>>("/admin/settings/school").then((d) => {
+      setSchoolInfo({
+        name: d.school_name || "International School Bangkok",
+        address: d.school_address || "",
+        taxId: d.school_tax_id || "",
+        phone: d.school_phone || "",
+        logoUrl: d.school_logo_url || "",
+      });
+    }).catch(() => {});
+  }, [fetchReceipts]);
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const filteredReceipts = receipts.filter((r) => {
@@ -503,7 +541,7 @@ const Receipts = () => {
                         </IconButton>
                         <IconButton
                           tooltip={t("receipts.tooltip.download")}
-                          onClick={() => printReceipt(receipt, user?.shopName)}
+                          onClick={() => printReceipt(receipt, schoolInfo, user?.shopName)}
                         >
                           <Download className="h-4 w-4" />
                         </IconButton>
@@ -783,7 +821,7 @@ const Receipts = () => {
                   ฿{selectedReceipt.total.toLocaleString()}
                 </span>
               </div>
-              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, user?.shopName)}>
+              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName)}>
                 <Download className="h-4 w-4 mr-2" />
                 {t("receipts.download")}
               </Button>

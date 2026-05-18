@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, AlertTriangle, Settings as SettingsIcon } from "lucide-react";
 
@@ -21,6 +23,26 @@ export default function SystemSettings() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [allowUserNeg, setAllowUserNeg] = useState(false);
   const [allowCustomerNeg, setAllowCustomerNeg] = useState(false);
+
+  // School info state
+  const [schoolName, setSchoolName] = useState("");
+  const [schoolAddress, setSchoolAddress] = useState("");
+  const [schoolTaxId, setSchoolTaxId] = useState("");
+  const [schoolPhone, setSchoolPhone] = useState("");
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState("");
+  const [schoolSaving, setSchoolSaving] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const loadSchool = async () => {
+    try {
+      const data = await api.get<Record<string, string>>("/admin/settings/school");
+      setSchoolName(data.school_name ?? "");
+      setSchoolAddress(data.school_address ?? "");
+      setSchoolTaxId(data.school_tax_id ?? "");
+      setSchoolPhone(data.school_phone ?? "");
+      setSchoolLogoUrl(data.school_logo_url ?? "");
+    } catch { /* silent */ }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -41,6 +63,7 @@ export default function SystemSettings() {
 
   useEffect(() => {
     load();
+    loadSchool();
   }, []);
 
   const update = async (key: string, value: boolean, setter: (v: boolean) => void) => {
@@ -59,6 +82,32 @@ export default function SystemSettings() {
       });
     } finally {
       setSavingKey(null);
+    }
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setSchoolLogoUrl(ev.target?.result as string ?? "");
+    reader.readAsDataURL(file);
+  };
+
+  const saveSchool = async () => {
+    setSchoolSaving(true);
+    try {
+      await api.put("/admin/settings/school", {
+        school_name: schoolName,
+        school_address: schoolAddress,
+        school_tax_id: schoolTaxId,
+        school_phone: schoolPhone,
+        school_logo_url: schoolLogoUrl,
+      });
+      toast({ title: "บันทึกข้อมูลโรงเรียนแล้ว" });
+    } catch (e) {
+      toast({ title: "บันทึกไม่สำเร็จ", description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setSchoolSaving(false);
     }
   };
 
@@ -83,6 +132,97 @@ export default function SystemSettings() {
           </p>
         </div>
       </div>
+
+      {/* School Info Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">ข้อมูลโรงเรียน</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="school-name">ชื่อโรงเรียน</Label>
+            <Input
+              id="school-name"
+              value={schoolName}
+              onChange={(e) => setSchoolName(e.target.value)}
+              placeholder="International School Bangkok"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="school-address">ที่อยู่</Label>
+            <Input
+              id="school-address"
+              value={schoolAddress}
+              onChange={(e) => setSchoolAddress(e.target.value)}
+              placeholder="ที่อยู่โรงเรียน"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="school-tax-id">เลขประจำตัวผู้เสียภาษี</Label>
+            <Input
+              id="school-tax-id"
+              value={schoolTaxId}
+              onChange={(e) => setSchoolTaxId(e.target.value)}
+              placeholder="0000000000000"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="school-phone">เบอร์โทรศัพท์</Label>
+            <Input
+              id="school-phone"
+              value={schoolPhone}
+              onChange={(e) => setSchoolPhone(e.target.value)}
+              placeholder="02-000-0000"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>โลโก้</Label>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                เลือกไฟล์รูปภาพ
+              </Button>
+              {schoolLogoUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSchoolLogoUrl("");
+                    if (logoInputRef.current) logoInputRef.current.value = "";
+                  }}
+                >
+                  ลบโลโก้
+                </Button>
+              )}
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoChange}
+            />
+            {schoolLogoUrl && (
+              <div className="mt-2">
+                <img
+                  src={schoolLogoUrl}
+                  alt="School logo preview"
+                  className="h-16 w-16 object-contain rounded border"
+                />
+              </div>
+            )}
+          </div>
+          <Separator />
+          <Button onClick={saveSchool} disabled={schoolSaving}>
+            {schoolSaving ? "กำลังบันทึก…" : "บันทึกข้อมูลโรงเรียน"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

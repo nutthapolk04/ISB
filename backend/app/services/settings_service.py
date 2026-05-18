@@ -29,6 +29,12 @@ KNOWN_FLAGS: Dict[str, Any] = {
     # flags only gate user/customer wallets. Default OFF (no negative).
     "allow_negative_user_wallet": False,
     "allow_negative_customer_wallet": False,
+    # School information — used on receipts and documents
+    "school_name": "International School Bangkok",
+    "school_address": "",
+    "school_tax_id": "",
+    "school_phone": "",
+    "school_logo_url": "",   # stores base64 data URL or external URL
 }
 
 
