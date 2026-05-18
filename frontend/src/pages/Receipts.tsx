@@ -133,7 +133,15 @@ function fmtDateOnly(iso: string): string {
 
 // ── Print / PDF ───────────────────────────────────────────────────────────────
 
-function buildReceiptHtml(r: ReceiptApi): string {
+const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="64" height="64" role="img" aria-label="ISB Logo">
+  <rect width="512" height="512" fill="#f3f4f6"/>
+  <polygon points="256,120 60,300 452,300" fill="#eacb46"/>
+  <polygon points="256,158 154,264 358,264" fill="#d4362a"/>
+  <polygon points="256,158 358,264 256,264" fill="#b6352a"/>
+  <text x="256" y="430" text-anchor="middle" font-family="Times New Roman, serif" font-size="190" fill="#111111">ISB</text>
+</svg>`;
+
+function buildReceiptHtml(r: ReceiptApi, shopName?: string | null): string {
   const paymentLabel = PAYMENT_LABELS[r.payment_method] ?? r.payment_method;
   const itemRows = r.items.map((item) => {
     const name = item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
@@ -167,6 +175,9 @@ function buildReceiptHtml(r: ReceiptApi): string {
   const voidedSection = r.status !== "active"
     ? `<div class="voided">*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***</div>`
     : "";
+  const shopLine = shopName
+    ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="th">
@@ -177,9 +188,10 @@ function buildReceiptHtml(r: ReceiptApi): string {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Sarabun', 'Courier New', monospace; font-size: 12px;
          width: 80mm; margin: 0 auto; padding: 8px; color: #111; }
+  .logo-wrap { display: flex; justify-content: center; margin-bottom: 4px; }
   h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
   .center { text-align: center; }
-  .sub { font-size: 11px; color: #555; text-align: center; margin-bottom: 6px; }
+  .sub { font-size: 11px; color: #555; text-align: center; margin-bottom: 3px; }
   hr { border: none; border-top: 1px dashed #888; margin: 6px 0; }
   .row { display: flex; justify-content: space-between; margin: 2px 0; }
   .row span:last-child { text-align: right; white-space: nowrap; padding-left: 6px; }
@@ -193,7 +205,9 @@ function buildReceiptHtml(r: ReceiptApi): string {
 </style>
 </head>
 <body>
-  <h1>ISB</h1>
+  <div class="logo-wrap">${ISB_LOGO_SVG}</div>
+  <h1>International School Bangkok</h1>
+  ${shopLine}
   <p class="sub">ใบเสร็จรับเงิน / Receipt</p>
   ${voidedSection}
   <hr/>
@@ -209,18 +223,17 @@ function buildReceiptHtml(r: ReceiptApi): string {
   ${taxSection}
   <div class="row total"><span>รวมสุทธิ</span><span>฿${r.total.toLocaleString()}</span></div>
   <hr/>
-  <p class="center sub">ขอบคุณที่ใช้บริการ</p>
+  <p class="center sub">ขอบคุณที่ใช้บริการ / Thank you</p>
 </body>
 </html>`;
 }
 
-function printReceipt(r: ReceiptApi): void {
-  const win = window.open("", "_blank", "width=400,height=600");
+function printReceipt(r: ReceiptApi, shopName?: string | null): void {
+  const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;
-  win.document.write(buildReceiptHtml(r));
+  win.document.write(buildReceiptHtml(r, shopName));
   win.document.close();
   win.focus();
-  // Small delay so fonts/styles settle before print dialog opens
   setTimeout(() => { win.print(); win.close(); }, 300);
 }
 
@@ -490,7 +503,7 @@ const Receipts = () => {
                         </IconButton>
                         <IconButton
                           tooltip={t("receipts.tooltip.download")}
-                          onClick={() => printReceipt(receipt)}
+                          onClick={() => printReceipt(receipt, user?.shopName)}
                         >
                           <Download className="h-4 w-4" />
                         </IconButton>
@@ -770,7 +783,7 @@ const Receipts = () => {
                   ฿{selectedReceipt.total.toLocaleString()}
                 </span>
               </div>
-              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt)}>
+              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, user?.shopName)}>
                 <Download className="h-4 w-4 mr-2" />
                 {t("receipts.download")}
               </Button>
