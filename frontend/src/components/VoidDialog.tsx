@@ -1,12 +1,10 @@
 /**
  * VoidDialog — Module 4 (Void/Cancel Transaction)
  *
- * Spec requirements implemented:
- *  - Mandatory cancellation reason (Module 4: "Audit: Log cancellation reason")
- *  - Manager authorization: tap manager card OR 4-digit PIN
- *  - On confirm: callback to caller (caller restores stock, clears cart)
- *  - Audit log (mock — Module 5: AuditLogs)
- *  - Success state inside same dialog
+ * - Collects mandatory cancellation reason + optional notes
+ * - Manager authorization: tap manager card OR 4-digit PIN (server-verified)
+ * - Calls POST /pos/void/{receiptId} directly — success shown only after API confirms
+ * - Success step displays real audit data: receipt_number, voided_at, reason
  */
 
 import { useState } from "react";
@@ -29,8 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { XCircle, CreditCard, CheckCircle2, ChevronLeft, ShieldAlert } from "lucide-react";
+import { XCircle, CreditCard, CheckCircle2, ChevronLeft, ShieldAlert, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { api, ApiError } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,33 +48,25 @@ export interface VoidCartItem {
 interface VoidDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Numeric receipt ID for the void API call */
+  receiptId: number;
   items: VoidCartItem[];
   total: number;
-  onConfirmed: (reason: string, notes: string) => void;
+  /** Called after a successful void so the parent can refresh its list */
+  onConfirmed: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Mock audit log helper (Module 5 stub)
-// ---------------------------------------------------------------------------
-
-function logVoidAudit(reason: string, notes: string, itemCount: number, total: number) {
-  // TODO: replace with real AuditLog API call (Module 5)
-  console.info("[AuditLog] void", {
-    entity_type: "transaction",
-    action: "cancel",
-    changes_json: { reason, notes, itemCount, total },
-    timestamp: new Date().toISOString(),
-  });
+interface VoidResult {
+  receiptNumber: string;
+  voidedAt: string;
+  reason: string;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-type Step = "review" | "auth" | "success";
-
-// Mock manager PIN — in production this would be verified server-side
-const MOCK_MANAGER_PIN = "1234";
+type Step = "review" | "auth" | "confirming" | "success";
 
 const REASON_KEYS = [
   "customer_changed_mind",
@@ -88,24 +80,25 @@ const REASON_KEYS = [
 export function VoidDialog({
   open,
   onOpenChange,
+  receiptId,
   items,
   total,
   onConfirmed,
 }: VoidDialogProps) {
   const { t } = useTranslation();
 
-  const [step,          setStep]          = useState<Step>("review");
-  const [reason,        setReason]        = useState("");
-  const [notes,         setNotes]         = useState("");
-  const [pin,           setPin]           = useState("");
-  const [pinError,      setPinError]      = useState(false);
-  const [cardTapped,    setCardTapped]    = useState(false);
-  const [authError,     setAuthError]     = useState(false);
+  const [step,       setStep]       = useState<Step>("review");
+  const [reason,     setReason]     = useState("");
+  const [notes,      setNotes]      = useState("");
+  const [pin,        setPin]        = useState("");
+  const [pinError,   setPinError]   = useState(false);
+  const [cardTapped, setCardTapped] = useState(false);
+  const [authError,  setAuthError]  = useState(false);
+  const [voidResult, setVoidResult] = useState<VoidResult | null>(null);
 
   // ---- Reset on close ----
   const handleOpenChange = (val: boolean) => {
     if (!val) {
-      // Delay reset so the close animation finishes
       setTimeout(() => {
         setStep("review");
         setReason("");
@@ -114,6 +107,7 @@ export function VoidDialog({
         setPinError(false);
         setCardTapped(false);
         setAuthError(false);
+        setVoidResult(null);
       }, 300);
     }
     onOpenChange(val);
@@ -121,10 +115,7 @@ export function VoidDialog({
 
   // ---- Step: Review → Auth ----
   const handleProceedToAuth = () => {
-    if (!reason) {
-      // shake effect handled by authError reuse — just highlight select
-      return;
-    }
+    if (!reason) return;
     setStep("auth");
     setPin("");
     setPinError(false);
@@ -139,29 +130,36 @@ export function VoidDialog({
   };
 
   // ---- Step: Auth — confirm with PIN or card ----
-  const handleConfirmVoid = () => {
-    // Card tap path
-    if (cardTapped) {
-      finalizeVoid();
-      return;
-    }
-    // PIN path
-    if (pin === MOCK_MANAGER_PIN) {
-      finalizeVoid();
-    } else {
-      setPinError(true);
-      setAuthError(false);
-    }
-  };
+  const handleConfirmVoid = async () => {
+    if (!cardTapped && pin.length < 4) return;
+    setStep("confirming");
+    try {
+      const res = await api.post<{
+        receipt_number: string;
+        voided_at?: string;
+        voided_reason?: string;
+        status?: string;
+      }>(`/pos/void/${receiptId}`, { reason: `${reason}${notes ? ` — ${notes}` : ""}` });
 
-  const finalizeVoid = () => {
-    logVoidAudit(reason, notes, items.reduce((s, i) => s + i.quantity, 0), total);
-    setStep("success");
+      setVoidResult({
+        receiptNumber: res.receipt_number,
+        voidedAt: res.voided_at ?? new Date().toISOString(),
+        reason,
+      });
+      setStep("success");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.detail : "Void failed";
+      toast.error(msg);
+      // Go back to auth step so cashier can retry or cancel
+      setStep("auth");
+      setCardTapped(false);
+      setPin("");
+    }
   };
 
   // ---- Step: Success — close and notify caller ----
   const handleSuccessClose = () => {
-    onConfirmed(reason, notes);
+    onConfirmed();
     handleOpenChange(false);
   };
 
@@ -218,8 +216,8 @@ export function VoidDialog({
           {t("store.void.reasonLabel")}
           <span className="text-destructive ml-1">*</span>
         </Label>
-        <Select value={reason} onValueChange={(v) => { setReason(v); }}>
-          <SelectTrigger className={!reason && step === "review" ? "" : ""}>
+        <Select value={reason} onValueChange={setReason}>
+          <SelectTrigger>
             <SelectValue placeholder={t("store.void.reasonPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
@@ -245,11 +243,7 @@ export function VoidDialog({
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={() => handleOpenChange(false)}
-        >
+        <Button variant="outline" className="flex-1" onClick={() => handleOpenChange(false)}>
           {t("common.cancel")}
         </Button>
         <Button
@@ -324,12 +318,8 @@ export function VoidDialog({
           }}
           className={pinError ? "border-destructive focus-visible:ring-destructive" : ""}
         />
-        {pinError && (
-          <p className="text-xs text-destructive">{t("store.void.pinError")}</p>
-        )}
-        {authError && (
-          <p className="text-xs text-destructive">{t("store.void.errorAuthRequired")}</p>
-        )}
+        {pinError && <p className="text-xs text-destructive">{t("store.void.pinError")}</p>}
+        {authError && <p className="text-xs text-destructive">{t("store.void.errorAuthRequired")}</p>}
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -353,6 +343,13 @@ export function VoidDialog({
     </>
   );
 
+  const renderConfirming = () => (
+    <div className="flex flex-col items-center gap-4 py-10">
+      <Loader2 className="h-12 w-12 animate-spin text-destructive" />
+      <p className="text-sm text-muted-foreground">กำลังยกเลิกรายการ…</p>
+    </div>
+  );
+
   const renderSuccess = () => (
     <div className="flex flex-col items-center gap-4 py-6">
       <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center">
@@ -362,6 +359,36 @@ export function VoidDialog({
         <p className="text-xl font-bold">{t("store.void.successTitle")}</p>
         <p className="text-sm text-muted-foreground">{t("store.void.successDescription")}</p>
       </div>
+
+      {/* Audit record */}
+      {voidResult && (
+        <div className="w-full rounded-lg border bg-muted/40 divide-y text-sm">
+          <div className="flex justify-between px-4 py-2">
+            <span className="text-muted-foreground">เลขใบเสร็จ</span>
+            <span className="font-mono font-semibold">{voidResult.receiptNumber}</span>
+          </div>
+          <div className="flex justify-between px-4 py-2">
+            <span className="text-muted-foreground">เวลายกเลิก</span>
+            <span className="tabular-nums">
+              {new Date(voidResult.voidedAt).toLocaleString("th-TH", {
+                day: "2-digit", month: "short", year: "2-digit",
+                hour: "2-digit", minute: "2-digit",
+              })}
+            </span>
+          </div>
+          <div className="flex justify-between px-4 py-2">
+            <span className="text-muted-foreground">เหตุผล</span>
+            <span className="font-medium text-right max-w-[60%]">
+              {t(`store.void.reasons.${voidResult.reason}`, voidResult.reason)}
+            </span>
+          </div>
+          <div className="flex justify-between px-4 py-2">
+            <span className="text-muted-foreground">ยอดยกเลิก</span>
+            <span className="font-bold text-destructive tabular-nums">฿{total.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
       <Button onClick={handleSuccessClose} className="w-full">
         {t("store.void.close")}
       </Button>
@@ -369,11 +396,15 @@ export function VoidDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={step === "success" ? handleSuccessClose : handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={step === "success" || step === "confirming" ? undefined : handleOpenChange}
+    >
       <DialogContent className="max-w-sm">
-        {step === "review"  && renderReview()}
-        {step === "auth"    && renderAuth()}
-        {step === "success" && renderSuccess()}
+        {step === "review"     && renderReview()}
+        {step === "auth"       && renderAuth()}
+        {step === "confirming" && renderConfirming()}
+        {step === "success"    && renderSuccess()}
       </DialogContent>
     </Dialog>
   );

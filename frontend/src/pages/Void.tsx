@@ -24,7 +24,7 @@ interface TransactionItem {
 }
 
 interface Transaction {
-  id: string;
+  id: number;
   receiptId: string;
   timestamp: string;
   paymentMethod: PaymentMethod;
@@ -63,7 +63,7 @@ const Void = () => {
       const data = await api.get<any[]>("/pos/receipt");
       setTransactions(
         data.map((r: any): Transaction => ({
-          id: String(r.id),
+          id: r.id,
           receiptId: r.receipt_number,
           timestamp: r.transaction_date,
           paymentMethod: PAYMENT_MAP[r.payment_method] ?? "cash",
@@ -99,17 +99,10 @@ const Void = () => {
     setDialogOpen(true);
   };
 
-  // ── Void confirmed → call API ───────────────────────────────────────────
-  const handleVoidConfirmed = async (reason: string, _notes: string) => {
-    if (!selected) return;
-    try {
-      await api.post(`/pos/void/${selected.id}`, { reason });
-      await fetchTransactions();
-      setSelected(null);
-    } catch (err: any) {
-      // VoidDialog already shows toast, but we still refresh
-      await fetchTransactions();
-    }
+  // ── Void confirmed (API already called inside VoidDialog) → refresh ────
+  const handleVoidConfirmed = async () => {
+    await fetchTransactions();
+    setSelected(null);
   };
 
   // ── Helpers ─────────────────────────────────────────────────────────────
@@ -264,6 +257,7 @@ const Void = () => {
             setDialogOpen(open);
             if (!open) setSelected(null);
           }}
+          receiptId={selected.id}
           items={selected.items.map((i): VoidCartItem => ({
             id: i.id,
             name: i.name,
