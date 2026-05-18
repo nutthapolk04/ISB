@@ -49,6 +49,7 @@ import CanteenShopDetail from "./pages/canteen/CanteenShopDetail";
 import CanteenManagementOverview from "./pages/canteen/CanteenManagementOverview";
 import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
+import GuidePage from "./pages/GuidePage";
 
 const queryClient = new QueryClient();
 
@@ -262,6 +263,9 @@ const App = () => (
                 <Route element={<RequireRole roles={["cashier", "manager", "kitchen", "admin"]} />}>
                   <Route path="/staff/wallet" element={<WalletDetail />} />
                 </Route>
+
+                {/* User Guide — accessible to all authenticated roles */}
+                <Route path="/guide" element={<GuidePage />} />
 
                 <Route path="*" element={<NotFound />} />
               </Route>

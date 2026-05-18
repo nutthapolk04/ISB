@@ -37,7 +37,8 @@
     "adminCards": "Card Management",
     "adminStudents": "Students",
     "groupCanteenManagement": "Canteen Management",
-    "canteenManagement": "Canteen Stalls"
+    "canteenManagement": "Canteen Stalls",
+    "guide": "User Guide"
   },
   "serverStatus": {
     "label": "Server",
@@ -1232,6 +1233,19 @@
     "save": "Save",
     "loading": "Loading…",
     "backToManagement": "Shop Management",
+    "closeDay": "Close Day",
+    "closeDayConfirm": "Close Day — {{date}}",
+    "closeDayDescription": "End-of-day summary for this shop.",
+    "totalOrders": "Total Orders",
+    "totalRevenue": "Total Revenue",
+    "itemCount": "Items Sold",
+    "paymentBreakdown": "Payment Breakdown",
+    "paymentWallet": "Wallet",
+    "paymentCash": "Cash",
+    "paymentCard": "Card",
+    "exportCsv": "Export CSV",
+    "closeDayFailed": "Close Day failed",
+    "closeDayLoading": "Closing…",
     "products": {
       "colorLabel": "Card color",
       "colorHint": "Used as background when no photo is set",
@@ -1697,5 +1711,134 @@
     "noStalls": "No canteen stalls found",
     "menu": "Menu",
     "reports": "Reports"
+  },
+  "guide": {
+    "title": "User Guide",
+    "subtitle": "Step-by-step workflows for each role",
+    "selectRole": "Select a role",
+    "stepsCount": "{{count}} steps",
+    "footer": "For additional help, contact your system administrator.",
+    "roles": {
+      "admin": "Administrator",
+      "adminDesc": "Manage users, wallets, cards, and system-wide settings",
+      "parent": "Parent / Guardian",
+      "parentDesc": "Monitor children's wallets, top up, and view transaction history",
+      "canteen": "Cashier (Canteen)",
+      "canteenDesc": "Accept orders, process payments, and close daily sales",
+      "store": "Cashier (Store)",
+      "storeDesc": "Sell products, handle returns, and manage inventory",
+      "manager": "Manager",
+      "managerDesc": "View sales overview, manage products, staff, and reports"
+    },
+    "admin": {
+      "step1": {
+        "title": "Manage Users",
+        "desc": "Go to Admin Ops → Users. Create or sync staff, parent, and student accounts. Assign roles and shops. Use the Directory tab to search and assign existing PowerSchool accounts."
+      },
+      "step2": {
+        "title": "Manage Cards",
+        "desc": "Go to Admin Ops → Card Management. View all RFID card bindings. Each card is linked to one user (student, staff, or parent). Click the view icon to go to the owner's profile and rebind if needed."
+      },
+      "step3": {
+        "title": "Adjust Wallet Balances",
+        "desc": "Go to Admin Ops → Wallet Adjustment. Search for a student by name or code. Select Credit (add) or Debit (deduct), enter the amount and a clear reason. Every adjustment is recorded in the audit log."
+      },
+      "step4": {
+        "title": "Transfer Between Wallets",
+        "desc": "Go to Admin Ops → Wallet Transfer. Look up a parent or staff account, select the source and destination wallet, enter the amount, and confirm. Use this to move funds between a parent and their children."
+      },
+      "step5": {
+        "title": "View Reports",
+        "desc": "Go to Canteen Reports or Store Reports. Select a date range and click Export Excel. Reports cover sales, stock, returns, payments, top-selling items, and profit & loss."
+      },
+      "step6": {
+        "title": "System Settings",
+        "desc": "Go to Admin Ops → Settings. Toggle wallet negative balance policy for users and customers. Enable per-student overdraft limits via the student profile page."
+      }
+    },
+    "parent": {
+      "step1": {
+        "title": "View Children's Wallets",
+        "desc": "Go to My Family from the sidebar. You will see all linked children with their current wallet balance, card status, and allergy info."
+      },
+      "step2": {
+        "title": "Top Up a Wallet",
+        "desc": "Click Top Up next to any child's name. Choose PromptPay (scan QR in your banking app and confirm transfer) or Credit/Debit (3% fee, instant). Maximum ฿50,000 per transaction."
+      },
+      "step3": {
+        "title": "Transfer Between Wallets",
+        "desc": "Click Transfer on the dashboard. Select the source wallet (your wallet or a child's), the destination wallet, and enter the amount. Preview the post-transfer balances before confirming."
+      },
+      "step4": {
+        "title": "View Transaction History",
+        "desc": "Click History next to a child's name. Filter by date range to see all purchases, top-ups, refunds, and adjustments. Click any transaction to view the full receipt."
+      },
+      "step5": {
+        "title": "Manage Card Settings",
+        "desc": "Click Profile for a child. You can freeze or unfreeze their RFID card and set a daily spending limit (leave blank for unlimited). Changes take effect immediately at the POS."
+      }
+    },
+    "canteen": {
+      "step1": {
+        "title": "Accept an Order",
+        "desc": "Go to Canteen POS. Tap menu items to add them to the cart. For items with options (e.g. spice level), the customisation dialog will open — complete required options before adding."
+      },
+      "step2": {
+        "title": "Process Payment",
+        "desc": "Review the cart total. Ask the customer to tap their RFID card (student, staff, or parent card). The system deducts the amount from their wallet and prints a receipt automatically."
+      },
+      "step3": {
+        "title": "View Receipts",
+        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view details or download a PDF copy."
+      },
+      "step4": {
+        "title": "Daily Sales Summary",
+        "desc": "Go to Canteen Reports (manager access required). Select today's date range and export to Excel. The report includes per-item sales, total revenue, and payment method breakdown."
+      }
+    },
+    "store": {
+      "step1": {
+        "title": "Sell Products",
+        "desc": "Go to Store POS. Scan a barcode or search by product name/code to add items to the cart. Select a price mode (Retail or Internal). Choose the payment method and complete checkout."
+      },
+      "step2": {
+        "title": "Process Payment",
+        "desc": "Payment methods: Member Card (RFID tap), QR PromptPay, Cash, or Department charge (employee code or card required). For cash, enter the amount received and the system calculates change."
+      },
+      "step3": {
+        "title": "Handle Returns",
+        "desc": "Go to Store → Returns. Search for the original receipt ID. Select the items to return and specify quantities. Choose refund method (wallet or cash) and enter a reason. Confirm to process."
+      },
+      "step4": {
+        "title": "Check Inventory",
+        "desc": "Go to Shop Management → Inventory. View current stock levels, low-stock alerts, and movement history. Use Receive Stock to log new incoming goods and adjust costs."
+      },
+      "step5": {
+        "title": "View Receipts",
+        "desc": "Go to Store Receipts to see all sales. Filter by shop, date, or payment method. Void a receipt if needed (requires a reason and is irreversible — stock is restored automatically)."
+      }
+    },
+    "manager": {
+      "step1": {
+        "title": "View Sales Overview",
+        "desc": "Go to the Admin Dashboard (admin) or your shop's Reports page. See today's canteen and store sales, low-stock alerts, and the last 10 transactions in real time."
+      },
+      "step2": {
+        "title": "Manage Products",
+        "desc": "Go to Canteen Menu or Shop Management → Inventory. Add, edit, or remove products. Set retail and internal prices. Adjust stock quantities and receive new shipments via Receive Stock."
+      },
+      "step3": {
+        "title": "Manage Staff",
+        "desc": "Go to Users. Add cashiers to your shop via the Directory tab (search existing accounts) or Create New tab (manual accounts). Assign or reassign staff between shops. Unassign removes POS access without deleting the account."
+      },
+      "step4": {
+        "title": "Export Reports",
+        "desc": "Go to your module's Reports page. Select a date range, choose a report type (sales, stock, returns, payment methods, top-selling, or profit & loss), and click Export Excel."
+      },
+      "step5": {
+        "title": "Configure Shop Settings",
+        "desc": "Go to Shop Management → your shop. Update shop name, description, and status (active/inactive). The inventory type (FIFO or Average Cost) cannot be changed after creation."
+      }
+    }
   }
 }

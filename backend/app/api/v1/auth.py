@@ -59,25 +59,10 @@ def mock_sso(payload: MockSSORequest, db: Session = Depends(get_db)):
     # Look up by email
     user = db.query(User).filter(User.email == email).first()
     if not user:
-        # Auto-create parent user. Username = email local part + random suffix.
-        username_base = email.split("@")[0].replace(".", "_")
-        username = username_base
-        suffix = 1
-        while db.query(User).filter(User.username == username).first():
-            username = f"{username_base}{suffix}"
-            suffix += 1
-        user = User(
-            username=username,
-            email=email,
-            hashed_password=get_password_hash(f"sso-{email}"),  # not used for login
-            full_name=payload.full_name or email.split("@")[0].replace(".", " ").title(),
-            is_active=True,
-            is_superuser=False,
-            role="parent",
+        raise HTTPException(
+            status_code=404,
+            detail="This email is not registered in the system. Please contact your school administrator."
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is inactive")

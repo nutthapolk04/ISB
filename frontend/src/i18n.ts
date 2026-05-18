@@ -19,7 +19,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'th',
+    fallbackLng: 'en',
     // Do NOT set 'lng' here — let LanguageDetector read from localStorage
     // (key: i18nextLng) so the user's choice persists across reloads.
     interpolation: {

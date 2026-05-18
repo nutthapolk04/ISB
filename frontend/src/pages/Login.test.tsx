@@ -10,6 +10,11 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
 
+const mockToastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: { error: (...args: unknown[]) => mockToastError(...args) },
+}));
+
 const mockLogin = vi.fn();
 const mockLoginWithMockSSO = vi.fn();
 vi.mock("@/contexts/AuthContext", () => ({
@@ -78,7 +83,7 @@ describe("Login — Google SSO multi-step flow", () => {
     renderLogin();
     expect(screen.queryByPlaceholderText(/your@isb.ac.th/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("otp-input")).not.toBeInTheDocument();
-    expect(screen.queryByText(/นโยบายความเป็นส่วนตัว/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Privacy Policy/i)).not.toBeInTheDocument();
   });
 
   // ── Step 1: Email ──────────────────────────────────────────────────────────
@@ -140,13 +145,13 @@ describe("Login — Google SSO multi-step flow", () => {
     await advanceToOtpStep();
     fireEvent.change(screen.getByTestId("otp-input"), { target: { value: "000000" } });
     await userEvent.click(screen.getByRole("button", { name: /verify/i }));
-    expect(screen.getByText(/รหัส OTP ไม่ถูกต้อง/i)).toBeInTheDocument();
+    expect(screen.getByText(/Invalid OTP code/i)).toBeInTheDocument();
   });
 
   it("correct OTP (247831) moves to PDPA step", async () => {
     renderLogin();
     await advanceToPdpaStep();
-    expect(screen.getByText(/นโยบายความเป็นส่วนตัว/i)).toBeInTheDocument();
+    expect(screen.getByText(/Privacy Policy/i)).toBeInTheDocument();
   });
 
   it("back arrow on OTP step goes back to email step", async () => {
@@ -165,10 +170,10 @@ describe("Login — Google SSO multi-step flow", () => {
     // wrong OTP first
     fireEvent.change(otpInput, { target: { value: "000000" } });
     await userEvent.click(screen.getByRole("button", { name: /verify/i }));
-    expect(screen.getByText(/รหัส OTP ไม่ถูกต้อง/i)).toBeInTheDocument();
+    expect(screen.getByText(/Invalid OTP code/i)).toBeInTheDocument();
     // start typing → error should clear
     fireEvent.change(otpInput, { target: { value: "2" } });
-    expect(screen.queryByText(/รหัส OTP ไม่ถูกต้อง/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Invalid OTP code/i)).not.toBeInTheDocument();
   });
 
   // ── Step 3: PDPA ───────────────────────────────────────────────────────────
@@ -176,21 +181,21 @@ describe("Login — Google SSO multi-step flow", () => {
   it("PDPA step shows Thai consent text", async () => {
     renderLogin();
     await advanceToPdpaStep();
-    expect(screen.getByText(/การเก็บรวบรวมและใช้ข้อมูลส่วนบุคคล/i)).toBeInTheDocument();
+    expect(screen.getByText(/Collection and Use of Personal Data/i)).toBeInTheDocument();
   });
 
   it("ปฏิเสธ resets flow back to initial state", async () => {
     renderLogin();
     await advanceToPdpaStep();
-    await userEvent.click(screen.getByRole("button", { name: /ปฏิเสธ/i }));
-    expect(screen.queryByText(/นโยบายความเป็นส่วนตัว/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Decline/i }));
+    expect(screen.queryByText(/Privacy Policy/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
   });
 
   it("ยอมรับ calls loginWithMockSSO with the entered email", async () => {
     renderLogin();
     await advanceToPdpaStep("demo@isb.ac.th");
-    await userEvent.click(screen.getByRole("button", { name: /ยอมรับ/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
     await waitFor(() => expect(mockLoginWithMockSSO).toHaveBeenCalledWith("demo@isb.ac.th"));
   });
 
@@ -198,17 +203,20 @@ describe("Login — Google SSO multi-step flow", () => {
     mockLoginWithMockSSO.mockResolvedValue({ success: true });
     renderLogin();
     await advanceToPdpaStep();
-    await userEvent.click(screen.getByRole("button", { name: /ยอมรับ/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true }));
   });
 
-  it("failed SSO shows error and resets flow", async () => {
+  it("failed SSO shows toast error and resets flow", async () => {
     mockLoginWithMockSSO.mockResolvedValue({ success: false, error: "SSO server error" });
     renderLogin();
     await advanceToPdpaStep();
-    await userEvent.click(screen.getByRole("button", { name: /ยอมรับ/i }));
-    await waitFor(() => expect(screen.getByText(/SSO server error/i)).toBeInTheDocument());
-    expect(screen.queryByText(/นโยบายความเป็นส่วนตัว/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith(
+      "SSO server error",
+      expect.objectContaining({ duration: 6000 })
+    ));
+    expect(screen.queryByText(/Privacy Policy/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
   });
 

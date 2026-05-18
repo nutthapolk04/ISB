@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowUpRight, UtensilsCrossed, Users } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, UtensilsCrossed, Users, CalendarCheck, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import CanteenProducts from "./CanteenProducts";
 import CanteenCategories from "./CanteenCategories";
 
@@ -22,11 +31,29 @@ interface Shop {
   module: string;
 }
 
+interface CloseDaySummary {
+  shop_id: string;
+  date: string;
+  total_orders: number;
+  total_revenue: number;
+  item_count: number;
+  payment_breakdown: {
+    wallet?: number;
+    cash?: number;
+    card?: number;
+    [key: string]: number | undefined;
+  };
+}
+
 export default function CanteenShopDetail() {
   const { shopId } = useParams<{ shopId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const { hasRole } = useAuth();
+
+  const [closeDaySummary, setCloseDaySummary] = useState<CloseDaySummary | null>(null);
+  const [closeDayOpen, setCloseDayOpen] = useState(false);
 
   const { data: shop, isLoading } = useQuery({
     queryKey: ["shop", shopId],
@@ -45,6 +72,41 @@ export default function CanteenShopDetail() {
       setIsActive(shop.is_active);
     }
   }, [shop]);
+
+  const closeDayMut = useMutation({
+    mutationFn: () =>
+      api.post<CloseDaySummary>(`/canteen/${shopId}/close-day`),
+    onSuccess: (data) => {
+      setCloseDaySummary(data);
+      setCloseDayOpen(true);
+    },
+    onError: (e) => {
+      toast.error(e instanceof ApiError ? e.detail : t("canteen.closeDayFailed"));
+    },
+  });
+
+  function exportCsv(summary: CloseDaySummary) {
+    const rows = [
+      ["Date", summary.date],
+      ["Total Orders", String(summary.total_orders)],
+      ["Total Revenue (THB)", summary.total_revenue.toFixed(2)],
+      ["Items Sold", String(summary.item_count)],
+      [""],
+      ["Payment Method", "Amount (THB)"],
+      ...Object.entries(summary.payment_breakdown).map(([method, amount]) => [
+        method.charAt(0).toUpperCase() + method.slice(1),
+        (amount ?? 0).toFixed(2),
+      ]),
+    ];
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `close-day-${summary.shop_id}-${summary.date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const saveMut = useMutation({
     mutationFn: () =>
@@ -90,7 +152,18 @@ export default function CanteenShopDetail() {
           </h1>
           <p className="page-description">{t("canteen.canteenLabel")}</p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {hasRole("manager", "admin") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => closeDayMut.mutate()}
+              disabled={closeDayMut.isPending}
+            >
+              <CalendarCheck className="h-4 w-4 mr-1.5" />
+              {closeDayMut.isPending ? t("canteen.closeDayLoading") : t("canteen.closeDay")}
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm">
             <Link to={`/users?shop=${shopId}`}>
               <Users className="h-4 w-4 mr-1.5" />
@@ -149,6 +222,73 @@ export default function CanteenShopDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {closeDaySummary && (
+        <Dialog open={closeDayOpen} onOpenChange={setCloseDayOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {t("canteen.closeDayConfirm", { date: closeDaySummary.date })}
+              </DialogTitle>
+              <DialogDescription>{t("canteen.closeDayDescription")}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("canteen.totalOrders")}</span>
+                    <span className="font-medium">{closeDaySummary.total_orders}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("canteen.itemCount")}</span>
+                    <span className="font-medium">{closeDaySummary.item_count}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>{t("canteen.totalRevenue")}</span>
+                    <span>฿{closeDaySummary.total_revenue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div>
+                <p className="text-sm font-medium mb-2">{t("canteen.paymentBreakdown")}</p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("canteen.paymentBreakdown")}</TableHead>
+                      <TableHead className="text-right">฿</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(closeDaySummary.payment_breakdown).map(([method, amount]) => (
+                      <TableRow key={method}>
+                        <TableCell className="capitalize">
+                          {t(`canteen.payment${method.charAt(0).toUpperCase()}${method.slice(1)}`, {
+                            defaultValue: method,
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => exportCsv(closeDaySummary)}
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                {t("canteen.exportCsv")}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

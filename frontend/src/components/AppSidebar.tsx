@@ -17,6 +17,7 @@ import {
   Home,
   Settings as SettingsIcon,
   ArrowLeftRight,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -219,6 +220,26 @@ export function AppSidebar() {
             </SidebarGroup>
           );
         })}
+        {/* User Guide — visible to all roles */}
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-0">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={t("nav.guide")}
+                  isActive={location.pathname === "/guide"}
+                  className="text-base p-3 h-auto"
+                >
+                  <NavLink to="/guide" className="h-auto min-h-fit">
+                    <BookOpen className="h-5 w-5" />
+                    <span>{t("nav.guide")}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );

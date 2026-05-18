@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -170,7 +171,10 @@ const Login = () => {
     if (result.success) {
       navigate("/", { replace: true });
     } else {
-      setError(result.error ?? "SSO login failed");
+      toast.error(result.error ?? "SSO login failed", {
+        description: "Please check your email or contact your school administrator.",
+        duration: 6000,
+      });
       setSsoStep(null);
     }
   };
