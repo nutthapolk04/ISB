@@ -18,7 +18,7 @@ from app.services.audit_service import create_audit_log
 
 router = APIRouter()
 
-SCHOOL_KEYS = {"school_name", "school_address", "school_tax_id", "school_phone", "school_logo_url"}
+SCHOOL_KEYS = {"school_name", "school_address", "school_tax_id", "school_phone", "school_logo_url", "school_cover_url"}
 
 
 class SettingUpdate(BaseModel):
@@ -31,6 +31,18 @@ class SchoolSettingsUpdate(BaseModel):
     school_tax_id: str = ""
     school_phone: str = ""
     school_logo_url: str = ""
+    school_cover_url: str = ""
+
+
+@router.get("/public", response_model=Dict[str, Any])
+def get_public_settings(db: Session = Depends(get_db)):
+    """Public endpoint — no auth required. Returns only safe display fields."""
+    public_keys = ("school_name", "school_cover_url", "school_logo_url")
+    result = {}
+    for key in public_keys:
+        val = SettingsService.get_raw(db, key)
+        result[key] = val if val is not None else KNOWN_FLAGS.get(key, "")
+    return result
 
 
 @router.get("/", response_model=Dict[str, Any])

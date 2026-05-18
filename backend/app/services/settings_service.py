@@ -35,6 +35,7 @@ KNOWN_FLAGS: Dict[str, Any] = {
     "school_tax_id": "",
     "school_phone": "",
     "school_logo_url": "",   # stores base64 data URL or external URL
+    "school_cover_url": "",  # wide cover/banner image for login page
 }
 
 

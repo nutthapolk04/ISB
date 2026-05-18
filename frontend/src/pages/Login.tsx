@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { API_BASE_URL } from "@/lib/constants";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -253,10 +254,22 @@ const Login = () => {
   const [googleEmail, setGoogleEmail] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [otpError, setOtpError] = useState(false);
+  const [coverBg, setCoverBg] = useState("/login-bg.png");
+  const fetchedCover = useRef(false);
 
   useEffect(() => {
     if (isAuthenticated) navigate("/", { replace: true });
   }, [isAuthenticated, navigate]);
+
+  // Fetch cover image from public settings (no auth needed)
+  useEffect(() => {
+    if (fetchedCover.current) return;
+    fetchedCover.current = true;
+    fetch(`${API_BASE_URL}/admin/settings/public`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.school_cover_url) setCoverBg(d.school_cover_url); })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,7 +324,7 @@ const Login = () => {
       {/* ── Left panel: background illustration ── */}
       <div
         className="hidden lg:block lg:w-1/2 xl:w-3/5 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/login-bg.png')" }}
+        style={{ backgroundImage: `url('${coverBg}')` }}
         aria-hidden="true"
       />
 

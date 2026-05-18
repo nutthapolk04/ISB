@@ -11,6 +11,7 @@ export interface SchoolInfo {
   taxId: string;
   phone: string;
   logoUrl: string;
+  coverUrl: string;
 }
 
 const DEFAULT: SchoolInfo = {
@@ -19,6 +20,7 @@ const DEFAULT: SchoolInfo = {
   taxId: "",
   phone: "",
   logoUrl: "",
+  coverUrl: "",
 };
 
 const SchoolInfoContext = createContext<SchoolInfo>(DEFAULT);
@@ -30,11 +32,12 @@ export function SchoolInfoProvider({ children }: { children: ReactNode }) {
     api.get<Record<string, string>>("/admin/settings/school")
       .then((d) => {
         setInfo({
-          name:    d.school_name    || DEFAULT.name,
-          address: d.school_address || "",
-          taxId:   d.school_tax_id  || "",
-          phone:   d.school_phone   || "",
-          logoUrl: d.school_logo_url || "",
+          name:     d.school_name     || DEFAULT.name,
+          address:  d.school_address  || "",
+          taxId:    d.school_tax_id   || "",
+          phone:    d.school_phone    || "",
+          logoUrl:  d.school_logo_url  || "",
+          coverUrl: d.school_cover_url || "",
         });
       })
       .catch(() => {}); // silent — fall back to defaults

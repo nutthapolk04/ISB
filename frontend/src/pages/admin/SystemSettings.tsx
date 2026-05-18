@@ -30,8 +30,10 @@ export default function SystemSettings() {
   const [schoolTaxId, setSchoolTaxId] = useState("");
   const [schoolPhone, setSchoolPhone] = useState("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState("");
+  const [schoolCoverUrl, setSchoolCoverUrl] = useState("");
   const [schoolSaving, setSchoolSaving] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const loadSchool = async () => {
     try {
@@ -41,6 +43,7 @@ export default function SystemSettings() {
       setSchoolTaxId(data.school_tax_id ?? "");
       setSchoolPhone(data.school_phone ?? "");
       setSchoolLogoUrl(data.school_logo_url ?? "");
+      setSchoolCoverUrl(data.school_cover_url ?? "");
     } catch { /* silent */ }
   };
 
@@ -93,6 +96,14 @@ export default function SystemSettings() {
     reader.readAsDataURL(file);
   };
 
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setSchoolCoverUrl(ev.target?.result as string ?? "");
+    reader.readAsDataURL(file);
+  };
+
   const saveSchool = async () => {
     setSchoolSaving(true);
     try {
@@ -102,6 +113,7 @@ export default function SystemSettings() {
         school_tax_id: schoolTaxId,
         school_phone: schoolPhone,
         school_logo_url: schoolLogoUrl,
+        school_cover_url: schoolCoverUrl,
       });
       toast({ title: "บันทึกข้อมูลโรงเรียนแล้ว" });
     } catch (e) {
@@ -175,48 +187,56 @@ export default function SystemSettings() {
               placeholder="02-000-0000"
             />
           </div>
+          {/* Logo */}
           <div className="space-y-2">
             <Label>โลโก้</Label>
             <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => logoInputRef.current?.click()}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
                 เลือกไฟล์รูปภาพ
               </Button>
               {schoolLogoUrl && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSchoolLogoUrl("");
-                    if (logoInputRef.current) logoInputRef.current.value = "";
-                  }}
-                >
+                <Button type="button" variant="ghost" size="sm"
+                  onClick={() => { setSchoolLogoUrl(""); if (logoInputRef.current) logoInputRef.current.value = ""; }}>
                   ลบโลโก้
                 </Button>
               )}
             </div>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleLogoChange}
-            />
+            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
             {schoolLogoUrl && (
-              <div className="mt-2">
-                <img
-                  src={schoolLogoUrl}
-                  alt="School logo preview"
-                  className="h-16 w-16 object-contain rounded border"
-                />
+              <img src={schoolLogoUrl} alt="School logo preview" className="h-16 w-16 object-contain rounded border" />
+            )}
+          </div>
+
+          {/* Cover image */}
+          <div className="space-y-2">
+            <Label>รูปหน้าปก (Login Page)</Label>
+            <p className="text-xs text-muted-foreground">แสดงด้านซ้ายของหน้า Login — แนะนำ landscape 16:9 หรือกว้างกว่า</p>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()}>
+                เลือกรูปหน้าปก
+              </Button>
+              {schoolCoverUrl && (
+                <Button type="button" variant="ghost" size="sm"
+                  onClick={() => { setSchoolCoverUrl(""); if (coverInputRef.current) coverInputRef.current.value = ""; }}>
+                  ลบรูปหน้าปก
+                </Button>
+              )}
+            </div>
+            <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
+            {schoolCoverUrl ? (
+              <div className="relative overflow-hidden rounded-lg border w-full aspect-video bg-muted">
+                <img src={schoolCoverUrl} alt="Cover preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-end p-3 bg-gradient-to-t from-black/50 to-transparent">
+                  <span className="text-xs text-white/80">Preview หน้าปก Login</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center rounded-lg border border-dashed w-full aspect-video bg-muted/40 text-muted-foreground text-sm">
+                ยังไม่มีรูปหน้าปก
               </div>
             )}
           </div>
+
           <Separator />
           <Button onClick={saveSchool} disabled={schoolSaving}>
             {schoolSaving ? "กำลังบันทึก…" : "บันทึกข้อมูลโรงเรียน"}
