@@ -1,7 +1,7 @@
 """
 Returns & Exchange Schemas
 """
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
@@ -90,7 +90,10 @@ class ExchangeItemPayload(BaseModel):
 class ProcessRefundRequest(BaseModel):
     returnItems: List[RefundItemPayload] = Field(min_length=1)
     exchangeItems: Optional[List[ExchangeItemPayload]] = None
-    refundMethod: RefundMethod
+    # Deprecated: refund destination is derived from the original receipt
+    # (which wallet/card paid). Field kept for backward compatibility with
+    # older clients but ignored by the backend.
+    refundMethod: Optional[RefundMethod] = None
     reason: str
     notes: Optional[str] = None
 
@@ -140,7 +143,8 @@ class ReturnHistoryResponse(BaseModel):
 class RefundResponse(BaseModel):
     id: str
     refundAmount: float
-    refundMethod: str
+    refundMethod: str  # customer_wallet | user_wallet | department_wallet | edc_card | cash | ...
+    refundedTo: Optional[Dict[str, Any]] = None  # destination details for UI
     status: str
     timestamp: str
 

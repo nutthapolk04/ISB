@@ -165,7 +165,7 @@ def process_refund(
             db,
             return_id,
             return_items=[i.model_dump() for i in payload.returnItems],
-            refund_method=payload.refundMethod.value,
+            refund_method=payload.refundMethod.value if payload.refundMethod else None,
             reason=payload.reason,
             notes=payload.notes,
             user_id=current_user.id,

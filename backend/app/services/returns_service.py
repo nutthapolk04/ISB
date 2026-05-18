@@ -7,14 +7,16 @@ from __future__ import annotations
 
 import time
 from datetime import date, datetime
+from decimal import Decimal
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.models.return_request import ReturnRequest, ReturnStatus
-from app.models.receipt import Receipt
+from app.models.receipt import Receipt, PaymentMethod
 from app.models.shop import ShopProduct, ShopMovement, MovementType
+from app.models.wallet import Wallet, WalletTransaction, WalletTransactionType
 
 
 class ReturnsService:
@@ -248,7 +250,7 @@ class ReturnsService:
         return_id: int,
         *,
         return_items: List[dict],
-        refund_method: str,
+        refund_method: Optional[str] = None,  # deprecated — backend derives from receipt
         reason: str,
         notes: Optional[str] = None,
         user_id: int,
@@ -257,14 +259,29 @@ class ReturnsService:
         if not rr:
             raise ValueError(f"Return request {return_id} not found")
 
-        # Calculate refund amount
         refund_amount = float(rr.price) * rr.return_quantity
+        amount_dec = Decimal(str(refund_amount))
 
-        # Restore stock
+        # Lookup original receipt to derive refund destination
+        receipt = (
+            db.query(Receipt)
+            .filter(Receipt.receipt_number == rr.receipt_id)
+            .first()
+        )
+
+        # Restore stock first
         ReturnsService._restore_stock(db, rr, user_id=user_id)
 
+        derived_method, refunded_to = ReturnsService._derive_refund_destination(
+            db,
+            receipt=receipt,
+            amount_dec=amount_dec,
+            rr=rr,
+            user_id=user_id,
+        )
+
         rr.status = ReturnStatus.approved
-        rr.refund_method = refund_method
+        rr.refund_method = derived_method
         rr.refund_amount = refund_amount
         rr.processed_at = datetime.utcnow()
 
@@ -274,9 +291,101 @@ class ReturnsService:
         return {
             "id": f"RF-{rr.id:03d}",
             "refundAmount": refund_amount,
-            "refundMethod": refund_method,
+            "refundMethod": derived_method,
+            "refundedTo": refunded_to,
             "status": "completed",
             "timestamp": rr.processed_at.isoformat(),
+        }
+
+    # ── Derive refund destination from original receipt ──────────────────────
+
+    @staticmethod
+    def _derive_refund_destination(
+        db: Session,
+        *,
+        receipt: Optional[Receipt],
+        amount_dec: Decimal,
+        rr: ReturnRequest,
+        user_id: int,
+    ) -> tuple[str, dict]:
+        """Determine where the refund goes based on the original receipt.
+
+        Returns (method_code, refunded_to_dict). For wallet-based payments,
+        credits the originating wallet and creates a WalletTransaction(REFUND).
+        For EDC / cash / other, only returns metadata; cashier handles physical
+        refund. Returns ("cash", {...}) as fallback when receipt is missing.
+        """
+        if not receipt:
+            return "cash", {
+                "type": "cash",
+                "label": "Cash drawer (receipt not found)",
+            }
+
+        pm = receipt.payment_method
+
+        # Wallet-based payments → credit originating wallet
+        if pm in (PaymentMethod.WALLET, PaymentMethod.CARD_TAP, PaymentMethod.DEPARTMENT):
+            target_wallet: Optional[Wallet] = None
+            target_type = ""
+            target_label = ""
+
+            if receipt.customer_id:
+                target_wallet = db.query(Wallet).filter(Wallet.customer_id == receipt.customer_id).first()
+                target_type = "customer_wallet"
+                target_label = f"Customer wallet #{receipt.customer_id}"
+            elif receipt.payer_user_id:
+                target_wallet = db.query(Wallet).filter(Wallet.user_id == receipt.payer_user_id).first()
+                target_type = "user_wallet"
+                target_label = f"User wallet #{receipt.payer_user_id}"
+            elif receipt.payer_department_id:
+                target_wallet = db.query(Wallet).filter(Wallet.department_id == receipt.payer_department_id).first()
+                target_type = "department_wallet"
+                target_label = f"Department wallet #{receipt.payer_department_id}"
+
+            if target_wallet:
+                balance_before = Decimal(str(target_wallet.balance))
+                target_wallet.balance = balance_before + amount_dec
+                wtx = WalletTransaction(
+                    wallet_id=target_wallet.id,
+                    transaction_type=WalletTransactionType.REFUND,
+                    amount=amount_dec,
+                    balance_before=balance_before,
+                    balance_after=target_wallet.balance,
+                    reference_type="return_request",
+                    reference_id=rr.id,
+                    description=f"Refund for return {rr.id} (receipt {rr.receipt_id})",
+                    created_by=user_id,
+                )
+                db.add(wtx)
+                return target_type, {
+                    "type": target_type,
+                    "label": target_label,
+                    "walletId": target_wallet.id,
+                    "balanceBefore": float(balance_before),
+                    "balanceAfter": float(target_wallet.balance),
+                }
+
+            # Wallet payment but no wallet found — fall through to cash
+            return "cash", {
+                "type": "cash",
+                "label": f"Cash drawer (wallet for {pm.value} payer not found)",
+            }
+
+        # EDC / credit / debit card → cashier processes refund on EDC terminal
+        if pm in (PaymentMethod.EDC, PaymentMethod.CREDIT_CARD, PaymentMethod.DEBIT_CARD):
+            return "edc_card", {
+                "type": "edc_card",
+                "label": "EDC card refund",
+                "maskedCard": receipt.edc_masked_card or "",
+                "edcTerminalRef": receipt.edc_terminal_ref or "",
+                "edcApprovalCode": receipt.edc_approval_code or "",
+            }
+
+        # Cash / bank_transfer / other → cashier opens drawer or processes manually
+        method = pm.value if pm else "cash"
+        return method, {
+            "type": method,
+            "label": f"{method.replace('_', ' ').title()} refund",
         }
 
     # ── Process exchange ─────────────────────────────────────────────────────
@@ -445,6 +554,27 @@ class ReturnsService:
                 "price": float(item.unit_price),
             })
 
+        # Derive payer info for refund-destination preview on the frontend
+        payer_info: dict = {"type": "unknown", "label": ""}
+        if receipt.customer_id and receipt.customer:
+            payer_info = {
+                "type": "customer",
+                "label": receipt.customer.name or receipt.customer.customer_code or "",
+                "id": receipt.customer_id,
+            }
+        elif receipt.payer_user_id and receipt.payer_user:
+            payer_info = {
+                "type": "user",
+                "label": receipt.payer_user.full_name or receipt.payer_user.username or "",
+                "id": receipt.payer_user_id,
+            }
+        elif receipt.payer_department_id and receipt.payer_department:
+            payer_info = {
+                "type": "department",
+                "label": receipt.payer_department.department_name or "",
+                "id": receipt.payer_department_id,
+            }
+
         return {
             "id": receipt.receipt_number,
             "date": receipt.transaction_date.strftime("%Y-%m-%d %H:%M") if receipt.transaction_date else "",
@@ -452,6 +582,8 @@ class ReturnsService:
             "total": float(receipt.total),
             "paymentMethod": receipt.payment_method.value if receipt.payment_method else "cash",
             "shopId": shop_id,
+            "payer": payer_info,
+            "edcMaskedCard": receipt.edc_masked_card or None,
         }
 
     # ── Internal helpers ─────────────────────────────────────────────────────

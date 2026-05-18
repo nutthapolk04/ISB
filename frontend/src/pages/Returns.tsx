@@ -46,14 +46,25 @@ interface ReceiptItem {
   price: number;
 }
 
+interface ReceiptPayer {
+  type: "customer" | "user" | "department" | "unknown";
+  label: string;
+  id?: number;
+}
+
 interface Receipt {
   id: string;
   date: string;
   items: ReceiptItem[];
   total: number;
-  paymentMethod: "student" | "qr" | "cash" | "department";
+  // Backend payment_method enum: wallet | card_tap | cash | edc | credit_card |
+  // debit_card | department | bank_transfer | other (declared loose here to
+  // accept any backend value without breaking the type-check).
+  paymentMethod: string;
   studentId?: string;
   studentName?: string;
+  payer?: ReceiptPayer;
+  edcMaskedCard?: string | null;
 }
 
 interface ReturnRequest {
@@ -166,11 +177,9 @@ const Returns = () => {
     customer_code?: string;
   } | null>(null);
 
-  // Refund method selection dialog
-  const [isRefundMethodDialogOpen, setIsRefundMethodDialogOpen] = useState(false);
-
-  // Cash refund confirmation dialog
-  const [isCashRefundConfirmOpen, setIsCashRefundConfirmOpen] = useState(false);
+  // Refund confirmation dialog — destination is derived from the original
+  // receipt (which wallet / card / cash paid). No more method picker.
+  const [isRefundConfirmOpen, setIsRefundConfirmOpen] = useState(false);
 
   const getPaymentMethodLabel = (method: string) => {
     switch (method) {
@@ -475,37 +484,21 @@ const Returns = () => {
     // Set transaction type
     setTransactionType(type);
 
-    // If refund, open refund method selection dialog
-    // If exchange, open card tap dialog directly
+    // Refund → destination is derived from the original receipt by the backend,
+    // so go straight to a single confirm dialog. Exchange still uses card-tap.
     if (type === "refund") {
-      setIsRefundMethodDialogOpen(true);
+      setIsRefundConfirmOpen(true);
     } else {
       setCardTapStep("input");
       setCardUidInput("");
       setCardLookupError(null);
       setVerifiedCardholder(null);
       setIsCardTapDialogOpen(true);
-    }
-  };
-
-  const handleRefundMethodSelect = (method: "cash" | "card") => {
-    setIsRefundMethodDialogOpen(false);
-
-    if (method === "card") {
-      // Open card tap dialog for card refund
-      setCardTapStep("input");
-      setCardUidInput("");
-      setCardLookupError(null);
-      setVerifiedCardholder(null);
-      setIsCardTapDialogOpen(true);
-    } else {
-      // For cash refund, open confirmation dialog
-      setIsCashRefundConfirmOpen(true);
     }
   };
 
   const resetAllDialogs = () => {
-    setIsCashRefundConfirmOpen(false);
+    setIsRefundConfirmOpen(false);
     setIsCardTapDialogOpen(false);
     setIsEditDialogOpen(false);
     setEditingReturn(null);
@@ -521,6 +514,84 @@ const Returns = () => {
     setVerifiedCardholder(null);
   };
 
+  /**
+   * Derive what the backend WILL do when a refund is processed for the given
+   * receipt. Mirrors `ReturnsService._derive_refund_destination` so the
+   * confirmation dialog can show the destination before the call.
+   */
+  const getRefundDestinationPreview = (
+    receipt: Receipt | null,
+  ): { type: string; label: string; hint?: string } => {
+    if (!receipt) return { type: "cash", label: t('returns.refundDestCash', 'Cash drawer') };
+    const pm = receipt.paymentMethod;
+    if (pm === "wallet" || pm === "card_tap" || pm === "department") {
+      const payer = receipt.payer;
+      if (payer && payer.type !== "unknown") {
+        const ownerLabel =
+          payer.type === "customer"
+            ? t('returns.refundDestCustomerWallet', "{{name}}'s wallet", { name: payer.label })
+            : payer.type === "user"
+              ? t('returns.refundDestUserWallet', "{{name}}'s wallet", { name: payer.label })
+              : t('returns.refundDestDeptWallet', '{{name}} department wallet', { name: payer.label });
+        return {
+          type: `${payer.type}_wallet`,
+          label: ownerLabel,
+          hint: t('returns.refundDestWalletHint', 'Wallet will be credited automatically'),
+        };
+      }
+      return { type: "wallet", label: t('returns.refundDestWalletGeneric', 'Original wallet') };
+    }
+    if (pm === "edc" || pm === "credit_card" || pm === "debit_card") {
+      return {
+        type: "edc_card",
+        label: receipt.edcMaskedCard
+          ? t('returns.refundDestEdcCard', 'EDC card {{card}}', { card: receipt.edcMaskedCard })
+          : t('returns.refundDestEdcGeneric', 'EDC card refund'),
+        hint: t('returns.refundDestEdcHint', 'Process the refund on the EDC terminal'),
+      };
+    }
+    return {
+      type: pm || "cash",
+      label: t('returns.refundDestCash', 'Cash drawer'),
+      hint: pm === "cash" ? t('returns.refundDestCashHint', 'Open drawer and refund cash to customer') : undefined,
+    };
+  };
+
+  /** Build a success toast describing where the refund actually went. */
+  const buildRefundSuccessMessage = (result: {
+    refundAmount: number;
+    refundMethod: string;
+    refundedTo?: { type: string; label: string; balanceAfter?: number; maskedCard?: string };
+  }): string => {
+    const amount = `฿${result.refundAmount.toFixed(2)}`;
+    const dest = result.refundedTo;
+    if (!dest) {
+      return t('returns.refundSuccess', 'Refund processed successfully');
+    }
+    if (dest.balanceAfter !== undefined) {
+      return t(
+        'returns.refundSuccessToWallet',
+        'Refunded {{amount}} to {{dest}} (new balance ฿{{balance}})',
+        {
+          amount,
+          dest: dest.label,
+          balance: dest.balanceAfter.toFixed(2),
+        },
+      );
+    }
+    if (dest.type === "edc_card") {
+      return t(
+        'returns.refundSuccessEdc',
+        'Refund of {{amount}} recorded — process on EDC terminal for card {{card}}',
+        { amount, card: dest.maskedCard || '****' },
+      );
+    }
+    return t('returns.refundSuccessGeneric', 'Refunded {{amount}} via {{dest}}', {
+      amount,
+      dest: dest.label,
+    });
+  };
+
   /** Build returnItems payload from selectedItems state */
   const buildReturnItems = () =>
     Object.entries(selectedItems)
@@ -533,15 +604,18 @@ const Returns = () => {
       .filter(([_, d]) => d.productCode)
       .map(([_, d]) => ({ productCode: d.productCode, quantity: d.quantity }));
 
-  const handleConfirmCashRefund = async () => {
+  const handleConfirmRefund = async () => {
     if (!editingReturn) return;
     try {
-      await api.post(`/returns/${editingReturn.id}/refund`, {
+      const result = await api.post<{
+        refundAmount: number;
+        refundMethod: string;
+        refundedTo?: { type: string; label: string; balanceAfter?: number; maskedCard?: string };
+      }>(`/returns/${editingReturn.id}/refund`, {
         returnItems: buildReturnItems(),
-        refundMethod: "cash",
         reason: editReason || editingReturn.reason,
       });
-      toast.success(t('returns.refundSuccess', 'Refund processed successfully'));
+      toast.success(buildRefundSuccessMessage(result));
       resetAllDialogs();
       await fetchReturns();
     } catch (err: any) {
@@ -578,33 +652,25 @@ const Returns = () => {
       }
       setVerifiedCardholder(cardholder);
 
-      // Step 2: Process refund or exchange.
-      if (transactionType === "exchange") {
-        const receiptItems = viewingReceipt?.items ?? [];
-        const returnValue = buildReturnItems().reduce((sum, ri) => {
-          const item = receiptItems.find((i: ReceiptItem) => i.productCode === ri.productCode);
-          return sum + (item?.price ?? 0) * ri.returnQuantity;
-        }, 0);
-        const exchangeValue = buildExchangeItems().reduce((sum, ei) => {
-          const p = availableProducts.find((ap) => ap.productCode === ei.productCode);
-          return sum + (p?.price ?? 0) * ei.quantity;
-        }, 0);
+      // Step 2: Process exchange. Refund no longer goes through the card-tap
+      // flow — destination is derived server-side from the original receipt.
+      const receiptItems = viewingReceipt?.items ?? [];
+      const returnValue = buildReturnItems().reduce((sum, ri) => {
+        const item = receiptItems.find((i: ReceiptItem) => i.productCode === ri.productCode);
+        return sum + (item?.price ?? 0) * ri.returnQuantity;
+      }, 0);
+      const exchangeValue = buildExchangeItems().reduce((sum, ei) => {
+        const p = availableProducts.find((ap) => ap.productCode === ei.productCode);
+        return sum + (p?.price ?? 0) * ei.quantity;
+      }, 0);
 
-        await api.post(`/returns/${editingReturn.id}/exchange`, {
-          returnItems: buildReturnItems(),
-          exchangeItems: buildExchangeItems(),
-          difference: exchangeValue - returnValue,
-          reason: editReason || editingReturn.reason,
-        });
-        toast.success(t('returns.exchangeSuccess', 'Exchange processed successfully'));
-      } else {
-        await api.post(`/returns/${editingReturn.id}/refund`, {
-          returnItems: buildReturnItems(),
-          refundMethod: "card",
-          reason: editReason || editingReturn.reason,
-        });
-        toast.success(t('returns.refundSuccess', 'Refund processed successfully'));
-      }
+      await api.post(`/returns/${editingReturn.id}/exchange`, {
+        returnItems: buildReturnItems(),
+        exchangeItems: buildExchangeItems(),
+        difference: exchangeValue - returnValue,
+        reason: editReason || editingReturn.reason,
+      });
+      toast.success(t('returns.exchangeSuccess', 'Exchange processed successfully'));
 
       setCardTapStep("success");
       setTimeout(() => {
@@ -617,7 +683,7 @@ const Returns = () => {
       setCardTapStep("input");
       setVerifiedCardholder(null);
     }
-  }, [editingReturn, transactionType, editReason, buildReturnItems, buildExchangeItems, viewingReceipt, availableProducts]);
+  }, [editingReturn, editReason, buildReturnItems, buildExchangeItems, viewingReceipt, availableProducts]);
 
   const {
     value: cardUidInput,
@@ -1660,60 +1726,16 @@ const Returns = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Refund Method Selection Dialog */}
-      <Dialog open={isRefundMethodDialogOpen} onOpenChange={setIsRefundMethodDialogOpen}>
+      {/* Refund Confirmation Dialog — destination derived from original receipt */}
+      <Dialog open={isRefundConfirmOpen} onOpenChange={setIsRefundConfirmOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('returns.selectRefundMethod')}</DialogTitle>
+            <DialogTitle>{t('returns.confirmRefund', 'Confirm Refund')}</DialogTitle>
             <DialogDescription>
-              {t('returns.selectRefundMethodDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-6">
-            <Button
-              onClick={() => handleRefundMethodSelect("cash")}
-              variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-3 hover:bg-primary hover:text-primary-foreground transition-colors"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              <span className="text-lg font-semibold">{t('returns.refundByCash')}</span>
-            </Button>
-            <Button
-              onClick={() => handleRefundMethodSelect("card")}
-              variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-3 hover:bg-primary hover:text-primary-foreground transition-colors"
-            >
-              <CreditCard className="w-12 h-12" />
-              <span className="text-lg font-semibold">{t('returns.refundByCard')}</span>
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRefundMethodDialogOpen(false)}>
-              {t('returns.cancel')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cash Refund Confirmation Dialog */}
-      <Dialog open={isCashRefundConfirmOpen} onOpenChange={setIsCashRefundConfirmOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('returns.confirmCashRefund')}</DialogTitle>
-            <DialogDescription>
-              {t('returns.confirmCashRefundDesc')}
+              {t(
+                'returns.confirmRefundDesc',
+                'The refund will be returned to the same payment source used on the original receipt.',
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-6">
@@ -1724,52 +1746,59 @@ const Returns = () => {
                   const item = viewingReceipt?.items.find((i) => i.productCode === productCode);
                   return sum + (item ? item.price * data.returnQty : 0);
                 }, 0);
-
-              const exchangeTotal = Object.entries(exchangeItems).reduce((sum, [productCode, data]) => {
-                const product = availableProducts.find((p) => p.productCode === productCode);
-                return sum + (product ? product.price * data.quantity : 0);
-              }, 0);
-
-              const refundAmount = returnTotal - exchangeTotal;
+              const dest = getRefundDestinationPreview(viewingReceipt);
 
               return (
                 <div className="space-y-4">
-                  <div className="bg-secondary p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">{t('returns.returnValue')}:</span>
-                      <span className="font-semibold data-number">฿{returnTotal.toFixed(2)}</span>
+                  <div className="bg-secondary p-4 rounded-lg space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        {t('returns.originalPayment', 'Original payment')}:
+                      </span>
+                      <span className="font-semibold uppercase text-xs">
+                        {getPaymentMethodLabel(viewingReceipt.paymentMethod)}
+                      </span>
                     </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">{t('returns.exchangeValue')}:</span>
-                      <span className="font-semibold data-number">฿{exchangeTotal.toFixed(2)}</span>
-                    </div>
+                    {viewingReceipt.payer && viewingReceipt.payer.label && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">
+                          {t('returns.paidBy', 'Paid by')}:
+                        </span>
+                        <span className="font-medium text-sm">{viewingReceipt.payer.label}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-primary/10 p-6 rounded-lg">
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">{t('returns.refundAmount')}</p>
-                      <p className="text-4xl font-bold text-primary data-number">฿{refundAmount.toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {t('returns.refundAmount')}
+                      </p>
+                      <p className="text-4xl font-bold text-primary data-number">
+                        ฿{returnTotal.toFixed(2)}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="bg-warning/10 border border-warning/30 p-3 rounded-lg">
-                    <p className="text-sm text-center">
-                      <svg className="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      กรุณาเตรียมเงินสดเพื่อคืนให้ลูกค้า
+                  <div className="bg-success/10 border border-success/30 p-3 rounded-lg space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t('returns.refundDestination', 'Refund destination')}
                     </p>
+                    <p className="text-sm font-semibold">{dest.label}</p>
+                    {dest.hint && (
+                      <p className="text-xs text-muted-foreground">{dest.hint}</p>
+                    )}
                   </div>
                 </div>
               );
             })()}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCashRefundConfirmOpen(false)}>
+            <Button variant="outline" onClick={() => setIsRefundConfirmOpen(false)}>
               {t('returns.cancel')}
             </Button>
-            <Button onClick={handleConfirmCashRefund}>
-              {t('returns.confirmRefund')}
+            <Button onClick={handleConfirmRefund}>
+              {t('returns.confirmRefundAction', 'Confirm Refund')}
             </Button>
           </DialogFooter>
         </DialogContent>
