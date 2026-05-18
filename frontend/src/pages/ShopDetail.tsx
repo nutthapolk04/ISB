@@ -19,7 +19,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp, Upload } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -126,6 +126,60 @@ const ShopDetail = () => {
   }, [shopData]);
 
   const [saving, setSaving] = useState(false);
+
+  // ── Bulk import state ───────────────────────────────────────────────────
+  const [importingProducts, setImportingProducts] = useState(false);
+  const [importingStock, setImportingStock] = useState(false);
+
+  const handleImportProducts = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !shopId) return;
+    e.target.value = "";
+    setImportingProducts(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const result = await api.postFormData<{ created: number; updated: number; errors: { row: number; reason: string }[] }>(
+        `/admin/import/products?shop_id=${encodeURIComponent(shopId)}`,
+        form,
+      );
+      const msg = `นำเข้าสำเร็จ: สร้าง ${result.created} รายการ, อัปเดต ${result.updated} รายการ`;
+      if (result.errors.length > 0) {
+        toast.warning(`${msg}\nข้อผิดพลาด ${result.errors.length} แถว: ${result.errors.map(e => `แถว ${e.row}: ${e.reason}`).join("; ")}`);
+      } else {
+        toast.success(msg);
+      }
+    } catch (err: any) {
+      toast.error(err?.detail ?? "นำเข้าสินค้าไม่สำเร็จ");
+    } finally {
+      setImportingProducts(false);
+    }
+  };
+
+  const handleImportStock = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImportingStock(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const result = await api.postFormData<{ imported: number; errors: { row: number; reason: string }[] }>(
+        `/admin/import/stock-receive`,
+        form,
+      );
+      const msg = `รับสินค้าเข้าสต็อกสำเร็จ ${result.imported} รายการ`;
+      if (result.errors.length > 0) {
+        toast.warning(`${msg}\nข้อผิดพลาด ${result.errors.length} แถว: ${result.errors.map(e => `แถว ${e.row}: ${e.reason}`).join("; ")}`);
+      } else {
+        toast.success(msg);
+      }
+    } catch (err: any) {
+      toast.error(err?.detail ?? "นำเข้ารับสินค้าไม่สำเร็จ");
+    } finally {
+      setImportingStock(false);
+    }
+  };
 
   // ── Audit log state ─────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -416,7 +470,61 @@ const ShopDetail = () => {
         </TabsContent>
 
         {/* ── Tab: Inventory ─────────────────────────────────────────────── */}
-        <TabsContent value="inventory">
+        <TabsContent value="inventory" className="space-y-4">
+          {/* Bulk import section — admin only */}
+          {hasRole("admin") && (
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Upload className="h-4 w-4" />
+                    <span>นำเข้าข้อมูล (.xlsx / .csv)</span>
+                  </div>
+
+                  {/* Import products */}
+                  <div className="relative">
+                    <input
+                      id="import-products-file"
+                      type="file"
+                      accept=".xlsx,.csv"
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      onChange={handleImportProducts}
+                      disabled={importingProducts}
+                    />
+                    <Button variant="outline" size="sm" disabled={importingProducts} asChild={false}>
+                      {importingProducts
+                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />กำลังนำเข้า...</>
+                        : <>นำเข้าสินค้า (Excel)</>}
+                    </Button>
+                  </div>
+
+                  {/* Import stock receive */}
+                  <div className="relative">
+                    <input
+                      id="import-stock-file"
+                      type="file"
+                      accept=".xlsx,.csv"
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      onChange={handleImportStock}
+                      disabled={importingStock}
+                    />
+                    <Button variant="outline" size="sm" disabled={importingStock} asChild={false}>
+                      {importingStock
+                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />กำลังนำเข้า...</>
+                        : <>นำเข้ารับสินค้า (Excel)</>}
+                    </Button>
+                  </div>
+
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    คอลัมน์สินค้า: <code className="bg-muted px-1 rounded text-[11px]">name, barcode, price, cost_price, category, uom, shop_id</code>
+                    {" · "}
+                    คอลัมน์รับสินค้า: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, quantity, cost_per_unit, notes</code>
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Inventory lockedShopId={shopId} shopType={shopType} />
         </TabsContent>
 
