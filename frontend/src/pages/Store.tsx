@@ -103,6 +103,9 @@ interface Product {
   subMerchantId: string;
   photoUrl?: string | null;
   color?: string | null;
+  // Bundle / Grade-Set fields (only present when isBundle=true)
+  isBundle?: boolean;
+  bundleId?: number;
 }
 
 type DiscountMode = "amount" | "percent";
@@ -280,6 +283,32 @@ const Store = () => {
             })),
           );
         } catch { /* shop unavailable */ }
+
+        // ── Bundles for this shop ──────────────────────────────────────
+        try {
+          const bundles = await api.get<any[]>(`/shops/${sid}/bundles`);
+          result.push(
+            ...bundles.map((b: any) => ({
+              // Use a negative ID space to avoid collision with real product IDs.
+              // The bundleId field carries the real bundle PK.
+              id: -(b.id),
+              productCode: b.bundle_code,
+              barcode: b.bundle_code,
+              name: b.name,
+              price: b.external_price,
+              internalPrice: b.internal_price ?? b.external_price,
+              // Bundles don't have a single stock counter — use a large sentinel
+              // so the "out of stock" badge never triggers for bundles.
+              stock: 9999,
+              category: "Bundle",
+              subMerchantId: sid,
+              photoUrl: b.photo_url ?? null,
+              color: b.color ?? null,
+              isBundle: true,
+              bundleId: b.id,
+            })),
+          );
+        } catch { /* bundles unavailable — tolerate */ }
       }
       if (!cancelled) setAllProducts(result);
     })();
@@ -469,19 +498,22 @@ const Store = () => {
   const addToCart = useCallback(
     (product: Product) => {
       // Special items (price=0) must have a cashier-entered price first.
-      if (product.price === 0) {
+      // Bundles always have a real price so we skip this check for them.
+      if (product.price === 0 && !product.isBundle) {
         setSpecialItemTarget(product);
         setSpecialItemPrice("");
         return;
       }
+      // Panel prices only apply to regular products (not bundles).
       const panelPrice =
-        activePanelId != null && panelPrices[activePanelId]?.[product.id] != null
+        !product.isBundle && activePanelId != null && panelPrices[activePanelId]?.[product.id] != null
           ? panelPrices[activePanelId][product.id]
           : null;
       setCart((prev) => {
         const existing = prev.find((i) => i.id === product.id);
         if (existing) {
-          if (existing.quantity >= product.stock && product.stock > 0) {
+          // Bundles use a 9999 sentinel stock — never show low-stock warning.
+          if (!product.isBundle && existing.quantity >= product.stock && product.stock > 0) {
             toast.warning(t("store.lowStockWarning", { count: product.stock }), { duration: 2000 });
           }
           return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
@@ -636,6 +668,19 @@ const Store = () => {
         items: cart.map((item) => {
           const catalogPrice =
             priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price;
+          if (item.isBundle && item.bundleId != null) {
+            return {
+              // product_variant_id is unused by the backend for bundle items,
+              // but the field is required by the schema — send 0 as sentinel.
+              product_variant_id: 0,
+              quantity: item.quantity,
+              unit_price: catalogPrice,
+              price_override: item.priceOverride ?? null,
+              discount: getItemDiscountAmount(item),
+              is_bundle: true,
+              bundle_id: item.bundleId,
+            };
+          }
           return {
             product_variant_id: item.id,
             quantity: item.quantity,
@@ -677,9 +722,10 @@ const Store = () => {
         studentGrade: studentGradeForReceipt,
       });
 
-      // Refresh stock locally
+      // Refresh stock locally (skip bundles — they use a sentinel stock value)
       setAllProducts((prev) =>
         prev.map((p) => {
+          if (p.isBundle) return p;
           const inCart = cart.find((c) => c.id === p.id);
           return inCart ? { ...p, stock: p.stock - inCart.quantity } : p;
         }),
@@ -1321,9 +1367,9 @@ const Store = () => {
           const cats = Array.from(
             new Set(allProducts.map((p) => p.category).filter(Boolean)),
           ).sort();
-          // In reorder mode: show all products for this shop (no category filter)
+          // In reorder mode: show regular products only (bundles excluded from reorder)
           const gridProducts = reorderMode
-            ? allProducts.filter((p) => !user?.shopId || p.subMerchantId === user.shopId)
+            ? allProducts.filter((p) => !p.isBundle && (!user?.shopId || p.subMerchantId === user.shopId))
             : allProducts.filter((p) =>
                 gridCategory === "All" ? true : p.category === gridCategory,
               );
@@ -1373,18 +1419,25 @@ const Store = () => {
                       <Package className="h-7 w-7" />
                     </div>
                   )}
-                  <span className={cn(
-                    "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
-                    lowStock ? "bg-destructive text-destructive-foreground" : "bg-background/90 text-foreground",
-                  )}>
-                    {lowStock ? t("store.outOfStock", "หมด") : `${t("store.stockLabel", "คงเหลือ")} ${p.stock}`}
-                  </span>
+                  {!p.isBundle && (
+                    <span className={cn(
+                      "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
+                      lowStock ? "bg-destructive text-destructive-foreground" : "bg-background/90 text-foreground",
+                    )}>
+                      {lowStock ? t("store.outOfStock", "หมด") : `${t("store.stockLabel", "คงเหลือ")} ${p.stock}`}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight">{p.name}</div>
                 <div className="mt-auto pt-1 flex items-center justify-between">
                   <span className="text-sm font-bold tabular-nums text-primary">฿{displayPrice.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
-                    {!reorderMode && (
+                    {p.isBundle && (
+                      <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 border border-violet-300 shrink-0">
+                        SET
+                      </span>
+                    )}
+                    {!reorderMode && !p.isBundle && (
                       <Popover
                         open={colorEditId === p.id}
                         onOpenChange={(open) => {

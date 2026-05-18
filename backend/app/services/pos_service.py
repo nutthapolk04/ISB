@@ -16,6 +16,7 @@ from app.models.shop import ShopProduct, ShopMovement, MovementType, Shop, MenuO
 from app.models.fifo_lot import FifoLot
 from app.models.customer import Customer
 from app.models.wallet import Wallet, WalletTransaction, WalletTransactionType
+from app.models.bundle import ProductBundle, BundleItem
 from app.services.wallet_service import WalletService
 from app.services.settings_service import SettingsService
 import logging
@@ -108,6 +109,64 @@ def _resolve_options(
     return {"groups": groups_out, "options_total": round(total, 2)}, round(total, 2)
 
 
+def _deduct_product_stock(
+    db: Session,
+    product: ShopProduct,
+    qty: int,
+    receipt_number: str,
+    movement_type: MovementType,
+    notes: str | None,
+    user_id: int,
+) -> None:
+    """Deduct stock from a single ShopProduct, recording a ShopMovement.
+
+    Shared by normal checkout items and bundle sub-SKU deductions.
+    Negative stock is allowed per project requirements.
+    """
+    stock_before = product.stock
+    shop = product.shop
+
+    if shop and shop.shop_type.value == "fifo":
+        existing_lots = (
+            db.query(FifoLot)
+            .filter(FifoLot.product_id == product.id)
+            .all()
+        )
+        new_lot_dicts = _deduct_fifo_lots_in_memory(
+            existing_lots, qty, product.id, shop.id
+        )
+        db.query(FifoLot).filter(FifoLot.product_id == product.id).delete()
+        db.flush()
+        for ld in new_lot_dicts:
+            db.add(FifoLot(**ld))
+        db.flush()
+        remaining_lots = (
+            db.query(FifoLot)
+            .filter(FifoLot.product_id == product.id)
+            .all()
+        )
+        product.stock = int(sum(float(l.qty_remaining) for l in remaining_lots))
+        product.avg_cost = round(calc_fifo_avg_cost(remaining_lots), 4)
+    else:
+        product.stock = stock_before - qty
+
+    movement = ShopMovement(
+        date=date.today(),
+        product_id=product.id,
+        product_name=product.name,
+        shop_id=product.shop_id,
+        type=movement_type,
+        quantity=-qty,
+        stock_before=stock_before,
+        stock_after=product.stock,
+        cost_per_unit=float(product.avg_cost),
+        reference=receipt_number,
+        note=notes,
+        created_by=user_id,
+    )
+    db.add(movement)
+
+
 def _generate_receipt_number(db: Session) -> str:
     """Generate a unique receipt number: R-YYYYMMDD-NNN"""
     today_str = date.today().strftime("%Y%m%d")
@@ -189,15 +248,13 @@ class POSService:
         subtotal = 0.0
         receipt_items: List[ReceiptItem] = []
 
-        for item in items:
-            product: ShopProduct = (
-                db.query(ShopProduct)
-                .filter(ShopProduct.id == item["product_variant_id"])
-                .first()
-            )
-            if not product:
-                raise ValueError(f"Product id={item['product_variant_id']} not found")
+        movement_type = (
+            MovementType.internal_use
+            if transaction_mode == "internal_issue"
+            else MovementType.sale
+        )
 
+        for item in items:
             qty = item["quantity"]
             unit_price = float(item["unit_price"])
             discount = float(item.get("discount", 0))
@@ -210,6 +267,76 @@ class POSService:
                 float(override_raw) if override_raw is not None and override_raw != "" else None
             )
             effective_price = price_override if price_override is not None else unit_price
+
+            # ── Bundle / Grade-Set handling ──────────────────────────────
+            if item.get("is_bundle") and item.get("bundle_id"):
+                bundle: ProductBundle | None = (
+                    db.query(ProductBundle)
+                    .filter(ProductBundle.id == item["bundle_id"])
+                    .first()
+                )
+                if not bundle:
+                    raise ValueError(f"Bundle id={item['bundle_id']} not found")
+
+                bundle_items: list[BundleItem] = (
+                    db.query(BundleItem)
+                    .filter(BundleItem.bundle_id == bundle.id)
+                    .all()
+                )
+                if not bundle_items:
+                    raise ValueError(f"Bundle id={bundle.id} has no items")
+
+                # Deduct stock for every sub-SKU
+                anchor_product_id: int | None = None
+                for bi in bundle_items:
+                    sub_product: ShopProduct | None = (
+                        db.query(ShopProduct)
+                        .filter(ShopProduct.id == bi.product_id)
+                        .first()
+                    )
+                    if not sub_product:
+                        raise ValueError(
+                            f"Bundle sub-product id={bi.product_id} not found"
+                        )
+                    if anchor_product_id is None:
+                        anchor_product_id = sub_product.id
+                    _deduct_product_stock(
+                        db,
+                        sub_product,
+                        bi.quantity * qty,
+                        receipt_number,
+                        movement_type,
+                        notes,
+                        user_id,
+                    )
+
+                # One clean receipt line for the bundle
+                line_total = round(effective_price * qty - discount, 2)
+                subtotal += line_total
+                receipt_items.append(ReceiptItem(
+                    product_variant_id=anchor_product_id,
+                    quantity=qty,
+                    unit_price=unit_price,
+                    price_override=price_override,
+                    discount=discount,
+                    line_total=line_total,
+                    options={
+                        "is_bundle": True,
+                        "bundle_id": bundle.id,
+                        "bundle_name": bundle.name,
+                        "bundle_code": bundle.bundle_code,
+                    },
+                ))
+                continue
+
+            # ── Normal (non-bundle) item ─────────────────────────────────
+            product: ShopProduct = (
+                db.query(ShopProduct)
+                .filter(ShopProduct.id == item["product_variant_id"])
+                .first()
+            )
+            if not product:
+                raise ValueError(f"Product id={item['product_variant_id']} not found")
 
             # ── Menu options: resolve + validate ─────────────────────────
             options_snapshot, options_total = _resolve_options(
@@ -229,54 +356,9 @@ class POSService:
             ))
 
             # ── Deduct stock ────────────────────────────────────────────
-            stock_before = product.stock
-            shop = product.shop
-
-            if shop and shop.shop_type.value == "fifo":
-                existing_lots = (
-                    db.query(FifoLot)
-                    .filter(FifoLot.product_id == product.id)
-                    .all()
-                )
-                new_lot_dicts = _deduct_fifo_lots_in_memory(
-                    existing_lots, qty, product.id, shop.id
-                )
-                db.query(FifoLot).filter(FifoLot.product_id == product.id).delete()
-                db.flush()
-                for ld in new_lot_dicts:
-                    db.add(FifoLot(**ld))
-                db.flush()
-                remaining_lots = (
-                    db.query(FifoLot)
-                    .filter(FifoLot.product_id == product.id)
-                    .all()
-                )
-                product.stock = int(sum(float(l.qty_remaining) for l in remaining_lots))
-                product.avg_cost = round(calc_fifo_avg_cost(remaining_lots), 4)
-            else:
-                product.stock = stock_before - qty
-
-            # Record movement
-            movement_type = (
-                MovementType.internal_use
-                if transaction_mode == "internal_issue"
-                else MovementType.sale
+            _deduct_product_stock(
+                db, product, qty, receipt_number, movement_type, notes, user_id
             )
-            movement = ShopMovement(
-                date=date.today(),
-                product_id=product.id,
-                product_name=product.name,
-                shop_id=product.shop_id,
-                type=movement_type,
-                quantity=-qty,
-                stock_before=stock_before,
-                stock_after=product.stock,
-                cost_per_unit=float(product.avg_cost),
-                reference=receipt_number,
-                note=notes,
-                created_by=user_id,
-            )
-            db.add(movement)
 
         bill_discount_amt = max(0.0, min(float(bill_discount), subtotal))
         total = round(subtotal - bill_discount_amt, 2)

@@ -54,6 +54,10 @@ class CheckoutItemPayload(BaseModel):
     price_override: Optional[float] = Field(default=None, ge=0)
     discount: float = Field(default=0, ge=0)
     options: List[SelectedOption] = Field(default_factory=list)
+    # Bundle / Grade-Set support: when True the backend explodes sub-SKUs for
+    # stock deduction and records one clean receipt line for the bundle.
+    is_bundle: bool = Field(default=False)
+    bundle_id: Optional[int] = Field(default=None)
 
 
 class CheckoutPayload(BaseModel):
