@@ -24,7 +24,7 @@ const ALL_METHODS: Record<
   { label: string; hint: string; Icon: React.ElementType; gradient: string }
 > = {
   wallet: {
-    label: "Card",
+    label: "Member Card",
     hint: "Tap RFID card",
     Icon: CreditCard,
     gradient: "from-amber-400 to-orange-500",
