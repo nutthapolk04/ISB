@@ -455,7 +455,7 @@ class POSService:
         db.commit()
         db.refresh(receipt)
 
-        # Audit log: sale created
+        # Audit log: sale created — must not block checkout on failure
         try:
             create_audit_log(
                 db,
@@ -469,7 +469,7 @@ class POSService:
             )
             db.commit()
         except Exception:
-            pass  # audit failure must not block the sale
+            db.rollback()  # restore session — receipt is already committed above
 
         return receipt
 
@@ -630,6 +630,6 @@ class POSService:
             )
             db.commit()
         except Exception:
-            pass
+            db.rollback()
 
         return receipt

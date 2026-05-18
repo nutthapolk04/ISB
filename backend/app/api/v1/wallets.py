@@ -360,7 +360,7 @@ def adjust_wallet_balance(
             )
             db.commit()
         except Exception:
-            pass
+            db.rollback()
         return WalletTransactionResponse(
             id=tx.id,
             wallet_id=tx.wallet_id,
