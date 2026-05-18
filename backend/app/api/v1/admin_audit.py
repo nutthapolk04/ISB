@@ -93,7 +93,6 @@ def list_audit_logs(
                 al.shop_id,
                 al.action,
                 al.changes_json,
-                al.ip_address,
                 al.user_id,
                 u.username AS user_username,
                 u.full_name AS user_full_name
@@ -116,10 +115,10 @@ def list_audit_logs(
             shop_id=r[5],
             action=str(r[6]) if r[6] else "unknown",
             changes=r[7],
-            ip_address=r[8],
-            user_id=r[9],
-            user_username=r[10],
-            user_full_name=r[11],
+            ip_address=None,
+            user_id=r[8],
+            user_username=r[9],
+            user_full_name=r[10],
         )
         for r in rows
     ]
