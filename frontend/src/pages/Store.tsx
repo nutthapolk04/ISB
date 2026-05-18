@@ -469,7 +469,7 @@ const Store = () => {
   const addToCart = useCallback(
     (product: Product) => {
       // Special items (price=0) must have a cashier-entered price first.
-      if (product.price === 0 && (product.internalPrice ?? 0) === 0) {
+      if (product.price === 0) {
         setSpecialItemTarget(product);
         setSpecialItemPrice("");
         return;

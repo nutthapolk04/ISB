@@ -135,7 +135,7 @@ export default function Canteen() {
   const [cartOpen, setCartOpen] = useState(false);
 
   const handleProductTap = (product: CanteenProduct) => {
-    if (product.price === 0 && product.internalPrice === 0) {
+    if (product.price === 0) {
       setSpecialItemTarget(product);
       setSpecialItemPrice("");
       return;
