@@ -485,6 +485,10 @@ class ReturnsService:
             if rr.exchange_product_codes:
                 exchanged = [c.strip() for c in rr.exchange_product_codes.split(",") if c.strip()]
 
+            # Fall back to price × qty when refund_amount was never set.
+            computed_return = float(rr.price or 0) * int(rr.return_quantity or 0)
+            return_val = float(rr.refund_amount) if rr.refund_amount is not None else computed_return
+            exchange_val = float(rr.exchange_amount or 0)
             results.append({
                 "id": f"RT-{rr.id:03d}",
                 "date": rr.processed_at.strftime("%Y-%m-%d %H:%M") if rr.processed_at else rr.created_at.strftime("%Y-%m-%d %H:%M"),
@@ -493,11 +497,6 @@ class ReturnsService:
                 "studentName": "",
                 "returnedItems": [f"{rr.product_name} x{rr.return_quantity}"],
                 "exchangedItems": exchanged,
-                # Fall back to price × qty when refund was approved via status
-                # button (no process_refund call) so refund_amount was never set.
-                computed_return = float(rr.price or 0) * int(rr.return_quantity or 0)
-                return_val = float(rr.refund_amount) if rr.refund_amount is not None else computed_return
-                exchange_val = float(rr.exchange_amount or 0)
                 "returnValue": return_val,
                 "exchangeValue": exchange_val,
                 "difference": exchange_val - return_val,
