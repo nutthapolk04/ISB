@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucide-react";
@@ -119,10 +126,20 @@ export default function Canteen() {
   // Product being customised in the MenuOptionModal.
   const [optionTarget, setOptionTarget] = useState<CanteenProduct | null>(null);
 
+  // Special item (price=0) — cashier must enter price before adding.
+  const [specialItemTarget, setSpecialItemTarget] = useState<CanteenProduct | null>(null);
+  const [specialItemPrice, setSpecialItemPrice] = useState("");
+  const specialItemInputRef = useRef<HTMLInputElement>(null);
+
   // Mobile cart sheet (shown below lg breakpoint).
   const [cartOpen, setCartOpen] = useState(false);
 
   const handleProductTap = (product: CanteenProduct) => {
+    if (product.price === 0 && product.internalPrice === 0) {
+      setSpecialItemTarget(product);
+      setSpecialItemPrice("");
+      return;
+    }
     if (product.hasOptions) {
       setOptionTarget(product);
     } else {
@@ -710,6 +727,66 @@ export default function Canteen() {
         open={topupOpen}
         onOpenChange={setTopupOpen}
       />
+
+      {/* Special item — cashier enters price before adding to cart */}
+      <Dialog
+        open={!!specialItemTarget}
+        onOpenChange={(o) => { if (!o) setSpecialItemTarget(null); }}
+      >
+        <DialogContent
+          className="sm:max-w-xs"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            setTimeout(() => specialItemInputRef.current?.focus(), 50);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>กำหนดราคา</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {specialItemTarget?.name} — ใส่ราคาขาย
+            </p>
+            <Input
+              ref={specialItemInputRef}
+              type="number"
+              min="0"
+              step="any"
+              placeholder="0.00"
+              value={specialItemPrice}
+              onChange={(e) => setSpecialItemPrice(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const parsed = parseFloat(specialItemPrice);
+                  if (!isNaN(parsed) && parsed >= 0 && specialItemTarget) {
+                    cart.addSpecialItem(specialItemTarget, parsed);
+                    setSpecialItemTarget(null);
+                  }
+                }
+              }}
+              className="text-lg text-right tabular-nums"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSpecialItemTarget(null)}>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={() => {
+                const parsed = parseFloat(specialItemPrice);
+                if (!isNaN(parsed) && parsed >= 0 && specialItemTarget) {
+                  cart.addSpecialItem(specialItemTarget, parsed);
+                  setSpecialItemTarget(null);
+                }
+              }}
+              disabled={isNaN(parseFloat(specialItemPrice)) || parseFloat(specialItemPrice) < 0}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
+            >
+              เพิ่มในตะกร้า
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Wallet limit exceeded — prominent AlertDialog */}
       <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>

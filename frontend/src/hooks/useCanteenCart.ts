@@ -45,6 +45,8 @@ export interface CanteenCartState {
   itemCount: number;
   /** Add item with no options — plain products. */
   addItem: (product: CanteenProduct) => void;
+  /** Add a special item (price=0) with a cashier-entered price. Always creates a new line. */
+  addSpecialItem: (product: CanteenProduct, price: number) => void;
   /** Add item with explicit options (from MenuOptionModal). */
   addItemWithOptions: (
     product: CanteenProduct,
@@ -132,6 +134,26 @@ export function useCanteenCart(): CanteenCartState {
           },
         ];
       });
+    },
+    [flashLine],
+  );
+
+  const addSpecialItem = useCallback(
+    (product: CanteenProduct, price: number) => {
+      // Special items always get their own line (no dedup) since each may have a different price.
+      const lineId = generateLineId();
+      flashLine(lineId);
+      setItems((prev) => [
+        ...prev,
+        {
+          ...product,
+          cartLineId: lineId,
+          quantity: 1,
+          selectedOptions: [],
+          optionsTotal: 0,
+          priceOverride: price,
+        },
+      ]);
     },
     [flashLine],
   );
@@ -335,6 +357,7 @@ export function useCanteenCart(): CanteenCartState {
     total,
     itemCount,
     addItem,
+    addSpecialItem,
     addItemWithOptions,
     incrementLine,
     decrementLine,

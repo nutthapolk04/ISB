@@ -56,6 +56,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PaymentMethodPicker, type CanteenPaymentMethod } from "./canteen/PaymentMethodPicker";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
@@ -328,6 +335,7 @@ const Store = () => {
   // ── Refs ────────────────────────────────────────────────────────────────
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const specialItemInputRef = useRef<HTMLInputElement>(null);
 
   // ── Cart ────────────────────────────────────────────────────────────────
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -364,6 +372,9 @@ const Store = () => {
   const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
   // Pre-selected member from search (for direct wallet charge)
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
+  // Special item (price=0) — cashier must enter price before adding
+  const [specialItemTarget, setSpecialItemTarget] = useState<Product | null>(null);
+  const [specialItemPrice, setSpecialItemPrice] = useState("");
 
   // ── Department charge gating ────────────────────────────────────────────
   const canUseDeptCharge = useMemo(() => {
@@ -457,6 +468,12 @@ const Store = () => {
   // ── Cart actions ────────────────────────────────────────────────────────
   const addToCart = useCallback(
     (product: Product) => {
+      // Special items (price=0) must have a cashier-entered price first.
+      if (product.price === 0 && (product.internalPrice ?? 0) === 0) {
+        setSpecialItemTarget(product);
+        setSpecialItemPrice("");
+        return;
+      }
       const panelPrice =
         activePanelId != null && panelPrices[activePanelId]?.[product.id] != null
           ? panelPrices[activePanelId][product.id]
@@ -1573,6 +1590,75 @@ const Store = () => {
         open={topupOpen}
         onOpenChange={setTopupOpen}
       />
+
+      {/* Special item — cashier enters price before adding to cart */}
+      <Dialog
+        open={!!specialItemTarget}
+        onOpenChange={(o) => { if (!o) setSpecialItemTarget(null); }}
+      >
+        <DialogContent
+          className="sm:max-w-xs"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            setTimeout(() => specialItemInputRef.current?.focus(), 50);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>กำหนดราคา</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {specialItemTarget?.name} — ใส่ราคาขาย
+            </p>
+            <Input
+              ref={specialItemInputRef}
+              type="number"
+              min="0"
+              step="any"
+              placeholder="0.00"
+              value={specialItemPrice}
+              onChange={(e) => setSpecialItemPrice(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && specialItemTarget) {
+                  const parsed = parseFloat(specialItemPrice);
+                  if (!isNaN(parsed) && parsed >= 0) {
+                    setCart((prev) => [
+                      ...prev,
+                      { ...specialItemTarget, quantity: 1, priceOverride: parsed },
+                    ]);
+                    setLastAddedId(specialItemTarget.id);
+                    setSpecialItemTarget(null);
+                  }
+                }
+              }}
+              className="text-lg text-right tabular-nums"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSpecialItemTarget(null)}>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={() => {
+                if (!specialItemTarget) return;
+                const parsed = parseFloat(specialItemPrice);
+                if (!isNaN(parsed) && parsed >= 0) {
+                  setCart((prev) => [
+                    ...prev,
+                    { ...specialItemTarget, quantity: 1, priceOverride: parsed },
+                  ]);
+                  setLastAddedId(specialItemTarget.id);
+                  setSpecialItemTarget(null);
+                }
+              }}
+              disabled={isNaN(parseFloat(specialItemPrice)) || parseFloat(specialItemPrice) < 0}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
+            >
+              เพิ่มในตะกร้า
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Wallet limit exceeded — prominent AlertDialog */}
       <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
