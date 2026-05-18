@@ -1,16 +1,17 @@
 """
 Admin Audit Log API — paginated read of audit_logs table for admins.
+Uses raw SQL to avoid ORM enum-mapping issues (action column is VARCHAR in DB).
 """
 from datetime import date, datetime, time, timezone
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.api.deps import require_role
 from app.core.database import get_db
-from app.models.audit_log import AuditLog
 from app.models.user import User
 
 router = APIRouter()
@@ -21,6 +22,8 @@ class AuditLogEntry(BaseModel):
     created_at: datetime
     entity_type: str
     entity_id: Optional[int]
+    entity_name: Optional[str]
+    shop_id: Optional[str]
     action: str
     user_id: int
     user_username: Optional[str]
@@ -47,41 +50,76 @@ def list_audit_logs(
     _: User = Depends(require_role("admin")),
 ):
     """List audit logs with filters. Admin only."""
-    q = db.query(AuditLog).options(joinedload(AuditLog.user))
+    conditions = ["1=1"]
+    params: dict = {}
 
     if entity_type:
-        q = q.filter(AuditLog.entity_type == entity_type)
+        conditions.append("al.entity_type = :entity_type")
+        params["entity_type"] = entity_type
     if action:
-        q = q.filter(AuditLog.action == action)
+        conditions.append("al.action = :action")
+        params["action"] = action
     if user_id:
-        q = q.filter(AuditLog.user_id == user_id)
+        conditions.append("al.user_id = :user_id")
+        params["user_id"] = user_id
     if date_from:
         start = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
-        q = q.filter(AuditLog.created_at >= start)
+        conditions.append("al.created_at >= :date_from")
+        params["date_from"] = start
     if date_to:
         end = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
-        q = q.filter(AuditLog.created_at <= end)
+        conditions.append("al.created_at <= :date_to")
+        params["date_to"] = end
 
-    total = q.count()
-    rows = (
-        q.order_by(AuditLog.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    where_sql = " AND ".join(conditions)
+
+    total_row = db.execute(
+        text(f"SELECT COUNT(*) FROM audit_logs al WHERE {where_sql}"),
+        params,
+    ).fetchone()
+    total = total_row[0] if total_row else 0
+
+    params["limit"] = page_size
+    params["offset"] = (page - 1) * page_size
+
+    rows = db.execute(
+        text(f"""
+            SELECT
+                al.id,
+                al.created_at,
+                al.entity_type,
+                al.entity_id,
+                al.entity_name,
+                al.shop_id,
+                al.action,
+                al.changes_json,
+                al.ip_address,
+                al.user_id,
+                u.username AS user_username,
+                u.full_name AS user_full_name
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id = al.user_id
+            WHERE {where_sql}
+            ORDER BY al.created_at DESC
+            LIMIT :limit OFFSET :offset
+        """),
+        params,
+    ).fetchall()
 
     items = [
         AuditLogEntry(
-            id=r.id,
-            created_at=r.created_at,
-            entity_type=r.entity_type,
-            entity_id=r.entity_id,
-            action=r.action.value if hasattr(r.action, "value") else str(r.action),
-            user_id=r.user_id,
-            user_username=r.user.username if r.user else None,
-            user_full_name=r.user.full_name if r.user else None,
-            changes=r.changes_json,
-            ip_address=r.ip_address,
+            id=r[0],
+            created_at=r[1],
+            entity_type=r[2],
+            entity_id=r[3],
+            entity_name=r[4],
+            shop_id=r[5],
+            action=str(r[6]) if r[6] else "unknown",
+            changes=r[7],
+            ip_address=r[8],
+            user_id=r[9],
+            user_username=r[10],
+            user_full_name=r[11],
         )
         for r in rows
     ]

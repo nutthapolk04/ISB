@@ -35,6 +35,8 @@ interface AuditLogEntry {
   created_at: string;
   entity_type: string;
   entity_id: number | null;
+  entity_name: string | null;
+  shop_id: string | null;
   action: string;
   user_id: number;
   user_username: string | null;
@@ -219,9 +221,17 @@ export default function AuditLogList() {
                       <div className="text-xs text-muted-foreground">@{row.user_username ?? row.user_id}</div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-mono text-xs">{row.entity_type}</span>
-                      {row.entity_id !== null && (
-                        <span className="text-xs text-muted-foreground"> #{row.entity_id}</span>
+                      <div className="font-mono text-xs">
+                        {row.entity_type}
+                        {row.entity_id !== null && (
+                          <span className="text-muted-foreground"> #{row.entity_id}</span>
+                        )}
+                      </div>
+                      {row.entity_name && (
+                        <div className="text-xs text-muted-foreground truncate max-w-[160px]">{row.entity_name}</div>
+                      )}
+                      {row.shop_id && (
+                        <div className="text-[11px] text-muted-foreground/60">{row.shop_id}</div>
                       )}
                     </TableCell>
                     <TableCell>
