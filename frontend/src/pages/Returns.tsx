@@ -702,21 +702,38 @@ const Returns = () => {
 
     try {
       // Step 1: Verify card belongs to a registered cardholder.
-      // Try by-card first, fall back to by-code (mirrors POS RFID flow).
+      // Try customer by-card → customer by-code → user by-card (staff/parent).
       let cardholder: { full_name: string; customer_code?: string };
+      let found = false;
+      // 1a. customer by card UID
       try {
         cardholder = await api.get<{ full_name: string; customer_code: string }>(
           `/customers/by-card/${encodeURIComponent(uid)}`,
         );
+        found = true;
       } catch (e) {
-        if (e instanceof ApiError && e.status === 404) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+      // 1b. customer by student code
+      if (!found) {
+        try {
           cardholder = await api.get<{ full_name: string; customer_code: string }>(
             `/customers/by-code/${encodeURIComponent(uid)}`,
           );
-        } else {
-          throw e;
+          found = true;
+        } catch (e) {
+          if (!(e instanceof ApiError && e.status === 404)) throw e;
         }
       }
+      // 1c. user (staff/parent) by card UID
+      if (!found) {
+        const u = await api.get<{ full_name: string; username: string }>(
+          `/users/by-card/${encodeURIComponent(uid)}`,
+        );
+        cardholder = { full_name: u.full_name, customer_code: u.username };
+        found = true;
+      }
+      if (!found) throw new ApiError(404, "Not found", "NOT_FOUND");
       setVerifiedCardholder(cardholder);
 
       // Step 2: Process exchange. Refund no longer goes through the card-tap
