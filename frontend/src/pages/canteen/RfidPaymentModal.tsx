@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -110,6 +111,8 @@ export function RfidPaymentModal({
   preSelectedMember,
   onClearPreSelected,
 }: RfidPaymentModalProps) {
+  const { t } = useTranslation();
+  const r = (k: string, opts?: Record<string, unknown>) => t(`canteen.rfidModal.${k}`, opts as Parameters<typeof t>[1]);
   const [stage, setStage] = useState<Stage>("detect");
   const [payerKind, setPayerKind] = useState<PayerKind>("customer");
   const [cardInput, setCardInput] = useState("");
@@ -371,10 +374,10 @@ export function RfidPaymentModal({
               </Button>
             )}
             {stage === "detect"
-              ? "แตะบัตรหรือใส่รหัส"
+              ? r("title")
               : stage === "family"
-                ? "เลือกผู้ชำระเงิน"
-                : "Verify Identity"}
+                ? r("titleFamily")
+                : r("titleVerify")}
           </DialogTitle>
         </DialogHeader>
 
@@ -385,15 +388,15 @@ export function RfidPaymentModal({
               <CreditCard className="h-16 w-16" />
             </div>
             <p className="text-sm text-muted-foreground text-center">
-              แตะบัตรนักเรียน / พนักงาน / ผู้ปกครอง
+              {r("desc")}
               <br />
-              <span className="text-xs">ระบบจะระบุตัวตนอัตโนมัติ</span>
+              <span className="text-xs">{r("descAuto")}</span>
             </p>
 
             {/* Single unified card / code input */}
             <div className="w-full space-y-2">
               <label className="text-xs font-medium text-muted-foreground">
-                Card UID / รหัสนักเรียน / username พนักงาน
+                {r("inputLabel")}
               </label>
               <div className="flex gap-2">
                 <Input
@@ -402,7 +405,7 @@ export function RfidPaymentModal({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") lookup(cardInput);
                   }}
-                  placeholder="สแกนบัตร หรือพิมพ์รหัส…"
+                  placeholder={r("inputPlaceholder")}
                   autoFocus
                   disabled={lookupLoading}
                 />
@@ -413,7 +416,7 @@ export function RfidPaymentModal({
                   {lookupLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    "ค้นหา"
+                    r("searchBtn")
                   )}
                 </Button>
               </div>
@@ -437,20 +440,20 @@ export function RfidPaymentModal({
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
               >
                 <Users className="h-3.5 w-3.5" />
-                ไม่มีบัตร? ค้นหาครอบครัวด้วยรหัสพนักงาน
+                {r("noCard")}
               </button>
 
               {payerKind === "family" && (
                 <div className="space-y-2">
                   <div className="rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-900">
-                    <strong>ค้นหาโดยไม่มีบัตร</strong> — พิมพ์ username พนักงาน หรือรหัสครอบครัว
+                    <strong>{r("noCardTitle")}</strong> — {r("noCardHint")}
                   </div>
                   <div className="flex gap-2">
                     <Input
                       value={familyQuery}
                       onChange={(e) => setFamilyQuery(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") lookupFamily(); }}
-                      placeholder="เช่น somchair หรือ FAM001"
+                      placeholder={r("noCardPlaceholder")}
                       autoFocus
                       disabled={familyLoading}
                     />
@@ -458,7 +461,7 @@ export function RfidPaymentModal({
                       onClick={lookupFamily}
                       disabled={familyLoading || !familyQuery.trim()}
                     >
-                      {familyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ค้นหา"}
+                      {familyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : r("searchBtn")}
                     </Button>
                   </div>
                   {familyError && (
@@ -469,7 +472,7 @@ export function RfidPaymentModal({
             </div>
 
             <Button variant="ghost" onClick={onBack} className="mt-2">
-              เปลี่ยนวิธีชำระเงิน
+              {r("changePayment")}
             </Button>
           </div>
         )}
@@ -478,9 +481,9 @@ export function RfidPaymentModal({
         {stage === "family" && familyResult && (
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              พบ {familyResult.members.length} คน
-              {familyResult.family_code && <> · รหัสครอบครัว <code className="font-mono text-xs bg-muted px-1 rounded">{familyResult.family_code}</code></>}
-              {" "}— เลือกผู้ชำระเงิน
+              {r("familyFound", { count: familyResult.members.length })}
+              {familyResult.family_code && <> · {r("familyCode")} <code className="font-mono text-xs bg-muted px-1 rounded">{familyResult.family_code}</code></>}
+              {" "}— {r("selectPayer")}
             </p>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {familyResult.members.map((member) => {
@@ -511,9 +514,9 @@ export function RfidPaymentModal({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-semibold text-sm truncate">{member.name}</span>
                         <Badge variant="secondary" className="h-4 text-[10px] px-1">
-                          {member.entity_type === "user" ? (member.role ?? "staff") : `Grade ${member.grade ?? "?"}`}
+                          {member.entity_type === "user" ? (member.role ?? "staff") : r("grade", { grade: member.grade ?? "?" })}
                         </Badge>
-                        {isFrozen && <Badge variant="destructive" className="h-4 text-[10px] px-1">Frozen</Badge>}
+                        {isFrozen && <Badge variant="destructive" className="h-4 text-[10px] px-1">{r("frozen")}</Badge>}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {member.entity_type === "user" ? `@${member.username}` : (member.student_code ?? member.customer_code)}
@@ -537,7 +540,7 @@ export function RfidPaymentModal({
               onClick={() => { setStage("detect"); setFamilyResult(null); }}
               className="w-full"
             >
-              <ArrowLeft className="h-4 w-4 mr-1" /> ค้นหาใหม่
+              <ArrowLeft className="h-4 w-4 mr-1" /> {r("newSearch")}
             </Button>
           </div>
         )}
@@ -584,7 +587,7 @@ export function RfidPaymentModal({
                 {payerKind === "customer" && student?.allergies && (
                   <div className="mt-2 flex items-start gap-1 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-700">
                     <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                    <span>Allergies: {student.allergies}</span>
+                    <span>{r("allergies")}: {student.allergies}</span>
                   </div>
                 )}
               </div>
@@ -595,10 +598,8 @@ export function RfidPaymentModal({
               <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
                 <ShieldAlert className="h-5 w-5 shrink-0" />
                 <div>
-                  <div className="font-semibold">Card is frozen</div>
-                  <div className="text-xs">
-                    Ask parent/admin to unfreeze before charging.
-                  </div>
+                  <div className="font-semibold">{r("frozenTitle")}</div>
+                  <div className="text-xs">{r("frozenDesc")}</div>
                 </div>
               </div>
             )}
@@ -606,20 +607,20 @@ export function RfidPaymentModal({
             {/* Balance forecast */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Current balance</span>
+                <span className="text-muted-foreground">{r("balanceCurrent")}</span>
                 <span className="tabular-nums font-semibold">
                   ฿{balance.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Order total</span>
+                <span className="text-muted-foreground">{r("balanceOrder")}</span>
                 <span className="tabular-nums font-semibold">
                   −฿{total.toFixed(2)}
                 </span>
               </div>
               <div className="my-1 border-t border-dashed border-border" />
               <div className="flex justify-between text-base font-bold">
-                <span>After payment</span>
+                <span>{r("balanceAfter")}</span>
                 <span
                   className={cn(
                     "tabular-nums",
@@ -635,7 +636,7 @@ export function RfidPaymentModal({
               </div>
               {dailyLimitVal && (
                 <div className="pt-1 text-[11px] text-muted-foreground">
-                  Daily limit: ฿{dailyLimitVal.toFixed(2)}
+                  {r("dailyLimit")}: ฿{dailyLimitVal.toFixed(2)}
                 </div>
               )}
             </div>
@@ -645,10 +646,9 @@ export function RfidPaymentModal({
               <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
                 <ShieldAlert className="h-5 w-5 shrink-0" />
                 <div>
-                  <div className="font-semibold">Exceeds overdraft limit</div>
+                  <div className="font-semibold">{r("overLimitTitle")}</div>
                   <div className="text-xs">
-                    Balance would go ฿{Math.abs(remaining).toFixed(2)} negative,
-                    but the overdraft cap is ฿{Number(negLimit).toFixed(2)}.
+                    {r("overLimitDesc", { amount: Math.abs(remaining).toFixed(2), cap: Number(negLimit).toFixed(2) })}
                   </div>
                 </div>
               </div>
@@ -657,10 +657,9 @@ export function RfidPaymentModal({
               <div className="flex items-start gap-2 rounded-lg bg-amber-100 p-3 text-sm text-amber-900">
                 <AlertTriangle className="h-5 w-5 shrink-0" />
                 <div>
-                  <div className="font-semibold">Balance will go negative</div>
+                  <div className="font-semibold">{r("goingNegTitle")}</div>
                   <div className="text-xs">
-                    Within allowed overdraft. Student will owe ฿
-                    {Math.abs(remaining).toFixed(2)}.
+                    {r("goingNegDesc", { amount: Math.abs(remaining).toFixed(2) })}
                   </div>
                 </div>
               </div>
@@ -669,7 +668,7 @@ export function RfidPaymentModal({
               <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
                 <CheckCircle2 className="h-5 w-5 shrink-0" />
                 <div className="font-semibold">
-                  Sufficient balance — ready to charge
+                  {r("sufficientBalance")}
                 </div>
               </div>
             )}
@@ -685,7 +684,7 @@ export function RfidPaymentModal({
                 }}
                 disabled={confirming}
               >
-                Cancel
+                {r("cancel")}
               </Button>
               <Button
                 className="flex-1 bg-amber-500 hover:bg-amber-600 font-semibold"
@@ -695,10 +694,10 @@ export function RfidPaymentModal({
                 {confirming ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Charging…
+                    {r("charging")}
                   </>
                 ) : (
-                  `Confirm ฿${total.toFixed(2)}`
+                  r("confirm", { total: total.toFixed(2) })
                 )}
               </Button>
             </div>
