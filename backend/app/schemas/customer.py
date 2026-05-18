@@ -69,6 +69,14 @@ class GraduateResponse(BaseModel):
     message: str
 
 
+class CustomerBasicUpdate(BaseModel):
+    name: Optional[str] = None
+    grade: Optional[str] = None
+    school_type: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+
 class CreateStudentRequest(BaseModel):
     customer_code: str
     name: str

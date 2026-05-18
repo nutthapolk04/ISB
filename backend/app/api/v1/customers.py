@@ -22,6 +22,7 @@ from app.schemas.customer import (
     CreateStudentRequest,
     GraduateRequest,
     GraduateResponse,
+    CustomerBasicUpdate,
 )
 from app.services.wallet_service import WalletService
 
@@ -189,6 +190,38 @@ def get_customer_profile(
         WalletService.ensure_wallet_for_customer(db, c.id)
         db.commit()
         db.refresh(c)
+    return _to_profile(c)
+
+
+@router.patch("/{customer_id}", response_model=StudentProfileResponse)
+def update_customer_basic(
+    customer_id: int,
+    payload: CustomerBasicUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Admin: update basic student info (name, grade, school_type, email, phone)."""
+    c = (
+        db.query(Customer)
+        .options(joinedload(Customer.wallet))
+        .filter(Customer.id == customer_id)
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    _authz_access_customer(db, current_user, c)
+    if payload.name is not None:
+        c.name = payload.name
+    if payload.grade is not None:
+        c.grade = payload.grade
+    if payload.school_type is not None:
+        c.school_type = payload.school_type
+    if payload.email is not None:
+        c.email = payload.email
+    if payload.phone is not None:
+        c.phone = payload.phone
+    db.commit()
+    db.refresh(c)
     return _to_profile(c)
 
 

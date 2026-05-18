@@ -87,6 +87,11 @@ export default function CustomerDetail() {
   const [allLinks, setAllLinks] = useState<FamilyLink[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Basic info editor
+  const [editingBasic, setEditingBasic] = useState(false);
+  const [basicDraft, setBasicDraft] = useState({ name: "", grade: "", school_type: "", email: "", phone: "" });
+  const [savingBasic, setSavingBasic] = useState(false);
+
   // Allergy editor
   const [editingAllergy, setEditingAllergy] = useState(false);
   const [allergyDraft, setAllergyDraft] = useState({ allergies: "", dietary_notes: "", allergy_override_note: "" });
@@ -122,6 +127,13 @@ export default function CustomerDetail() {
     try {
       const p = await api.get<StudentProfile>(`/customers/${customerId}`);
       setProfile(p);
+      setBasicDraft({
+        name: p.name ?? "",
+        grade: p.grade ?? "",
+        school_type: p.school_type ?? "",
+        email: p.email ?? "",
+        phone: p.phone ?? "",
+      });
       setAllergyDraft({
         allergies: p.allergies ?? "",
         dietary_notes: p.dietary_notes ?? "",
@@ -179,6 +191,25 @@ export default function CustomerDetail() {
     if (!profile) return [] as FamilyLink[];
     return allLinks.filter((l) => l.child_customer_id === profile.id);
   }, [allLinks, profile]);
+
+  const handleSaveBasic = async () => {
+    if (!profile) return;
+    setSavingBasic(true);
+    try {
+      const payload: Record<string, string | null> = {};
+      for (const [k, v] of Object.entries(basicDraft)) {
+        payload[k] = v.trim() === "" ? null : v.trim();
+      }
+      await api.patch(`/customers/${profile.id}`, payload);
+      toast({ title: t("admin.customer.basicSaved") });
+      setEditingBasic(false);
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.basicSaveError"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setSavingBasic(false);
+    }
+  };
 
   const handleSaveAllergy = async () => {
     if (!profile) return;
@@ -413,6 +444,103 @@ export default function CustomerDetail() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserIcon className="h-4 w-4" /> {t("admin.customer.basicInfoTitle")}
+            </CardTitle>
+            {!editingBasic ? (
+              <Button variant="ghost" size="sm" onClick={() => setEditingBasic(true)}>
+                <Edit3 className="h-4 w-4" />
+              </Button>
+            ) : (
+              <div className="flex gap-1">
+                <IconButton
+                  tooltip={t("admin.customer.tooltip.cancelEdit")}
+                  onClick={() => {
+                    setEditingBasic(false);
+                    setBasicDraft({
+                      name: profile.name ?? "",
+                      grade: profile.grade ?? "",
+                      school_type: profile.school_type ?? "",
+                      email: profile.email ?? "",
+                      phone: profile.phone ?? "",
+                    });
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </IconButton>
+                <IconButton
+                  tooltip={t("admin.customer.tooltip.saveEdit")}
+                  onClick={handleSaveBasic}
+                  disabled={savingBasic}
+                >
+                  <Save className="h-4 w-4" />
+                </IconButton>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {editingBasic ? (
+              <>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.basicName")}</Label>
+                  <Input value={basicDraft.name} onChange={(e) => setBasicDraft({ ...basicDraft, name: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.basicGrade")}</Label>
+                  <Input value={basicDraft.grade} onChange={(e) => setBasicDraft({ ...basicDraft, grade: e.target.value })} placeholder={t("admin.customer.basicGradePlaceholder")} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.basicSchoolType")}</Label>
+                  <Select value={basicDraft.school_type} onValueChange={(v) => setBasicDraft({ ...basicDraft, school_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("admin.customer.basicSchoolTypePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ES Student">ES Student</SelectItem>
+                      <SelectItem value="MS Student">MS Student</SelectItem>
+                      <SelectItem value="HS Student">HS Student</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.basicEmail")}</Label>
+                  <Input type="email" value={basicDraft.email} onChange={(e) => setBasicDraft({ ...basicDraft, email: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("admin.customer.basicPhone")}</Label>
+                  <Input value={basicDraft.phone} onChange={(e) => setBasicDraft({ ...basicDraft, phone: e.target.value })} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicName")}</p>
+                  <p className="text-sm font-medium">{profile.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicGrade")}</p>
+                  <p className="text-sm">{profile.grade || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicSchoolType")}</p>
+                  <p className="text-sm">{profile.school_type || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicEmail")}</p>
+                  <p className="text-sm">{profile.email || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicPhone")}</p>
+                  <p className="text-sm">{profile.phone || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Allergy info */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
