@@ -402,10 +402,12 @@ export default function Canteen() {
       try {
         const amount = cart.total;
         const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
-        const res = await doCheckout("wallet", {
-          kind: "customer",
-          customerId: preSelectedMember.id,
-        });
+        const res = await doCheckout(
+          "wallet",
+          preSelectedMember.user_id != null
+            ? { kind: "user", userId: preSelectedMember.user_id }
+            : { kind: "customer", customerId: preSelectedMember.id },
+        );
         finalizeSuccess(
           res.receipt_number,
           amount,

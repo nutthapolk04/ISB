@@ -17,6 +17,7 @@ from app.models.user import User
 from app.models.wallet import Wallet
 from app.schemas.pos import CheckoutPayload, ReceiptResponse, VoidReceiptRequest
 from app.services.pos_service import POSService
+from app.core.errors import BusinessRuleError
 
 router = APIRouter()
 
@@ -70,6 +71,8 @@ def checkout(
             edc_masked_card=payload.edc_masked_card,
         )
         return _receipt_to_response(receipt)
+    except BusinessRuleError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_detail())
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

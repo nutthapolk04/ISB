@@ -706,7 +706,22 @@ const Store = () => {
       try {
         const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
         await doCheckout("wallet", {
-          payer: { kind: "customer", student: preSelectedMember },
+          payer:
+            preSelectedMember.user_id != null
+              ? {
+                  kind: "user",
+                  user: {
+                    user_id: preSelectedMember.user_id,
+                    username: preSelectedMember.customer_code ?? "",
+                    full_name: preSelectedMember.name,
+                    role: preSelectedMember.customer_kind ?? "parent",
+                    photo_url: preSelectedMember.photo_url ?? null,
+                    wallet_id: preSelectedMember.wallet_id ?? 0,
+                    wallet_balance: preSelectedMember.wallet_balance ?? 0,
+                    is_active: true,
+                  },
+                }
+              : { kind: "customer", student: preSelectedMember },
         });
         setPreSelectedMember(null);
       } catch (e) {
