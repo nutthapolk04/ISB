@@ -67,6 +67,18 @@ interface Receipt {
   edcMaskedCard?: string | null;
 }
 
+interface PosReceipt {
+  id: number;
+  receipt_number: string;
+  transaction_date: string;
+  payer_label: string | null;
+  payer_kind: string | null;
+  total: number;
+  payment_method: string;
+  status: string;
+  shop_id: string | null;
+}
+
 interface ReturnRequest {
   id: number;
   receiptId: string;
@@ -127,7 +139,62 @@ const Returns = () => {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { fetchReturns(); }, [fetchReturns]);
+  // ── Today's receipts ──────────────────────────────────────────────────
+  const [posReceipts, setPosReceipts] = useState<PosReceipt[]>([]);
+  const [posReceiptsLoading, setPosReceiptsLoading] = useState(false);
+  const [receiptSearchTerm, setReceiptSearchTerm] = useState("");
+
+  const loadPosReceipts = useCallback(async (q?: string) => {
+    setPosReceiptsLoading(true);
+    try {
+      const params = new URLSearchParams({ page: "1", page_size: "100" });
+      if (q) params.set("q", q);
+      const data = await api.get<PosReceipt[]>(`/pos/receipt?${params}`);
+      setPosReceipts(data);
+    } catch { /* silent */ } finally {
+      setPosReceiptsLoading(false);
+    }
+  }, []);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const displayedReceipts = receiptSearchTerm.trim()
+    ? posReceipts
+    : posReceipts.filter((r) => r.transaction_date?.startsWith(todayIso));
+
+  const handleStartReturn = async (receiptNumber: string) => {
+    setReturnMode("with-receipt");
+    setSearchReceiptId(receiptNumber);
+    setSearchStudent("");
+    setSearchDate("");
+    setSearchPaymentMethod("all");
+    try {
+      const data = await api.get<{ receipt?: Receipt & { shopId?: string } }>(
+        `/receipts/search?receiptId=${encodeURIComponent(receiptNumber)}`
+      );
+      if (data.receipt) {
+        setSelectedReceipt(data.receipt);
+        setSelectedItems({});
+        setReason("");
+        const shopId = (data.receipt as any).shopId;
+        setCurrentShopId(shopId ?? null);
+        fetchAvailableProducts(shopId);
+        try {
+          const existingData = await api.get<ReturnRequest[]>(
+            `/returns/by-receipt?receiptId=${encodeURIComponent(data.receipt.id)}`
+          );
+          setExistingReturns(existingData);
+        } catch { setExistingReturns([]); }
+        // Scroll to search/return section
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        toast.error(t("returns.receiptNotFound"));
+      }
+    } catch {
+      toast.error(t("returns.receiptNotFound"));
+    }
+  };
+
+  useEffect(() => { fetchReturns(); loadPosReceipts(); }, [fetchReturns, loadPosReceipts]);
 
   // Existing returns for the searched receipt (to show returnable vs already-returned)
   const [existingReturns, setExistingReturns] = useState<ReturnRequest[]>([]);
@@ -1222,6 +1289,92 @@ const Returns = () => {
       )}
       </>
       )}
+
+      {/* ── Today's Sales ───────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              {receiptSearchTerm.trim() ? "ผลการค้นหา" : "รายการขายวันนี้"}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="ค้นหาเลขใบเสร็จ / ชื่อผู้ซื้อ…"
+                value={receiptSearchTerm}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setReceiptSearchTerm(v);
+                  if (v.trim()) loadPosReceipts(v.trim());
+                  else loadPosReceipts();
+                }}
+                className="w-full sm:max-w-xs"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {posReceiptsLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">กำลังโหลด…</div>
+          ) : displayedReceipts.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              {receiptSearchTerm.trim() ? "ไม่พบรายการ" : "ยังไม่มีรายการขายวันนี้"}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>วันที่/เวลา</TableHead>
+                  <TableHead>เลขใบเสร็จ</TableHead>
+                  <TableHead>ผู้ซื้อ</TableHead>
+                  <TableHead>วิธีชำระ</TableHead>
+                  <TableHead className="text-right">ยอดรวม</TableHead>
+                  <TableHead className="text-center">สถานะ</TableHead>
+                  <TableHead className="text-center">คืนสินค้า</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayedReceipts.map((r) => (
+                  <TableRow key={r.id} className={r.status === "voided" ? "opacity-50" : ""}>
+                    <TableCell className="text-sm tabular-nums text-muted-foreground whitespace-nowrap">
+                      {new Date(r.transaction_date).toLocaleString("th-TH", {
+                        day: "2-digit", month: "2-digit", year: "2-digit",
+                        hour: "2-digit", minute: "2-digit",
+                      })}
+                    </TableCell>
+                    <TableCell className="font-mono font-medium">{r.receipt_number}</TableCell>
+                    <TableCell className="text-sm">{r.payer_label ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">{r.payment_method}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">
+                      ฿{r.total.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={r.status === "voided" ? "destructive" : "success"}>
+                        {r.status === "voided" ? "ยกเลิก" : "ปกติ"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={r.status === "voided"}
+                        onClick={() => handleStartReturn(r.receipt_number)}
+                        className="h-7 text-xs"
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        คืนสินค้า
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Returns History */}
       <Card>
