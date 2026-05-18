@@ -561,6 +561,7 @@ export default function Canteen() {
         onSetLinePrice={cart.setLinePriceOverride}
         onOpenDiscount={() => setDiscountOpen(true)}
         onClearDiscount={cart.clearDiscount}
+        onClearCart={cart.clearCart}
         onCharge={handleCharge}
         selectedMember={preSelectedMember}
         onClearMember={() => setPreSelectedMember(null)}
@@ -599,6 +600,7 @@ export default function Canteen() {
             onSetLinePrice={cart.setLinePriceOverride}
             onOpenDiscount={() => setDiscountOpen(true)}
             onClearDiscount={cart.clearDiscount}
+            onClearCart={cart.clearCart}
             onCharge={() => {
               setCartOpen(false);
               handleCharge();

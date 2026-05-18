@@ -1,4 +1,4 @@
-import { Minus, Plus, Trash2, Percent, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/IconButton";
@@ -29,6 +29,7 @@ interface CanteenCartProps {
   onSetLinePrice: (cartLineId: string, price: number | null) => void;
   onOpenDiscount: () => void;
   onClearDiscount: () => void;
+  onClearCart: () => void;
   onCharge: () => void;
   /** When rendered inside a mobile Sheet, suppress the aside-style panel chrome. */
   asSheet?: boolean;
@@ -54,6 +55,7 @@ export function CanteenCart({
   onSetLinePrice,
   onOpenDiscount,
   onClearDiscount,
+  onClearCart,
   onCharge,
   asSheet = false,
   selectedMember,
@@ -71,19 +73,32 @@ export function CanteenCart({
   return (
     <aside className={asSheet ? "canteen-cart-sheet" : "canteen-cart-panel"}>
       {/* Header */}
-      <div className="px-5 pt-5 pb-3">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          Order
-          {priceMode === "internal" && (
-            <span className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white shadow">
-              Staff
-            </span>
-          )}
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          {items.reduce((s, i) => s + i.quantity, 0)} item
-          {items.reduce((s, i) => s + i.quantity, 0) === 1 ? "" : "s"}
-        </p>
+      <div className="px-5 pt-5 pb-3 flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            Order
+            {priceMode === "internal" && (
+              <span className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white shadow">
+                Staff
+              </span>
+            )}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {items.reduce((s, i) => s + i.quantity, 0)} item
+            {items.reduce((s, i) => s + i.quantity, 0) === 1 ? "" : "s"}
+          </p>
+        </div>
+        {!isEmpty && (
+          <button
+            type="button"
+            onClick={onClearCart}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+            aria-label="Clear all items"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear all
+          </button>
+        )}
       </div>
 
       {/* Selected Member */}
