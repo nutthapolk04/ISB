@@ -1,6 +1,7 @@
 """
 Security and Authentication Utilities
 """
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
@@ -29,13 +30,23 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def generate_session_token() -> str:
+    """Generate a cryptographically secure session token (64 hex chars)."""
+    return secrets.token_hex(32)
+
+
+def create_access_token(
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    session_token: Optional[str] = None,
+) -> str:
     """
     Create a JWT access token
 
     Args:
         data: Dictionary containing claims to encode
         expires_delta: Optional expiration time delta
+        session_token: Optional session token to embed as 'sid' claim
 
     Returns:
         Encoded JWT token string
@@ -48,6 +59,8 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire, "type": "access"})
+    if session_token is not None:
+        to_encode["sid"] = session_token
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     return encoded_jwt

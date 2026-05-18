@@ -54,6 +54,8 @@ class User(Base):
     shop_module = Column(String(20), nullable=True)
     # Department association — staff members linked to their department for dept-charge auto-fill
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Feature 9: multi-login restriction — rotated on every login
+    session_token = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

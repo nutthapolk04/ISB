@@ -551,6 +551,9 @@ run('CREATE INDEX IF NOT EXISTS ix_sync_audit_entity ON sync_audit_logs(entity_t
 # === Canteen multi-stall: users.shop_module (area manager module assignment) ===
 run('ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_module VARCHAR(20)',
     'users.shop_module')
+
+# === Feature 9: multi-login restriction (one active session per user) ===
+run('ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(64)', 'users.session_token', ok_if_exists=False)
 # Backfill shop_module for existing canteen users who have a shop_id starting with 'canteen'
 run(\"UPDATE users SET shop_module = 'canteen' WHERE shop_id IN (SELECT id FROM shops WHERE module = 'canteen') AND shop_module IS NULL\",
     'users.shop_module backfill canteen', ok_if_exists=False)
@@ -597,6 +600,7 @@ required_cols = [
     ('receipts', 'payer_department_id'),
     ('receipts', 'requester_user_id'),
     ('users', 'shop_module'),
+    ('users', 'session_token'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',

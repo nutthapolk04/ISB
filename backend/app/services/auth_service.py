@@ -6,7 +6,7 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.core.security import verify_password, create_access_token, create_refresh_token
+from app.core.security import verify_password, create_access_token, create_refresh_token, generate_session_token
 from app.core.config import settings
 
 
@@ -27,7 +27,15 @@ class AuthService:
         return user
 
     def create_tokens(self, user: User) -> dict:
-        """Create access + refresh tokens for the given user."""
+        """Create access + refresh tokens for the given user.
+
+        Rotates the session_token on every call so any previously issued
+        access token becomes invalid (single-session enforcement).
+        """
+        sid = generate_session_token()
+        user.session_token = sid
+        self.db.commit()
+
         role_names = [role.name for role in user.roles]
         payload = {
             "sub": str(user.id),
@@ -39,6 +47,7 @@ class AuthService:
         access_token = create_access_token(
             data=payload,
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            session_token=sid,
         )
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
         return {
