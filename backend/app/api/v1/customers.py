@@ -107,7 +107,8 @@ def search_customers(
             (
                 Customer.name.ilike(search_pattern) |
                 Customer.student_code.ilike(search_pattern) |
-                Customer.customer_code.ilike(search_pattern)
+                Customer.customer_code.ilike(search_pattern) |
+                Customer.card_uid.ilike(search_pattern)
             )
         )
         .order_by(Customer.name)
