@@ -525,7 +525,7 @@ run('''
 run('CREATE INDEX IF NOT EXISTS ix_system_settings_key ON system_settings(key)',
     'system_settings idx key')
 # Widen system_settings.value to TEXT to support base64 logo storage
-run("ALTER TABLE system_settings ALTER COLUMN value TYPE TEXT", 'system_settings.value -> TEXT', ok_if_exists=False)
+run('ALTER TABLE system_settings ALTER COLUMN value TYPE TEXT', 'system_settings.value -> TEXT', ok_if_exists=False)
 
 # === PowerSchool sync — per-record audit log ===
 # SyncLog only stores aggregate counts; this complements it with field-level
