@@ -291,9 +291,11 @@ run('''
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
 ''', 'audit_logs table')
-# Backfill shop_id on tables created before this column was added
+# Backfill columns added after initial table creation
 run('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS shop_id VARCHAR(50)',
     'audit_logs.shop_id')
+run('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255)',
+    'audit_logs.entity_name')
 run('CREATE INDEX IF NOT EXISTS ix_audit_logs_entity ON audit_logs(entity_type, entity_id)',
     'audit_logs idx entity')
 run('CREATE INDEX IF NOT EXISTS ix_audit_logs_shop ON audit_logs(shop_id)',

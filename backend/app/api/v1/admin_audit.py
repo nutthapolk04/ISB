@@ -82,6 +82,21 @@ def list_audit_logs(
     params["limit"] = page_size
     params["offset"] = (page - 1) * page_size
 
+    # Detect which optional columns exist to stay compatible with older DB schemas.
+    col_check = db.execute(
+        text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'audit_logs'
+              AND column_name IN ('entity_name', 'shop_id')
+        """)
+    ).fetchall()
+    existing_cols = {r[0] for r in col_check}
+    has_entity_name = "entity_name" in existing_cols
+    has_shop_id = "shop_id" in existing_cols
+
+    entity_name_sel = "al.entity_name" if has_entity_name else "NULL"
+    shop_id_sel = "al.shop_id" if has_shop_id else "NULL"
+
     rows = db.execute(
         text(f"""
             SELECT
@@ -89,8 +104,8 @@ def list_audit_logs(
                 al.created_at,
                 al.entity_type,
                 al.entity_id,
-                al.entity_name,
-                al.shop_id,
+                {entity_name_sel} AS entity_name,
+                {shop_id_sel} AS shop_id,
                 al.action,
                 al.changes_json,
                 al.user_id,
