@@ -342,14 +342,17 @@ run('''
 run('CREATE INDEX IF NOT EXISTS ix_uom_code ON units_of_measure(code)', 'uom idx code')
 run('ALTER TABLE shop_products ADD COLUMN uom_id INTEGER REFERENCES units_of_measure(id)',
     'shop_products.uom_id')
-# Seed default UOM values — include conversion_factor to satisfy NOT NULL on older tables
-run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('PCS', 'ชิ้น', 'Piece', 1) ON CONFLICT (code) DO NOTHING\",
+# Ensure is_active has a DB-level default (older tables may lack it)
+run(\"ALTER TABLE units_of_measure ALTER COLUMN is_active SET DEFAULT true\",
+    'uom is_active default', ok_if_exists=False)
+# Seed default UOM values — include is_active to satisfy NOT NULL on older tables
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor, is_active) VALUES ('PCS', 'ชิ้น', 'Piece', 1, true) ON CONFLICT (code) DO NOTHING\",
     'uom seed PCS', ok_if_exists=False)
-run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('BOX', 'กล่อง', 'Box', 1) ON CONFLICT (code) DO NOTHING\",
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor, is_active) VALUES ('BOX', 'กล่อง', 'Box', 1, true) ON CONFLICT (code) DO NOTHING\",
     'uom seed BOX', ok_if_exists=False)
-run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('SET', 'ชุด', 'Set', 1) ON CONFLICT (code) DO NOTHING\",
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor, is_active) VALUES ('SET', 'ชุด', 'Set', 1, true) ON CONFLICT (code) DO NOTHING\",
     'uom seed SET', ok_if_exists=False)
-run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor) VALUES ('PACK', 'แพ็ค', 'Pack', 1) ON CONFLICT (code) DO NOTHING\",
+run(\"INSERT INTO units_of_measure (code, name, name_en, conversion_factor, is_active) VALUES ('PACK', 'แพ็ค', 'Pack', 1, true) ON CONFLICT (code) DO NOTHING\",
     'uom seed PACK', ok_if_exists=False)
 
 # === Product Bundles / Grade Sets ===
