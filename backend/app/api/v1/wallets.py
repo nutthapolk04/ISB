@@ -19,6 +19,7 @@ from app.schemas.wallet import (
     CashierTopupRequest, CashierTopupResponse,
 )
 from app.services.wallet_service import WalletService
+from app.services.audit_service import create_audit_log
 from app.models.receipt import Receipt
 from app.models.shop import Shop
 
@@ -341,6 +342,25 @@ def adjust_wallet_balance(
             reason=payload.reason,
             reference_ticket=payload.reference_ticket,
         )
+        try:
+            create_audit_log(
+                db,
+                entity_type="wallet",
+                entity_id=wallet_id,
+                entity_name=f"wallet#{wallet_id}",
+                shop_id=None,
+                action="UPDATE_BALANCE",
+                changes={
+                    "reason": payload.reason,
+                    "amount": payload.amount,
+                    "balance_before": float(tx.balance_before),
+                    "balance_after": float(tx.balance_after),
+                },
+                user_id=current_user.id,
+            )
+            db.commit()
+        except Exception:
+            pass
         return WalletTransactionResponse(
             id=tx.id,
             wallet_id=tx.wallet_id,

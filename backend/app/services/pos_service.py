@@ -18,6 +18,7 @@ from app.models.customer import Customer
 from app.models.wallet import Wallet, WalletTransaction, WalletTransactionType
 from app.services.wallet_service import WalletService
 from app.services.settings_service import SettingsService
+from app.services.audit_service import create_audit_log
 from app.core.errors import BusinessRuleError
 from decimal import Decimal
 from app.services.inventory_service import (
@@ -453,6 +454,23 @@ class POSService:
 
         db.commit()
         db.refresh(receipt)
+
+        # Audit log: sale created
+        try:
+            create_audit_log(
+                db,
+                entity_type="receipt",
+                entity_id=receipt.id,
+                entity_name=receipt.receipt_number,
+                shop_id=effective_shop_id,
+                action="CREATE",
+                changes={"payment_method": payment_method, "total": float(total), "items": len(items)},
+                user_id=user_id,
+            )
+            db.commit()
+        except Exception:
+            pass  # audit failure must not block the sale
+
         return receipt
 
     # ── List receipts ────────────────────────────────────────────────────────
@@ -597,4 +615,21 @@ class POSService:
 
         db.commit()
         db.refresh(receipt)
+
+        # Audit log: receipt voided
+        try:
+            create_audit_log(
+                db,
+                entity_type="receipt",
+                entity_id=receipt.id,
+                entity_name=receipt.receipt_number,
+                shop_id=receipt.shop_id,
+                action="VOID",
+                changes={"reason": reason, "total": float(receipt.total)},
+                user_id=user_id,
+            )
+            db.commit()
+        except Exception:
+            pass
+
         return receipt

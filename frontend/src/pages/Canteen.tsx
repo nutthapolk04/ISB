@@ -2,6 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucide-react";
@@ -75,6 +84,7 @@ export default function Canteen() {
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
   // Pre-selected member from search (for "ready to pay" flow)
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
 
@@ -340,9 +350,11 @@ export default function Canteen() {
         wallet_balance: u.wallet_balance,
       } as StudentLookupResult);
     } catch (e) {
-      toast.error(
-        e instanceof ApiError ? e.detail : "Checkout failed",
-      );
+      if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
+        setWalletLimitError(e.detail);
+      } else {
+        toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
+      }
     }
   };
 
@@ -402,9 +414,11 @@ export default function Canteen() {
         );
         setPreSelectedMember(null);
       } catch (e) {
-        toast.error(
-          e instanceof ApiError ? e.detail : "Checkout failed",
-        );
+        if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
+          setWalletLimitError(e.detail);
+        } else {
+          toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
+        }
       } finally {
         setConfirming(false);
       }
@@ -688,6 +702,23 @@ export default function Canteen() {
         open={topupOpen}
         onOpenChange={setTopupOpen}
       />
+
+      {/* Wallet limit exceeded — prominent AlertDialog */}
+      <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">ยอดเงินไม่เพียงพอ</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-foreground">
+              {walletLimitError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setWalletLimitError(null)}>
+              ตกลง
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

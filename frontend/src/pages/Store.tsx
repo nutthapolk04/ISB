@@ -47,6 +47,15 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PaymentMethodPicker, type CanteenPaymentMethod } from "./canteen/PaymentMethodPicker";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
@@ -352,6 +361,7 @@ const Store = () => {
   const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
+  const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
   // Pre-selected member from search (for direct wallet charge)
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
 
@@ -673,7 +683,11 @@ const Store = () => {
       setEdcOpen(false);
       setSuccessOpen(true);
     } catch (err: any) {
-      toast.error(err instanceof ApiError ? err.detail : err?.message ?? "Checkout failed");
+      if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
+        setWalletLimitError(err.detail);
+      } else {
+        toast.error(err instanceof ApiError ? err.detail : err?.message ?? "Checkout failed");
+      }
     } finally {
       setConfirming(false);
     }
@@ -1544,6 +1558,23 @@ const Store = () => {
         open={topupOpen}
         onOpenChange={setTopupOpen}
       />
+
+      {/* Wallet limit exceeded — prominent AlertDialog */}
+      <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">ยอดเงินไม่เพียงพอ</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-foreground">
+              {walletLimitError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setWalletLimitError(null)}>
+              ตกลง
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
