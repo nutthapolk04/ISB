@@ -187,7 +187,16 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen">
+      {/* ── Left panel: background illustration ── */}
+      <div
+        className="hidden lg:block lg:w-1/2 xl:w-3/5 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/login-bg.png')" }}
+        aria-hidden="true"
+      />
+
+      {/* ── Right panel: login form ── */}
+      <div className="flex w-full lg:w-1/2 xl:w-2/5 items-center justify-center bg-background p-6 overflow-y-auto">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3">
           <img
@@ -509,6 +518,7 @@ const Login = () => {
           </CardContent>
         </Card>
       </div>
+      </div> {/* right panel */}
     </div>
   );
 };
