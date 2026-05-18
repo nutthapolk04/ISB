@@ -432,7 +432,22 @@
     "grandTotal": "ยอดรวมทั้งสิ้น",
     "receiptCount": "จำนวนใบเสร็จ",
     "totalRefund": "ยอดเงินคืนรวม",
-    "totalExchange": "ยอดเปลี่ยนสินค้ารวม"
+    "totalExchange": "ยอดเปลี่ยนสินค้ารวม",
+    "stockCardReport": "Stock Card",
+    "stockCardReportDesc": "ประวัติความเคลื่อนไหวสต็อคแยกตาม SKU พร้อมยอดเปิด-ปิด",
+    "stockCard": {
+      "variantId": "รหัสสินค้า (Variant ID)",
+      "load": "โหลดข้อมูล",
+      "fillAll": "กรุณากรอก Variant ID และช่วงวันที่",
+      "product": "สินค้า",
+      "openingBalance": "ยอดยกมา",
+      "closingBalance": "ยอดยกไป",
+      "colType": "ประเภท",
+      "colRunning": "ยอดคงเหลือสะสม",
+      "colReference": "อ้างอิง",
+      "colNotes": "หมายเหตุ",
+      "noMovements": "ไม่มีรายการเคลื่อนไหวในช่วงนี้"
+    }
   },
   "inventory": {
     "title": "สต็อคสินค้า",

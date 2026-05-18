@@ -15,9 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard } from "lucide-react";
+import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { InfoCallout } from "@/components/InfoCallout";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
@@ -50,12 +51,32 @@ interface SalesByPaymentReportData {
   department_receipts: number;
 }
 
+interface StockCardRow {
+  date: string;
+  movement_type: string;
+  quantity: number;
+  reference: string | null;
+  notes: string | null;
+  running_balance: number;
+}
+interface StockCardReportData {
+  product_variant_id: number;
+  product_name: string;
+  sku: string;
+  date_from: string;
+  date_to: string;
+  opening_balance: number;
+  rows: StockCardRow[];
+  closing_balance: number;
+}
+
 const REPORT_DEFS: { type: string; icon: typeof FileText; needsRange: boolean }[] = [
-  { type: "salesReport",         icon: FileText,       needsRange: true },
-  { type: "topSellingReport",    icon: TrendingUp,     needsRange: true },
-  { type: "salesByPaymentReport", icon: CreditCard,    needsRange: true },
-  { type: "stockReport",         icon: Package,        needsRange: false },
-  { type: "returnReport",        icon: ArrowLeftRight, needsRange: true },
+  { type: "salesReport",         icon: FileText,        needsRange: true },
+  { type: "topSellingReport",    icon: TrendingUp,      needsRange: true },
+  { type: "salesByPaymentReport", icon: CreditCard,     needsRange: true },
+  { type: "stockReport",         icon: Package,         needsRange: false },
+  { type: "returnReport",        icon: ArrowLeftRight,  needsRange: true },
+  { type: "stockCardReport",     icon: ClipboardList,   needsRange: true },
 ];
 
 const BOM = String.fromCharCode(0xfeff);
@@ -101,15 +122,62 @@ const Reports = () => {
     api.get<CanteenShop[]>("/shops?module=canteen").then(setCanteenStalls).catch(() => {});
   }, [isCanteenAreaMgr]);
 
+  // Stock Card state
+  const [stockCardVariantId, setStockCardVariantId] = useState("");
+  const [stockCardFrom, setStockCardFrom] = useState("");
+  const [stockCardTo, setStockCardTo] = useState("");
+  const [stockCardLoading, setStockCardLoading] = useState(false);
+  const [stockCardData, setStockCardData] = useState<StockCardReportData | null>(null);
+
   const currentDef = REPORT_DEFS.find((d) => d.type === selectedReportType);
   const needsRange = currentDef?.needsRange ?? true;
 
   const handleReportClick = (reportType: string) => {
+    if (reportType === "stockCardReport") {
+      setSelectedReportType(reportType);
+      setStockCardData(null);
+      return;
+    }
     setSelectedReportType(reportType);
     setStartDate("");
     setEndDate("");
     setSelectedStall("all");
     setIsDatePickerOpen(true);
+  };
+
+  const handleLoadStockCard = async () => {
+    if (!stockCardVariantId || !stockCardFrom || !stockCardTo) {
+      toast.error(t("reports.stockCard.fillAll"));
+      return;
+    }
+    setStockCardLoading(true);
+    try {
+      const data = await api.get<StockCardReportData>(
+        `/reports/stock-card?product_variant_id=${encodeURIComponent(stockCardVariantId)}&date_from=${stockCardFrom}&date_to=${stockCardTo}`,
+      );
+      setStockCardData(data);
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
+      toast.error(detail);
+    } finally {
+      setStockCardLoading(false);
+    }
+  };
+
+  const handleExportStockCard = () => {
+    if (!stockCardData) return;
+    const { product_name, sku, date_from, date_to, opening_balance, rows, closing_balance } = stockCardData;
+    let csv = `${t("reports.stockCardReport")}\n`;
+    csv += `${t("reports.stockCard.product")}: ${csvEscape(product_name)} (SKU: ${csvEscape(sku)})\n`;
+    csv += `${t("reports.startDate")}: ${date_from}  ${t("reports.endDate")}: ${date_to}\n`;
+    csv += `${t("reports.stockCard.openingBalance")}: ${opening_balance}\n\n`;
+    csv += `${t("reports.colDate")},${t("reports.stockCard.colType")},${t("reports.colQuantity")},${t("reports.stockCard.colRunning")},${t("reports.stockCard.colReference")},${t("reports.stockCard.colNotes")}\n`;
+    for (const r of rows) {
+      csv += `${r.date.slice(0, 19).replace("T", " ")},${csvEscape(r.movement_type)},${r.quantity},${r.running_balance},${csvEscape(r.reference)},${csvEscape(r.notes)}\n`;
+    }
+    csv += `\n${t("reports.stockCard.closingBalance")},,,${closing_balance},,\n`;
+    downloadCsv(`StockCard_${sku}_${date_from}_${date_to}.csv`, csv);
+    toast.success(t("reports.exportSuccess"));
   };
 
   // Build scope query param
@@ -237,6 +305,110 @@ const Reports = () => {
           </Card>
         ))}
       </div>
+
+      {/* Stock Card inline panel */}
+      {selectedReportType === "stockCardReport" && (
+        <div className="mt-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                {t("reports.stockCardReport")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="scVariantId">{t("reports.stockCard.variantId")}</Label>
+                  <Input
+                    id="scVariantId"
+                    type="number"
+                    min={1}
+                    placeholder="1"
+                    value={stockCardVariantId}
+                    onChange={(e) => setStockCardVariantId(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
+                  <DateRangePicker
+                    id="scDateRange"
+                    startDate={stockCardFrom}
+                    endDate={stockCardTo}
+                    onStartChange={setStockCardFrom}
+                    onEndChange={setStockCardTo}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleLoadStockCard} disabled={stockCardLoading}>
+                  {stockCardLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  {t("reports.stockCard.load")}
+                </Button>
+                {stockCardData && (
+                  <Button variant="outline" onClick={handleExportStockCard}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {t("reports.exportExcel")}
+                  </Button>
+                )}
+              </div>
+
+              {stockCardData && (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium">{stockCardData.product_name}</span>
+                    {" · SKU: "}{stockCardData.sku}
+                  </div>
+                  <div className="rounded-md border p-3 bg-secondary/50 text-sm flex justify-between">
+                    <span>{t("reports.stockCard.openingBalance")}</span>
+                    <span className="font-semibold">{stockCardData.opening_balance}</span>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-3 py-2 text-left">{t("reports.colDate")}</th>
+                          <th className="px-3 py-2 text-left">{t("reports.stockCard.colType")}</th>
+                          <th className="px-3 py-2 text-right">{t("reports.colQuantity")}</th>
+                          <th className="px-3 py-2 text-right">{t("reports.stockCard.colRunning")}</th>
+                          <th className="px-3 py-2 text-left">{t("reports.stockCard.colReference")}</th>
+                          <th className="px-3 py-2 text-left">{t("reports.stockCard.colNotes")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stockCardData.rows.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
+                              {t("reports.stockCard.noMovements")}
+                            </td>
+                          </tr>
+                        ) : (
+                          stockCardData.rows.map((row, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-3 py-2 whitespace-nowrap">{row.date.slice(0, 19).replace("T", " ")}</td>
+                              <td className="px-3 py-2">{row.movement_type}</td>
+                              <td className={`px-3 py-2 text-right font-mono ${row.quantity >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                {row.quantity >= 0 ? "+" : ""}{row.quantity}
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono">{row.running_balance}</td>
+                              <td className="px-3 py-2">{row.reference ?? "—"}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.notes ?? ""}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="rounded-md border p-3 bg-primary/5 text-sm flex justify-between font-medium">
+                    <span>{t("reports.stockCard.closingBalance")}</span>
+                    <span className="font-semibold">{stockCardData.closing_balance}</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Date Picker Dialog for Excel Export */}
       <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>

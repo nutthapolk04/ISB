@@ -432,7 +432,22 @@
     "grandTotal": "Grand total",
     "receiptCount": "Receipt count",
     "totalRefund": "Total refund",
-    "totalExchange": "Total exchange"
+    "totalExchange": "Total exchange",
+    "stockCardReport": "Stock Card",
+    "stockCardReportDesc": "Per-SKU movement history with opening and closing balance",
+    "stockCard": {
+      "variantId": "Product Variant ID",
+      "load": "Load",
+      "fillAll": "Please fill in Variant ID and date range",
+      "product": "Product",
+      "openingBalance": "Opening Balance",
+      "closingBalance": "Closing Balance",
+      "colType": "Type",
+      "colRunning": "Running Balance",
+      "colReference": "Reference",
+      "colNotes": "Notes",
+      "noMovements": "No movements in this period"
+    }
   },
   "inventory": {
     "title": "Inventory",

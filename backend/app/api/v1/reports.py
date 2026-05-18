@@ -17,9 +17,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.models.product import Product, ProductVariant
 from app.models.receipt import Receipt, ReceiptItem, ReceiptStatus
 from app.models.return_request import ReturnRequest
 from app.models.shop import Shop, ShopProduct
+from app.models.stock import StockMovement
 from app.models.user import User
 
 router = APIRouter()
@@ -352,4 +354,104 @@ def returns_report(
         rows=rows,
         total_refund=total_refund,
         total_exchange=total_exchange,
+    )
+
+
+# ── Stock Card ───────────────────────────────────────────────────────────────
+
+class StockCardRow(BaseModel):
+    date: datetime
+    movement_type: str
+    quantity: float
+    reference: Optional[str]
+    notes: Optional[str]
+    running_balance: float
+
+
+class StockCardReport(BaseModel):
+    product_variant_id: int
+    product_name: str
+    sku: str
+    date_from: date
+    date_to: date
+    opening_balance: float
+    rows: List[StockCardRow]
+    closing_balance: float
+
+
+@router.get("/stock-card", response_model=StockCardReport)
+def stock_card_report(
+    product_variant_id: int = Query(...),
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Per-SKU movement history with opening/closing balance."""
+    # Resolve variant → product name
+    variant = (
+        db.query(ProductVariant)
+        .filter(ProductVariant.id == product_variant_id, ProductVariant.is_active == True)  # noqa: E712
+        .first()
+    )
+    if not variant:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product variant not found")
+
+    product = db.query(Product).filter(Product.id == variant.product_id).first()
+    product_name = f"{product.name} — {variant.variant_name}" if product else variant.variant_name
+
+    start, end = _date_range(date_from, date_to)
+    start_bkk = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
+
+    # Opening balance: sum of quantity_change for all movements before date_from
+    opening_q = (
+        db.query(func.coalesce(func.sum(StockMovement.quantity_change), 0))
+        .filter(
+            StockMovement.product_variant_id == product_variant_id,
+            StockMovement.created_at < start_bkk,
+        )
+        .scalar()
+    )
+    opening_balance = float(opening_q or 0)
+
+    # Movements within range
+    movements = (
+        db.query(StockMovement)
+        .filter(
+            StockMovement.product_variant_id == product_variant_id,
+            StockMovement.created_at >= start,
+            StockMovement.created_at <= end,
+        )
+        .order_by(StockMovement.created_at)
+        .all()
+    )
+
+    rows: List[StockCardRow] = []
+    running = opening_balance
+    for m in movements:
+        qty = float(m.quantity_change)
+        running += qty
+        movement_type_str = m.movement_type.value if hasattr(m.movement_type, "value") else str(m.movement_type)
+        rows.append(
+            StockCardRow(
+                date=m.created_at,
+                movement_type=movement_type_str,
+                quantity=qty,
+                reference=m.reference_document,
+                notes=m.notes,
+                running_balance=running,
+            )
+        )
+
+    closing_balance = running
+
+    return StockCardReport(
+        product_variant_id=product_variant_id,
+        product_name=product_name,
+        sku=variant.sku,
+        date_from=date_from,
+        date_to=date_to,
+        opening_balance=opening_balance,
+        rows=rows,
+        closing_balance=closing_balance,
     )
