@@ -14,7 +14,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2, UserPlus } from "lucide-react";
 
 interface AdminUser {
   id: number;
@@ -62,13 +67,81 @@ function bucketOf(u: AdminUser): TabKey {
   return "other";
 }
 
+const ALL_ROLES = ["admin", "manager", "cashier", "parent", "student"] as const;
+const MANAGER_ROLES = ["cashier"] as const;
+
+interface CreateForm {
+  username: string;
+  password: string;
+  full_name: string;
+  role: string;
+  shop_id: string;
+}
+
 export default function UserList() {
   const { t } = useTranslation();
+  const { user: authUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>("all");
   const [status, setStatus] = useState("all");
   const [q, setQ] = useState("");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateForm>({
+    username: "",
+    password: "",
+    full_name: "",
+    role: "",
+    shop_id: "",
+  });
+  const [creating, setCreating] = useState(false);
+
+  const canCreate = authUser?.activeRole === "admin" || authUser?.activeRole === "manager";
+  const isManager = authUser?.activeRole === "manager";
+  const availableRoles = isManager ? MANAGER_ROLES : ALL_ROLES;
+
+  const resetForm = () => {
+    setCreateForm({
+      username: "",
+      password: "",
+      full_name: "",
+      role: isManager ? "cashier" : "",
+      shop_id: isManager ? (authUser?.shopId ?? "") : "",
+    });
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const body: Record<string, string> = {
+        username: createForm.username,
+        password: createForm.password,
+        full_name: createForm.full_name,
+        role: createForm.role,
+      };
+      if (createForm.shop_id.trim()) {
+        body.shop_id = createForm.shop_id.trim();
+      }
+      await api.post("/users", body);
+      toast({
+        title: t("admin.users.createSuccess", "สร้างผู้ใช้สำเร็จ"),
+        description: createForm.username,
+      });
+      setCreateOpen(false);
+      resetForm();
+      void load();
+    } catch (e) {
+      toast({
+        title: t("admin.users.createError", "สร้างผู้ใช้ไม่สำเร็จ"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -245,6 +318,96 @@ export default function UserList() {
 
   return (
     <div className="space-y-4">
+      {canCreate && (
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              resetForm();
+              setCreateOpen(true);
+            }}
+            className="gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            {t("admin.users.addUser", "+ Add User")}
+          </Button>
+        </div>
+      )}
+
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{t("admin.users.createTitle", "Create New User")}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleCreateSubmit(e)} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="create-full-name">{t("admin.users.fieldFullName", "Full Name")}</Label>
+              <Input
+                id="create-full-name"
+                value={createForm.full_name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, full_name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-username">{t("admin.users.fieldUsername", "Username")}</Label>
+              <Input
+                id="create-username"
+                value={createForm.username}
+                onChange={(e) => setCreateForm((f) => ({ ...f, username: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-password">{t("admin.users.fieldPassword", "Password")}</Label>
+              <Input
+                id="create-password"
+                type="password"
+                value={createForm.password}
+                onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-role">{t("admin.users.fieldRole", "Role")}</Label>
+              <Select
+                value={createForm.role}
+                onValueChange={(v) => setCreateForm((f) => ({ ...f, role: v }))}
+                disabled={isManager}
+                required
+              >
+                <SelectTrigger id="create-role">
+                  <SelectValue placeholder={t("admin.users.selectRole", "Select role…")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((r) => (
+                    <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-shop">{t("admin.users.fieldShop", "Shop ID (optional)")}</Label>
+              <Input
+                id="create-shop"
+                value={createForm.shop_id}
+                onChange={(e) => setCreateForm((f) => ({ ...f, shop_id: e.target.value }))}
+                readOnly={isManager}
+                className={isManager ? "bg-muted text-muted-foreground" : ""}
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+                {t("common.cancel", "Cancel")}
+              </Button>
+              <Button type="submit" disabled={creating || !createForm.role}>
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("admin.users.createSubmit", "Create User")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="p-4"><div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.statsTotal", "Total users")}</div><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.statsActive", "Active")}</div><div className="text-2xl font-bold text-green-600">{stats.active}</div></CardContent></Card>
