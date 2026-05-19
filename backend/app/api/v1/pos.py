@@ -257,6 +257,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
         "requester_user_id": getattr(receipt, "requester_user_id", None),
         "requester_name": requester_name,
         "shop_id": receipt.shop_id,
+        "shop_name": receipt.shop.name if getattr(receipt, "shop", None) else None,
         "subtotal": float(receipt.subtotal),
         "discount": float(receipt.discount),
         "tax": float(receipt.tax),

@@ -84,9 +84,12 @@ export interface ReceiptDetailData {
   total: number;
   payment_method: string;
   status: string;
+  shop_id?: string | null;
+  shop_name?: string | null;
   notes: string | null;
   created_at: string;
   created_by: number;
+  created_by_name?: string | null;
   voided_at: string | null;
   voided_by: number | null;
   voided_reason: string | null;
@@ -351,6 +354,24 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             </div>
 
             <Separator />
+
+            {/* Seller (shop) */}
+            {receipt.shop_name && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">{t("receipts.shop", "ร้านค้า")}:</span>
+                <span className="text-sm font-semibold">{receipt.shop_name}</span>
+              </div>
+            )}
+
+            {/* Cashier */}
+            {receipt.created_by_name && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">{t("receipts.cashier", "พนักงาน")}:</span>
+                <span className="text-sm">{receipt.created_by_name}</span>
+              </div>
+            )}
+
+            {(receipt.shop_name || receipt.created_by_name) && <Separator />}
 
             {/* Payer card */}
             {receipt.payer_detail && (
