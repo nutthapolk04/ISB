@@ -2027,14 +2027,10 @@
         "desc": "Click Top Up next to any child's name. Choose PromptPay (scan QR in your banking app and confirm transfer) or Credit/Debit (3% fee, instant). Maximum ฿50,000 per transaction."
       },
       "step3": {
-        "title": "Transfer Between Wallets",
-        "desc": "Click Transfer on the dashboard. Select the source wallet (your wallet or a child's), the destination wallet, and enter the amount. Preview the post-transfer balances before confirming."
-      },
-      "step4": {
         "title": "View Transaction History",
         "desc": "Click History next to a child's name. Filter by date range to see all purchases, top-ups, refunds, and adjustments. Click any transaction to view the full receipt."
       },
-      "step5": {
+      "step4": {
         "title": "Manage Card Settings",
         "desc": "Click Profile for a child. You can freeze or unfreeze their RFID card and set a daily spending limit (leave blank for unlimited). Changes take effect immediately at the POS."
       }

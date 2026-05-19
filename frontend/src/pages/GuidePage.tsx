@@ -110,16 +110,11 @@ const roleGuides: RoleGuide[] = [
       {
         titleKey: "guide.parent.step3.title",
         descKey: "guide.parent.step3.desc",
-        icon: ArrowLeftRight,
+        icon: FileText,
       },
       {
         titleKey: "guide.parent.step4.title",
         descKey: "guide.parent.step4.desc",
-        icon: FileText,
-      },
-      {
-        titleKey: "guide.parent.step5.title",
-        descKey: "guide.parent.step5.desc",
         icon: CreditCard,
       },
     ],
