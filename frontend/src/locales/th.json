@@ -201,7 +201,33 @@
       "finance": "การเงิน",
       "operations": "ปฏิบัติการ",
       "administration": "ธุรการ"
-    }
+    },
+    "colorSaved": "บันทึกสีเรียบร้อย",
+    "colorSaveFailed": "บันทึกสีไม่สำเร็จ",
+    "orderSaved": "บันทึกลำดับสินค้าเรียบร้อย",
+    "orderConflict": "มีการแก้ไขลำดับจากอุปกรณ์อื่น กรุณาลองใหม่",
+    "orderSaveFailed": "บันทึกลำดับไม่สำเร็จ",
+    "reorderSaving": "กำลังบันทึก…",
+    "saveOrder": "บันทึกลำดับ",
+    "cardColorTitle": "ตั้งสีการ์ด",
+    "cardColorLabel": "สีการ์ด",
+    "clearColor": "ล้างสี",
+    "saveColor": "บันทึก",
+    "reorderHint": "ลากการ์ดเพื่อเปลี่ยนลำดับ แล้วกด \"บันทึกลำดับ\"",
+    "setPrice": "กำหนดราคา",
+    "enterSellPrice": "ใส่ราคาขาย",
+    "priceOverridePrompt": "ราคาต่อหน่วยใหม่ (เว้นว่างเพื่อใช้ราคาปกติ)",
+    "priceEdited": "แก้ไข",
+    "tableDiscount": "ส่วนลด",
+    "discountModeTooltip": "คลิกเพื่อสลับหน่วยส่วนลด",
+    "billDiscount": "ส่วนลดท้ายบิล",
+    "subtotal": "ยอดรวม",
+    "topup": "เติมเงิน",
+    "searchMember": "ค้นหาสมาชิก",
+    "stockLabel": "คงเหลือ",
+    "outOfStockLabel": "หมด",
+    "noItemsInCategory": "ไม่มีสินค้าในหมวดหมู่นี้",
+    "allCategories": "ทั้งหมด"
   },
   "returns": {
     "title": "เปลี่ยนสินค้า",
@@ -746,7 +772,8 @@
       "coverPreview": "Preview หน้าปก Login",
       "noCover": "ยังไม่มีรูปหน้าปก",
       "saving": "กำลังบันทึก…",
-      "saveSchool": "บันทึกข้อมูลโรงเรียน"
+      "saveSchool": "บันทึกข้อมูลโรงเรียน",
+      "schoolSaved": "บันทึกข้อมูลโรงเรียนแล้ว"
     },
     "dashboard": {
       "title": "แดชบอร์ดผู้ดูแลระบบ",
@@ -1420,6 +1447,16 @@
       "department": "ตัดงบ",
       "other": "อื่นๆ"
     }
+  },
+  "sync": {
+    "loadFailed": "โหลดสถิติไม่สำเร็จ",
+    "selectRole": "กรุณาเลือกอย่างน้อย 1 role",
+    "failed": "Sync ไม่สำเร็จ",
+    "loading": "กำลังโหลด…",
+    "noHistory": "ยังไม่มีการ sync — กดปุ่ม Sync Now เพื่อเริ่มต้น",
+    "description": "เลือกประเภทการ sync และ roles ที่ต้องการอัปเดต",
+    "syncing": "กำลัง sync…",
+    "startSync": "เริ่ม Sync"
   },
   "auditLog": {
     "title": "ประวัติการเปลี่ยนแปลง",

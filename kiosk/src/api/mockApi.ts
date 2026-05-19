@@ -25,12 +25,14 @@ export interface Wallet {
     cardId: string;
     balance: number;
     colorTheme: string; // hex color or class
+    photoUrl?: string;  // face photo for avatar
 }
 
 export interface User {
     id: string;
     name: string;
     employeeId: string;
+    role?: string; // 'parent' | 'staff' | 'student' | etc.
     wallets: Wallet[];
 }
 
@@ -55,6 +57,7 @@ const mockUsers: Record<string, User> = {
         id: '2',
         name: 'Jane Doe',
         employeeId: 'EMP002',
+        role: 'parent',
         wallets: [
             {
                 id: 'w2_1',
@@ -96,6 +99,7 @@ const mockUsers: Record<string, User> = {
         id: '4',
         name: 'Admin User',
         employeeId: 'A1234',
+        role: 'staff',
         wallets: [
             {
                 id: 'w4',

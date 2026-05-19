@@ -24,6 +24,9 @@ const t = {
     personal: 'Personal',
     child: "Child's",
     walletOf: 'of',
+    roleParent: 'Parent',
+    roleStaff: 'Staff',
+    roleStudent: 'Student',
   },
   TH: {
     balance: 'ยอดเงินคงเหลือ',
@@ -36,6 +39,9 @@ const t = {
     personal: 'ส่วนตัว',
     child: 'ของบุตร',
     walletOf: 'ของ',
+    roleParent: 'ผู้ปกครอง',
+    roleStaff: 'Staff',
+    roleStudent: 'นักเรียน',
   }
 };
 
@@ -58,6 +64,14 @@ const formatCurrency = (val: number) => {
     maximumFractionDigits: 2
   }).format(val);
 };
+
+const roleLabel = computed(() => {
+  const role = store.currentUser?.role?.toLowerCase() ?? '';
+  if (role.includes('parent') || role.includes('guardian')) return currT.value.roleParent;
+  if (role.includes('staff') || role.includes('teacher') || role.includes('employee')) return currT.value.roleStaff;
+  if (role.includes('student')) return currT.value.roleStudent;
+  return null;
+});
 
 const maskData = (str: string) => {
   if (str.length <= 4) return str;
@@ -189,10 +203,15 @@ onUnmounted(() => {
 
           <div class="user-row">
             <div class="avatar" :class="wallet.type === 'child' ? 'avatar-child' : ''">
-              <User :size="36" />
+              <img v-if="wallet.photoUrl" :src="wallet.photoUrl" class="avatar-photo" alt="photo" />
+              <User v-else :size="36" />
             </div>
             <div class="user-details">
               <h2 class="user-name">{{ wallet.holderName }}</h2>
+              <div class="role-row">
+                <span v-if="wallet.type === 'child'" class="role-badge role-child">{{ currT.child }}</span>
+                <span v-else-if="roleLabel" class="role-badge role-account">{{ roleLabel }}</span>
+              </div>
               <p class="balance-sub">{{ currT.balance }} {{ currT.balanceUnit }}</p>
             </div>
             <button class="logout-icon-btn" @click.stop="handleLogout" v-if="index === 0">
@@ -333,6 +352,41 @@ onUnmounted(() => {
 .avatar-child {
   background: rgba(255,255,255,0.3);
   border: 2px dashed rgba(255,255,255,0.5);
+}
+
+.avatar-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.role-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.1rem;
+  flex-wrap: wrap;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.role-account {
+  background: rgba(255,255,255,0.9);
+  color: #3b1f7e;
+}
+
+.role-child {
+  background: rgba(255,255,255,0.9);
+  color: #b45309;
 }
 
 .user-details { flex: 1; }

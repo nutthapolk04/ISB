@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -57,6 +58,7 @@ interface SyncResponse {
 const ALL_ROLES = ["student", "parent", "staff", "admin", "manager", "cashier"];
 
 export default function SyncDashboard() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<SyncStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -71,7 +73,7 @@ export default function SyncDashboard() {
       setStats(data);
     } catch (e) {
       toast({
-        title: "โหลดสถิติไม่สำเร็จ",
+        title: t("sync.loadFailed"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -90,7 +92,7 @@ export default function SyncDashboard() {
 
   const runSync = async () => {
     if (selectedRoles.length === 0) {
-      toast({ title: "กรุณาเลือกอย่างน้อย 1 role", variant: "destructive" });
+      toast({ title: t("sync.selectRole"), variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -107,7 +109,7 @@ export default function SyncDashboard() {
       load();
     } catch (e) {
       toast({
-        title: "Sync ไม่สำเร็จ",
+        title: t("sync.failed"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -188,10 +190,10 @@ export default function SyncDashboard() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-muted-foreground text-sm py-12 text-center">กำลังโหลด...</p>
+            <p className="text-muted-foreground text-sm py-12 text-center">{t("sync.loading")}</p>
           ) : !stats || stats.daily.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-muted-foreground text-sm">ยังไม่มีการ sync — กดปุ่ม Sync Now เพื่อเริ่มต้น</p>
+              <p className="text-muted-foreground text-sm">{t("sync.noHistory")}</p>
             </div>
           ) : (
             <div className="h-[280px]">
@@ -229,7 +231,7 @@ export default function SyncDashboard() {
           <DialogHeader>
             <DialogTitle>Trigger PowerSchool Sync</DialogTitle>
             <DialogDescription>
-              เลือกประเภทการ sync และ roles ที่ต้องการอัปเดต (mock — ไม่เรียก HTTP จริง)
+              {t("sync.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -264,10 +266,10 @@ export default function SyncDashboard() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
-              ยกเลิก
+              {t("common.cancel")}
             </Button>
             <Button onClick={runSync} disabled={submitting}>
-              {submitting ? "กำลัง sync..." : "เริ่ม Sync"}
+              {submitting ? t("sync.syncing") : t("sync.startSync")}
             </Button>
           </DialogFooter>
         </DialogContent>

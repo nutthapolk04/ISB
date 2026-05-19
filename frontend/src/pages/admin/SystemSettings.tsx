@@ -115,9 +115,9 @@ export default function SystemSettings() {
         school_logo_url: schoolLogoUrl,
         school_cover_url: schoolCoverUrl,
       });
-      toast({ title: "บันทึกข้อมูลโรงเรียนแล้ว" });
+      toast({ title: t("admin.settings.schoolSaved") });
     } catch (e) {
-      toast({ title: "บันทึกไม่สำเร็จ", description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+      toast({ title: t("admin.settings.saveFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
     } finally {
       setSchoolSaving(false);
     }

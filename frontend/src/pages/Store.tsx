@@ -173,10 +173,10 @@ const Store = () => {
       setAllProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, color } : p)),
       );
-      toast.success("บันทึกสีเรียบร้อย");
+      toast.success(t("store.colorSaved"));
       setColorEditId(null);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : "บันทึกสีไม่สำเร็จ");
+      toast.error(e instanceof ApiError ? e.detail : t("store.colorSaveFailed"));
     } finally {
       setColorSaving(false);
     }
@@ -224,14 +224,14 @@ const Store = () => {
       setSortVersions((prev) => ({ ...prev, [sid]: result.version }));
       setReorderMode(false);
       setReorderDirty(false);
-      toast.success("บันทึกลำดับสินค้าเรียบร้อย");
+      toast.success(t("store.orderSaved"));
     } catch (e: any) {
       if (e?.status === 409 || e?.detail?.current_version) {
-        toast.error("มีการแก้ไขลำดับจากอุปกรณ์อื่น กรุณาลองใหม่");
+        toast.error(t("store.orderConflict"));
         const newVer = e?.detail?.current_version;
         if (newVer && sid) setSortVersions((prev) => ({ ...prev, [sid]: newVer }));
       } else {
-        toast.error(e instanceof ApiError ? e.detail : "บันทึกลำดับไม่สำเร็จ");
+        toast.error(e instanceof ApiError ? e.detail : t("store.orderSaveFailed"));
       }
     } finally {
       setReorderSaving(false);
@@ -910,7 +910,7 @@ const Store = () => {
               type="button"
               onClick={() => setPreSelectedMember(null)}
               className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
-              aria-label="ยกเลิกสมาชิก"
+              aria-label={t("common.cancel")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -978,7 +978,7 @@ const Store = () => {
                         onClick={() => {
                           const current = getPriceForItem(item);
                           const input = window.prompt(
-                            t("store.priceOverridePrompt", "ราคาต่อหน่วยใหม่ (เว้นว่างเพื่อใช้ราคาปกติ)"),
+                            t("store.priceOverridePrompt"),
                             String(current),
                           );
                           if (input === null) return;
@@ -1100,7 +1100,7 @@ const Store = () => {
 
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-muted-foreground">
-              {t("store.billDiscount", "ส่วนลดท้ายบิล")}
+              {t("store.billDiscount")}
             </span>
             <div className="flex items-center gap-1">
               <Input
@@ -1131,7 +1131,7 @@ const Store = () => {
             </div>
             {billDiscountAmount > 0 && (
               <div className="flex justify-between text-xs text-destructive">
-                <span>{t("store.billDiscount", "ส่วนลดท้ายบิล")}</span>
+                <span>{t("store.billDiscount")}</span>
                 <span>-฿{billDiscountAmount.toLocaleString()}</span>
               </div>
             )}
@@ -1204,7 +1204,7 @@ const Store = () => {
                     className="gap-1.5"
                   >
                     <X className="h-4 w-4" />
-                    ยกเลิก
+                    {t("common.cancel")}
                   </Button>
                   <Button
                     size="sm"
@@ -1213,7 +1213,7 @@ const Store = () => {
                     className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
                   >
                     <Check className="h-4 w-4" />
-                    {reorderSaving ? "กำลังบันทึก…" : "บันทึกลำดับ"}
+                    {reorderSaving ? t("store.reorderSaving") : t("store.saveOrder")}
                   </Button>
                 </div>
               ) : (
@@ -1424,7 +1424,7 @@ const Store = () => {
                       "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
                       lowStock ? "bg-destructive text-destructive-foreground" : "bg-background/90 text-foreground",
                     )}>
-                      {lowStock ? t("store.outOfStock", "หมด") : `${t("store.stockLabel", "คงเหลือ")} ${p.stock}`}
+                      {lowStock ? t("store.outOfStockLabel") : `${t("store.stockLabel")} ${p.stock}`}
                     </span>
                   )}
                 </div>
@@ -1450,13 +1450,13 @@ const Store = () => {
                             type="button"
                             onClick={(e) => e.stopPropagation()}
                             className="rounded p-0.5 transition hover:bg-muted"
-                            title="ตั้งสีการ์ด"
+                            title={t("store.cardColorTitle")}
                           >
                             <Palette className="h-3.5 w-3.5" style={{ color: p.color ?? undefined }} />
                           </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-56 p-3 space-y-3" onClick={(e) => e.stopPropagation()} side="top" align="end">
-                          <p className="text-xs font-semibold">สีการ์ด</p>
+                          <p className="text-xs font-semibold">{t("store.cardColorLabel")}</p>
                           <div className="flex items-center gap-2">
                             <input type="color" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0" />
                             <input type="text" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background" placeholder="#4ade80" />
@@ -1470,8 +1470,8 @@ const Store = () => {
                             ))}
                           </div>
                           <div className="flex gap-2">
-                            <button type="button" onClick={() => saveProductColor(p, null)} disabled={colorSaving} className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition">ล้างสี</button>
-                            <button type="button" onClick={() => saveProductColor(p, colorEditValue)} disabled={colorSaving} className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition">{colorSaving ? "…" : "บันทึก"}</button>
+                            <button type="button" onClick={() => saveProductColor(p, null)} disabled={colorSaving} className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition">{t("store.clearColor")}</button>
+                            <button type="button" onClick={() => saveProductColor(p, colorEditValue)} disabled={colorSaving} className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition">{colorSaving ? "…" : t("store.saveColor")}</button>
                           </div>
                         </PopoverContent>
                       </Popover>
@@ -1500,7 +1500,7 @@ const Store = () => {
                           : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
                       )}
                     >
-                      {c === "All" ? t("store.allCategories", "ทั้งหมด") : c}
+                      {c === "All" ? t("store.allCategories") : c}
                     </button>
                   ))}
                 </div>
@@ -1508,7 +1508,7 @@ const Store = () => {
               {reorderMode && (
                 <p className="text-xs text-muted-foreground shrink-0">
                   <GripVertical className="inline h-3 w-3 mr-1" />
-                  ลากการ์ดเพื่อเปลี่ยนลำดับ แล้วกด "บันทึกลำดับ"
+                  {t("store.reorderHint")}
                 </p>
               )}
               <div className="flex-1 overflow-y-auto">
@@ -1657,11 +1657,11 @@ const Store = () => {
           }}
         >
           <DialogHeader>
-            <DialogTitle>กำหนดราคา</DialogTitle>
+            <DialogTitle>{t("store.setPrice")}</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground">
-              {specialItemTarget?.name} — ใส่ราคาขาย
+              {specialItemTarget?.name} — {t("store.enterSellPrice")}
             </p>
             <Input
               ref={specialItemInputRef}
@@ -1689,7 +1689,7 @@ const Store = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSpecialItemTarget(null)}>
-              ยกเลิก
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -1707,7 +1707,7 @@ const Store = () => {
               disabled={isNaN(parseFloat(specialItemPrice)) || parseFloat(specialItemPrice) < 0}
               className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
             >
-              เพิ่มในตะกร้า
+              {t("store.addToCart")}
             </Button>
           </DialogFooter>
         </DialogContent>

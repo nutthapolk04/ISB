@@ -201,7 +201,33 @@
       "finance": "Finance",
       "operations": "Operations",
       "administration": "Administration"
-    }
+    },
+    "colorSaved": "Color saved",
+    "colorSaveFailed": "Failed to save color",
+    "orderSaved": "Product order saved",
+    "orderConflict": "Order was changed on another device — please try again",
+    "orderSaveFailed": "Failed to save order",
+    "reorderSaving": "Saving…",
+    "saveOrder": "Save Order",
+    "cardColorTitle": "Set card color",
+    "cardColorLabel": "Card color",
+    "clearColor": "Clear",
+    "saveColor": "Save",
+    "reorderHint": "Drag to reorder, then click \"Save Order\"",
+    "setPrice": "Set Price",
+    "enterSellPrice": "Enter selling price",
+    "priceOverridePrompt": "New unit price (leave empty for default)",
+    "priceEdited": "Edited",
+    "tableDiscount": "Discount",
+    "discountModeTooltip": "Click to toggle discount unit",
+    "billDiscount": "Bill Discount",
+    "subtotal": "Subtotal",
+    "topup": "Top-up",
+    "searchMember": "Search Member",
+    "stockLabel": "Remaining",
+    "outOfStockLabel": "Out of Stock",
+    "noItemsInCategory": "No items in this category",
+    "allCategories": "All"
   },
   "returns": {
     "title": "Product Returns",
@@ -746,7 +772,8 @@
       "coverPreview": "Login Page Cover Preview",
       "noCover": "No cover image yet",
       "saving": "Saving…",
-      "saveSchool": "Save School Info"
+      "saveSchool": "Save School Info",
+      "schoolSaved": "School info saved"
     },
     "dashboard": {
       "title": "Admin Dashboard",
@@ -1420,6 +1447,16 @@
       "department": "Budget Deduction",
       "other": "Other"
     }
+  },
+  "sync": {
+    "loadFailed": "Failed to load sync stats",
+    "selectRole": "Please select at least 1 role",
+    "failed": "Sync failed",
+    "loading": "Loading…",
+    "noHistory": "No syncs yet — click Sync Now to start",
+    "description": "Select sync type and roles to update",
+    "syncing": "Syncing…",
+    "startSync": "Start Sync"
   },
   "auditLog": {
     "title": "Change History",

@@ -142,6 +142,7 @@ function mapCustomer(c: ISBCustomerLookupResult): User {
         cardId: c.student_code ?? c.customer_code ?? String(c.id),
         balance: c.wallet_balance ?? 0,
         colorTheme: CARD_GRADIENT,
+        photoUrl: c.photo_url ?? undefined,
       }
     : null;
 
@@ -149,6 +150,7 @@ function mapCustomer(c: ISBCustomerLookupResult): User {
     id: String(c.id),
     name: c.name,
     employeeId: c.student_code ?? c.customer_code ?? String(c.id),
+    role: c.customer_kind ?? undefined,
     wallets: wallet ? [wallet] : [],
   };
 }
