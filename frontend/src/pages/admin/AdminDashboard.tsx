@@ -124,33 +124,34 @@ const STORE_IDS = new Set(["coop", "sports", "bookstore", "store"]);
 const shopBadgeVariant = (
   shopId: string | null | undefined,
   t: TFunction,
+  shopMap: Record<string, string> = {},
 ): { className: string; label: string } => {
   const id = (shopId ?? "").toLowerCase();
   switch (id) {
     case "canteen":
       return {
         className: "border-amber-300 bg-amber-100 text-amber-800",
-        label: t("admin.dashboard.shopCanteen"),
+        label: shopMap[id] ?? t("admin.dashboard.shopCanteen"),
       };
     case "coop":
       return {
         className: "border-orange-300 bg-orange-100 text-orange-800",
-        label: t("admin.dashboard.shopCoop"),
+        label: shopMap[id] ?? t("admin.dashboard.shopCoop"),
       };
     case "sports":
       return {
         className: "border-emerald-300 bg-emerald-100 text-emerald-800",
-        label: t("admin.dashboard.shopSports"),
+        label: shopMap[id] ?? t("admin.dashboard.shopSports"),
       };
     case "bookstore":
       return {
         className: "border-indigo-300 bg-indigo-100 text-indigo-800",
-        label: t("admin.dashboard.shopBookstore"),
+        label: shopMap[id] ?? t("admin.dashboard.shopBookstore"),
       };
     default:
       return {
         className: "border-muted-foreground/20 bg-muted text-muted-foreground",
-        label: shopId || "—",
+        label: shopMap[id] ?? shopId ?? "—",
       };
   }
 };
@@ -325,6 +326,15 @@ export default function AdminDashboard() {
   const [showLowStock, setShowLowStock] = useState(false);
   const lowStockItemsQuery = useLowStockItems(showLowStock);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
+
+  const shopsQuery = useQuery<ShopApiResponse[]>({
+    queryKey: ["shops", "all"],
+    queryFn: () => api.get<ShopApiResponse[]>("/shops/?active_only=false"),
+    staleTime: 5 * 60_000,
+  });
+  const shopMap: Record<string, string> = Object.fromEntries(
+    (shopsQuery.data ?? []).map((s) => [s.id.toLowerCase(), s.name]),
+  );
 
   // Derive today's canteen / store totals from whatever receipts we've fetched.
   const canteenTotal = salesQuery.data
@@ -523,7 +533,7 @@ export default function AdminDashboard() {
                       : bucketFromReceipt(r) === "store"
                         ? "coop"
                         : null);
-                  const badge = shopBadgeVariant(sid, t);
+                  const badge = shopBadgeVariant(sid, t, shopMap);
                   const pmLabel = r.payment_method
                     ? t(`common.paymentMethods.${r.payment_method}`, r.payment_method)
                     : "—";
