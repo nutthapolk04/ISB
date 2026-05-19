@@ -43,15 +43,16 @@ interface WalletTransaction {
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
-const QUICK_REASONS = [
-  "เคลียร์บิลรายเดือน",
-  "เติมเครดิตประจำเดือน",
-  "ปรับยอดผิดพลาด",
-  "คืนเครดิตพิเศษ",
-];
 
 export default function DepartmentAdjust() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === "en" ? "en-US" : "th-TH";
+  const QUICK_REASONS = [
+    t("cardholders.deptAdjust.quickClear"),
+    t("cardholders.deptAdjust.quickTopup"),
+    t("cardholders.deptAdjust.quickFix"),
+    t("cardholders.deptAdjust.quickReturn"),
+  ];
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -71,7 +72,7 @@ export default function DepartmentAdjust() {
       if (data.length > 0 && selectedId == null) setSelectedId(data[0].id);
     } catch (e) {
       toast({
-        title: "โหลด departments ไม่สำเร็จ",
+        title: t("cardholders.deptAdjust.loadFailed"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -124,7 +125,7 @@ export default function DepartmentAdjust() {
         reference_ticket: referenceTicket.trim() || undefined,
       });
       toast({
-        title: "ปรับยอดสำเร็จ",
+        title: t("cardholders.deptAdjust.successTitle"),
         description: `${selected.department_name} ${direction === "credit" ? "+" : "−"}${formatTHB(amountNum)}`,
       });
       setAmount("");
@@ -134,7 +135,7 @@ export default function DepartmentAdjust() {
       await loadTransactions(selected.id);
     } catch (e) {
       toast({
-        title: "ปรับยอดไม่สำเร็จ",
+        title: t("cardholders.deptAdjust.errorTitle"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -159,17 +160,17 @@ export default function DepartmentAdjust() {
         {/* Department picker */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">แผนก</CardTitle>
+            <CardTitle className="text-sm">{t("cardholders.deptAdjust.deptPickerTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="p-2 space-y-1">
             {loading && (
               <p className="text-center text-xs text-muted-foreground py-3">
                 <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-                กำลังโหลด
+                {t("cardholders.deptAdjust.loading")}
               </p>
             )}
             {!loading && departments.length === 0 && (
-              <p className="text-center text-xs text-muted-foreground py-3">ไม่มีแผนก</p>
+              <p className="text-center text-xs text-muted-foreground py-3">{t("cardholders.deptAdjust.noDepts")}</p>
             )}
             {departments.map((d) => {
               const balance = Number(d.wallet_balance ?? 0);
@@ -243,7 +244,7 @@ export default function DepartmentAdjust() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="amount">จำนวน (THB)</Label>
+                    <Label htmlFor="amount">{t("cardholders.deptAdjust.amountLabel")}</Label>
                     <Input
                       id="amount"
                       type="number"
@@ -257,12 +258,12 @@ export default function DepartmentAdjust() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="reason">เหตุผล *</Label>
+                    <Label htmlFor="reason">{t("cardholders.deptAdjust.reasonLabel")}</Label>
                     <Textarea
                       id="reason"
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      placeholder="เช่น เคลียร์บิลเดือน เม.ย."
+                      placeholder={t("cardholders.deptAdjust.reasonPlaceholder")}
                       rows={2}
                     />
                     <div className="flex flex-wrap gap-1.5">
@@ -280,29 +281,29 @@ export default function DepartmentAdjust() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="ref">Reference ticket (optional)</Label>
+                    <Label htmlFor="ref">{t("cardholders.deptAdjust.refLabel")}</Label>
                     <Input
                       id="ref"
                       value={referenceTicket}
                       onChange={(e) => setReferenceTicket(e.target.value)}
-                      placeholder="JIRA-123 / SLACK link"
+                      placeholder={t("cardholders.deptAdjust.refPlaceholder")}
                     />
                   </div>
 
                   {amountNum > 0 && (
                     <div className="rounded-md bg-muted p-3 text-sm space-y-1">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">ยอดปัจจุบัน</span>
+                        <span className="text-muted-foreground">{t("cardholders.deptAdjust.currentBalance")}</span>
                         <span className="tabular-nums">{formatTHB(Number(selected.wallet_balance ?? 0))}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{direction === "credit" ? "เครดิต" : "หัก"}</span>
+                        <span className="text-muted-foreground">{direction === "credit" ? t("cardholders.deptAdjust.credit") : t("cardholders.deptAdjust.debit")}</span>
                         <span className={`tabular-nums ${direction === "credit" ? "text-emerald-700" : "text-red-700"}`}>
                           {direction === "credit" ? "+" : "−"}{formatTHB(amountNum)}
                         </span>
                       </div>
                       <div className="flex justify-between border-t pt-1 font-semibold">
-                        <span>หลังปรับ</span>
+                        <span>{t("cardholders.deptAdjust.afterAdjust")}</span>
                         <span className={`tabular-nums ${projectedBalance < 0 ? "text-red-600" : ""}`}>
                           {formatTHB(projectedBalance)}
                         </span>
@@ -311,7 +312,7 @@ export default function DepartmentAdjust() {
                   )}
 
                   <Button onClick={submit} disabled={!canSubmit} className="w-full">
-                    {submitting ? "กำลังบันทึก..." : "ยืนยันการปรับยอด"}
+                    {submitting ? t("cardholders.deptAdjust.submitting") : t("cardholders.deptAdjust.submitBtn")}
                   </Button>
                 </CardContent>
               </Card>
@@ -319,18 +320,18 @@ export default function DepartmentAdjust() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <History className="h-4 w-4" /> ประวัติรายการ
+                    <History className="h-4 w-4" /> {t("cardholders.deptAdjust.historyTitle")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>วันที่</TableHead>
-                        <TableHead>ประเภท</TableHead>
-                        <TableHead>คำอธิบาย</TableHead>
-                        <TableHead className="text-right">จำนวน</TableHead>
-                        <TableHead className="text-right">คงเหลือ</TableHead>
+                        <TableHead>{t("cardholders.deptAdjust.colDate")}</TableHead>
+                        <TableHead>{t("cardholders.deptAdjust.colType")}</TableHead>
+                        <TableHead>{t("cardholders.deptAdjust.colDesc")}</TableHead>
+                        <TableHead className="text-right">{t("cardholders.deptAdjust.colAmount")}</TableHead>
+                        <TableHead className="text-right">{t("cardholders.deptAdjust.colBalance")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -338,14 +339,14 @@ export default function DepartmentAdjust() {
                         <TableRow>
                           <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">
                             <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-                            กำลังโหลด
+                            {t("cardholders.deptAdjust.txLoading")}
                           </TableCell>
                         </TableRow>
                       )}
                       {!txLoading && transactions.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">
-                            ยังไม่มีรายการ
+                            {t("cardholders.deptAdjust.noTx")}
                           </TableCell>
                         </TableRow>
                       )}
@@ -354,7 +355,7 @@ export default function DepartmentAdjust() {
                         return (
                           <TableRow key={tx.id}>
                             <TableCell className="text-xs whitespace-nowrap">
-                              {new Date(tx.created_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}
+                              {new Date(tx.created_at).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
                             </TableCell>
                             <TableCell className="text-xs capitalize">{tx.transaction_type}</TableCell>
                             <TableCell className="text-xs max-w-xs truncate">{tx.description ?? "—"}</TableCell>
@@ -375,7 +376,7 @@ export default function DepartmentAdjust() {
           ) : (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground text-sm">
-                เลือกแผนกจากแถบด้านซ้ายเพื่อเริ่มปรับยอด
+                {t("cardholders.deptAdjust.selectPrompt")}
               </CardContent>
             </Card>
           )}
