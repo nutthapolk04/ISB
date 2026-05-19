@@ -193,6 +193,7 @@ function useRecentReceipts() {
     queryKey: ["admin", "dashboard", "recent-receipts"],
     queryFn: () => api.get<ReceiptRow[]>("/pos/receipt?page=1"),
     staleTime: STALE,
+    refetchInterval: 30_000,
   });
 }
 
