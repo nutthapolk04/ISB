@@ -111,7 +111,7 @@ def search_customers(
     limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("cashier", "manager", "admin", "kitchen")
+        require_role("cashier", "manager", "admin", "kitchen", "kiosk")
     ),
 ):
     """Search all members — students (Customer table) + parents/staff/teachers (User table).

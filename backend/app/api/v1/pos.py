@@ -111,7 +111,7 @@ def list_receipts(
         page=page,
         page_size=page_size,
     )
-    return [_receipt_to_response(r) for r in receipts]
+    return [_receipt_to_response(r, db=db) for r in receipts]
 
 
 @router.get("/receipt/{receipt_id}", response_model=ReceiptResponse)
@@ -149,7 +149,25 @@ def void_receipt(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-# ── Helper ───────────────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _resolve_creator_name(receipt, db: Optional[Session]) -> Optional[str]:
+    """Return full_name (or username fallback) for the cashier who created the receipt.
+
+    Tries the ORM relationship first; falls back to a direct DB query when the
+    relationship is None (can happen when multiple joinedloads target the same
+    table and SQLAlchemy alias mapping fails for a particular row).
+    """
+    creator = getattr(receipt, "creator", None)
+    if creator:
+        return creator.full_name or creator.username or None
+    if db and receipt.created_by:
+        from app.models.user import User as _User
+        u = db.query(_User).filter(_User.id == receipt.created_by).first()
+        if u:
+            return u.full_name or u.username or None
+    return None
+
 
 def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
     """Convert Receipt ORM to response dict with nested product info."""
@@ -290,7 +308,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
         "edc_masked_card": receipt.edc_masked_card,
         "created_at": receipt.created_at,
         "created_by": receipt.created_by,
-        "created_by_name": receipt.creator.full_name if getattr(receipt, "creator", None) else None,
+        "created_by_name": _resolve_creator_name(receipt, db),
         "voided_at": receipt.voided_at,
         "voided_by": receipt.voided_by,
         "voided_reason": receipt.voided_reason,

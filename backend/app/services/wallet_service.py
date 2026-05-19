@@ -150,7 +150,7 @@ class WalletService:
         seeds staff-with-children as role=staff and we don't want them locked
         out of their own kids' wallets.
         """
-        if user.is_superuser or user.role == "admin":
+        if user.is_superuser or user.role in ("admin", "kiosk"):
             return True
         if wallet.department_id is not None:
             return False

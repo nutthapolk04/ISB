@@ -761,6 +761,11 @@ def seed():
     upsert_user("cashier_canteen_drinks", "cashier", "Cashier (Drinks & Snacks)",
                 "csh.drinks@isb-coop.local", role="cashier", external_id="PSCA-00207",
                 shop_id="canteen_drinks", wallet_balance=500)
+
+    # ── Kiosk service account (role=kiosk: read-only customer wallets + search) ──
+    kiosk_password = os.getenv("KIOSK_SERVICE_PASSWORD", "kiosk1234")
+    upsert_user("kiosk_service", kiosk_password, "Kiosk Service Account",
+                "kiosk@isb-coop.local", role="kiosk")
     # Kitchen staff — exercises the new "kitchen" role added to UserRole + sidebar.
     upsert_user("kitchen_canteen_thai", "kitchen", "Kitchen (Thai Kitchen)",
                 "kitchen.thai@isb-coop.local", role="kitchen", external_id="PSKI-00301",

@@ -317,7 +317,7 @@
     "info": {
       "statusGuide": {
         "title": "Receipt Status",
-        "body": "Active = normal receipt · Voided = receipt cancelled (cannot be undone) · Search by receipt number, payment method, or student code"
+        "body": "Active = normal receipt · Voided = receipt cancelled (cannot be undone) · Search by receipt number, payer name, payment method, amount, or date · For QR/cash receipts without a payer, search by receipt number or amount"
       }
     },
     "canteenTitle": "Canteen Receipts",
@@ -336,7 +336,7 @@
     "receiptCount": "Receipt Count",
     "todaySales": "Today's Sales",
     "allReceipts": "All Receipts",
-    "searchReceipt": "Search receipt ID...",
+    "searchReceipt": "Search by receipt ID, name, amount, or date...",
     "receiptId": "Receipt ID",
     "studentId": "Student ID",
     "studentName": "Student Name",

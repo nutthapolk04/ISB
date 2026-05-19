@@ -338,7 +338,10 @@ const Receipts = () => {
       r.receipt_number.toLowerCase().includes(q) ||
       r.payment_method.toLowerCase().includes(q) ||
       r.status.toLowerCase().includes(q) ||
-      fmtDate(r.transaction_date).includes(q)
+      fmtDate(r.transaction_date).includes(q) ||
+      fmtDateOnly(r.transaction_date).includes(q) ||
+      (r.payer_label ?? "").toLowerCase().includes(q) ||
+      String(r.total).includes(q)
     );
   });
 
