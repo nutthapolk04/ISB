@@ -1,3 +1,5 @@
+declare const __APP_VERSION__: string;
+
 import {
   Store,
   RefreshCw,
@@ -255,6 +257,11 @@ export function AppSidebar() {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
+          {open && (
+            <p className="px-4 pb-3 pt-1 text-[0.7rem] text-muted-foreground/50 select-none">
+              v{__APP_VERSION__}
+            </p>
+          )}
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
