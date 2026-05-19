@@ -36,6 +36,7 @@ onMounted(() => {
   window.addEventListener('touchstart', handleInteraction);
   window.addEventListener('keydown', handleInteraction);
   resetTimeout();
+  store.fetchSchoolInfo();
 });
 
 onUnmounted(() => {

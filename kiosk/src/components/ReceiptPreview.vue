@@ -29,7 +29,9 @@ const t = {
     thankYou: 'Thank you for using our service',
     poweredBy: 'Kiosk Check Balance System',
     items: 'Items',
-    qty: 'x'
+    qty: 'x',
+    buyer: 'Member',
+    seller: 'Shop / Location',
   },
   TH: {
     title: 'ใบเสร็จ',
@@ -47,7 +49,9 @@ const t = {
     thankYou: 'ขอบคุณที่ใช้บริการ',
     poweredBy: 'ระบบตรวจสอบยอดเงิน Kiosk',
     items: 'รายการสินค้า',
-    qty: 'x'
+    qty: 'x',
+    buyer: 'สมาชิก',
+    seller: 'ร้าน / สถานที่',
   }
 };
 
@@ -76,9 +80,14 @@ const handlePrint = () => {
       <div class="receipt-content">
         <!-- Header -->
         <div class="receipt-header">
-          <div class="receipt-logo">
+          <!-- School logo -->
+          <div v-if="store.schoolInfo.school_logo_url" class="receipt-school-logo">
+            <img :src="store.schoolInfo.school_logo_url" alt="School" class="school-logo-img" />
+          </div>
+          <div v-else class="receipt-logo">
             <CheckCircle2 :size="40" class="text-success" />
           </div>
+          <h2 v-if="store.schoolInfo.school_name" class="receipt-school-name">{{ store.schoolInfo.school_name }}</h2>
           <h2 class="receipt-title">{{ currT.title }}</h2>
           <div class="receipt-separator-thick"></div>
         </div>
@@ -102,6 +111,10 @@ const handlePrint = () => {
           <div class="receipt-row">
             <span class="r-label">{{ currT.location }}</span>
             <span class="r-value">{{ props.transaction.machine }}</span>
+          </div>
+          <div v-if="store.currentUser" class="receipt-row">
+            <span class="r-label">{{ currT.buyer }}</span>
+            <span class="r-value">{{ store.currentUser.name }}</span>
           </div>
         </div>
 
@@ -240,6 +253,22 @@ const handlePrint = () => {
 
 .receipt-logo {
   margin-bottom: 0.5rem;
+}
+
+.receipt-school-logo {
+  margin-bottom: 0.5rem;
+}
+.school-logo-img {
+  height: 56px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+}
+.receipt-school-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.25rem;
 }
 
 .text-success { color: #10b981; }
@@ -545,5 +574,7 @@ const handlePrint = () => {
     color: #444 !important;
     font-style: normal;
   }
+  .school-logo-img { height: 40px; }
+  .receipt-school-name { font-size: 10pt; }
 }
 </style>

@@ -10,6 +10,7 @@ export const useKioskStore = defineStore('kiosk', () => {
     const language = ref<'TH' | 'EN'>('EN');
     const lastActivity = ref(Date.now());
     const activeWalletIndex = ref(0);
+    const schoolInfo = ref<{ school_name: string; school_logo_url: string }>({ school_name: '', school_logo_url: '' });
 
     const isAuthenticated = computed(() => !!currentUser.value);
 
@@ -67,6 +68,12 @@ export const useKioskStore = defineStore('kiosk', () => {
         activeWalletIndex.value = 0;
     }
 
+    async function fetchSchoolInfo() {
+        try {
+            schoolInfo.value = await realApi.getPublicSettings();
+        } catch {}
+    }
+
     return {
         currentUser,
         currentWallet,
@@ -81,5 +88,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         updateActivity,
         login,
         logout,
+        schoolInfo,
+        fetchSchoolInfo,
     };
 });

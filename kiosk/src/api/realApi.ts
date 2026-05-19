@@ -195,4 +195,14 @@ export const realApi = {
       console.warn('[KioskAPI] init: could not pre-warm token:', e);
     }
   },
+
+  async getPublicSettings(): Promise<{ school_name: string; school_logo_url: string }> {
+    try {
+      const res = await fetch(`${BASE_URL}/admin/settings/public`);
+      if (!res.ok) return { school_name: '', school_logo_url: '' };
+      return res.json();
+    } catch {
+      return { school_name: '', school_logo_url: '' };
+    }
+  },
 };

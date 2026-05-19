@@ -16,9 +16,7 @@ const t = {
     title: 'Top-up',
     sub: 'Select payment method',
     promptpay: 'PromptPay',
-    alipay: 'Alipay',
-    wechatpay: 'WeChat Pay',
-    qrcredit: 'QR Credit',
+    cash: 'Cash',
     back: 'Back',
     scan: 'Scan the QR code below to top-up',
     amount: 'Amount will be credited automatically',
@@ -50,14 +48,15 @@ const t = {
     cancelTopup: 'Cancel Top-up',
     changeMethod: 'Change Payment Method',
     seconds: 'sec',
+    cashConfirmTitle: 'Proceed to Cashier',
+    cashConfirmDesc: 'Please show this screen to the cashier and pay the amount below.',
+    cashConfirmNote: 'The cashier will top up your wallet after receiving payment.',
   },
   TH: {
     title: 'เติมเงิน',
     sub: 'เลือกช่องทางการเติมเงิน',
     promptpay: 'พร้อมเพย์',
-    alipay: 'Alipay',
-    wechatpay: 'WeChat Pay',
-    qrcredit: 'QR Credit',
+    cash: 'เงินสด',
     back: 'กลับ',
     scan: 'สแกน QR Code ด้านล่างเพื่อเติมเงิน',
     amount: 'ยอดเงินจะถูกเพิ่มโดยอัตโนมัติ',
@@ -89,17 +88,18 @@ const t = {
     cancelTopup: 'ยกเลิกการเติมเงิน',
     changeMethod: 'เปลี่ยนช่องทางชำระ',
     seconds: 'วินาที',
+    cashConfirmTitle: 'ชำระเงินที่แคชเชียร์',
+    cashConfirmDesc: 'กรุณาแสดงหน้าจอนี้ให้แคชเชียร์และชำระจำนวนเงินด้านล่าง',
+    cashConfirmNote: 'แคชเชียร์จะเติมเงินเข้าวอลเล็ตของคุณหลังจากรับเงินแล้ว',
   }
 };
 
 const methods = [
   { key: 'promptpay', logo: '/images/payments/promptpay.png', colorBg: '#ffffff', colorText: '#0284c7', border: '#bae6fd' },
-  { key: 'alipay', logo: '/images/payments/alipay.png', colorBg: '#ffffff', colorText: '#1d4ed8', border: '#bfdbfe' },
-  { key: 'wechatpay', logo: '/images/payments/wechatpay.jpg', colorBg: '#ffffff', colorText: '#16a34a', border: '#bbf7d0' },
-  { key: 'qrcredit', logo: '/images/payments/qrcredit.png', colorBg: '#ffffff', colorText: '#d97706', border: '#fde68a' },
+  { key: 'cash', icon: 'banknote', colorBg: '#f0fdf4', colorText: '#16a34a', border: '#86efac' },
 ];
 
-type Step = 'methods' | 'amount' | 'qr' | 'success' | 'fail';
+type Step = 'methods' | 'amount' | 'qr' | 'cash-confirm' | 'success' | 'fail';
 
 const selectedMethod = ref<string | null>(null);
 const currentStep = ref<Step>('methods');
@@ -169,8 +169,12 @@ const selectShortcut = (val: number) => {
 
 const confirmAmount = () => {
   if (!isAmountValid.value) return;
-  currentStep.value = 'qr';
-  startQrTimer();
+  if (selectedMethod.value === 'cash') {
+    currentStep.value = 'cash-confirm';
+  } else {
+    currentStep.value = 'qr';
+    startQrTimer();
+  }
 };
 
 // --- QR Timer (120 seconds) ---
@@ -270,7 +274,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   <div class="kiosk-container topup-view">
     <!-- Header -->
     <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail'">
-      <button class="back-btn" @click="currentStep === 'methods' ? goBack() : currentStep === 'qr' ? backToAmount() : currentStep === 'amount' ? backToMethods() : goBack()">
+      <button class="back-btn" @click="currentStep === 'methods' ? goBack() : currentStep === 'cash-confirm' ? backToMethods() : currentStep === 'qr' ? backToAmount() : currentStep === 'amount' ? backToMethods() : goBack()">
         <ChevronLeft :size="32" />
         <span>{{ currT.back }}</span>
       </button>
@@ -279,7 +283,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
     </div>
 
     <!-- Wallet Info Bar (shown in amount & qr steps) -->
-    <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'qr')" class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
+    <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'qr' || currentStep === 'cash-confirm')" class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
       <div class="wallet-bar-name">{{ currentWallet.holderName }}</div>
       <div class="wallet-bar-balance">
         <span class="wallet-bar-label">{{ currT.currentBalance }}</span>
@@ -413,6 +417,29 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
           <button class="demo-btn success" @click="simulateSuccess">✓ Success</button>
           <button class="demo-btn fail" @click="simulateFail('internet')">✗ No Internet</button>
           <button class="demo-btn fail" @click="simulateFail('server')">✗ Server Error</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3b: Cash Confirm -->
+    <div v-if="currentStep === 'cash-confirm'" class="cash-confirm-section">
+      <div class="cash-confirm-card">
+        <div class="cash-icon">
+          <Banknote :size="64" class="cash-icon-svg" />
+        </div>
+        <h3 class="cash-title">{{ currT.cashConfirmTitle }}</h3>
+        <p class="cash-desc">{{ currT.cashConfirmDesc }}</p>
+        <div class="cash-amount-display">฿{{ formattedAmount }}</div>
+        <p class="cash-note">{{ currT.cashConfirmNote }}</p>
+        <div class="qr-actions">
+          <button class="kiosk-btn btn-secondary qr-action-btn" @click="backToMethods">
+            <ArrowLeft :size="20" />
+            <span>{{ currT.changeMethod }}</span>
+          </button>
+          <button class="kiosk-btn btn-danger qr-action-btn" @click="cancelTopup">
+            <XCircle :size="20" />
+            <span>{{ currT.cancelTopup }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1029,5 +1056,45 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   gap: 0.75rem;
   width: 100%;
   margin-top: 1rem;
+}
+
+/* --- Cash Confirm Section --- */
+.cash-confirm-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.cash-confirm-card {
+  background: var(--card-bg);
+  border-radius: 2rem;
+  padding: 2.5rem 2rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+  border: 3px solid #86efac;
+  max-width: 450px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.cash-icon { color: #16a34a; }
+.cash-title { font-size: 1.6rem; font-weight: 800; }
+.cash-desc { color: var(--text-muted); font-size: 1rem; }
+.cash-amount-display {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+.cash-note {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  padding: 0.75rem 1rem;
+  background: #f0fdf4;
+  border-radius: 0.75rem;
+  width: 100%;
 }
 </style>

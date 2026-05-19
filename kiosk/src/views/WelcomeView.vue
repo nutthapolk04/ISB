@@ -50,10 +50,21 @@ const t = {
       </button>
     </div>
 
+    <!-- School branding -->
+    <div class="school-brand">
+      <img
+        v-if="store.schoolInfo.school_logo_url"
+        :src="store.schoolInfo.school_logo_url"
+        class="school-logo"
+        alt="School logo"
+      />
+      <h2 v-if="store.schoolInfo.school_name" class="school-name">{{ store.schoolInfo.school_name }}</h2>
+    </div>
+
     <div class="welcome-content" @click="simulateTap">
       <div class="rfid-animation mb-8">
         <div class="card-icon pulse-animation">
-          <CreditCard :size="160" stroke-width="1.5" />
+          <CreditCard :size="120" stroke-width="1.5" />
         </div>
         <div class="rfid-waves">
           <div class="wave"></div>
@@ -64,7 +75,7 @@ const t = {
 
       <h1 class="mb-4">{{ currT.welcome }}</h1>
       <p class="text-muted text-center mb-12">{{ currT.sub }}</p>
-      
+
       <div class="hint-demo">
         <MousePointer2 :size="20" />
         <span>Tap card icon for demo</span>
@@ -145,6 +156,30 @@ const t = {
   color: var(--text-muted);
   font-size: 1rem;
   opacity: 0.6;
+}
+
+.school-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.school-logo {
+  height: 72px;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+}
+
+.school-name {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-color);
+  text-align: center;
+  opacity: 0.9;
 }
 
 .rfid-waves {
