@@ -186,7 +186,12 @@
       "successTitle": "Transaction Voided",
       "successDescription": "Transaction cancelled and stock has been restored",
       "close": "Done",
-      "errorAuthRequired": "Manager authorization required"
+      "errorAuthRequired": "Manager authorization required",
+      "confirming": "Voiding transaction…",
+      "auditReceipt": "Receipt No.",
+      "auditVoidedAt": "Voided At",
+      "auditReason": "Reason",
+      "auditTotal": "Voided Amount"
     },
     "searchHintToAdd": "to add",
     "searchHintToNavigate": "to navigate",

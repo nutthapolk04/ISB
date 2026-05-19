@@ -186,7 +186,12 @@
       "successTitle": "ยกเลิกรายการสำเร็จ",
       "successDescription": "รายการถูกยกเลิกและสต็อคได้รับการคืนแล้ว",
       "close": "เสร็จสิ้น",
-      "errorAuthRequired": "ต้องได้รับการอนุมัติจากผู้จัดการ"
+      "errorAuthRequired": "ต้องได้รับการอนุมัติจากผู้จัดการ",
+      "confirming": "กำลังยกเลิกรายการ…",
+      "auditReceipt": "เลขใบเสร็จ",
+      "auditVoidedAt": "เวลายกเลิก",
+      "auditReason": "เหตุผล",
+      "auditTotal": "ยอดยกเลิก"
     },
     "searchHintToAdd": "เพื่อเพิ่ม",
     "searchHintToNavigate": "เพื่อเลื่อน",

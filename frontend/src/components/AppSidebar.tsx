@@ -17,6 +17,7 @@ import {
   Settings as SettingsIcon,
   ArrowLeftRight,
   BookOpen,
+  XCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -76,9 +77,10 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.storePos",         url: "/store",                icon: Store,       roles: ["manager", "cashier"] },
       { titleKey: "nav.storeRequisition", url: "/store/requisition",    icon: HandHelping, roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReceipts",    url: "/store/receipts",       icon: Receipt,     roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.storeReturns",     url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "admin"] },
-      { titleKey: "nav.storeReturnHist",  url: "/store/return-history", icon: History,     roles: ["manager", "admin"] },
-      { titleKey: "nav.storeReports",     url: "/store/reports",        icon: BarChart3,   roles: ["admin"] },
+      { titleKey: "nav.storeVoid",       url: "/store/void",           icon: XCircle,     roles: ["manager", "admin", "cashier"] },
+      { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "admin"] },
+      { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "admin"] },
+      { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,   roles: ["admin"] },
     ],
   },
   {

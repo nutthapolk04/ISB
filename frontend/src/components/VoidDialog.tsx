@@ -346,7 +346,7 @@ export function VoidDialog({
   const renderConfirming = () => (
     <div className="flex flex-col items-center gap-4 py-10">
       <Loader2 className="h-12 w-12 animate-spin text-destructive" />
-      <p className="text-sm text-muted-foreground">กำลังยกเลิกรายการ…</p>
+      <p className="text-sm text-muted-foreground">{t("store.void.confirming")}</p>
     </div>
   );
 
@@ -364,11 +364,11 @@ export function VoidDialog({
       {voidResult && (
         <div className="w-full rounded-lg border bg-muted/40 divide-y text-sm">
           <div className="flex justify-between px-4 py-2">
-            <span className="text-muted-foreground">เลขใบเสร็จ</span>
+            <span className="text-muted-foreground">{t("store.void.auditReceipt")}</span>
             <span className="font-mono font-semibold">{voidResult.receiptNumber}</span>
           </div>
           <div className="flex justify-between px-4 py-2">
-            <span className="text-muted-foreground">เวลายกเลิก</span>
+            <span className="text-muted-foreground">{t("store.void.auditVoidedAt")}</span>
             <span className="tabular-nums">
               {new Date(voidResult.voidedAt).toLocaleString("th-TH", {
                 day: "2-digit", month: "short", year: "2-digit",
@@ -377,13 +377,13 @@ export function VoidDialog({
             </span>
           </div>
           <div className="flex justify-between px-4 py-2">
-            <span className="text-muted-foreground">เหตุผล</span>
+            <span className="text-muted-foreground">{t("store.void.auditReason")}</span>
             <span className="font-medium text-right max-w-[60%]">
               {t(`store.void.reasons.${voidResult.reason}`, voidResult.reason)}
             </span>
           </div>
           <div className="flex justify-between px-4 py-2">
-            <span className="text-muted-foreground">ยอดยกเลิก</span>
+            <span className="text-muted-foreground">{t("store.void.auditTotal")}</span>
             <span className="font-bold text-destructive tabular-nums">฿{total.toLocaleString()}</span>
           </div>
         </div>
