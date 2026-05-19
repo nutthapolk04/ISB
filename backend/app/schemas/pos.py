@@ -155,6 +155,8 @@ class ReceiptResponse(BaseModel):
     edc_masked_card: Optional[str] = None
     created_at: datetime
     created_by: int
+    created_by_name: Optional[str] = None
+    shop_name: Optional[str] = None
     voided_at: Optional[datetime] = None
     voided_by: Optional[int] = None
     voided_reason: Optional[str] = None
