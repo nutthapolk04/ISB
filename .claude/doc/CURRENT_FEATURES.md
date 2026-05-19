@@ -1,7 +1,7 @@
 # Schooney POS — Current Feature Specification
 
-> Last updated: 2026-04-22
-> Version: 2.1.0 (Phase 3 — Canteen Module + Shop Architecture)
+> Last updated: 2026-05-19
+> Version: 2.4.0 (Phase 4 — Department Payment + Wallet Fixes)
 
 ---
 
@@ -13,7 +13,7 @@
 | **Purpose** | Point of Sale system for international school cooperatives, supporting multiple shops |
 | **Architecture** | Monorepo: React SPA (`frontend/`) + FastAPI REST API (`backend/`) + PostgreSQL |
 | **Deployment** | Vercel (frontend) + Railway (backend + PostgreSQL) |
-| **Frontend URL** | https://okontek-isb-project-prototype.vercel.app |
+| **Frontend URL** | https://isb-beta.vercel.app |
 | **Backend URL** | https://okontek-isb-project-prototype-production.up.railway.app |
 | **API Docs** | `{backend_url}/docs` (Swagger UI auto-generated) |
 
@@ -243,7 +243,7 @@ Reset command: `cd backend && python3 seed.py --reset`
 | Cash | เงินสด | `cash` | Must enter amount >= total |
 | Student Card | บัตรนักเรียน | `wallet` | Card tap simulation |
 | QR/PromptPay | QR/พร้อมเพย์ | `credit_card` | QR scan simulation |
-| Department | แผนก | `bank_transfer` | Select department + employee code/card |
+| Department | แผนก | `department` | Search by dept code; debits department wallet |
 
 **Checkout Payload:**
 ```json
@@ -395,6 +395,8 @@ price, reason, status, priceType, returnStatus
 | Freeze Card | Toggle card freeze (prevent spending) | `POST /customers/{id}/freeze` |
 | Daily Limit | Set/update daily spending cap | `PATCH /customers/{id}/limit` |
 | Update Allergies | Update allergy & dietary notes | `PATCH /customers/{id}/allergies` |
+| Search Members | Unified search (students + staff/parents + departments) | `GET /customers/search` + `GET /departments/` |
+| Canteen Member Search | Search modal in Canteen POS finds students, staff, parents, departments | Frontend |
 
 **Student Fields:**
 
@@ -469,6 +471,26 @@ price, reason, status, priceType, returnStatus
 | Family Link Admin | Admin manages parent-child links | `/admin/families` |
 
 **Audit trail:** `payment_intents.status` / `confirmed_at` / `confirmed_by` / `confirmed_via` columns retained for history. `WalletTransaction` rows are still written on each credit.
+
+---
+
+### Module 17: Department Wallet System ✅
+
+| Feature | Description | API |
+|---------|-------------|-----|
+| List Departments | List with wallet balance | `GET /departments/` |
+| Department Wallet Adjust | Admin credits/debits dept wallet | `POST /admin/departments/{id}/adjust` |
+| Transaction History | Last N transactions per dept | `GET /admin/departments/{id}/transactions` |
+| POS Department Charge | Charge purchase to dept wallet | `POST /pos/checkout` with `payer_kind=department` |
+| Dept Search in POS | Search by dept code (D0001) in RFID modal + Member Search modal | Frontend only |
+
+---
+
+### Module 18: Receipt Improvements ✅
+
+- Receipt dialog (`ReceiptDetailDialog`) shows: shop name (seller), cashier name, payer card/account
+- Wallet balance in receipt = `balance_after` at time of purchase (not current balance)
+- Used in both Admin dashboard and Parent transaction history
 
 ---
 
@@ -630,13 +652,16 @@ price, reason, status, priceType, returnStatus
 
 | Area | Limitation |
 |------|-----------|
-| **Employee-Shop relation** | Stored in localStorage, not backend DB |
+| **Employee-Shop relation** | Employee management scoped to shop via backend `shop_id` column on users |
 | **Permission enforcement** | Backend `check_permission()` is a stub — all authenticated users pass |
 | **Card/Payment verification** | All payment methods are simulated (no real card reader or payment gateway) |
 | **Reports** | UI only, no backend data aggregation |
 | **Receipt PDF** | Download button exists but no PDF generation |
 | **Pagination** | Most list endpoints load all records |
 | **Refresh token** | Token exists but rotation flow not implemented |
+| **Department charge** | Requires shop to have `allow_department_charge=true` |
+| **Receipt PDF download** | Button exists, not yet implemented |
+| **PowerSchool sync** | Fixture-based (demo only, no live API) |
 
 ---
 
@@ -644,9 +669,9 @@ price, reason, status, priceType, returnStatus
 
 | Module | DB Model | API | Frontend | Priority |
 |--------|----------|-----|----------|----------|
-| Budget Control | ✅ exists | ❌ | ❌ | Phase 2 |
+| Budget Control / Department wallet | ✅ exists | ✅ API | ✅ Frontend (dept wallet adjust, balance, transaction history via `/admin/departments/{id}/adjust` and `/admin/departments/{id}/transactions`) | Phase 4 — Done |
 | Approval Workflow | ✅ exists | ❌ | ❌ | Phase 2 |
-| Reports (real data) | — | ❌ | UI only | Phase 2 |
+| Reports (real data) | — | ⚠️ Partial | Canteen daily report exists, full reports still UI-only | Phase 2 |
 | PowerSchool Sync | — | ❌ | ❌ | Phase 2 |
 | Alipay / WeChat Pay topup | — | ❌ | ❌ | Phase 2 |
 | Credit Card topup | — | ❌ | ❌ | Phase 2 |
