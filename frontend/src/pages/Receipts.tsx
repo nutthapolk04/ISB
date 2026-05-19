@@ -468,6 +468,34 @@ const Receipts = () => {
         {t("receipts.info.statusGuide.body")}
       </InfoCallout>
 
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="kpi-card">
+          <CardHeader>
+            <CardTitle className="kpi-label">{t("receipts.totalSales")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="kpi-value text-primary">฿{totalSales.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="kpi-card">
+          <CardHeader>
+            <CardTitle className="kpi-label">{t("receipts.receiptCount")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="kpi-value">{receipts.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="kpi-card">
+          <CardHeader>
+            <CardTitle className="kpi-label">{t("receipts.todaySales")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="kpi-value text-success">฿{todaySales.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* ── Search Panel ──────────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
@@ -592,34 +620,6 @@ const Receipts = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.totalSales")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value text-primary">฿{totalSales.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.receiptCount")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value">{receipts.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.todaySales")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value text-success">฿{todaySales.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Receipts List */}
       <Card>
