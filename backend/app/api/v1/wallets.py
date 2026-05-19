@@ -44,7 +44,7 @@ def get_my_wallet(
       matching student_code or customer_code.
     - Anyone else: 200 with `null`.
     """
-    if current_user.role in WALLET_USER_ROLES or current_user.is_superuser:
+    if (current_user.role or "").lower() in WALLET_USER_ROLES or current_user.is_superuser:
         w = WalletService.ensure_wallet_for_user(db, current_user.id)
         db.commit()
         db.refresh(w)

@@ -1696,7 +1696,9 @@
       "topupFailed": "Top-up failed",
       "topupCreateFailed": "Failed to create top-up",
       "confirmFailed": "Confirmation failed",
-      "walletNotCreated": "Your wallet has not been set up yet"
+      "walletNotCreated": "Your wallet has not been set up yet",
+      "walletLoadFailed": "Unable to load wallet",
+      "walletRetry": "Try again"
     },
     "transfer": {
       "title": "Family Transfer",

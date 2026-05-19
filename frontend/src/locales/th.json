@@ -1694,7 +1694,9 @@
       "topupFailed": "เติมเงินไม่สำเร็จ",
       "topupCreateFailed": "สร้างรายการเติมเงินไม่สำเร็จ",
       "confirmFailed": "ยืนยันไม่สำเร็จ",
-      "walletNotCreated": "กระเป๋าของคุณยังไม่ได้ถูกสร้าง"
+      "walletNotCreated": "กระเป๋าของคุณยังไม่ได้ถูกสร้าง",
+      "walletLoadFailed": "ไม่สามารถโหลดข้อมูลกระเป๋าเงินได้",
+      "walletRetry": "ลองอีกครั้ง"
     },
     "transfer": {
       "title": "โอนเงินในครอบครัว",

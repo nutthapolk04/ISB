@@ -80,6 +80,7 @@ export default function WalletDetail() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>("100");
   const [paymentMethod, setPaymentMethod] = useState<"qr_promptpay" | "credit_card">("qr_promptpay");
   const [creating, setCreating] = useState(false);
@@ -103,6 +104,7 @@ export default function WalletDetail() {
 
   const loadData = async () => {
     if (!effectiveId) return;
+    setLoadError(null);
     try {
       if (effectiveId === "own") {
         const w = await api.get<OwnWalletResponse>("/wallets/me");
@@ -132,11 +134,8 @@ export default function WalletDetail() {
         setTransactions(txs.slice(0, 10));
       }
     } catch (e) {
-      toast({
-        title: t("parent.common.loadFailed"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
+      const msg = e instanceof ApiError ? e.detail : (e instanceof Error ? e.message : "Unknown error");
+      setLoadError(msg);
     } finally {
       setLoading(false);
     }
@@ -241,7 +240,16 @@ export default function WalletDetail() {
   }
 
   if (!profile) {
-    return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
+    return (
+      <div className="page-shell">
+        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <p className="text-destructive font-medium">{t("parent.wallet.walletLoadFailed")}</p>
+          {loadError && <p className="text-sm text-muted-foreground max-w-sm">{loadError}</p>}
+          <Button variant="outline" onClick={loadData}>{t("parent.wallet.walletRetry")}</Button>
+        </div>
+      </div>
+    );
   }
 
   return (
