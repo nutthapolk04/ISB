@@ -194,8 +194,10 @@ export function AppSidebar() {
         {menuGroups.map((group) => {
           if (!groupVisible(group)) return null;
 
+          // staff with a shop_id can access POS + receipts for their assigned shop
+          const staffWithShop = user?.role === "staff" && !!user?.shopId;
           const visibleItems = group.items.filter(
-            (item) => !item.roles || hasRole(...item.roles),
+            (item) => !item.roles || hasRole(...item.roles) || staffWithShop,
           );
           if (visibleItems.length === 0) return null;
 

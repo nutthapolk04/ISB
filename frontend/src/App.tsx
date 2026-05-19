@@ -61,10 +61,13 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-/** Redirects to / if user lacks the required role */
+/** Redirects to / if user lacks the required role.
+ *  Special case: staff with a shop_id assigned can access POS routes
+ *  without needing the cashier role explicitly. */
 function RequireRole({ roles }: { roles: UserRole[] }) {
-  const { hasRole } = useAuth();
-  if (!hasRole(...roles)) return <Navigate to="/" replace />;
+  const { hasRole, user } = useAuth();
+  const staffWithShop = user?.role === "staff" && !!user?.shopId;
+  if (!hasRole(...roles) && !staffWithShop) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 

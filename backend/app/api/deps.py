@@ -141,8 +141,8 @@ def user_can_access_shop(user: User, shop_id: Optional[str]) -> bool:
     - admin / superuser: access to ALL shops
     - users with `shop_id = None` (unscoped): treated as all-shops (e.g., multi-shop manager)
     - managers / cashiers / canteen_owner: only their own `users.shop_id`
-    - other roles (parent, student, teacher, staff, visitor): no shop-scoped write access,
-      but they may still invoke public endpoints (POS checkout-by-card is scoped here too).
+    - staff with a shop_id assigned: can checkout/read receipts at their own shop (dual-role)
+    - other roles (parent, student, teacher, visitor): no shop-scoped write access.
     """
     if user.is_superuser:
         return True

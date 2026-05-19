@@ -50,14 +50,18 @@ export default function HomeHub() {
     () => user?.allRoles ?? (user ? [user.role] : []),
     [user],
   );
-  const isMulti = allRoles.length > 1;
+  // Staff with a shop_id are treated as multi-role: they can both buy (wallet)
+  // and sell (POS) — show the Hub rather than redirecting straight to dashboard.
+  const staffWithShop = allRoles.includes("staff") && !!user?.shopId;
+  const isMulti = allRoles.length > 1 || staffWithShop;
 
   const hasFamilyRole = allRoles.includes("parent") || allRoles.includes("staff");
   const hasShopRole =
     allRoles.includes("cashier") ||
     allRoles.includes("manager") ||
     allRoles.includes("kitchen") ||
-    allRoles.includes("canteen_owner");
+    allRoles.includes("canteen_owner") ||
+    staffWithShop;
   const hasAdminRole = allRoles.includes("admin");
   const hasKitchenRole = allRoles.includes("kitchen");
 
@@ -102,21 +106,25 @@ export default function HomeHub() {
   if (hasFamilyRole) {
     const kidCount = children.length;
     const totalBalance = children.reduce((s, c) => s + (c.wallet_balance ?? 0), 0);
-    tiles.push({
-      key: "family",
-      title: t("home.tileFamily", "Family"),
-      status:
-        kidCount > 0
-          ? t("home.tileFamilyStatus", {
-              count: kidCount,
-              balance: formatTHB(totalBalance),
-              defaultValue: "{{count}} child(ren) · total {{balance}}",
-            })
-          : t("home.tileFamilyEmpty", "No children linked"),
-      icon: UsersIcon,
-      to: "/parent/dashboard",
-      accent: "from-pink-50 to-rose-50 border-rose-200",
-    });
+    // Hide the family tile for staff-with-shop who have no children — they don't need it
+    const hideFamily = staffWithShop && kidCount === 0;
+    if (!hideFamily) {
+      tiles.push({
+        key: "family",
+        title: t("home.tileFamily", "Family"),
+        status:
+          kidCount > 0
+            ? t("home.tileFamilyStatus", {
+                count: kidCount,
+                balance: formatTHB(totalBalance),
+                defaultValue: "{{count}} child(ren) · total {{balance}}",
+              })
+            : t("home.tileFamilyEmpty", "No children linked"),
+        icon: UsersIcon,
+        to: "/parent/dashboard",
+        accent: "from-pink-50 to-rose-50 border-rose-200",
+      });
+    }
   }
 
   if (hasShopRole && user.shopId) {
