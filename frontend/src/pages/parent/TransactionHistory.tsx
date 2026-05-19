@@ -8,10 +8,9 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Receipt, ChevronRight } from "lucide-react";
+import { ArrowLeft, Download, ChevronRight } from "lucide-react";
+import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 
 interface StudentProfile {
   id: number;
@@ -35,28 +34,6 @@ interface Transaction {
   created_at: string;
 }
 
-interface ReceiptItem {
-  id: number;
-  product_variant_id: number;
-  quantity: number;
-  unit_price: number;
-  discount: number;
-  line_total: number;
-  product_variant?: {
-    sku?: string | null;
-    variant_name?: string | null;
-  } | null;
-}
-
-interface ReceiptDetail {
-  id: number;
-  receipt_number: string;
-  status: string;
-  payment_method: string;
-  total_amount: number;
-  items: ReceiptItem[];
-  created_at: string;
-}
 
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
@@ -69,9 +46,7 @@ export default function TransactionHistory() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [receiptModal, setReceiptModal] = useState<{ tx: Transaction } | null>(null);
-  const [receiptDetail, setReceiptDetail] = useState<ReceiptDetail | null>(null);
-  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
 
   const locale = i18n.language === "en" ? "en-US" : "th-TH";
   const formatDate = (iso: string) =>
@@ -125,19 +100,8 @@ export default function TransactionHistory() {
     })();
   }, [customerId]);
 
-  const handleOpenReceipt = async (tx: Transaction) => {
-    if (!tx.reference_id) return;
-    setReceiptModal({ tx });
-    setReceiptDetail(null);
-    setReceiptLoading(true);
-    try {
-      const data = await api.get<ReceiptDetail>(`/pos/receipt/${tx.reference_id}`);
-      setReceiptDetail(data);
-    } catch {
-      setReceiptDetail(null);
-    } finally {
-      setReceiptLoading(false);
-    }
+  const handleOpenReceipt = (tx: Transaction) => {
+    if (tx.reference_id) setOpenReceiptId(tx.reference_id);
   };
 
   const handleFilter = () => {
@@ -319,101 +283,10 @@ export default function TransactionHistory() {
           )}
         </CardContent>
       </Card>
-      {/* Receipt detail modal */}
-      <Dialog open={!!receiptModal} onOpenChange={(o) => { if (!o) setReceiptModal(null); }}>
-        <DialogContent className="max-w-sm sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              {receiptDetail
-                ? receiptDetail.receipt_number
-                : receiptModal?.tx.description ?? t("parent.transactions.receiptTitle")}
-            </DialogTitle>
-          </DialogHeader>
-
-          {receiptLoading && (
-            <div className="space-y-2 py-2">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
-            </div>
-          )}
-
-          {!receiptLoading && receiptDetail && (
-            <div className="space-y-3">
-              {/* Items table */}
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="text-xs py-2">{t("parent.transactions.itemName")}</TableHead>
-                      <TableHead className="text-xs py-2 text-center w-12">{t("parent.transactions.itemQty")}</TableHead>
-                      <TableHead className="text-xs py-2 text-right">{t("parent.transactions.itemPrice")}</TableHead>
-                      <TableHead className="text-xs py-2 text-right">{t("parent.transactions.itemTotal")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {receiptDetail.items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-sm py-2">
-                          {item.product_variant?.variant_name ?? `#${item.product_variant_id}`}
-                          {item.product_variant?.sku && (
-                            <span className="block text-xs text-muted-foreground font-mono">
-                              {item.product_variant.sku}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm py-2 text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-sm py-2 text-right tabular-nums">
-                          {formatTHB(item.unit_price)}
-                          {item.discount > 0 && (
-                            <span className="block text-xs text-green-600">
-                              -{formatTHB(item.discount)}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm py-2 text-right font-medium tabular-nums">
-                          {formatTHB(item.line_total)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Summary */}
-              <div className="rounded-md bg-muted/50 p-3 space-y-1.5 text-sm">
-                <div className="flex justify-between font-bold text-base">
-                  <span>{t("parent.transactions.totalAmount")}</span>
-                  <span className="tabular-nums text-destructive">
-                    -{formatTHB(
-                      Number(receiptDetail.total_amount) ||
-                      receiptDetail.items.reduce((s, i) => s + Number(i.line_total), 0)
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{t("parent.transactions.paymentMethod")}</span>
-                  <span className="capitalize">{receiptDetail.payment_method.replace(/_/g, " ")}</span>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{t("parent.transactions.receiptDate")}</span>
-                  <span>{formatDate(receiptDetail.created_at)}</span>
-                </div>
-                {receiptDetail.status !== "active" && (
-                  <Badge variant="destructive" className="mt-1 text-xs">
-                    {receiptDetail.status.toUpperCase()}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!receiptLoading && !receiptDetail && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              {t("parent.transactions.receiptNotFound")}
-            </p>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ReceiptDetailDialog
+        receiptId={openReceiptId}
+        onClose={() => setOpenReceiptId(null)}
+      />
     </div>
   );
 }
