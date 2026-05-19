@@ -275,6 +275,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .map((r: { name: string }) => r.name as UserRole)
         .filter((r: UserRole) => r !== resolvedRole);
       const allRoles: UserRole[] = [...new Set([resolvedRole, ...secondaryRoles])];
+      const shopId = backendUser.shop_id ?? null;
+      const backendModule = (backendUser.shop_module as AppModule | undefined) ?? null;
       const authUser: AuthUser = {
         id: backendUser.id,
         username: backendUser.username,
@@ -282,12 +284,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: resolvedRole,
         allRoles,
         activeRole: resolvedRole,
-        shopId: null,
-        shopName: null,
-        shopModule: null,
+        shopId,
+        shopName: backendUser.shop_name ?? null,
+        shopModule: backendModule ?? moduleOf(shopId),
       };
       setUser(authUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
+      // Enrich shop metadata async if needed
+      if (shopId && !backendModule) {
+        fetch(`${API_BASE_URL}/shops/${shopId}`, {
+          headers: { Authorization: `Bearer ${data.access_token}` },
+        })
+          .then((r) => r.ok ? r.json() : null)
+          .then((shop) => {
+            if (!shop) return;
+            const enriched = { ...authUser, shopModule: (shop.module as AppModule) ?? authUser.shopModule, shopName: shop.name ?? authUser.shopName };
+            setUser(enriched);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(enriched));
+          })
+          .catch(() => {});
+      }
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message ?? "SSO unavailable" };
