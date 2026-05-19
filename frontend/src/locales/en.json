@@ -2049,8 +2049,8 @@
         "desc": "Tap Charge → select Wallet → the 'Tap Card or Enter Code' dialog opens. Scan an RFID card OR type: Student Code (e.g. S12345), Card UID, Staff Username, or Department Code (e.g. D0001). Press Search — the system auto-detects who it is. Verify the name and remaining balance, then press Confirm."
       },
       "step3": {
-        "title": "View Receipts",
-        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view full details — shop name, cashier, payer account, and the balance remaining at the time of purchase."
+        "title": "View Receipts & Void",
+        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view full details — shop name, cashier, payer account, and the balance remaining at the time of purchase. Cashiers can void receipts for their own canteen stall directly from this page — click the void (ban) icon, select a reason, and confirm. The wallet balance is refunded automatically."
       },
       "step4": {
         "title": "Daily Sales Summary",
@@ -2076,15 +2076,15 @@
       },
       "step3": {
         "title": "Handle Returns",
-        "desc": "Go to Store → Returns. Search for the original receipt ID. Select the items to return and specify quantities. Choose refund method (wallet or cash) and enter a reason. Confirm to process."
+        "desc": "Go to Store → Returns. Search for the original receipt ID (cashiers see only their own shop's receipts). Select the items to return and specify quantities. Choose refund method (wallet or cash) and enter a reason. Confirm to process."
       },
       "step4": {
         "title": "Check Inventory",
         "desc": "Go to Shop Management → Inventory. View current stock levels, low-stock alerts, and movement history. Use Receive Stock to log new incoming goods and adjust costs."
       },
       "step5": {
-        "title": "View Receipts",
-        "desc": "Go to Store Receipts to see all sales. Filter by shop, date, or payment method. Void a receipt if needed (requires a reason and is irreversible — stock is restored automatically)."
+        "title": "View Receipts & Void",
+        "desc": "Go to Store Receipts to see all sales. Filter by shop, date, or payment method. Cashiers can void receipts for their own shop directly from this page — click the void (ban) icon, select a reason, and confirm. Voiding is irreversible; stock is restored and wallet balance is refunded automatically."
       }
     },
     "manager": {

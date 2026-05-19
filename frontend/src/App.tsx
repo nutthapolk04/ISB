@@ -212,7 +212,7 @@ const App = () => (
                   <Route element={<RequireRole roles={["manager", "cashier", "admin"]} />}>
                     <Route path="/store/requisition" element={<StoreRequisition />} />
                   </Route>
-                  <Route element={<RequireRole roles={["manager", "admin"]} />}>
+                  <Route element={<RequireRole roles={["manager", "cashier", "admin"]} />}>
                     <Route path="/store/returns" element={<Returns />} />
                     <Route path="/store/return-history" element={<ReturnHistory />} />
                     <Route path="/store/management" element={<ShopManagement />} />

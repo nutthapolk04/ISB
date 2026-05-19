@@ -41,7 +41,7 @@ router = APIRouter()
 def create_return(
     payload: CreateReturnRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Create one or more return requests from a receipt."""
     items = [item.model_dump() for item in payload.items]
@@ -62,7 +62,7 @@ def create_return(
 def create_return_without_receipt(
     payload: CreateReturnWithoutReceiptRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Create return requests without linking to a specific receipt.
 
@@ -88,7 +88,7 @@ def create_return_without_receipt(
 def list_returns(
     filter: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """List all return requests."""
     returns = ReturnsService.list_returns(db, q=filter)
@@ -99,7 +99,7 @@ def list_returns(
 def get_returns_by_receipt(
     receiptId: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Get all active (non-rejected) return requests for a specific receipt."""
     returns = ReturnsService.get_returns_by_receipt_id(db, receiptId)
@@ -110,7 +110,7 @@ def get_returns_by_receipt(
 def get_return(
     return_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     rr = ReturnsService.get_return(db, return_id)
     if not rr:
@@ -123,7 +123,7 @@ def update_return(
     return_id: int,
     payload: UpdateReturnRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Update return request fields or change status (approve/reject)."""
     fields = payload.model_dump(exclude_none=True)
@@ -143,7 +143,7 @@ def update_return(
 def delete_return(
     return_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     ok = ReturnsService.delete_return(db, return_id)
     if not ok:
@@ -158,7 +158,7 @@ def process_refund(
     return_id: int,
     payload: ProcessRefundRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     try:
         result = ReturnsService.process_refund(
@@ -180,7 +180,7 @@ def process_exchange(
     return_id: int,
     payload: ProcessExchangeRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     try:
         result = ReturnsService.process_exchange(
@@ -204,7 +204,7 @@ def process_exchange(
 def get_return_history(
     filter: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     return ReturnsService.get_return_history(db, q=filter)
 
@@ -232,7 +232,7 @@ def get_available_products(
     inStock: bool = Query(True),
     shop_id: Optional[str] = Query(None, description="Filter by shop ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Get list of available products for exchange. Filter by shop_id to show same-shop products only."""
     query = db.query(ShopProduct).filter(ShopProduct.is_active == True)
