@@ -207,14 +207,15 @@ export default function WalletTransfer() {
     !transferring;
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-3xl">
+    <div className="page-shell">
+      <div className="max-w-3xl space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+      <div className="page-header">
+        <h1 className="page-title flex items-center gap-2">
           <ArrowLeftRight className="h-6 w-6" />
           {t("admin.walletTransfer.title")}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="page-description">
           {t("admin.walletTransfer.description")}
         </p>
       </div>
@@ -628,6 +629,7 @@ export default function WalletTransfer() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

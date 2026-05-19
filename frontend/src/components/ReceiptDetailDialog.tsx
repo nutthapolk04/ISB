@@ -128,8 +128,64 @@ const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
   <text x="256" y="430" text-anchor="middle" font-family="Times New Roman,serif" font-size="190" fill="#111">ISB</text>
 </svg>`;
 
-function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null): string {
-  const paymentLabel = PAYMENT_LABELS[r.payment_method] ?? r.payment_method;
+const RECEIPT_LABELS = {
+  th: {
+    subtitle: "ใบเสร็จรับเงิน / Receipt",
+    receiptNo: "เลขที่",
+    date: "วันที่",
+    payer: "ผู้ชำระ",
+    payment: "ชำระด้วย",
+    itemDiscount: "ส่วนลด",
+    billDiscount: "ส่วนลดท้ายบิล",
+    tax: "ภาษี",
+    subtotal: "ยอดรวม",
+    grandTotal: "รวมสุทธิ",
+    voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
+    thanks: "ขอบคุณที่ใช้บริการ / Thank you",
+    taxId: "เลขภาษี",
+    tel: "โทร",
+    locale: "th-TH",
+  },
+  en: {
+    subtitle: "Receipt",
+    receiptNo: "Receipt No.",
+    date: "Date",
+    payer: "Payer",
+    payment: "Payment",
+    itemDiscount: "Discount",
+    billDiscount: "Bill Discount",
+    tax: "Tax",
+    subtotal: "Subtotal",
+    grandTotal: "Grand Total",
+    voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
+    thanks: "Thank you for your purchase",
+    taxId: "Tax ID",
+    tel: "Tel",
+    locale: "en-GB",
+  },
+};
+
+const PAYMENT_LABELS_EN: Record<string, string> = {
+  cash: "Cash",
+  wallet: "Wallet",
+  card_tap: "Tap Card",
+  credit_card: "Credit Card",
+  debit_card: "Debit Card",
+  edc: "EDC",
+  bank_transfer: "Bank Transfer",
+  qr: "QR PromptPay",
+  qr_promptpay: "QR PromptPay",
+  department: "Budget Deduction",
+  other: "Other",
+};
+
+function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "th"): string {
+  const isEn = lang.startsWith("en");
+  const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
+  const paymentLabel = isEn
+    ? (PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method)
+    : (PAYMENT_LABELS[r.payment_method] ?? r.payment_method);
+
   const itemRows = r.items
     .map((item) => {
       const name = item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
@@ -144,31 +200,32 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
           .join("") ?? "";
       const discountLine =
         item.discount > 0
-          ? `<div class="row disc"><span>ส่วนลด</span><span>-฿${item.discount.toLocaleString()}</span></div>`
+          ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
           : "";
       return `<div class="row"><span>${name} ×${item.quantity}</span><span>฿${item.line_total.toLocaleString()}</span></div>${optionLines}${discountLine}`;
     })
     .join("");
 
   const discountSection =
-    r.discount > 0 ? `<div class="row small"><span>ส่วนลดท้ายบิล</span><span>-฿${r.discount.toLocaleString()}</span></div>` : "";
+    r.discount > 0 ? `<div class="row small"><span>${lbl.billDiscount}</span><span>-฿${r.discount.toLocaleString()}</span></div>` : "";
   const taxSection =
-    r.tax > 0 ? `<div class="row small"><span>ภาษี</span><span>฿${r.tax.toLocaleString()}</span></div>` : "";
+    r.tax > 0 ? `<div class="row small"><span>${lbl.tax}</span><span>฿${r.tax.toLocaleString()}</span></div>` : "";
   const payerSection = r.payer_label
-    ? `<div class="row small"><span>ผู้ชำระ</span><span>${r.payer_label}</span></div>`
+    ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
   const voidedSection =
-    r.status !== "active" ? `<div class="voided">*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***</div>` : "";
+    r.status !== "active" ? `<div class="voided">${lbl.voided}</div>` : "";
   const shopLine = shopName ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>` : "";
   const logoHtml = school.logoUrl ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />` : ISB_LOGO_SVG;
   const addressLine = school.address ? `<p class="sub">${school.address}</p>` : "";
   const taxPhoneLine =
     school.taxId || school.phone
-      ? `<p class="sub">${school.taxId ? `เลขภาษี: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `โทร: ${school.phone}` : ""}</p>`
+      ? `<p class="sub">${school.taxId ? `${lbl.taxId}: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `${lbl.tel}: ${school.phone}` : ""}</p>`
       : "";
+  const dateStr = new Date(r.transaction_date).toLocaleString(lbl.locale, { dateStyle: "short", timeStyle: "short" });
 
-  return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"/>
-<title>ใบเสร็จ ${r.receipt_number}</title>
+  return `<!DOCTYPE html><html lang="${isEn ? "en" : "th"}"><head><meta charset="UTF-8"/>
+<title>Receipt ${r.receipt_number}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Sarabun','Courier New',monospace;font-size:12px;width:80mm;margin:0 auto;padding:8px;color:#111}
@@ -185,23 +242,23 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
 </style></head><body>
   <div class="logo-wrap">${logoHtml}</div>
   <h1>${school.name}</h1>${addressLine}${taxPhoneLine}${shopLine}
-  <p class="sub">ใบเสร็จรับเงิน / Receipt</p>${voidedSection}
+  <p class="sub">${lbl.subtitle}</p>${voidedSection}
   <hr/>
-  <div class="row"><span>เลขที่</span><span>${r.receipt_number}</span></div>
-  <div class="row small"><span>วันที่</span><span>${fmtDate(r.transaction_date)}</span></div>
-  ${payerSection}<div class="row small"><span>ชำระด้วย</span><span>${paymentLabel}</span></div>
+  <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
+  <div class="row small"><span>${lbl.date}</span><span>${dateStr}</span></div>
+  ${payerSection}<div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
   <hr/>${itemRows}<hr/>
-  <div class="row small"><span>ยอดรวม</span><span>฿${r.subtotal.toLocaleString()}</span></div>
+  <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}${taxSection}
-  <div class="row total"><span>รวมสุทธิ</span><span>฿${r.total.toLocaleString()}</span></div>
-  <hr/><p class="center sub">ขอบคุณที่ใช้บริการ / Thank you</p>
+  <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
+  <hr/><p class="center sub">${lbl.thanks}</p>
 </body></html>`;
 }
 
-function printReceipt(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null): void {
+function printReceipt(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "th"): void {
   const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;
-  win.document.write(buildReceiptHtml(r, school, shopName));
+  win.document.write(buildReceiptHtml(r, school, shopName, lang));
   win.document.close();
   win.focus();
   setTimeout(() => {
@@ -218,7 +275,7 @@ interface ReceiptDetailDialogProps {
 }
 
 export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const schoolInfo = useSchoolInfo();
   const [receipt, setReceipt] = useState<ReceiptDetailData | null>(null);
@@ -428,7 +485,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             <Button
               className="w-full"
               variant="outline"
-              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName)}
+              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
             >
               <Download className="h-4 w-4 mr-2" />
               {t("receipts.download", "พิมพ์ / บันทึก PDF")}

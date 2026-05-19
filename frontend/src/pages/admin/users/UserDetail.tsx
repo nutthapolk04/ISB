@@ -346,13 +346,13 @@ export default function UserDetail() {
     }
   };
 
-  if (loading) return <div className="p-4 sm:p-6"><p className="text-muted-foreground">{t("admin.users.loading")}</p></div>;
-  if (!user) return <div className="p-4 sm:p-6"><p className="text-destructive">{t("admin.users.notFound")}</p></div>;
+  if (loading) return <div className="page-shell"><p className="text-muted-foreground">{t("admin.users.loading")}</p></div>;
+  if (!user) return <div className="page-shell"><p className="text-destructive">{t("admin.users.notFound")}</p></div>;
 
   const extIdChanged = editMode && (form.external_id || null) !== (user.external_id || null);
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <div className="page-shell">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.users.back")}

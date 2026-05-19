@@ -220,16 +220,16 @@ export default function GuidePage() {
   return (
     <div className="flex flex-col min-h-full">
       {/* Page header */}
-      <div className="border-b bg-background px-6 py-5">
+      <div className="page-header border-b rounded-none">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <BookOpen className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">
+            <h1 className="page-title text-xl">
               {t("guide.title")}
             </h1>
-            <p className="text-sm text-muted-foreground">{t("guide.subtitle")}</p>
+            <p className="page-description">{t("guide.subtitle")}</p>
           </div>
         </div>
       </div>

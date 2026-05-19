@@ -124,7 +124,8 @@ export default function SystemSettings() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl space-y-4 sm:space-y-6">
+    <div className="page-shell">
+      <div className="max-w-3xl space-y-4 sm:space-y-6">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="sm" className="h-10">
           <Link to="/admin">
@@ -133,13 +134,13 @@ export default function SystemSettings() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="page-header flex items-center gap-3">
         <SettingsIcon className="h-7 w-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="page-title">
             {t("admin.settings.title", "System Settings")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="page-description">
             {t("admin.settings.subtitle", "Runtime feature flags for the whole system")}
           </p>
         </div>
@@ -302,6 +303,7 @@ export default function SystemSettings() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

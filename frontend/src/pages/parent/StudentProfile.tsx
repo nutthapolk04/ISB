@@ -111,12 +111,13 @@ export default function StudentProfile() {
     }
   };
 
-  if (loading) return <div className="p-4 sm:p-6 text-muted-foreground">{t("parent.common.loading")}</div>;
-  if (!profile) return <div className="p-4 sm:p-6 text-destructive">{t("parent.common.notFound")}</div>;
+  if (loading) return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
+  if (!profile) return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-3xl">
-      <div className="flex items-center gap-2">
+    <div className="page-shell">
+      <div className="max-w-3xl space-y-4 sm:space-y-6">
+      <div className="page-header flex items-center gap-2">
         <Button asChild variant="ghost" size="sm" className="h-10">
           <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}</Link>
         </Button>
@@ -244,6 +245,7 @@ export default function StudentProfile() {
         </CardContent>
       </Card>
       )}
+      </div>
     </div>
   );
 }

@@ -150,12 +150,13 @@ export default function Transfer() {
   };
 
   if (loading) {
-    return <div className="p-4 sm:p-6 text-muted-foreground">{t("parent.common.loading")}</div>;
+    return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
   }
 
   if (wallets.length < 2) {
     return (
-      <div className="p-4 sm:p-6 space-y-4 max-w-xl">
+      <div className="page-shell">
+        <div className="max-w-xl space-y-4">
         <Button asChild variant="ghost" size="sm" className="h-10">
           <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}</Link>
         </Button>
@@ -164,21 +165,23 @@ export default function Transfer() {
             {t("parent.transfer.notEnoughWallets")}
           </CardContent>
         </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-2xl">
+    <div className="page-shell">
+      <div className="max-w-2xl space-y-4 sm:space-y-6">
       <Button asChild variant="ghost" size="sm" className="h-10 w-fit">
         <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}</Link>
       </Button>
 
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+      <div className="page-header">
+        <h1 className="page-title flex items-center gap-2">
           <ArrowLeftRight className="h-6 w-6" /> {t("parent.transfer.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="page-description">
           {t("parent.transfer.description")}
         </p>
       </div>
@@ -324,6 +327,7 @@ export default function Transfer() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

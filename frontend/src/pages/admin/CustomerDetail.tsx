@@ -358,16 +358,17 @@ export default function CustomerDetail() {
   };
 
   if (loading) {
-    return <div className="p-4 sm:p-6 text-muted-foreground">{t("admin.customer.loading")}</div>;
+    return <div className="page-shell text-muted-foreground">{t("admin.customer.loading")}</div>;
   }
   if (!profile) {
-    return <div className="p-4 sm:p-6 text-destructive">{t("admin.customer.notFound")}</div>;
+    return <div className="page-shell text-destructive">{t("admin.customer.notFound")}</div>;
   }
 
   const initials = profile.name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl">
+    <div className="page-shell">
+      <div className="max-w-5xl space-y-4 sm:space-y-6">
       <Button asChild variant="ghost" size="sm" className="w-fit">
         <Link to="/admin/wallet-adjust"><ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.customer.back")}</Link>
       </Button>
@@ -834,6 +835,7 @@ export default function CustomerDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

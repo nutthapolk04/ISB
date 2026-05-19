@@ -147,16 +147,14 @@ export default function WalletAdjust() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <WalletIcon className="h-6 w-6" /> {t("admin.walletAdjust.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("admin.walletAdjust.description")}
-          </p>
-        </div>
+    <div className="page-shell">
+      <div className="page-header">
+        <h1 className="page-title flex items-center gap-2">
+          <WalletIcon className="h-6 w-6" /> {t("admin.walletAdjust.title")}
+        </h1>
+        <p className="page-description">
+          {t("admin.walletAdjust.description")}
+        </p>
       </div>
 
       <Card>

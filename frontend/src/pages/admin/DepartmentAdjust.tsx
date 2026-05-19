@@ -144,12 +144,13 @@ export default function DepartmentAdjust() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 max-w-6xl">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+    <div className="page-shell">
+      <div className="max-w-6xl space-y-4">
+      <div className="page-header">
+        <h1 className="page-title flex items-center gap-2">
           <Building2 className="h-6 w-6" /> {t("cardholders.deptAdjust.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="page-description">
           {t("cardholders.deptAdjust.description")}
         </p>
       </div>
@@ -379,6 +380,7 @@ export default function DepartmentAdjust() {
             </Card>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

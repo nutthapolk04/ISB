@@ -432,14 +432,14 @@ export default function FamilyLinks() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <div className="page-shell">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Users className="h-6 w-6" /> {t("admin.families.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">{t("admin.families.description")}</p>
+          <p className="page-description">{t("admin.families.description")}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>

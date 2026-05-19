@@ -174,12 +174,12 @@ export default function HomeHub() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+    <div className="page-shell max-w-5xl mx-auto">
+      <div className="page-header space-y-1">
+        <h1 className="page-title">
           {t("home.greeting", { name: user.fullName, defaultValue: "Hi, {{name}}" })}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="page-description">
           {t("home.subtitle", "Pick a role to get started")}
         </p>
         <div className="flex flex-wrap gap-1.5 pt-1">

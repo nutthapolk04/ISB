@@ -1,18 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, Search, Loader2, Eye, UserCircle2 } from "lucide-react";
+import { CreditCard, Search, Loader2, Eye, UserCircle2, ShieldOff, ShieldCheck, RefreshCw } from "lucide-react";
 
 type CardRole = "all" | "staff" | "parent" | "student" | "admin" | "manager" | "cashier" | "visitor";
 
@@ -22,6 +32,8 @@ interface UserRow {
   full_name: string;
   email?: string | null;
   role: string;
+  status?: string | null;
+  is_active?: boolean;
   customer_type?: string | null;
   card_uid?: string | null;
   external_id?: string | null;
@@ -39,6 +51,8 @@ interface StudentRow {
   external_id?: string | null;
   school_type?: string | null;
   card_uid?: string | null;
+  card_frozen?: boolean;
+  is_active?: boolean;
   photo_url?: string | null;
 }
 
@@ -48,6 +62,8 @@ interface BoundCard {
   uid: string;
   name: string;
   role: string;
+  isFrozen: boolean;
+  isActive: boolean;
   customerType?: string | null;
   identifier?: string | null;
   familyCode?: string | null;
@@ -62,6 +78,13 @@ export default function CardManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<CardRole>("all");
+
+  // ── Action state ────────────────────────────────────────────────────────────
+  const [freezeTarget, setFreezeTarget] = useState<BoundCard | null>(null);
+  const [changeUidTarget, setChangeUidTarget] = useState<BoundCard | null>(null);
+  const [newUid, setNewUid] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const uidInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -83,9 +106,7 @@ export default function CardManagement() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const boundCards: BoundCard[] = useMemo(() => {
     const list: BoundCard[] = [];
@@ -97,6 +118,8 @@ export default function CardManagement() {
         uid: u.card_uid,
         name: u.full_name || u.username,
         role: u.role,
+        isFrozen: false,
+        isActive: u.is_active ?? (u.status === "active"),
         customerType: u.customer_type,
         identifier: u.email || u.username,
         familyCode: u.family_code,
@@ -112,6 +135,8 @@ export default function CardManagement() {
         uid: c.card_uid,
         name: c.name,
         role: "student",
+        isFrozen: c.card_frozen ?? false,
+        isActive: c.is_active ?? true,
         customerType: c.school_type,
         identifier: c.student_code || c.customer_code,
         familyCode: c.family_code,
@@ -143,10 +168,86 @@ export default function CardManagement() {
     });
   }, [boundCards, search, roleFilter]);
 
+  // ── Freeze / unfreeze ───────────────────────────────────────────────────────
+  const handleFreezeToggle = async () => {
+    if (!freezeTarget) return;
+    setActionLoading(true);
+    const willFreeze = !freezeTarget.isFrozen;
+    try {
+      if (freezeTarget.kind === "customer") {
+        await api.post(`/customers/${freezeTarget.id}/freeze`, { frozen: willFreeze });
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === freezeTarget.id ? { ...s, card_frozen: willFreeze } : s
+          )
+        );
+      } else {
+        await api.patch(`/users-admin/${freezeTarget.id}`, {
+          status: willFreeze ? "inactive" : "active",
+        });
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === freezeTarget.id
+              ? { ...u, status: willFreeze ? "inactive" : "active", is_active: !willFreeze }
+              : u
+          )
+        );
+      }
+      toast({
+        title: willFreeze ? t("admin.cards.freezeSuccess") : t("admin.cards.unfreezeSuccess"),
+      });
+    } catch (e) {
+      toast({
+        title: t("admin.cards.freezeError"),
+        description: e instanceof ApiError ? e.detail : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+      setFreezeTarget(null);
+    }
+  };
+
+  // ── Change UID ──────────────────────────────────────────────────────────────
+  const handleChangeUid = async () => {
+    if (!changeUidTarget || !newUid.trim()) return;
+    setActionLoading(true);
+    try {
+      if (changeUidTarget.kind === "customer") {
+        await api.patch(`/customers/${changeUidTarget.id}/card`, { card_uid: newUid.trim() });
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === changeUidTarget.id ? { ...s, card_uid: newUid.trim() } : s
+          )
+        );
+      } else {
+        await api.patch(`/users-admin/${changeUidTarget.id}`, { card_uid: newUid.trim() });
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === changeUidTarget.id ? { ...u, card_uid: newUid.trim() } : u
+          )
+        );
+      }
+      toast({ title: t("admin.cards.changeUidSuccess") });
+      setChangeUidTarget(null);
+      setNewUid("");
+    } catch (e) {
+      toast({
+        title: t("admin.cards.changeUidError"),
+        description: e instanceof ApiError ? e.detail : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── KPI counts ──────────────────────────────────────────────────────────────
   const totalCount = boundCards.length;
   const studentCount = boundCards.filter((c) => c.kind === "customer").length;
   const staffCount = boundCards.filter((c) => c.kind === "user" && c.role === "staff").length;
   const parentCount = boundCards.filter((c) => c.kind === "user" && c.role === "parent").length;
+  const frozenCount = boundCards.filter((c) => c.isFrozen || !c.isActive).length;
 
   const detailHref = (c: BoundCard) =>
     c.kind === "user" ? `/users/${c.id}` : `/admin/customer/${c.id}`;
@@ -163,6 +264,14 @@ export default function CardManagement() {
     return <Badge variant="outline" className="capitalize">{label}</Badge>;
   };
 
+  const statusBadge = (c: BoundCard) => {
+    if (c.isFrozen)
+      return <Badge variant="destructive">{t("admin.cards.statusFrozen")}</Badge>;
+    if (!c.isActive)
+      return <Badge variant="outline" className="text-muted-foreground">{t("admin.cards.statusInactive")}</Badge>;
+    return <Badge variant="success">{t("admin.cards.statusActive")}</Badge>;
+  };
+
   return (
     <div className="page-shell">
       <div className="page-header">
@@ -173,15 +282,11 @@ export default function CardManagement() {
         <p className="page-description">{t("admin.cards.description")}</p>
       </div>
 
-      <InfoCallout
-        id="admin.cards.intro"
-        variant="tip"
-        title={t("admin.cards.info.intro.title")}
-      >
+      <InfoCallout id="admin.cards.intro" variant="tip" title={t("admin.cards.info.intro.title")}>
         {t("admin.cards.info.intro.body")}
       </InfoCallout>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card className="kpi-card">
           <CardContent className="pt-5">
             <p className="kpi-label">{t("admin.cards.kpiTotal")}</p>
@@ -204,6 +309,12 @@ export default function CardManagement() {
           <CardContent className="pt-5">
             <p className="kpi-label">{t("admin.cards.kpiParents")}</p>
             <p className="kpi-value">{parentCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="kpi-card border-destructive/30">
+          <CardContent className="pt-5">
+            <p className="kpi-label text-destructive">{t("admin.cards.statusFrozen")}</p>
+            <p className="kpi-value text-destructive">{frozenCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -250,24 +361,24 @@ export default function CardManagement() {
                   <TableHead className="w-40">{t("admin.cards.colUid")}</TableHead>
                   <TableHead>{t("admin.cards.colOwner")}</TableHead>
                   <TableHead className="w-28">{t("admin.cards.colRole")}</TableHead>
+                  <TableHead className="w-24">{t("admin.cards.colStatus")}</TableHead>
                   <TableHead>{t("admin.cards.colIdentifier")}</TableHead>
                   <TableHead className="w-32">{t("admin.cards.colFamilyCode")}</TableHead>
                   <TableHead className="w-32">{t("admin.cards.colExternalId")}</TableHead>
-                  <TableHead className="w-20 text-right">{t("admin.cards.colActions")}</TableHead>
+                  <TableHead className="w-28 text-right">{t("admin.cards.colActions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCards.map((c) => (
-                  <TableRow key={`${c.kind}-${c.id}`}>
+                  <TableRow
+                    key={`${c.kind}-${c.id}`}
+                    className={c.isFrozen || !c.isActive ? "bg-rose-50/50" : undefined}
+                  >
                     <TableCell className="font-mono text-sm">{c.uid}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {c.photoUrl ? (
-                          <img
-                            src={c.photoUrl}
-                            alt=""
-                            className="h-7 w-7 rounded-full object-cover"
-                          />
+                          <img src={c.photoUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
                         ) : (
                           <UserCircle2 className="h-7 w-7 text-muted-foreground" />
                         )}
@@ -275,17 +386,37 @@ export default function CardManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{roleBadge(c)}</TableCell>
+                    <TableCell>{statusBadge(c)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground truncate max-w-56">
                       {c.identifier || "-"}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{c.familyCode || "-"}</TableCell>
                     <TableCell className="font-mono text-xs">{c.externalId || "-"}</TableCell>
                     <TableCell className="text-right">
-                      <IconButton asChild tooltip={t("admin.cards.viewOwner")}>
-                        <Link to={detailHref(c)}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </IconButton>
+                      <div className="flex items-center justify-end gap-1">
+                        <IconButton
+                          tooltip={c.isFrozen ? t("admin.cards.unfreezeCard") : t("admin.cards.freezeCard")}
+                          onClick={() => setFreezeTarget(c)}
+                          className={c.isFrozen ? "text-emerald-600 hover:text-emerald-700" : "text-rose-600 hover:text-rose-700"}
+                        >
+                          {c.isFrozen ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
+                        </IconButton>
+                        <IconButton
+                          tooltip={t("admin.cards.changeUid")}
+                          onClick={() => {
+                            setChangeUidTarget(c);
+                            setNewUid(c.uid);
+                            setTimeout(() => uidInputRef.current?.select(), 50);
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </IconButton>
+                        <IconButton asChild tooltip={t("admin.cards.viewOwner")}>
+                          <Link to={detailHref(c)}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </IconButton>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -294,6 +425,65 @@ export default function CardManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Freeze / Unfreeze confirm ──────────────────────────────────────── */}
+      <AlertDialog open={!!freezeTarget} onOpenChange={(o) => !o && setFreezeTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {freezeTarget?.isFrozen
+                ? t("admin.cards.unfreezeConfirmTitle")
+                : t("admin.cards.freezeConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {freezeTarget?.isFrozen
+                ? t("admin.cards.unfreezeConfirmDesc", { name: freezeTarget?.name })
+                : t("admin.cards.freezeConfirmDesc", { name: freezeTarget?.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>{t("admin.cards.cancelBtn")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleFreezeToggle}
+              disabled={actionLoading}
+              className={freezeTarget?.isFrozen ? "" : "bg-destructive hover:bg-destructive/90"}
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.cards.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Change UID dialog ──────────────────────────────────────────────── */}
+      <Dialog open={!!changeUidTarget} onOpenChange={(o) => !o && (setChangeUidTarget(null), setNewUid(""))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("admin.cards.changeUidTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">{changeUidTarget?.name}</p>
+            <div className="space-y-1.5">
+              <Label>{t("admin.cards.changeUidLabel")}</Label>
+              <Input
+                ref={uidInputRef}
+                placeholder={t("admin.cards.changeUidPlaceholder")}
+                value={newUid}
+                onChange={(e) => setNewUid(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleChangeUid()}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setChangeUidTarget(null); setNewUid(""); }} disabled={actionLoading}>
+              {t("admin.cards.cancelBtn")}
+            </Button>
+            <Button onClick={handleChangeUid} disabled={!newUid.trim() || actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.cards.changeUidSave")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

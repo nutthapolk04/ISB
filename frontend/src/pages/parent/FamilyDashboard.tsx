@@ -72,13 +72,13 @@ export default function FamilyDashboard() {
   }, [isStudent]);
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="page-shell">
+      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          <h1 className="page-title">
             {isStudent ? t("parent.dashboard.studentTitle") : t("parent.dashboard.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="page-description">
             {isStudent ? t("parent.dashboard.studentDescription") : t("parent.dashboard.description")}
           </p>
         </div>

@@ -21,7 +21,7 @@ export default function UserManagement() {
   if (!isAdmin) {
     if (!user?.shopId) {
       return (
-        <div className="p-4 sm:p-6">
+        <div className="page-shell text-muted-foreground">
           <p className="text-sm text-muted-foreground">
             {t("shopUsers.noShopAssigned", "Manager has no shop assignment")}
           </p>
@@ -29,12 +29,12 @@ export default function UserManagement() {
       );
     }
     return (
-      <div className="p-4 sm:p-6 space-y-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+      <div className="page-shell">
+        <div className="page-header">
+          <h1 className="page-title flex items-center gap-2">
             <Users className="h-6 w-6" /> {t("admin.users.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="page-description">
             {t("users.tabMyTeamDesc", "Manage staff in your shop")}
           </p>
         </div>
@@ -45,12 +45,12 @@ export default function UserManagement() {
 
   // Admin view: full 4-tab system-wide
   return (
-    <div className="p-4 sm:p-6 space-y-4">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+    <div className="page-shell">
+      <div className="page-header">
+        <h1 className="page-title flex items-center gap-2">
           <Users className="h-6 w-6" /> {t("admin.users.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="page-description">
           {t("admin.users.description")}
         </p>
       </div>
