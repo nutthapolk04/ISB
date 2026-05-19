@@ -43,9 +43,17 @@ def get_current_user(
             detail="Inactive user"
         )
 
-    # Feature 9: single-session enforcement — compare JWT sid claim to DB token
+    # Feature 9: single-session enforcement — compare JWT sid claim to DB token.
+    # Also reject legacy JWTs (no sid) when the user already has a session token
+    # in the DB — those tokens predate the feature and must be re-issued.
     sid = payload.get("sid")
     if sid is not None and user.session_token != sid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if sid is None and user.session_token is not None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired. Please log in again.",

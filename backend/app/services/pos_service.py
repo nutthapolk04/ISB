@@ -645,6 +645,40 @@ class POSService:
 
         # Restore stock for each item
         for item in receipt.items:
+            opts = item.options or {}
+            # Bundle: restore all sub-SKUs that were deducted at checkout
+            if opts.get("is_bundle") and opts.get("bundle_id"):
+                bundle_items: list[BundleItem] = (
+                    db.query(BundleItem)
+                    .filter(BundleItem.bundle_id == opts["bundle_id"])
+                    .all()
+                )
+                for bi in bundle_items:
+                    sub_product: ShopProduct | None = (
+                        db.query(ShopProduct).filter(ShopProduct.id == bi.product_id).first()
+                    )
+                    if not sub_product:
+                        continue
+                    restore_qty = bi.quantity * item.quantity
+                    stock_before = sub_product.stock
+                    sub_product.stock = stock_before + restore_qty
+                    db.add(ShopMovement(
+                        date=date.today(),
+                        product_id=sub_product.id,
+                        product_name=sub_product.name,
+                        shop_id=sub_product.shop_id,
+                        type=MovementType.void,
+                        quantity=restore_qty,
+                        stock_before=stock_before,
+                        stock_after=sub_product.stock,
+                        cost_per_unit=float(item.unit_price),
+                        reference=receipt.receipt_number,
+                        note=reason or "Voided receipt (bundle)",
+                        created_by=user_id,
+                    ))
+                continue
+
+            # Normal item
             product: ShopProduct = (
                 db.query(ShopProduct)
                 .filter(ShopProduct.id == item.product_variant_id)

@@ -20,8 +20,7 @@ from app.core.database import get_db
 from app.models.product import Product, ProductVariant
 from app.models.receipt import Receipt, ReceiptItem, ReceiptStatus
 from app.models.return_request import ReturnRequest
-from app.models.shop import Shop, ShopProduct
-from app.models.stock import StockMovement
+from app.models.shop import Shop, ShopProduct, ShopMovement
 from app.models.user import User
 
 router = APIRouter()
@@ -387,68 +386,74 @@ def stock_card_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Per-SKU movement history with opening/closing balance."""
-    # Resolve variant → product name
-    variant = (
-        db.query(ProductVariant)
-        .filter(ProductVariant.id == product_variant_id, ProductVariant.is_active == True)  # noqa: E712
+    """Per-SKU movement history with opening/closing balance.
+
+    product_variant_id here is the ShopProduct.id (the operative stock unit in
+    this system).  ShopMovement is the live audit table written by checkout,
+    void, and inventory adjustments.
+    """
+    shop_product = (
+        db.query(ShopProduct)
+        .filter(ShopProduct.id == product_variant_id, ShopProduct.is_active == True)  # noqa: E712
         .first()
     )
-    if not variant:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product variant not found")
-
-    product = db.query(Product).filter(Product.id == variant.product_id).first()
-    product_name = f"{product.name} — {variant.variant_name}" if product else variant.variant_name
+    if not shop_product:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     start, end = _date_range(date_from, date_to)
     start_bkk = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
 
-    # Opening balance: sum of quantity_change for all movements before date_from
-    opening_q = (
-        db.query(func.coalesce(func.sum(StockMovement.quantity_change), 0))
+    # Opening balance: stock_after of the last movement BEFORE date_from
+    last_before = (
+        db.query(ShopMovement)
         .filter(
-            StockMovement.product_variant_id == product_variant_id,
-            StockMovement.created_at < start_bkk,
+            ShopMovement.product_id == product_variant_id,
+            ShopMovement.created_at < start_bkk,
         )
-        .scalar()
+        .order_by(ShopMovement.created_at.desc())
+        .first()
     )
-    opening_balance = float(opening_q or 0)
+    opening_balance = float(last_before.stock_after if last_before else (shop_product.stock or 0))
+    # If no prior movements exist, fall back to current stock as a best-guess opening.
 
     # Movements within range
     movements = (
-        db.query(StockMovement)
+        db.query(ShopMovement)
         .filter(
-            StockMovement.product_variant_id == product_variant_id,
-            StockMovement.created_at >= start,
-            StockMovement.created_at <= end,
+            ShopMovement.product_id == product_variant_id,
+            ShopMovement.created_at >= start,
+            ShopMovement.created_at <= end,
         )
-        .order_by(StockMovement.created_at)
+        .order_by(ShopMovement.created_at)
         .all()
     )
 
+    # Deduction types reduce balance; receive/void/exchange add to it.
+    _DEDUCT_TYPES = {"sale", "internal_use", "adjustment"}
+
     rows: List[StockCardRow] = []
-    running = opening_balance
     for m in movements:
-        qty = float(m.quantity_change)
-        running += qty
-        movement_type_str = m.movement_type.value if hasattr(m.movement_type, "value") else str(m.movement_type)
+        movement_type_str = m.type.value if hasattr(m.type, "value") else str(m.type)
+        signed_qty = float(m.quantity)
+        if movement_type_str in _DEDUCT_TYPES:
+            signed_qty = -signed_qty
         rows.append(
             StockCardRow(
                 date=m.created_at,
                 movement_type=movement_type_str,
-                quantity=qty,
-                reference=m.reference_document,
-                notes=m.notes,
-                running_balance=running,
+                quantity=signed_qty,
+                reference=m.reference,
+                notes=m.note,
+                running_balance=float(m.stock_after),
             )
         )
 
-    closing_balance = running
+    closing_balance = float(movements[-1].stock_after) if movements else opening_balance
 
     return StockCardReport(
         product_variant_id=product_variant_id,
-        product_name=product_name,
-        sku=variant.sku,
+        product_name=shop_product.name,
+        sku=shop_product.product_code or "",
         date_from=date_from,
         date_to=date_to,
         opening_balance=opening_balance,
