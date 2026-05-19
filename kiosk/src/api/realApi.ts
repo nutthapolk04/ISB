@@ -185,9 +185,9 @@ function mapCustomer(c: ISBCustomerLookupResult, children: ISBChildSummary[] = [
 
 function mapTransaction(tx: ISBWalletTransaction): Transaction {
   const dt = new Date(tx.created_at);
-  const isCredit = tx.transaction_type === 'topup'
-    || tx.transaction_type === 'credit'
-    || tx.transaction_type === 'transfer_credit';
+  // DB types: 'topup' | 'deduction' | 'refund' | 'adjustment'
+  // Use balance diff as source of truth — handles all types including adjustments
+  const isCredit = tx.balance_after > tx.balance_before;
 
   return {
     id: String(tx.id),
@@ -195,7 +195,7 @@ function mapTransaction(tx: ISBWalletTransaction): Transaction {
     date: dt.toLocaleDateString('en-CA'),   // YYYY-MM-DD
     time: dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
     amount: Math.abs(tx.amount),
-    machine: tx.shop_name ?? tx.description ?? 'ISB',
+    machine: tx.shop_name ?? (isCredit ? 'Top-up' : tx.description) ?? 'ISB',
     balanceBefore: tx.balance_before,
     balanceAfter: tx.balance_after,
   };
