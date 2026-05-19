@@ -177,7 +177,7 @@ def shop_stats(
         .all()
     )
     total_products = len(products)
-    low_stock_count = sum(1 for p in products if p.stock <= p.min_stock)
+    low_stock_count = sum(1 for p in products if p.min_stock > 0 and p.stock <= p.min_stock)
     total_value = sum(p.stock * float(p.avg_cost) for p in products if p.stock > 0)
     return ShopStatsResponse(
         total_products=total_products,
