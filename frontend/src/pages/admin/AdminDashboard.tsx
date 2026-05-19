@@ -26,6 +26,7 @@ import {
 import { api } from "@/lib/api";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
+import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import {
   Dialog,
   DialogContent,
@@ -333,6 +334,7 @@ export default function AdminDashboard() {
   const receiptsQuery = useRecentReceipts();
   const [showLowStock, setShowLowStock] = useState(false);
   const lowStockItemsQuery = useLowStockItems(showLowStock);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
 
   // Derive today's canteen / store totals from whatever receipts we've fetched.
   const canteenTotal = salesQuery.data
@@ -536,7 +538,11 @@ export default function AdminDashboard() {
                     ? (PAYMENT_METHOD_LABELS[r.payment_method] ?? r.payment_method)
                     : "—";
                   return (
-                    <TableRow key={r.id}>
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedReceiptId(r.id)}
+                    >
                       <TableCell className="text-sm text-muted-foreground">
                         {formatRelative(r.created_at, t)}
                       </TableCell>
@@ -571,6 +577,10 @@ export default function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+      <ReceiptDetailDialog
+        receiptId={selectedReceiptId}
+        onClose={() => setSelectedReceiptId(null)}
+      />
     </div>
   );
 }
