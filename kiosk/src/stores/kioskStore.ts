@@ -68,6 +68,23 @@ export const useKioskStore = defineStore('kiosk', () => {
         activeWalletIndex.value = 0;
     }
 
+    async function refreshBalance() {
+        if (!currentUser.value) return;
+        const identifier = currentUser.value.employeeId;
+        const prevWalletIndex = activeWalletIndex.value;
+        try {
+            const user = await realApi.checkBalance(identifier);
+            if (user) {
+                currentUser.value = user;
+                activeWalletIndex.value = Math.min(prevWalletIndex, user.wallets.length - 1);
+            }
+            const walletId = currentWallet.value?.id ?? null;
+            if (walletId) {
+                transactions.value = await realApi.getLatestTransactions(walletId);
+            }
+        } catch { /* silent — stale data is acceptable */ }
+    }
+
     async function fetchSchoolInfo() {
         try {
             schoolInfo.value = await realApi.getPublicSettings();
@@ -88,6 +105,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         updateActivity,
         login,
         logout,
+        refreshBalance,
         schoolInfo,
         fetchSchoolInfo,
     };

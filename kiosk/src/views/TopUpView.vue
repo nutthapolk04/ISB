@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
 import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, Smartphone, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft } from 'lucide-vue-next';
 import { ref, computed, onUnmounted } from 'vue';
+import { realApi } from '../api/realApi';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -50,7 +51,10 @@ const t = {
     seconds: 'sec',
     cashConfirmTitle: 'Proceed to Cashier',
     cashConfirmDesc: 'Please show this screen to the cashier and pay the amount below.',
-    cashConfirmNote: 'The cashier will top up your wallet after receiving payment.',
+    cashConfirmNote: 'The cashier will confirm payment and top up your wallet.',
+    cashConfirmBtn: 'Confirm Cash Received',
+    processing: 'Processing…',
+    failDetail: 'Error detail',
   },
   TH: {
     title: 'เติมเงิน',
@@ -90,7 +94,10 @@ const t = {
     seconds: 'วินาที',
     cashConfirmTitle: 'ชำระเงินที่แคชเชียร์',
     cashConfirmDesc: 'กรุณาแสดงหน้าจอนี้ให้แคชเชียร์และชำระจำนวนเงินด้านล่าง',
-    cashConfirmNote: 'แคชเชียร์จะเติมเงินเข้าวอลเล็ตของคุณหลังจากรับเงินแล้ว',
+    cashConfirmNote: 'แคชเชียร์จะกดยืนยันรับเงินและเติมเงินเข้าวอลเล็ตของคุณ',
+    cashConfirmBtn: 'ยืนยันรับเงินแล้ว',
+    processing: 'กำลังดำเนินการ…',
+    failDetail: 'รายละเอียดข้อผิดพลาด',
   }
 };
 
@@ -105,6 +112,8 @@ const selectedMethod = ref<string | null>(null);
 const currentStep = ref<Step>('methods');
 const enteredAmount = ref('0');
 const failType = ref<'internet' | 'server'>('internet');
+const failDetail = ref<string | null>(null);
+const isProcessing = ref(false);
 
 const MAX_AMOUNT = 5000;
 const SHORTCUTS = [50, 100, 200, 500, 1000];
@@ -207,13 +216,33 @@ onUnmounted(() => {
   clearQrTimer();
 });
 
-// Simulate top-up result (demo)
-const simulateSuccess = () => {
-  currentStep.value = 'success';
+// Real top-up via backend
+const doTopUp = async () => {
+  const walletId = store.currentWallet?.id;
+  if (!walletId || !isAmountValid.value) return;
+
+  isProcessing.value = true;
+  failDetail.value = null;
+  try {
+    await realApi.topUp(walletId, amountNumber.value, selectedMethod.value ?? 'cash');
+    clearQrTimer();
+    // Refresh balance + transaction history
+    await store.refreshBalance();
+    currentStep.value = 'success';
+  } catch (e) {
+    const isNetwork = e instanceof TypeError && (e.message.includes('fetch') || e.message.includes('network'));
+    failType.value = isNetwork ? 'internet' : 'server';
+    failDetail.value = e instanceof Error ? e.message : String(e);
+    currentStep.value = 'fail';
+  } finally {
+    isProcessing.value = false;
+  }
 };
 
+// Demo-only: still keep for PromptPay demo buttons
 const simulateFail = (type: 'internet' | 'server') => {
   failType.value = type;
+  failDetail.value = type === 'internet' ? 'ERR_NETWORK_CHANGED' : 'HTTP 503 Service Unavailable';
   currentStep.value = 'fail';
 };
 
@@ -414,7 +443,9 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
           <span>{{ currT.demo }}</span>
         </div>
         <div class="demo-buttons">
-          <button class="demo-btn success" @click="simulateSuccess">✓ Success</button>
+          <button class="demo-btn success" :disabled="isProcessing" @click="doTopUp">
+            {{ isProcessing ? currT.processing : '✓ Success (Real)' }}
+          </button>
           <button class="demo-btn fail" @click="simulateFail('internet')">✗ No Internet</button>
           <button class="demo-btn fail" @click="simulateFail('server')">✗ Server Error</button>
         </div>
@@ -431,12 +462,21 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
         <p class="cash-desc">{{ currT.cashConfirmDesc }}</p>
         <div class="cash-amount-display">฿{{ formattedAmount }}</div>
         <p class="cash-note">{{ currT.cashConfirmNote }}</p>
+        <button
+          class="kiosk-btn btn-primary"
+          style="width: 100%;"
+          :disabled="isProcessing"
+          @click="doTopUp"
+        >
+          <CheckCircle2 v-if="!isProcessing" :size="22" />
+          <span>{{ isProcessing ? currT.processing : currT.cashConfirmBtn }}</span>
+        </button>
         <div class="qr-actions">
-          <button class="kiosk-btn btn-secondary qr-action-btn" @click="backToMethods">
+          <button class="kiosk-btn btn-secondary qr-action-btn" :disabled="isProcessing" @click="backToMethods">
             <ArrowLeft :size="20" />
             <span>{{ currT.changeMethod }}</span>
           </button>
-          <button class="kiosk-btn btn-danger qr-action-btn" @click="cancelTopup">
+          <button class="kiosk-btn btn-danger qr-action-btn" :disabled="isProcessing" @click="cancelTopup">
             <XCircle :size="20" />
             <span>{{ currT.cancelTopup }}</span>
           </button>
@@ -482,7 +522,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
         <p class="fail-sub">
           {{ failType === 'internet' ? currT.failNoInternetSub : currT.failServerSub }}
         </p>
-        <p v-if="failType === 'server'" class="fail-code">{{ currT.failServerCode }}</p>
+        <p v-if="failDetail" class="fail-code">{{ failDetail }}</p>
         <div class="fail-actions">
           <button class="kiosk-btn btn-primary" @click="retryTopup" v-if="failType === 'internet'">
             {{ currT.retry }}

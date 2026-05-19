@@ -83,13 +83,46 @@ async function request<T>(path: string, retried = false): Promise<T> {
   });
 
   if (res.status === 401 && !retried) {
-    // Token expired — re-login once
     _token = null;
     return request<T>(path, true);
   }
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${path}`);
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
+    } catch { /* ignore parse errors */ }
+    throw new Error(detail);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+async function requestPost<T>(path: string, body: unknown, retried = false): Promise<T> {
+  const token = _token ?? await fetchToken();
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 401 && !retried) {
+    _token = null;
+    return requestPost<T>(path, body, true);
+  }
+
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const err = await res.json();
+      if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+    } catch { /* ignore parse errors */ }
+    throw new Error(detail);
   }
 
   return res.json() as Promise<T>;
@@ -194,6 +227,25 @@ export const realApi = {
     } catch (e) {
       console.warn('[KioskAPI] init: could not pre-warm token:', e);
     }
+  },
+
+  /**
+   * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
+   * Returns updated balance_after and the new transaction_id.
+   */
+  async topUp(walletId: string, amount: number, method: string): Promise<{ balance_after: number; transaction_id: number }> {
+    const res = await requestPost<{
+      wallet_id: number;
+      customer_name: string;
+      amount: number;
+      balance_before: number;
+      balance_after: number;
+      transaction_id: number;
+    }>(
+      `/wallets/${walletId}/cashier-topup`,
+      { amount, notes: `Kiosk top-up via ${method}` },
+    );
+    return { balance_after: res.balance_after, transaction_id: res.transaction_id };
   },
 
   async getPublicSettings(): Promise<{ school_name: string; school_logo_url: string }> {

@@ -223,7 +223,7 @@ def cashier_topup(
     wallet_id: int,
     payload: CashierTopupRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("cashier", "manager", "admin", "staff")),
+    current_user: User = Depends(require_role("cashier", "manager", "admin", "staff", "kiosk")),
 ):
     """Cashier or manager top-ups a customer wallet with cash at POS.
 
