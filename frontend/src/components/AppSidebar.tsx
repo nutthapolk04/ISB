@@ -167,8 +167,8 @@ export function AppSidebar() {
           </SidebarGroupLabel>
         </SidebarGroup>
 
-        {/* Home Hub — visible only for multi-role users */}
-        {user && (user.allRoles?.length ?? 1) > 1 && (
+        {/* Home Hub — visible for multi-role users OR staff with a shop assignment */}
+        {user && ((user.allRoles?.length ?? 1) > 1 || (user.role === "staff" && !!user.shopId)) && (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0">
