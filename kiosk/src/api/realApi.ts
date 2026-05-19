@@ -232,9 +232,12 @@ export const realApi = {
       if (exact.user_id != null) {
         try {
           children = await request<ISBChildSummary[]>(`/family/by-user/${exact.user_id}`);
-        } catch {
-          // non-fatal — show parent wallet without children
+          console.log('[Kiosk] family children for user', exact.user_id, children);
+        } catch (err) {
+          console.warn('[Kiosk] /family/by-user failed:', err);
         }
+      } else {
+        console.log('[Kiosk] no user_id in result — student account, no children lookup', exact);
       }
 
       return mapCustomer(exact, children);
