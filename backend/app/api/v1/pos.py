@@ -14,7 +14,7 @@ from app.api.deps import get_current_user, require_role, user_can_access_shop
 from app.models.receipt import Receipt
 from app.models.shop import ShopProduct
 from app.models.user import User
-from app.models.wallet import Wallet
+from app.models.wallet import Wallet, WalletTransaction
 from app.schemas.pos import CheckoutPayload, ReceiptResponse, VoidReceiptRequest
 from app.services.pos_service import POSService
 from app.core.errors import BusinessRuleError
@@ -194,6 +194,25 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
         requester_name = receipt.requester.full_name
 
     # ── Enrich payer details for wallet-based payments ───────────────────────
+    # Helper: look up balance_after from the wallet transaction linked to this
+    # receipt (reference_type='receipt', reference_id=receipt.id).  Falls back
+    # to the wallet's current balance only when no matching transaction exists.
+    def _balance_at_receipt(wallet_obj) -> Optional[float]:
+        if wallet_obj is None:
+            return None
+        tx = (
+            db.query(WalletTransaction)
+            .filter(
+                WalletTransaction.wallet_id == wallet_obj.id,
+                WalletTransaction.reference_type == "receipt",
+                WalletTransaction.reference_id == receipt.id,
+            )
+            .first()
+        )
+        if tx:
+            return float(tx.balance_after)
+        return float(wallet_obj.balance)
+
     payer_detail: Optional[dict] = None
     if db and payer_kind in ("customer", "user", "department"):
         if payer_kind == "customer" and receipt.customer_id:
@@ -207,7 +226,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
                     "grade": getattr(c, "grade", None),
                     "photo_url": getattr(c, "photo_url", None),
                     "role": "student",
-                    "wallet_balance": float(wallet.balance) if wallet else None,
+                    "wallet_balance": _balance_at_receipt(wallet),
                 }
         elif payer_kind == "user" and receipt.payer_user_id:
             from app.models.user import User as _User
@@ -226,7 +245,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
                     "grade": dept_name,
                     "photo_url": getattr(u, "photo_url", None),
                     "role": u.role or "staff",
-                    "wallet_balance": float(wallet.balance) if wallet else None,
+                    "wallet_balance": _balance_at_receipt(wallet),
                 }
         elif payer_kind == "department" and receipt.payer_department_id:
             from app.models.department import Department as _Dept
@@ -239,7 +258,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
                     "grade": None,
                     "photo_url": None,
                     "role": "department",
-                    "wallet_balance": float(wallet.balance) if wallet else None,
+                    "wallet_balance": _balance_at_receipt(wallet),
                 }
 
     return {
