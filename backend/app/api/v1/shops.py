@@ -13,6 +13,7 @@ from app.models.shop import Shop, ShopType
 from app.schemas.shop import (
     ShopCreate, ShopUpdate, ShopResponse,
     ShopStatsResponse, ShopDeleteResponse,
+    LowStockItemResponse,
 )
 
 router = APIRouter()
@@ -52,6 +53,40 @@ def create_shop(
     db.commit()
     db.refresh(shop)
     return shop
+
+
+@router.get("/low-stock", response_model=List[LowStockItemResponse])
+def all_low_stock_products(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
+    """Return all active products across all shops where stock <= min_stock (and min_stock > 0)."""
+    from app.models.shop import ShopProduct
+    products = (
+        db.query(ShopProduct, Shop)
+        .join(Shop, Shop.id == ShopProduct.shop_id)
+        .filter(
+            ShopProduct.is_active == True,
+            Shop.is_active == True,
+            ShopProduct.min_stock > 0,
+            ShopProduct.stock <= ShopProduct.min_stock,
+        )
+        .order_by(ShopProduct.stock.asc())
+        .all()
+    )
+    return [
+        LowStockItemResponse(
+            id=p.id,
+            shop_id=p.shop_id,
+            shop_name=s.name,
+            product_code=p.product_code,
+            name=p.name,
+            stock=p.stock,
+            min_stock=p.min_stock,
+            category=p.category,
+        )
+        for p, s in products
+    ]
 
 
 @router.get("/{shop_id}", response_model=ShopResponse)

@@ -124,6 +124,21 @@ class ShopProductResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Low stock alert ──────────────────────────────────────────────────────────
+
+class LowStockItemResponse(BaseModel):
+    id: int
+    shop_id: str
+    shop_name: str
+    product_code: str
+    name: str
+    stock: int
+    min_stock: int
+    category: str
+
+    model_config = {"from_attributes": True}
+
+
 # ── Product reorder ───────────────────────────────────────────────────────────
 
 class ReorderRequest(BaseModel):

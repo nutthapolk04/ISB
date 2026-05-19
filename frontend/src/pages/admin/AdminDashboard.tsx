@@ -8,6 +8,7 @@
  *   4. Recent Activity (last 10 receipts)
  */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -19,11 +20,18 @@ import {
   BarChart3,
   AlertTriangle,
   Receipt as ReceiptIcon,
+  ChevronRight,
 } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -47,6 +55,17 @@ interface ShopStats {
   total_products: number;
   low_stock_count: number;
   total_value: number;
+}
+
+interface LowStockItem {
+  id: number;
+  shop_id: string;
+  shop_name: string;
+  product_code: string;
+  name: string;
+  stock: number;
+  min_stock: number;
+  category: string;
 }
 
 // Receipts from /pos/receipt may include shop_id (backend model supports it
@@ -197,6 +216,15 @@ function useLowStockAggregate() {
   });
 }
 
+function useLowStockItems(enabled: boolean) {
+  return useQuery<LowStockItem[]>({
+    queryKey: ["admin", "dashboard", "low-stock-items"],
+    queryFn: () => api.get<LowStockItem[]>("/shops/low-stock"),
+    enabled,
+    staleTime: STALE,
+  });
+}
+
 // ── KPI card ─────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
@@ -206,6 +234,7 @@ interface KpiCardProps {
   valueClassName?: string;
   icon?: React.ReactNode;
   loading?: boolean;
+  onClick?: () => void;
 }
 
 function KpiCard({
@@ -215,13 +244,20 @@ function KpiCard({
   valueClassName,
   icon,
   loading,
+  onClick,
 }: KpiCardProps) {
   return (
-    <Card className="kpi-card">
+    <Card
+      className={`kpi-card${onClick ? " cursor-pointer transition-shadow hover:shadow-md" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-5">
         <div className="flex items-center justify-between">
           <div className="kpi-label">{label}</div>
-          {icon && <div className="text-muted-foreground">{icon}</div>}
+          <div className="flex items-center gap-1 text-muted-foreground">
+            {icon}
+            {onClick && <ChevronRight className="h-3 w-3 opacity-50" />}
+          </div>
         </div>
         {loading ? (
           <Skeleton className="mt-2 h-8 w-28" />
@@ -281,6 +317,8 @@ export default function AdminDashboard() {
   const salesQuery = useTodaySales();
   const lowStockQuery = useLowStockAggregate();
   const receiptsQuery = useRecentReceipts();
+  const [showLowStock, setShowLowStock] = useState(false);
+  const lowStockItemsQuery = useLowStockItems(showLowStock);
 
   // Derive today's canteen / store totals from whatever receipts we've fetched.
   const canteenTotal = salesQuery.data
@@ -346,8 +384,62 @@ export default function AdminDashboard() {
           valueClassName="text-rose-700"
           icon={<AlertTriangle className="h-4 w-4" />}
           loading={lowStockQuery.isLoading}
+          onClick={() => setShowLowStock(true)}
         />
       </div>
+
+      {/* Low stock detail dialog */}
+      <Dialog open={showLowStock} onOpenChange={setShowLowStock}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <AlertTriangle className="h-4 w-4" />
+              {t("admin.dashboard.lowStockAlerts")}
+            </DialogTitle>
+          </DialogHeader>
+          {lowStockItemsQuery.isLoading ? (
+            <div className="space-y-2 py-4">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+            </div>
+          ) : !lowStockItemsQuery.data?.length ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {t("admin.dashboard.noLowStock", "ไม่มีสินค้าต่ำกว่าขั้นต่ำ")}
+            </p>
+          ) : (
+            <div className="max-h-[60vh] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("inventory.colName", "ชื่อสินค้า")}</TableHead>
+                    <TableHead>{t("inventory.colShop", "ร้าน")}</TableHead>
+                    <TableHead>{t("inventory.colCategory", "หมวด")}</TableHead>
+                    <TableHead className="text-right">{t("inventory.colStock", "คงเหลือ")}</TableHead>
+                    <TableHead className="text-right">{t("inventory.colMinStock", "ขั้นต่ำ")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lowStockItemsQuery.data.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
+                        <div>{item.name}</div>
+                        <div className="text-xs text-muted-foreground">{item.product_code}</div>
+                      </TableCell>
+                      <TableCell>{item.shop_name}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell className="text-right font-semibold text-rose-700">
+                        {item.stock}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {item.min_stock}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Row 3 — Quick Actions */}
       <div>
