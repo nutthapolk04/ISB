@@ -18,6 +18,8 @@ import {
   Package,
   ArrowLeftRight,
   BookOpen,
+  Building2,
+  UserSearch,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +77,16 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.admin.step6.title",
         descKey: "guide.admin.step6.desc",
         icon: Settings,
+      },
+      {
+        titleKey: "guide.admin.step7.title",
+        descKey: "guide.admin.step7.desc",
+        icon: Users,
+      },
+      {
+        titleKey: "guide.admin.step8.title",
+        descKey: "guide.admin.step8.desc",
+        icon: Building2,
       },
     ],
   },
@@ -138,6 +150,16 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.canteen.step4.title",
         descKey: "guide.canteen.step4.desc",
         icon: BarChart3,
+      },
+      {
+        titleKey: "guide.canteen.step5.title",
+        descKey: "guide.canteen.step5.desc",
+        icon: UserSearch,
+      },
+      {
+        titleKey: "guide.canteen.step6.title",
+        descKey: "guide.canteen.step6.desc",
+        icon: Building2,
       },
     ],
   },

@@ -1862,6 +1862,14 @@
       "step6": {
         "title": "System Settings",
         "desc": "Go to Admin Ops → Settings. Toggle wallet negative balance policy for users and customers. Enable per-student overdraft limits via the student profile page."
+      },
+      "step7": {
+        "title": "Add Students & Members",
+        "desc": "Go to Admin Ops → Cardholders → + Add Cardholder. Choose Kind: Student (fill name, student code, grade), Staff/Parent (fill username + password so they can log in), or Other. The wallet is created automatically. To bind an RFID card, open the cardholder profile and edit the Card UID field."
+      },
+      "step8": {
+        "title": "Set Up Department Accounts",
+        "desc": "Go to Admin Ops → Cardholders → + Add Cardholder → Kind: Department. Enter a Department Code (e.g. D0001) and Department Name. A department wallet is created automatically. To top up or debit the department wallet, go to Admin Ops → Dept Wallet Adjust, select the department, choose Credit (+) or Debit (−), enter the amount and reason, then Submit. To allow a shop to accept department charges, edit the shop and enable Allow Department Charge."
       }
     },
     "parent": {
@@ -1892,16 +1900,24 @@
         "desc": "Go to Canteen POS. Tap menu items to add them to the cart. For items with options (e.g. spice level), the customisation dialog will open — complete required options before adding."
       },
       "step2": {
-        "title": "Process Payment",
-        "desc": "Review the cart total. Ask the customer to tap their RFID card (student, staff, or parent card). The system deducts the amount from their wallet and prints a receipt automatically."
+        "title": "Process Payment — Wallet",
+        "desc": "Tap Charge → select Wallet → the 'Tap Card or Enter Code' dialog opens. Scan an RFID card OR type: Student Code (e.g. S12345), Card UID, Staff Username, or Department Code (e.g. D0001). Press Search — the system auto-detects who it is. Verify the name and remaining balance, then press Confirm."
       },
       "step3": {
         "title": "View Receipts",
-        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view details or download a PDF copy."
+        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view full details — shop name, cashier, payer account, and the balance remaining at the time of purchase."
       },
       "step4": {
         "title": "Daily Sales Summary",
         "desc": "Go to Canteen Reports (manager access required). Select today's date range and export to Excel. The report includes per-item sales, total revenue, and payment method breakdown."
+      },
+      "step5": {
+        "title": "Pre-select a Member Before Ordering",
+        "desc": "Click the 🔍 Search Member button (top right of POS). Type a name, student code, staff username, or department code — results include students, staff, parents, and departments. Select the payer first, then add items to the cart. When ready, press Charge — the system charges their wallet directly without re-asking for the card."
+      },
+      "step6": {
+        "title": "Department Charge",
+        "desc": "Two ways to charge a department: (1) Wallet flow — enter the department code (e.g. D0001) in the RFID modal and press Search. (2) Department flow — tap Charge → Change payment method → Department, then select the department from the dropdown. Note: the shop must have Allow Department Charge enabled by an admin."
       }
     },
     "store": {
