@@ -270,6 +270,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
         "edc_masked_card": receipt.edc_masked_card,
         "created_at": receipt.created_at,
         "created_by": receipt.created_by,
+        "created_by_name": receipt.creator.full_name if getattr(receipt, "creator", None) else None,
         "voided_at": receipt.voided_at,
         "voided_by": receipt.voided_by,
         "voided_reason": receipt.voided_reason,

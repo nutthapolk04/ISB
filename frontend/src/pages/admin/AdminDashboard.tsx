@@ -73,6 +73,20 @@ interface LowStockItem {
 type ReceiptRow = Receipt & {
   shop_id?: string | null;
   created_by_name?: string | null;
+  payer_label?: string | null;
+  payment_method?: string | null;
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: "เงินสด",
+  wallet: "Wallet",
+  card_tap: "แตะบัตร",
+  credit_card: "บัตรเครดิต",
+  debit_card: "บัตรเดบิต",
+  edc: "EDC",
+  bank_transfer: "โอนเงิน",
+  department: "ตัดงบ",
+  other: "อื่นๆ",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -492,7 +506,9 @@ export default function AdminDashboard() {
                   <TableHead>{t("admin.dashboard.colTime")}</TableHead>
                   <TableHead>{t("admin.dashboard.colReceipt")}</TableHead>
                   <TableHead>{t("admin.dashboard.colShop")}</TableHead>
-                  <TableHead>{t("admin.dashboard.colCashier")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colCashier", "ผู้ขาย")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colPayment", "วิธีชำระ")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colBuyer", "ผู้ซื้อ")}</TableHead>
                   <TableHead className="text-right">{t("admin.dashboard.colAmount")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -500,7 +516,7 @@ export default function AdminDashboard() {
                 {recent.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={7}
                       className="py-8 text-center text-muted-foreground"
                     >
                       {t("admin.dashboard.noRecentActivity")}
@@ -516,6 +532,9 @@ export default function AdminDashboard() {
                         ? "coop"
                         : null);
                   const badge = shopBadgeVariant(sid, t);
+                  const pmLabel = r.payment_method
+                    ? (PAYMENT_METHOD_LABELS[r.payment_method] ?? r.payment_method)
+                    : "—";
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="text-sm text-muted-foreground">
@@ -534,6 +553,12 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell className="text-sm">
                         {r.created_by_name ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {pmLabel}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {r.payer_label ?? "—"}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">
                         {formatTHB(r.total)}
