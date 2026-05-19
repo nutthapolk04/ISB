@@ -129,7 +129,7 @@ def get_user_payer_by_username(
     username: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("cashier", "manager", "admin", "kitchen")
+        require_role("cashier", "manager", "admin", "kitchen", "staff")
     ),
 ):
     """Resolve a parent/staff user by username for POS wallet payment.
@@ -171,7 +171,7 @@ def get_user_payer_by_card(
     uid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("cashier", "manager", "admin", "kitchen")
+        require_role("cashier", "manager", "admin", "kitchen", "staff")
     ),
 ):
     """Resolve a parent/staff user by NFC card UID for POS wallet payment.
@@ -267,7 +267,7 @@ def family_lookup(
     q: str = Query(..., description="Employee username or family code"),
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("cashier", "manager", "admin", "kitchen")
+        require_role("cashier", "manager", "admin", "kitchen", "staff")
     ),
 ):
     """Resolve a user (by username) or family group (by family_code) for POS use.

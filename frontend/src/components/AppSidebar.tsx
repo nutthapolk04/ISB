@@ -135,6 +135,8 @@ export function AppSidebar() {
     if (g.module === null) return true; // gated at per-item role level
     if (!user) return false;
     if (user.role === "admin") return true;
+    // Hide shop/canteen nav when user is on Hub or parent/wallet pages
+    if (location.pathname === "/" || location.pathname.startsWith("/parent")) return false;
     return (user.shopModule ?? moduleOf(user.shopId)) === g.module;
   };
 
