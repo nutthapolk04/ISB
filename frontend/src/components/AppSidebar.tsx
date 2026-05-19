@@ -201,8 +201,8 @@ export function AppSidebar() {
           const visibleItems = group.items.filter((item) => {
             if (!item.roles) return true;
             if (hasRole(...item.roles)) return true;
-            // staff+shopId bypasses role check only for POS-level items, not admin-only
-            if (staffWithShop && item.roles.some((r) => (["cashier", "manager"] as string[]).includes(r))) return true;
+            // staff+shopId bypasses role check only for module-specific POS groups (canteen/store), not Users/Admin
+            if (staffWithShop && group.module !== null && item.roles.some((r) => (["cashier", "manager"] as string[]).includes(r))) return true;
             return false;
           });
           if (visibleItems.length === 0) return null;

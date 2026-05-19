@@ -547,7 +547,7 @@ export default function Canteen() {
               variant="outline"
               className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
             >
-              {user?.shopName ?? "Canteen"}
+              {user?.shopName ?? user?.shopId ?? "Canteen"}
             </Badge>
           </div>
         </div>
