@@ -410,6 +410,24 @@
     "details": "รายละเอียดใบเสร็จ",
     "void": "Void (ยกเลิกใบเสร็จ)",
     "close": "ปิด",
+    "voidDialog": {
+      "title": "ยกเลิกใบเสร็จ",
+      "walletRefundNote": "หากชำระด้วย Wallet เงินจะคืนเข้ากระเป๋าอัตโนมัติ",
+      "reasonLabel": "เหตุผลการยกเลิก (ไม่บังคับ)",
+      "reasons": {
+        "incorrect_transaction": "ทำรายการผิด",
+        "customer_changed_mind": "ลูกค้าเปลี่ยนใจ",
+        "out_of_stock": "สินค้าหมด",
+        "incorrect_price": "ราคาไม่ถูกต้อง",
+        "duplicate_payment": "ชำระเงินซ้ำ",
+        "test_transaction": "ทดสอบระบบ"
+      },
+      "reasonPlaceholder": "หรือพิมพ์เหตุผลเอง…",
+      "irreversible": "⚠ การยกเลิกไม่สามารถย้อนกลับได้",
+      "confirm": "ยืนยัน Void",
+      "successToast": "ยกเลิก {{number}} สำเร็จ — เงินคืนเข้ากระเป๋าแล้ว",
+      "failToast": "ยกเลิกใบเสร็จไม่สำเร็จ"
+    },
     "download": "ดาวน์โหลดใบเสร็จ",
     "productList": "รายการสินค้า",
     "grandTotal": "ยอดรวมทั้งหมด",

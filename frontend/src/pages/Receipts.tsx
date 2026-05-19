@@ -319,11 +319,11 @@ const Receipts = () => {
         reason: voidReason.trim() || null,
       });
       setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
-      toast.success(`ยกเลิก ${voidTarget.receipt_number} สำเร็จ — เงินคืนเข้ากระเป๋าแล้ว`);
+      toast.success(t("receipts.voidDialog.successToast", { number: voidTarget.receipt_number }));
       setVoidTarget(null);
       setVoidReason("");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : "ยกเลิกใบเสร็จไม่สำเร็จ");
+      toast.error(e instanceof ApiError ? e.detail : t("receipts.voidDialog.failToast"));
     } finally {
       setVoidLoading(false);
     }
@@ -788,53 +788,53 @@ const Receipts = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <Ban className="h-5 w-5" />
-              ยกเลิกใบเสร็จ
+              {t("receipts.voidDialog.title")}
             </DialogTitle>
             <DialogDescription>
               {voidTarget?.receipt_number} · ฿{voidTarget?.total.toLocaleString()}
-              {" "}— หากชำระด้วย Wallet เงินจะคืนเข้ากระเป๋าอัตโนมัติ
+              {" "}— {t("receipts.voidDialog.walletRefundNote")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <label className="text-sm font-medium">เหตุผลการยกเลิก (ไม่บังคับ)</label>
+              <label className="text-sm font-medium">{t("receipts.voidDialog.reasonLabel")}</label>
               {/* Preset reason chips */}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {[
-                  "ทำรายการผิด",
-                  "ลูกค้าเปลี่ยนใจ",
-                  "สินค้าหมด",
-                  "ราคาไม่ถูกต้อง",
-                  "ชำระเงินซ้ำ",
-                  "ทดสอบระบบ",
-                ].map((r) => (
+                {([
+                  "incorrect_transaction",
+                  "customer_changed_mind",
+                  "out_of_stock",
+                  "incorrect_price",
+                  "duplicate_payment",
+                  "test_transaction",
+                ] as const).map((key) => (
                   <button
-                    key={r}
+                    key={key}
                     type="button"
                     disabled={voidLoading}
-                    onClick={() => setVoidReason(r)}
+                    onClick={() => setVoidReason(t(`receipts.voidDialog.reasons.${key}`))}
                     className={cn(
                       "rounded-full border px-3 py-1 text-xs transition",
-                      voidReason === r
+                      voidReason === t(`receipts.voidDialog.reasons.${key}`)
                         ? "border-destructive bg-destructive/10 text-destructive font-semibold"
                         : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
                     )}
                   >
-                    {r}
+                    {t(`receipts.voidDialog.reasons.${key}`)}
                   </button>
                 ))}
               </div>
               <Textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
-                placeholder="หรือพิมพ์เหตุผลเอง…"
+                placeholder={t("receipts.voidDialog.reasonPlaceholder")}
                 rows={2}
                 className="mt-2 resize-none"
                 disabled={voidLoading}
               />
             </div>
             <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
-              ⚠ การยกเลิกไม่สามารถย้อนกลับได้
+              {t("receipts.voidDialog.irreversible")}
             </div>
           </div>
           <div className="flex gap-2 pt-1">
@@ -844,7 +844,7 @@ const Receipts = () => {
               onClick={() => setVoidTarget(null)}
               disabled={voidLoading}
             >
-              ยกเลิก
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -853,7 +853,7 @@ const Receipts = () => {
               disabled={voidLoading}
             >
               {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              ยืนยัน Void
+              {t("receipts.voidDialog.confirm")}
             </Button>
           </div>
         </DialogContent>

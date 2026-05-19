@@ -23,7 +23,6 @@ import Returns from "./pages/Returns";
 import ReturnHistory from "./pages/ReturnHistory";
 import Receipts from "./pages/Receipts";
 import Reports from "./pages/Reports";
-import Void from "./pages/Void";
 import ShopManagement from "./pages/ShopManagement";
 import StoreRequisition from "./pages/store/StoreRequisition";
 import ShopDetail from "./pages/ShopDetail";
@@ -212,9 +211,6 @@ const App = () => (
                   <Route path="/store/receipts" element={<Receipts />} />
                   <Route element={<RequireRole roles={["manager", "cashier", "admin"]} />}>
                     <Route path="/store/requisition" element={<StoreRequisition />} />
-                  </Route>
-                  <Route element={<RequireRole roles={["manager", "admin", "cashier"]} />}>
-                    <Route path="/store/void" element={<Void />} />
                   </Route>
                   <Route element={<RequireRole roles={["manager", "admin"]} />}>
                     <Route path="/store/returns" element={<Returns />} />

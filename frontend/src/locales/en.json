@@ -410,6 +410,24 @@
     "details": "Receipt Details",
     "void": "Void (Cancel Receipt)",
     "close": "Close",
+    "voidDialog": {
+      "title": "Void Receipt",
+      "walletRefundNote": "If paid via Wallet, the amount will be refunded automatically",
+      "reasonLabel": "Cancellation Reason (Optional)",
+      "reasons": {
+        "incorrect_transaction": "Incorrect Transaction",
+        "customer_changed_mind": "Customer Changed Mind",
+        "out_of_stock": "Out of Stock",
+        "incorrect_price": "Incorrect Price",
+        "duplicate_payment": "Duplicate Payment",
+        "test_transaction": "Test Transaction"
+      },
+      "reasonPlaceholder": "Or type your own reason…",
+      "irreversible": "⚠ This action cannot be undone",
+      "confirm": "Confirm Void",
+      "successToast": "Voided {{number}} — refund processed",
+      "failToast": "Failed to void receipt"
+    },
     "download": "Download Receipt",
     "productList": "Product List",
     "grandTotal": "Grand Total",
