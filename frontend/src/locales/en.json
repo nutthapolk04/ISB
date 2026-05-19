@@ -305,7 +305,17 @@
     "returnRequestSaved": "Return request saved successfully",
     "approved": "Approved",
     "rejected": "Rejected",
-    "pending": "Pending"
+    "pending": "Pending",
+    "todaySales": "Today's Sales",
+    "searchResults": "Search Results",
+    "searchPlaceholder": "Search receipt ID / buyer name…",
+    "noSalesToday": "No sales today",
+    "noResults": "No results found",
+    "dateTime": "Date / Time",
+    "buyer": "Buyer",
+    "total": "Total",
+    "status": "Status",
+    "doReturn": "Return"
   },
   "receipts": {
     "title": "Receipts",
@@ -759,6 +769,8 @@
       "colReceipt": "Receipt #",
       "colShop": "Shop",
       "colCashier": "Cashier",
+      "colPayment": "Payment",
+      "colBuyer": "Buyer",
       "colAmount": "Amount",
       "noRecentActivity": "No recent activity",
       "secondsAgo": "{{count}}s ago",
@@ -1393,7 +1405,20 @@
     "active": "Active",
     "inactive": "Inactive",
     "loading": "Loading…",
-    "ok": "OK"
+    "ok": "OK",
+    "paymentMethods": {
+      "cash": "Cash",
+      "wallet": "Wallet",
+      "card_tap": "Tap Card",
+      "credit_card": "Credit Card",
+      "debit_card": "Debit Card",
+      "edc": "EDC",
+      "bank_transfer": "Bank Transfer",
+      "qr": "QR PromptPay",
+      "qr_promptpay": "QR PromptPay",
+      "department": "Budget Deduction",
+      "other": "Other"
+    }
   },
   "auditLog": {
     "title": "Change History",

@@ -78,17 +78,6 @@ type ReceiptRow = Receipt & {
   payment_method?: string | null;
 };
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: "เงินสด",
-  wallet: "Wallet",
-  card_tap: "แตะบัตร",
-  credit_card: "บัตรเครดิต",
-  debit_card: "บัตรเดบิต",
-  edc: "EDC",
-  bank_transfer: "โอนเงิน",
-  department: "ตัดงบ",
-  other: "อื่นๆ",
-};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -509,9 +498,9 @@ export default function AdminDashboard() {
                   <TableHead>{t("admin.dashboard.colTime")}</TableHead>
                   <TableHead>{t("admin.dashboard.colReceipt")}</TableHead>
                   <TableHead>{t("admin.dashboard.colShop")}</TableHead>
-                  <TableHead>{t("admin.dashboard.colCashier", "ผู้ขาย")}</TableHead>
-                  <TableHead>{t("admin.dashboard.colPayment", "วิธีชำระ")}</TableHead>
-                  <TableHead>{t("admin.dashboard.colBuyer", "ผู้ซื้อ")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colCashier")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colPayment")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colBuyer")}</TableHead>
                   <TableHead className="text-right">{t("admin.dashboard.colAmount")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -536,7 +525,7 @@ export default function AdminDashboard() {
                         : null);
                   const badge = shopBadgeVariant(sid, t);
                   const pmLabel = r.payment_method
-                    ? (PAYMENT_METHOD_LABELS[r.payment_method] ?? r.payment_method)
+                    ? t(`common.paymentMethods.${r.payment_method}`, r.payment_method)
                     : "—";
                   const isVoided = r.status === "voided";
                   return (

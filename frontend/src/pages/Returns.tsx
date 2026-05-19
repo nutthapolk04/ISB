@@ -1166,7 +1166,7 @@ const Returns = () => {
                             <TableHead className="text-center">{t('returns.quantityPurchased')}</TableHead>
                             <TableHead className="text-center">{t('returns.returnedQty', 'คืนแล้ว')}</TableHead>
                             <TableHead className="text-center">{t('returns.remainingQty', 'คืนได้อีก')}</TableHead>
-                            <TableHead className="text-center">{t('returns.status', 'สถานะ')}</TableHead>
+                            <TableHead className="text-center">{t('returns.status')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1313,12 +1313,12 @@ const Returns = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
-              {receiptSearchTerm.trim() ? "ผลการค้นหา" : "รายการขายวันนี้"}
+              {receiptSearchTerm.trim() ? t("returns.searchResults") : t("returns.todaySales")}
             </CardTitle>
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="ค้นหาเลขใบเสร็จ / ชื่อผู้ซื้อ…"
+                placeholder={t("returns.searchPlaceholder")}
                 value={receiptSearchTerm}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -1333,22 +1333,22 @@ const Returns = () => {
         </CardHeader>
         <CardContent>
           {posReceiptsLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">กำลังโหลด…</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">{t("common.loading")}</div>
           ) : displayedReceipts.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {receiptSearchTerm.trim() ? "ไม่พบรายการ" : "ยังไม่มีรายการขายวันนี้"}
+              {receiptSearchTerm.trim() ? t("returns.noResults") : t("returns.noSalesToday")}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>วันที่/เวลา</TableHead>
-                  <TableHead>เลขใบเสร็จ</TableHead>
-                  <TableHead>ผู้ซื้อ</TableHead>
-                  <TableHead>วิธีชำระ</TableHead>
-                  <TableHead className="text-right">ยอดรวม</TableHead>
-                  <TableHead className="text-center">สถานะ</TableHead>
-                  <TableHead className="text-center">คืนสินค้า</TableHead>
+                  <TableHead>{t("returns.dateTime")}</TableHead>
+                  <TableHead>{t("returns.receiptId")}</TableHead>
+                  <TableHead>{t("returns.buyer")}</TableHead>
+                  <TableHead>{t("returns.paymentMethod")}</TableHead>
+                  <TableHead className="text-right">{t("returns.total")}</TableHead>
+                  <TableHead className="text-center">{t("returns.status")}</TableHead>
+                  <TableHead className="text-center">{t("returns.doReturn")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1415,11 +1415,11 @@ const Returns = () => {
               <TableRow>
                 <TableHead>{t('returns.date')}</TableHead>
                 <TableHead>{t('returns.receiptId')}</TableHead>
-                <TableHead>ชื่อผู้ซื้อ</TableHead>
+                <TableHead>{t("returns.buyer")}</TableHead>
                 <TableHead>{t('returns.type')}</TableHead>
                 <TableHead>{t('returns.paymentMethod')}</TableHead>
                 <TableHead className="text-center">{t('returns.returnStatus')}</TableHead>
-                <TableHead className="text-center">{t('returns.status', 'สถานะ')}</TableHead>
+                <TableHead className="text-center">{t('returns.status')}</TableHead>
                 <TableHead className="text-center">{t('returns.manage')}</TableHead>
               </TableRow>
             </TableHeader>

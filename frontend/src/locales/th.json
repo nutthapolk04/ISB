@@ -305,7 +305,17 @@
     "returnRequestSaved": "บันทึกคำขอคืนสินค้าเรียบร้อย",
     "approved": "อนุมัติ",
     "rejected": "ปฏิเสธ",
-    "pending": "รอดำเนินการ"
+    "pending": "รอดำเนินการ",
+    "todaySales": "รายการขายวันนี้",
+    "searchResults": "ผลการค้นหา",
+    "searchPlaceholder": "ค้นหาเลขใบเสร็จ / ชื่อผู้ซื้อ…",
+    "noSalesToday": "ยังไม่มีรายการขายวันนี้",
+    "noResults": "ไม่พบรายการ",
+    "dateTime": "วันที่/เวลา",
+    "buyer": "ผู้ซื้อ",
+    "total": "ยอดรวม",
+    "status": "สถานะ",
+    "doReturn": "คืนสินค้า"
   },
   "receipts": {
     "title": "ใบเสร็จ",
@@ -759,6 +769,8 @@
       "colReceipt": "เลขที่ใบเสร็จ",
       "colShop": "ร้าน",
       "colCashier": "ผู้ขาย",
+      "colPayment": "วิธีชำระ",
+      "colBuyer": "ผู้ซื้อ",
       "colAmount": "ยอดเงิน",
       "noRecentActivity": "ไม่มีกิจกรรมล่าสุด",
       "secondsAgo": "{{count}} วินาทีที่แล้ว",
@@ -1393,7 +1405,20 @@
     "active": "ใช้งาน",
     "inactive": "ปิดใช้งาน",
     "loading": "กำลังโหลด…",
-    "ok": "ตกลง"
+    "ok": "ตกลง",
+    "paymentMethods": {
+      "cash": "เงินสด",
+      "wallet": "กระเป๋าเงิน",
+      "card_tap": "แตะบัตร",
+      "credit_card": "บัตรเครดิต",
+      "debit_card": "บัตรเดบิต",
+      "edc": "EDC",
+      "bank_transfer": "โอนเงิน",
+      "qr": "QR พร้อมเพย์",
+      "qr_promptpay": "QR พร้อมเพย์",
+      "department": "ตัดงบ",
+      "other": "อื่นๆ"
+    }
   },
   "auditLog": {
     "title": "ประวัติการเปลี่ยนแปลง",
