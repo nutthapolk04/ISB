@@ -47,6 +47,15 @@ with engine.begin() as conn:
 print('  + users.session_token (pre-patch)')
 " 2>/dev/null || echo "  = users.session_token (pre-patch skipped — ok)"
 
+python -c "
+from sqlalchemy import text
+from app.core.database import engine
+with engine.begin() as conn:
+    conn.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS staff_type VARCHAR(30)'))
+    conn.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS ps_department VARCHAR(100)'))
+print('  + users.staff_type, users.ps_department (pre-patch)')
+" 2>/dev/null || echo "  = users.staff_type/ps_department (pre-patch skipped — ok)"
+
 echo "=== Applying schema patches ==="
 python -c "
 import sys
