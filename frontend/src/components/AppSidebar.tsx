@@ -194,11 +194,15 @@ export function AppSidebar() {
         {menuGroups.map((group) => {
           if (!groupVisible(group)) return null;
 
-          // staff with a shop_id can access POS + receipts for their assigned shop
+          // staff with a shop_id can access POS + receipts (cashier/manager-level items only)
           const staffWithShop = user?.role === "staff" && !!user?.shopId;
-          const visibleItems = group.items.filter(
-            (item) => !item.roles || hasRole(...item.roles) || staffWithShop,
-          );
+          const visibleItems = group.items.filter((item) => {
+            if (!item.roles) return true;
+            if (hasRole(...item.roles)) return true;
+            // staff+shopId bypasses role check only for POS-level items, not admin-only
+            if (staffWithShop && item.roles.some((r) => (["cashier", "manager"] as string[]).includes(r))) return true;
+            return false;
+          });
           if (visibleItems.length === 0) return null;
 
           return (
