@@ -32,7 +32,7 @@ def list_departments(
     active_only: bool = Query(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("cashier", "manager", "admin")
+        require_role("cashier", "manager", "admin", "staff")
     ),
 ):
     """List departments + their wallet summary. Used by POS dept-charge dropdown."""
