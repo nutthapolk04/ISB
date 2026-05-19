@@ -581,6 +581,7 @@ class POSService:
                 joinedload(Receipt.payer_department),
                 joinedload(Receipt.customer),
                 joinedload(Receipt.requester),
+                joinedload(Receipt.creator),
             )
             .order_by(desc(Receipt.created_at))
         )
@@ -613,6 +614,7 @@ class POSService:
                 joinedload(Receipt.payer_department),
                 joinedload(Receipt.customer),
                 joinedload(Receipt.requester),
+                joinedload(Receipt.creator),
             )
             .filter(Receipt.id == receipt_id)
             .first()

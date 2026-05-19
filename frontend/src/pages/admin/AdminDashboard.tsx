@@ -537,23 +537,25 @@ export default function AdminDashboard() {
                   const pmLabel = r.payment_method
                     ? (PAYMENT_METHOD_LABELS[r.payment_method] ?? r.payment_method)
                     : "—";
+                  const isVoided = r.status === "voided";
                   return (
                     <TableRow
                       key={r.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer transition-colors ${
+                        isVoided
+                          ? "bg-rose-50/60 hover:bg-rose-100/60 text-rose-700"
+                          : "hover:bg-emerald-50/40"
+                      }`}
                       onClick={() => setSelectedReceiptId(r.id)}
                     >
                       <TableCell className="text-sm text-muted-foreground">
                         {formatRelative(r.created_at, t)}
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className={`font-mono text-sm ${isVoided ? "line-through opacity-60" : ""}`}>
                         {r.receipt_number}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={badge.className}
-                        >
+                        <Badge variant="outline" className={badge.className}>
                           {badge.label}
                         </Badge>
                       </TableCell>
@@ -567,7 +569,9 @@ export default function AdminDashboard() {
                         {r.payer_label ?? "—"}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">
-                        {formatTHB(r.total)}
+                        <span className={isVoided ? "line-through opacity-60" : "text-emerald-700"}>
+                          {formatTHB(r.total)}
+                        </span>
                       </TableCell>
                     </TableRow>
                   );
