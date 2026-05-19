@@ -23,6 +23,7 @@ interface ISBTokenResponse {
 
 interface ISBCustomerLookupResult {
   id: number;
+  user_id?: number | null;  // set when result is from users table (parent/staff)
   name: string;
   student_code: string | null;
   customer_code: string | null;
@@ -31,6 +32,19 @@ interface ISBCustomerLookupResult {
   photo_url: string | null;
   wallet_balance: number;
   wallet_id: number | null;
+}
+
+interface ISBChildSummary {
+  link_id: number;
+  relation: string;
+  customer_id: number;
+  customer_code: string;
+  student_code?: string | null;
+  name: string;
+  grade?: string | null;
+  photo_url?: string | null;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
 }
 
 interface ISBWalletTransaction {
@@ -131,13 +145,14 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
 const CARD_GRADIENT = 'linear-gradient(135deg, #3b1f7e 0%, #6b3fa0 50%, #9b6fcf 100%)';
+const CHILD_GRADIENT = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)';
 
-function mapCustomer(c: ISBCustomerLookupResult): User {
-  const wallet: Wallet | null = c.wallet_id != null
+function mapCustomer(c: ISBCustomerLookupResult, children: ISBChildSummary[] = []): User {
+  const personalWallet: Wallet | null = c.wallet_id != null
     ? {
         id: String(c.wallet_id),
         type: 'personal',
-        name: 'Student Wallet',
+        name: 'Personal Wallet',
         holderName: c.name,
         cardId: c.student_code ?? c.customer_code ?? String(c.id),
         balance: c.wallet_balance ?? 0,
@@ -146,12 +161,25 @@ function mapCustomer(c: ISBCustomerLookupResult): User {
       }
     : null;
 
+  const childWallets: Wallet[] = children
+    .filter(ch => ch.wallet_id != null)
+    .map(ch => ({
+      id: String(ch.wallet_id),
+      type: 'child' as const,
+      name: `${ch.name}'s Wallet`,
+      holderName: ch.name,
+      cardId: ch.student_code ?? ch.customer_code,
+      balance: ch.wallet_balance ?? 0,
+      colorTheme: CHILD_GRADIENT,
+      photoUrl: ch.photo_url ?? undefined,
+    }));
+
   return {
-    id: String(c.id),
+    id: String(c.user_id ?? c.id),
     name: c.name,
     employeeId: c.student_code ?? c.customer_code ?? String(c.id),
     role: c.customer_kind ?? undefined,
-    wallets: wallet ? [wallet] : [],
+    wallets: [...(personalWallet ? [personalWallet] : []), ...childWallets],
   };
 }
 
@@ -199,7 +227,17 @@ export const realApi = {
           c.customer_code?.toLowerCase() === lower,
       ) ?? results[0];
 
-      return mapCustomer(exact);
+      // If this is a parent/staff User (not a student Customer), fetch their children
+      let children: ISBChildSummary[] = [];
+      if (exact.user_id != null) {
+        try {
+          children = await request<ISBChildSummary[]>(`/family/by-user/${exact.user_id}`);
+        } catch {
+          // non-fatal — show parent wallet without children
+        }
+      }
+
+      return mapCustomer(exact, children);
     } catch {
       return null;
     }

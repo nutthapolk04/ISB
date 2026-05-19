@@ -227,9 +227,9 @@ def student_family_context(
 def children_of_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin", "kiosk")),
 ):
-    """Return all children linked to any parent user (admin-only)."""
+    """Return all children linked to any parent user (admin or kiosk service account)."""
     links = (
         db.query(ParentChildLink)
         .filter(ParentChildLink.parent_user_id == user_id)
