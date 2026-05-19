@@ -183,7 +183,7 @@ export default function FamilyDashboard() {
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                   <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-900">
-                    {t("roles.parent")}
+                    {t(`roles.${user?.role ?? "parent"}`, user?.role ?? "Parent / Guardian")}
                   </Badge>
                   {ownWallet.name && (
                     <span className="text-xs text-muted-foreground truncate">
