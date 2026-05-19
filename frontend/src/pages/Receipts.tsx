@@ -86,6 +86,7 @@ interface ReceiptApi {
   payer_kind?: string | null;
   payer_label?: string | null;
   payer_detail?: PayerDetail | null;
+  created_by_name?: string | null;
   subtotal: number;
   discount: number;
   tax: number;
@@ -646,9 +647,10 @@ const Receipts = () => {
                 <TableRow>
                   <TableHead>{t("receipts.receiptId")}</TableHead>
                   <TableHead>{t("receipts.dateTime")}</TableHead>
-                  <TableHead>{t("receipts.items")}</TableHead>
-                  <TableHead className="text-right">{t("receipts.total")}</TableHead>
+                  <TableHead>{t("receipts.seller")}</TableHead>
                   <TableHead>{t("receipts.paymentMethod")}</TableHead>
+                  <TableHead>{t("receipts.buyer")}</TableHead>
+                  <TableHead className="text-right">{t("receipts.total")}</TableHead>
                   <TableHead className="text-center">{t("receipts.status")}</TableHead>
                   <TableHead className="text-center">{t("receipts.manage")}</TableHead>
                 </TableRow>
@@ -658,16 +660,15 @@ const Receipts = () => {
                   <TableRow key={receipt.id}>
                     <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
                     <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
-                    <TableCell>
-                      {t("receipts.itemsCount", { count: receipt.items.length })}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold data-number">
-                      ฿{receipt.total.toLocaleString()}
-                    </TableCell>
+                    <TableCell className="text-sm">{receipt.created_by_name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
                         {t(`common.paymentMethods.${receipt.payment_method}`, receipt.payment_method)}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">{receipt.payer_label ?? "—"}</TableCell>
+                    <TableCell className="text-right font-semibold data-number">
+                      ฿{receipt.total.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={receipt.status === "active" ? "success" : "destructive"}>
