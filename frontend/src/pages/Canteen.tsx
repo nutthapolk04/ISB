@@ -333,6 +333,14 @@ export default function Canteen() {
   const handleConfirmWallet = async (payer: WalletPayer) => {
     try {
       const amount = cart.total;
+      if (payer.kind === "department") {
+        const res = await doCheckout("department", {
+          kind: "department",
+          departmentId: payer.department.id,
+        });
+        finalizeSuccess(res.receipt_number, amount, null);
+        return;
+      }
       if (payer.kind === "customer") {
         const student = payer.student;
         const currentBalance = Number(student.wallet_balance ?? 0);

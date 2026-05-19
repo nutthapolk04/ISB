@@ -59,10 +59,20 @@ export interface UserPayerLookup {
   department_name?: string | null;
 }
 
+export interface DepartmentLookupResult {
+  id: number;
+  department_code: string;
+  department_name: string;
+  is_active: boolean;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
+}
+
 // Discriminated union — one place that captures whichever wallet kind paid.
 export type WalletPayer =
   | { kind: "customer"; student: StudentLookupResult }
-  | { kind: "user"; user: UserPayerLookup };
+  | { kind: "user"; user: UserPayerLookup }
+  | { kind: "department"; department: DepartmentLookupResult };
 
 interface RfidPaymentModalProps {
   open: boolean;
@@ -78,7 +88,7 @@ interface RfidPaymentModalProps {
 }
 
 type Stage = "detect" | "identity" | "family";
-type PayerKind = "customer" | "user" | "family";
+type PayerKind = "customer" | "user" | "family" | "department";
 
 interface FamilyMember {
   entity_type: "user" | "customer";
@@ -120,6 +130,7 @@ export function RfidPaymentModal({
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentLookupResult | null>(null);
   const [userPayer, setUserPayer] = useState<UserPayerLookup | null>(null);
+  const [departmentPayer, setDepartmentPayer] = useState<DepartmentLookupResult | null>(null);
   // Family search state
   const [familyQuery, setFamilyQuery] = useState("");
   const [familyResult, setFamilyResult] = useState<FamilyLookupResult | null>(null);
@@ -162,6 +173,7 @@ export function RfidPaymentModal({
         setLookupError(null);
         setStudent(null);
         setUserPayer(null);
+        setDepartmentPayer(null);
         setFamilyQuery("");
         setFamilyResult(null);
         setFamilyError(null);
@@ -228,13 +240,36 @@ export function RfidPaymentModal({
       }
 
       // 4. User by username
-      const result = await api.get<UserPayerLookup>(
-        `/users/by-username/${encodeURIComponent(q)}`,
+      try {
+        const result = await api.get<UserPayerLookup>(
+          `/users/by-username/${encodeURIComponent(q)}`,
+        );
+        setUserPayer(result);
+        setStudent(null);
+        setDepartmentPayer(null);
+        setPayerKind("user");
+        setStage("identity");
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+
+      // 5. Department by code (exact match)
+      const depts = await api.get<DepartmentLookupResult[]>(
+        `/departments/?q=${encodeURIComponent(q)}&active_only=true`,
       );
-      setUserPayer(result);
-      setStudent(null);
-      setPayerKind("user");
-      setStage("identity");
+      const exactDept = depts.find(
+        (d) => d.department_code.toLowerCase() === q.toLowerCase(),
+      );
+      if (exactDept) {
+        setDepartmentPayer(exactDept);
+        setStudent(null);
+        setUserPayer(null);
+        setPayerKind("department");
+        setStage("identity");
+        return;
+      }
+      throw new ApiError(404, "ไม่พบข้อมูลในระบบ", undefined);
     } catch (e) {
       setLookupError(
         e instanceof ApiError
@@ -300,11 +335,13 @@ export function RfidPaymentModal({
     }
   };
 
-  // Unified balance/remaining math across both payer kinds.
+  // Unified balance/remaining math across all payer kinds.
   const balance =
     payerKind === "user"
       ? Number(userPayer?.wallet_balance ?? 0)
-      : Number(student?.wallet_balance ?? 0);
+      : payerKind === "department"
+        ? Number(departmentPayer?.wallet_balance ?? 0)
+        : Number(student?.wallet_balance ?? 0);
   const remaining = balance - total;
   const negLimit = student?.negative_credit_limit ?? null;
   const allowedFloor = negLimit !== null ? -Number(negLimit) : null;
@@ -314,21 +351,27 @@ export function RfidPaymentModal({
       ? Number(student.daily_limit)
       : null;
 
-  // User wallet has no overdraft cap or daily limit (UI-only — backend may
-  // tighten this later). We still surface a "going negative" hint below 0.
+  // User/department wallet has no overdraft cap or daily limit.
   const overLimit =
     payerKind === "customer" &&
     allowedFloor !== null &&
     remaining < allowedFloor &&
     !isFrozen;
-  const goingNegative = !overLimit && remaining < 0 && !isFrozen;
+  const goingNegative = !overLimit && remaining < 0 && !isFrozen && payerKind !== "department";
 
-  const hasPayer = payerKind === "user" ? !!userPayer : !!student;
+  const hasPayer =
+    payerKind === "user" ? !!userPayer
+    : payerKind === "department" ? !!departmentPayer
+    : !!student;
   const confirmDisabled = !hasPayer || isFrozen || overLimit || confirming;
 
   const handleConfirm = async () => {
     if (payerKind === "user" && userPayer) {
       await onConfirm({ kind: "user", user: userPayer });
+      return;
+    }
+    if (payerKind === "department" && departmentPayer) {
+      await onConfirm({ kind: "department", department: departmentPayer });
       return;
     }
     if (payerKind === "customer" && student) {
@@ -363,6 +406,7 @@ export function RfidPaymentModal({
                     setStage("detect");
                     setStudent(null);
                     setUserPayer(null);
+                    setDepartmentPayer(null);
                     setCardInput("");
                   }
                 }}
@@ -547,10 +591,14 @@ export function RfidPaymentModal({
 
         {stage === "identity" && hasPayer && (
           <div className="space-y-4">
-            {/* Identity card — student or user */}
+            {/* Identity card — student, user, or department */}
             <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
               <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
-                {(payerKind === "user" ? userPayer?.photo_url : student?.photo_url) ? (
+                {payerKind === "department" ? (
+                  <div className="flex h-full w-full items-center justify-center text-rose-500">
+                    <Building2 className="h-12 w-12" />
+                  </div>
+                ) : (payerKind === "user" ? userPayer?.photo_url : student?.photo_url) ? (
                   <img
                     src={(payerKind === "user" ? userPayer?.photo_url : student?.photo_url) ?? undefined}
                     alt={payerKind === "user" ? userPayer?.full_name ?? "" : student?.name ?? ""}
@@ -564,9 +612,15 @@ export function RfidPaymentModal({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-lg font-bold">
-                  {payerKind === "user" ? userPayer?.full_name : student?.name}
+                  {payerKind === "department"
+                    ? departmentPayer?.department_name
+                    : payerKind === "user" ? userPayer?.full_name : student?.name}
                 </div>
-                {payerKind === "user" ? (
+                {payerKind === "department" ? (
+                  <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                    {departmentPayer?.department_code}
+                  </div>
+                ) : payerKind === "user" ? (
                   <div className="space-y-0.5">
                     <div className="text-xs text-muted-foreground capitalize">
                       @{userPayer?.username} · {userPayer?.role}
@@ -681,6 +735,7 @@ export function RfidPaymentModal({
                   setStage("detect");
                   setStudent(null);
                   setUserPayer(null);
+                  setDepartmentPayer(null);
                 }}
                 disabled={confirming}
               >
