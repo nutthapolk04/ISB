@@ -11,13 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search,
   UserCircle2,
+  Building2,
   Loader2,
   AlertTriangle,
   X,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { StudentLookupResult } from "./RfidPaymentModal";
+import type { StudentLookupResult, DepartmentLookupResult } from "./RfidPaymentModal";
 
 interface MemberSearchModalProps {
   open: boolean;
@@ -59,11 +60,30 @@ export function MemberSearchModal({
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<StudentLookupResult[]>(
-        `/customers/search?q=${encodeURIComponent(q)}&limit=10`
-      );
-      setResults(data);
-      if (data.length === 0) {
+      // Run customer search + department search in parallel
+      const [customers, depts] = await Promise.all([
+        api.get<StudentLookupResult[]>(
+          `/customers/search?q=${encodeURIComponent(q)}&limit=10`
+        ).catch(() => [] as StudentLookupResult[]),
+        api.get<DepartmentLookupResult[]>(
+          `/departments/?q=${encodeURIComponent(q)}&active_only=false`
+        ).catch(() => [] as DepartmentLookupResult[]),
+      ]);
+
+      // Map departments to StudentLookupResult shape using customer_kind="department"
+      const deptResults: StudentLookupResult[] = depts.map((d) => ({
+        id: d.id,
+        name: d.department_name,
+        customer_code: d.department_code,
+        student_code: d.department_code,
+        customer_kind: "department",
+        wallet_balance: d.wallet_balance ?? 0,
+        wallet_id: d.wallet_id ?? null,
+      }));
+
+      const combined = [...customers, ...deptResults];
+      setResults(combined);
+      if (combined.length === 0) {
         setError("ไม่พบข้อมูล");
       }
     } catch (e) {
@@ -145,9 +165,11 @@ export function MemberSearchModal({
                         : "border-border bg-card hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    {/* Photo */}
+                    {/* Photo / icon */}
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-                      {member.photo_url ? (
+                      {member.customer_kind === "department" ? (
+                        <Building2 className="h-7 w-7 text-rose-500" />
+                      ) : member.photo_url ? (
                         <img
                           src={member.photo_url}
                           alt={member.name}
@@ -164,7 +186,12 @@ export function MemberSearchModal({
                         <span className="font-semibold text-sm truncate">
                           {member.name}
                         </span>
-                        {member.grade && (
+                        {member.customer_kind === "department" && (
+                          <Badge className="h-4 text-[10px] px-1 bg-rose-100 text-rose-700 border-rose-200">
+                            แผนก
+                          </Badge>
+                        )}
+                        {member.grade && member.customer_kind !== "department" && (
                           <Badge variant="secondary" className="h-4 text-[10px] px-1">
                             Grade {member.grade}
                           </Badge>
@@ -184,7 +211,9 @@ export function MemberSearchModal({
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {member.user_id != null ? member.customer_code : (member.student_code ?? member.customer_code)}
+                        {member.customer_kind === "department"
+                          ? member.customer_code
+                          : member.user_id != null ? member.customer_code : (member.student_code ?? member.customer_code)}
                       </div>
                     </div>
 
@@ -226,7 +255,11 @@ export function MemberSearchModal({
             {/* Member card */}
             <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
-                {selectedMember.photo_url ? (
+                {selectedMember.customer_kind === "department" ? (
+                  <div className="flex h-full w-full items-center justify-center text-rose-500">
+                    <Building2 className="h-14 w-14" />
+                  </div>
+                ) : selectedMember.photo_url ? (
                   <img
                     src={selectedMember.photo_url}
                     alt={selectedMember.name}

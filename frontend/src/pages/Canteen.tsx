@@ -422,11 +422,21 @@ export default function Canteen() {
   // Handle charge button - if member is pre-selected, charge directly
   const handleCharge = async () => {
     if (preSelectedMember) {
-      // Direct wallet charge for pre-selected member
+      // Direct charge for pre-selected member (wallet or department)
       setConfirming(true);
       try {
         const amount = cart.total;
         const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
+        // Department payer — use dept checkout path
+        if (preSelectedMember.customer_kind === "department") {
+          const res = await doCheckout("department", {
+            kind: "department",
+            departmentId: preSelectedMember.id,
+          });
+          finalizeSuccess(res.receipt_number, amount, null);
+          setPreSelectedMember(null);
+          return;
+        }
         const res = await doCheckout(
           "wallet",
           preSelectedMember.user_id != null

@@ -254,9 +254,9 @@ export function RfidPaymentModal({
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
 
-      // 5. Department by code (exact match)
+      // 5. Department by code (exact match — allow inactive so balance lookup works)
       const depts = await api.get<DepartmentLookupResult[]>(
-        `/departments/?q=${encodeURIComponent(q)}&active_only=true`,
+        `/departments/?q=${encodeURIComponent(q)}&active_only=false`,
       );
       const exactDept = depts.find(
         (d) => d.department_code.toLowerCase() === q.toLowerCase(),
