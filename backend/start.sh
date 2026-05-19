@@ -564,6 +564,8 @@ run('ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_module VARCHAR(20)',
 
 # === Feature 9: multi-login restriction (one active session per user) ===
 run('ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(64)', 'users.session_token', ok_if_exists=False)
+run("ALTER TABLE users ADD COLUMN staff_type VARCHAR(30)", 'users.staff_type')
+run("ALTER TABLE users ADD COLUMN ps_department VARCHAR(100)", 'users.ps_department')
 # Backfill shop_module for existing canteen users who have a shop_id starting with 'canteen'
 run(\"UPDATE users SET shop_module = 'canteen' WHERE shop_id IN (SELECT id FROM shops WHERE module = 'canteen') AND shop_module IS NULL\",
     'users.shop_module backfill canteen', ok_if_exists=False)

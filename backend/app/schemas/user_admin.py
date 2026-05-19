@@ -21,6 +21,8 @@ class UserListItem(BaseModel):
     allergies: Optional[str] = None
     # Phase 3.5b
     customer_type: Optional[str] = None   # "Staff" | "Parent" | None
+    staff_type: Optional[str] = None      # "Classified Staff" | "Certified Staff"
+    ps_department: Optional[str] = None
     card_uid: Optional[str] = None
     has_children: bool = False
     # Shop assignment (multi-canteen)
@@ -92,6 +94,8 @@ class UserDetail(BaseModel):
     allergies: Optional[str] = None
     # Phase 3.5b
     customer_type: Optional[str] = None
+    staff_type: Optional[str] = None      # "Classified Staff" | "Certified Staff"
+    ps_department: Optional[str] = None
     card_uid: Optional[str] = None
     has_children: bool = False
     family_profile: Optional[FamilyProfileItem] = None

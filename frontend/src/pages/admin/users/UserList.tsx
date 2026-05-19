@@ -39,6 +39,8 @@ interface AdminUser {
   has_children: boolean;
   shop_id: string | null;
   shop_name: string | null;
+  staff_type?: string | null;
+  ps_department?: string | null;
 }
 
 const SHOP_ROLES = new Set(["admin", "manager", "cashier"]);
@@ -265,6 +267,15 @@ export default function UserList() {
                         <Users2 className="h-2.5 w-2.5" />kids
                       </span>
                     )}
+                  </span>
+                )}
+                {u.staff_type && (
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                    u.staff_type === "Classified Staff"
+                      ? "bg-blue-100 text-blue-700 border-blue-300"
+                      : "bg-violet-100 text-violet-700 border-violet-300"
+                  }`}>
+                    {u.staff_type === "Classified Staff" ? "Classified" : "Certified"}
                   </span>
                 )}
               </div>

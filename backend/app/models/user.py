@@ -48,6 +48,8 @@ class User(Base):
     # Phase 3.5b — PowerSchool payload fidelity
     card_uid = Column(String(50), nullable=True, index=True)      # Hex RFID UID
     customer_type = Column(String(20), nullable=True)             # "Staff" | "Parent" (PS enum)
+    staff_type = Column(String(30), nullable=True)               # "Classified Staff" | "Certified Staff"
+    ps_department = Column(String(100), nullable=True)           # PowerSchool department name
     # Sitemap v2 — shop scoping for cashiers/managers
     shop_id = Column(String(50), ForeignKey("shops.id", ondelete="SET NULL"), nullable=True, index=True)
     # Canteen multi-stall: "canteen" | "store" | null. Populated at user creation for area managers (shop_id=null)

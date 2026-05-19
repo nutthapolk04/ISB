@@ -312,6 +312,8 @@ def _upsert_staff(
     user.family_code = family_code
     user.full_name = full_name
     user.customer_type = "Staff"
+    user.staff_type = payload.get("staffType")
+    user.ps_department = payload.get("department")
     if card_uid:
         user.card_uid = card_uid
     user.photo_url = _resolve_photo_url(payload, f"staff-{ext_id}", "staff", ext_id, user.photo_url)

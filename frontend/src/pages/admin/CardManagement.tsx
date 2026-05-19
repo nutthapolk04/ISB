@@ -39,6 +39,8 @@ interface UserRow {
   external_id?: string | null;
   family_code?: string | null;
   photo_url?: string | null;
+  staff_type?: string | null;
+  ps_department?: string | null;
 }
 
 interface StudentRow {
@@ -69,6 +71,8 @@ interface BoundCard {
   familyCode?: string | null;
   externalId?: string | null;
   photoUrl?: string | null;
+  staffType?: string | null;
+  psDepartment?: string | null;
 }
 
 export default function CardManagement() {
@@ -125,6 +129,8 @@ export default function CardManagement() {
         familyCode: u.family_code,
         externalId: u.external_id,
         photoUrl: u.photo_url,
+        staffType: u.staff_type,
+        psDepartment: u.ps_department,
       });
     }
     for (const c of students) {
@@ -264,6 +270,20 @@ export default function CardManagement() {
     return <Badge variant="outline" className="capitalize">{label}</Badge>;
   };
 
+  const staffTypeBadge = (c: BoundCard) => {
+    if (!c.staffType) return null;
+    const isClassified = c.staffType === "Classified Staff";
+    return (
+      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+        isClassified
+          ? "bg-blue-100 text-blue-700 border-blue-300"
+          : "bg-violet-100 text-violet-700 border-violet-300"
+      }`}>
+        {isClassified ? "Classified" : "Certified"}
+      </span>
+    );
+  };
+
   const statusBadge = (c: BoundCard) => {
     if (c.isFrozen)
       return <Badge variant="destructive">{t("admin.cards.statusFrozen")}</Badge>;
@@ -382,10 +402,20 @@ export default function CardManagement() {
                         ) : (
                           <UserCircle2 className="h-7 w-7 text-muted-foreground" />
                         )}
-                        <span className="font-medium">{c.name}</span>
+                        <div>
+                          <span className="font-medium">{c.name}</span>
+                          {c.psDepartment && (
+                            <p className="text-xs text-muted-foreground truncate max-w-40">{c.psDepartment}</p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{roleBadge(c)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {roleBadge(c)}
+                        {staffTypeBadge(c)}
+                      </div>
+                    </TableCell>
                     <TableCell>{statusBadge(c)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground truncate max-w-56">
                       {c.identifier || "-"}

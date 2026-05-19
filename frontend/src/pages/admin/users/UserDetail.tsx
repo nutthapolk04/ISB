@@ -105,6 +105,8 @@ interface UserDetailData {
   identity_history: IdentityHistoryItem[];
   shop_id: string | null;
   shop_name: string | null;
+  staff_type?: string | null;
+  ps_department?: string | null;
 }
 
 interface StudentOption {
@@ -404,8 +406,20 @@ export default function UserDetail() {
                       <Users2 className="h-3 w-3" /> {t("admin.users.hasChildren")}
                     </Badge>
                   )}
+                  {user.staff_type && (
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                      user.staff_type === "Classified Staff"
+                        ? "bg-blue-100 text-blue-700 border-blue-300"
+                        : "bg-violet-100 text-violet-700 border-violet-300"
+                    }`}>
+                      {user.staff_type === "Classified Staff" ? "Classified" : "Certified"}
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">@{user.username}</div>
+                {user.ps_department && (
+                  <div className="text-xs text-muted-foreground mt-0.5">{user.ps_department}</div>
+                )}
                 <div className="text-xs text-muted-foreground mt-1">
                   Last synced: {user.last_synced_at ? new Date(user.last_synced_at).toLocaleString() : "never"}
                 </div>
