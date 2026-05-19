@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
     is_superuser: bool = False
     shop_id: Optional[str] = None
     shop_name: Optional[str] = None
+    shop_module: Optional[str] = None
     external_id: Optional[str] = None
     family_code: Optional[str] = None
     status: Optional[str] = None
