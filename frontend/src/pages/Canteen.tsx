@@ -24,6 +24,7 @@ import { Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucid
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
 import type { SelectedOptionGroup } from "./canteen/menuOptionTypes";
@@ -70,6 +71,7 @@ interface CheckoutResponse {
 }
 
 export default function Canteen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
@@ -488,8 +490,7 @@ export default function Canteen() {
             title="Retail vs Internal"
             className="mt-2 max-w-xl"
           >
-            <strong>Retail</strong> = ราคาขายปกติสำหรับลูกค้า ·{" "}
-            <strong>Internal</strong> = ราคาพนักงาน/ครอบครัว/ใช้ภายในองค์กร
+            {t("canteen.pos.retailVsInternalDesc")}
           </InfoCallout>
           <div className="flex items-center gap-3">
             {usesDualPricing && (
@@ -531,7 +532,7 @@ export default function Canteen() {
               className="gap-1.5"
             >
               <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">เติมเงิน</span>
+              <span className="hidden sm:inline">{t("canteen.pos.topUp")}</span>
             </Button>
             <Button
               variant="outline"
@@ -540,13 +541,13 @@ export default function Canteen() {
               className="gap-1.5"
             >
               <UserSearch className="h-4 w-4" />
-              <span className="hidden sm:inline">ค้นหาสมาชิก</span>
+              <span className="hidden sm:inline">{t("canteen.pos.searchMember")}</span>
             </Button>
             <Badge
               variant="outline"
               className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
             >
-              ISB Canteen
+              {user?.shopName ?? "Canteen"}
             </Badge>
           </div>
         </div>
@@ -759,11 +760,11 @@ export default function Canteen() {
           }}
         >
           <DialogHeader>
-            <DialogTitle>กำหนดราคา</DialogTitle>
+            <DialogTitle>{t("canteen.pos.setPrice")}</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground">
-              {specialItemTarget?.name} — ใส่ราคาขาย
+              {specialItemTarget?.name} — {t("canteen.pos.enterPriceHint")}
             </p>
             <Input
               ref={specialItemInputRef}
@@ -787,7 +788,7 @@ export default function Canteen() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSpecialItemTarget(null)}>
-              ยกเลิก
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -800,7 +801,7 @@ export default function Canteen() {
               disabled={isNaN(parseFloat(specialItemPrice)) || parseFloat(specialItemPrice) < 0}
               className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
             >
-              เพิ่มในตะกร้า
+              {t("canteen.addToCart")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -810,14 +811,14 @@ export default function Canteen() {
       <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">ยอดเงินไม่เพียงพอ</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-600">{t("canteen.pos.insufficientBalance")}</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-foreground">
               {walletLimitError}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setWalletLimitError(null)}>
-              ตกลง
+              {t("common.ok")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

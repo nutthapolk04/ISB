@@ -718,7 +718,24 @@
       "deptNote": "Department wallets always allow negative balance — this policy does not apply to them. Admin manual adjustments also bypass these flags (they have their own audit trail).",
       "loadFailed": "Failed to load settings",
       "saveFailed": "Failed to save",
-      "saved": "Setting saved"
+      "saved": "Setting saved",
+      "schoolInfoTitle": "School Information",
+      "schoolName": "School Name",
+      "schoolAddress": "Address",
+      "schoolAddressPlaceholder": "School address",
+      "taxId": "Tax ID",
+      "phone": "Phone Number",
+      "logo": "Logo",
+      "selectImageFile": "Select Image File",
+      "deleteLogo": "Remove Logo",
+      "coverImage": "Cover Image (Login Page)",
+      "coverImageHint": "Displayed on the left side of the Login page — landscape 16:9 or wider recommended",
+      "selectCover": "Select Cover Image",
+      "deleteCover": "Remove Cover",
+      "coverPreview": "Login Page Cover Preview",
+      "noCover": "No cover image yet",
+      "saving": "Saving…",
+      "saveSchool": "Save School Info"
     },
     "dashboard": {
       "title": "Admin Dashboard",
@@ -1338,6 +1355,28 @@
       "allergies": "Allergies",
       "grade": "Grade {{grade}}",
       "frozen": "Frozen"
+    },
+    "pos": {
+      "topUp": "Top Up",
+      "searchMember": "Search Member",
+      "retailVsInternalDesc": "Retail = standard price for customers · Internal = staff/family rate for internal use",
+      "setPrice": "Set Price",
+      "enterPriceHint": "Enter selling price",
+      "insufficientBalance": "Insufficient Balance"
+    },
+    "memberSearch": {
+      "title": "Search Member",
+      "placeholder": "Name / Student code / Username / Card / Family code...",
+      "minChars": "Type at least 2 characters to search",
+      "noResults": "No results found",
+      "error": "An error occurred",
+      "department": "Department",
+      "member": "Member",
+      "searching": "Searching...",
+      "balance": "Balance",
+      "cardFrozenDesc": "Card is frozen. Please contact parent or admin.",
+      "searchAgain": "Search again",
+      "selectMember": "Select this member"
     }
   },
   "common": {
@@ -1353,7 +1392,8 @@
     "selectProduct": "Select Product",
     "active": "Active",
     "inactive": "Inactive",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "ok": "OK"
   },
   "auditLog": {
     "title": "Change History",

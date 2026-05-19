@@ -718,7 +718,24 @@
       "deptNote": "กระเป๋าแผนก (Department) ติดลบได้เสมอ ไม่อยู่ภายใต้ flag นี้ การปรับยอดผ่าน admin wallet adjust ก็ไม่ติด flag (มี audit log แยก)",
       "loadFailed": "โหลดการตั้งค่าไม่สำเร็จ",
       "saveFailed": "บันทึกไม่สำเร็จ",
-      "saved": "บันทึกแล้ว"
+      "saved": "บันทึกแล้ว",
+      "schoolInfoTitle": "ข้อมูลโรงเรียน",
+      "schoolName": "ชื่อโรงเรียน",
+      "schoolAddress": "ที่อยู่",
+      "schoolAddressPlaceholder": "ที่อยู่โรงเรียน",
+      "taxId": "เลขประจำตัวผู้เสียภาษี",
+      "phone": "เบอร์โทรศัพท์",
+      "logo": "โลโก้",
+      "selectImageFile": "เลือกไฟล์รูปภาพ",
+      "deleteLogo": "ลบโลโก้",
+      "coverImage": "รูปหน้าปก (Login Page)",
+      "coverImageHint": "แสดงด้านซ้ายของหน้า Login — แนะนำ landscape 16:9 หรือกว้างกว่า",
+      "selectCover": "เลือกรูปหน้าปก",
+      "deleteCover": "ลบรูปหน้าปก",
+      "coverPreview": "Preview หน้าปก Login",
+      "noCover": "ยังไม่มีรูปหน้าปก",
+      "saving": "กำลังบันทึก…",
+      "saveSchool": "บันทึกข้อมูลโรงเรียน"
     },
     "dashboard": {
       "title": "แดชบอร์ดผู้ดูแลระบบ",
@@ -1338,6 +1355,28 @@
       "allergies": "แพ้อาหาร",
       "grade": "ชั้น {{grade}}",
       "frozen": "ระงับแล้ว"
+    },
+    "pos": {
+      "topUp": "เติมเงิน",
+      "searchMember": "ค้นหาสมาชิก",
+      "retailVsInternalDesc": "Retail = ราคาขายปกติสำหรับลูกค้า · Internal = ราคาพนักงาน/ครอบครัว/ใช้ภายในองค์กร",
+      "setPrice": "กำหนดราคา",
+      "enterPriceHint": "ใส่ราคาขาย",
+      "insufficientBalance": "ยอดเงินไม่เพียงพอ"
+    },
+    "memberSearch": {
+      "title": "ค้นหาสมาชิก",
+      "placeholder": "ชื่อ / รหัสนักเรียน / username / บัตร / รหัสครอบครัว...",
+      "minChars": "พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา",
+      "noResults": "ไม่พบข้อมูล",
+      "error": "เกิดข้อผิดพลาด",
+      "department": "แผนก",
+      "member": "สมาชิก",
+      "searching": "กำลังค้นหา...",
+      "balance": "ยอดเงินคงเหลือ",
+      "cardFrozenDesc": "ไม่สามารถทำรายการได้ กรุณาติดต่อผู้ปกครองหรือแอดมิน",
+      "searchAgain": "ค้นหาใหม่",
+      "selectMember": "เลือกสมาชิกนี้"
     }
   },
   "common": {
@@ -1353,7 +1392,8 @@
     "selectProduct": "เลือกสินค้า",
     "active": "ใช้งาน",
     "inactive": "ปิดใช้งาน",
-    "loading": "กำลังโหลด…"
+    "loading": "กำลังโหลด…",
+    "ok": "ตกลง"
   },
   "auditLog": {
     "title": "ประวัติการเปลี่ยนแปลง",

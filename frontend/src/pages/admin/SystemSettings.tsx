@@ -149,11 +149,11 @@ export default function SystemSettings() {
       {/* School Info Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">ข้อมูลโรงเรียน</CardTitle>
+          <CardTitle className="text-lg">{t("admin.settings.schoolInfoTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="school-name">ชื่อโรงเรียน</Label>
+            <Label htmlFor="school-name">{t("admin.settings.schoolName")}</Label>
             <Input
               id="school-name"
               value={schoolName}
@@ -162,16 +162,16 @@ export default function SystemSettings() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="school-address">ที่อยู่</Label>
+            <Label htmlFor="school-address">{t("admin.settings.schoolAddress")}</Label>
             <Input
               id="school-address"
               value={schoolAddress}
               onChange={(e) => setSchoolAddress(e.target.value)}
-              placeholder="ที่อยู่โรงเรียน"
+              placeholder={t("admin.settings.schoolAddressPlaceholder")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="school-tax-id">เลขประจำตัวผู้เสียภาษี</Label>
+            <Label htmlFor="school-tax-id">{t("admin.settings.taxId")}</Label>
             <Input
               id="school-tax-id"
               value={schoolTaxId}
@@ -180,7 +180,7 @@ export default function SystemSettings() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="school-phone">เบอร์โทรศัพท์</Label>
+            <Label htmlFor="school-phone">{t("admin.settings.phone")}</Label>
             <Input
               id="school-phone"
               value={schoolPhone}
@@ -190,15 +190,15 @@ export default function SystemSettings() {
           </div>
           {/* Logo */}
           <div className="space-y-2">
-            <Label>โลโก้</Label>
+            <Label>{t("admin.settings.logo")}</Label>
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
-                เลือกไฟล์รูปภาพ
+                {t("admin.settings.selectImageFile")}
               </Button>
               {schoolLogoUrl && (
                 <Button type="button" variant="ghost" size="sm"
                   onClick={() => { setSchoolLogoUrl(""); if (logoInputRef.current) logoInputRef.current.value = ""; }}>
-                  ลบโลโก้
+                  {t("admin.settings.deleteLogo")}
                 </Button>
               )}
             </div>
@@ -210,16 +210,16 @@ export default function SystemSettings() {
 
           {/* Cover image */}
           <div className="space-y-2">
-            <Label>รูปหน้าปก (Login Page)</Label>
-            <p className="text-xs text-muted-foreground">แสดงด้านซ้ายของหน้า Login — แนะนำ landscape 16:9 หรือกว้างกว่า</p>
+            <Label>{t("admin.settings.coverImage")}</Label>
+            <p className="text-xs text-muted-foreground">{t("admin.settings.coverImageHint")}</p>
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" size="sm" onClick={() => coverInputRef.current?.click()}>
-                เลือกรูปหน้าปก
+                {t("admin.settings.selectCover")}
               </Button>
               {schoolCoverUrl && (
                 <Button type="button" variant="ghost" size="sm"
                   onClick={() => { setSchoolCoverUrl(""); if (coverInputRef.current) coverInputRef.current.value = ""; }}>
-                  ลบรูปหน้าปก
+                  {t("admin.settings.deleteCover")}
                 </Button>
               )}
             </div>
@@ -228,19 +228,19 @@ export default function SystemSettings() {
               <div className="relative overflow-hidden rounded-lg border w-full aspect-video bg-muted">
                 <img src={schoolCoverUrl} alt="Cover preview" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 flex items-end p-3 bg-gradient-to-t from-black/50 to-transparent">
-                  <span className="text-xs text-white/80">Preview หน้าปก Login</span>
+                  <span className="text-xs text-white/80">{t("admin.settings.coverPreview")}</span>
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-center rounded-lg border border-dashed w-full aspect-video bg-muted/40 text-muted-foreground text-sm">
-                ยังไม่มีรูปหน้าปก
+                {t("admin.settings.noCover")}
               </div>
             )}
           </div>
 
           <Separator />
           <Button onClick={saveSchool} disabled={schoolSaving}>
-            {schoolSaving ? "กำลังบันทึก…" : "บันทึกข้อมูลโรงเรียน"}
+            {schoolSaving ? t("admin.settings.saving") : t("admin.settings.saveSchool")}
           </Button>
         </CardContent>
       </Card>

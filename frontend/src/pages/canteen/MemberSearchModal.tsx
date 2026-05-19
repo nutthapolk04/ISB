@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 import type { StudentLookupResult, DepartmentLookupResult } from "./RfidPaymentModal";
 
 interface MemberSearchModalProps {
@@ -32,6 +33,7 @@ export function MemberSearchModal({
   onOpenChange,
   onSelect,
 }: MemberSearchModalProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StudentLookupResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -84,10 +86,10 @@ export function MemberSearchModal({
       const combined = [...customers, ...deptResults];
       setResults(combined);
       if (combined.length === 0) {
-        setError("ไม่พบข้อมูล");
+        setError(t("canteen.memberSearch.noResults"));
       }
     } catch (e) {
-      setError(e instanceof ApiError ? e.detail : "เกิดข้อผิดพลาด");
+      setError(e instanceof ApiError ? e.detail : t("canteen.memberSearch.error"));
       setResults([]);
     } finally {
       setLoading(false);
@@ -124,7 +126,7 @@ export function MemberSearchModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Search className="h-5 w-5 text-amber-500" />
-            ค้นหาสมาชิก
+            {t("canteen.memberSearch.title")}
           </DialogTitle>
         </DialogHeader>
 
@@ -137,7 +139,7 @@ export function MemberSearchModal({
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="ชื่อ / รหัสนักเรียน / username / บัตร / รหัสครอบครัว..."
+                placeholder={t("canteen.memberSearch.placeholder")}
                 className="pl-9"
                 autoFocus
               />
@@ -147,7 +149,7 @@ export function MemberSearchModal({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา
+              {t("canteen.memberSearch.minChars")}
             </p>
 
             {/* Results list */}
@@ -188,7 +190,7 @@ export function MemberSearchModal({
                         </span>
                         {member.customer_kind === "department" && (
                           <Badge className="h-4 text-[10px] px-1 bg-rose-100 text-rose-700 border-rose-200">
-                            แผนก
+                            {t("canteen.memberSearch.department")}
                           </Badge>
                         )}
                         {member.grade && member.customer_kind !== "department" && (
@@ -198,10 +200,7 @@ export function MemberSearchModal({
                         )}
                         {member.user_id != null && (
                           <Badge className="h-4 text-[10px] px-1 bg-blue-100 text-blue-700 border-blue-200">
-                            {member.customer_kind === "parent" ? "ผู้ปกครอง"
-                              : member.customer_kind === "staff" ? "พนักงาน"
-                              : member.customer_kind === "teacher" ? "ครู"
-                              : member.customer_kind ?? "สมาชิก"}
+                            {t(`roles.${member.customer_kind}`, member.customer_kind ?? t("canteen.memberSearch.member"))}
                           </Badge>
                         )}
                         {member.card_frozen && (
@@ -245,7 +244,7 @@ export function MemberSearchModal({
             {/* Empty state */}
             {query.length >= 2 && results.length === 0 && !loading && !error && (
               <div className="text-center py-4 text-sm text-muted-foreground">
-                กำลังค้นหา...
+                {t("canteen.memberSearch.searching")}
               </div>
             )}
           </div>
@@ -280,7 +279,7 @@ export function MemberSearchModal({
                   {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
                 </div>
                 <div className="mt-2 text-lg font-bold tabular-nums">
-                  ยอดเงินคงเหลือ:{" "}
+                  {t("canteen.memberSearch.balance")}:{" "}
                   <span
                     className={cn(
                       (selectedMember.wallet_balance ?? 0) < 0
@@ -310,9 +309,9 @@ export function MemberSearchModal({
               <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
                 <AlertTriangle className="h-5 w-5 shrink-0" />
                 <div>
-                  <div className="font-semibold">บัตรถูกระงับ</div>
+                  <div className="font-semibold">{t("parent.dashboard.cardFrozen")}</div>
                   <div className="text-xs">
-                    ไม่สามารถทำรายการได้ กรุณาติดต่อผู้ปกครองหรือแอดมิน
+                    {t("canteen.memberSearch.cardFrozenDesc")}
                   </div>
                 </div>
               </div>
@@ -326,7 +325,7 @@ export function MemberSearchModal({
                 onClick={() => setSelectedMember(null)}
               >
                 <X className="h-4 w-4 mr-1" />
-                ค้นหาใหม่
+                {t("canteen.memberSearch.searchAgain")}
               </Button>
               {onSelect && (
                 <Button
@@ -334,7 +333,7 @@ export function MemberSearchModal({
                   onClick={handleConfirm}
                   disabled={selectedMember.card_frozen}
                 >
-                  เลือกสมาชิกนี้
+                  {t("canteen.memberSearch.selectMember")}
                 </Button>
               )}
             </div>
