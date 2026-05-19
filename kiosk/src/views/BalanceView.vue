@@ -54,7 +54,12 @@ const goToTopup = () => {
   router.push('/topup');
 };
 
-const goToHistory = () => {
+const goToHistory = async () => {
+  // Refresh transactions for whichever wallet is currently active before navigating
+  const walletId = store.currentWallet?.id ?? null;
+  if (walletId) {
+    await store.refreshTransactions(walletId);
+  }
   router.push('/history');
 };
 
@@ -163,6 +168,10 @@ const navNext = () => {
 onMounted(() => {
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
+  // Restore carousel scroll position when returning from sub-pages
+  if (store.activeWalletIndex > 0) {
+    setTimeout(() => scrollToWallet(store.activeWalletIndex), 50);
+  }
 });
 
 onUnmounted(() => {

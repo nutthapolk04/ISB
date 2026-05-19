@@ -68,6 +68,12 @@ export const useKioskStore = defineStore('kiosk', () => {
         activeWalletIndex.value = 0;
     }
 
+    async function refreshTransactions(walletId: string) {
+        try {
+            transactions.value = await realApi.getLatestTransactions(walletId);
+        } catch { /* silent */ }
+    }
+
     async function refreshBalance() {
         if (!currentUser.value) return;
         const identifier = currentUser.value.employeeId;
@@ -106,6 +112,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         login,
         logout,
         refreshBalance,
+        refreshTransactions,
         schoolInfo,
         fetchSchoolInfo,
     };
