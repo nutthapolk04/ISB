@@ -14,7 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Search, Eye, Download, Loader2, Ban } from "lucide-react";
+import { Receipt, Search, Eye, Download, Loader2, Ban, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -266,7 +266,40 @@ const Receipts = () => {
 
   const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+
+  // ── Structured search fields (inputs) ──────────────────────────────────
+  const [searchReceiptId, setSearchReceiptId] = useState("");
+  const [searchPayer, setSearchPayer] = useState("");
+  const [searchDate, setSearchDate] = useState("");
+  const [searchPaymentType, setSearchPaymentType] = useState("all");
+
+  // Applied criteria — only updated when Search button is clicked
+  const [appliedSearch, setAppliedSearch] = useState({
+    receiptId: "",
+    payer: "",
+    date: "",
+    paymentType: "all",
+  });
+
+  const handleSearch = () => {
+    setAppliedSearch({
+      receiptId: searchReceiptId.trim(),
+      payer: searchPayer.trim(),
+      date: searchDate,
+      paymentType: searchPaymentType,
+    });
+    setCurrentPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchReceiptId("");
+    setSearchPayer("");
+    setSearchDate("");
+    setSearchPaymentType("all");
+    setAppliedSearch({ receiptId: "", payer: "", date: "", paymentType: "all" });
+    setCurrentPage(1);
+  };
+
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptApi | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -332,18 +365,31 @@ const Receipts = () => {
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const filteredReceipts = receipts.filter((r) => {
-    if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
-    return (
-      r.receipt_number.toLowerCase().includes(q) ||
-      r.payment_method.toLowerCase().includes(q) ||
-      r.status.toLowerCase().includes(q) ||
-      fmtDate(r.transaction_date).includes(q) ||
-      fmtDateOnly(r.transaction_date).includes(q) ||
-      (r.payer_label ?? "").toLowerCase().includes(q) ||
-      String(r.total).includes(q)
-    );
+    const { receiptId, payer, date, paymentType } = appliedSearch;
+    if (receiptId && !r.receipt_number.toLowerCase().includes(receiptId.toLowerCase())) return false;
+    if (payer) {
+      const q = payer.toLowerCase();
+      if (!(r.payer_label ?? "").toLowerCase().includes(q)) return false;
+    }
+    if (date && fmtDateOnly(r.transaction_date) !== date) return false;
+    if (paymentType !== "all" && r.payment_method !== paymentType) return false;
+    return true;
   });
+
+  const hasActiveSearch =
+    appliedSearch.receiptId !== "" ||
+    appliedSearch.payer !== "" ||
+    appliedSearch.date !== "" ||
+    appliedSearch.paymentType !== "all";
+
+  // ── Pagination ──────────────────────────────────────────────────────────
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset to page 1 when search changes
+  const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedReceipts = filteredReceipts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const totalSales = receipts
     .filter((r) => r.status === "active")
@@ -422,6 +468,131 @@ const Receipts = () => {
         {t("receipts.info.statusGuide.body")}
       </InfoCallout>
 
+      {/* ── Search Panel ──────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">{t("receipts.searchPanel.title", "Search Receipt")}</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Receipt ID */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                {t("receipts.searchPanel.receiptId", "Receipt ID")}
+              </label>
+              <Input
+                placeholder="R-001"
+                value={searchReceiptId}
+                onChange={(e) => setSearchReceiptId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              />
+            </div>
+
+            {/* Payer name / code */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                {t("receipts.searchPanel.payer", "รหัส/ชื่อนักเรียน")}
+              </label>
+              <Input
+                placeholder="S001 หรือ สมชาย"
+                value={searchPayer}
+                onChange={(e) => setSearchPayer(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              />
+            </div>
+
+            {/* Purchase Date */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                {t("receipts.searchPanel.date", "Purchase Date")}
+              </label>
+              <Input
+                type="date"
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+                className="cursor-pointer"
+              />
+            </div>
+
+            {/* Payment Type */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                {t("receipts.searchPanel.paymentType", "Payment Type")}
+              </label>
+              <Select value={searchPaymentType} onValueChange={setSearchPaymentType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("receipts.searchPanel.allTypes", "All")}</SelectItem>
+                  <SelectItem value="wallet">Wallet</SelectItem>
+                  <SelectItem value="cash">เงินสด</SelectItem>
+                  <SelectItem value="qr">QR PromptPay</SelectItem>
+                  <SelectItem value="qr_promptpay">QR PromptPay (alt)</SelectItem>
+                  <SelectItem value="credit_card">บัตรเครดิต</SelectItem>
+                  <SelectItem value="debit_card">บัตรเดบิต</SelectItem>
+                  <SelectItem value="edc">EDC</SelectItem>
+                  <SelectItem value="bank_transfer">โอนเงิน</SelectItem>
+                  <SelectItem value="other">อื่นๆ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-2 mt-4">
+            {hasActiveSearch && (
+              <Button variant="ghost" size="sm" onClick={handleClearSearch} className="text-muted-foreground">
+                {t("receipts.searchPanel.clear", "ล้างตัวกรอง")}
+              </Button>
+            )}
+            <Button
+              onClick={handleSearch}
+              className="bg-orange-500 hover:bg-orange-600 text-white gap-2"
+            >
+              <Search className="h-4 w-4" />
+              {t("receipts.searchPanel.search", "Search Receipt")}
+            </Button>
+          </div>
+
+          {/* Active filter chips */}
+          {hasActiveSearch && (
+            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
+              <span className="text-xs text-muted-foreground self-center">
+                {t("receipts.searchPanel.filtering", "กรอง:")}
+              </span>
+              {appliedSearch.receiptId && (
+                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                  ID: {appliedSearch.receiptId}
+                </span>
+              )}
+              {appliedSearch.payer && (
+                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                  ชื่อ/รหัส: {appliedSearch.payer}
+                </span>
+              )}
+              {appliedSearch.date && (
+                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                  วันที่: {appliedSearch.date}
+                </span>
+              )}
+              {appliedSearch.paymentType !== "all" && (
+                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                  ชำระ: {PAYMENT_LABELS[appliedSearch.paymentType] ?? appliedSearch.paymentType}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground self-center ml-1">
+                ({filteredReceipts.length} {t("receipts.searchPanel.results", "รายการ")})
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="kpi-card">
@@ -453,20 +624,14 @@ const Receipts = () => {
       {/* Receipts List */}
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center">
-              <Receipt className="h-6 w-6 mr-2 text-primary" />
-              <CardTitle>{t("receipts.allReceipts")}</CardTitle>
-            </div>
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t("receipts.searchReceipt")}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:max-w-xs"
-              />
-            </div>
+          <div className="flex items-center">
+            <Receipt className="h-6 w-6 mr-2 text-primary" />
+            <CardTitle>{t("receipts.allReceipts")}</CardTitle>
+            {hasActiveSearch && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {filteredReceipts.length} / {receipts.length}
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -489,7 +654,7 @@ const Receipts = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredReceipts.map((receipt) => (
+                {pagedReceipts.map((receipt) => (
                   <TableRow key={receipt.id}>
                     <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
                     <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
@@ -543,6 +708,75 @@ const Receipts = () => {
                 ))}
               </TableBody>
             </Table>
+          )}
+
+          {/* ── Pagination ────────────────────────────────────────────────── */}
+          {filteredReceipts.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-4 border-t mt-2">
+              <p className="text-xs text-muted-foreground">
+                แสดง {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredReceipts.length)} จาก {filteredReceipts.length} รายการ
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safePage === 1}
+                  className="h-8 w-8 p-0 text-xs"
+                >
+                  «
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="h-8 px-3 text-xs"
+                >
+                  ‹ ก่อนหน้า
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === "…" ? (
+                      <span key={`ellipsis-${i}`} className="text-xs px-1 text-muted-foreground">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={safePage === p ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(p as number)}
+                        className={cn("h-8 w-8 p-0 text-xs", safePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
+                      >
+                        {p}
+                      </Button>
+                    ),
+                  )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="h-8 px-3 text-xs"
+                >
+                  ถัดไป ›
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safePage === totalPages}
+                  className="h-8 w-8 p-0 text-xs"
+                >
+                  »
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
