@@ -526,7 +526,7 @@ const Receipts = () => {
                 {t("receipts.searchPanel.payer", "รหัส/ชื่อนักเรียน")}
               </label>
               <Input
-                placeholder="S001 หรือ สมชาย"
+                placeholder={t("receipts.searchPanel.payerPlaceholder")}
                 value={searchPayer}
                 onChange={(e) => setSearchPayer(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -558,15 +558,15 @@ const Receipts = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("receipts.searchPanel.allTypes", "All")}</SelectItem>
-                  <SelectItem value="wallet">Wallet</SelectItem>
-                  <SelectItem value="cash">เงินสด</SelectItem>
-                  <SelectItem value="qr">QR PromptPay</SelectItem>
-                  <SelectItem value="qr_promptpay">QR PromptPay (alt)</SelectItem>
-                  <SelectItem value="credit_card">บัตรเครดิต</SelectItem>
-                  <SelectItem value="debit_card">บัตรเดบิต</SelectItem>
-                  <SelectItem value="edc">EDC</SelectItem>
-                  <SelectItem value="bank_transfer">โอนเงิน</SelectItem>
-                  <SelectItem value="other">อื่นๆ</SelectItem>
+                  <SelectItem value="wallet">{t("common.paymentMethods.wallet")}</SelectItem>
+                  <SelectItem value="cash">{t("common.paymentMethods.cash")}</SelectItem>
+                  <SelectItem value="qr">{t("common.paymentMethods.qr")}</SelectItem>
+                  <SelectItem value="qr_promptpay">{t("common.paymentMethods.qr_promptpay")}</SelectItem>
+                  <SelectItem value="credit_card">{t("common.paymentMethods.credit_card")}</SelectItem>
+                  <SelectItem value="debit_card">{t("common.paymentMethods.debit_card")}</SelectItem>
+                  <SelectItem value="edc">{t("common.paymentMethods.edc")}</SelectItem>
+                  <SelectItem value="bank_transfer">{t("common.paymentMethods.bank_transfer")}</SelectItem>
+                  <SelectItem value="other">{t("common.paymentMethods.other")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -601,12 +601,12 @@ const Receipts = () => {
               )}
               {appliedSearch.payer && (
                 <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  ชื่อ/รหัส: {appliedSearch.payer}
+                  {t("receipts.searchPanel.chipPayer")}: {appliedSearch.payer}
                 </span>
               )}
               {appliedSearch.date && (
                 <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  วันที่: {appliedSearch.date}
+                  {t("receipts.searchPanel.chipDate")}: {appliedSearch.date}
                 </span>
               )}
               {appliedSearch.paymentType !== "all" && (
@@ -930,11 +930,11 @@ const Receipts = () => {
                       </div>
                       <div className="text-xs text-muted-foreground space-y-0.5">
                         {selectedReceipt.payer_detail.code && (
-                          <div>รหัส: <span className="font-mono">{selectedReceipt.payer_detail.code}</span></div>
+                          <div>{t("receipts.searchPanel.detailCode")}: <span className="font-mono">{selectedReceipt.payer_detail.code}</span></div>
                         )}
                         {selectedReceipt.payer_detail.grade && (
                           <div>
-                            {selectedReceipt.payer_detail.role === "student" ? "ชั้น: " : "แผนก/บทบาท: "}
+                            {selectedReceipt.payer_detail.role === "student" ? `${t("receipts.searchPanel.detailGrade")}: ` : `${t("receipts.searchPanel.detailDept")}: `}
                             {selectedReceipt.payer_detail.grade}
                           </div>
                         )}
