@@ -21,12 +21,10 @@ NEW_VALUES = [
 
 
 def upgrade():
-    # PostgreSQL requires committing the transaction before ALTER TYPE ADD VALUE
-    op.execute("COMMIT")
-    for value in NEW_VALUES:
-        op.execute(
-            f"ALTER TYPE auditaction ADD VALUE IF NOT EXISTS '{value}'"
-        )
+    # ALTER TYPE ... ADD VALUE must run outside a transaction in PostgreSQL
+    with op.get_context().autocommit_block():
+        for value in NEW_VALUES:
+            op.execute(f"ALTER TYPE auditaction ADD VALUE IF NOT EXISTS '{value}'")
 
 
 def downgrade():

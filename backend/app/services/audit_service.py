@@ -34,23 +34,36 @@ def create_audit_log(
       UPDATE_PRICE  → {"old": {"external_price": X, "internal_price": Y}, "new": {...}}
       DELETE_PRODUCT → {"snapshot": {"name": ..., "external_price": ..., "stock": ...}}
     """
+    # Normalise action: if the value is not yet in the DB enum, fall back to a safe value
+    KNOWN_ACTIONS = {
+        "create", "update", "delete", "return", "exchange",
+        "cancel", "void", "reprint", "approve", "reject",
+        "UPDATE_PRICE", "UPDATE_PRODUCT", "DELETE_PRODUCT",
+        "UPDATE_BALANCE", "UPDATE_SETTING",
+    }
+    safe_action = action if action in KNOWN_ACTIONS else "update"
+
     changes_json = json.dumps(changes, default=str)
-    # Use explicit cast via SQL function to avoid ::jsonb syntax issues with psycopg2
-    db.execute(
-        text("""
-            INSERT INTO audit_logs
-                (entity_type, entity_id, entity_name, shop_id, action, changes_json, user_id)
-            VALUES
-                (:entity_type, :entity_id, :entity_name, :shop_id, :action,
-                 CAST(:changes_json AS JSONB), :user_id)
-        """),
-        {
-            "entity_type": entity_type,
-            "entity_id": entity_id,
-            "entity_name": entity_name,
-            "shop_id": shop_id,
-            "action": action,
-            "changes_json": changes_json,
-            "user_id": user_id,
-        },
-    )
+    try:
+        # Use explicit cast via SQL function to avoid ::jsonb syntax issues with psycopg2
+        db.execute(
+            text("""
+                INSERT INTO audit_logs
+                    (entity_type, entity_id, entity_name, shop_id, action, changes_json, user_id)
+                VALUES
+                    (:entity_type, :entity_id, :entity_name, :shop_id, :action,
+                     CAST(:changes_json AS JSONB), :user_id)
+            """),
+            {
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "entity_name": entity_name,
+                "shop_id": shop_id,
+                "action": safe_action,
+                "changes_json": changes_json,
+                "user_id": user_id,
+            },
+        )
+    except Exception:
+        # Audit log failure must never break the main operation — swallow silently
+        db.rollback()
