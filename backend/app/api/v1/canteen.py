@@ -46,7 +46,7 @@ class CloseDaySummary(BaseModel):
 def close_day(
     shop_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Return EOD summary for *shop_id* scoped to today (UTC)."""
 

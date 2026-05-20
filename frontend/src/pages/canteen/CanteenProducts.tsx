@@ -781,6 +781,7 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const open = !!product;
 
@@ -795,6 +796,7 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
       setPendingPhoto(null);
       if (pendingPreview) URL.revokeObjectURL(pendingPreview);
       setPendingPreview(null);
+      setEditError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
@@ -858,10 +860,11 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
     const r = parseFloat(retail);
     const i = parseFloat(internal);
     if (!name.trim() || isNaN(r)) {
-      toast.error(t("canteen.nameRetailRequired"));
+      setEditError(t("canteen.nameRetailRequired"));
       return;
     }
     setSaving(true);
+    setEditError(null);
     try {
       await api.patch(`/shops/${shopId}/products/${product.id}`, {
         name: name.trim(),
@@ -880,14 +883,16 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
       toast.success(t("canteen.itemUpdated"));
       onSaved();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : t("canteen.updateFailed"));
+      const msg = e instanceof ApiError ? e.detail : t("canteen.updateFailed");
+      setEditError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setEditError(null); onClose(); } }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("canteen.editMenuTitle", { name: product?.name })}</DialogTitle>
@@ -899,7 +904,7 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
           </div>
           <div>
             <Label>{t("canteen.itemName")}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input value={name} onChange={(e) => { setName(e.target.value); setEditError(null); }} />
           </div>
           <div>
             <Label>{t("canteen.category")}</Label>
@@ -924,7 +929,7 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
               <Input
                 type="number"
                 value={retail}
-                onChange={(e) => setRetail(e.target.value)}
+                onChange={(e) => { setRetail(e.target.value); setEditError(null); }}
               />
             </div>
             {usesDualPricing && (
@@ -933,7 +938,7 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
                 <Input
                   type="number"
                   value={internal}
-                  onChange={(e) => setInternal(e.target.value)}
+                  onChange={(e) => { setInternal(e.target.value); setEditError(null); }}
                 />
               </div>
             )}
@@ -1026,6 +1031,15 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
             </div>
           )}
         </div>
+        {editError && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            <span className="mt-0.5 shrink-0">⚠</span>
+            <span>{editError}</span>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t("common.cancel")}

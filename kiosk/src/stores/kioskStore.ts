@@ -11,6 +11,9 @@ export const useKioskStore = defineStore('kiosk', () => {
     const lastActivity = ref(Date.now());
     const activeWalletIndex = ref(0);
     const schoolInfo = ref<{ school_name: string; school_logo_url: string }>({ school_name: '', school_logo_url: '' });
+    const loginSource = ref<'rfid' | 'manual'>('rfid');
+    // Index of the wallet whose transactions are currently loaded (-1 = parent's active wallet)
+    const transactionWalletIndex = ref(-1);
 
     const isAuthenticated = computed(() => !!currentUser.value);
 
@@ -34,12 +37,13 @@ export const useKioskStore = defineStore('kiosk', () => {
         lastActivity.value = Date.now();
     }
 
-    async function login(identifier: string) {
+    async function login(identifier: string, source: 'rfid' | 'manual' = 'rfid') {
         isLoading.value = true;
         try {
             const user = await realApi.checkBalance(identifier);
             if (user) {
                 currentUser.value = user;
+                loginSource.value = source;
 
                 // Default to the wallet matching the cardId if possible, or 0
                 const walletIndex = user.wallets.findIndex(
@@ -52,6 +56,7 @@ export const useKioskStore = defineStore('kiosk', () => {
                 transactions.value = walletId
                     ? await realApi.getLatestTransactions(walletId)
                     : [];
+                transactionWalletIndex.value = activeWalletIndex.value;
 
                 updateActivity();
                 return true;
@@ -66,11 +71,16 @@ export const useKioskStore = defineStore('kiosk', () => {
         currentUser.value = null;
         transactions.value = [];
         activeWalletIndex.value = 0;
+        loginSource.value = 'rfid';
+        transactionWalletIndex.value = -1;
     }
 
-    async function refreshTransactions(walletId: string) {
+    async function refreshTransactions(walletId: string, walletIndex?: number) {
         try {
             transactions.value = await realApi.getLatestTransactions(walletId);
+            if (walletIndex !== undefined) {
+                transactionWalletIndex.value = walletIndex;
+            }
         } catch { /* silent */ }
     }
 
@@ -87,6 +97,7 @@ export const useKioskStore = defineStore('kiosk', () => {
             const walletId = currentWallet.value?.id ?? null;
             if (walletId) {
                 transactions.value = await realApi.getLatestTransactions(walletId);
+                transactionWalletIndex.value = activeWalletIndex.value;
             }
         } catch { /* silent — stale data is acceptable */ }
     }
@@ -106,6 +117,8 @@ export const useKioskStore = defineStore('kiosk', () => {
         language,
         lastActivity,
         isAuthenticated,
+        loginSource,
+        transactionWalletIndex,
         setLanguage,
         setActiveWallet,
         updateActivity,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowUpRight, UtensilsCrossed, Users, CalendarCheck, Download } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, UtensilsCrossed, Users, CalendarCheck, Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,6 +108,47 @@ export default function CanteenShopDetail() {
     URL.revokeObjectURL(url);
   }
 
+  function printSlip(summary: CloseDaySummary) {
+    const paymentRows = Object.entries(summary.payment_breakdown)
+      .map(([method, amount]) => {
+        const label = t(`canteen.paymentMethod_${method}`, { defaultValue: method });
+        return `<tr><td style="padding:4px 8px">${label}</td><td style="padding:4px 8px;text-align:right">฿${(amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td></tr>`;
+      })
+      .join("");
+
+    const html = `
+      <html><head><title>Close Day Slip — ${summary.date}</title>
+      <style>body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px}
+      h2{text-align:center;font-size:1rem;margin-bottom:4px}
+      p{text-align:center;color:#666;font-size:.8rem;margin:0 0 12px}
+      table{width:100%;border-collapse:collapse}
+      td{font-size:.85rem}
+      hr{border:none;border-top:1px dashed #999;margin:8px 0}
+      .total{font-weight:bold}</style></head>
+      <body>
+        <h2>${shop?.name ?? summary.shop_id}</h2>
+        <p>${t("canteen.closeDayConfirm", { date: summary.date })}</p>
+        <hr/>
+        <table>
+          <tr><td style="padding:4px 8px">${t("canteen.totalOrders")}</td><td style="padding:4px 8px;text-align:right">${summary.total_orders}</td></tr>
+          <tr><td style="padding:4px 8px">${t("canteen.itemCount")}</td><td style="padding:4px 8px;text-align:right">${summary.item_count}</td></tr>
+        </table>
+        <hr/>
+        <p style="text-align:left;padding:0 8px;font-weight:bold;margin:4px 0">${t("canteen.paymentBreakdown")}</p>
+        <table>${paymentRows}</table>
+        <hr/>
+        <table><tr class="total"><td style="padding:4px 8px">${t("canteen.totalRevenue")}</td><td style="padding:4px 8px;text-align:right">฿${summary.total_revenue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td></tr></table>
+      </body></html>`;
+
+    const win = window.open("", "_blank", "width=400,height=600");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+  }
+
   const saveMut = useMutation({
     mutationFn: () =>
       api.patch(`/shops/${shopId}`, {
@@ -153,7 +194,7 @@ export default function CanteenShopDetail() {
           <p className="page-description">{t("canteen.canteenLabel")}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {hasRole("manager", "admin") && (
+          {hasRole("cashier", "manager", "admin") && (
             <Button
               variant="outline"
               size="sm"
@@ -161,7 +202,7 @@ export default function CanteenShopDetail() {
               disabled={closeDayMut.isPending}
             >
               <CalendarCheck className="h-4 w-4 mr-1.5" />
-              {closeDayMut.isPending ? t("canteen.closeDayLoading") : t("canteen.closeDay")}
+              {closeDayMut.isPending ? t("canteen.closeDayLoading") : t("canteen.upToDateSale")}
             </Button>
           )}
           <Button asChild variant="outline" size="sm">
@@ -262,19 +303,17 @@ export default function CanteenShopDetail() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t("canteen.paymentBreakdown")}</TableHead>
+                      <TableHead>{t("canteen.paymentMethod")}</TableHead>
                       <TableHead className="text-right">฿</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {Object.entries(closeDaySummary.payment_breakdown).map(([method, amount]) => (
                       <TableRow key={method}>
-                        <TableCell className="capitalize">
-                          {t(`canteen.payment${method.charAt(0).toUpperCase()}${method.slice(1)}`, {
-                            defaultValue: method,
-                          })}
+                        <TableCell>
+                          {t(`canteen.paymentMethod_${method}`, { defaultValue: method })}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {(amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
@@ -283,14 +322,24 @@ export default function CanteenShopDetail() {
                 </Table>
               </div>
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => exportCsv(closeDaySummary)}
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                {t("canteen.exportCsv")}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => exportCsv(closeDaySummary)}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {t("canteen.exportCsv")}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => printSlip(closeDaySummary)}
+                >
+                  <Printer className="h-4 w-4 mr-1.5" />
+                  {t("canteen.printSlip")}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

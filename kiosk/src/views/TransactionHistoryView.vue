@@ -33,8 +33,21 @@ const t = {
 };
 
 const goBack = () => {
+  // If we navigated into a child wallet's transactions, restore parent's active wallet
+  if (store.transactionWalletIndex > 0) {
+    store.setActiveWallet(store.transactionWalletIndex);
+  } else {
+    store.setActiveWallet(0);
+  }
   router.push('/balance');
 };
+
+// Wallet whose transactions are displayed
+const viewingWallet = computed(() => {
+  if (!store.currentUser) return null;
+  const idx = store.transactionWalletIndex >= 0 ? store.transactionWalletIndex : store.activeWalletIndex;
+  return store.currentUser.wallets[idx] ?? null;
+});
 
 const openReceipt = (tx: Transaction) => {
   selectedTransaction.value = tx;
@@ -60,7 +73,10 @@ const formatCurrency = (val: number) => {
         <ChevronLeft :size="32" />
         <span>{{ currT.back }}</span>
       </button>
-      <h2>{{ currT.title }}</h2>
+      <div class="title-block">
+        <h2>{{ currT.title }}</h2>
+        <span v-if="viewingWallet" class="viewing-name">{{ viewingWallet.holderName }}</span>
+      </div>
       <div style="width: 100px"></div>
     </div>
 
@@ -147,6 +163,20 @@ const formatCurrency = (val: number) => {
   font-size: 1.25rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.viewing-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.8;
 }
 
 .list-container {

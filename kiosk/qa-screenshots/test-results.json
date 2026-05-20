@@ -1,0 +1,37 @@
+[
+  {
+    "test": "1-Welcome Screen EN",
+    "status": "PASS",
+    "details": "Welcome screen with \"Welcome\" text, language toggle button (ภาษาไทย) visible"
+  },
+  {
+    "test": "2-Language Switch TH",
+    "status": "PASS",
+    "details": "Thai language button (ภาษาไทย) clicked, welcome screen now shows Thai text (ยินดีต้อนรับ, กรุณาแตะบัตร, กรอกเลขบัตร)"
+  },
+  {
+    "test": "3-Login EN (1234567890)",
+    "status": "PASS",
+    "details": "Login successful - shows user Somchai Rakdee, balance amount, Employee ID, Card ID"
+  },
+  {
+    "test": "4-Login TH (0987654321)",
+    "status": "FAIL-API",
+    "details": "Parent card entered but API may not return parent data"
+  },
+  {
+    "test": "5-Staff Role (A1234)",
+    "status": "FAIL-API",
+    "details": "Staff card entered but API may not return staff role"
+  },
+  {
+    "test": "6-Top-up Screen",
+    "status": "FAIL",
+    "details": "Top-up button not found on balance screen"
+  },
+  {
+    "test": "7-Transaction History",
+    "status": "FAIL",
+    "details": "Transaction history button not found"
+  }
+]

@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { CANTEEN_CATEGORIES } from "./canteenImages";
 
 interface CategoryTabsProps {
   active: string;
@@ -10,7 +9,9 @@ interface CategoryTabsProps {
 const ALL = "All";
 
 export function CategoryTabs({ active, onChange, counts }: CategoryTabsProps) {
-  const tabs = [ALL, ...CANTEEN_CATEGORIES];
+  // Derive tabs from actual product categories — avoids static list mismatch
+  const dynamicCategories = Object.keys(counts).sort();
+  const tabs = [ALL, ...dynamicCategories];
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (

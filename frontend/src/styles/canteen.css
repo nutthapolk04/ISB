@@ -27,12 +27,18 @@
 
   .canteen-grid {
     @apply grid gap-4;
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   }
 
   @media (min-width: 640px) {
     .canteen-grid {
-      grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .canteen-grid {
+      grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
     }
   }
 

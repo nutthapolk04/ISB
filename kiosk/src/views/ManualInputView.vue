@@ -76,7 +76,7 @@ const goBack = () => {
 const handleSubmit = async () => {
   if (inputVal.value.length === 0) return;
   
-  const success = await store.login(inputVal.value);
+  const success = await store.login(inputVal.value, 'manual');
   if (success) {
     router.push('/balance');
   } else {

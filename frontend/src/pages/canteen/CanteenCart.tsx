@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/IconButton";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { getCanteenImage, getCanteenFallback } from "./canteenImages";
 import type {
@@ -13,6 +15,96 @@ import type {
   PriceMode,
 } from "@/hooks/useCanteenCart";
 import type { StudentLookupResult } from "./RfidPaymentModal";
+
+const DISCOUNT_SHORTCUTS = [5, 10, 15, 20, 25, 30];
+
+function DiscountShortcutPopover({
+  cartLineId,
+  currentValue,
+  currentMode,
+  onSetLineDiscount,
+}: {
+  cartLineId: string;
+  currentValue: number | undefined;
+  currentMode: LineDiscountMode | undefined;
+  onSetLineDiscount: (id: string, value: number | null, mode: LineDiscountMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const mode = currentMode ?? "percent";
+
+  const handleShortcut = (pct: number) => {
+    onSetLineDiscount(cartLineId, pct, "percent");
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    onSetLineDiscount(cartLineId, null, mode);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "h-5 px-1.5 text-[10px] font-bold rounded border bg-background transition-colors",
+            mode === "percent"
+              ? "border-amber-400 text-amber-700 hover:bg-amber-50"
+              : "border-border text-foreground hover:bg-muted",
+          )}
+          aria-label="เลือกส่วนลด %"
+        >
+          {mode === "percent" ? "%" : "฿"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-2"
+        align="start"
+        side="top"
+        sideOffset={6}
+      >
+        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">ส่วนลด %</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {DISCOUNT_SHORTCUTS.map((pct) => (
+            <button
+              key={pct}
+              type="button"
+              onClick={() => handleShortcut(pct)}
+              className={cn(
+                "h-9 min-w-[3.5rem] rounded-lg border text-sm font-bold transition-colors",
+                (currentMode ?? "percent") === "percent" && currentValue === pct
+                  ? "border-amber-500 bg-amber-500 text-white"
+                  : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 active:bg-amber-200",
+              )}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-1.5">
+          <button
+            type="button"
+            onClick={handleClear}
+            className="flex-1 h-8 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
+          >
+            Clear / 0%
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onSetLineDiscount(cartLineId, currentValue ?? null, mode === "percent" ? "amount" : "percent");
+              setOpen(false);
+            }}
+            className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
+          >
+            {mode === "percent" ? "ใช้ ฿" : "ใช้ %"}
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface CanteenCartProps {
   items: CanteenCartItem[];
@@ -258,16 +350,12 @@ export function CanteenCart({
                           }}
                           className="h-5 w-14 text-right text-[10px] px-1"
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next: LineDiscountMode = (item.lineDiscountMode ?? "percent") === "percent" ? "amount" : "percent";
-                            onSetLineDiscount(item.cartLineId, item.lineDiscountValue ?? null, next);
-                          }}
-                          className="h-5 px-1.5 text-[10px] font-bold rounded border border-border bg-background hover:bg-muted"
-                        >
-                          {(item.lineDiscountMode ?? "percent") === "percent" ? "%" : "฿"}
-                        </button>
+                        <DiscountShortcutPopover
+                          cartLineId={item.cartLineId}
+                          currentValue={item.lineDiscountValue}
+                          currentMode={item.lineDiscountMode}
+                          onSetLineDiscount={onSetLineDiscount}
+                        />
                         {(item.lineDiscountValue ?? 0) > 0 && (
                           <button
                             type="button"

@@ -232,7 +232,9 @@
     "stockLabel": "คงเหลือ",
     "outOfStockLabel": "หมด",
     "noItemsInCategory": "ไม่มีสินค้าในหมวดหมู่นี้",
-    "allCategories": "ทั้งหมด"
+    "allCategories": "ทั้งหมด",
+    "internal": "ราคาภายใน",
+    "retail": "ราคาขายปลีก"
   },
   "returns": {
     "title": "เปลี่ยนสินค้า",
@@ -344,9 +346,52 @@
     "noResults": "ไม่พบรายการ",
     "dateTime": "วันที่/เวลา",
     "buyer": "ผู้ซื้อ",
-    "total": "ยอดรวม",
     "status": "สถานะ",
-    "doReturn": "คืนสินค้า"
+    "doReturn": "คืนสินค้า",
+    "withReceipt": "มีใบเสร็จ",
+    "withoutReceipt": "ไม่มีใบเสร็จ",
+    "returnWithoutReceipt": "คืนสินค้าไม่มีใบเสร็จ",
+    "selectShop": "เลือกร้านค้า",
+    "selectShopPlaceholder": "เลือกร้าน...",
+    "searchProduct": "ค้นหาสินค้า",
+    "searchProductPlaceholder": "ค้นหาด้วยรหัสหรือชื่อ...",
+    "itemsToReturn": "สินค้าที่ต้องการคืน",
+    "quantity": "จำนวน",
+    "subtotal": "ยอดรวม",
+    "remove": "ลบออก",
+    "customerName": "ชื่อลูกค้า",
+    "customerNamePlaceholder": "ชื่อลูกค้า (ไม่บังคับ)",
+    "notes": "หมายเหตุ",
+    "notesPlaceholder": "หมายเหตุ (ไม่บังคับ)",
+    "reasonPlaceholder": "เหตุผลในการคืนสินค้า",
+    "submitReturn": "ส่งคำขอคืนสินค้า",
+    "alreadyReturned": "ประวัติการคืน/เปลี่ยนสินค้า",
+    "returnedQty": "คืนแล้ว",
+    "remainingQty": "คืนได้อีก",
+    "allItemsReturned": "สินค้าทั้งหมดในใบเสร็จนี้ถูกคืนครบแล้ว",
+    "previouslyReturned": "คืนไปแล้ว",
+    "approve": "อนุมัติ",
+    "reject": "ปฏิเสธ",
+    "originalPayment": "ช่องทางชำระเดิม",
+    "paidBy": "ชำระโดย",
+    "refundDestination": "ปลายทางการคืนเงิน",
+    "confirmRefundAction": "ยืนยันการคืนเงิน",
+    "refundDestCash": "ลิ้นชักเงินสด",
+    "refundDestCashHint": "เปิดลิ้นชักแล้วคืนเงินให้ลูกค้า",
+    "refundDestCustomerWallet": "Wallet ของ {{name}}",
+    "refundDestUserWallet": "Wallet ของ {{name}}",
+    "refundDestDeptWallet": "Wallet แผนก {{name}}",
+    "refundDestWalletHint": "จะโอนเข้า Wallet อัตโนมัติ",
+    "refundDestWalletGeneric": "Wallet เดิม",
+    "refundDestEdcCard": "บัตร EDC {{card}}",
+    "refundDestEdcGeneric": "คืนผ่าน EDC",
+    "refundDestEdcHint": "ดำเนินการคืนที่เครื่อง EDC",
+    "refundSuccess": "คืนเงินสำเร็จ",
+    "refundSuccessGeneric": "คืน {{amount}} ผ่าน {{dest}} สำเร็จ",
+    "duplicateReturnTitle": "ไม่สามารถคืนสินค้าซ้ำได้",
+    "duplicateReturnDescription": "สินค้าต่อไปนี้มีคำขอคืนสินค้าอยู่แล้ว ไม่สามารถคืนซ้ำได้:",
+    "understood": "รับทราบ",
+    "itemAlreadyAdded": "เพิ่มสินค้านี้ไปแล้ว"
   },
   "receipts": {
     "title": "ใบเสร็จ",
@@ -445,7 +490,13 @@
       "cookingOil": "น้ำมันพืช",
       "detergent": "ผงซักฟอก",
       "toothpaste": "ยาสีฟัน"
-    }
+    },
+    "shop": "ร้านค้า",
+    "cashier": "พนักงาน",
+    "subtotal": "ยอดรวม",
+    "billDiscount": "ส่วนลดท้ายบิล",
+    "tax": "ภาษี",
+    "itemDiscount": "ส่วนลด"
   },
   "void": {
     "title": "ยกเลิกรายการ",
@@ -526,7 +577,10 @@
       "colReference": "อ้างอิง",
       "colNotes": "หมายเหตุ",
       "noMovements": "ไม่มีรายการเคลื่อนไหวในช่วงนี้"
-    }
+    },
+    "colPaymentMethod": "วิธีชำระเงิน",
+    "colReceiptCount": "จำนวนใบเสร็จ",
+    "totalReceipts": "ใบเสร็จทั้งหมด"
   },
   "inventory": {
     "title": "สต็อคสินค้า",
@@ -687,7 +741,13 @@
     "intakeUnits": "ชิ้น",
     "intakePerUnit": "ต่อชิ้น",
     "intakeNewAvgCallout": "ต้นทุนเฉลี่ยใหม่จะเปลี่ยนเป็น ฿{{v}}",
-    "intakeClearProduct": "ยกเลิกการเลือก"
+    "intakeClearProduct": "ยกเลิกการเลือก",
+    "colCategory": "หมวด",
+    "colStock": "คงเหลือ",
+    "colMinStock": "ขั้นต่ำ",
+    "printBarcode": "พิมพ์บาร์โค้ด",
+    "uom": "หน่วยนับ",
+    "selectUom": "เลือกหน่วย"
   },
   "management": {
     "title": "จัดการร้านค้า",
@@ -758,7 +818,12 @@
     "deleting": "กำลังลบ…",
     "confirmDelete": "ยืนยันลบ",
     "shopDeactivated": "ปิดใช้งาน \"{{name}}\" แล้ว (เก็บประวัติ {{count}} ใบเสร็จ)",
-    "shopDeletedDone": "ลบ \"{{name}}\" เรียบร้อย"
+    "shopDeletedDone": "ลบ \"{{name}}\" เรียบร้อย",
+    "fetchError": "โหลดร้านค้าไม่สำเร็จ",
+    "addError": "เพิ่มร้านค้าไม่สำเร็จ",
+    "updateError": "อัพเดทร้านค้าไม่สำเร็จ",
+    "deleteError": "ลบร้านค้าไม่สำเร็จ",
+    "noShops": "ไม่พบร้านค้า"
   },
   "shop": {
     "tooltip": {
@@ -839,7 +904,8 @@
       "shopCanteen": "โรงอาหาร",
       "shopCoop": "สหกรณ์",
       "shopSports": "กีฬา",
-      "shopBookstore": "ร้านหนังสือ"
+      "shopBookstore": "ร้านหนังสือ",
+      "noLowStock": "ไม่มีสินค้าต่ำกว่าขั้นต่ำ"
     },
     "families": {
       "title": "จัดการการเชื่อมโยงครอบครัว",
@@ -997,7 +1063,11 @@
       "transferring": "กำลังโอน…",
       "success": "โอนสำเร็จ",
       "successDesc": "โอน {{amount}} จาก {{from}} ไปยัง {{to}}",
-      "failed": "โอนไม่สำเร็จ"
+      "failed": "โอนไม่สำเร็จ",
+      "studentParents": "ผู้ปกครอง",
+      "noParents": "ไม่มีผู้ปกครองที่เชื่อมกับบัญชีนี้",
+      "studentSiblings": "พี่น้อง",
+      "noSiblings": "ไม่มีพี่น้องที่เชื่อมกับครอบครัวนี้"
     },
     "cards": {
       "title": "จัดการบัตร (UID Mapping)",
@@ -1251,7 +1321,18 @@
       "linkStudentDesc": "เลือกนักเรียนที่ต้องการเชื่อมโยงเข้าครอบครัว",
       "bindCardDesc": "กรอก hex UID (เช่น D7F8F836) หรือล้างค่าเพื่อยกเลิกการผูก",
       "clearToUnbind": "ปล่อยว่างเพื่อลบการผูกบัตร",
-      "searchStudentPlaceholder": "ชื่อ / รหัสนักเรียน / external_id"
+      "searchStudentPlaceholder": "ชื่อ / รหัสนักเรียน / external_id",
+      "addUser": "+ เพิ่มผู้ใช้",
+      "createTitle": "สร้างผู้ใช้ใหม่",
+      "createSubmit": "สร้างผู้ใช้",
+      "createSuccess": "สร้างผู้ใช้สำเร็จ",
+      "createError": "สร้างผู้ใช้ไม่สำเร็จ",
+      "fieldFullName": "ชื่อ-นามสกุล",
+      "fieldUsername": "Username",
+      "fieldPassword": "Password",
+      "fieldRole": "Role",
+      "fieldShop": "Shop ID (ไม่บังคับ)",
+      "selectRole": "เลือก role…"
     }
   },
   "canteen": {
@@ -1373,17 +1454,25 @@
     "save": "บันทึก",
     "loading": "กำลังโหลด…",
     "backToManagement": "จัดการร้านค้า",
-    "closeDay": "ปิดยอดประจำวัน",
+    "closeDay": "ยอดขายถึงวันนี้",
+    "upToDateSale": "ยอดขายถึงวันนี้",
     "closeDayConfirm": "ปิดยอดวันที่ {{date}}",
     "closeDayDescription": "สรุปยอดขายปิดวันของร้านนี้",
     "totalOrders": "จำนวนออเดอร์",
     "totalRevenue": "ยอดขายรวม",
     "itemCount": "จำนวนสินค้าที่ขาย",
     "paymentBreakdown": "แยกตามช่องทางชำระเงิน",
+    "paymentMethod": "ช่องทางชำระเงิน",
+    "paymentMethod_wallet": "กระเป๋าเงิน",
+    "paymentMethod_cash": "เงินสด",
+    "paymentMethod_other": "QR / พร้อมเพย์",
+    "paymentMethod_edc": "บัตร (EDC)",
+    "paymentMethod_department": "แผนก",
     "paymentWallet": "กระเป๋าเงิน",
     "paymentCash": "เงินสด",
     "paymentCard": "บัตร",
     "exportCsv": "ดาวน์โหลด CSV",
+    "printSlip": "พิมพ์สลิป",
     "closeDayFailed": "ปิดยอดไม่สำเร็จ",
     "closeDayLoading": "กำลังปิดยอด…",
     "products": {
@@ -1448,7 +1537,10 @@
       "cardFrozenDesc": "ไม่สามารถทำรายการได้ กรุณาติดต่อผู้ปกครองหรือแอดมิน",
       "searchAgain": "ค้นหาใหม่",
       "selectMember": "เลือกสมาชิกนี้"
-    }
+    },
+    "colPrice": "ราคา",
+    "orderSaved": "บันทึกลำดับแล้ว",
+    "orderSaveFailed": "บันทึกลำดับไม่สำเร็จ"
   },
   "common": {
     "cancel": "ยกเลิก",
@@ -1477,7 +1569,9 @@
       "qr_promptpay": "QR พร้อมเพย์",
       "department": "ตัดงบ",
       "other": "อื่นๆ"
-    }
+    },
+    "optional": "ไม่บังคับ",
+    "done": "เสร็จสิ้น"
   },
   "sync": {
     "loadFailed": "โหลดสถิติไม่สำเร็จ",
@@ -1589,7 +1683,11 @@
     "edcFetching": "กำลังอ่านข้อมูลเครื่อง EDC...",
     "edcApproval": "Approval code",
     "edcTerminalRef": "Terminal reference",
-    "edcMaskedCard": "เลขบัตร (masked)"
+    "edcMaskedCard": "เลขบัตร (masked)",
+    "thisCharge": "ค่าใช้จ่ายครั้งนี้",
+    "balanceAfter": "ยอดหลังหัก",
+    "deptEmpVerify": "ยืนยันพนักงาน (แตะบัตรหรือพิมพ์ username)",
+    "deptEmpPlaceholder": "แตะบัตรพนักงาน หรือพิมพ์ username…"
   },
   "shopUsers": {
     "titleSuffix": "ผู้ใช้",
@@ -1671,7 +1769,9 @@
     "toastCreateFailed": "สร้างไม่สำเร็จ",
     "errorLoad": "โหลดทีมไม่สำเร็จ",
     "errorGeneric": "เกิดข้อผิดพลาด",
-    "manageStaffLink": "จัดการพนักงานร้านนี้"
+    "manageStaffLink": "จัดการพนักงานร้านนี้",
+    "createTitle": "สร้าง {{role}} สำหรับ {{shopName}}",
+    "noShopAssigned": "ผู้จัดการยังไม่มีการกำหนดร้านค้า"
   },
   "cardholders": {
     "kindAll": "ทั้งหมด",
@@ -2162,5 +2262,78 @@
     "errorNameRequired": "กรุณากรอกชื่อชุดสินค้า",
     "errorItemsRequired": "กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ",
     "errorPriceInvalid": "ราคาไม่ถูกต้อง"
+  },
+  "returnHistory": {
+    "title": "ประวัติการเปลี่ยนสินค้า",
+    "description": "ดูประวัติการเปลี่ยนและคืนสินค้าทั้งหมด",
+    "info": {
+      "readonly": {
+        "title": "มุมมองย้อนหลัง (Read-only)",
+        "body": "หน้านี้ใช้ดูประวัติการคืน/เปลี่ยนสินค้าทั้งหมด ไม่สามารถแก้ไขได้"
+      }
+    },
+    "allItems": "รายการทั้งหมด",
+    "searchPlaceholder": "ค้นหาเลขที่ใบเสร็จ, เหตุผล...",
+    "noData": "ไม่มีประวัติการคืน/เปลี่ยนสินค้า",
+    "colId": "รหัส",
+    "colDate": "วันที่",
+    "colReceipt": "เลขที่ใบเสร็จ",
+    "colItems": "สินค้าที่คืน",
+    "colStatus": "สถานะ",
+    "colReturnValue": "มูลค่าคืน",
+    "colExchangeValue": "มูลค่าเปลี่ยน",
+    "colActions": "จัดการ",
+    "tooltip": {
+      "view": "ดูรายละเอียด"
+    },
+    "detailTitle": "รายละเอียดการเปลี่ยนสินค้า",
+    "returnedItems": "สินค้าที่คืน",
+    "exchangedItems": "สินค้าที่เปลี่ยน",
+    "difference": "ส่วนต่าง",
+    "reason": "เหตุผล"
+  },
+  "barcode": {
+    "title": "พิมพ์บาร์โค้ด",
+    "description": "เลือกสินค้าและตั้งค่าป้ายก่อนพิมพ์",
+    "searchProducts": "ค้นหาสินค้า",
+    "searchPlaceholder": "ค้นหาด้วยชื่อ รหัส หรือบาร์โค้ด...",
+    "selectedItems": "สินค้าที่เลือก",
+    "product": "สินค้า",
+    "copies": "จำนวนสำเนา",
+    "totalLabels": "จำนวนป้ายทั้งหมด",
+    "labelSize": "ขนาดป้าย",
+    "showPrice": "แสดงราคาบนป้าย",
+    "showProductCode": "แสดงรหัสสินค้า",
+    "print": "พิมพ์",
+    "printStarted": "เปิดหน้าต่างพิมพ์แล้ว",
+    "noBarcode": "สินค้านี้ไม่มีบาร์โค้ด",
+    "noItems": "ไม่มีสินค้าที่เลือก",
+    "popupBlocked": "บราวเซอร์บล็อก Popup กรุณาอนุญาต"
+  },
+  "topup": {
+    "title": "เติมเงินสด",
+    "searchPlaceholder": "ค้นหาด้วยชื่อหรือรหัสนักเรียน...",
+    "searchHint": "พิมพ์อย่างน้อย 2 ตัวอักษร",
+    "noResults": "ไม่พบลูกค้า",
+    "searchError": "ค้นหาไม่สำเร็จ",
+    "noWallet": "ลูกค้าไม่มี Wallet",
+    "invalidAmount": "กรุณากรอกจำนวนเงินที่ถูกต้อง",
+    "amount": "จำนวนเงิน",
+    "topupAmount": "ยอดเติม",
+    "notes": "หมายเหตุ",
+    "notesPlaceholder": "เช่น รับเงินสดจากผู้ปกครอง",
+    "currentBalance": "ยอดคงเหลือปัจจุบัน",
+    "newBalance": "ยอดใหม่",
+    "balanceBefore": "ยอดก่อนเติม",
+    "balanceAfter": "ยอดหลังเติม",
+    "processing": "กำลังดำเนินการ...",
+    "confirmTopup": "ยืนยันเติมเงิน",
+    "successTitle": "เติมเงินสำเร็จ!",
+    "success": "เติมเงินสำเร็จ",
+    "failed": "เติมเงินไม่สำเร็จ",
+    "topupAnother": "เติมให้คนอื่น"
+  },
+  "users": {
+    "tabMyTeamDesc": "จัดการพนักงานในร้านของคุณ"
   }
 }

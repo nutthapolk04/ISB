@@ -232,7 +232,9 @@
     "stockLabel": "Remaining",
     "outOfStockLabel": "Out of Stock",
     "noItemsInCategory": "No items in this category",
-    "allCategories": "All"
+    "allCategories": "All",
+    "internal": "Internal",
+    "retail": "Retail"
   },
   "returns": {
     "title": "Product Returns",
@@ -344,9 +346,52 @@
     "noResults": "No results found",
     "dateTime": "Date / Time",
     "buyer": "Buyer",
-    "total": "Total",
     "status": "Status",
-    "doReturn": "Return"
+    "doReturn": "Return",
+    "withReceipt": "With Receipt",
+    "withoutReceipt": "Without Receipt",
+    "returnWithoutReceipt": "Return Without Receipt",
+    "selectShop": "Select Shop",
+    "selectShopPlaceholder": "Select shop...",
+    "searchProduct": "Search Product",
+    "searchProductPlaceholder": "Search by code or name...",
+    "itemsToReturn": "Items to Return",
+    "quantity": "Quantity",
+    "subtotal": "Subtotal",
+    "remove": "Remove",
+    "customerName": "Customer Name",
+    "customerNamePlaceholder": "Customer name (optional)",
+    "notes": "Notes",
+    "notesPlaceholder": "Notes (optional)",
+    "reasonPlaceholder": "Reason for return",
+    "submitReturn": "Submit Return Request",
+    "alreadyReturned": "Return / Exchange History",
+    "returnedQty": "Returned",
+    "remainingQty": "Remaining",
+    "allItemsReturned": "All items in this receipt have been returned",
+    "previouslyReturned": "Previously returned",
+    "approve": "Approve",
+    "reject": "Reject",
+    "originalPayment": "Original payment",
+    "paidBy": "Paid by",
+    "refundDestination": "Refund destination",
+    "confirmRefundAction": "Confirm Refund",
+    "refundDestCash": "Cash drawer",
+    "refundDestCashHint": "Open drawer and refund cash to customer",
+    "refundDestCustomerWallet": "{{name}}'s wallet",
+    "refundDestUserWallet": "{{name}}'s wallet",
+    "refundDestDeptWallet": "{{name}} department wallet",
+    "refundDestWalletHint": "Wallet will be credited automatically",
+    "refundDestWalletGeneric": "Original wallet",
+    "refundDestEdcCard": "EDC card {{card}}",
+    "refundDestEdcGeneric": "EDC card refund",
+    "refundDestEdcHint": "Process the refund on the EDC terminal",
+    "refundSuccess": "Refund processed successfully",
+    "refundSuccessGeneric": "Refunded {{amount}} via {{dest}}",
+    "duplicateReturnTitle": "Cannot return duplicate items",
+    "duplicateReturnDescription": "The following items already have a return request and cannot be returned again:",
+    "understood": "Understood",
+    "itemAlreadyAdded": "Item already added"
   },
   "receipts": {
     "title": "Receipts",
@@ -445,7 +490,13 @@
       "cookingOil": "Cooking Oil",
       "detergent": "Detergent",
       "toothpaste": "Toothpaste"
-    }
+    },
+    "shop": "Shop",
+    "cashier": "Cashier",
+    "subtotal": "Subtotal",
+    "billDiscount": "Bill Discount",
+    "tax": "Tax",
+    "itemDiscount": "Item Discount"
   },
   "void": {
     "title": "Void Transaction",
@@ -526,7 +577,10 @@
       "colReference": "Reference",
       "colNotes": "Notes",
       "noMovements": "No movements in this period"
-    }
+    },
+    "colPaymentMethod": "Payment Method",
+    "colReceiptCount": "Receipt Count",
+    "totalReceipts": "Total Receipts"
   },
   "inventory": {
     "title": "Inventory",
@@ -687,7 +741,13 @@
     "intakeUnits": "units",
     "intakePerUnit": "per unit",
     "intakeNewAvgCallout": "New avg cost will be ฿{{v}}",
-    "intakeClearProduct": "Clear selection"
+    "intakeClearProduct": "Clear selection",
+    "colCategory": "Category",
+    "colStock": "Stock",
+    "colMinStock": "Min Stock",
+    "printBarcode": "Print Barcode",
+    "uom": "Unit of Measure",
+    "selectUom": "Select unit"
   },
   "management": {
     "title": "Shop Management",
@@ -758,7 +818,12 @@
     "deleting": "Deleting…",
     "confirmDelete": "Confirm delete",
     "shopDeactivated": "Deactivated \"{{name}}\" (preserved {{count}} receipts)",
-    "shopDeletedDone": "Deleted \"{{name}}\""
+    "shopDeletedDone": "Deleted \"{{name}}\"",
+    "fetchError": "Failed to load shops",
+    "addError": "Failed to add shop",
+    "updateError": "Failed to update shop",
+    "deleteError": "Failed to delete shop",
+    "noShops": "No shops found"
   },
   "shop": {
     "tooltip": {
@@ -839,7 +904,8 @@
       "shopCanteen": "Canteen",
       "shopCoop": "Coop",
       "shopSports": "Sports",
-      "shopBookstore": "Bookstore"
+      "shopBookstore": "Bookstore",
+      "noLowStock": "No low-stock items"
     },
     "families": {
       "title": "Family Link Management",
@@ -997,7 +1063,11 @@
       "transferring": "Transferring…",
       "success": "Transfer complete",
       "successDesc": "{{amount}} transferred from {{from}} to {{to}}",
-      "failed": "Transfer failed"
+      "failed": "Transfer failed",
+      "studentParents": "Parents",
+      "noParents": "No parents linked to this account",
+      "studentSiblings": "Siblings",
+      "noSiblings": "No siblings linked to this family"
     },
     "cards": {
       "title": "Card Management (UID Mapping)",
@@ -1251,7 +1321,18 @@
       "linkStudentDesc": "Select the student to link to this family",
       "bindCardDesc": "Enter hex UID (e.g. D7F8F836) or leave blank to unbind",
       "clearToUnbind": "Leave blank to remove card binding",
-      "searchStudentPlaceholder": "Name / student_code / external_id"
+      "searchStudentPlaceholder": "Name / student_code / external_id",
+      "addUser": "+ Add User",
+      "createTitle": "Create New User",
+      "createSubmit": "Create User",
+      "createSuccess": "User created successfully",
+      "createError": "Failed to create user",
+      "fieldFullName": "Full Name",
+      "fieldUsername": "Username",
+      "fieldPassword": "Password",
+      "fieldRole": "Role",
+      "fieldShop": "Shop ID (optional)",
+      "selectRole": "Select role…"
     }
   },
   "canteen": {
@@ -1373,17 +1454,25 @@
     "save": "Save",
     "loading": "Loading…",
     "backToManagement": "Shop Management",
-    "closeDay": "Close Day",
+    "closeDay": "Up-to-date Sale",
+    "upToDateSale": "Up-to-date Sale",
     "closeDayConfirm": "Close Day — {{date}}",
     "closeDayDescription": "End-of-day summary for this shop.",
     "totalOrders": "Total Orders",
     "totalRevenue": "Total Revenue",
     "itemCount": "Items Sold",
     "paymentBreakdown": "Payment Breakdown",
+    "paymentMethod": "Payment Method",
+    "paymentMethod_wallet": "Wallet",
+    "paymentMethod_cash": "Cash",
+    "paymentMethod_other": "QR / PromptPay",
+    "paymentMethod_edc": "Card (EDC)",
+    "paymentMethod_department": "Department",
     "paymentWallet": "Wallet",
     "paymentCash": "Cash",
     "paymentCard": "Card",
     "exportCsv": "Export CSV",
+    "printSlip": "Print Slip",
     "closeDayFailed": "Close Day failed",
     "closeDayLoading": "Closing…",
     "products": {
@@ -1448,7 +1537,10 @@
       "cardFrozenDesc": "Card is frozen. Please contact parent or admin.",
       "searchAgain": "Search again",
       "selectMember": "Select this member"
-    }
+    },
+    "colPrice": "Price",
+    "orderSaved": "Order saved",
+    "orderSaveFailed": "Failed to save order"
   },
   "common": {
     "cancel": "Cancel",
@@ -1477,7 +1569,9 @@
       "qr_promptpay": "QR PromptPay",
       "department": "Budget Deduction",
       "other": "Other"
-    }
+    },
+    "optional": "Optional",
+    "done": "Done"
   },
   "sync": {
     "loadFailed": "Failed to load sync stats",
@@ -1591,7 +1685,11 @@
     "edcFetching": "Reading terminal...",
     "edcApproval": "Approval code",
     "edcTerminalRef": "Terminal reference",
-    "edcMaskedCard": "Masked card"
+    "edcMaskedCard": "Masked card",
+    "thisCharge": "This charge",
+    "balanceAfter": "Balance after",
+    "deptEmpVerify": "Verify employee (tap card or enter username)",
+    "deptEmpPlaceholder": "Tap employee card or type username…"
   },
   "shopUsers": {
     "titleSuffix": "Users",
@@ -1673,7 +1771,9 @@
     "toastCreateFailed": "Create failed",
     "errorLoad": "Could not load shop team",
     "errorGeneric": "Unknown error",
-    "manageStaffLink": "Manage shop staff"
+    "manageStaffLink": "Manage shop staff",
+    "createTitle": "Create {{role}} for {{shopName}}",
+    "noShopAssigned": "Manager has no shop assignment"
   },
   "cardholders": {
     "kindAll": "All",
@@ -2164,5 +2264,78 @@
     "errorNameRequired": "Bundle name is required",
     "errorItemsRequired": "At least one item is required",
     "errorPriceInvalid": "Invalid price"
+  },
+  "returnHistory": {
+    "title": "Return History",
+    "description": "View all return and exchange history",
+    "info": {
+      "readonly": {
+        "title": "Read-only View",
+        "body": "This page shows all return/exchange history. Cannot be edited."
+      }
+    },
+    "allItems": "All Items",
+    "searchPlaceholder": "Search receipt ID, reason...",
+    "noData": "No return/exchange history",
+    "colId": "ID",
+    "colDate": "Date",
+    "colReceipt": "Receipt ID",
+    "colItems": "Returned Items",
+    "colStatus": "Status",
+    "colReturnValue": "Return Value",
+    "colExchangeValue": "Exchange Value",
+    "colActions": "Actions",
+    "tooltip": {
+      "view": "View Details"
+    },
+    "detailTitle": "Return/Exchange Detail",
+    "returnedItems": "Returned Items",
+    "exchangedItems": "Exchanged Items",
+    "difference": "Difference",
+    "reason": "Reason"
+  },
+  "barcode": {
+    "title": "Print Barcodes",
+    "description": "Select products and configure label settings for printing.",
+    "searchProducts": "Search Products",
+    "searchPlaceholder": "Search by name, code, or barcode...",
+    "selectedItems": "Selected Items",
+    "product": "Product",
+    "copies": "Copies",
+    "totalLabels": "Total labels",
+    "labelSize": "Label Size",
+    "showPrice": "Show price on label",
+    "showProductCode": "Show product code",
+    "print": "Print",
+    "printStarted": "Print dialog opened",
+    "noBarcode": "Product has no barcode",
+    "noItems": "No items to print",
+    "popupBlocked": "Popup blocked. Please allow popups."
+  },
+  "topup": {
+    "title": "Cash Top-up",
+    "searchPlaceholder": "Search by name or student code...",
+    "searchHint": "Type at least 2 characters to search",
+    "noResults": "No customers found",
+    "searchError": "Search failed",
+    "noWallet": "Customer has no wallet",
+    "invalidAmount": "Please enter a valid amount",
+    "amount": "Top-up Amount",
+    "topupAmount": "Top-up",
+    "notes": "Notes",
+    "notesPlaceholder": "e.g., Received cash from parent",
+    "currentBalance": "Current Balance",
+    "newBalance": "New Balance",
+    "balanceBefore": "Balance Before",
+    "balanceAfter": "Balance After",
+    "processing": "Processing...",
+    "confirmTopup": "Confirm Top-up",
+    "successTitle": "Top-up Successful!",
+    "success": "Top-up successful",
+    "failed": "Top-up failed",
+    "topupAnother": "Top-up Another"
+  },
+  "users": {
+    "tabMyTeamDesc": "Manage staff in your shop"
   }
 }

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeftRight, GraduationCap, Lock, UserRound, Wallet as WalletIcon, Receipt, History } from "lucide-react";
+import { AlertCircle, GraduationCap, Lock, UserRound, Wallet as WalletIcon, Receipt, History } from "lucide-react";
 
 interface ChildSummary {
   link_id: number;
@@ -71,19 +71,71 @@ export default function FamilyDashboard() {
     })();
   }, [isStudent]);
 
+  const childThemes = [
+    {
+      card: "from-blue-50 to-indigo-50 border-blue-200",
+      avatar: "bg-blue-100 text-blue-600",
+      avatarBorder: "border-blue-200",
+      balance: "bg-blue-100/60 border-blue-200",
+      balanceText: "text-blue-900",
+      badge: "bg-blue-100 text-blue-800",
+      button: "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-400",
+    },
+    {
+      card: "from-emerald-50 to-teal-50 border-emerald-200",
+      avatar: "bg-emerald-100 text-emerald-600",
+      avatarBorder: "border-emerald-200",
+      balance: "bg-emerald-100/60 border-emerald-200",
+      balanceText: "text-emerald-900",
+      badge: "bg-emerald-100 text-emerald-800",
+      button: "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400",
+    },
+    {
+      card: "from-purple-50 to-violet-50 border-purple-200",
+      avatar: "bg-purple-100 text-purple-600",
+      avatarBorder: "border-purple-200",
+      balance: "bg-purple-100/60 border-purple-200",
+      balanceText: "text-purple-900",
+      badge: "bg-purple-100 text-purple-800",
+      button: "border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-400",
+    },
+    {
+      card: "from-pink-50 to-rose-50 border-pink-200",
+      avatar: "bg-pink-100 text-pink-600",
+      avatarBorder: "border-pink-200",
+      balance: "bg-pink-100/60 border-pink-200",
+      balanceText: "text-pink-900",
+      badge: "bg-pink-100 text-pink-800",
+      button: "border-pink-300 bg-pink-50 text-pink-700 hover:bg-pink-100 hover:border-pink-400",
+    },
+  ];
+
   return (
     <div className="page-shell">
-      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="page-title">
-            {isStudent ? t("parent.dashboard.studentTitle") : t("parent.dashboard.title")}
-          </h1>
-          <p className="page-description">
-            {isStudent ? t("parent.dashboard.studentDescription") : t("parent.dashboard.description")}
-          </p>
+      {/* Header banner */}
+      <div className="rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 p-6 mb-2 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
+              {isStudent ? (
+                <GraduationCap className="h-6 w-6" />
+              ) : (
+                <UserRound className="h-6 w-6" />
+              )}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white drop-shadow-sm">
+                {isStudent ? t("parent.dashboard.studentTitle") : t("parent.dashboard.title")}
+              </h1>
+              <p className="text-sm text-orange-100">
+                {isStudent ? t("parent.dashboard.studentDescription") : t("parent.dashboard.description")}
+              </p>
+            </div>
+          </div>
         </div>
-        {/* Transfer between wallets is admin-only — button intentionally removed */}
       </div>
+      {/* Transfer between wallets is admin-only — button intentionally removed */}
+      <div />
 
       {loading && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -111,47 +163,47 @@ export default function FamilyDashboard() {
       )}
 
       {!loading && isStudent && studentWallet && studentWallet.customer_id && (
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md">
           <CardHeader className="pb-3">
             <div className="flex items-start gap-3">
               {studentWallet.photo_url ? (
                 <img
                   src={studentWallet.photo_url}
                   alt={studentWallet.name ?? ""}
-                  className="h-12 w-12 shrink-0 rounded-full object-cover border border-primary/20 bg-background"
+                  className="h-12 w-12 shrink-0 rounded-full object-cover border-2 border-blue-200"
                 />
               ) : (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
                   <UserRound className="h-6 w-6" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg truncate">{studentWallet.name}</CardTitle>
-                <Badge variant="secondary" className="text-xs mt-1">
+                <Badge variant="secondary" className="text-xs mt-1 bg-blue-100 text-blue-800">
                   {t("roles.student", "Student")}
                 </Badge>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-xs text-muted-foreground">{t("parent.dashboard.balance")}</p>
-              <p className="text-2xl font-bold">{formatTHB(studentWallet.balance)}</p>
+            <div className="rounded-md bg-blue-100/60 p-3 border border-blue-200">
+              <p className="text-xs text-blue-700">{t("parent.dashboard.balance")}</p>
+              <p className="text-3xl font-extrabold text-blue-900 tracking-tight">{formatTHB(studentWallet.balance)}</p>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm">
+              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100">
                 <Link to={`/parent/wallet/${studentWallet.customer_id}`}>
                   <WalletIcon className="h-4 w-4 mr-1" />
                   {t("parent.dashboard.topUp")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm">
+              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100">
                 <Link to={`/parent/transactions/${studentWallet.customer_id}`}>
                   <History className="h-4 w-4 mr-1" />
                   {t("parent.dashboard.history")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm">
+              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100">
                 <Link to={`/parent/profile/${studentWallet.customer_id}`}>
                   <Receipt className="h-4 w-4 mr-1" />
                   {t("parent.dashboard.profile")}
@@ -163,60 +215,56 @@ export default function FamilyDashboard() {
       )}
 
       {!loading && ownWallet && (
-        <Card className="overflow-hidden border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
-          <CardHeader className="pb-3">
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-5">
             <div className="flex items-start gap-3">
               {ownWallet.photo_url ? (
                 <img
                   src={ownWallet.photo_url}
                   alt={ownWallet.name ?? ""}
-                  className="h-12 w-12 shrink-0 rounded-full object-cover border border-amber-300 bg-background"
+                  className="h-14 w-14 shrink-0 rounded-full object-cover border-2 border-white/50 shadow-md"
                 />
               ) : (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900">
-                  <WalletIcon className="h-6 w-6" />
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 text-white shadow-inner">
+                  <WalletIcon className="h-7 w-7" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <CardTitle className="text-lg truncate">
-                  {t("parent.dashboard.myWallet")}
-                </CardTitle>
+                <p className="text-sm font-medium text-orange-100">{t("parent.dashboard.myWallet")}</p>
+                <p className="text-xl font-bold text-white truncate">
+                  {ownWallet.name ?? t(`roles.${user?.role ?? "parent"}`, user?.role ?? "Parent / Guardian")}
+                </p>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-900">
+                  <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
                     {t(`roles.${user?.role ?? "parent"}`, user?.role ?? "Parent / Guardian")}
-                  </Badge>
-                  {ownWallet.name && (
-                    <span className="text-xs text-muted-foreground truncate">
-                      {ownWallet.name}
-                    </span>
-                  )}
+                  </span>
                   {ownWallet.username && (
-                    <Badge variant="outline" className="text-xs font-mono">
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-mono text-white">
                       {ownWallet.username}
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-md bg-white/70 p-3 border border-amber-100">
-              <p className="text-xs text-muted-foreground">{t("parent.dashboard.balance")}</p>
-              <p className="text-2xl font-bold text-amber-900">
+            <div className="mt-4 rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+              <p className="text-xs text-orange-100">{t("parent.dashboard.balance")}</p>
+              <p className="text-3xl font-extrabold text-white tracking-tight">
                 {formatTHB(ownWallet.balance)}
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-amber-300 hover:bg-amber-100">
+          </div>
+          <CardContent className="pt-4 pb-4 bg-amber-50 space-y-0">
+            <div className="grid grid-cols-2 gap-2">
+              <Button asChild className="h-11 px-2 text-xs sm:text-sm bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-sm">
                 <Link to={`/parent/wallet/own`}>
-                  <WalletIcon className="h-4 w-4 mr-1" />
+                  <WalletIcon className="h-4 w-4 mr-1.5" />
                   {t("parent.dashboard.topUp")}
                 </Link>
               </Button>
               {/* Transfer button removed — wallet transfers are admin-only */}
-              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-amber-300 hover:bg-amber-100">
+              <Button asChild className="h-11 px-2 text-xs sm:text-sm bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-sm">
                 <Link to={`/parent/wallet/own?tab=history`}>
-                  <History className="h-4 w-4 mr-1" />
+                  <History className="h-4 w-4 mr-1.5" />
                   {t("parent.dashboard.history")}
                 </Link>
               </Button>
@@ -226,82 +274,85 @@ export default function FamilyDashboard() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {children.map((child) => (
-          <Card key={child.link_id} className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex items-start gap-3">
-                {child.photo_url ? (
-                  <img
-                    src={child.photo_url}
-                    alt={child.name}
-                    className="h-12 w-12 shrink-0 rounded-full object-cover border border-primary/20 bg-background"
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <UserRound className="h-6 w-6" />
+        {children.map((child, idx) => {
+          const theme = childThemes[Math.min(idx, childThemes.length - 1)];
+          return (
+            <Card key={child.link_id} className={`overflow-hidden bg-gradient-to-br border shadow-md ${theme.card}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start gap-3">
+                  {child.photo_url ? (
+                    <img
+                      src={child.photo_url}
+                      alt={child.name}
+                      className={`h-12 w-12 shrink-0 rounded-full object-cover border-2 ${theme.avatarBorder}`}
+                    />
+                  ) : (
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${theme.avatar}`}>
+                      <UserRound className="h-6 w-6" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg truncate">{child.name}</CardTitle>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {child.student_code && (
+                        <Badge variant="secondary" className={`text-xs ${theme.badge}`}>{child.student_code}</Badge>
+                      )}
+                      {child.grade && (
+                        <span className={`text-xs flex items-center gap-1 ${theme.balanceText} opacity-70`}>
+                          <GraduationCap className="h-3 w-3" />
+                          {child.grade}
+                        </span>
+                      )}
+                      {child.card_frozen && (
+                        <Badge variant="destructive" className="text-xs gap-1">
+                          <Lock className="h-3 w-3" /> {t("parent.dashboard.cardFrozen")}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className={`rounded-md p-3 border ${theme.balance}`}>
+                  <p className={`text-xs ${theme.balanceText} opacity-70`}>{t("parent.dashboard.balance")}</p>
+                  <p className={`text-3xl font-extrabold tracking-tight ${theme.balanceText}`}>
+                    {child.wallet_balance !== null && child.wallet_balance !== undefined
+                      ? formatTHB(child.wallet_balance)
+                      : "-"}
+                  </p>
+                </div>
+
+                {child.allergies && (
+                  <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span className="font-medium">{t("parent.dashboard.allergies", { items: child.allergies })}</span>
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg truncate">{child.name}</CardTitle>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                    {child.student_code && (
-                      <Badge variant="secondary" className="text-xs">{child.student_code}</Badge>
-                    )}
-                    {child.grade && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <GraduationCap className="h-3 w-3" />
-                        {child.grade}
-                      </span>
-                    )}
-                    {child.card_frozen && (
-                      <Badge variant="destructive" className="text-xs gap-1">
-                        <Lock className="h-3 w-3" /> {t("parent.dashboard.cardFrozen")}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-md bg-muted p-3">
-                <p className="text-xs text-muted-foreground">{t("parent.dashboard.balance")}</p>
-                <p className="text-2xl font-bold">
-                  {child.wallet_balance !== null && child.wallet_balance !== undefined
-                    ? formatTHB(child.wallet_balance)
-                    : "-"}
-                </p>
-              </div>
 
-              {child.allergies && (
-                <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span className="font-medium">{t("parent.dashboard.allergies", { items: child.allergies })}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button asChild variant="outline" disabled={!child.wallet_id} className={`h-11 px-2 text-xs sm:text-sm ${theme.button}`}>
+                    <Link to={`/parent/wallet/${child.customer_id}`}>
+                      <WalletIcon className="h-4 w-4 mr-1" />
+                      {t("parent.dashboard.topUp")}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" disabled={!child.wallet_id} className={`h-11 px-2 text-xs sm:text-sm ${theme.button}`}>
+                    <Link to={`/parent/transactions/${child.customer_id}`}>
+                      <History className="h-4 w-4 mr-1" />
+                      {t("parent.dashboard.history")}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className={`h-11 px-2 text-xs sm:text-sm ${theme.button}`}>
+                    <Link to={`/parent/profile/${child.customer_id}`}>
+                      <Receipt className="h-4 w-4 mr-1" />
+                      {t("parent.dashboard.profile")}
+                    </Link>
+                  </Button>
                 </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-2">
-                <Button asChild variant="outline" disabled={!child.wallet_id} className="h-11 px-2 text-xs sm:text-sm">
-                  <Link to={`/parent/wallet/${child.customer_id}`}>
-                    <WalletIcon className="h-4 w-4 mr-1" />
-                    {t("parent.dashboard.topUp")}
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" disabled={!child.wallet_id} className="h-11 px-2 text-xs sm:text-sm">
-                  <Link to={`/parent/transactions/${child.customer_id}`}>
-                    <History className="h-4 w-4 mr-1" />
-                    {t("parent.dashboard.history")}
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm">
-                  <Link to={`/parent/profile/${child.customer_id}`}>
-                    <Receipt className="h-4 w-4 mr-1" />
-                    {t("parent.dashboard.profile")}
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

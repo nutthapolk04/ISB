@@ -19,7 +19,7 @@ const goToManual = () => {
 
 // Mock RFID Tap simulation for demo
 const simulateTap = async () => {
-  const success = await store.login('1234567890');
+  const success = await store.login('1234567890', 'rfid');
   if (success) {
     router.push('/balance');
   }

@@ -58,7 +58,7 @@ const goToHistory = async () => {
   // Refresh transactions for whichever wallet is currently active before navigating
   const walletId = store.currentWallet?.id ?? null;
   if (walletId) {
-    await store.refreshTransactions(walletId);
+    await store.refreshTransactions(walletId, store.activeWalletIndex);
   }
   router.push('/history');
 };
@@ -271,7 +271,7 @@ onUnmounted(() => {
         <ChevronRight :size="24" class="chevron" />
       </button>
 
-      <button class="menu-item history" @click="goToHistory">
+      <button v-if="store.loginSource !== 'manual'" class="menu-item history" @click="goToHistory">
         <div class="menu-item-left">
           <div class="menu-icon history-icon">
             <History :size="28" />
