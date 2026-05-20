@@ -980,13 +980,28 @@ export default function Canteen() {
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div
             className={cn(
-              "rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
-              "animate-in fade-in zoom-in-95 duration-150",
+              "relative rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
+              "animate-in fade-in zoom-in-95 duration-150 pointer-events-auto",
               rfidNotif.type === "success"
                 ? "bg-amber-50 border-2 border-amber-300"
                 : "bg-red-50 border-2 border-red-300",
             )}
           >
+            <button
+              onClick={() => {
+                if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
+                setRfidNotif(null);
+              }}
+              className={cn(
+                "absolute top-2 right-2 rounded-full p-1 hover:bg-black/10 transition-colors",
+                rfidNotif.type === "success" ? "text-amber-500" : "text-red-400",
+              )}
+              aria-label="ปิด"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
             {rfidNotif.type === "success" ? (
               <>
                 <div className="text-xl font-bold text-amber-900 leading-tight">
