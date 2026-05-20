@@ -20,6 +20,12 @@ class AuditAction(str, enum.Enum):
     REPRINT = "reprint"
     APPROVE = "approve"
     REJECT = "reject"
+    # Extended actions (added via migration 005)
+    UPDATE_PRICE = "UPDATE_PRICE"
+    UPDATE_PRODUCT = "UPDATE_PRODUCT"
+    DELETE_PRODUCT = "DELETE_PRODUCT"
+    UPDATE_BALANCE = "UPDATE_BALANCE"
+    UPDATE_SETTING = "UPDATE_SETTING"
 
 
 class AuditLog(Base):
