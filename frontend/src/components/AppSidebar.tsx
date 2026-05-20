@@ -59,7 +59,7 @@ const menuGroups: MenuGroup[] = [
     labelKey: "nav.groupCanteen",
     module: "canteen",
     items: [
-      { titleKey: "nav.shopDashboard",    url: "/shop-dashboard",    icon: LayoutDashboard, roles: ["manager", "admin"] },
+      { titleKey: "nav.shopDashboard",    url: "/shop-dashboard",    icon: LayoutDashboard, roles: ["manager"] },
       { titleKey: "nav.canteenPos",       url: "/canteen",           icon: UtensilsCrossed, roles: ["manager", "cashier"] },
       { titleKey: "nav.canteenReceipts",  url: "/canteen/receipts",  icon: Receipt,         roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.canteenProducts",  url: "/canteen/products",  icon: Package,         roles: ["manager", "cashier"] },
@@ -77,7 +77,7 @@ const menuGroups: MenuGroup[] = [
     labelKey: "nav.groupStore",
     module: "store",
     items: [
-      { titleKey: "nav.shopDashboard",    url: "/shop-dashboard",       icon: LayoutDashboard, roles: ["manager", "admin"] },
+      { titleKey: "nav.shopDashboard",    url: "/shop-dashboard",       icon: LayoutDashboard, roles: ["manager"] },
       { titleKey: "nav.storePos",         url: "/store",                icon: Store,       roles: ["manager", "cashier"] },
       { titleKey: "nav.storeRequisition", url: "/store/requisition",    icon: HandHelping, roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReceipts",    url: "/store/receipts",       icon: Receipt,     roles: ["manager", "cashier", "admin"] },

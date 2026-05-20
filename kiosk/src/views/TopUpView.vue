@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, Smartphone, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, Smartphone, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut } from 'lucide-vue-next';
 import { ref, computed, onUnmounted } from 'vue';
 import { realApi } from '../api/realApi';
 
@@ -308,7 +308,9 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
         <span>{{ currT.back }}</span>
       </button>
       <h2>{{ currT.title }}</h2>
-      <div style="width: 100px"></div>
+      <button class="logout-btn" @click="cancelTopup">
+        <LogOut :size="28" />
+      </button>
     </div>
 
     <!-- Wallet Info Bar (shown in amount & qr steps) -->
@@ -1137,4 +1139,19 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   border-radius: 0.75rem;
   width: 100%;
 }
+
+.logout-btn {
+  background: none;
+  border: 2px solid var(--text-muted);
+  color: var(--text-color);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.logout-btn:hover { opacity: 1; }
 </style>

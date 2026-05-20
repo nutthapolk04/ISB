@@ -3,7 +3,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
 import Numpad from '../components/Numpad.vue';
-import { ChevronLeft, AlertCircle, Keyboard as KeyboardIcon } from 'lucide-vue-next';
+import { ChevronLeft, AlertCircle, Keyboard as KeyboardIcon, LogOut } from 'lucide-vue-next';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -73,6 +73,11 @@ const goBack = () => {
   router.push('/');
 };
 
+const handleLogout = () => {
+  store.logout();
+  router.push('/');
+};
+
 const handleSubmit = async () => {
   if (inputVal.value.length === 0) return;
   
@@ -110,7 +115,9 @@ onMounted(() => {
         <span>{{ currT.back }}</span>
       </button>
       <h2>{{ currT.title }}</h2>
-      <div style="width: 100px"></div>
+      <button class="logout-btn" @click="handleLogout">
+        <LogOut :size="28" />
+      </button>
     </div>
 
     <div class="content">
@@ -351,4 +358,19 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.logout-btn {
+  background: none;
+  border: 2px solid var(--text-muted);
+  color: var(--text-color);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.logout-btn:hover { opacity: 1; }
 </style>

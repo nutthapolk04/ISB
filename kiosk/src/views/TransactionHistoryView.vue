@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { ChevronLeft, ArrowUpCircle, ArrowDownCircle, ReceiptText } from 'lucide-vue-next';
+import { ChevronLeft, ArrowUpCircle, ArrowDownCircle, ReceiptText, LogOut } from 'lucide-vue-next';
 import ReceiptPreview from '../components/ReceiptPreview.vue';
 import type { Transaction } from '../api/mockApi';
 
@@ -42,6 +42,11 @@ const goBack = () => {
   router.push('/balance');
 };
 
+const handleLogout = () => {
+  store.logout();
+  router.push('/');
+};
+
 // Wallet whose transactions are displayed
 const viewingWallet = computed(() => {
   if (!store.currentUser) return null;
@@ -77,7 +82,9 @@ const formatCurrency = (val: number) => {
         <h2>{{ currT.title }}</h2>
         <span v-if="viewingWallet" class="viewing-name">{{ viewingWallet.holderName }}</span>
       </div>
-      <div style="width: 100px"></div>
+      <button class="logout-btn" @click="handleLogout">
+        <LogOut :size="28" />
+      </button>
     </div>
 
     <div class="list-container" v-if="store.transactions.length > 0">
@@ -316,4 +323,19 @@ const formatCurrency = (val: number) => {
   color: var(--text-muted);
   font-style: italic;
 }
+
+.logout-btn {
+  background: none;
+  border: 2px solid var(--text-muted);
+  color: var(--text-color);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.logout-btn:hover { opacity: 1; }
 </style>

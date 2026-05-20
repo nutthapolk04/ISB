@@ -3,7 +3,7 @@ import { useRfidInput } from "@/hooks/useRfidInput";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -205,7 +205,8 @@ const Returns = () => {
 
   // Search states
   const [searchReceiptId, setSearchReceiptId] = useState("");
-  const [searchDate, setSearchDate] = useState("");
+  const [searchDateFrom, setSearchDateFrom] = useState("");
+  const [searchDateTo, setSearchDateTo] = useState("");
   const [searchPaymentMethod, setSearchPaymentMethod] = useState<string>("all");
   const [searchStudent, setSearchStudent] = useState("");
 
@@ -363,7 +364,7 @@ const Returns = () => {
   };
 
   const handleSearchReceipt = async () => {
-    if (!searchReceiptId && !searchDate && searchPaymentMethod === "all" && !searchStudent) {
+    if (!searchReceiptId && !searchDateFrom && !searchDateTo && searchPaymentMethod === "all" && !searchStudent) {
       toast.error(t('returns.errorPleaseEnterCriteria'));
       return;
     }
@@ -1202,13 +1203,15 @@ const Returns = () => {
               />
             </div>
             <div>
-              <Label htmlFor="searchDate" className="text-sm font-semibold">{t('returns.purchaseDate')}</Label>
-              <DatePicker
-                id="searchDate"
-                value={searchDate}
-                onChange={setSearchDate}
-                className="mt-1.5"
-              />
+              <Label className="text-sm font-semibold">{t('returns.purchaseDate')}</Label>
+              <div className="mt-1.5">
+                <DateRangePicker
+                  startDate={searchDateFrom}
+                  endDate={searchDateTo}
+                  onStartChange={setSearchDateFrom}
+                  onEndChange={setSearchDateTo}
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="searchPaymentMethod" className="text-sm font-semibold">{t('returns.paymentType')}</Label>

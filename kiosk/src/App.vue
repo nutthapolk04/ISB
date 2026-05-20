@@ -8,7 +8,7 @@ const route = useRoute();
 const store = useKioskStore();
 
 // Auto-reset logic
-const TIMEOUT_DURATION = 45000; // 45 seconds
+const TIMEOUT_DURATION = 15000; // 15 seconds
 let timeoutId: number | null = null;
 
 const resetTimeout = () => {
