@@ -429,6 +429,12 @@ const ShopDetail = () => {
           <Card>
             <CardContent className="pt-6 space-y-4 max-w-md">
               <div>
+                <Label>{t("management.shopId", "Shop ID")}</Label>
+                <div className="mt-1 rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                  {shopId}
+                </div>
+              </div>
+              <div>
                 <Label>{t("management.shopName")} *</Label>
                 <Input
                   value={shopInfoDraft.name}

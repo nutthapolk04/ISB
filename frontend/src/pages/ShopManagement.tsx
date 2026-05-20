@@ -302,24 +302,25 @@ const ShopManagement = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>{t("management.shopId", "Shop ID")} *</Label>
-              <Input
-                value={shopForm.id}
-                onChange={(e) => setShopForm({ ...shopForm, id: e.target.value })}
-                placeholder={isCanteen ? "e.g. canteen_new" : "e.g. new_shop"}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopIdHint", "Unique code, lowercase, no spaces")}
-              </p>
-            </div>
-            <div>
               <Label>{t("management.shopName")} *</Label>
               <Input
                 value={shopForm.name}
-                onChange={(e) => setShopForm({ ...shopForm, name: e.target.value })}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  const autoId = name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+                  setShopForm({ ...shopForm, name, id: autoId });
+                }}
                 placeholder={t("management.shopNamePlaceholder")}
               />
             </div>
+            {shopForm.id && (
+              <div>
+                <Label>{t("management.shopId", "Shop ID")}</Label>
+                <div className="mt-1 rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                  {shopForm.id}
+                </div>
+              </div>
+            )}
             <div>
               <Label>{t("management.shopDescription")}</Label>
               <Input
@@ -372,6 +373,7 @@ const ShopManagement = () => {
             </div>
             <div>
               <CardTitle className="text-base">{shop.name}</CardTitle>
+              <p className="text-xs font-mono text-muted-foreground mt-0.5">ID: {shop.id}</p>
               {shop.description && (
                 <p className="text-sm text-muted-foreground mt-0.5">{shop.description}</p>
               )}

@@ -196,6 +196,12 @@ export default function CanteenShopDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
+                <Label>{t("management.shopId", "Shop ID")}</Label>
+                <div className="rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                  {shopId}
+                </div>
+              </div>
+              <div className="space-y-1.5">
                 <Label>{t("canteen.shopName")}</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
