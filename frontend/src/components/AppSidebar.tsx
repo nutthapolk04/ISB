@@ -20,7 +20,7 @@ import {
   ArrowLeftRight,
   BookOpen,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -121,20 +121,8 @@ const menuGroups: MenuGroup[] = [
   },
 ];
 
-function useClock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const d = now;
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
 export function AppSidebar() {
   const { open } = useSidebar();
-  const clock = useClock();
   const location = useLocation();
   const { t } = useTranslation();
   const { hasRole, user } = useAuth();
@@ -272,7 +260,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
           {open && (
             <p className="px-4 pb-3 pt-1 text-[0.7rem] text-red-500 select-none">
-              v{__APP_VERSION__} · {clock}
+              v{__APP_VERSION__} · {__BUILD_TIME__}
             </p>
           )}
         </SidebarGroup>

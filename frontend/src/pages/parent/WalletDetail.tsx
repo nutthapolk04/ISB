@@ -255,277 +255,336 @@ export default function WalletDetail() {
   return (
     <div className="page-shell">
       <div className="max-w-3xl space-y-4 sm:space-y-6">
-      <div className="page-header flex items-center gap-2">
-        <Button asChild variant="ghost" size="sm" className="h-10">
-          <Link to={user?.role === "parent" ? "/parent/dashboard" : "/"}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}
-          </Link>
-        </Button>
-      </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <CardTitle className="break-words">
-                {profile.is_own_user_wallet
-                  ? t("parent.wallet.myWalletLabel", { name: profile.name })
-                  : profile.name}
-              </CardTitle>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {profile.is_own_user_wallet && profile.role && (
-                  <Badge variant="secondary" className="capitalize">{profile.role}</Badge>
-                )}
-                {!profile.is_own_user_wallet && profile.student_code && (
-                  <Badge variant="secondary">{profile.student_code}</Badge>
-                )}
-                {!profile.is_own_user_wallet && profile.grade && (
-                  <Badge variant="outline">{profile.grade}</Badge>
-                )}
-                {profile.card_frozen && (
-                  <Badge variant="destructive">{t("parent.wallet.cardFrozen")}</Badge>
-                )}
+        {/* Header banner */}
+        <div className="rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 p-5 shadow-md">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
+                <WalletIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white drop-shadow-sm">
+                  {profile.is_own_user_wallet
+                    ? t("parent.wallet.myWalletLabel", { name: profile.name })
+                    : profile.name}
+                </h1>
+                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  {profile.is_own_user_wallet && profile.role && (
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white capitalize">
+                      {profile.role}
+                    </span>
+                  )}
+                  {!profile.is_own_user_wallet && profile.student_code && (
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                      {profile.student_code}
+                    </span>
+                  )}
+                  {!profile.is_own_user_wallet && profile.grade && (
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                      {profile.grade}
+                    </span>
+                  )}
+                  {profile.card_frozen && (
+                    <span className="inline-flex items-center rounded-full bg-red-500/80 px-2 py-0.5 text-xs font-medium text-white">
+                      {t("parent.wallet.cardFrozen")}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-            <WalletIcon className="h-8 w-8 shrink-0 text-muted-foreground" />
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-9 shrink-0 text-white hover:bg-white/20 hover:text-white border border-white/30"
+            >
+              <Link to={user?.role === "parent" ? "/parent/dashboard" : "/"}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}
+              </Link>
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md bg-primary/5 p-4 sm:p-6 text-center">
-            <p className="text-sm text-muted-foreground">{t("parent.wallet.balance")}</p>
-            <p className="text-3xl sm:text-4xl font-bold text-primary mt-2 tabular-nums">
+        </div>
+
+        {/* Balance card */}
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-center">
+            <p className="text-sm font-medium text-orange-100">{t("parent.wallet.balance")}</p>
+            <p className="text-4xl sm:text-5xl font-extrabold text-white mt-1 tabular-nums drop-shadow-sm">
               {formatTHB(profile.wallet_balance ?? 0)}
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
 
-      {/* Tab toggle */}
-      <div className="flex gap-2">
-        <Button
-          variant={activeTab === "topup" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSearchParams({})}
-        >
-          <WalletIcon className="h-4 w-4 mr-1.5" />
-          {t("parent.wallet.topUpTitle")}
-        </Button>
-        <Button
-          variant={activeTab === "history" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSearchParams({ tab: "history" })}
-        >
-          <History className="h-4 w-4 mr-1.5" />
-          {t("parent.wallet.recentTitle")}
-        </Button>
-      </div>
-
-      {activeTab === "topup" && <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">{t("parent.wallet.topUpTitle")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <InfoCallout
-            id="wallet.topupFlow"
-            variant="tip"
-            title={t("parent.wallet.topupFlowTitle")}
+        {/* Tab toggle */}
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => setSearchParams({})}
+            className={cn(
+              "h-10 gap-1.5 font-semibold transition-all",
+              activeTab === "topup"
+                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
+                : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
+            )}
           >
-            {t("parent.wallet.topupFlowBody")}
-          </InfoCallout>
+            <WalletIcon className="h-4 w-4" />
+            {t("parent.wallet.topUpTitle")}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setSearchParams({ tab: "history" })}
+            className={cn(
+              "h-10 gap-1.5 font-semibold transition-all",
+              activeTab === "history"
+                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
+                : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
+            )}
+          >
+            <History className="h-4 w-4" />
+            {t("parent.wallet.recentTitle")}
+          </Button>
+        </div>
 
-          <div className="space-y-1.5">
-            <Label>{t("parent.wallet.paymentChannel")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("qr_promptpay")}
-                className={cn(
-                  "flex items-center justify-center gap-2 rounded-md border-2 px-3 py-2.5 text-sm font-medium transition",
-                  paymentMethod === "qr_promptpay"
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
-                )}
+        {activeTab === "topup" && (
+          <Card className="overflow-hidden border border-amber-100 shadow-md">
+            <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4">
+              <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
+                <WalletIcon className="h-5 w-5 text-amber-600" />
+                {t("parent.wallet.topUpTitle")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <InfoCallout
+                id="wallet.topupFlow"
+                variant="tip"
+                title={t("parent.wallet.topupFlowTitle")}
               >
-                <QrCode className="h-4 w-4" />
-                PromptPay QR
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("credit_card")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 rounded-md border-2 px-3 py-2 text-sm font-medium transition",
-                  paymentMethod === "credit_card"
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  {t("parent.wallet.creditCard")}
-                </span>
-                <span className="text-[10px] font-normal opacity-80">{t("parent.wallet.creditFee")}</span>
-              </button>
-            </div>
-          </div>
+                {t("parent.wallet.topupFlowBody")}
+              </InfoCallout>
 
-          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_auto] sm:items-end">
-            <div className="space-y-1.5">
-              <Label htmlFor="amount">{t("parent.wallet.amountLabel")}</Label>
-              <Input
-                id="amount"
-                type="number"
-                min="1"
-                max={MAX_TOPUP_THB}
-                step="1"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="100"
-                className="h-11"
-              />
-            </div>
-            <Button onClick={handleCreateTopup} disabled={creating} className="h-11 sm:h-10">
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  {paymentMethod === "credit_card"
-                    ? t("parent.wallet.processingBank")
-                    : t("parent.wallet.creatingQr")}
-                </>
-              ) : (
-                t("parent.wallet.topUpBtn")
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700">{t("parent.wallet.paymentChannel")}</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("qr_promptpay")}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                      paymentMethod === "qr_promptpay"
+                        ? "border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 text-orange-700 shadow-sm"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-amber-300 hover:text-amber-700",
+                    )}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    PromptPay QR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("credit_card")}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-3 py-2 text-sm font-medium transition-all",
+                      paymentMethod === "credit_card"
+                        ? "border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 text-orange-700 shadow-sm"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-amber-300 hover:text-amber-700",
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      {t("parent.wallet.creditCard")}
+                    </span>
+                    <span className="text-[10px] font-normal opacity-80">{t("parent.wallet.creditFee")}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_auto] sm:items-end">
+                <div className="space-y-1.5">
+                  <Label htmlFor="amount" className="text-sm font-medium text-gray-700">{t("parent.wallet.amountLabel")}</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    min="1"
+                    max={MAX_TOPUP_THB}
+                    step="1"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="100"
+                    className="h-11 border-amber-200 focus-visible:ring-amber-400"
+                  />
+                </div>
+                <Button
+                  onClick={handleCreateTopup}
+                  disabled={creating}
+                  className="h-11 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      {paymentMethod === "credit_card"
+                        ? t("parent.wallet.processingBank")
+                        : t("parent.wallet.creatingQr")}
+                    </>
+                  ) : (
+                    t("parent.wallet.topUpBtn")
+                  )}
+                </Button>
+              </div>
+
+              {paymentMethod === "credit_card" && amtNumber > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">{t("parent.wallet.walletAmount")}</span>
+                    <span className="tabular-nums font-medium">{formatTHB(amtNumber)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">{t("parent.wallet.feeLabel")}</span>
+                    <span className="tabular-nums font-medium">{formatTHB(fee)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-amber-200 pt-1.5 font-semibold text-amber-900">
+                    <span>{t("parent.wallet.totalCharged")}</span>
+                    <span className="tabular-nums">{formatTHB(totalCharged)}</span>
+                  </div>
+                </div>
               )}
-            </Button>
-          </div>
 
-          {paymentMethod === "credit_card" && amtNumber > 0 && (
-            <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("parent.wallet.walletAmount")}</span>
-                <span className="tabular-nums">{formatTHB(amtNumber)}</span>
+              <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
+                {[100, 200, 500, 1000].map((v) => (
+                  <Button
+                    key={v}
+                    onClick={() => setAmount(String(v))}
+                    className={cn(
+                      "h-10 text-sm tabular-nums font-semibold transition-all",
+                      String(v) === amount
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md border-0 hover:from-orange-600 hover:to-amber-600"
+                        : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
+                    )}
+                  >
+                    ฿{v}
+                  </Button>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("parent.wallet.feeLabel")}</span>
-                <span className="tabular-nums">{formatTHB(fee)}</span>
-              </div>
-              <div className="flex justify-between border-t pt-1.5 font-semibold">
-                <span>{t("parent.wallet.totalCharged")}</span>
-                <span className="tabular-nums">{formatTHB(totalCharged)}</span>
-              </div>
-            </div>
-          )}
+            </CardContent>
+          </Card>
+        )}
 
-          <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
-            {[100, 200, 500, 1000].map((v) => (
+        {activeTab === "history" && (
+          <Card className="overflow-hidden border border-amber-100 shadow-md">
+            <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4 flex flex-row items-center justify-between gap-2">
+              <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
+                <History className="h-5 w-5 text-amber-600" />
+                {t("parent.wallet.recentTitle")}
+              </CardTitle>
+              {!profile.is_own_user_wallet && (
+                <Button
+                  asChild
+                  size="sm"
+                  className="h-9 shrink-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-sm hover:from-orange-600 hover:to-amber-600 border-0"
+                >
+                  <Link to={`/parent/transactions/${profile.id}`}>
+                    <History className="h-4 w-4 mr-1" /> {t("parent.wallet.viewAll")}
+                  </Link>
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-2 pt-4">
+              {transactions.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">{t("parent.wallet.noTransactions")}</p>
+              )}
+              {transactions.map((tx) => {
+                const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+                return (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm hover:bg-amber-50/80 transition-colors"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800">{tx.description || tx.transaction_type}</p>
+                      <p className="text-xs text-amber-700/70 mt-0.5">{formatDate(tx.created_at)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn(
+                        "font-bold tabular-nums",
+                        isCredit ? "text-emerald-600" : "text-red-500",
+                      )}>
+                        {isCredit ? "+" : "-"}
+                        {formatTHB(Math.abs(tx.amount))}
+                      </p>
+                      <p className="text-xs text-amber-700/70 mt-0.5">
+                        {t("parent.wallet.balanceAfter", { amount: formatTHB(tx.balance_after) })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
+        <KrungsriGatewayDialog
+          open={gatewayOpen}
+          amount={pendingAmt}
+          fee={Math.round(pendingAmt * CREDIT_FEE_RATE * 100) / 100}
+          onSuccess={handleGatewaySuccess}
+          onCancel={() => setGatewayOpen(false)}
+        />
+
+        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+          <DialogContent className="max-w-sm sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("parent.wallet.qrTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("parent.wallet.qrDesc")}
+              </DialogDescription>
+            </DialogHeader>
+
+            {intent && (
+              <div className="space-y-4">
+                <div className="flex justify-center rounded-xl bg-white p-4 sm:p-6 border border-amber-100 shadow-inner">
+                  <QRCodeSVG value={intent.qr_payload} size={200} className="sm:!h-[220px] sm:!w-[220px]" />
+                </div>
+                <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">{t("parent.wallet.qrAmount")}</span>
+                    <span className="font-semibold text-amber-900">{formatTHB(intent.amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">{t("parent.wallet.qrRefCode")}</span>
+                    <span className="font-mono text-amber-900">{intent.ref_code}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-amber-700">{t("parent.wallet.qrStatus")}</span>
+                    <Badge className="gap-1 bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-100">
+                      <Clock className="h-3 w-3" /> {t("parent.wallet.qrWaiting")}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                  <span>{t("parent.wallet.qrConfirmNote")}</span>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
               <Button
-                key={v}
                 variant="outline"
-                onClick={() => setAmount(String(v))}
-                className="h-10 text-sm tabular-nums"
+                onClick={() => setQrOpen(false)}
+                className="h-11 sm:h-10 border-amber-200 text-amber-700 hover:bg-amber-50"
               >
-                ฿{v}
+                {t("parent.wallet.close")}
               </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>}
-
-      {activeTab === "history" && <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="text-lg">{t("parent.wallet.recentTitle")}</CardTitle>
-          {!profile.is_own_user_wallet && (
-            <Button asChild variant="ghost" size="sm" className="h-10 shrink-0">
-              <Link to={`/parent/transactions/${profile.id}`}>
-                <History className="h-4 w-4 mr-1" /> {t("parent.wallet.viewAll")}
-              </Link>
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {transactions.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">{t("parent.wallet.noTransactions")}</p>
-          )}
-          {transactions.map((tx) => {
-            const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-            return (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between rounded-md border p-3 text-sm"
+              <Button
+                onClick={handleConfirmTransfer}
+                disabled={confirming}
+                className="h-11 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold hover:from-orange-600 hover:to-amber-600 border-0 shadow-md"
               >
-                <div>
-                  <p className="font-medium">{tx.description || tx.transaction_type}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</p>
-                </div>
-                <div className="text-right">
-                  <p className={`font-semibold ${isCredit ? "text-green-600" : "text-destructive"}`}>
-                    {isCredit ? "+" : "-"}
-                    {formatTHB(Math.abs(tx.amount))}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("parent.wallet.balanceAfter", { amount: formatTHB(tx.balance_after) })}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>}
-
-      <KrungsriGatewayDialog
-        open={gatewayOpen}
-        amount={pendingAmt}
-        fee={Math.round(pendingAmt * CREDIT_FEE_RATE * 100) / 100}
-        onSuccess={handleGatewaySuccess}
-        onCancel={() => setGatewayOpen(false)}
-      />
-
-      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="max-w-sm sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("parent.wallet.qrTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("parent.wallet.qrDesc")}
-            </DialogDescription>
-          </DialogHeader>
-
-          {intent && (
-            <div className="space-y-4">
-              <div className="flex justify-center rounded-md bg-white p-4 sm:p-6">
-                <QRCodeSVG value={intent.qr_payload} size={200} className="sm:!h-[220px] sm:!w-[220px]" />
-              </div>
-              <div className="space-y-1 rounded-md bg-muted p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("parent.wallet.qrAmount")}</span>
-                  <span className="font-semibold">{formatTHB(intent.amount)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("parent.wallet.qrRefCode")}</span>
-                  <span className="font-mono">{intent.ref_code}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">{t("parent.wallet.qrStatus")}</span>
-                  <Badge variant="outline" className="gap-1">
-                    <Clock className="h-3 w-3" /> {t("parent.wallet.qrWaiting")}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{t("parent.wallet.qrConfirmNote")}</span>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setQrOpen(false)} className="h-11 sm:h-10">
-              {t("parent.wallet.close")}
-            </Button>
-            <Button onClick={handleConfirmTransfer} disabled={confirming} className="h-11 sm:h-10">
-              <CheckCircle2 className="h-4 w-4 mr-1" />
-              {confirming ? t("parent.wallet.confirming") : t("parent.wallet.confirmTransfer")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                {confirming ? t("parent.wallet.confirming") : t("parent.wallet.confirmTransfer")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
