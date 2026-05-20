@@ -179,6 +179,18 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   const voidedSection = r.status !== "active"
     ? `<div class="voided">*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***</div>`
     : "";
+
+  // Balance before / after — only for wallet payments that have payer_detail
+  const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;
+  const balanceBeforeSection =
+    r.payment_method === "wallet" && walletBalanceAfter !== null
+      ? `<div class="row small"><span>ยอดก่อนชำระ</span><span>฿${(walletBalanceAfter + r.total).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>`
+      : "";
+  const balanceAfterSection =
+    r.payment_method === "wallet" && walletBalanceAfter !== null
+      ? `<div class="row balance-after"><span>ยอดคงเหลือ</span><span>฿${walletBalanceAfter.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>`
+      : "";
+
   const shopLine = shopName
     ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>`
     : "";
@@ -212,6 +224,7 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   .disc { color: #c00; font-size: 11px; }
   .small { font-size: 11px; color: #555; }
   .total { font-size: 15px; font-weight: bold; margin-top: 4px; }
+  .balance-after { font-size: 16px; font-weight: bold; color: #1d4ed8; margin-top: 6px; }
   .voided { text-align: center; color: #c00; font-weight: bold;
              font-size: 13px; margin: 6px 0; border: 1px solid #c00; padding: 3px; }
   @media print { @page { margin: 0; size: 80mm auto; } }
@@ -233,10 +246,12 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   <hr/>
   ${itemRows}
   <hr/>
+  ${balanceBeforeSection}
   <div class="row small"><span>ยอดรวม</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}
   ${taxSection}
   <div class="row total"><span>รวมสุทธิ</span><span>฿${r.total.toLocaleString()}</span></div>
+  ${balanceAfterSection}
   <hr/>
   <p class="center sub">ขอบคุณที่ใช้บริการ / Thank you</p>
 </body>

@@ -15,6 +15,8 @@ export interface Transaction {
     balanceBefore: number;
     balanceAfter: number;
     items?: PurchaseItem[];
+    payment_method?: 'wallet' | 'cash' | 'qr' | 'promptpay';
+    shop_name?: string;
 }
 
 export interface Wallet {
@@ -117,26 +119,26 @@ const mockUsers: Record<string, User> = {
 const mockTransactions: Record<string, Transaction[]> = {
     '1': [
         {
-            id: 'TX001', type: 'purchase', date: '2024-05-10', time: '14:30', amount: 45.00, machine: 'Canteen A', balanceBefore: 1295.75, balanceAfter: 1250.75, items: [
+            id: 'TX001', type: 'purchase', date: '2024-05-10', time: '14:30', amount: 45.00, machine: 'Canteen A', balanceBefore: 1295.75, balanceAfter: 1250.75, payment_method: 'wallet', shop_name: 'โรงอาหาร A', items: [
                 { name: 'ข้าวผัดกระเพรา', qty: 1, price: 35.00 },
                 { name: 'น้ำเปล่า', qty: 1, price: 10.00 }
             ]
         },
-        { id: 'TX002', type: 'topup', date: '2024-05-10', time: '08:15', amount: 500.00, machine: 'Kiosk 01', balanceBefore: 795.75, balanceAfter: 1295.75 },
+        { id: 'TX002', type: 'topup', date: '2024-05-10', time: '08:15', amount: 500.00, machine: 'Kiosk 01', balanceBefore: 795.75, balanceAfter: 1295.75, payment_method: 'cash', shop_name: 'Kiosk 01' },
         {
-            id: 'TX003', type: 'purchase', date: '2024-05-09', time: '12:45', amount: 35.00, machine: 'Beverage Vending', balanceBefore: 830.75, balanceAfter: 795.75, items: [
+            id: 'TX003', type: 'purchase', date: '2024-05-09', time: '12:45', amount: 35.00, machine: 'Beverage Vending', balanceBefore: 830.75, balanceAfter: 795.75, payment_method: 'wallet', shop_name: 'ร้านเครื่องดื่ม', items: [
                 { name: 'ชาเขียว', qty: 1, price: 20.00, addons: ['แก้วใหญ่'] },
                 { name: 'ชานม', qty: 1, price: 15.00, addons: ['หวานน้อย', 'เพิ่มไข่มุก'] }
             ]
         },
         {
-            id: 'TX004', type: 'purchase', date: '2024-05-08', time: '17:20', amount: 120.00, machine: 'Minimart', balanceBefore: 950.75, balanceAfter: 830.75, items: [
+            id: 'TX004', type: 'purchase', date: '2024-05-08', time: '17:20', amount: 120.00, machine: 'Minimart', balanceBefore: 950.75, balanceAfter: 830.75, payment_method: 'qr', shop_name: 'Minimart', items: [
                 { name: 'ขนมปัง', qty: 2, price: 25.00 },
                 { name: 'นมกล่อง', qty: 3, price: 15.00 },
                 { name: 'ไข่ไก่', qty: 1, price: 25.00 }
             ]
         },
-        { id: 'TX005', type: 'topup', date: '2024-05-07', time: '09:00', amount: 1000.00, machine: 'HR Office', balanceBefore: -49.25, balanceAfter: 950.75 },
+        { id: 'TX005', type: 'topup', date: '2024-05-07', time: '09:00', amount: 1000.00, machine: 'HR Office', balanceBefore: -49.25, balanceAfter: 950.75, payment_method: 'cash', shop_name: 'HR Office' },
     ],
     '2': [
         {

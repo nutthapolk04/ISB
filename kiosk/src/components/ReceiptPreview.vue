@@ -32,6 +32,11 @@ const t = {
     qty: 'x',
     buyer: 'Member',
     seller: 'Shop / Location',
+    paymentMethod: 'Payment Method',
+    shopName: 'Shop / Branch',
+    pmWallet: 'Wallet',
+    pmCash: 'Cash',
+    pmQr: 'QR PromptPay',
   },
   TH: {
     title: 'ใบเสร็จ',
@@ -52,8 +57,26 @@ const t = {
     qty: 'x',
     buyer: 'สมาชิก',
     seller: 'ร้าน / สถานที่',
+    paymentMethod: 'วิธีชำระเงิน',
+    shopName: 'ร้าน / สาขา',
+    pmWallet: 'กระเป๋าเงิน',
+    pmCash: 'เงินสด',
+    pmQr: 'QR PromptPay',
   }
 };
+
+const paymentMethodLabel = computed(() => {
+  const pm = props.transaction.payment_method;
+  if (!pm) return null;
+  const map: Record<string, keyof typeof t.EN> = {
+    wallet: 'pmWallet',
+    cash: 'pmCash',
+    qr: 'pmQr',
+    promptpay: 'pmQr',
+  };
+  const key = map[pm];
+  return key ? currT.value[key] : pm;
+});
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat(store.language === 'TH' ? 'th-TH' : 'en-US', {
@@ -115,6 +138,14 @@ const handlePrint = () => {
           <div v-if="store.currentUser" class="receipt-row">
             <span class="r-label">{{ currT.buyer }}</span>
             <span class="r-value">{{ store.currentUser.name }}</span>
+          </div>
+          <div v-if="props.transaction.shop_name" class="receipt-row">
+            <span class="r-label">{{ currT.shopName }}</span>
+            <span class="r-value">{{ props.transaction.shop_name }}</span>
+          </div>
+          <div v-if="paymentMethodLabel" class="receipt-row">
+            <span class="r-label">{{ currT.paymentMethod }}</span>
+            <span class="r-value">{{ paymentMethodLabel }}</span>
           </div>
         </div>
 

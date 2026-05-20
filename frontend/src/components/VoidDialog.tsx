@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { XCircle, CreditCard, CheckCircle2, ChevronLeft, ShieldAlert, Loader2 } from "lucide-react";
+import { XCircle, CreditCard, CheckCircle2, ChevronLeft, ShieldAlert, Loader2, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
@@ -161,6 +161,121 @@ export function VoidDialog({
   const handleSuccessClose = () => {
     onConfirmed();
     handleOpenChange(false);
+  };
+
+  // ---- Print void slip ----
+  const printVoidSlip = () => {
+    if (!voidResult) return;
+
+    const voidedAtFormatted = new Date(voidResult.voidedAt).toLocaleString("th-TH", {
+      day: "2-digit",
+      month: "short",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    const reasonLabel = t(`store.void.reasons.${voidResult.reason}`, voidResult.reason);
+
+    const itemRows = items
+      .map(
+        (item) =>
+          `<tr>
+            <td style="padding:2px 0">${item.name}</td>
+            <td style="text-align:center;padding:2px 4px">${item.quantity}</td>
+            <td style="text-align:right;padding:2px 0">฿${(item.unitPrice * item.quantity).toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td colspan="3" style="font-size:10px;color:#555;padding-bottom:4px">${item.barcode} · ฿${item.unitPrice.toLocaleString()} / ${t("store.pieces", "ชิ้น")}</td>
+          </tr>`
+      )
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Void Receipt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      width: 320px;
+      max-width: 320px;
+      padding: 12px;
+      color: #000;
+    }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+    .title-block { margin-bottom: 8px; }
+    .void-badge {
+      display: inline-block;
+      border: 2px solid #000;
+      padding: 2px 10px;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin: 4px 0;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    .total-row td { font-weight: bold; padding-top: 4px; border-top: 1px solid #000; }
+    @media print {
+      @page { size: 80mm auto; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="title-block center">
+    <div class="bold" style="font-size:13px">ISB SCHOOL STORE</div>
+    <div class="void-badge">VOID RECEIPT</div>
+    <div style="font-size:11px">ใบยกเลิกบิล</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <table>
+    <tr>
+      <td>เลขที่ใบเสร็จ</td>
+      <td style="text-align:right" class="bold">${voidResult.receiptNumber}</td>
+    </tr>
+    <tr>
+      <td>วันเวลาที่ void</td>
+      <td style="text-align:right">${voidedAtFormatted}</td>
+    </tr>
+    <tr>
+      <td>เหตุผล</td>
+      <td style="text-align:right">${reasonLabel}</td>
+    </tr>
+  </table>
+
+  <div class="divider"></div>
+
+  <div class="bold" style="margin-bottom:4px">รายการที่ยกเลิก</div>
+  <table>
+    ${itemRows}
+    <tr class="total-row">
+      <td colspan="2">ยอดรวมที่ void</td>
+      <td style="text-align:right">฿${total.toLocaleString()}</td>
+    </tr>
+  </table>
+
+  <div class="divider"></div>
+  <div class="center" style="font-size:10px;color:#555;margin-top:4px">
+    พิมพ์เมื่อ: ${new Date().toLocaleString("th-TH")}<br/>
+    เอกสารนี้ใช้เพื่อตรวจสอบภายในเท่านั้น
+  </div>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=400,height=600");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
@@ -389,9 +504,20 @@ export function VoidDialog({
         </div>
       )}
 
-      <Button onClick={handleSuccessClose} className="w-full">
-        {t("store.void.close")}
-      </Button>
+      <div className="flex flex-col gap-2 w-full">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={printVoidSlip}
+          disabled={!voidResult}
+        >
+          <Printer className="h-4 w-4 mr-2" />
+          {t("store.void.printSlip", "Print Void Slip")}
+        </Button>
+        <Button onClick={handleSuccessClose} className="w-full">
+          {t("store.void.close")}
+        </Button>
+      </div>
     </div>
   );
 

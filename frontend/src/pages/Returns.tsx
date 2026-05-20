@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Search, Calendar, Eye, Trash2, Edit, Plus, X, CreditCard, Package, Minus } from "lucide-react";
+import { RefreshCw, Search, Calendar, Eye, Trash2, Edit, Plus, X, CreditCard, Package, Minus, Printer } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "sonner";
@@ -247,6 +247,21 @@ const Returns = () => {
   // Refund confirmation dialog — destination is derived from the original
   // receipt (which wallet / card / cash paid). No more method picker.
   const [isRefundConfirmOpen, setIsRefundConfirmOpen] = useState(false);
+
+  // Credit note result dialog — shown after a successful refund
+  interface ReturnResult {
+    refundAmount: number;
+    refundMethod: string;
+    refundedTo?: { type: string; label: string; balanceAfter?: number; maskedCard?: string };
+    receiptId: string;
+    receiptDate: string;
+    payerLabel: string;
+    returnedItems: Array<{ productCode: string; productName: string; returnQty: number; unitPrice: number }>;
+    returnedAt: string;
+    reason: string;
+  }
+  const [returnResult, setReturnResult] = useState<ReturnResult | null>(null);
+  const [isCreditNoteDialogOpen, setIsCreditNoteDialogOpen] = useState(false);
 
   const getPaymentMethodLabel = (method: string) => {
     switch (method) {
@@ -671,6 +686,103 @@ const Returns = () => {
       .filter(([_, d]) => d.productCode)
       .map(([_, d]) => ({ productCode: d.productCode, quantity: d.quantity }));
 
+  const printReturnSlip = (result: ReturnResult) => {
+    const refundMethodLabel = (() => {
+      const dest = result.refundedTo;
+      if (!dest) return result.refundMethod;
+      if (dest.balanceAfter !== undefined) return `กระเป๋าเงิน — ${dest.label}`;
+      if (dest.type === "edc_card") return `EDC card ${dest.maskedCard || "****"}`;
+      return dest.label || result.refundMethod;
+    })();
+
+    const itemRows = result.returnedItems
+      .map(
+        (item) => `
+        <tr>
+          <td style="padding:2px 0;">${item.productName}<br><span style="font-size:9px;color:#555">${item.productCode}</span></td>
+          <td style="text-align:center;padding:2px 4px;">${item.returnQty}</td>
+          <td style="text-align:right;padding:2px 0;">฿${item.unitPrice.toLocaleString()}</td>
+          <td style="text-align:right;padding:2px 0;">฿${(item.returnQty * item.unitPrice).toLocaleString()}</td>
+        </tr>`,
+      )
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Credit Note</title>
+  <style>
+    @page { size: 80mm auto; margin: 4mm; }
+    body { font-family: 'Courier New', Courier, monospace; font-size: 11px; width: 72mm; margin: 0 auto; color: #000; }
+    h1 { font-size: 15px; text-align: center; margin: 4px 0 2px; letter-spacing: 2px; }
+    h2 { font-size: 11px; text-align: center; margin: 0 0 6px; font-weight: normal; }
+    .center { text-align: center; }
+    .divider { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 2px; }
+    .total-row td { font-weight: bold; font-size: 13px; padding-top: 4px; }
+    .meta { font-size: 9px; color: #333; }
+    .footer { text-align: center; font-size: 9px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>CREDIT NOTE</h1>
+  <h2>ใบคืนสินค้า / ใบแจ้งหนี้ลด</h2>
+  <hr class="divider"/>
+  <table>
+    <tr><td class="meta">ใบเสร็จเดิม</td><td style="text-align:right" class="meta">${result.receiptId}</td></tr>
+    <tr><td class="meta">วันที่ซื้อ</td><td style="text-align:right" class="meta">${result.receiptDate}</td></tr>
+    <tr><td class="meta">ผู้ซื้อ</td><td style="text-align:right" class="meta">${result.payerLabel || "—"}</td></tr>
+    <tr><td class="meta">วันที่คืน</td><td style="text-align:right" class="meta">${new Date(result.returnedAt).toLocaleString("th-TH")}</td></tr>
+    <tr><td class="meta">เหตุผล</td><td style="text-align:right" class="meta">${result.reason || "—"}</td></tr>
+  </table>
+  <hr class="divider"/>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left">รายการ</th>
+        <th style="text-align:center">จำนวน</th>
+        <th style="text-align:right">ราคา/ชิ้น</th>
+        <th style="text-align:right">รวม</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRows}
+    </tbody>
+  </table>
+  <hr class="divider"/>
+  <table>
+    <tr class="total-row">
+      <td>ยอดคืนเงิน</td>
+      <td colspan="3" style="text-align:right">฿${result.refundAmount.toFixed(2)}</td>
+    </tr>
+    <tr>
+      <td class="meta">ช่องทางคืน</td>
+      <td colspan="3" style="text-align:right" class="meta">${refundMethodLabel}</td>
+    </tr>
+    ${result.refundedTo?.balanceAfter !== undefined ? `<tr><td class="meta">ยอดคงเหลือ</td><td colspan="3" style="text-align:right" class="meta">฿${result.refundedTo.balanceAfter.toFixed(2)}</td></tr>` : ""}
+  </table>
+  <hr class="divider"/>
+  <div class="footer">
+    <p>*** เอกสารนี้ใช้แทนใบลดหนี้ ***</p>
+    <p>ขอบคุณที่ใช้บริการ</p>
+  </div>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=320,height=600");
+    if (!win) {
+      toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต pop-up");
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+  };
+
   const handleConfirmRefund = async () => {
     if (!editingReturn) return;
     try {
@@ -682,8 +794,32 @@ const Returns = () => {
         returnItems: buildReturnItems(),
         reason: editReason || editingReturn.reason,
       });
-      toast.success(buildRefundSuccessMessage(result));
+
+      // Build credit note result for the summary dialog
+      const returnedItems = buildReturnItems().map((ri) => {
+        const item = viewingReceipt?.items.find((i: ReceiptItem) => i.productCode === ri.productCode);
+        return {
+          productCode: ri.productCode,
+          productName: item?.productName ?? ri.productCode,
+          returnQty: ri.returnQuantity,
+          unitPrice: item?.price ?? 0,
+        };
+      });
+
+      setReturnResult({
+        refundAmount: result.refundAmount,
+        refundMethod: result.refundMethod,
+        refundedTo: result.refundedTo,
+        receiptId: editingReturn.receiptId,
+        receiptDate: viewingReceipt?.date ?? "",
+        payerLabel: viewingReceipt?.payer?.label ?? viewingReceipt?.studentName ?? "",
+        returnedItems,
+        returnedAt: new Date().toISOString(),
+        reason: editReason || editingReturn.reason,
+      });
+
       resetAllDialogs();
+      setIsCreditNoteDialogOpen(true);
       await fetchReturns();
     } catch (err: any) {
       toast.error(err?.detail ?? "Refund failed");
@@ -2052,6 +2188,86 @@ const Returns = () => {
               </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Credit Note Summary Dialog ───────────────────────────────────── */}
+      <Dialog open={isCreditNoteDialogOpen} onOpenChange={(open) => { if (!open) { setIsCreditNoteDialogOpen(false); setReturnResult(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              คืนเงินสำเร็จ
+            </DialogTitle>
+            <DialogDescription>
+              ใบเสร็จเดิม: {returnResult?.receiptId}
+            </DialogDescription>
+          </DialogHeader>
+
+          {returnResult && (
+            <div className="space-y-4 py-2">
+              {/* Summary card */}
+              <div className="bg-success/10 border border-success/30 p-4 rounded-lg text-center">
+                <p className="text-xs text-muted-foreground mb-1">ยอดคืนเงิน</p>
+                <p className="text-3xl font-bold text-success data-number">฿{returnResult.refundAmount.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {returnResult.refundedTo
+                    ? returnResult.refundedTo.balanceAfter !== undefined
+                      ? `กระเป๋าเงิน — ${returnResult.refundedTo.label} (คงเหลือ ฿${returnResult.refundedTo.balanceAfter.toFixed(2)})`
+                      : returnResult.refundedTo.type === "edc_card"
+                        ? `EDC card ${returnResult.refundedTo.maskedCard || "****"}`
+                        : returnResult.refundedTo.label
+                    : returnResult.refundMethod}
+                </p>
+              </div>
+
+              {/* Items */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">รายการสินค้าที่คืน</p>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {returnResult.returnedItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                      <div>
+                        <span className="font-medium">{item.productName}</span>
+                        <span className="text-xs text-muted-foreground ml-1">x{item.returnQty}</span>
+                      </div>
+                      <span className="data-number text-sm">฿{(item.unitPrice * item.returnQty).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Meta */}
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <div className="flex justify-between">
+                  <span>ผู้ซื้อ</span>
+                  <span>{returnResult.payerLabel || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>วันที่คืน</span>
+                  <span>{new Date(returnResult.returnedAt).toLocaleString("th-TH")}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setIsCreditNoteDialogOpen(false); setReturnResult(null); }}
+            >
+              เสร็จสิ้น
+            </Button>
+            <Button
+              onClick={() => { if (returnResult) printReturnSlip(returnResult); }}
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              พิมพ์ Credit Note
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
