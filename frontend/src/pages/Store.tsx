@@ -110,6 +110,82 @@ interface Product {
 
 type DiscountMode = "amount" | "percent";
 
+// ── Per-item discount shortcut popover (same UX as canteen) ─────────────────
+const DISCOUNT_SHORTCUTS_PCT = [5, 10, 15, 20, 25, 30];
+const DISCOUNT_SHORTCUTS_AMT = [10, 20, 50, 100];
+
+function DiscountShortcutPopover({
+  itemId,
+  currentValue,
+  currentMode,
+  onUpdate,
+}: {
+  itemId: string;
+  currentValue: number | undefined;
+  currentMode: DiscountMode | undefined;
+  onUpdate: (id: string, value: number | null, mode: DiscountMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const mode = currentMode ?? "percent";
+  const shortcuts = mode === "percent" ? DISCOUNT_SHORTCUTS_PCT : DISCOUNT_SHORTCUTS_AMT;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "h-5 px-1.5 text-[10px] font-bold rounded border bg-background transition-colors",
+            mode === "percent"
+              ? "border-amber-400 text-amber-700 hover:bg-amber-50"
+              : "border-border text-foreground hover:bg-muted",
+          )}
+        >
+          {mode === "percent" ? "%" : "฿"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start" side="top" sideOffset={6}>
+        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
+          ส่วนลด {mode === "percent" ? "%" : "฿"}
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {shortcuts.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => { onUpdate(itemId, q, mode); setOpen(false); }}
+              className={cn(
+                "h-9 min-w-[3.5rem] rounded-lg border text-sm font-bold transition-colors",
+                currentValue === q && currentMode === mode
+                  ? "border-amber-500 bg-amber-500 text-white"
+                  : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
+              )}
+            >
+              {mode === "percent" ? `${q}%` : `฿${q}`}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => { onUpdate(itemId, null, mode); setOpen(false); }}
+            className="flex-1 h-8 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+          >
+            Clear / 0
+          </button>
+          <button
+            type="button"
+            onClick={() => { onUpdate(itemId, currentValue ?? null, mode === "percent" ? "amount" : "percent"); setOpen(false); }}
+            className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+          >
+            {mode === "percent" ? "ใช้ ฿" : "ใช้ %"}
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 interface CartItem extends Product {
   quantity: number;
   discountValue?: number;
@@ -1086,63 +1162,44 @@ const Store = () => {
                         )}
                       </button>
                     </div>
-                    {/* Line discount input */}
+                    {/* Line discount row */}
                     <div className="flex items-center justify-between mt-1.5 text-xs">
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">
                           {t("store.tableDiscount", "ส่วนลด")}:
                         </span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="any"
-                          placeholder="0"
-                          value={item.discountValue ?? ""}
-                          onChange={(e) => {
-                            let v = parseFloat(e.target.value);
-                            if (isNaN(v)) v = 0;
-                            const maxVal =
-                              item.discountMode === "percent" ? 100 : getPriceForItem(item) * item.quantity;
-                            v = Math.min(Math.max(0, v), maxVal);
+                        {(item.discountValue ?? 0) > 0 && (
+                          <span className="text-[10px] font-medium text-amber-700">
+                            {item.discountValue}{item.discountMode === "percent" ? "%" : "฿"}
+                          </span>
+                        )}
+                        <DiscountShortcutPopover
+                          itemId={item.id}
+                          currentValue={item.discountValue}
+                          currentMode={item.discountMode}
+                          onUpdate={(id, value, mode) =>
                             setCart((prev) =>
                               prev.map((c) =>
-                                c.id === item.id
-                                  ? { ...c, discountValue: v, discountMode: c.discountMode ?? "amount" }
+                                c.id === id
+                                  ? { ...c, discountValue: value ?? 0, discountMode: mode }
                                   : c,
                               ),
-                            );
-                          }}
-                          className="h-6 w-14 text-right text-xs"
+                            )
+                          }
                         />
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-1.5 text-xs font-bold"
-                              onClick={() =>
-                                setCart((prev) =>
-                                  prev.map((c) =>
-                                    c.id === item.id
-                                      ? {
-                                          ...c,
-                                          discountMode:
-                                            c.discountMode === "percent" ? "amount" : "percent",
-                                        }
-                                      : c,
-                                  ),
-                                )
-                              }
-                            >
-                              {item.discountMode === "percent" ? "%" : "฿"}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
-                            <p className="text-xs">
-                              {t("store.discountModeTooltip", "คลิกเพื่อสลับหน่วยส่วนลด")}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
+                        {(item.discountValue ?? 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCart((prev) =>
+                                prev.map((c) => c.id === item.id ? { ...c, discountValue: 0 } : c),
+                              )
+                            }
+                            className="h-5 px-1 text-[10px] text-destructive rounded hover:bg-destructive/10"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                       <span className="font-bold text-primary tabular-nums">
                         ฿{getItemLineTotal(item).toLocaleString()}
