@@ -139,6 +139,14 @@ export default function Canteen() {
   // Mobile cart sheet (shown below lg breakpoint).
   const [cartOpen, setCartOpen] = useState(false);
 
+  // ── RFID centered notification ────────────────────────────────────────────
+  const [rfidNotif, setRfidNotif] = useState<{
+    type: "success" | "error";
+    title: string;
+    sub?: string;
+  } | null>(null);
+  const rfidNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Passive RFID listener (capture phase) ────────────────────────────────
   // RFID readers emit keypresses as fast keyboard input, ending with Enter.
   // Uses capture phase (true) so we intercept BEFORE focused inputs receive chars.
@@ -163,6 +171,12 @@ export default function Canteen() {
         customer_kind: u.role,
         user_id: u.user_id,
       };
+    }
+
+    function showRfidNotif(notif: { type: "success" | "error"; title: string; sub?: string }) {
+      if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
+      setRfidNotif(notif);
+      rfidNotifTimer.current = setTimeout(() => setRfidNotif(null), 2500);
     }
 
     async function lookupAndSet(q: string) {
@@ -192,14 +206,16 @@ export default function Canteen() {
         }
         if (result) {
           setPreSelectedMember(result);
-          setSearch(""); // clear search box in case first RFID char slipped in
-          const bal = result.wallet_balance != null ? ` · ฿${Number(result.wallet_balance).toFixed(2)}` : "";
-          toast.success(`${result.name}${bal}`);
+          setSearch("");
+          const bal = result.wallet_balance != null
+            ? `฿${Number(result.wallet_balance).toFixed(2)}`
+            : undefined;
+          showRfidNotif({ type: "success", title: result.name, sub: bal });
         } else {
-          toast.error("ไม่พบบัตรนี้ในระบบ");
+          showRfidNotif({ type: "error", title: "ไม่พบบัตรนี้ในระบบ" });
         }
       } catch {
-        toast.error("ไม่พบบัตรนี้ในระบบ");
+        showRfidNotif({ type: "error", title: "ไม่พบบัตรนี้ในระบบ" });
       }
     }
 
@@ -958,6 +974,38 @@ export default function Canteen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* RFID centered auto-dismiss notification */}
+      {rfidNotif && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div
+            className={cn(
+              "rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
+              "animate-in fade-in zoom-in-95 duration-150",
+              rfidNotif.type === "success"
+                ? "bg-amber-50 border-2 border-amber-300"
+                : "bg-red-50 border-2 border-red-300",
+            )}
+          >
+            {rfidNotif.type === "success" ? (
+              <>
+                <div className="text-xl font-bold text-amber-900 leading-tight">
+                  {rfidNotif.title}
+                </div>
+                {rfidNotif.sub && (
+                  <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">
+                    {rfidNotif.sub}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-base font-semibold text-red-700">
+                {rfidNotif.title}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
