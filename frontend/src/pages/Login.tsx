@@ -8,8 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   LogIn,
   UtensilsCrossed,
@@ -22,14 +20,11 @@ import {
   Sparkles,
   ArrowLeftRight,
   ShieldCheck,
-  MessageSquare,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 
-type SsoStep = "email" | "otp" | "pdpa" | null;
-
-const MOCK_OTP = "247831";
+type SsoStep = "email" | "pdpa" | null;
 
 const GoogleLogo = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
@@ -252,8 +247,6 @@ const Login = () => {
   const [ssoLoading, setSsoLoading] = useState(false);
   const [ssoStep, setSsoStep] = useState<SsoStep>(null);
   const [googleEmail, setGoogleEmail] = useState("");
-  const [otpValue, setOtpValue] = useState("");
-  const [otpError, setOtpError] = useState(false);
   const [coverBg, setCoverBg] = useState("/login-bg.png");
   const fetchedCover = useRef(false);
 
@@ -293,13 +286,7 @@ const Login = () => {
   const handleGoogleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!googleEmail.trim()) return;
-    setOtpValue(""); setOtpError(false); setSsoStep("otp");
-  };
-
-  const handleOtpSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpValue === MOCK_OTP) setSsoStep("pdpa");
-    else setOtpError(true);
+    setSsoStep("pdpa");
   };
 
   const handlePdpaAccept = async () => {
@@ -317,7 +304,7 @@ const Login = () => {
     }
   };
 
-  const resetSso = () => { setSsoStep(null); setGoogleEmail(""); setOtpValue(""); setOtpError(false); };
+  const resetSso = () => { setSsoStep(null); setGoogleEmail(""); };
 
   return (
     <div className="flex min-h-screen">
@@ -408,39 +395,7 @@ const Login = () => {
                 </form>
               )}
 
-              {/* Step 2: OTP */}
-              {ssoStep === "otp" && (
-                <form onSubmit={handleOtpSubmit} className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
-                      <MessageSquare className="h-4 w-4" /> 2-Step Verification
-                    </div>
-                    <button type="button" onClick={() => setSsoStep("email")} className="text-muted-foreground hover:text-foreground">
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-blue-700/80">
-                    Google sent an OTP code to <span className="font-medium">{googleEmail}</span>
-                  </p>
-                  <div className="rounded-md bg-blue-100/80 border border-blue-200 px-3 py-2 text-xs text-blue-800">
-                    <span className="font-medium">Demo OTP:</span>{" "}
-                    <span className="font-mono tracking-widest font-bold">{MOCK_OTP}</span>
-                  </div>
-                  <div className="flex justify-center">
-                    <InputOTP maxLength={6} pattern={REGEXP_ONLY_DIGITS} value={otpValue}
-                      onChange={(v) => { setOtpValue(v); setOtpError(false); }} autoFocus>
-                      <InputOTPGroup>
-                        {Array.from({ length: 6 }).map((_, i) => <InputOTPSlot key={i} index={i} />)}
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                  {otpError && <p className="text-xs text-destructive text-center">Invalid OTP code. Please try again.</p>}
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={otpValue.length < 6}>Verify</Button>
-                </form>
-              )}
-
-              {/* Step 3: PDPA */}
+              {/* Step 2: PDPA */}
               {ssoStep === "pdpa" && (
                 <div className="rounded-lg border border-green-200 bg-green-50/50 p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-semibold text-green-900">

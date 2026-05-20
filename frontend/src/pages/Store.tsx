@@ -512,10 +512,6 @@ const Store = () => {
       setCart((prev) => {
         const existing = prev.find((i) => i.id === product.id);
         if (existing) {
-          // Bundles use a 9999 sentinel stock — never show low-stock warning.
-          if (!product.isBundle && existing.quantity >= product.stock && product.stock > 0) {
-            toast.warning(t("store.lowStockWarning", { count: product.stock }), { duration: 2000 });
-          }
           return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
         }
         return [...prev, { ...product, quantity: 1, priceOverride: panelPrice }];
@@ -533,9 +529,6 @@ const Store = () => {
           if (item.id !== id) return item;
           const next = item.quantity + change;
           if (next <= 0) return null;
-          if (change > 0 && next > item.stock && item.stock > 0) {
-            toast.warning(t("store.lowStockWarning", { count: item.stock }), { duration: 2000 });
-          }
           return { ...item, quantity: next };
         })
         .filter((item): item is CartItem => item !== null),
@@ -1378,7 +1371,8 @@ const Store = () => {
             const displayPrice = priceMode === "internal"
               ? (p.internalPrice ?? p.price)
               : getPrice(p);
-            const lowStock = p.stock <= 0;
+            const zeroStock = p.stock <= 0;
+            const lowStock = p.stock > 0 && p.stock <= 3;
             return (
               <button
                 type="button"
@@ -1422,9 +1416,11 @@ const Store = () => {
                   {!p.isBundle && (
                     <span className={cn(
                       "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
-                      lowStock ? "bg-destructive text-destructive-foreground" : "bg-background/90 text-foreground",
+                      zeroStock ? "bg-amber-500 text-white" :
+                      lowStock  ? "bg-orange-400 text-white" :
+                                  "bg-background/90 text-foreground",
                     )}>
-                      {lowStock ? t("store.outOfStockLabel") : `${t("store.stockLabel")} ${p.stock}`}
+                      {`${t("store.stockLabel")} ${p.stock}`}
                     </span>
                   )}
                 </div>

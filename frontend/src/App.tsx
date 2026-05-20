@@ -50,6 +50,7 @@ import CanteenManagementOverview from "./pages/canteen/CanteenManagementOverview
 import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
 import GuidePage from "./pages/GuidePage";
+import ShopDashboard from "./pages/ShopDashboard";
 
 const queryClient = new QueryClient();
 
@@ -265,6 +266,11 @@ const App = () => (
                 {/* Personal wallet for staff roles (cashier/manager/kitchen) */}
                 <Route element={<RequireRole roles={["cashier", "manager", "kitchen", "admin"]} />}>
                   <Route path="/staff/wallet" element={<WalletDetail />} />
+                </Route>
+
+                {/* Shop Dashboard — manager (own shop) + admin (any shop) */}
+                <Route element={<RequireRole roles={["manager", "admin"]} />}>
+                  <Route path="/shop-dashboard" element={<ShopDashboard />} />
                 </Route>
 
                 {/* User Guide — accessible to all authenticated roles */}

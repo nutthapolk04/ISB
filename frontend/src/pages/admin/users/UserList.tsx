@@ -259,6 +259,11 @@ export default function UserList() {
                     {u.shop_name}
                   </span>
                 )}
+                {u.shop_id && (
+                  <span className="font-mono text-[10px] text-muted-foreground/70">
+                    {u.shop_id}
+                  </span>
+                )}
                 {u.customer_type && (
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     PS: {u.customer_type}

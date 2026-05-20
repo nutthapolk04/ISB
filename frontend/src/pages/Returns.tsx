@@ -340,13 +340,16 @@ const Returns = () => {
     }
 
     try {
-      await api.post("/returns/create-without-receipt", {
+      const created = await api.post<ReturnRequest[] | ReturnRequest>("/returns/create-without-receipt", {
         items: noReceiptItems,
         reason: noReceiptReason.trim(),
         customerName: noReceiptCustomerName.trim() || null,
         notes: noReceiptNotes.trim() || null,
       });
-      toast.success(t("returns.returnRequestSaved") || "Return request saved");
+      // Auto-approve immediately
+      const ids = Array.isArray(created) ? created.map((r) => r.id) : [created.id];
+      await Promise.all(ids.map((id) => api.put(`/returns/${id}`, { status: "approved" }).catch(() => {})));
+      toast.success(t("returns.returnSuccess", "คืนสินค้าสำเร็จ"));
       await fetchReturns();
 
       // Reset form
@@ -452,12 +455,18 @@ const Returns = () => {
     });
 
     try {
-      await api.post("/returns/create", {
+      const created = await api.post<ReturnRequest[]>("/returns/create", {
         receiptId: selectedReceipt.id,
         items,
         reason: reason.trim(),
       });
-      toast.success(t('returns.returnRequestSaved'));
+      // Auto-approve immediately — no separate manager approval needed
+      if (Array.isArray(created)) {
+        await Promise.all(
+          created.map((r) => api.put(`/returns/${r.id}`, { status: "approved" }).catch(() => {}))
+        );
+      }
+      toast.success(t('returns.returnSuccess', 'คืนสินค้าสำเร็จ'));
       await fetchReturns();
 
       // Reset form
@@ -491,15 +500,6 @@ const Returns = () => {
     }
   };
 
-  const handleStatusChange = async (id: number, newStatus: "approved" | "rejected") => {
-    try {
-      await api.put(`/returns/${id}`, { status: newStatus });
-      toast.success(newStatus === "approved" ? t('returns.approved') : t('returns.rejected'));
-      await fetchReturns();
-    } catch (err: any) {
-      toast.error(err?.detail ?? "Failed to update status");
-    }
-  };
 
   const handleViewReceipt = async (receiptId: string) => {
     try {
@@ -1592,22 +1592,9 @@ const Returns = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      {item.status === "pending" ? (
-                        <div className="flex gap-1 justify-center">
-                          <Button size="sm" variant="outline" className="text-xs h-7 text-green-600 border-green-300 hover:bg-green-50"
-                            onClick={() => handleStatusChange(item.id, "approved")}>
-                            {t('returns.approve', 'อนุมัติ')}
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-xs h-7 text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => handleStatusChange(item.id, "rejected")}>
-                            {t('returns.reject', 'ปฏิเสธ')}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Badge variant={item.status === "approved" ? "success" : "destructive"}>
-                          {item.status === "approved" ? t('returns.approved') : t('returns.rejected')}
-                        </Badge>
-                      )}
+                      <Badge variant={item.status === "rejected" ? "destructive" : "success"}>
+                        {item.status === "rejected" ? t('returns.rejected', 'ปฏิเสธ') : t('returns.returned', 'คืนแล้ว')}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-center">
                     <div className="flex gap-2 justify-center">

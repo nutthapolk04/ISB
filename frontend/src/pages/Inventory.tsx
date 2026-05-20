@@ -1919,6 +1919,23 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
           <div className="space-y-4">
             <div>
               <Label>{t("inventory.adjustmentQuantity")}</Label>
+              {/* Quick shortcut buttons */}
+              <div className="flex gap-1.5 mb-2 flex-wrap">
+                {[-10, -5, -1, +1, +5, +10].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAdjustQty(String((parseInt(adjustQty) || 0) + v))}
+                    className={`h-8 min-w-[2.75rem] rounded-lg border text-xs font-bold transition-colors ${
+                      v < 0
+                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                        : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                    }`}
+                  >
+                    {v > 0 ? `+${v}` : v}
+                  </button>
+                ))}
+              </div>
               <Input
                 type="number"
                 value={adjustQty}
@@ -1926,9 +1943,16 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                 placeholder="+10 or -5"
                 autoFocus
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("inventory.adjustHint")}
-              </p>
+              {/* Preview new stock */}
+              {adjustQty !== "" && !isNaN(parseInt(adjustQty)) && parseInt(adjustQty) !== 0 && adjustTarget && (
+                <p className="text-xs mt-1">
+                  <span className="text-muted-foreground">{t("inventory.previewCurrentStock")}: {adjustTarget.stock}</span>
+                  {" → "}
+                  <span className={`font-semibold ${adjustTarget.stock + parseInt(adjustQty) < 0 ? "text-amber-600" : "text-green-700"}`}>
+                    {adjustTarget.stock + parseInt(adjustQty)}
+                  </span>
+                </p>
+              )}
             </div>
             {shopType === "fifo" && parseInt(adjustQty) > 0 && (
               <div>

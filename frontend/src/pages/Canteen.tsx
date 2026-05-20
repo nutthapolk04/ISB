@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucide-react";
+import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
@@ -47,6 +47,7 @@ import { QrPaymentModal } from "./canteen/QrPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
+import { CardTapModal } from "./canteen/CardTapModal";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
@@ -91,6 +92,7 @@ export default function Canteen() {
   const [qrOpen, setQrOpen] = useState(false);
   const [deptOpen, setDeptOpen] = useState(false);
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
+  const [cardTapOpen, setCardTapOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
@@ -537,6 +539,15 @@ export default function Canteen() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setCardTapOpen(true)}
+              className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("canteen.pos.tapCard", "แตะบัตร")}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setMemberSearchOpen(true)}
               className="gap-1.5"
             >
@@ -740,6 +751,15 @@ export default function Canteen() {
         onSelect={(member) => {
           setPreSelectedMember(member);
           setMemberSearchOpen(false);
+        }}
+      />
+      <CardTapModal
+        open={cardTapOpen}
+        onOpenChange={setCardTapOpen}
+        currentMember={preSelectedMember}
+        onSelect={(member) => {
+          setPreSelectedMember(member);
+          setCardTapOpen(false);
         }}
       />
       <CashierTopupModal
