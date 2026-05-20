@@ -1457,7 +1457,7 @@
     "backToManagement": "Shop Management",
     "closeDay": "Up-to-date Sale",
     "upToDateSale": "Up-to-date Sale",
-    "closeDayConfirm": "Today's Income — {{date}}",
+    "closeDayConfirm": "Up-to-date Sale — {{date}}",
     "closeDayDescription": "Current day sales summary for this shop.",
     "totalOrders": "Total Orders",
     "totalRevenue": "Total Revenue",
@@ -1474,7 +1474,7 @@
     "paymentCard": "Card",
     "exportCsv": "Export CSV",
     "printSlip": "Print Slip",
-    "closeDayFailed": "Failed to fetch today's income",
+    "closeDayFailed": "Failed to fetch up-to-date sale",
     "closeDayLoading": "Loading…",
     "products": {
       "colorLabel": "Card color",
