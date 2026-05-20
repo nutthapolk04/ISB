@@ -44,8 +44,9 @@ def create_audit_log(
     safe_action = action if action in KNOWN_ACTIONS else "update"
 
     changes_json = json.dumps(changes, default=str)
+    # Use a savepoint so audit log failure never rolls back the main transaction
     try:
-        # Use explicit cast via SQL function to avoid ::jsonb syntax issues with psycopg2
+        sp = db.begin_nested()
         db.execute(
             text("""
                 INSERT INTO audit_logs
@@ -64,6 +65,7 @@ def create_audit_log(
                 "user_id": user_id,
             },
         )
+        sp.commit()
     except Exception:
-        # Audit log failure must never break the main operation — swallow silently
-        db.rollback()
+        # Roll back only the savepoint — main transaction stays intact
+        sp.rollback()
