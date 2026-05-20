@@ -1478,7 +1478,8 @@
     "products": {
       "colorLabel": "Card color",
       "colorHint": "Used as background when no photo is set",
-      "colorClear": "Clear"
+      "colorClear": "Clear",
+      "editErrorTitle": "Update Failed"
     },
     "rfidModal": {
       "title": "Tap Card or Enter Code",

@@ -1478,7 +1478,8 @@
     "products": {
       "colorLabel": "สีการ์ด",
       "colorHint": "ใช้เป็นพื้นหลังเมื่อไม่มีรูปภาพ",
-      "colorClear": "ล้าง"
+      "colorClear": "ล้าง",
+      "editErrorTitle": "แก้ไขไม่ได้"
     },
     "rfidModal": {
       "title": "แตะบัตรหรือใส่รหัส",

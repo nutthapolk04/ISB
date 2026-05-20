@@ -335,21 +335,11 @@ export function CanteenCart({
                       {/* Per-item discount row */}
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-[10px] text-muted-foreground">ส่วนลด:</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="any"
-                          placeholder="0"
-                          value={item.lineDiscountValue ?? ""}
-                          onChange={(e) => {
-                            const raw = parseFloat(e.target.value);
-                            const mode = item.lineDiscountMode ?? "percent";
-                            const max = mode === "percent" ? 100 : unit * item.quantity;
-                            const v = isNaN(raw) ? null : Math.min(Math.max(0, raw), max);
-                            onSetLineDiscount(item.cartLineId, v, mode);
-                          }}
-                          className="h-5 w-14 text-right text-[10px] px-1"
-                        />
+                        {(item.lineDiscountValue ?? 0) > 0 && (
+                          <span className="text-[10px] font-medium text-amber-700">
+                            {item.lineDiscountValue}{item.lineDiscountMode === "percent" ? "%" : "฿"}
+                          </span>
+                        )}
                         <DiscountShortcutPopover
                           cartLineId={item.cartLineId}
                           currentValue={item.lineDiscountValue}

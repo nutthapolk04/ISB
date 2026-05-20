@@ -1031,15 +1031,23 @@ function EditDialog({ shopId, product, categoryNames, usesDualPricing, onClose, 
             </div>
           )}
         </div>
-        {editError && (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            <span className="mt-0.5 shrink-0">⚠</span>
-            <span>{editError}</span>
-          </div>
-        )}
+        <AlertDialog open={!!editError} onOpenChange={(v) => { if (!v) setEditError(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive">
+                {t("canteen.products.editErrorTitle", "แก้ไขไม่ได้")}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="whitespace-pre-wrap">
+                {editError}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setEditError(null)}>
+                {t("common.close", "ปิด")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t("common.cancel")}

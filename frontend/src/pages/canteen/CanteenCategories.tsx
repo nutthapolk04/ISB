@@ -40,19 +40,29 @@ export interface ShopCategory {
   name: string;
 }
 
-interface CountByCategory {
-  [categoryName: string]: number;
+interface ShopProduct {
+  id: number;
+  category: string | null;
+  is_active: boolean;
 }
 
 interface Props {
   shopId: string;
-  /** Optional item counts per category name (for delete warning). */
-  itemCounts?: CountByCategory;
 }
 
-export default function CanteenCategories({ shopId, itemCounts = {} }: Props) {
+export default function CanteenCategories({ shopId }: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["canteen-products", shopId],
+    queryFn: () => api.get<ShopProduct[]>(`/shops/${shopId}/products?include_inactive=true`),
+  });
+
+  const itemCounts: Record<string, number> = {};
+  for (const p of products) {
+    if (p.category) itemCounts[p.category] = (itemCounts[p.category] ?? 0) + 1;
+  }
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["shop-categories", shopId],
