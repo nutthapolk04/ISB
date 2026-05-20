@@ -139,12 +139,17 @@ export default function Canteen() {
   // Mobile cart sheet (shown below lg breakpoint).
   const [cartOpen, setCartOpen] = useState(false);
 
-  // ── Passive RFID listener ─────────────────────────────────────────────────
-  // RFID readers emit keypresses very fast, then send Enter.
-  // We buffer chars arriving within 150 ms of each other.
-  // Ignored when user is focused in an input / textarea.
+  // ── Passive RFID listener (capture phase) ────────────────────────────────
+  // RFID readers emit keypresses as fast keyboard input, ending with Enter.
+  // Uses capture phase (true) so we intercept BEFORE focused inputs receive chars.
+  // Strategy:
+  //   - Buffer chars arriving < 50 ms apart (RFID speed)
+  //   - On 2nd+ fast char: enter rfidMode → preventDefault to stop chars going into inputs
+  //   - On Enter in rfidMode: lookup and clear search box (first char may have slipped in)
+  //   - Gap > 100 ms resets buffer (human typing)
   const rfidBuffer = useRef<string>("");
   const rfidLastKey = useRef<number>(0);
+  const rfidMode = useRef<boolean>(false);
 
   useEffect(() => {
     function userToStudent(u: UserPayerLookup): StudentLookupResult {
@@ -165,24 +170,20 @@ export default function Canteen() {
       if (!trimmed || trimmed.length < 3) return;
       try {
         let result: StudentLookupResult | null = null;
-        // 1. Customer by card UID
         try {
           result = await api.get<StudentLookupResult>(`/customers/by-card/${encodeURIComponent(trimmed)}`);
         } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-        // 2. User by card UID
         if (!result) {
           try {
             const u = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(trimmed)}`);
             result = userToStudent(u);
           } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
         }
-        // 3. Customer by code
         if (!result) {
           try {
             result = await api.get<StudentLookupResult>(`/customers/by-code/${encodeURIComponent(trimmed)}`);
           } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
         }
-        // 4. User by username
         if (!result) {
           try {
             const u = await api.get<UserPayerLookup>(`/users/by-username/${encodeURIComponent(trimmed)}`);
@@ -191,6 +192,7 @@ export default function Canteen() {
         }
         if (result) {
           setPreSelectedMember(result);
+          setSearch(""); // clear search box in case first RFID char slipped in
           const bal = result.wallet_balance != null ? ` · ฿${Number(result.wallet_balance).toFixed(2)}` : "";
           toast.success(`${result.name}${bal}`);
         } else {
@@ -202,31 +204,52 @@ export default function Canteen() {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) return;
-
       const now = Date.now();
-      // Reset buffer if gap > 150 ms (human typing, not RFID)
-      if (now - rfidLastKey.current > 150 && rfidBuffer.current.length > 0) {
-        rfidBuffer.current = "";
-      }
-      rfidLastKey.current = now;
+      const gap = now - rfidLastKey.current;
 
       if (e.key === "Enter") {
-        const captured = rfidBuffer.current;
+        if (rfidMode.current && rfidBuffer.current.length >= 3) {
+          e.preventDefault();
+          e.stopPropagation();
+          const captured = rfidBuffer.current;
+          rfidBuffer.current = "";
+          rfidMode.current = false;
+          rfidLastKey.current = 0;
+          void lookupAndSet(captured);
+        } else {
+          // Not RFID — reset
+          rfidBuffer.current = "";
+          rfidMode.current = false;
+        }
+        return;
+      }
+
+      if (e.key.length !== 1) return;
+
+      // Reset if gap too large (human typing pace)
+      if (gap > 100 && rfidBuffer.current.length > 0) {
         rfidBuffer.current = "";
-        void lookupAndSet(captured);
-      } else if (e.key.length === 1) {
-        rfidBuffer.current += e.key;
+        rfidMode.current = false;
+      }
+
+      rfidLastKey.current = now;
+      rfidBuffer.current += e.key;
+
+      // 2nd+ char within 50 ms → RFID reader speed detected
+      if (gap < 50 && rfidBuffer.current.length >= 2) {
+        rfidMode.current = true;
+      }
+
+      // In RFID mode: prevent char from reaching any focused input
+      if (rfidMode.current) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    // capture: true — fires before focused element receives the event
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, []);
   // ─────────────────────────────────────────────────────────────────────────
 
