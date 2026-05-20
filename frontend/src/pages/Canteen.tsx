@@ -141,11 +141,13 @@ export default function Canteen() {
 
   // ── RFID centered notification ────────────────────────────────────────────
   const [rfidNotif, setRfidNotif] = useState<{
+    key: number;
     type: "success" | "error";
     title: string;
     sub?: string;
   } | null>(null);
   const rfidNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rfidNotifKey = useRef(0);
 
   // ── Passive RFID listener (capture phase) ────────────────────────────────
   // RFID readers emit keypresses as fast keyboard input, ending with Enter.
@@ -175,7 +177,8 @@ export default function Canteen() {
 
     function showRfidNotif(notif: { type: "success" | "error"; title: string; sub?: string }) {
       if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
-      setRfidNotif(notif);
+      rfidNotifKey.current += 1;
+      setRfidNotif({ ...notif, key: rfidNotifKey.current });
       rfidNotifTimer.current = setTimeout(() => setRfidNotif(null), 2500);
     }
 
@@ -212,10 +215,10 @@ export default function Canteen() {
             : undefined;
           showRfidNotif({ type: "success", title: result.name, sub: bal });
         } else {
-          showRfidNotif({ type: "error", title: "ไม่พบบัตรนี้ในระบบ" });
+          showRfidNotif({ type: "error", title: "Card not found" });
         }
       } catch {
-        showRfidNotif({ type: "error", title: "ไม่พบบัตรนี้ในระบบ" });
+        showRfidNotif({ type: "error", title: "Card not found" });
       }
     }
 
@@ -670,15 +673,6 @@ export default function Canteen() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCardTapOpen(true)}
-              className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
-            >
-              <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("canteen.pos.tapCard", "แตะบัตร")}</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={() => setMemberSearchOpen(true)}
               className="gap-1.5"
             >
@@ -979,6 +973,7 @@ export default function Canteen() {
       {rfidNotif && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div
+            key={rfidNotif.key}
             className={cn(
               "relative rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
               "animate-in fade-in zoom-in-95 duration-150 pointer-events-auto",
@@ -1004,6 +999,11 @@ export default function Canteen() {
             </button>
             {rfidNotif.type === "success" ? (
               <>
+                <div className="flex justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </div>
                 <div className="text-xl font-bold text-amber-900 leading-tight">
                   {rfidNotif.title}
                 </div>
@@ -1014,9 +1014,16 @@ export default function Canteen() {
                 )}
               </>
             ) : (
-              <div className="text-base font-semibold text-red-700">
-                {rfidNotif.title}
-              </div>
+              <>
+                <div className="flex justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                  </svg>
+                </div>
+                <div className="text-base font-semibold text-red-700">
+                  {rfidNotif.title}
+                </div>
+              </>
             )}
           </div>
         </div>

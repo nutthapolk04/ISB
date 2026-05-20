@@ -66,7 +66,7 @@ import {
 import { PaymentMethodPicker, type CanteenPaymentMethod } from "./canteen/PaymentMethodPicker";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
-import { RfidPaymentModal, type WalletPayer, type StudentLookupResult } from "./canteen/RfidPaymentModal";
+import { RfidPaymentModal, type WalletPayer, type StudentLookupResult, type UserPayerLookup } from "./canteen/RfidPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { EdcPaymentModal } from "./store/EdcPaymentModal";
@@ -401,6 +401,127 @@ const Store = () => {
   const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
   // Pre-selected member from search (for direct wallet charge)
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
+
+  // ── RFID centered notification ────────────────────────────────────────────
+  const [rfidNotif, setRfidNotif] = useState<{
+    key: number;
+    type: "success" | "error";
+    title: string;
+    sub?: string;
+  } | null>(null);
+  const rfidNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rfidNotifKey = useRef(0);
+
+  // ── Passive RFID listener (capture phase) ────────────────────────────────
+  const rfidBuffer = useRef<string>("");
+  const rfidLastKey = useRef<number>(0);
+  const rfidMode = useRef<boolean>(false);
+
+  useEffect(() => {
+    function userToStudent(u: UserPayerLookup): StudentLookupResult {
+      return {
+        id: u.user_id,
+        name: u.full_name,
+        photo_url: u.photo_url ?? null,
+        customer_code: u.username,
+        wallet_balance: u.wallet_balance,
+        wallet_id: u.wallet_id,
+        customer_kind: u.role,
+        user_id: u.user_id,
+      };
+    }
+
+    function showRfidNotif(notif: { type: "success" | "error"; title: string; sub?: string }) {
+      if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
+      rfidNotifKey.current += 1;
+      setRfidNotif({ ...notif, key: rfidNotifKey.current });
+      rfidNotifTimer.current = setTimeout(() => setRfidNotif(null), 2500);
+    }
+
+    async function lookupAndSet(q: string) {
+      const trimmed = q.trim();
+      if (!trimmed || trimmed.length < 3) return;
+      try {
+        let result: StudentLookupResult | null = null;
+        try {
+          result = await api.get<StudentLookupResult>(`/customers/by-card/${encodeURIComponent(trimmed)}`);
+        } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        if (!result) {
+          try {
+            const u = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(trimmed)}`);
+            result = userToStudent(u);
+          } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        }
+        if (!result) {
+          try {
+            result = await api.get<StudentLookupResult>(`/customers/by-code/${encodeURIComponent(trimmed)}`);
+          } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        }
+        if (!result) {
+          try {
+            const u = await api.get<UserPayerLookup>(`/users/by-username/${encodeURIComponent(trimmed)}`);
+            result = userToStudent(u);
+          } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        }
+        if (result) {
+          setPreSelectedMember(result);
+          const bal = result.wallet_balance != null
+            ? `฿${Number(result.wallet_balance).toFixed(2)}`
+            : undefined;
+          showRfidNotif({ type: "success", title: result.name, sub: bal });
+        } else {
+          showRfidNotif({ type: "error", title: "Card not found" });
+        }
+      } catch {
+        showRfidNotif({ type: "error", title: "Card not found" });
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const now = Date.now();
+      const gap = now - rfidLastKey.current;
+
+      if (e.key === "Enter") {
+        if (rfidMode.current && rfidBuffer.current.length >= 3) {
+          e.preventDefault();
+          e.stopPropagation();
+          const captured = rfidBuffer.current;
+          rfidBuffer.current = "";
+          rfidMode.current = false;
+          rfidLastKey.current = 0;
+          void lookupAndSet(captured);
+        } else {
+          rfidBuffer.current = "";
+          rfidMode.current = false;
+        }
+        return;
+      }
+
+      if (e.key.length !== 1) return;
+
+      if (gap > 100 && rfidBuffer.current.length > 0) {
+        rfidBuffer.current = "";
+        rfidMode.current = false;
+      }
+
+      rfidLastKey.current = now;
+      rfidBuffer.current += e.key;
+
+      if (gap < 50 && rfidBuffer.current.length >= 2) {
+        rfidMode.current = true;
+      }
+
+      if (rfidMode.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Special item (price=0) — cashier must enter price before adding
   const [specialItemTarget, setSpecialItemTarget] = useState<Product | null>(null);
   const [specialItemPrice, setSpecialItemPrice] = useState("");
@@ -1725,6 +1846,60 @@ const Store = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* RFID centered auto-dismiss notification */}
+      {rfidNotif && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div
+            key={rfidNotif.key}
+            className={cn(
+              "relative rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
+              "animate-in fade-in zoom-in-95 duration-150 pointer-events-auto",
+              rfidNotif.type === "success"
+                ? "bg-amber-50 border-2 border-amber-300"
+                : "bg-red-50 border-2 border-red-300",
+            )}
+          >
+            <button
+              onClick={() => {
+                if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
+                setRfidNotif(null);
+              }}
+              className={cn(
+                "absolute top-2 right-2 rounded-full p-1 hover:bg-black/10 transition-colors",
+                rfidNotif.type === "success" ? "text-amber-500" : "text-red-400",
+              )}
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            {rfidNotif.type === "success" ? (
+              <>
+                <div className="flex justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </div>
+                <div className="text-xl font-bold text-amber-900 leading-tight">{rfidNotif.title}</div>
+                {rfidNotif.sub && (
+                  <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">{rfidNotif.sub}</div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                  </svg>
+                </div>
+                <div className="text-base font-semibold text-red-700">{rfidNotif.title}</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
