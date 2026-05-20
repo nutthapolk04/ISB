@@ -40,6 +40,7 @@ import {
 import {
   RfidPaymentModal,
   type StudentLookupResult,
+  type UserPayerLookup,
   type WalletPayer,
 } from "./canteen/RfidPaymentModal";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
@@ -137,6 +138,97 @@ export default function Canteen() {
 
   // Mobile cart sheet (shown below lg breakpoint).
   const [cartOpen, setCartOpen] = useState(false);
+
+  // ── Passive RFID listener ─────────────────────────────────────────────────
+  // RFID readers emit keypresses very fast, then send Enter.
+  // We buffer chars arriving within 150 ms of each other.
+  // Ignored when user is focused in an input / textarea.
+  const rfidBuffer = useRef<string>("");
+  const rfidLastKey = useRef<number>(0);
+
+  useEffect(() => {
+    function userToStudent(u: UserPayerLookup): StudentLookupResult {
+      return {
+        id: u.user_id,
+        name: u.full_name,
+        photo_url: u.photo_url ?? null,
+        customer_code: u.username,
+        wallet_balance: u.wallet_balance,
+        wallet_id: u.wallet_id,
+        customer_kind: u.role,
+        user_id: u.user_id,
+      };
+    }
+
+    async function lookupAndSet(q: string) {
+      const trimmed = q.trim();
+      if (!trimmed || trimmed.length < 3) return;
+      try {
+        let result: StudentLookupResult | null = null;
+        // 1. Customer by card UID
+        try {
+          result = await api.get<StudentLookupResult>(`/customers/by-card/${encodeURIComponent(trimmed)}`);
+        } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        // 2. User by card UID
+        if (!result) {
+          try {
+            const u = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(trimmed)}`);
+            result = userToStudent(u);
+          } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        }
+        // 3. Customer by code
+        if (!result) {
+          try {
+            result = await api.get<StudentLookupResult>(`/customers/by-code/${encodeURIComponent(trimmed)}`);
+          } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        }
+        // 4. User by username
+        if (!result) {
+          try {
+            const u = await api.get<UserPayerLookup>(`/users/by-username/${encodeURIComponent(trimmed)}`);
+            result = userToStudent(u);
+          } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
+        }
+        if (result) {
+          setPreSelectedMember(result);
+          const bal = result.wallet_balance != null ? ` · ฿${Number(result.wallet_balance).toFixed(2)}` : "";
+          toast.success(`${result.name}${bal}`);
+        } else {
+          toast.error("ไม่พบบัตรนี้ในระบบ");
+        }
+      } catch {
+        toast.error("ไม่พบบัตรนี้ในระบบ");
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) return;
+
+      const now = Date.now();
+      // Reset buffer if gap > 150 ms (human typing, not RFID)
+      if (now - rfidLastKey.current > 150 && rfidBuffer.current.length > 0) {
+        rfidBuffer.current = "";
+      }
+      rfidLastKey.current = now;
+
+      if (e.key === "Enter") {
+        const captured = rfidBuffer.current;
+        rfidBuffer.current = "";
+        void lookupAndSet(captured);
+      } else if (e.key.length === 1) {
+        rfidBuffer.current += e.key;
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleProductTap = (product: CanteenProduct) => {
     if (product.price === 0) {
