@@ -223,7 +223,7 @@ onUnmounted(() => {
               </div>
               <p class="balance-sub">{{ currT.balance }} {{ currT.balanceUnit }}</p>
             </div>
-            <button class="logout-icon-btn" @click.stop="handleLogout" v-if="index === 0">
+            <button class="logout-icon-btn" @click.stop="handleLogout">
               <LogOut :size="24" />
             </button>
           </div>

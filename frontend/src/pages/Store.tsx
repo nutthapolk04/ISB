@@ -959,40 +959,6 @@ const Store = () => {
         )}
       </div>
 
-      {/* Pricing toggle */}
-      <div className="px-4 py-3 border-b border-border/40 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            {t("store.priceMode")}
-          </span>
-          <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-            {(["retail", "internal"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setPriceMode(mode)}
-                className={cn(
-                  "px-3 py-1 text-xs font-semibold rounded-full transition",
-                  priceMode === mode
-                    ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {mode === "retail" ? t("store.retail", "Retail") : t("store.internal", "Internal")}
-              </button>
-            ))}
-          </div>
-        </div>
-        {priceMode === "internal" && (
-          <div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {t("requisition.requester", "Requester")}
-            </span>
-            <UserPicker value={requesterUserId} onChange={(id) => setRequesterUserId(id)} className="mt-1" />
-          </div>
-        )}
-      </div>
-
       {/* Selected Member */}
       {preSelectedMember && (
         <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
@@ -1212,27 +1178,47 @@ const Store = () => {
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              {t("store.billDiscount")}
-            </span>
-            <div className="flex items-center gap-1">
-              <Input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={billDiscountValue}
-                onChange={(e) => setBillDiscountValue(e.target.value)}
-                className="h-7 w-16 text-right text-xs"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs font-bold"
-                onClick={() => setBillDiscountMode((m) => (m === "percent" ? "amount" : "percent"))}
-              >
-                {billDiscountMode === "percent" ? "%" : "฿"}
-              </Button>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">
+                {t("store.billDiscount")}
+              </span>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={billDiscountValue}
+                  onChange={(e) => setBillDiscountValue(e.target.value)}
+                  className="h-7 w-16 text-right text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs font-bold"
+                  onClick={() => setBillDiscountMode((m) => (m === "percent" ? "amount" : "percent"))}
+                >
+                  {billDiscountMode === "percent" ? "%" : "฿"}
+                </Button>
+              </div>
+            </div>
+            {/* Discount shortcuts */}
+            <div className="flex gap-1">
+              {(billDiscountMode === "percent" ? [5, 10, 15, 20] : [10, 20, 50, 100]).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setBillDiscountValue(String(q))}
+                  className={cn(
+                    "flex-1 h-6 rounded text-[10px] font-semibold border transition",
+                    parseFloat(billDiscountValue) === q
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-border bg-muted/50 text-muted-foreground hover:border-amber-400 hover:text-foreground",
+                  )}
+                >
+                  {billDiscountMode === "percent" ? `${q}%` : `฿${q}`}
+                </button>
+              ))}
             </div>
           </div>
 
