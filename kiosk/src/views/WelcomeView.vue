@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
-import { CreditCard, Languages, MousePointer2 } from 'lucide-vue-next';
+import { CreditCard, Languages } from 'lucide-vue-next';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -17,26 +17,87 @@ const goToManual = () => {
   router.push('/manual-input');
 };
 
-// Mock RFID Tap simulation for demo
-const simulateTap = async () => {
-  const success = await store.login('1234567890', 'rfid');
+const rfidError = ref(false);
+
+// ── Passive RFID capture-phase listener ─────────────────────────────────────
+// RFID readers emit fast keypresses ending with Enter.
+// Uses capture phase so it intercepts even when an input is focused.
+const rfidBuffer = ref('');
+const rfidLastKey = ref(0);
+const rfidMode = ref(false);
+
+async function handleRfidLogin(code: string) {
+  const success = await store.login(code.trim(), 'rfid');
   if (success) {
     router.push('/balance');
+  } else {
+    rfidError.value = true;
+    setTimeout(() => { rfidError.value = false; }, 2500);
   }
-};
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  const now = Date.now();
+  const gap = now - rfidLastKey.value;
+
+  if (e.key === 'Enter') {
+    if (rfidMode.value && rfidBuffer.value.length >= 3) {
+      e.preventDefault();
+      e.stopPropagation();
+      const captured = rfidBuffer.value;
+      rfidBuffer.value = '';
+      rfidMode.value = false;
+      rfidLastKey.value = 0;
+      void handleRfidLogin(captured);
+    } else {
+      rfidBuffer.value = '';
+      rfidMode.value = false;
+    }
+    return;
+  }
+
+  if (e.key.length !== 1) return;
+
+  if (gap > 100 && rfidBuffer.value.length > 0) {
+    rfidBuffer.value = '';
+    rfidMode.value = false;
+  }
+
+  rfidLastKey.value = now;
+  rfidBuffer.value += e.key;
+
+  if (gap < 50 && rfidBuffer.value.length >= 2) {
+    rfidMode.value = true;
+  }
+
+  if (rfidMode.value) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown, true);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown, true);
+});
 
 const t = {
   EN: {
     welcome: 'Welcome',
     sub: 'Please tap your card',
     manual: 'Manual Input',
-    lang: 'ภาษาไทย'
+    lang: 'ภาษาไทย',
+    cardNotFound: 'Card not found',
   },
   TH: {
     welcome: 'ยินดีต้อนรับ',
     sub: 'กรุณาแตะบัตรของคุณ',
     manual: 'กรอกเลขบัตรเอง',
-    lang: 'English'
+    lang: 'English',
+    cardNotFound: 'ไม่พบบัตรนี้ในระบบ',
   }
 };
 </script>
@@ -61,9 +122,9 @@ const t = {
       <h2 v-if="store.schoolInfo.school_name" class="school-name">{{ store.schoolInfo.school_name }}</h2>
     </div>
 
-    <div class="welcome-content" @click="simulateTap">
+    <div class="welcome-content">
       <div class="rfid-animation mb-8">
-        <div class="card-icon pulse-animation">
+        <div class="card-icon pulse-animation" :class="{ 'card-error': rfidError }">
           <CreditCard :size="120" stroke-width="1.5" />
         </div>
         <div class="rfid-waves">
@@ -75,11 +136,7 @@ const t = {
 
       <h1 class="mb-4">{{ currT.welcome }}</h1>
       <p class="text-muted text-center mb-12">{{ currT.sub }}</p>
-
-      <div class="hint-demo">
-        <MousePointer2 :size="20" />
-        <span>Tap card icon for demo</span>
-      </div>
+      <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
     </div>
 
     <div class="action-footer">
@@ -148,14 +205,17 @@ const t = {
 .text-muted { color: var(--text-muted); font-size: 1.75rem; }
 .text-center { text-align: center; }
 
-.hint-demo {
-  margin-top: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-muted);
-  font-size: 1rem;
-  opacity: 0.6;
+.card-error .card-icon {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.rfid-error-msg {
+  margin-top: 1rem;
+  color: #ef4444;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
 }
 
 .school-brand {

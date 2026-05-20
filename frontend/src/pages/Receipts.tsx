@@ -14,7 +14,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Search, Eye, Download, Loader2, Ban, CalendarDays } from "lucide-react";
+import { Receipt, Search, Eye, Download, Loader2, Ban } from "lucide-react";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -286,14 +287,16 @@ const Receipts = () => {
   // ── Structured search fields (inputs) ──────────────────────────────────
   const [searchReceiptId, setSearchReceiptId] = useState("");
   const [searchPayer, setSearchPayer] = useState("");
-  const [searchDate, setSearchDate] = useState("");
+  const [searchDateFrom, setSearchDateFrom] = useState("");
+  const [searchDateTo, setSearchDateTo] = useState("");
   const [searchPaymentType, setSearchPaymentType] = useState("all");
 
   // Applied criteria — only updated when Search button is clicked
   const [appliedSearch, setAppliedSearch] = useState({
     receiptId: "",
     payer: "",
-    date: "",
+    dateFrom: "",
+    dateTo: "",
     paymentType: "all",
   });
 
@@ -301,7 +304,8 @@ const Receipts = () => {
     setAppliedSearch({
       receiptId: searchReceiptId.trim(),
       payer: searchPayer.trim(),
-      date: searchDate,
+      dateFrom: searchDateFrom,
+      dateTo: searchDateTo,
       paymentType: searchPaymentType,
     });
     setCurrentPage(1);
@@ -310,9 +314,10 @@ const Receipts = () => {
   const handleClearSearch = () => {
     setSearchReceiptId("");
     setSearchPayer("");
-    setSearchDate("");
+    setSearchDateFrom("");
+    setSearchDateTo("");
     setSearchPaymentType("all");
-    setAppliedSearch({ receiptId: "", payer: "", date: "", paymentType: "all" });
+    setAppliedSearch({ receiptId: "", payer: "", dateFrom: "", dateTo: "", paymentType: "all" });
     setCurrentPage(1);
   };
 
@@ -381,13 +386,15 @@ const Receipts = () => {
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const filteredReceipts = receipts.filter((r) => {
-    const { receiptId, payer, date, paymentType } = appliedSearch;
+    const { receiptId, payer, dateFrom, dateTo, paymentType } = appliedSearch;
     if (receiptId && !r.receipt_number.toLowerCase().includes(receiptId.toLowerCase())) return false;
     if (payer) {
       const q = payer.toLowerCase();
       if (!(r.payer_label ?? "").toLowerCase().includes(q)) return false;
     }
-    if (date && fmtDateOnly(r.transaction_date) !== date) return false;
+    const txDate = fmtDateOnly(r.transaction_date);
+    if (dateFrom && txDate < dateFrom) return false;
+    if (dateTo && txDate > dateTo) return false;
     if (paymentType !== "all" && r.payment_method !== paymentType) return false;
     return true;
   });
@@ -395,7 +402,8 @@ const Receipts = () => {
   const hasActiveSearch =
     appliedSearch.receiptId !== "" ||
     appliedSearch.payer !== "" ||
-    appliedSearch.date !== "" ||
+    appliedSearch.dateFrom !== "" ||
+    appliedSearch.dateTo !== "" ||
     appliedSearch.paymentType !== "all";
 
   // ── Pagination ──────────────────────────────────────────────────────────
@@ -548,17 +556,16 @@ const Receipts = () => {
               />
             </div>
 
-            {/* Purchase Date */}
+            {/* Purchase Date Range */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <CalendarDays className="h-3 w-3" />
+              <label className="text-xs font-medium text-muted-foreground">
                 {t("receipts.searchPanel.date", "Purchase Date")}
               </label>
-              <Input
-                type="date"
-                value={searchDate}
-                onChange={(e) => setSearchDate(e.target.value)}
-                className="cursor-pointer"
+              <DateRangePicker
+                startDate={searchDateFrom}
+                endDate={searchDateTo}
+                onStartChange={setSearchDateFrom}
+                onEndChange={setSearchDateTo}
               />
             </div>
 
@@ -619,9 +626,9 @@ const Receipts = () => {
                   {t("receipts.searchPanel.chipPayer")}: {appliedSearch.payer}
                 </span>
               )}
-              {appliedSearch.date && (
+              {(appliedSearch.dateFrom || appliedSearch.dateTo) && (
                 <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  {t("receipts.searchPanel.chipDate")}: {appliedSearch.date}
+                  {t("receipts.searchPanel.chipDate")}: {appliedSearch.dateFrom || "…"} → {appliedSearch.dateTo || "…"}
                 </span>
               )}
               {appliedSearch.paymentType !== "all" && (
