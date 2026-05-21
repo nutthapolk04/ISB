@@ -29,3 +29,12 @@ Thumbs.db
 
 # Lock files (keep package-lock.json)
 bun.lockb
+
+# Database dumps (may contain prod data + credentials)
+*.dump
+*.sql.gz
+backend/venv/
+*.tsbuildinfo
+
+# Personal Claude Code settings (per-machine, not for team)
+.claude/settings.local.json
