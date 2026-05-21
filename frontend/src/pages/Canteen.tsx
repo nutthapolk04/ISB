@@ -20,12 +20,29 @@ import {
 } from "@/components/ui/dialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet } from "lucide-react";
+import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet, ArrowUpDown, Check as CheckIcon } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
 import type { SelectedOptionGroup } from "./canteen/menuOptionTypes";
 import { CategoryTabs } from "./canteen/CategoryTabs";
@@ -73,12 +90,83 @@ interface CheckoutResponse {
 }
 
 export default function Canteen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const schoolInfo = useSchoolInfo();
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
   const cart = useCanteenCart();
   const [products, setProducts] = useState<CanteenProduct[]>([]);
+
+  // ── Product color editing (palette popover on tile) ─────────────────────
+  const [colorEditId, setColorEditId] = useState<number | null>(null);
+  const [colorSaving, setColorSaving] = useState(false);
+
+  // ── Product reorder (drag-and-drop on POS grid) ─────────────────────────
+  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderDirty, setReorderDirty] = useState(false);
+  const [reorderSaving, setReorderSaving] = useState(false);
+  const [productsOrderVersion, setProductsOrderVersion] = useState<number | null>(null);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setProducts((prev) => {
+      const oldIdx = prev.findIndex((p) => String(p.id) === String(active.id));
+      const newIdx = prev.findIndex((p) => String(p.id) === String(over.id));
+      if (oldIdx === -1 || newIdx === -1) return prev;
+      setReorderDirty(true);
+      return arrayMove(prev, oldIdx, newIdx);
+    });
+  };
+
+  const saveReorder = async () => {
+    setReorderSaving(true);
+    try {
+      const sortMap: Record<string, number> = {};
+      products.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
+      const version = productsOrderVersion ?? 1;
+      const res = await api.post<{ version: number; updated: number }>(
+        `/shops/${CANTEEN_SHOP_ID}/products/reorder`,
+        { version, sort_map: sortMap },
+      );
+      setProductsOrderVersion(res.version);
+      setReorderDirty(false);
+      setReorderMode(false);
+      toast.success("จัดลำดับแล้ว");
+    } catch (e: any) {
+      if (e?.status === 409 || e?.detail?.current_version) {
+        toast.error("คนอื่นเปลี่ยนลำดับก่อนแล้ว — กรุณารีเฟรชแล้วลองใหม่");
+        const newVer = e?.detail?.current_version;
+        if (newVer) setProductsOrderVersion(newVer);
+      } else {
+        toast.error(e instanceof ApiError ? e.detail : "บันทึกลำดับไม่สำเร็จ");
+      }
+    } finally {
+      setReorderSaving(false);
+    }
+  };
+
+  const saveProductColor = async (product: CanteenProduct, color: string | null) => {
+    setColorSaving(true);
+    try {
+      await api.patch(`/shops/${CANTEEN_SHOP_ID}/products/${product.id}`, { color });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, color } : p)),
+      );
+      toast.success(t("store.colorSaved", "Color updated"));
+      setColorEditId(null);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail : "Failed to save color");
+    } finally {
+      setColorSaving(false);
+    }
+  };
   const [productsLoading, setProductsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -111,8 +199,11 @@ export default function Canteen() {
         if (!cancelled) setDepartmentOptions(data);
       } catch { /* tolerate */ }
       try {
-        const meta = await api.get<{ allow_department_charge?: boolean }>(`/shops/${CANTEEN_SHOP_ID}`);
-        if (!cancelled) setShopAllowsDept(meta.allow_department_charge ?? false);
+        const meta = await api.get<{ allow_department_charge?: boolean; products_order_version?: number }>(`/shops/${CANTEEN_SHOP_ID}`);
+        if (!cancelled) {
+          setShopAllowsDept(meta.allow_department_charge ?? false);
+          if (meta.products_order_version != null) setProductsOrderVersion(meta.products_order_version);
+        }
       } catch { /* tolerate */ }
     })();
     return () => { cancelled = true; };
@@ -420,6 +511,7 @@ export default function Canteen() {
     amount: number,
     remainingBalance: number | null,
     student?: StudentLookupResult | null,
+    fullReceipt?: ReceiptApi,
   ) => {
     setLastReceipt({
       number: receiptNumber,
@@ -429,6 +521,15 @@ export default function Canteen() {
       studentPhotoUrl: student?.photo_url ?? null,
       studentGrade: student?.grade ?? null,
     });
+    // Auto-print receipt — fires once per completed sale. Silent printing
+    // requires Chromium launched with --kiosk-printing on the cashier station.
+    if (fullReceipt) {
+      try {
+        printReceipt(fullReceipt, schoolInfo, user?.shopName, i18n.language);
+      } catch (printErr) {
+        console.warn("Auto-print failed:", printErr);
+      }
+    }
     setSuccessOpen(true);
     // Optimistic stock update
     setProducts((prev) =>
@@ -462,7 +563,7 @@ export default function Canteen() {
     try {
       const amount = cart.total;
       const res = await doCheckout("department", { kind: "department", departmentId: deptId });
-      finalizeSuccess(res.receipt_number, amount, null);
+      finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
     }
@@ -476,7 +577,7 @@ export default function Canteen() {
           kind: "department",
           departmentId: payer.department.id,
         });
-        finalizeSuccess(res.receipt_number, amount, null);
+        finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
         return;
       }
       if (payer.kind === "customer") {
@@ -491,6 +592,7 @@ export default function Canteen() {
           amount,
           currentBalance - amount,
           student,
+          res as unknown as ReceiptApi,
         );
         return;
       }
@@ -511,7 +613,7 @@ export default function Canteen() {
         grade: u.role,
         photo_url: u.photo_url ?? null,
         wallet_balance: u.wallet_balance,
-      } as StudentLookupResult);
+      } as StudentLookupResult, res as unknown as ReceiptApi);
     } catch (e) {
       if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(e.detail);
@@ -525,7 +627,7 @@ export default function Canteen() {
     try {
       const amount = cart.total;
       const res = await doCheckout("cash");
-      finalizeSuccess(res.receipt_number, amount, null);
+      finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
       toast.error(
         e instanceof ApiError ? e.detail : "Checkout failed",
@@ -537,7 +639,7 @@ export default function Canteen() {
     try {
       const amount = cart.total;
       const res = await doCheckout("other");
-      finalizeSuccess(res.receipt_number, amount, null);
+      finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
       toast.error(
         e instanceof ApiError ? e.detail : "Checkout failed",
@@ -549,7 +651,7 @@ export default function Canteen() {
     try {
       const amount = cart.total;
       const res = await doCheckout("edc");
-      finalizeSuccess(res.receipt_number, amount, null);
+      finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
       toast.error(
         e instanceof ApiError ? e.detail : "Checkout failed",
@@ -571,7 +673,7 @@ export default function Canteen() {
             kind: "department",
             departmentId: preSelectedMember.id,
           });
-          finalizeSuccess(res.receipt_number, amount, null);
+          finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
           setPreSelectedMember(null);
           return;
         }
@@ -586,6 +688,7 @@ export default function Canteen() {
           amount,
           currentBalance - amount,
           preSelectedMember,
+          res as unknown as ReceiptApi,
         );
         setPreSelectedMember(null);
       } catch (e) {
@@ -688,33 +791,89 @@ export default function Canteen() {
           </div>
         </div>
 
-        {/* Search + categories */}
+        {/* Search + categories + reorder toggle */}
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search dishes…"
-              className="pl-9 h-11 bg-card/90"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search dishes…"
+                className="pl-9 h-11 bg-card/90"
+                disabled={reorderMode}
+              />
+            </div>
+            {reorderMode ? (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setReorderMode(false); setReorderDirty(false); }}
+                  disabled={reorderSaving}
+                >
+                  ยกเลิก
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveReorder}
+                  disabled={!reorderDirty || reorderSaving}
+                  className="bg-amber-500 hover:bg-amber-600"
+                >
+                  <CheckIcon className="h-3 w-3 mr-1" />
+                  {reorderSaving ? "…" : "บันทึก"}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setReorderMode(true)}
+                className="shrink-0"
+              >
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                จัดลำดับ
+              </Button>
+            )}
           </div>
-          <CategoryTabs
-            active={activeCategory}
-            onChange={setActiveCategory}
-            counts={categoryCounts}
-          />
+          {!reorderMode && (
+            <CategoryTabs
+              active={activeCategory}
+              onChange={setActiveCategory}
+              counts={categoryCounts}
+            />
+          )}
         </div>
 
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-1 pb-24 lg:pb-2">
-          <ProductGrid
-            products={visibleProducts}
-            lastAddedProductId={null}
-            onAdd={handleProductTap}
-            loading={productsLoading}
-            priceMode={cart.priceMode}
-          />
+          {reorderMode ? (
+            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={products.map((p) => String(p.id))} strategy={rectSortingStrategy}>
+                <ProductGrid
+                  products={products}
+                  lastAddedProductId={null}
+                  onAdd={() => {}}
+                  loading={productsLoading}
+                  priceMode={cart.priceMode}
+                  reorderMode
+                />
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <ProductGrid
+              products={visibleProducts}
+              lastAddedProductId={null}
+              onAdd={handleProductTap}
+              loading={productsLoading}
+              priceMode={cart.priceMode}
+              colorEditId={colorEditId}
+              colorSaving={colorSaving}
+              onOpenColorEdit={(id) => setColorEditId(id)}
+              onCloseColorEdit={() => setColorEditId(null)}
+              onSaveColor={saveProductColor}
+            />
+          )}
         </div>
       </div>
 

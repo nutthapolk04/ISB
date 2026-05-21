@@ -21,8 +21,8 @@ interface DiscountModalProps {
   onClear: () => void;
 }
 
-const QUICK_PERCENT = [5, 10, 15, 20];
-const QUICK_AMOUNT = [10, 20, 50, 100];
+const QUICK_PERCENT = [5, 10, 15, 20, 25, 30];
+const QUICK_AMOUNT = [5, 10, 15, 20, 25];
 
 export function DiscountModal({
   open,
@@ -91,7 +91,7 @@ export function DiscountModal({
         </div>
 
         {/* Quick picks */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {quickButtons.map((q) => (
             <Button
               key={q}

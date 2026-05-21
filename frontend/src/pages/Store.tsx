@@ -8,6 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { IconButton } from "@/components/IconButton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import {
   Plus,
   Minus,
@@ -112,7 +114,7 @@ type DiscountMode = "amount" | "percent";
 
 // ── Per-item discount shortcut popover (same UX as canteen) ─────────────────
 const DISCOUNT_SHORTCUTS_PCT = [5, 10, 15, 20, 25, 30];
-const DISCOUNT_SHORTCUTS_AMT = [10, 20, 50, 100];
+const DISCOUNT_SHORTCUTS_AMT = [5, 10, 15, 20, 25];
 
 function DiscountShortcutPopover({
   itemId,
@@ -126,7 +128,13 @@ function DiscountShortcutPopover({
   onUpdate: (id: string, value: number | null, mode: DiscountMode) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const mode = currentMode ?? "percent";
+  // Local mode lets the user toggle %↔฿ inside the popover without saving
+  // a stale discount. Resets to the persisted mode each time the popover opens.
+  const [localMode, setLocalMode] = useState<DiscountMode>(currentMode ?? "percent");
+  useEffect(() => {
+    if (open) setLocalMode(currentMode ?? "percent");
+  }, [open, currentMode]);
+  const mode = localMode;
   const shortcuts = mode === "percent" ? DISCOUNT_SHORTCUTS_PCT : DISCOUNT_SHORTCUTS_AMT;
 
   return (
@@ -175,7 +183,7 @@ function DiscountShortcutPopover({
           </button>
           <button
             type="button"
-            onClick={() => { onUpdate(itemId, currentValue ?? null, mode === "percent" ? "amount" : "percent"); setOpen(false); }}
+            onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
             className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
             {mode === "percent" ? "ใช้ ฿" : "ใช้ %"}
@@ -231,8 +239,9 @@ function SortableCard({
 }
 
 const Store = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const schoolInfo = useSchoolInfo();
 
   // ── Products + shop metadata ────────────────────────────────────────────
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -489,9 +498,10 @@ const Store = () => {
   const rfidNotifKey = useRef(0);
 
   // ── Passive RFID listener (capture phase) ────────────────────────────────
+  // Keystrokes go here when no input/textarea has focus. Click the search box
+  // to type manually — focus returns to body on blur and RFID resumes.
   const rfidBuffer = useRef<string>("");
   const rfidLastKey = useRef<number>(0);
-  const rfidMode = useRef<boolean>(false);
 
   useEffect(() => {
     function userToStudent(u: UserPayerLookup): StudentLookupResult {
@@ -554,43 +564,44 @@ const Store = () => {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
+      // If the user has explicitly focused a text input (search box, dialog field,
+      // price input, etc.), let keys flow through normally. The RFID handler only
+      // acts when the page has no focused input.
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) {
+        return;
+      }
+
       const now = Date.now();
       const gap = now - rfidLastKey.current;
 
       if (e.key === "Enter") {
-        if (rfidMode.current && rfidBuffer.current.length >= 3) {
+        if (rfidBuffer.current.length >= 3) {
           e.preventDefault();
           e.stopPropagation();
           const captured = rfidBuffer.current;
           rfidBuffer.current = "";
-          rfidMode.current = false;
           rfidLastKey.current = 0;
           void lookupAndSet(captured);
         } else {
           rfidBuffer.current = "";
-          rfidMode.current = false;
         }
         return;
       }
 
       if (e.key.length !== 1) return;
 
-      if (gap > 100 && rfidBuffer.current.length > 0) {
+      // Reset stale buffer if there's been a long pause (>500ms since last key)
+      if (gap > 500 && rfidBuffer.current.length > 0) {
         rfidBuffer.current = "";
-        rfidMode.current = false;
       }
 
       rfidLastKey.current = now;
       rfidBuffer.current += e.key;
 
-      if (gap < 50 && rfidBuffer.current.length >= 2) {
-        rfidMode.current = true;
-      }
-
-      if (rfidMode.current) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      // Always intercept — page has no focused input, so all keystrokes belong to RFID.
+      e.preventDefault();
+      e.stopPropagation();
     }
 
     document.addEventListener("keydown", handleKeyDown, true);
@@ -628,14 +639,8 @@ const Store = () => {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, []);
 
-  // ── Restore search focus when all dialogs close ─────────────────────────
-  useEffect(() => {
-    const anyOpen = methodPickerOpen || walletOpen || cashOpen || qrOpen || deptOpen || edcOpen || successOpen;
-    if (!anyOpen) {
-      const id = setTimeout(() => searchInputRef.current?.focus(), 80);
-      return () => clearTimeout(id);
-    }
-  }, [methodPickerOpen, walletOpen, cashOpen, qrOpen, deptOpen, edcOpen, successOpen]);
+  // Search input no longer auto-focuses — keystrokes go to RFID handler by default.
+  // User must click the search box to type a barcode/name manually.
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const suggestions = searchTerm.trim()
@@ -751,7 +756,8 @@ const Store = () => {
     setSearchTerm("");
     setDropdownOpen(false);
     setHighlightedIndex(0);
-    searchInputRef.current?.focus();
+    // Blur search so RFID handler resumes (user can tap card immediately for next item)
+    searchInputRef.current?.blur();
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -911,6 +917,14 @@ const Store = () => {
         studentPhotoUrl: studentPhotoForReceipt,
         studentGrade: studentGradeForReceipt,
       });
+
+      // Auto-print receipt — fires once per completed sale. Silent printing
+      // requires Chromium launched with --kiosk-printing on the cashier station.
+      try {
+        printReceipt(receipt as unknown as ReceiptApi, schoolInfo, user?.shopName, i18n.language);
+      } catch (printErr) {
+        console.warn("Auto-print failed:", printErr);
+      }
 
       // Refresh stock locally (skip bundles — they use a sentinel stock value)
       setAllProducts((prev) =>
@@ -1409,7 +1423,6 @@ const Store = () => {
             placeholder={t("store.searchPlaceholder")}
             className="pl-9 font-mono text-sm h-11"
             autoComplete="off"
-            autoFocus
           />
 
           {dropdownOpen && suggestions.length > 0 && (

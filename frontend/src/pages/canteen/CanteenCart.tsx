@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,8 @@ import type {
 } from "@/hooks/useCanteenCart";
 import type { StudentLookupResult } from "./RfidPaymentModal";
 
-const DISCOUNT_SHORTCUTS = [5, 10, 15, 20, 25, 30];
+const DISCOUNT_SHORTCUTS_PCT = [5, 10, 15, 20, 25, 30];
+const DISCOUNT_SHORTCUTS_AMT = [5, 10, 15, 20, 25];
 
 function DiscountShortcutPopover({
   cartLineId,
@@ -30,10 +31,17 @@ function DiscountShortcutPopover({
   onSetLineDiscount: (id: string, value: number | null, mode: LineDiscountMode) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const mode = currentMode ?? "percent";
+  // Local mode lets the user toggle %↔฿ inside the popover without saving
+  // a stale discount. Resets to the persisted mode each time the popover opens.
+  const [localMode, setLocalMode] = useState<LineDiscountMode>(currentMode ?? "percent");
+  useEffect(() => {
+    if (open) setLocalMode(currentMode ?? "percent");
+  }, [open, currentMode]);
+  const mode = localMode;
+  const shortcuts = mode === "percent" ? DISCOUNT_SHORTCUTS_PCT : DISCOUNT_SHORTCUTS_AMT;
 
-  const handleShortcut = (pct: number) => {
-    onSetLineDiscount(cartLineId, pct, "percent");
+  const handleShortcut = (q: number) => {
+    onSetLineDiscount(cartLineId, q, mode);
     setOpen(false);
   };
 
@@ -64,21 +72,23 @@ function DiscountShortcutPopover({
         side="top"
         sideOffset={6}
       >
-        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">ส่วนลด %</p>
+        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
+          ส่วนลด {mode === "percent" ? "%" : "฿"}
+        </p>
         <div className="grid grid-cols-3 gap-1.5">
-          {DISCOUNT_SHORTCUTS.map((pct) => (
+          {shortcuts.map((q) => (
             <button
-              key={pct}
+              key={q}
               type="button"
-              onClick={() => handleShortcut(pct)}
+              onClick={() => handleShortcut(q)}
               className={cn(
                 "h-9 min-w-[3.5rem] rounded-lg border text-sm font-bold transition-colors",
-                (currentMode ?? "percent") === "percent" && currentValue === pct
+                currentValue === q && (currentMode ?? "percent") === mode
                   ? "border-amber-500 bg-amber-500 text-white"
                   : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 active:bg-amber-200",
               )}
             >
-              {pct}%
+              {mode === "percent" ? `${q}%` : `฿${q}`}
             </button>
           ))}
         </div>
@@ -88,14 +98,11 @@ function DiscountShortcutPopover({
             onClick={handleClear}
             className="flex-1 h-8 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
-            Clear / 0%
+            Clear / 0
           </button>
           <button
             type="button"
-            onClick={() => {
-              onSetLineDiscount(cartLineId, currentValue ?? null, mode === "percent" ? "amount" : "percent");
-              setOpen(false);
-            }}
+            onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
             className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
             {mode === "percent" ? "ใช้ ฿" : "ใช้ %"}

@@ -1,6 +1,8 @@
 import { ProductCard } from "./ProductCard";
 import type { CanteenProduct, PriceMode } from "@/hooks/useCanteenCart";
 import { UtensilsCrossed } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ProductGridProps {
   products: CanteenProduct[];
@@ -9,6 +11,40 @@ interface ProductGridProps {
   onAdd: (product: CanteenProduct) => void;
   loading?: boolean;
   priceMode: PriceMode;
+  /** When true, tiles render with drag handles instead of click-to-add. */
+  reorderMode?: boolean;
+  /** Color-editor popover open for this product id (null = closed). */
+  colorEditId?: number | null;
+  colorSaving?: boolean;
+  onOpenColorEdit?: (id: number) => void;
+  onCloseColorEdit?: () => void;
+  onSaveColor?: (product: CanteenProduct, color: string | null) => void;
+}
+
+// Sortable wrapper — only used in reorder mode. Must live outside the main
+// component so its hook order is stable as the list re-renders.
+function SortableCard({
+  id,
+  children,
+}: {
+  id: number;
+  children: (handleProps: React.HTMLAttributes<HTMLElement>, isDragging: boolean) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: String(id) });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: "relative",
+      }}
+    >
+      {children({ ...attributes, ...listeners }, isDragging)}
+    </div>
+  );
 }
 
 export function ProductGrid({
@@ -17,6 +53,12 @@ export function ProductGrid({
   onAdd,
   loading,
   priceMode,
+  reorderMode = false,
+  colorEditId,
+  colorSaving,
+  onOpenColorEdit,
+  onCloseColorEdit,
+  onSaveColor,
 }: ProductGridProps) {
   if (loading) {
     return (
@@ -44,15 +86,38 @@ export function ProductGrid({
 
   return (
     <div className="canteen-grid">
-      {products.map((p) => (
-        <ProductCard
-          key={p.id}
-          product={p}
-          justAdded={lastAddedProductId === p.id}
-          onAdd={() => onAdd(p)}
-          priceMode={priceMode}
-        />
-      ))}
+      {products.map((p) => {
+        if (reorderMode) {
+          return (
+            <SortableCard key={p.id} id={p.id}>
+              {(handleProps) => (
+                <ProductCard
+                  product={p}
+                  justAdded={false}
+                  onAdd={() => {}}
+                  priceMode={priceMode}
+                  reorderMode
+                  dragHandleProps={handleProps}
+                />
+              )}
+            </SortableCard>
+          );
+        }
+        return (
+          <ProductCard
+            key={p.id}
+            product={p}
+            justAdded={lastAddedProductId === p.id}
+            onAdd={() => onAdd(p)}
+            priceMode={priceMode}
+            colorEditOpen={colorEditId === p.id}
+            colorSaving={colorSaving ?? false}
+            onOpenColorEdit={onOpenColorEdit ? () => onOpenColorEdit(p.id) : undefined}
+            onCloseColorEdit={onCloseColorEdit}
+            onSaveColor={onSaveColor ? (color) => onSaveColor(p, color) : undefined}
+          />
+        );
+      })}
     </div>
   );
 }
