@@ -508,47 +508,11 @@ class ReturnsService:
     # ── Search receipts for return page ──────────────────────────────────────
 
     @staticmethod
-    def search_receipt(
-        db: Session,
-        *,
-        receipt_id: Optional[str] = None,
-        student_code: Optional[str] = None,
-    ) -> Optional[dict]:
-        if not receipt_id and not student_code:
-            return None
-
-        if student_code and not receipt_id:
-            # Look up customer by student_code or customer_code
-            from app.models.customer import Customer
-            customer = (
-                db.query(Customer)
-                .filter(
-                    (Customer.student_code == student_code) |
-                    (Customer.customer_code == student_code)
-                )
-                .first()
-            )
-            if not customer:
-                return None
-            receipt = (
-                db.query(Receipt)
-                .filter(Receipt.customer_id == customer.id)
-                .order_by(desc(Receipt.created_at))
-                .first()
-            )
-        else:
-            receipt = (
-                db.query(Receipt)
-                .filter(Receipt.receipt_number.ilike(f"%{receipt_id}%"))
-                .first()
-            )
-        if not receipt:
-            return None
-
+    def _receipt_to_dict(receipt: Receipt) -> dict:
         items = []
         shop_id = None
         for item in receipt.items:
-            pv = item.product_variant  # ShopProduct
+            pv = item.product_variant
             if pv and not shop_id:
                 shop_id = pv.shop_id
             items.append({
@@ -558,7 +522,6 @@ class ReturnsService:
                 "price": float(item.unit_price),
             })
 
-        # Derive payer info for refund-destination preview on the frontend
         payer_info: dict = {"type": "unknown", "label": ""}
         if receipt.customer_id and receipt.customer:
             payer_info = {
@@ -589,6 +552,67 @@ class ReturnsService:
             "payer": payer_info,
             "edcMaskedCard": receipt.edc_masked_card or None,
         }
+
+    @staticmethod
+    def search_receipts(
+        db: Session,
+        *,
+        receipt_id: Optional[str] = None,
+        student_code: Optional[str] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        payment_method: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[dict]:
+        """Search receipts by any combination of filters. Returns list of receipt dicts."""
+        query = db.query(Receipt)
+
+        if receipt_id:
+            query = query.filter(Receipt.receipt_number.ilike(f"%{receipt_id}%"))
+
+        if student_code:
+            from app.models.customer import Customer
+            customer = (
+                db.query(Customer)
+                .filter(
+                    (Customer.student_code == student_code) |
+                    (Customer.customer_code == student_code)
+                )
+                .first()
+            )
+            if not customer:
+                return []
+            query = query.filter(Receipt.customer_id == customer.id)
+
+        if date_from:
+            query = query.filter(Receipt.transaction_date >= datetime.combine(date_from, datetime.min.time()))
+        if date_to:
+            query = query.filter(Receipt.transaction_date <= datetime.combine(date_to, datetime.max.time()))
+
+        if payment_method and payment_method.lower() != "all":
+            try:
+                pm_enum = PaymentMethod(payment_method.lower())
+                query = query.filter(Receipt.payment_method == pm_enum)
+            except ValueError:
+                return []
+
+        receipts = query.order_by(desc(Receipt.transaction_date)).limit(limit).all()
+        return [ReturnsService._receipt_to_dict(r) for r in receipts]
+
+    @staticmethod
+    def search_receipt(
+        db: Session,
+        *,
+        receipt_id: Optional[str] = None,
+        student_code: Optional[str] = None,
+    ) -> Optional[dict]:
+        """Backward-compatible single-result lookup (used by exact-match flows)."""
+        if not receipt_id and not student_code:
+            return None
+        results = ReturnsService.search_receipts(
+            db, receipt_id=receipt_id, student_code=student_code, limit=1
+        )
+        return results[0] if results else None
 
     # ── Internal helpers ─────────────────────────────────────────────────────
 

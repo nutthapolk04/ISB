@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Search, Calendar, Eye, Trash2, Edit, Plus, X, CreditCard, Package, Minus, Printer } from "lucide-react";
+import { RefreshCw, Search, Calendar, Eye, Trash2, Edit, Plus, X, CreditCard, Package, Minus, Printer, ArrowLeftRight } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "sonner";
@@ -161,12 +161,14 @@ const Returns = () => {
     ? posReceipts
     : posReceipts.filter((r) => r.transaction_date?.startsWith(todayIso));
 
-  const handleStartReturn = async (receiptNumber: string) => {
+  const handleStartReturn = async (receiptNumber: string, intent: "refund" | "exchange" = "refund") => {
     setReturnMode("with-receipt");
     setSearchReceiptId(receiptNumber);
     setSearchStudent("");
-    setSearchDate("");
+    setSearchDateFrom("");
+    setSearchDateTo("");
     setSearchPaymentMethod("all");
+    setTransactionType(intent);
     try {
       const data = await api.get<{ receipt?: Receipt & { shopId?: string } }>(
         `/receipts/search?receiptId=${encodeURIComponent(receiptNumber)}`
@@ -212,6 +214,9 @@ const Returns = () => {
 
   // Selected receipt
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+
+  // Multi-match results (when search returns >1 receipts — user picks one)
+  const [searchResults, setSearchResults] = useState<(Receipt & { shopId?: string })[]>([]);
 
   // Return form states
   const [selectedItems, setSelectedItems] = useState<{ [key: string]: { selected: boolean; returnQty: number } }>({});
@@ -363,6 +368,25 @@ const Returns = () => {
     }
   };
 
+  const pickSearchResult = async (receipt: Receipt & { shopId?: string }) => {
+    setSelectedReceipt(receipt);
+    setSearchResults([]);
+    setSelectedItems({});
+    setReason("");
+    const shopId = (receipt as any).shopId;
+    setCurrentShopId(shopId ?? null);
+    fetchAvailableProducts(shopId);
+    try {
+      const existingData = await api.get<ReturnRequest[]>(
+        `/returns/by-receipt?receiptId=${encodeURIComponent(receipt.id)}`
+      );
+      setExistingReturns(existingData);
+    } catch {
+      setExistingReturns([]);
+    }
+    toast.success(t('returns.receiptFound') + ": " + receipt.id);
+  };
+
   const handleSearchReceipt = async () => {
     if (!searchReceiptId && !searchDateFrom && !searchDateTo && searchPaymentMethod === "all" && !searchStudent) {
       toast.error(t('returns.errorPleaseEnterCriteria'));
@@ -373,32 +397,32 @@ const Returns = () => {
       const params = new URLSearchParams();
       if (searchReceiptId) params.set("receiptId", searchReceiptId);
       if (searchStudent) params.set("studentCode", searchStudent);
-      const data = await api.get<{ receipt?: Receipt & { shopId?: string } }>(`/receipts/search?${params}`);
-      if (data.receipt) {
-        setSelectedReceipt(data.receipt);
-        setSelectedItems({});
-        setReason("");
-        // Load exchange products for same shop only
-        const shopId = (data.receipt as any).shopId;
-        setCurrentShopId(shopId ?? null);
-        fetchAvailableProducts(shopId);
-        // Fetch existing returns for this receipt
-        try {
-          const existingData = await api.get<ReturnRequest[]>(
-            `/returns/by-receipt?receiptId=${encodeURIComponent(data.receipt.id)}`
-          );
-          setExistingReturns(existingData);
-        } catch {
-          setExistingReturns([]);
-        }
-        toast.success(t('returns.receiptFound') + ": " + data.receipt.id);
+      if (searchDateFrom) params.set("dateFrom", searchDateFrom);
+      if (searchDateTo) params.set("dateTo", searchDateTo);
+      if (searchPaymentMethod && searchPaymentMethod !== "all") params.set("paymentMethod", searchPaymentMethod);
+
+      const data = await api.get<{
+        receipts: (Receipt & { shopId?: string })[];
+        receipt?: Receipt & { shopId?: string };
+      }>(`/receipts/search?${params}`);
+
+      const results = data.receipts ?? (data.receipt ? [data.receipt] : []);
+      if (results.length === 0) {
+        setSelectedReceipt(null);
+        setSearchResults([]);
+        setExistingReturns([]);
+        toast.error(t('returns.receiptNotFound'));
+      } else if (results.length === 1) {
+        await pickSearchResult(results[0]);
       } else {
         setSelectedReceipt(null);
         setExistingReturns([]);
-        toast.error(t('returns.receiptNotFound'));
+        setSearchResults(results);
+        toast.success(`${results.length} receipts found — เลือกหนึ่งใบ`);
       }
     } catch {
       setSelectedReceipt(null);
+      setSearchResults([]);
       setExistingReturns([]);
       toast.error(t('returns.receiptNotFound'));
     }
@@ -476,7 +500,8 @@ const Returns = () => {
       setSelectedItems({});
       setReason("");
       setSearchReceiptId("");
-      setSearchDate("");
+      setSearchDateFrom("");
+      setSearchDateTo("");
       setSearchPaymentMethod("all");
       setSearchStudent("");
     } catch (err: any) {
@@ -1238,6 +1263,49 @@ const Returns = () => {
         </CardContent>
       </Card>
 
+      {/* Multi-match results — let user pick a receipt */}
+      {searchResults.length > 0 && !selectedReceipt && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              พบ {searchResults.length} ใบเสร็จ — คลิกเพื่อเลือก
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left p-3">Date / Time</th>
+                    <th className="text-left p-3">Receipt ID</th>
+                    <th className="text-left p-3">Payer</th>
+                    <th className="text-left p-3">Payment</th>
+                    <th className="text-right p-3">Total</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResults.map((r) => (
+                    <tr key={r.id} className="border-t hover:bg-muted/50">
+                      <td className="p-3">{(r as any).date}</td>
+                      <td className="p-3 font-mono">{r.id}</td>
+                      <td className="p-3">{(r as any).payer?.label || "—"}</td>
+                      <td className="p-3">{(r as any).paymentMethod}</td>
+                      <td className="p-3 text-right">฿{Number((r as any).total).toFixed(2)}</td>
+                      <td className="p-3">
+                        <Button size="sm" onClick={() => pickSearchResult(r)}>
+                          เลือก
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Receipt Items Table */}
       {selectedReceipt && (
         <div className="space-y-6">
@@ -1487,7 +1555,7 @@ const Returns = () => {
                   <TableHead>{t("returns.paymentMethod")}</TableHead>
                   <TableHead className="text-right">{t("returns.total")}</TableHead>
                   <TableHead className="text-center">{t("returns.status")}</TableHead>
-                  <TableHead className="text-center">{t("returns.doReturn")}</TableHead>
+                  <TableHead className="text-center">การดำเนินการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1513,16 +1581,28 @@ const Returns = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={r.status === "voided"}
-                        onClick={() => handleStartReturn(r.receipt_number)}
-                        className="h-7 text-xs"
-                      >
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        คืนสินค้า
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={r.status === "voided"}
+                          onClick={() => handleStartReturn(r.receipt_number, "refund")}
+                          className="h-7 text-xs"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          คืนสินค้า
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={r.status === "voided"}
+                          onClick={() => handleStartReturn(r.receipt_number, "exchange")}
+                          className="h-7 text-xs"
+                        >
+                          <ArrowLeftRight className="h-3 w-3 mr-1" />
+                          เปลี่ยนสินค้า
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

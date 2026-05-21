@@ -11,6 +11,7 @@ GET    /api/v1/return-history          — processed returns history
 GET    /api/v1/receipts/search         — search receipts for return lookup
 GET    /api/v1/products/available      — in-stock products for exchange
 """
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -215,14 +216,36 @@ def get_return_history(
 def search_receipts(
     receiptId: Optional[str] = Query(None),
     studentCode: Optional[str] = Query(None, description="Search by student_code or customer_code"),
+    dateFrom: Optional[date] = Query(None, description="Filter by transaction_date >= dateFrom"),
+    dateTo: Optional[date] = Query(None, description="Filter by transaction_date <= dateTo"),
+    paymentMethod: Optional[str] = Query(None, description="cash | wallet | department | edc | qr | all"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
-    """Search for a receipt by number or student code (used in return flow)."""
-    result = ReturnsService.search_receipt(db, receipt_id=receiptId, student_code=studentCode)
-    if not result:
+    """Search receipts for the return flow.
+
+    Returns:
+      - receipts: list of matching receipts (may be empty)
+      - receipt:  shortcut for the single match (None when 0 or >1 results) — preserves
+                  the legacy contract used by exact-match flows.
+    """
+    if not any([receiptId, studentCode, dateFrom, dateTo, paymentMethod]):
+        raise HTTPException(status_code=400, detail="At least one search criterion is required")
+
+    results = ReturnsService.search_receipts(
+        db,
+        receipt_id=receiptId,
+        student_code=studentCode,
+        date_from=dateFrom,
+        date_to=dateTo,
+        payment_method=paymentMethod,
+    )
+    if not results:
         raise HTTPException(status_code=404, detail="Receipt not found")
-    return {"receipt": result}
+    return {
+        "receipts": results,
+        "receipt": results[0] if len(results) == 1 else None,
+    }
 
 
 # ── Available Products (for exchange selection) ──────────────────────────────
