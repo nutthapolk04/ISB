@@ -8,6 +8,7 @@ from __future__ import annotations
 import time
 from datetime import date, datetime
 from typing import List, Optional
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.shop import Shop, ShopProduct, ShopMovement, MovementType
@@ -249,3 +250,72 @@ class InventoryService:
         )
         db.add(movement)
         return product
+
+    # ── Reverse an adjustment ────────────────────────────────────────────────
+    #
+    # Creates a mirror adjustment (delta = -original.quantity) and wires the
+    # two movements together via reverses_id / reversed_by_id so the audit
+    # trail can render "Reversed by #X" / "Reversal of #Y" relationships.
+    #
+    # Constraints enforced here (caller is expected to validate shop scope
+    # first via require_shop_manager + matching shop_id):
+    #   - Only adjustment movements can be reversed
+    #   - A movement cannot be reversed twice
+    #   - A reversal entry itself cannot be reversed (use a fresh adjust instead)
+    #   - Underlying product must still exist
+    @staticmethod
+    def reverse_adjustment(
+        db: Session,
+        shop: Shop,
+        movement: ShopMovement,
+        user_id: Optional[int] = None,
+    ) -> ShopMovement:
+        if movement.type != MovementType.adjustment:
+            raise ValueError("Only adjustment movements can be reversed")
+        if movement.reversed_by_id is not None:
+            raise ValueError("This movement has already been reversed")
+        if movement.reverses_id is not None:
+            raise ValueError("Cannot reverse a reversal entry — create a fresh adjustment instead")
+        if movement.shop_id != shop.id:
+            raise ValueError("Movement does not belong to this shop")
+
+        product: Optional[ShopProduct] = (
+            db.query(ShopProduct).filter(ShopProduct.id == movement.product_id).first()
+        )
+        if product is None:
+            raise ValueError("Original product no longer exists — cannot reverse")
+
+        reverse_delta = -int(movement.quantity)
+        original_note = (movement.note or "Manual adjustment").strip()
+        reason = f"Reverse of #{movement.id}: {original_note}"
+
+        max_id_before = db.query(func.max(ShopMovement.id)).scalar() or 0
+
+        InventoryService.adjust_stock(
+            db=db,
+            shop=shop,
+            product=product,
+            delta=reverse_delta,
+            reason=reason,
+            cost_per_unit=float(movement.cost_per_unit) if movement.cost_per_unit is not None else None,
+            user_id=user_id,
+        )
+        db.flush()
+
+        new_movement = (
+            db.query(ShopMovement)
+            .filter(
+                ShopMovement.id > max_id_before,
+                ShopMovement.shop_id == shop.id,
+                ShopMovement.product_id == product.id,
+                ShopMovement.type == MovementType.adjustment,
+            )
+            .order_by(ShopMovement.id.desc())
+            .first()
+        )
+        if new_movement is None:
+            raise RuntimeError("Failed to create reversal movement")
+
+        new_movement.reverses_id = movement.id
+        movement.reversed_by_id = new_movement.id
+        return new_movement

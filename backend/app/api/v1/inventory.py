@@ -106,6 +106,8 @@ def _movement_to_response(m: ShopMovement) -> ShopMovementResponse:
         cost_per_unit=float(m.cost_per_unit) if m.cost_per_unit is not None else None,
         reference=m.reference,
         note=m.note,
+        reverses_id=m.reverses_id,
+        reversed_by_id=m.reversed_by_id,
     )
 
 
@@ -650,6 +652,49 @@ def adjust_stock(
     db.commit()
     db.refresh(product)
     return _product_to_response(product)
+
+
+# ── Reverse an adjustment ─────────────────────────────────────────────────────
+
+@router.post(
+    "/{shop_id}/movements/{movement_id}/reverse",
+    response_model=ShopMovementResponse,
+)
+def reverse_movement(
+    shop_id: str,
+    movement_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_shop_manager),
+):
+    """Reverse a previously-made adjustment movement.
+
+    Creates a mirror adjustment (delta = -original.quantity) and links both
+    movements via reverses_id / reversed_by_id. Only adjustment-type movements
+    that have not already been reversed (and are not themselves reversals)
+    can be reversed.
+    """
+    shop = _get_shop_or_404(shop_id, db)
+    movement = (
+        db.query(ShopMovement)
+        .filter(ShopMovement.id == movement_id, ShopMovement.shop_id == shop_id)
+        .first()
+    )
+    if movement is None:
+        raise HTTPException(status_code=404, detail="Movement not found")
+
+    try:
+        new_movement = InventoryService.reverse_adjustment(
+            db=db,
+            shop=shop,
+            movement=movement,
+            user_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    db.commit()
+    db.refresh(new_movement)
+    return _movement_to_response(new_movement)
 
 
 # ── Staff Requisition ─────────────────────────────────────────────────────────

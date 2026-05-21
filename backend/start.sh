@@ -579,6 +579,12 @@ run('ALTER TABLE users ADD COLUMN IF NOT EXISTS ps_department VARCHAR(100)', 'us
 run(\"UPDATE users SET shop_module = 'canteen' WHERE shop_id IN (SELECT id FROM shops WHERE module = 'canteen') AND shop_module IS NULL\",
     'users.shop_module backfill canteen', ok_if_exists=False)
 
+# === Reversal links on shop_movements (so adjustments can be undone with audit trail) ===
+run('ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS reverses_id INTEGER REFERENCES shop_movements(id) ON DELETE SET NULL',
+    'shop_movements.reverses_id')
+run('ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS reversed_by_id INTEGER REFERENCES shop_movements(id) ON DELETE SET NULL',
+    'shop_movements.reversed_by_id')
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),
@@ -624,6 +630,8 @@ required_cols = [
     ('users', 'session_token'),
     ('users', 'staff_type'),
     ('users', 'ps_department'),
+    ('shop_movements', 'reverses_id'),
+    ('shop_movements', 'reversed_by_id'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',

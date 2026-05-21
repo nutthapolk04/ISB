@@ -271,6 +271,8 @@ class ShopMovementResponse(BaseModel):
     cost_per_unit: Optional[float] = None
     reference: Optional[str] = None
     note: Optional[str] = None
+    reverses_id: Optional[int] = None
+    reversed_by_id: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

@@ -225,6 +225,18 @@ class ShopMovement(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Reversal links — set when this movement is reversed (or is itself a reversal).
+    reverses_id = Column(
+        Integer,
+        ForeignKey("shop_movements.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reversed_by_id = Column(
+        Integer,
+        ForeignKey("shop_movements.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Relationships
     product = relationship("ShopProduct", back_populates="movements")
     shop = relationship("Shop", back_populates="movements")

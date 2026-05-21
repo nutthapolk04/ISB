@@ -2,17 +2,19 @@
  * Admin Dashboard — at-a-glance overview for admins landing on `/admin`.
  *
  * Layout:
- *   1. Header (page title + live date)
- *   2. KPI row (3 cards): Canteen sales today, Store sales today, Low stock alerts
- *   3. Quick Actions: Store Management, Manage Users, Reports
- *   4. Recent Activity (last 10 receipts)
+ *   1. Header (page title + date range filter)
+ *   2. KPI row (3 cards): Canteen sales, Store sales, Low stock alerts — all follow date range
+ *   3. Per-Shop Daily Summary — sales totals broken out per shop for selected range
+ *   4. Quick Actions: Store Management, Manage Users, Reports
+ *   5. Recent Activity (last 10 receipts — live, independent of date range)
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { format } from "date-fns";
 import {
   UtensilsCrossed,
   Store,
@@ -27,6 +29,8 @@ import { api } from "@/lib/api";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +54,7 @@ interface ShopApiResponse {
   id: string;
   name: string;
   is_active: boolean;
+  module: "canteen" | "store";
 }
 
 interface ShopStats {
@@ -67,6 +72,21 @@ interface LowStockItem {
   stock: number;
   min_stock: number;
   category: string;
+}
+
+interface SalesByPaymentReport {
+  date_from: string;
+  date_to: string;
+  shop_id: string | null;
+  rows: { payment_method: string; receipt_count: number; total: number }[];
+  grand_total: number;
+  total_receipts: number;
+}
+
+interface ShopSummary {
+  shop: ShopApiResponse;
+  total: number;
+  receipts: number;
 }
 
 // Receipts from /pos/receipt may include shop_id (backend model supports it
@@ -88,6 +108,8 @@ const formatTHB = (n: number) =>
     minimumFractionDigits: 2,
   }).format(n);
 
+const todayIso = () => format(new Date(), "yyyy-MM-dd");
+
 const formatDateLong = (d: Date, lang: string) =>
   d.toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", {
     weekday: "long",
@@ -96,14 +118,18 @@ const formatDateLong = (d: Date, lang: string) =>
     year: "numeric",
   });
 
-const isToday = (iso: string): boolean => {
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
+const formatDateRangeLabel = (from: string, to: string, lang: string): string => {
+  if (!from || !to) return "—";
+  const f = new Date(from);
+  const tt = new Date(to);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  if (from === to) return fmt(f);
+  return `${fmt(f)} — ${fmt(tt)}`;
 };
 
 const formatRelative = (iso: string, t: TFunction): string => {
@@ -156,8 +182,8 @@ const shopBadgeVariant = (
   }
 };
 
-// Guess canteen/store bucket from a receipt. Prefers explicit shop_id, falls
-// back to receipt_number prefix conventions.
+// Guess canteen/store bucket from a receipt for the Recent Activity badge
+// fallback when shop_id isn't populated.
 const bucketFromReceipt = (r: ReceiptRow): "canteen" | "store" | "other" => {
   const sid = (r.shop_id ?? "").toLowerCase();
   if (CANTEEN_IDS.has(sid)) return "canteen";
@@ -174,7 +200,7 @@ const bucketFromReceipt = (r: ReceiptRow): "canteen" | "store" | "other" => {
   return "other";
 };
 
-// ── KPI queries ──────────────────────────────────────────────────────────────
+// ── Queries ──────────────────────────────────────────────────────────────────
 
 const STALE = 30_000;
 
@@ -187,11 +213,42 @@ function useRecentReceipts() {
   });
 }
 
-function useTodaySales() {
-  // Pull a larger chunk to filter for today's activity for KPI.
-  return useQuery<ReceiptRow[]>({
-    queryKey: ["admin", "dashboard", "sales-today"],
-    queryFn: () => api.get<ReceiptRow[]>("/pos/receipt?page=1"),
+function useShops() {
+  return useQuery<ShopApiResponse[]>({
+    queryKey: ["shops", "active"],
+    queryFn: () => api.get<ShopApiResponse[]>("/shops/?active_only=true"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+function usePerShopSummary(
+  shops: ShopApiResponse[] | undefined,
+  dateFrom: string,
+  dateTo: string,
+) {
+  return useQuery<ShopSummary[]>({
+    queryKey: ["admin", "dashboard", "per-shop-summary", dateFrom, dateTo],
+    queryFn: async () => {
+      if (!shops?.length) return [];
+      const results = await Promise.all(
+        shops.map(async (s) => {
+          try {
+            const r = await api.get<SalesByPaymentReport>(
+              `/reports/sales-by-payment?shop_id=${encodeURIComponent(s.id)}&date_from=${dateFrom}&date_to=${dateTo}`,
+            );
+            return {
+              shop: s,
+              total: r.grand_total ?? 0,
+              receipts: r.total_receipts ?? 0,
+            };
+          } catch {
+            return { shop: s, total: 0, receipts: 0 };
+          }
+        }),
+      );
+      return results;
+    },
+    enabled: !!shops?.length && !!dateFrom && !!dateTo,
     staleTime: STALE,
   });
 }
@@ -316,42 +373,86 @@ function QuickActionCard({ to, icon, title, subtitle, badge }: QuickActionProps)
   );
 }
 
+// ── Date range presets ───────────────────────────────────────────────────────
+
+type Preset = "today" | "yesterday" | "last7" | "month";
+
+function presetRange(preset: Preset): { from: string; to: string } {
+  const today = new Date();
+  const iso = (d: Date) => format(d, "yyyy-MM-dd");
+  switch (preset) {
+    case "today":
+      return { from: iso(today), to: iso(today) };
+    case "yesterday": {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      return { from: iso(y), to: iso(y) };
+    }
+    case "last7": {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      return { from: iso(start), to: iso(today) };
+    }
+    case "month": {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { from: iso(start), to: iso(today) };
+    }
+  }
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
-  const salesQuery = useTodaySales();
+
+  const [dateFrom, setDateFrom] = useState<string>(todayIso());
+  const [dateTo, setDateTo] = useState<string>(todayIso());
+
+  const shopsQuery = useShops();
+  const perShopQuery = usePerShopSummary(shopsQuery.data, dateFrom, dateTo);
   const lowStockQuery = useLowStockAggregate();
   const receiptsQuery = useRecentReceipts();
+
   const [showLowStock, setShowLowStock] = useState(false);
   const lowStockItemsQuery = useLowStockItems(showLowStock);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
 
-  const shopsQuery = useQuery<ShopApiResponse[]>({
-    queryKey: ["shops", "all"],
-    queryFn: () => api.get<ShopApiResponse[]>("/shops/?active_only=false"),
-    staleTime: 5 * 60_000,
-  });
+  // Shop id → display name (lower-cased keys) for badges.
   const shopMap: Record<string, string> = Object.fromEntries(
     (shopsQuery.data ?? []).map((s) => [s.id.toLowerCase(), s.name]),
   );
 
-  // Derive today's canteen / store totals from whatever receipts we've fetched.
-  const canteenTotal = salesQuery.data
-    ?.filter((r) => r.status === "active" && isToday(r.created_at))
-    .filter((r) => bucketFromReceipt(r) === "canteen")
-    .reduce((sum, r) => sum + (r.total ?? 0), 0);
+  // Aggregate per-shop into module totals + grand totals.
+  const aggregates = useMemo(() => {
+    const rows = perShopQuery.data ?? [];
+    let canteenTotal = 0;
+    let storeTotal = 0;
+    let totalReceipts = 0;
+    let grandTotal = 0;
+    for (const r of rows) {
+      grandTotal += r.total;
+      totalReceipts += r.receipts;
+      if (r.shop.module === "canteen") canteenTotal += r.total;
+      else storeTotal += r.total;
+    }
+    return { canteenTotal, storeTotal, totalReceipts, grandTotal };
+  }, [perShopQuery.data]);
 
-  const storeTotal = salesQuery.data
-    ?.filter((r) => r.status === "active" && isToday(r.created_at))
-    .filter((r) => bucketFromReceipt(r) === "store")
-    .reduce((sum, r) => sum + (r.total ?? 0), 0);
-
-  const todaysReceiptCount = salesQuery.data?.filter((r) =>
-    isToday(r.created_at),
-  ).length;
+  // Per-shop rows sorted by total desc.
+  const perShopRows = useMemo(
+    () => (perShopQuery.data ?? []).slice().sort((a, b) => b.total - a.total),
+    [perShopQuery.data],
+  );
 
   const recent = (receiptsQuery.data ?? []).slice(0, 10);
+  const rangeLabel = formatDateRangeLabel(dateFrom, dateTo, i18n.language);
+  const summaryLoading = perShopQuery.isLoading || shopsQuery.isLoading;
+
+  const applyPreset = (p: Preset) => {
+    const r = presetRange(p);
+    setDateFrom(r.from);
+    setDateTo(r.to);
+  };
 
   return (
     <div className="page-shell">
@@ -359,33 +460,85 @@ export default function AdminDashboard() {
       <div className="page-header">
         <h1 className="page-title">{t("admin.dashboard.title")}</h1>
         <p className="page-description">
-          {t("admin.dashboard.todayPrefix")} — {formatDateLong(new Date(), i18n.language)}
+          {formatDateLong(new Date(), i18n.language)}
         </p>
       </div>
 
-      {/* Row 2 — KPIs */}
+      {/* Date range filter */}
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <span className="text-sm font-medium">
+              {t("admin.dashboard.dateRange")}
+            </span>
+            <DateRangePicker
+              startDate={dateFrom}
+              endDate={dateTo}
+              onStartChange={setDateFrom}
+              onEndChange={setDateTo}
+              className="w-full sm:w-[280px]"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyPreset("today")}
+            >
+              {t("admin.dashboard.today")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyPreset("yesterday")}
+            >
+              {t("admin.dashboard.yesterday")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyPreset("last7")}
+            >
+              {t("admin.dashboard.last7Days")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyPreset("month")}
+            >
+              {t("admin.dashboard.thisMonth")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Row 2 — KPIs (follow selected date range) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <KpiCard
-          label={t("admin.dashboard.canteenSalesToday")}
-          value={
-            canteenTotal !== undefined ? formatTHB(canteenTotal) : null
-          }
-          subtext={
-            todaysReceiptCount !== undefined
-              ? t("admin.dashboard.receiptsTodayCount", { count: todaysReceiptCount })
-              : undefined
-          }
+          label={t("admin.dashboard.canteenSales")}
+          value={summaryLoading ? null : formatTHB(aggregates.canteenTotal)}
+          subtext={rangeLabel}
           valueClassName="text-amber-700"
           icon={<UtensilsCrossed className="h-4 w-4" />}
-          loading={salesQuery.isLoading}
+          loading={summaryLoading}
         />
         <KpiCard
-          label={t("admin.dashboard.storeSalesToday")}
-          value={storeTotal !== undefined ? formatTHB(storeTotal) : null}
-          subtext={t("admin.dashboard.storeSalesSubtext")}
+          label={t("admin.dashboard.storeSales")}
+          value={summaryLoading ? null : formatTHB(aggregates.storeTotal)}
+          subtext={
+            summaryLoading
+              ? rangeLabel
+              : t("admin.dashboard.receiptsInRange", {
+                  count: aggregates.totalReceipts,
+                })
+          }
           valueClassName="text-orange-700"
           icon={<Store className="h-4 w-4" />}
-          loading={salesQuery.isLoading}
+          loading={summaryLoading}
         />
         <KpiCard
           label={t("admin.dashboard.lowStockAlerts")}
@@ -457,7 +610,93 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Row 3 — Quick Actions */}
+      {/* Row 3 — Per-Shop Daily Summary */}
+      <Card>
+        <CardContent className="p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold">
+                {t("admin.dashboard.perShopSummary")}
+              </h2>
+            </div>
+            <span className="text-xs text-muted-foreground">{rangeLabel}</span>
+          </div>
+
+          {summaryLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("admin.dashboard.colShopName")}</TableHead>
+                  <TableHead>{t("admin.dashboard.colModule")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("admin.dashboard.colReceiptCount")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("admin.dashboard.colTotal")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {perShopRows.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="py-8 text-center text-muted-foreground"
+                    >
+                      {t("admin.dashboard.noShopData")}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {perShopRows.map((row) => {
+                  const badge = shopBadgeVariant(row.shop.id, t, shopMap);
+                  return (
+                    <TableRow key={row.shop.id}>
+                      <TableCell className="font-medium">
+                        <Badge variant="outline" className={badge.className}>
+                          {row.shop.name}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {row.shop.module === "canteen"
+                          ? t("admin.dashboard.moduleCanteen")
+                          : t("admin.dashboard.moduleStore")}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.receipts}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
+                        {formatTHB(row.total)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {perShopRows.length > 0 && (
+                  <TableRow className="border-t-2 bg-muted/40">
+                    <TableCell colSpan={2} className="font-semibold">
+                      {t("admin.dashboard.summaryGrandTotal")}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {aggregates.totalReceipts}
+                    </TableCell>
+                    <TableCell className="text-right font-bold tabular-nums text-emerald-800">
+                      {formatTHB(aggregates.grandTotal)}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Row 4 — Quick Actions */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {t("admin.dashboard.quickActions")}
@@ -484,7 +723,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Row 4 — Recent Activity */}
+      {/* Row 5 — Recent Activity */}
       <Card>
         <CardContent className="p-5">
           <div className="mb-3 flex items-center gap-2">

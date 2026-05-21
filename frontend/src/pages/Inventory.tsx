@@ -110,6 +110,8 @@ interface StockMovement {
   reference?: string;
   department?: string;
   note?: string;
+  reversesId?: number | null;
+  reversedById?: number | null;
 }
 
 interface BatchItem {
@@ -275,6 +277,10 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
   const [adjustReason, setAdjustReason] = useState("");
   const [adjustCost, setAdjustCost] = useState("");
 
+  // Reverse-adjustment confirm dialog
+  const [reverseTarget, setReverseTarget] = useState<StockMovement | null>(null);
+  const [reverseSubmitting, setReverseSubmitting] = useState(false);
+
   // Staff requisition dialog
   const [requisitionTarget, setRequisitionTarget] = useState<Product | null>(null);
 
@@ -371,6 +377,8 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
         type: m.type as MovementType, quantity: m.quantity,
         stockBefore: m.stock_before, stockAfter: m.stock_after,
         costPerUnit: m.cost_per_unit, reference: m.reference, note: m.note,
+        reversesId: m.reverses_id ?? null,
+        reversedById: m.reversed_by_id ?? null,
       })));
     } catch { /* ignore */ }
   }, [embedded, lockedShopId, subMerchantFilter]);
@@ -624,6 +632,42 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
       await fetchMovements();
     } catch (err: any) {
       toast.error(err?.detail ?? "Failed to adjust stock");
+    }
+  };
+
+  // ── Reverse adjustment ─────────────────────────────────────────────────────
+
+  const handleReverseMovement = async () => {
+    if (!reverseTarget) return;
+    const sid =
+      embedded
+        ? lockedShopId
+        : products.find((p) => p.id === reverseTarget.productId)?.subMerchantId;
+    if (!sid) {
+      toast.error(t("inventory.errorReverseFailed", "Cannot determine shop for this movement"));
+      return;
+    }
+    setReverseSubmitting(true);
+    try {
+      await api.post(
+        `/shops/${sid}/movements/${reverseTarget.id}/reverse`,
+        {},
+      );
+      toast.success(
+        t("inventory.reverseSuccess", {
+          id: reverseTarget.id,
+          defaultValue: "Reversed adjustment #{{id}}",
+        }),
+      );
+      setReverseTarget(null);
+      await fetchProducts();
+      await fetchMovements();
+    } catch (err: any) {
+      toast.error(
+        err?.detail ?? t("inventory.errorReverseFailed", "Reverse failed"),
+      );
+    } finally {
+      setReverseSubmitting(false);
     }
   };
 
@@ -1576,25 +1620,60 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                       <TableHead className="text-right">{t("inventory.colCostUnit")}</TableHead>
                       <TableHead>{t("inventory.colReference")}</TableHead>
                       <TableHead>{t("inventory.colNote")}</TableHead>
+                      <TableHead className="text-right">{t("inventory.colAction", "Action")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredMovements.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={9}
+                          colSpan={10}
                           className="h-24 text-center text-muted-foreground"
                         >
                           {t("inventory.noMovementsFound")}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredMovements.map((mov) => (
-                        <TableRow key={mov.id}>
+                      filteredMovements.map((mov) => {
+                        const isReversed = mov.reversedById != null;
+                        const isReversalEntry = mov.reversesId != null;
+                        const canReverse =
+                          mov.type === "adjustment" && !isReversed && !isReversalEntry;
+                        const rowMuted = isReversed ? "opacity-60" : "";
+                        return (
+                        <TableRow key={mov.id} className={rowMuted}>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                             {mov.date}
                           </TableCell>
-                          <TableCell className="font-medium">{mov.productName}</TableCell>
+                          <TableCell className="font-medium">
+                            <div>{mov.productName}</div>
+                            {(isReversed || isReversalEntry) && (
+                              <div className="mt-0.5 flex flex-wrap gap-1">
+                                {isReversed && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-normal"
+                                  >
+                                    {t("inventory.reversedBadge", {
+                                      id: mov.reversedById,
+                                      defaultValue: "Reversed by #{{id}}",
+                                    })}
+                                  </Badge>
+                                )}
+                                {isReversalEntry && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-violet-300 bg-violet-50 text-violet-800 text-[10px] font-normal"
+                                  >
+                                    {t("inventory.reversalOfBadge", {
+                                      id: mov.reversesId,
+                                      defaultValue: "Reversal of #{{id}}",
+                                    })}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-center">
                             <Badge
                               variant={MOVEMENT_VARIANTS[mov.type]}
@@ -1605,7 +1684,11 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                           </TableCell>
                           <TableCell
                             className={`text-right data-number font-medium ${
-                              mov.quantity > 0 ? "text-success" : "text-destructive"
+                              isReversed
+                                ? "line-through text-muted-foreground"
+                                : mov.quantity > 0
+                                  ? "text-success"
+                                  : "text-destructive"
                             }`}
                           >
                             {mov.quantity > 0 ? `+${mov.quantity}` : mov.quantity}
@@ -1628,8 +1711,22 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                             {mov.department ? `${mov.department}: ` : ""}
                             {mov.note ?? "—"}
                           </TableCell>
+                          <TableCell className="text-right">
+                            {canReverse ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReverseTarget(mov)}
+                              >
+                                {t("inventory.reverseBtn", "Reverse")}
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -1898,6 +1995,82 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
               onClick={handleDelete}
             >
               {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Reverse Adjustment Confirm ──────────────────────────────────────── */}
+      <AlertDialog
+        open={!!reverseTarget}
+        onOpenChange={(open) => !open && !reverseSubmitting && setReverseTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("inventory.reverseTitle", "Reverse adjustment")}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <div>
+                  {t("inventory.reverseDesc", {
+                    id: reverseTarget?.id,
+                    product: reverseTarget?.productName,
+                    defaultValue:
+                      "Reverse adjustment #{{id}} for {{product}}? This creates a mirror adjustment with the opposite delta.",
+                  })}
+                </div>
+                {reverseTarget && (
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                    <div>
+                      {t("inventory.reverseOriginalDelta", "Original delta")}:{" "}
+                      <span
+                        className={
+                          reverseTarget.quantity > 0
+                            ? "font-semibold text-success"
+                            : "font-semibold text-destructive"
+                        }
+                      >
+                        {reverseTarget.quantity > 0
+                          ? `+${reverseTarget.quantity}`
+                          : reverseTarget.quantity}
+                      </span>
+                    </div>
+                    <div>
+                      {t("inventory.reverseNewDelta", "Reversal delta")}:{" "}
+                      <span
+                        className={
+                          -reverseTarget.quantity > 0
+                            ? "font-semibold text-success"
+                            : "font-semibold text-destructive"
+                        }
+                      >
+                        {-reverseTarget.quantity > 0
+                          ? `+${-reverseTarget.quantity}`
+                          : -reverseTarget.quantity}
+                      </span>
+                    </div>
+                    {reverseTarget.note && (
+                      <div className="text-muted-foreground mt-1">
+                        {t("inventory.colNote")}: {reverseTarget.note}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reverseSubmitting}>
+              {t("inventory.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReverseMovement}
+              disabled={reverseSubmitting}
+            >
+              {reverseSubmitting
+                ? t("inventory.reverseSubmitting", "Reversing…")
+                : t("inventory.reverseConfirm", "Reverse")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
