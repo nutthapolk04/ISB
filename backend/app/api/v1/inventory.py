@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
-from app.api.deps import require_shop_access
+from app.api.deps import require_shop_access, require_shop_manager
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ def create_category(
     shop_id: str,
     body: ShopCategoryCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
     _get_shop_or_404(shop_id, db)
     cat = ShopCategory(
@@ -146,7 +146,7 @@ def update_category(
     category_id: str,
     body: ShopCategoryUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
     cat = db.query(ShopCategory).filter(
         ShopCategory.id == category_id, ShopCategory.shop_id == shop_id
@@ -164,7 +164,7 @@ def delete_category(
     shop_id: str,
     category_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
     cat = db.query(ShopCategory).filter(
         ShopCategory.id == category_id, ShopCategory.shop_id == shop_id
@@ -222,7 +222,7 @@ def reorder_products(
     shop_id: str,
     payload: ReorderRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     """Bulk-update sort_order for products in this shop.
 
@@ -384,7 +384,7 @@ def create_product(
     shop_id: str,
     body: ShopProductCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     shop = _get_shop_or_404(shop_id, db)
     product = _create_product_in_shop(db, shop, body, current_user.id)
@@ -398,7 +398,7 @@ def batch_import_products(
     shop_id: str,
     body: BatchImportRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     """
     Bulk-create multiple products in one shop. Each row is validated + inserted
@@ -459,7 +459,7 @@ def update_product(
     product_id: int,
     body: ShopProductUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     product = _get_product_or_404(product_id, shop_id, db)
     price_fields = {"external_price", "internal_price"}
@@ -497,7 +497,7 @@ def delete_product(
     shop_id: str,
     product_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     product = _get_product_or_404(product_id, shop_id, db)
     # Snapshot before soft-delete for audit
@@ -530,9 +530,9 @@ async def upload_product_photo_route(
     product_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
-    """Upload a menu/product image. Manager/cashier can upload for their shop."""
+    """Upload a menu/product image. Manager-level only (master-data mutation)."""
     from app.core.config import settings
     from app.services.upload_service import upload_product_photo
 
@@ -598,7 +598,7 @@ def receive_stock(
     shop_id: str,
     body: ReceiveStockRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     """
     Receive one or more products into a shop.
@@ -632,7 +632,7 @@ def adjust_stock(
     shop_id: str,
     body: AdjustStockRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_access),
+    current_user: User = Depends(require_shop_manager),
 ):
     if body.delta == 0:
         raise HTTPException(status_code=422, detail="delta cannot be 0")
@@ -873,7 +873,7 @@ def create_option_group(
     product_id: int,
     body: MenuOptionGroupCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
     _get_product_or_404(product_id, shop_id, db)
     group = MenuOptionGroup(
@@ -908,7 +908,7 @@ def update_option_group(
     group_id: int,
     body: MenuOptionGroupUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
     group = _get_group_or_404(group_id, product_id, shop_id, db)
 
@@ -944,7 +944,7 @@ def delete_option_group(
     product_id: int,
     group_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_shop_access),
+    _: User = Depends(require_shop_manager),
 ):
     group = _get_group_or_404(group_id, product_id, shop_id, db)
     db.delete(group)

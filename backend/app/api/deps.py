@@ -188,6 +188,30 @@ def require_shop_access(
     return current_user
 
 
+def require_shop_manager(
+    shop_id: str,
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Stricter variant of require_shop_access: only admin/manager can pass.
+
+    Used for product master data + stock adjustments where cashiers must not
+    be able to mutate state (anti-fraud requirement per store role matrix).
+    """
+    if not user_can_access_shop(current_user, shop_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User {current_user.username} not authorized for shop '{shop_id}'",
+        )
+    roles = _effective_roles(current_user)
+    if not (roles & {"admin", "manager"}):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role(s) {sorted(roles)} cannot manage shop inventory; admin/manager required",
+        )
+    return current_user
+
+
 def check_permission(permission_name: str):
     """
     Check if current user has specific permission.

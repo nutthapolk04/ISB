@@ -83,7 +83,7 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.storeReceipts",    url: "/store/receipts",       icon: Receipt,     roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,   roles: ["admin"] },
+      { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,   roles: ["admin", "manager", "cashier"] },
     ],
   },
   {

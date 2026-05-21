@@ -221,7 +221,7 @@ const App = () => (
                   </Route>
                   {/* Legacy redirect — Store Users merged into /users */}
                   <Route path="/store/users" element={<Navigate to="/users" replace />} />
-                  <Route element={<RequireRole roles={["admin"]} />}>
+                  <Route element={<RequireRole roles={["admin", "manager", "cashier"]} />}>
                     <Route path="/store/reports" element={<Reports />} />
                   </Route>
                 </Route>
