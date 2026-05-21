@@ -224,7 +224,7 @@ def reorder_products(
     shop_id: str,
     payload: ReorderRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_manager),
+    current_user: User = Depends(require_shop_access),
 ):
     """Bulk-update sort_order for products in this shop.
 
@@ -461,8 +461,20 @@ def update_product(
     product_id: int,
     body: ShopProductUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_shop_manager),
+    current_user: User = Depends(require_shop_access),
 ):
+    # Defense-in-depth: cashier may only touch cosmetic fields (color, sort_order).
+    # Master-data edits (name/price/stock/etc.) remain manager+admin only.
+    from app.api.deps import _effective_roles
+    roles = _effective_roles(current_user)
+    if not (roles & {"admin", "manager"}):
+        sent = body.model_dump(exclude_unset=True)
+        forbidden = set(sent.keys()) - {"color", "sort_order"}
+        if forbidden:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role {sorted(roles)} can only edit color/sort_order; not {sorted(forbidden)}",
+            )
     product = _get_product_or_404(product_id, shop_id, db)
     price_fields = {"external_price", "internal_price"}
     # Snapshot price fields before applying changes
