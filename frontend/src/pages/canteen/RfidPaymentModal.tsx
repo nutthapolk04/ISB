@@ -658,21 +658,23 @@ export function RfidPaymentModal({
               </div>
             )}
 
-            {/* Balance forecast */}
-            <div className="rounded-2xl border border-border bg-card p-4 space-y-2 text-sm">
+            {/* Balance forecast — Sale Total is the hero metric */}
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {r("balanceOrder")}
+                </span>
+                <span className="text-3xl font-bold tabular-nums text-foreground">
+                  ฿{total.toFixed(2)}
+                </span>
+              </div>
+              <div className="border-t border-border" />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{r("balanceCurrent")}</span>
                 <span className="tabular-nums font-semibold">
                   ฿{balance.toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{r("balanceOrder")}</span>
-                <span className="tabular-nums font-semibold">
-                  −฿{total.toFixed(2)}
-                </span>
-              </div>
-              <div className="my-1 border-t border-dashed border-border" />
               <div className="flex justify-between text-base font-bold">
                 <span>{r("balanceAfter")}</span>
                 <span

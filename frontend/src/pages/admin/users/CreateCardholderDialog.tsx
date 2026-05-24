@@ -287,7 +287,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                             : NO_SHOP
                         }
                         onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
-                        disabled={shopsLoading || shops.length === 0}
+                        disabled={shopsLoading}
                       >
                         <SelectTrigger className={shopMissing ? "border-destructive" : ""}>
                           <SelectValue
@@ -297,7 +297,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                                 : shopsError
                                 ? `Failed to load: ${shopsError}`
                                 : shops.length === 0
-                                ? "No shops exist yet"
+                                ? "No shops available — click to refresh"
                                 : "Select a shop"
                             }
                           />
@@ -311,6 +311,26 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                               {s.name} ({s.module}){!s.is_active && " — inactive"}
                             </SelectItem>
                           ))}
+                          {shops.length === 0 && !shopsLoading && (
+                            <div className="px-2 py-3 text-xs text-muted-foreground text-center space-y-2">
+                              <p>
+                                {shopsError
+                                  ? `Failed to load: ${shopsError}`
+                                  : "No shops returned by the API"}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setShops([]);
+                                  setShopsError(null);
+                                }}
+                                className="text-xs font-semibold text-primary underline"
+                              >
+                                Try again
+                              </button>
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                       {shopMissing && (

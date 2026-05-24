@@ -494,6 +494,8 @@
     "download": "ดาวน์โหลดใบเสร็จ",
     "productList": "รายการสินค้า",
     "grandTotal": "ยอดรวมทั้งหมด",
+    "cashReceived": "รับเงินมา",
+    "change": "เงินทอน",
     "itemsCount": "{{count}} รายการ",
     "itemsCount_one": "{{count}} รายการ",
     "itemsCount_other": "{{count}} รายการ",
@@ -1550,8 +1552,8 @@
       "frozenTitle": "บัตรถูกระงับ",
       "frozenDesc": "กรุณาติดต่อผู้ปกครองหรือแอดมินเพื่อปลดระงับ",
       "balanceCurrent": "ยอดเงินคงเหลือ",
-      "balanceOrder": "ยอดสั่งซื้อ",
-      "balanceAfter": "หลังชำระ",
+      "balanceOrder": "ยอดที่ต้องชำระ",
+      "balanceAfter": "ยอดคงเหลือหลังจ่าย",
       "dailyLimit": "วงเงินต่อวัน",
       "overLimitTitle": "เกินวงเงินเบิกเกิน",
       "overLimitDesc": "ยอดจะติดลบ ฿{{amount}} แต่วงเงินสูงสุดคือ ฿{{cap}}",
@@ -1663,6 +1665,10 @@
     "close": "ปิด",
     "selectDate": "เลือกวันที่",
     "selectDateRange": "เลือกช่วงวันที่"
+  },
+  "pos": {
+    "autoPrint": "พิมพ์อัตโนมัติ",
+    "autoPrintTooltip": "พิมพ์ใบเสร็จอัตโนมัติหลังขายเสร็จทุกครั้ง"
   },
   "sync": {
     "loadFailed": "โหลดสถิติไม่สำเร็จ",

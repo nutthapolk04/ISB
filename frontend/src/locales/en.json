@@ -494,6 +494,8 @@
     "download": "Download Receipt",
     "productList": "Product List",
     "grandTotal": "Grand Total",
+    "cashReceived": "Cash received",
+    "change": "Change",
     "itemsCount": "{{count}} items",
     "itemsCount_one": "{{count}} item",
     "itemsCount_other": "{{count}} items",
@@ -1549,9 +1551,9 @@
       "newSearch": "New search",
       "frozenTitle": "Card is frozen",
       "frozenDesc": "Ask parent/admin to unfreeze before charging.",
-      "balanceCurrent": "Current balance",
-      "balanceOrder": "Order total",
-      "balanceAfter": "After payment",
+      "balanceCurrent": "Current Balance",
+      "balanceOrder": "Sale Total",
+      "balanceAfter": "Balance after this sale",
       "dailyLimit": "Daily limit",
       "overLimitTitle": "Exceeds overdraft limit",
       "overLimitDesc": "Balance would go ฿{{amount}} negative, but the overdraft cap is ฿{{cap}}.",
@@ -1663,6 +1665,10 @@
     "close": "Close",
     "selectDate": "Select date",
     "selectDateRange": "Select date range"
+  },
+  "pos": {
+    "autoPrint": "Auto-print",
+    "autoPrintTooltip": "Auto-print receipt after each sale"
   },
   "sync": {
     "loadFailed": "Failed to load sync stats",
