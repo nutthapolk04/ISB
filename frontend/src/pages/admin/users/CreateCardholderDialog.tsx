@@ -269,7 +269,15 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 {kind === "staff" && (
                   <>
                     <Field label="Role *">
-                      <Select value={staffRole} onValueChange={setStaffRole}>
+                      <Select
+                        value={staffRole}
+                        onValueChange={(v) => {
+                          setStaffRole(v);
+                          // Clear any leftover shop selection when switching to
+                          // a role that should not be linked to a shop.
+                          if (!SHOP_REQUIRED_ROLES.has(v)) setShopId("");
+                        }}
+                      >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="cashier">Cashier</SelectItem>
@@ -279,85 +287,78 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label={shopRequired ? "Shop *" : "Shop (optional)"}>
-                      <Select
-                        // Always keep value defined (NO_SHOP sentinel when nothing
-                        // chosen) so the Select stays controlled across role
-                        // changes — switching between undefined↔string would
-                        // trigger React's "controlled to uncontrolled" warning
-                        // and reset the dropdown UI.
-                        value={shopId === "" ? NO_SHOP : shopId}
-                        onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
-                        disabled={shopsLoading}
-                      >
-                        <SelectTrigger className={shopMissing ? "border-destructive" : ""}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* The "no shop" row is the sentinel value used while
-                              nothing is selected. We disable it (but keep it
-                              rendered) when a role requires a shop, so the
-                              Select keeps a stable controlled value while still
-                              forcing the admin to pick a real shop. */}
-                          <SelectItem value={NO_SHOP} disabled={shopRequired}>
-                            {shopRequired
-                              ? shopsLoading
+                    {/* Shop dropdown only matters for roles that operate within a
+                        single shop (cashier / manager / kitchen). General staff
+                        users — teachers and office staff — never bind to a shop,
+                        so we hide the picker entirely to keep the form tidy. */}
+                    {shopRequired && (
+                      <Field label="Shop *">
+                        <Select
+                          // Always keep value defined (NO_SHOP sentinel when
+                          // nothing chosen) so the Select stays controlled and
+                          // does not throw the React controlled→uncontrolled
+                          // warning on role changes.
+                          value={shopId === "" ? NO_SHOP : shopId}
+                          onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
+                          disabled={shopsLoading}
+                        >
+                          <SelectTrigger className={shopMissing ? "border-destructive" : ""}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_SHOP} disabled>
+                              {shopsLoading
                                 ? "Loading shops…"
                                 : shopsError
                                 ? `Failed to load: ${shopsError}`
                                 : shops.length === 0
                                 ? "No shops available — pick one below"
-                                : "Select a shop"
-                              : "— No shop —"}
-                          </SelectItem>
-                          {shops.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name} ({s.module}){!s.is_active && " — inactive"}
+                                : "Select a shop"}
                             </SelectItem>
-                          ))}
-                          {shops.length === 0 && !shopsLoading && (
-                            <div className="px-2 py-3 text-xs text-muted-foreground text-center space-y-2">
-                              <p>
-                                {shopsError
-                                  ? `Failed to load: ${shopsError}`
-                                  : "No shops returned by the API"}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setShops([]);
-                                  setShopsError(null);
-                                }}
-                                className="text-xs font-semibold text-primary underline"
-                              >
-                                Try again
-                              </button>
-                            </div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {shopMissing && (
-                        <p className="text-xs text-destructive">
-                          Role "{staffRole}" must be linked to a shop
-                        </p>
-                      )}
-                      {shopsError && (
-                        <p className="text-xs text-destructive">
-                          Could not load shops: {shopsError}
-                        </p>
-                      )}
-                      {!shopsLoading && !shopsError && shops.length === 0 && (
-                        <p className="text-xs text-amber-600">
-                          ยังไม่มี shop ในระบบ — ไปสร้างที่ Shop Management ก่อน
-                        </p>
-                      )}
-                      {!shopRequired && staffRole === "staff" && (
-                        <p className="text-xs text-muted-foreground">
-                          Staff (general) ปกติไม่ต้องผูก shop — ใช้สำหรับครู/บุคลากรทั่วไป
-                        </p>
-                      )}
-                    </Field>
+                            {shops.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name} ({s.module}){!s.is_active && " — inactive"}
+                              </SelectItem>
+                            ))}
+                            {shops.length === 0 && !shopsLoading && (
+                              <div className="px-2 py-3 text-xs text-muted-foreground text-center space-y-2">
+                                <p>
+                                  {shopsError
+                                    ? `Failed to load: ${shopsError}`
+                                    : "No shops returned by the API"}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setShops([]);
+                                    setShopsError(null);
+                                  }}
+                                  className="text-xs font-semibold text-primary underline"
+                                >
+                                  Try again
+                                </button>
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {shopMissing && (
+                          <p className="text-xs text-destructive">
+                            Role "{staffRole}" must be linked to a shop
+                          </p>
+                        )}
+                        {shopsError && !shopMissing && (
+                          <p className="text-xs text-destructive">
+                            Could not load shops: {shopsError}
+                          </p>
+                        )}
+                        {!shopsLoading && !shopsError && shops.length === 0 && (
+                          <p className="text-xs text-amber-600">
+                            ยังไม่มี shop ในระบบ — ไปสร้างที่ Shop Management ก่อน
+                          </p>
+                        )}
+                      </Field>
+                    )}
                   </>
                 )}
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
