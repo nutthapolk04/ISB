@@ -20,6 +20,13 @@ export interface ReceiptOptionsSnapshotApi {
   }>;
 }
 
+export interface ReceiptBundleSnapshotApi {
+  is_bundle: true;
+  bundle_id: number;
+  bundle_name: string;
+  bundle_code: string;
+}
+
 export interface ReceiptItemApi {
   id: number;
   receipt_id: number;
@@ -28,7 +35,8 @@ export interface ReceiptItemApi {
   unit_price: number;
   discount: number;
   line_total: number;
-  options?: ReceiptOptionsSnapshotApi | null;
+  // Backend reuses `options` to stash bundle metadata for bundle line items.
+  options?: ReceiptOptionsSnapshotApi | ReceiptBundleSnapshotApi | null;
   created_at: string;
   product_variant?: {
     sku: string | null;
@@ -170,8 +178,18 @@ export function buildReceiptHtml(
   });
 
   const itemRows = r.items.map((item) => {
-    const name = item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
-    const optionLines = item.options?.groups.flatMap((g) =>
+    const bundleMeta =
+      item.options && (item.options as ReceiptBundleSnapshotApi).is_bundle === true
+        ? (item.options as ReceiptBundleSnapshotApi)
+        : null;
+    const name = bundleMeta
+      ? bundleMeta.bundle_name
+      : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
+    const menuOptions =
+      !bundleMeta && item.options && (item.options as ReceiptOptionsSnapshotApi).groups
+        ? (item.options as ReceiptOptionsSnapshotApi)
+        : null;
+    const optionLines = menuOptions?.groups.flatMap((g) =>
       g.options.map((o) => {
         const price = o.price_delta > 0 ? ` +฿${(o.price_delta * o.quantity).toLocaleString()}` : "";
         return `<div class="opt">+ ${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""}${price}</div>`;

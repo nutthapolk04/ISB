@@ -191,16 +191,22 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
 
   const itemRows = r.items
     .map((item) => {
-      const name = item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
+      const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
+      const isBundle = opts?.is_bundle === true;
+      const name = isBundle
+        ? (opts?.bundle_name ?? "Bundle")
+        : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
       const optionLines =
-        item.options?.groups
-          .flatMap((g) =>
-            g.options.map((o) => {
-              const price = o.price_delta > 0 ? ` +฿${(o.price_delta * o.quantity).toLocaleString()}` : "";
-              return `<div class="opt">+ ${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""}${price}</div>`;
-            }),
-          )
-          .join("") ?? "";
+        !isBundle && opts?.groups
+          ? opts.groups
+              .flatMap((g: any) =>
+                g.options.map((o: any) => {
+                  const price = o.price_delta > 0 ? ` +฿${(o.price_delta * o.quantity).toLocaleString()}` : "";
+                  return `<div class="opt">+ ${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""}${price}</div>`;
+                }),
+              )
+              .join("")
+          : "";
       const discountLine =
         item.discount > 0
           ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
@@ -435,19 +441,24 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               <h4 className="font-semibold text-sm">{t("receipts.productList", "รายการสินค้า")}</h4>
               {receipt.items.map((item) => {
                 const hasDiscount = item.discount > 0;
+                const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
+                const isBundle = opts?.is_bundle === true;
+                const displayName = isBundle
+                  ? (opts?.bundle_name ?? "Bundle")
+                  : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
                 return (
                   <div key={item.id} className="text-sm">
                     <div className="flex justify-between">
                       <span>
-                        {item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`} ×{" "}
+                        {displayName} ×{" "}
                         {item.quantity}
                       </span>
                       <span className="tabular-nums">฿{item.line_total.toLocaleString()}</span>
                     </div>
-                    {item.options && item.options.groups.length > 0 && (
+                    {!isBundle && opts?.groups && opts.groups.length > 0 && (
                       <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
-                        {item.options.groups.flatMap((g) =>
-                          g.options.map((o) => (
+                        {opts.groups.flatMap((g: any) =>
+                          g.options.map((o: any) => (
                             <div key={`${g.group_id}-${o.option_id}`} className="flex justify-between">
                               <span>
                                 + {o.name}

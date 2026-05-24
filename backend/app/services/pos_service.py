@@ -478,16 +478,29 @@ class POSService:
                 "amount": amount_dec,
             }
 
-        # Derive shop_id from first item if not explicitly passed
+        # Derive shop_id from first item if not explicitly passed. Bundle line
+        # items use product_variant_id=0 as a sentinel, so we route those
+        # through ProductBundle.shop_id instead — otherwise the receipt would
+        # save with shop_id=NULL and disappear from cashier history.
         effective_shop_id = shop_id
         if effective_shop_id is None and items:
-            first_product = (
-                db.query(ShopProduct)
-                .filter(ShopProduct.id == items[0]["product_variant_id"])
-                .first()
-            )
-            if first_product:
-                effective_shop_id = first_product.shop_id
+            first = items[0]
+            if first.get("is_bundle") and first.get("bundle_id"):
+                bundle_row = (
+                    db.query(ProductBundle)
+                    .filter(ProductBundle.id == first["bundle_id"])
+                    .first()
+                )
+                if bundle_row:
+                    effective_shop_id = bundle_row.shop_id
+            else:
+                first_product = (
+                    db.query(ShopProduct)
+                    .filter(ShopProduct.id == first["product_variant_id"])
+                    .first()
+                )
+                if first_product:
+                    effective_shop_id = first_product.shop_id
 
         # Polymorphic payer reference on the receipt — exactly one of customer_id /
         # payer_user_id / payer_department_id is set so audit/reporting stays clean.

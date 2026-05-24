@@ -23,15 +23,26 @@ router = APIRouter()
 
 
 def _resolve_checkout_shop_id(payload: CheckoutPayload, db: Session) -> Optional[str]:
-    """Shop context is either explicit in payload or inferred from the first item."""
+    """Shop context is either explicit in payload or inferred from the first item.
+
+    Bundle line items send product_variant_id=0 as a sentinel — for those we
+    derive the shop from the ProductBundle row instead.
+    """
     if payload.shop_id:
         return payload.shop_id
     if payload.items:
-        first = db.query(ShopProduct).filter(
-            ShopProduct.id == payload.items[0].product_variant_id
-        ).first()
-        if first:
-            return first.shop_id
+        first = payload.items[0]
+        if first.is_bundle and first.bundle_id:
+            from app.models.shop import ProductBundle
+            bundle = db.query(ProductBundle).filter(ProductBundle.id == first.bundle_id).first()
+            if bundle:
+                return bundle.shop_id
+        else:
+            product = db.query(ShopProduct).filter(
+                ShopProduct.id == first.product_variant_id
+            ).first()
+            if product:
+                return product.shop_id
     return None
 
 

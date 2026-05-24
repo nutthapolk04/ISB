@@ -862,6 +862,9 @@ const Store = () => {
         payer_user_id,
         payer_department_id,
         requester_user_id: priceMode === "internal" ? requesterUserId : undefined,
+        // Explicit shop scope — required when bundle-only carts ship a
+        // sentinel product_variant_id=0 that backend can't introspect.
+        shop_id: user?.shopId ?? undefined,
         items: cart.map((item) => {
           const catalogPrice =
             priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price;
