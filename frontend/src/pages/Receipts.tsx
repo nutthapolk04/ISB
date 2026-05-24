@@ -722,7 +722,7 @@ const Receipts = () => {
                         </IconButton>
                         {canVoid && receipt.status === "active" && (
                           <IconButton
-                            tooltip="ยกเลิก / Void"
+                            tooltip={t("receipts.void", "Void")}
                             onClick={() => {
                               setVoidTarget(receipt);
                               setVoidReason("");
@@ -744,7 +744,12 @@ const Receipts = () => {
           {filteredReceipts.length > PAGE_SIZE && (
             <div className="flex items-center justify-between pt-4 border-t mt-2">
               <p className="text-xs text-muted-foreground">
-                แสดง {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredReceipts.length)} จาก {filteredReceipts.length} รายการ
+                {t("receipts.paginationRange", {
+                  start: (safePage - 1) * PAGE_SIZE + 1,
+                  end: Math.min(safePage * PAGE_SIZE, filteredReceipts.length),
+                  total: filteredReceipts.length,
+                  defaultValue: "Showing {{start}}–{{end}} of {{total}} items",
+                })}
               </p>
               <div className="flex items-center gap-1">
                 <Button
@@ -763,7 +768,7 @@ const Receipts = () => {
                   disabled={safePage === 1}
                   className="h-8 px-3 text-xs"
                 >
-                  ‹ ก่อนหน้า
+                  {t("receipts.prev", "‹ Prev")}
                 </Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
@@ -794,7 +799,7 @@ const Receipts = () => {
                   disabled={safePage === totalPages}
                   className="h-8 px-3 text-xs"
                 >
-                  ถัดไป ›
+                  {t("receipts.next", "Next ›")}
                 </Button>
                 <Button
                   variant="outline"
@@ -974,7 +979,7 @@ const Receipts = () => {
                     </div>
                     {/* Wallet balance */}
                     <div className="text-right shrink-0">
-                      <div className="text-[10px] text-muted-foreground">ยอดคงเหลือ</div>
+                      <div className="text-[10px] text-muted-foreground">{t("receipts.balance", "Balance")}</div>
                       <div className={cn(
                         "text-base font-bold tabular-nums",
                         (selectedReceipt.payer_detail.wallet_balance ?? 0) < 0
@@ -982,10 +987,10 @@ const Receipts = () => {
                           : "text-emerald-600",
                       )}>
                         {selectedReceipt.payer_detail.wallet_balance !== null
-                          ? `฿${selectedReceipt.payer_detail.wallet_balance.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`
+                          ? `฿${selectedReceipt.payer_detail.wallet_balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                           : "—"}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">หลังชำระ</div>
+                      <div className="text-[10px] text-muted-foreground">{t("receipts.afterPayment", "After payment")}</div>
                     </div>
                   </div>
                   <Separator />

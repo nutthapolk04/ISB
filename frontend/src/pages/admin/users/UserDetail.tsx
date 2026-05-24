@@ -556,7 +556,7 @@ export default function UserDetail() {
                 <Textarea
                   value={extIdReason}
                   onChange={(e) => setExtIdReason(e.target.value)}
-                  placeholder="เช่น: PowerSchool renumbered during annual rollover"
+                  placeholder={t("admin.users.extIdReasonPlaceholder", "e.g. PowerSchool renumbered during annual rollover")}
                   rows={2}
                 />
               </div>

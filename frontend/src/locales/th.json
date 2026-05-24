@@ -262,6 +262,17 @@
     "receiptId": "เลขที่ใบเสร็จ",
     "studentCodeOrName": "รหัส/ชื่อนักเรียน",
     "studentCodePlaceholder": "S001 หรือ สมชาย",
+    "void": "ยกเลิก",
+    "paginationRange": "แสดง {{start}}–{{end}} จาก {{total}} รายการ",
+    "prev": "‹ ก่อนหน้า",
+    "next": "ถัดไป ›",
+    "balance": "ยอดคงเหลือ",
+    "afterPayment": "หลังชำระ",
+    "notes": "หมายเหตุ",
+    "voidReason": "เหตุผล void",
+    "code": "รหัส",
+    "gradeLabel": "ชั้น",
+    "departmentLabel": "แผนก",
     "multipleResults": "พบใบเสร็จ {{count}} ใบ — เลือกหนึ่งใบ",
     "popupBlocked": "ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต pop-up",
     "cardUidRequired": "กรุณาระบุ UID หรือรหัสนักเรียน",
@@ -557,6 +568,9 @@
     }
   },
   "reports": {
+    "deptUseHeader": "Department Use (Internal) — ยอดเบิกภายใน",
+    "deptUseSeparated": "ยอดเบิกภายใน (Department Use) แยกจากยอดขายปกติ",
+    "deptUseExcludedFromGrand": "Grand Total ในรายงานนี้แสดงเฉพาะยอดขายปกติ — ไม่รวม Department Use",
     "title": "รายงาน",
     "description": "ดูรายงานและสถิติต่างๆ ของระบบ",
     "info": {
@@ -1306,6 +1320,7 @@
       "cardUnfrozen": "ปลดระงับบัตรแล้ว"
     },
     "users": {
+      "extIdReasonPlaceholder": "เช่น: PowerSchool renumbered during annual rollover",
       "title": "จัดการผู้ใช้",
       "description": "จัดการผู้ใช้งานทั้งระบบ (เชื่อมต่อกับ PowerSchool middleware)",
       "tabUsers": "ผู้ใช้",
@@ -1722,6 +1737,16 @@
   },
   "shopDetail": {
     "panelNamePlaceholder": "เช่น ราคาทั่วไป"
+  },
+  "txHistory": {
+    "csv": {
+      "date": "วันที่",
+      "type": "ประเภท",
+      "shop": "ร้านค้า",
+      "description": "คำอธิบาย",
+      "amount": "จำนวนเงิน",
+      "balance": "คงเหลือ"
+    }
   },
   "login": {
     "demoBanner": "บัญชีเดโม — กระเป๋าของฉัน + POS spending",

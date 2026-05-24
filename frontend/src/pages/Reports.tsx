@@ -232,7 +232,7 @@ const Reports = () => {
         }
         csv += `\n${t("reports.grandTotal")},,${data.retail_total.toFixed(2)}\n`;
         csv += `${t("reports.totalReceipts") || "Total Receipts"},${data.total_receipts - data.department_receipts},\n`;
-        csv += `\nDepartment Use (Internal) — ยอดเบิกภายใน,,\n`;
+        csv += `\n${t("reports.deptUseHeader", "Department Use (Internal)")},,\n`;
         csv += `Department Use,${data.department_receipts},${data.department_total.toFixed(2)}\n`;
       } else if (selectedReportType === "stockReport") {
         const stockShopParam = shopParam.replace(/^&/, "?");
@@ -471,10 +471,10 @@ const Reports = () => {
                   Department Use (Internal)
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  ยอดเบิกภายใน (Department Use) แยกจากยอดขายปกติ
+                  {t("reports.deptUseSeparated", "Department Use is tracked separately from normal sales.")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Grand Total ในรายงานนี้แสดงเฉพาะยอดขายปกติ — ไม่รวม Department Use
+                  {t("reports.deptUseExcludedFromGrand", "Grand Total in this report covers normal sales only — Department Use is excluded.")}
                 </p>
               </div>
             )}

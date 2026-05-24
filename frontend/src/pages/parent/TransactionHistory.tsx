@@ -109,8 +109,16 @@ export default function TransactionHistory() {
   };
 
   const handleExportCSV = () => {
-    // CSV headers stay in Thai since the file is for local accounting use
-    const header = ["วันที่", "ประเภท", "ร้านค้า", "คำอธิบาย", "จำนวนเงิน", "คงเหลือ"];
+    // CSV headers follow the UI language so an English-locale export is
+    // self-explanatory for non-Thai admins.
+    const header = [
+      t("txHistory.csv.date", "Date"),
+      t("txHistory.csv.type", "Type"),
+      t("txHistory.csv.shop", "Shop"),
+      t("txHistory.csv.description", "Description"),
+      t("txHistory.csv.amount", "Amount"),
+      t("txHistory.csv.balance", "Balance"),
+    ];
     const rows = txs.map((tx) => [
       formatDate(tx.created_at),
       txTypeLabel(tx.transaction_type),

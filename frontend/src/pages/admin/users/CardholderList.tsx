@@ -328,7 +328,7 @@ export default function CardholderList() {
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
-                    กำลังโหลด...
+                    {t("common.loading", "Loading…")}
                   </TableCell>
                 </TableRow>
               )}

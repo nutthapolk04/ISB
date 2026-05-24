@@ -262,6 +262,17 @@
     "receiptId": "Receipt ID",
     "studentCodeOrName": "Student code / name",
     "studentCodePlaceholder": "S001 or John",
+    "void": "Void",
+    "paginationRange": "Showing {{start}}–{{end}} of {{total}} items",
+    "prev": "‹ Prev",
+    "next": "Next ›",
+    "balance": "Balance",
+    "afterPayment": "After payment",
+    "notes": "Notes",
+    "voidReason": "Void reason",
+    "code": "Code",
+    "gradeLabel": "Grade",
+    "departmentLabel": "Department",
     "multipleResults": "{{count}} receipts found — pick one",
     "popupBlocked": "Cannot open print window — please allow pop-ups",
     "cardUidRequired": "Please provide UID or student code",
@@ -557,6 +568,9 @@
     }
   },
   "reports": {
+    "deptUseHeader": "Department Use (Internal)",
+    "deptUseSeparated": "Department Use is tracked separately from normal sales.",
+    "deptUseExcludedFromGrand": "Grand Total in this report covers normal sales only — Department Use is excluded.",
     "title": "Reports",
     "description": "View reports and statistics",
     "info": {
@@ -1306,6 +1320,7 @@
       "cardUnfrozen": "Card unfrozen"
     },
     "users": {
+      "extIdReasonPlaceholder": "e.g. PowerSchool renumbered during annual rollover",
       "title": "User Management",
       "description": "Manage all users system-wide (synced with PowerSchool middleware)",
       "tabUsers": "Users",
@@ -1722,6 +1737,16 @@
   },
   "shopDetail": {
     "panelNamePlaceholder": "e.g. Standard price"
+  },
+  "txHistory": {
+    "csv": {
+      "date": "Date",
+      "type": "Type",
+      "shop": "Shop",
+      "description": "Description",
+      "amount": "Amount",
+      "balance": "Balance"
+    }
   },
   "login": {
     "demoBanner": "Demo accounts — Personal Wallet + POS spending",

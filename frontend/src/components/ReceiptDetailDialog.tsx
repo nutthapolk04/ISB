@@ -348,13 +348,13 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               </div>
               {receipt.notes && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">หมายเหตุ:</span>
+                  <span className="text-sm text-muted-foreground">{t("receipts.notes", "Notes")}:</span>
                   <span className="text-sm">{receipt.notes}</span>
                 </div>
               )}
               {receipt.voided_reason && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">เหตุผล void:</span>
+                  <span className="text-sm text-muted-foreground">{t("receipts.voidReason", "Void reason")}:</span>
                   <span className="text-sm text-destructive">{receipt.voided_reason}</span>
                 </div>
               )}
@@ -402,12 +402,14 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       {receipt.payer_detail.code && (
                         <div>
-                          รหัส: <span className="font-mono">{receipt.payer_detail.code}</span>
+                          {t("receipts.code", "Code")}: <span className="font-mono">{receipt.payer_detail.code}</span>
                         </div>
                       )}
                       {receipt.payer_detail.grade && (
                         <div>
-                          {receipt.payer_detail.role === "student" ? "ชั้น: " : "แผนก: "}
+                          {receipt.payer_detail.role === "student"
+                            ? `${t("receipts.gradeLabel", "Grade")}: `
+                            : `${t("receipts.departmentLabel", "Department")}: `}
                           {receipt.payer_detail.grade}
                         </div>
                       )}
@@ -417,7 +419,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-[10px] text-muted-foreground">ยอดคงเหลือ</div>
+                    <div className="text-[10px] text-muted-foreground">{t("receipts.balance", "Balance")}</div>
                     <div
                       className={cn(
                         "text-base font-bold tabular-nums",
@@ -427,10 +429,10 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                       )}
                     >
                       {receipt.payer_detail.wallet_balance !== null
-                        ? `฿${receipt.payer_detail.wallet_balance.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`
+                        ? `฿${receipt.payer_detail.wallet_balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                         : "—"}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">หลังชำระ</div>
+                    <div className="text-[10px] text-muted-foreground">{t("receipts.afterPayment", "After payment")}</div>
                   </div>
                 </div>
                 <Separator />
@@ -477,7 +479,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                     )}
                     {hasDiscount && (
                       <div className="flex justify-between text-destructive text-xs pl-4">
-                        <span>ส่วนลด</span>
+                        <span>{t("receipts.itemDiscount", "Discount")}</span>
                         <span className="tabular-nums">-฿{item.discount.toLocaleString()}</span>
                       </div>
                     )}
