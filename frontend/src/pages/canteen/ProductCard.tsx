@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Check, Palette, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -42,6 +43,7 @@ export function ProductCard({
   onCloseColorEdit,
   onSaveColor,
 }: ProductCardProps) {
+  const { t } = useTranslation();
   const displayPrice =
     priceMode === "internal" ? product.internalPrice : product.price;
   const isInternal = priceMode === "internal";
@@ -113,7 +115,7 @@ export function ProductCard({
                   type="button"
                   onClick={(e) => e.stopPropagation()}
                   className="rounded p-0.5 transition hover:bg-muted"
-                  title="เปลี่ยนสีปุ่ม"
+                  title={t("canteen.productCard.changeColor")}
                 >
                   <Palette
                     className="h-3.5 w-3.5"
@@ -127,7 +129,7 @@ export function ProductCard({
                 side="top"
                 align="end"
               >
-                <p className="text-xs font-semibold">สีของปุ่ม</p>
+                <p className="text-xs font-semibold">{t("canteen.productCard.buttonColor")}</p>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -166,7 +168,7 @@ export function ProductCard({
                     disabled={colorSaving}
                     className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition"
                   >
-                    ล้างสี
+                    {t("canteen.productCard.clearColor")}
                   </button>
                   <button
                     type="button"
@@ -174,7 +176,7 @@ export function ProductCard({
                     disabled={colorSaving}
                     className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition"
                   >
-                    {colorSaving ? "…" : "บันทึก"}
+                    {colorSaving ? "…" : t("common.save")}
                   </button>
                 </div>
               </PopoverContent>

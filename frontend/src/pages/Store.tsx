@@ -127,6 +127,7 @@ function DiscountShortcutPopover({
   currentMode: DiscountMode | undefined;
   onUpdate: (id: string, value: number | null, mode: DiscountMode) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   // Local mode lets the user toggle %↔฿ inside the popover without saving
   // a stale discount. Resets to the persisted mode each time the popover opens.
@@ -154,7 +155,7 @@ function DiscountShortcutPopover({
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start" side="top" sideOffset={6}>
         <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
-          ส่วนลด {mode === "percent" ? "%" : "฿"}
+          {t("store.cart.discountHeader")} {mode === "percent" ? "%" : "฿"}
         </p>
         <div className="grid grid-cols-3 gap-1.5">
           {shortcuts.map((q) => (
@@ -186,7 +187,7 @@ function DiscountShortcutPopover({
             onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
             className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
-            {mode === "percent" ? "ใช้ ฿" : "ใช้ %"}
+            {mode === "percent" ? t("store.cart.useBaht") : t("store.cart.usePercent")}
           </button>
         </div>
       </PopoverContent>
@@ -1395,7 +1396,7 @@ const Store = () => {
                   className="gap-1.5"
                 >
                   <ArrowUpDown className="h-4 w-4" />
-                  <span className="hidden sm:inline">จัดลำดับ</span>
+                  <span className="hidden sm:inline">{t("store.reorder.enter")}</span>
                 </Button>
               )
             )}
@@ -1497,7 +1498,7 @@ const Store = () => {
         {/* Panel selector — only shown for shop-scoped users with panels */}
         {user?.shopId && panels.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
-            <span className="text-xs font-semibold text-muted-foreground shrink-0">ราคา:</span>
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">{t("store.priceLabel")}</span>
             <button
               type="button"
               onClick={() => setActivePanelId(null)}
@@ -1508,7 +1509,7 @@ const Store = () => {
                   : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
               )}
             >
-              ราคาทั่วไป
+              {t("store.normalPrice")}
             </button>
             {panels.map((panel) => (
               <button
@@ -1890,14 +1891,14 @@ const Store = () => {
       <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">ยอดเงินไม่เพียงพอ</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-600">{t("store.insufficientBalance")}</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-foreground">
               {walletLimitError}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setWalletLimitError(null)}>
-              ตกลง
+              {t("common.ok")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -138,14 +138,14 @@ export default function Canteen() {
       setProductsOrderVersion(res.version);
       setReorderDirty(false);
       setReorderMode(false);
-      toast.success("จัดลำดับแล้ว");
+      toast.success(t("canteen.reorder.saved"));
     } catch (e: any) {
       if (e?.status === 409 || e?.detail?.current_version) {
-        toast.error("คนอื่นเปลี่ยนลำดับก่อนแล้ว — กรุณารีเฟรชแล้วลองใหม่");
+        toast.error(t("canteen.reorder.conflict"));
         const newVer = e?.detail?.current_version;
         if (newVer) setProductsOrderVersion(newVer);
       } else {
-        toast.error(e instanceof ApiError ? e.detail : "บันทึกลำดับไม่สำเร็จ");
+        toast.error(e instanceof ApiError ? e.detail : t("canteen.reorder.saveFailed"));
       }
     } finally {
       setReorderSaving(false);
@@ -812,7 +812,7 @@ export default function Canteen() {
                   onClick={() => { setReorderMode(false); setReorderDirty(false); }}
                   disabled={reorderSaving}
                 >
-                  ยกเลิก
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   size="sm"
@@ -821,7 +821,7 @@ export default function Canteen() {
                   className="bg-amber-500 hover:bg-amber-600"
                 >
                   <CheckIcon className="h-3 w-3 mr-1" />
-                  {reorderSaving ? "…" : "บันทึก"}
+                  {reorderSaving ? "…" : t("common.save")}
                 </Button>
               </div>
             ) : (
@@ -832,7 +832,7 @@ export default function Canteen() {
                 className="shrink-0"
               >
                 <ArrowUpDown className="h-3 w-3 mr-1" />
-                จัดลำดับ
+                {t("canteen.reorder.enter")}
               </Button>
             )}
           </div>
@@ -1150,7 +1150,7 @@ export default function Canteen() {
                 "absolute top-2 right-2 rounded-full p-1 hover:bg-black/10 transition-colors",
                 rfidNotif.type === "success" ? "text-amber-500" : "text-red-400",
               )}
-              aria-label="ปิด"
+              aria-label={t("common.close")}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

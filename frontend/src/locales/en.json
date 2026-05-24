@@ -235,7 +235,18 @@
     "noItemsInCategory": "No items in this category",
     "allCategories": "All",
     "internal": "Internal",
-    "retail": "Retail"
+    "retail": "Retail",
+    "priceLabel": "Price:",
+    "insufficientBalance": "Insufficient balance",
+    "reorder": {
+      "enter": "Reorder"
+    },
+    "cart": {
+      "selectDiscountAria": "Select discount %",
+      "discountHeader": "Discount",
+      "useBaht": "Use ฿",
+      "usePercent": "Use %"
+    }
   },
   "returns": {
     "title": "Product Returns",
@@ -1572,7 +1583,46 @@
     },
     "colPrice": "Price",
     "orderSaved": "Order saved",
-    "orderSaveFailed": "Failed to save order"
+    "orderSaveFailed": "Failed to save order",
+    "cart": {
+      "selectDiscountAria": "Select discount %",
+      "discountHeader": "Discount",
+      "useBaht": "Use ฿",
+      "usePercent": "Use %",
+      "editedBadge": "Edited",
+      "discountBadge": "Disc {{value}}",
+      "newUnitPricePrompt": "New unit price (leave blank for default)",
+      "editPriceAria": "Edit price",
+      "discountLabel": "Discount",
+      "clearMemberAria": "Clear member"
+    },
+    "cardTap": {
+      "title": "Tap card or enter code",
+      "placeholder": "UID / student code / username",
+      "search": "Search",
+      "select": "Select this member",
+      "replaceTitle": "Replace member?",
+      "replaceBody": "Replace \"{{from}}\" with \"{{to}}\"?",
+      "confirmReplace": "Replace",
+      "notFound": "Not found",
+      "notFoundInSystem": "Not found in the system"
+    },
+    "rfid": {
+      "notFound": "Not found",
+      "notFoundInSystem": "Not found in the system",
+      "notFoundRetry": "Not found — try scanning again or search family"
+    },
+    "productCard": {
+      "changeColor": "Change button color",
+      "buttonColor": "Button color",
+      "clearColor": "Clear color"
+    },
+    "reorder": {
+      "enter": "Reorder",
+      "saved": "Order saved",
+      "conflict": "Order was changed by someone else — please refresh and try again",
+      "saveFailed": "Failed to save order"
+    }
   },
   "common": {
     "cancel": "Cancel",
@@ -1603,7 +1653,8 @@
       "other": "Other"
     },
     "optional": "Optional",
-    "done": "Done"
+    "done": "Done",
+    "close": "Close"
   },
   "sync": {
     "loadFailed": "Failed to load sync stats",
@@ -1721,7 +1772,9 @@
     "thisCharge": "This charge",
     "balanceAfter": "Balance after",
     "deptEmpVerify": "Verify employee (tap card or enter username)",
-    "deptEmpPlaceholder": "Tap employee card or type username…"
+    "deptEmpPlaceholder": "Tap employee card or type username…",
+    "change": "Change",
+    "empNotFound": "Employee not found"
   },
   "shopUsers": {
     "titleSuffix": "Users",

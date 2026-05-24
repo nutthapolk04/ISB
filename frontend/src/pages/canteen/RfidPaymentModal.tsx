@@ -269,12 +269,12 @@ export function RfidPaymentModal({
         setStage("identity");
         return;
       }
-      throw new ApiError(404, "ไม่พบข้อมูลในระบบ", undefined);
+      throw new ApiError(404, t("canteen.rfid.notFoundInSystem"), undefined);
     } catch (e) {
       setLookupError(
         e instanceof ApiError
           ? e.detail
-          : "ไม่พบข้อมูล — ลองสแกนใหม่หรือค้นหาครอบครัว",
+          : t("canteen.rfid.notFoundRetry"),
       );
     } finally {
       setLookupLoading(false);
@@ -295,7 +295,7 @@ export function RfidPaymentModal({
       setStage("family");
     } catch (e) {
       setFamilyError(
-        e instanceof ApiError ? e.detail : "ไม่พบข้อมูล",
+        e instanceof ApiError ? e.detail : t("canteen.rfid.notFound"),
       );
     } finally {
       setFamilyLoading(false);

@@ -30,6 +30,7 @@ function DiscountShortcutPopover({
   currentMode: LineDiscountMode | undefined;
   onSetLineDiscount: (id: string, value: number | null, mode: LineDiscountMode) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   // Local mode lets the user toggle %↔฿ inside the popover without saving
   // a stale discount. Resets to the persisted mode each time the popover opens.
@@ -61,7 +62,7 @@ function DiscountShortcutPopover({
               ? "border-amber-400 text-amber-700 hover:bg-amber-50"
               : "border-border text-foreground hover:bg-muted",
           )}
-          aria-label="เลือกส่วนลด %"
+          aria-label={t("canteen.cart.selectDiscountAria")}
         >
           {mode === "percent" ? "%" : "฿"}
         </button>
@@ -73,7 +74,7 @@ function DiscountShortcutPopover({
         sideOffset={6}
       >
         <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
-          ส่วนลด {mode === "percent" ? "%" : "฿"}
+          {t("canteen.cart.discountHeader")} {mode === "percent" ? "%" : "฿"}
         </p>
         <div className="grid grid-cols-3 gap-1.5">
           {shortcuts.map((q) => (
@@ -105,7 +106,7 @@ function DiscountShortcutPopover({
             onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
             className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
-            {mode === "percent" ? "ใช้ ฿" : "ใช้ %"}
+            {mode === "percent" ? t("canteen.cart.useBaht") : t("canteen.cart.usePercent")}
           </button>
         </div>
       </PopoverContent>
@@ -240,7 +241,7 @@ export function CanteenCart({
                 type="button"
                 onClick={onClearMember}
                 className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
-                aria-label="ยกเลิกสมาชิก"
+                aria-label={t("canteen.cart.clearMemberAria")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -297,14 +298,17 @@ export function CanteenCart({
                         <span className="truncate">{item.name}</span>
                         {item.priceOverride != null && (
                           <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">
-                            แก้ราคา
+                            {t("canteen.cart.editedBadge")}
                           </span>
                         )}
                         {(item.lineDiscountValue ?? 0) > 0 && (
                           <span className="shrink-0 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800">
-                            ลด {item.lineDiscountMode === "amount"
-                              ? `฿${item.lineDiscountValue}`
-                              : `${item.lineDiscountValue}%`}
+                            {t("canteen.cart.discountBadge", {
+                              value:
+                                item.lineDiscountMode === "amount"
+                                  ? `฿${item.lineDiscountValue}`
+                                  : `${item.lineDiscountValue}%`,
+                            })}
                           </span>
                         )}
                       </div>
@@ -314,7 +318,7 @@ export function CanteenCart({
                           onClick={() => {
                             const current = item.priceOverride ?? (priceMode === "internal" ? item.internalPrice : item.price);
                             const input = window.prompt(
-                              `ราคาต่อหน่วยใหม่ (เว้นว่างเพื่อใช้ราคาปกติ)`,
+                              t("canteen.cart.newUnitPricePrompt"),
                               String(current),
                             );
                             if (input === null) return;
@@ -329,7 +333,7 @@ export function CanteenCart({
                             }
                           }}
                           className="inline-flex items-center gap-0.5 rounded hover:bg-muted px-1 py-0.5 -ml-1"
-                          aria-label="แก้ราคา"
+                          aria-label={t("canteen.cart.editPriceAria")}
                         >
                           ฿{unit.toFixed(0)}
                           <Pencil className="h-3 w-3 opacity-60" />
@@ -341,7 +345,7 @@ export function CanteenCart({
                       </div>
                       {/* Per-item discount row */}
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground">ส่วนลด:</span>
+                        <span className="text-[10px] text-muted-foreground">{t("canteen.cart.discountLabel")}:</span>
                         {(item.lineDiscountValue ?? 0) > 0 && (
                           <span className="text-[10px] font-medium text-amber-700">
                             {item.lineDiscountValue}{item.lineDiscountMode === "percent" ? "%" : "฿"}

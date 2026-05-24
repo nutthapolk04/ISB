@@ -193,12 +193,7 @@ export default function CanteenProducts({ shopId: propShopId, embedded }: { shop
       qc.invalidateQueries({ queryKey: ["shop-meta", shopId] });
       qc.invalidateQueries({ queryKey: ["canteen-products", shopId] });
       if (e instanceof ApiError && e.status === 409) {
-        toast.warning(
-          t(
-            "canteen.orderConflict",
-            "ลำดับถูกแก้ไขโดยผู้ใช้คนอื่น — โหลดข้อมูลใหม่แล้ว",
-          ),
-        );
+        toast.warning(t("canteen.reorder.conflict"));
       } else {
         toast.error(
           e instanceof ApiError ? e.detail : t("canteen.orderSaveFailed", "บันทึกลำดับไม่สำเร็จ"),

@@ -110,7 +110,7 @@ export function DepartmentPaymentModal({
         if (match) setSelectedId(String(match.id));
       }
     } catch (e) {
-      setEmpError(e instanceof ApiError ? e.detail : "ไม่พบพนักงาน");
+      setEmpError(e instanceof ApiError ? e.detail : t("storePos.empNotFound"));
     } finally {
       setEmpLoading(false);
     }
@@ -213,7 +213,7 @@ export function DepartmentPaymentModal({
                     onClick={() => { setVerifiedEmployee(null); setEmpInput(""); }}
                     className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5"
                   >
-                    <X className="h-3 w-3" /> เปลี่ยน
+                    <X className="h-3 w-3" /> {t("storePos.change")}
                   </button>
                 </div>
               </div>

@@ -120,9 +120,9 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
 
-      throw new ApiError(404, "ไม่พบข้อมูลในระบบ", undefined);
+      throw new ApiError(404, t("canteen.cardTap.notFoundInSystem"), undefined);
     } catch (e) {
-      setError(e instanceof ApiError ? e.detail : "ไม่พบข้อมูล");
+      setError(e instanceof ApiError ? e.detail : t("canteen.cardTap.notFound"));
     } finally {
       setLoading(false);
     }
@@ -242,7 +242,7 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
               {t("canteen.cardTap.replaceTitle", "เปลี่ยนสมาชิก?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {`เปลี่ยนจาก "${currentMember?.name}" เป็น "${found?.name}"?`}
+              {t("canteen.cardTap.replaceBody", { from: currentMember?.name ?? "", to: found?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

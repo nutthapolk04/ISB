@@ -235,7 +235,18 @@
     "noItemsInCategory": "ไม่มีสินค้าในหมวดหมู่นี้",
     "allCategories": "ทั้งหมด",
     "internal": "ราคาภายใน",
-    "retail": "ราคาขายปลีก"
+    "retail": "ราคาขายปลีก",
+    "priceLabel": "ราคา:",
+    "insufficientBalance": "ยอดเงินไม่เพียงพอ",
+    "reorder": {
+      "enter": "จัดลำดับ"
+    },
+    "cart": {
+      "selectDiscountAria": "เลือกส่วนลด %",
+      "discountHeader": "ส่วนลด",
+      "useBaht": "ใช้ ฿",
+      "usePercent": "ใช้ %"
+    }
   },
   "returns": {
     "title": "เปลี่ยนสินค้า",
@@ -1572,7 +1583,46 @@
     },
     "colPrice": "ราคา",
     "orderSaved": "บันทึกลำดับแล้ว",
-    "orderSaveFailed": "บันทึกลำดับไม่สำเร็จ"
+    "orderSaveFailed": "บันทึกลำดับไม่สำเร็จ",
+    "cart": {
+      "selectDiscountAria": "เลือกส่วนลด %",
+      "discountHeader": "ส่วนลด",
+      "useBaht": "ใช้ ฿",
+      "usePercent": "ใช้ %",
+      "editedBadge": "แก้ราคา",
+      "discountBadge": "ลด {{value}}",
+      "newUnitPricePrompt": "ราคาต่อหน่วยใหม่ (เว้นว่างเพื่อใช้ราคาปกติ)",
+      "editPriceAria": "แก้ราคา",
+      "discountLabel": "ส่วนลด",
+      "clearMemberAria": "ยกเลิกสมาชิก"
+    },
+    "cardTap": {
+      "title": "แตะบัตรหรือใส่รหัส",
+      "placeholder": "UID / รหัสนักเรียน / username",
+      "search": "ค้นหา",
+      "select": "เลือกสมาชิกนี้",
+      "replaceTitle": "เปลี่ยนสมาชิก?",
+      "replaceBody": "เปลี่ยนจาก \"{{from}}\" เป็น \"{{to}}\"?",
+      "confirmReplace": "เปลี่ยน",
+      "notFound": "ไม่พบข้อมูล",
+      "notFoundInSystem": "ไม่พบข้อมูลในระบบ"
+    },
+    "rfid": {
+      "notFound": "ไม่พบข้อมูล",
+      "notFoundInSystem": "ไม่พบข้อมูลในระบบ",
+      "notFoundRetry": "ไม่พบข้อมูล — ลองสแกนใหม่หรือค้นหาครอบครัว"
+    },
+    "productCard": {
+      "changeColor": "เปลี่ยนสีปุ่ม",
+      "buttonColor": "สีของปุ่ม",
+      "clearColor": "ล้างสี"
+    },
+    "reorder": {
+      "enter": "จัดลำดับ",
+      "saved": "จัดลำดับแล้ว",
+      "conflict": "คนอื่นเปลี่ยนลำดับก่อนแล้ว — กรุณารีเฟรชแล้วลองใหม่",
+      "saveFailed": "บันทึกลำดับไม่สำเร็จ"
+    }
   },
   "common": {
     "cancel": "ยกเลิก",
@@ -1603,7 +1653,8 @@
       "other": "อื่นๆ"
     },
     "optional": "ไม่บังคับ",
-    "done": "เสร็จสิ้น"
+    "done": "เสร็จสิ้น",
+    "close": "ปิด"
   },
   "sync": {
     "loadFailed": "โหลดสถิติไม่สำเร็จ",
@@ -1719,7 +1770,9 @@
     "thisCharge": "ค่าใช้จ่ายครั้งนี้",
     "balanceAfter": "ยอดหลังหัก",
     "deptEmpVerify": "ยืนยันพนักงาน (แตะบัตรหรือพิมพ์ username)",
-    "deptEmpPlaceholder": "แตะบัตรพนักงาน หรือพิมพ์ username…"
+    "deptEmpPlaceholder": "แตะบัตรพนักงาน หรือพิมพ์ username…",
+    "change": "เปลี่ยน",
+    "empNotFound": "ไม่พบพนักงาน"
   },
   "shopUsers": {
     "titleSuffix": "ผู้ใช้",
