@@ -275,7 +275,17 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                     </Field>
                     <Field label={shopRequired ? "Shop *" : "Shop (optional)"}>
                       <Select
-                        value={shopId === "" ? NO_SHOP : shopId}
+                        // Radix Select needs an undefined value (not "") to display the
+                        // placeholder. We also only mirror NO_SHOP when the role allows
+                        // an unlinked shop — otherwise the placeholder ("Select a shop")
+                        // stays visible until the admin picks an entry.
+                        value={
+                          shopId !== ""
+                            ? shopId
+                            : shopRequired
+                            ? undefined
+                            : NO_SHOP
+                        }
                         onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
                         disabled={shopsLoading || shops.length === 0}
                       >
