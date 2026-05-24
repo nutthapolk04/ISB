@@ -14,7 +14,8 @@ interface CashPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   total: number;
   onBack: () => void;
-  onConfirm: () => Promise<void>;
+  /** Receives the tendered cash amount so the caller can persist it on the receipt. */
+  onConfirm: (cashReceived: number) => Promise<void>;
   confirming: boolean;
 }
 
@@ -98,6 +99,13 @@ export function CashPaymentModal({
               </Button>
             ))}
           </div>
+          <Button
+            variant="secondary"
+            onClick={() => setReceived(total.toFixed(2))}
+            className="h-11 w-full mt-1 font-semibold"
+          >
+            รับเงินมาพอดี · ฿{total.toFixed(2)}
+          </Button>
         </div>
 
         {receivedNum > 0 && (
@@ -132,7 +140,7 @@ export function CashPaymentModal({
           </Button>
           <Button
             className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-            onClick={onConfirm}
+            onClick={() => onConfirm(receivedNum)}
             disabled={!canConfirm}
           >
             {confirming ? (

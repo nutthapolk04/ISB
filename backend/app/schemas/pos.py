@@ -80,6 +80,9 @@ class CheckoutPayload(BaseModel):
     edc_terminal_ref: Optional[str] = Field(None, max_length=50)
     edc_approval_code: Optional[str] = Field(None, max_length=20)
     edc_masked_card: Optional[str] = Field(None, max_length=30)
+    # Tendered cash for cash payments — stored so Receipt Details can render
+    # the change calculation later. Required only when payment_method=cash.
+    cash_received: Optional[float] = Field(default=None, ge=0)
     discount: float = Field(default=0, ge=0, description="Bill-level discount amount")
     notes: Optional[str] = None
     shop_id: Optional[str] = None
@@ -153,6 +156,7 @@ class ReceiptResponse(BaseModel):
     edc_terminal_ref: Optional[str] = None
     edc_approval_code: Optional[str] = None
     edc_masked_card: Optional[str] = None
+    cash_received: Optional[float] = None
     created_at: datetime
     created_by: int
     created_by_name: Optional[str] = None

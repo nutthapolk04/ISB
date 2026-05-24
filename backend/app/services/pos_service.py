@@ -210,6 +210,7 @@ class POSService:
         edc_terminal_ref: Optional[str] = None,
         edc_approval_code: Optional[str] = None,
         edc_masked_card: Optional[str] = None,
+        cash_received: Optional[float] = None,
     ) -> Receipt:
         """
         Create a receipt and deduct stock for each item.
@@ -527,6 +528,7 @@ class POSService:
             edc_terminal_ref=(edc_terminal_ref or None),
             edc_approval_code=(edc_approval_code or None),
             edc_masked_card=(edc_masked_card or None),
+            cash_received=(cash_received if payment_method == "cash" else None),
         )
         db.add(receipt)
         db.flush()

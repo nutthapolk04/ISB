@@ -68,6 +68,9 @@ import { MemberSearchModal } from "./canteen/MemberSearchModal";
 import { CardTapModal } from "./canteen/CardTapModal";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
 import { UpToDateSaleButton } from "@/components/canteen/UpToDateSaleButton";
+import { Switch } from "@/components/ui/switch";
+import { Printer } from "lucide-react";
+import { useAutoPrint } from "@/hooks/useAutoPrint";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -93,6 +96,7 @@ interface CheckoutResponse {
 export default function Canteen() {
   const { t, i18n } = useTranslation();
   const { user, hasRole } = useAuth();
+  const [autoPrint, setAutoPrint] = useAutoPrint(`canteen:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
@@ -470,6 +474,7 @@ export default function Canteen() {
       | { kind: "customer"; customerId: number }
       | { kind: "user"; userId: number }
       | { kind: "department"; departmentId: number },
+    extras?: { cashReceived?: number },
   ) => {
     setConfirming(true);
     try {
@@ -481,6 +486,10 @@ export default function Canteen() {
         customer_id: payer?.kind === "customer" ? payer.customerId : undefined,
         payer_user_id: payer?.kind === "user" ? payer.userId : undefined,
         payer_department_id: payer?.kind === "department" ? payer.departmentId : undefined,
+        cash_received:
+          backendPaymentMethod === "cash" && extras?.cashReceived !== undefined
+            ? extras.cashReceived
+            : undefined,
         shop_id: CANTEEN_SHOP_ID,
         items: cart.items.map((i) => ({
           product_variant_id: i.id,
@@ -524,7 +533,8 @@ export default function Canteen() {
     });
     // Auto-print receipt — fires once per completed sale. Silent printing
     // requires Chromium launched with --kiosk-printing on the cashier station.
-    if (fullReceipt) {
+    // Skipped entirely when the per-station auto-print toggle is off.
+    if (fullReceipt && autoPrint) {
       try {
         printReceipt(fullReceipt, schoolInfo, user?.shopName, i18n.language);
       } catch (printErr) {
@@ -624,10 +634,10 @@ export default function Canteen() {
     }
   };
 
-  const handleConfirmCash = async () => {
+  const handleConfirmCash = async (cashReceived: number) => {
     try {
       const amount = cart.total;
-      const res = await doCheckout("cash");
+      const res = await doCheckout("cash", undefined, { cashReceived });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
       toast.error(
@@ -789,6 +799,20 @@ export default function Canteen() {
                 shopName={user?.shopName}
               />
             )}
+            <label
+              className="inline-flex items-center gap-2 rounded-full border border-input bg-background px-3 py-1.5 text-xs cursor-pointer select-none hover:bg-muted/50 transition"
+              title={t("pos.autoPrintTooltip", "Auto-print receipt after each sale")}
+            >
+              <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="hidden sm:inline font-medium">
+                {t("pos.autoPrint", "Auto-print")}
+              </span>
+              <Switch
+                checked={autoPrint}
+                onCheckedChange={setAutoPrint}
+                aria-label={t("pos.autoPrint", "Auto-print")}
+              />
+            </label>
             <Badge
               variant="outline"
               className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"

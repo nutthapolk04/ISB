@@ -95,6 +95,7 @@ interface ReceiptApi {
   payment_method: string;
   status: string;
   notes: string | null;
+  cash_received?: number | null;
   created_at: string;
   created_by: number;
   voided_at: string | null;
@@ -1069,6 +1070,22 @@ const Receipts = () => {
                   ฿{selectedReceipt.total.toLocaleString()}
                 </span>
               </div>
+              {selectedReceipt.payment_method === "cash" && selectedReceipt.cash_received != null && (
+                <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
+                    <span className="data-number">
+                      ฿{selectedReceipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-1.5">
+                    <span>{t("receipts.change", "Change")}</span>
+                    <span className="text-emerald-600 data-number">
+                      ฿{Math.max(0, selectedReceipt.cash_received - selectedReceipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
               <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName)}>
                 <Download className="h-4 w-4 mr-2" />
                 {t("receipts.download")}

@@ -87,6 +87,7 @@ export interface ReceiptDetailData {
   shop_id?: string | null;
   shop_name?: string | null;
   notes: string | null;
+  cash_received?: number | null;
   created_at: string;
   created_by: number;
   created_by_name?: string | null;
@@ -513,6 +514,25 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               <span>{t("receipts.grandTotal", "รวมสุทธิ")}</span>
               <span className="text-primary tabular-nums">฿{receipt.total.toLocaleString()}</span>
             </div>
+
+            {receipt.payment_method === "cash" && receipt.cash_received != null && (
+              <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    {t("receipts.cashReceived", "Cash received")}
+                  </span>
+                  <span className="tabular-nums">
+                    ฿{receipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold border-t pt-1.5">
+                  <span>{t("receipts.change", "Change")}</span>
+                  <span className="text-emerald-600 tabular-nums">
+                    ฿{Math.max(0, receipt.cash_received - receipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <Button
               className="w-full"

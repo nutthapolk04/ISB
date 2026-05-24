@@ -73,6 +73,7 @@ export interface ReceiptApi {
   payment_method: string;
   status: string;
   notes: string | null;
+  cash_received?: number | null;
   created_at: string;
   created_by: number;
   voided_at: string | null;

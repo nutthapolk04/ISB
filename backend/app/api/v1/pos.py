@@ -80,6 +80,7 @@ def checkout(
             edc_terminal_ref=payload.edc_terminal_ref,
             edc_approval_code=payload.edc_approval_code,
             edc_masked_card=payload.edc_masked_card,
+            cash_received=payload.cash_received,
         )
         return _receipt_to_response(receipt)
     except BusinessRuleError as e:
@@ -317,6 +318,7 @@ def _receipt_to_response(receipt, db: Optional[Session] = None) -> dict:
         "edc_terminal_ref": receipt.edc_terminal_ref,
         "edc_approval_code": receipt.edc_approval_code,
         "edc_masked_card": receipt.edc_masked_card,
+        "cash_received": float(receipt.cash_received) if receipt.cash_received is not None else None,
         "created_at": receipt.created_at,
         "created_by": receipt.created_by,
         "created_by_name": _resolve_creator_name(receipt, db),

@@ -66,6 +66,8 @@ class Receipt(Base):
     edc_terminal_ref = Column(String(50), nullable=True)
     edc_approval_code = Column(String(20), nullable=True)
     edc_masked_card = Column(String(30), nullable=True)
+    # Cash tendered for cash-payment receipts. NULL for non-cash methods.
+    cash_received = Column(Numeric(10, 2), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     voided_at = Column(DateTime(timezone=True), nullable=True)

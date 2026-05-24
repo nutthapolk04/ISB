@@ -26,6 +26,7 @@ import {
   GripVertical,
   ArrowUpDown,
   Check,
+  Printer,
 } from "lucide-react";
 import {
   DndContext,
@@ -75,6 +76,8 @@ import { EdcPaymentModal } from "./store/EdcPaymentModal";
 import UserPicker from "@/components/UserPicker";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
+import { Switch } from "@/components/ui/switch";
+import { useAutoPrint } from "@/hooks/useAutoPrint";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -242,6 +245,7 @@ function SortableCard({
 const Store = () => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const [autoPrint, setAutoPrint] = useAutoPrint(`store:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
 
   // ── Products + shop metadata ────────────────────────────────────────────
@@ -803,6 +807,7 @@ const Store = () => {
     deptId?: number;
     empCode?: string | null;
     edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string };
+    cashReceived?: number;
   }
 
   const doCheckout = async (method: CanteenPaymentMethod, ctx: CheckoutCtx = {}) => {
@@ -865,6 +870,10 @@ const Store = () => {
         // Explicit shop scope — required when bundle-only carts ship a
         // sentinel product_variant_id=0 that backend can't introspect.
         shop_id: user?.shopId ?? undefined,
+        cash_received:
+          backendMethod === "cash" && ctx.cashReceived !== undefined
+            ? ctx.cashReceived
+            : undefined,
         items: cart.map((item) => {
           const catalogPrice =
             priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price;
@@ -924,10 +933,13 @@ const Store = () => {
 
       // Auto-print receipt — fires once per completed sale. Silent printing
       // requires Chromium launched with --kiosk-printing on the cashier station.
-      try {
-        printReceipt(receipt as unknown as ReceiptApi, schoolInfo, user?.shopName, i18n.language);
-      } catch (printErr) {
-        console.warn("Auto-print failed:", printErr);
+      // Skipped entirely when the per-station auto-print toggle is off.
+      if (autoPrint) {
+        try {
+          printReceipt(receipt as unknown as ReceiptApi, schoolInfo, user?.shopName, i18n.language);
+        } catch (printErr) {
+          console.warn("Auto-print failed:", printErr);
+        }
       }
 
       // Refresh stock locally (skip bundles — they use a sentinel stock value)
@@ -1026,7 +1038,8 @@ const Store = () => {
 
   // ── Per-method confirm shortcuts ────────────────────────────────────────
   const handleConfirmWallet = (payer: WalletPayer) => doCheckout("wallet", { payer });
-  const handleConfirmCash = () => doCheckout("cash");
+  const handleConfirmCash = (cashReceived: number) =>
+    doCheckout("cash", { cashReceived });
   const handleConfirmQr = () => doCheckout("qr");
   const handleConfirmDept = (deptId: number, empCode: string | null) =>
     doCheckout("department", { deptId, empCode });
@@ -1403,6 +1416,20 @@ const Store = () => {
                 </Button>
               )
             )}
+            <label
+              className="inline-flex items-center gap-2 rounded-full border border-input bg-background px-3 py-1.5 text-xs cursor-pointer select-none hover:bg-muted/50 transition"
+              title={t("pos.autoPrintTooltip", "Auto-print receipt after each sale")}
+            >
+              <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="hidden sm:inline font-medium">
+                {t("pos.autoPrint", "Auto-print")}
+              </span>
+              <Switch
+                checked={autoPrint}
+                onCheckedChange={setAutoPrint}
+                aria-label={t("pos.autoPrint", "Auto-print")}
+              />
+            </label>
             {user?.shopName && (
               <Badge variant="outline" className="text-sm font-medium px-3 py-1">
                 {user.shopName}
