@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { API_BASE_URL } from "@/lib/constants";
 import { toast } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
@@ -238,6 +239,7 @@ function CredentialCarousel() {
 
 // ────────────────────────────────────────────────────────────────────────────
 const Login = () => {
+  const { t } = useTranslation();
   const { login, loginWithMockSSO, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
