@@ -121,12 +121,31 @@ def _deduct_product_stock(
     """Deduct stock from a single ShopProduct, recording a ShopMovement.
 
     Shared by normal checkout items and bundle sub-SKU deductions.
+    Negative qty (refund-via-POS) flips the direction: stock returns to the
+    shelf and, for FIFO shops, a fresh lot is opened at the current avg cost
+    so the next sale still has a cost basis.
     Negative stock is allowed per project requirements.
     """
     stock_before = product.stock
     shop = product.shop
 
-    if shop and shop.shop_type.value == "fifo":
+    if qty < 0:
+        # Refund / return-via-POS — add stock back instead of deducting.
+        if shop and shop.shop_type.value == "fifo":
+            # Fresh lot at the current avg cost. The original cost basis
+            # of the customer's purchase is lost (no receipt linkage),
+            # so avg_cost is the best fallback for next-sale COGS.
+            db.add(FifoLot(
+                id=f"refund-{receipt_number}-{product.id}-{int(time.time() * 1000)}",
+                product_id=product.id,
+                shop_id=product.shop_id,
+                date=date.today(),
+                qty_remaining=Decimal(str(-qty)),
+                cost_per_unit=Decimal(str(product.avg_cost or 0)),
+            ))
+            db.flush()
+        product.stock = stock_before - qty  # qty<0 → stock increases
+    elif shop and shop.shop_type.value == "fifo":
         existing_lots = (
             db.query(FifoLot)
             .filter(FifoLot.product_id == product.id)

@@ -2,7 +2,7 @@
 POS Checkout Schemas
 """
 from typing import Any, Literal, Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from enum import Enum
 
@@ -45,7 +45,11 @@ class SelectedOption(BaseModel):
 
 class CheckoutItemPayload(BaseModel):
     product_variant_id: int
-    quantity: int = Field(ge=1)
+    # Quantity may be negative for return-via-POS: cashier enters a negative
+    # number to refund the item in the same sell flow instead of switching to
+    # the Returns module. Zero is rejected — the cashier should remove the
+    # line outright.
+    quantity: int = Field(..., description="Positive for sale, negative for refund; non-zero required")
     # Base product price (options add to the line total at the server).
     unit_price: float = Field(ge=0)
     # Cashier-entered one-time override. When present (>=0), it replaces
@@ -58,6 +62,13 @@ class CheckoutItemPayload(BaseModel):
     # stock deduction and records one clean receipt line for the bundle.
     is_bundle: bool = Field(default=False)
     bundle_id: Optional[int] = Field(default=None)
+
+    @field_validator("quantity")
+    @classmethod
+    def _quantity_not_zero(cls, v: int) -> int:
+        if v == 0:
+            raise ValueError("quantity must be non-zero (positive = sale, negative = refund)")
+        return v
 
 
 class CheckoutPayload(BaseModel):

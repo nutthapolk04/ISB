@@ -238,6 +238,7 @@
     "retail": "Retail",
     "priceLabel": "Price:",
     "insufficientBalance": "Insufficient balance",
+    "refundBadge": "Refund",
     "reorder": {
       "enter": "Reorder"
     },

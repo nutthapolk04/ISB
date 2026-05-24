@@ -169,22 +169,30 @@ export default function ShopDashboard() {
   // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------
+  // Polling so the dashboard reflects new sales without a manual refresh.
+  // refetchOnWindowFocus covers the "tab parked in background, then opened"
+  // case; refetchInterval covers an always-open kiosk-style screen.
+  const LIVE_OPTS = { refetchInterval: 30_000, refetchOnWindowFocus: true } as const;
+
   const { data: todaySales, isLoading: loadingToday } = useQuery<SalesReportData>({
     queryKey: ["shop-dashboard", effectiveShopId, "today"],
     queryFn: () => api.get<SalesReportData>(`/reports/sales${todayParams}`),
     enabled: !!effectiveShopId || !isAdmin,
+    ...LIVE_OPTS,
   });
 
   const { data: monthSales, isLoading: loadingMonth } = useQuery<SalesReportData>({
     queryKey: ["shop-dashboard", effectiveShopId, "month"],
     queryFn: () => api.get<SalesReportData>(`/reports/sales${monthParams}`),
     enabled: !!effectiveShopId || !isAdmin,
+    ...LIVE_OPTS,
   });
 
   const { data: paymentData, isLoading: loadingPayment } = useQuery<SalesByPaymentReportData>({
     queryKey: ["shop-dashboard", effectiveShopId, "payment"],
     queryFn: () => api.get<SalesByPaymentReportData>(`/reports/sales-by-payment${todayParams}`),
     enabled: !!effectiveShopId || !isAdmin,
+    ...LIVE_OPTS,
   });
 
   const isLoading = loadingToday || loadingMonth || loadingPayment;

@@ -209,7 +209,8 @@ function useRecentReceipts() {
     queryKey: ["admin", "dashboard", "recent-receipts"],
     queryFn: () => api.get<ReceiptRow[]>("/pos/receipt?page=1"),
     staleTime: STALE,
-    refetchInterval: 30_000,
+    refetchInterval: STALE,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -250,6 +251,8 @@ function usePerShopSummary(
     },
     enabled: !!shops?.length && !!dateFrom && !!dateTo,
     staleTime: STALE,
+    refetchInterval: STALE,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -276,6 +279,8 @@ function useLowStockAggregate() {
       }
     },
     staleTime: STALE,
+    refetchInterval: STALE,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -285,6 +290,8 @@ function useLowStockItems(enabled: boolean) {
     queryFn: () => api.get<LowStockItem[]>("/shops/low-stock"),
     enabled,
     staleTime: STALE,
+    refetchInterval: STALE,
+    refetchOnWindowFocus: true,
   });
 }
 

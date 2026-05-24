@@ -238,6 +238,7 @@
     "retail": "ราคาขายปลีก",
     "priceLabel": "ราคา:",
     "insufficientBalance": "ยอดเงินไม่เพียงพอ",
+    "refundBadge": "คืนเงิน",
     "reorder": {
       "enter": "จัดลำดับ"
     },

@@ -686,20 +686,26 @@ const Store = () => {
 
   const getItemLineTotal = (item: CartItem): number => {
     const gross = getPriceForItem(item) * item.quantity;
-    return Math.max(0, gross - getItemDiscountAmount(item));
+    // Refund lines (qty<0) produce a negative gross; per-item discount is
+    // still subtracted but cannot make the magnitude flip sign.
+    const discount = getItemDiscountAmount(item);
+    if (gross < 0) return gross + discount;
+    return Math.max(0, gross - discount);
   };
 
   const subtotal = cart.reduce((s, i) => s + getItemLineTotal(i), 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
   const billDiscountAmount = (() => {
     const val = parseFloat(billDiscountValue);
-    if (!val || val <= 0) return 0;
+    if (!val || val <= 0 || subtotal <= 0) return 0;
     if (billDiscountMode === "percent") {
       return Math.min(subtotal, Math.round(((subtotal * val) / 100) * 100) / 100);
     }
     return Math.min(subtotal, val);
   })();
-  const total = Math.max(0, subtotal - billDiscountAmount);
+  // Allow total to be negative when refund lines outweigh sale lines —
+  // the cashier owes that amount back to the customer.
+  const total = subtotal - billDiscountAmount;
 
   // ── Cart actions ────────────────────────────────────────────────────────
   const addToCart = useCallback(
@@ -735,7 +741,9 @@ const Store = () => {
         .map((item) => {
           if (item.id !== id) return item;
           const next = item.quantity + change;
-          if (next <= 0) return null;
+          // Allow negative qty for refund-via-POS, but skip the zero crossing
+          // so a single tap from -1 doesn't reach 0 and leave a useless line.
+          if (next === 0) return null;
           return { ...item, quantity: next };
         })
         .filter((item): item is CartItem => item !== null),
@@ -1139,7 +1147,14 @@ const Store = () => {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm leading-snug truncate">{item.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm leading-snug truncate">{item.name}</p>
+                      {item.quantity < 0 && (
+                        <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-rose-700">
+                          {t("store.refundBadge", "Refund")}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground font-mono">{item.barcode}</p>
                     <div className="flex items-center justify-between mt-1.5">
                       <div className="flex items-center gap-1">
@@ -1151,7 +1166,10 @@ const Store = () => {
                         >
                           <Minus className="h-3 w-3" />
                         </IconButton>
-                        <span className="w-7 text-center text-sm font-bold tabular-nums">
+                        <span className={cn(
+                          "w-7 text-center text-sm font-bold tabular-nums",
+                          item.quantity < 0 && "text-rose-600",
+                        )}>
                           {item.quantity}
                         </span>
                         <IconButton
