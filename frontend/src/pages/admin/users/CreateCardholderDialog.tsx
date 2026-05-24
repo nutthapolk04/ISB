@@ -102,16 +102,25 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
 
   const close = () => { onOpenChange(false); reset(); };
 
-  // Fetch active shops once the dialog opens and the user is on the staff form.
-  // Stale-while-fresh is fine here: shop list rarely changes during admin session.
+  // Fetch ALL shops (including inactive) once the dialog opens and the user is
+  // on the staff form — we want the admin to see *something* even if every
+  // shop happens to be flagged inactive. The dropdown sorts active first and
+  // marks inactive shops so the admin can spot the mismatch and re-activate.
   useEffect(() => {
     if (!open || kind !== "staff" || step !== "form" || shops.length > 0 || shopsLoading) return;
     let cancelled = false;
     setShopsLoading(true);
     setShopsError(null);
     api
-      .get<ShopOption[]>("/shops/?active_only=true")
-      .then((data) => { if (!cancelled) setShops(data); })
+      .get<ShopOption[]>("/shops/?active_only=false")
+      .then((data) => {
+        if (cancelled) return;
+        const sorted = [...(data ?? [])].sort((a, b) => {
+          if (a.is_active === b.is_active) return a.name.localeCompare(b.name);
+          return a.is_active ? -1 : 1;
+        });
+        setShops(sorted);
+      })
       .catch((e) => {
         if (cancelled) return;
         setShopsError(e instanceof ApiError ? e.detail : "Failed to load shops");
@@ -268,7 +277,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                       <Select
                         value={shopId === "" ? NO_SHOP : shopId}
                         onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
-                        disabled={shopsLoading}
+                        disabled={shopsLoading || shops.length === 0}
                       >
                         <SelectTrigger className={shopMissing ? "border-destructive" : ""}>
                           <SelectValue
@@ -276,7 +285,9 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                               shopsLoading
                                 ? "Loading shops…"
                                 : shopsError
-                                ? "Failed to load — using free text fallback"
+                                ? `Failed to load: ${shopsError}`
+                                : shops.length === 0
+                                ? "No shops exist yet"
                                 : "Select a shop"
                             }
                           />
@@ -287,19 +298,24 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                           )}
                           {shops.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
-                              {s.name} ({s.module})
+                              {s.name} ({s.module}){!s.is_active && " — inactive"}
                             </SelectItem>
                           ))}
-                          {shops.length === 0 && !shopsLoading && shopRequired && (
-                            <SelectItem value="__empty" disabled>
-                              No active shops
-                            </SelectItem>
-                          )}
                         </SelectContent>
                       </Select>
                       {shopMissing && (
                         <p className="text-xs text-destructive">
                           Role "{staffRole}" must be linked to a shop
+                        </p>
+                      )}
+                      {shopsError && (
+                        <p className="text-xs text-destructive">
+                          Could not load shops: {shopsError}
+                        </p>
+                      )}
+                      {!shopsLoading && !shopsError && shops.length === 0 && (
+                        <p className="text-xs text-amber-600">
+                          ยังไม่มี shop ในระบบ — ไปสร้างที่ Shop Management ก่อน
                         </p>
                       )}
                       {!shopRequired && staffRole === "staff" && (
