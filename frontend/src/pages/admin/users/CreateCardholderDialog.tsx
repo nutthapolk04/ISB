@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import {
@@ -31,6 +31,16 @@ import {
 } from "lucide-react";
 
 type Kind = "student" | "parent" | "staff" | "department" | "other";
+
+interface ShopOption {
+  id: string;
+  name: string;
+  is_active: boolean;
+  module: "canteen" | "store";
+}
+
+const SHOP_REQUIRED_ROLES = new Set(["cashier", "manager", "kitchen"]);
+const NO_SHOP = "__none__";
 
 interface Props {
   open: boolean;
@@ -67,6 +77,9 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   const [password, setPassword] = useState("");
   const [staffRole, setStaffRole] = useState("staff");
   const [shopId, setShopId] = useState("");
+  const [shops, setShops] = useState<ShopOption[]>([]);
+  const [shopsLoading, setShopsLoading] = useState(false);
+  const [shopsError, setShopsError] = useState<string | null>(null);
   // Department
   const [deptCode, setDeptCode] = useState("");
   const [deptName, setDeptName] = useState("");
@@ -89,7 +102,36 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
 
   const close = () => { onOpenChange(false); reset(); };
 
+  // Fetch active shops once the dialog opens and the user is on the staff form.
+  // Stale-while-fresh is fine here: shop list rarely changes during admin session.
+  useEffect(() => {
+    if (!open || kind !== "staff" || step !== "form" || shops.length > 0 || shopsLoading) return;
+    let cancelled = false;
+    setShopsLoading(true);
+    setShopsError(null);
+    api
+      .get<ShopOption[]>("/shops/?active_only=true")
+      .then((data) => { if (!cancelled) setShops(data); })
+      .catch((e) => {
+        if (cancelled) return;
+        setShopsError(e instanceof ApiError ? e.detail : "Failed to load shops");
+      })
+      .finally(() => { if (!cancelled) setShopsLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, kind, step, shops.length, shopsLoading]);
+
+  const shopRequired = kind === "staff" && SHOP_REQUIRED_ROLES.has(staffRole);
+  const shopMissing = shopRequired && !shopId;
+
   const submit = async () => {
+    if (shopMissing) {
+      toast({
+        title: t("cardholders.create_.failed"),
+        description: `Role "${staffRole}" requires a shop`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       const body: Record<string, any> = { kind };
@@ -222,7 +264,50 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Shop ID"><Input value={shopId} onChange={e => setShopId(e.target.value)} placeholder="canteen / coop / sports / ..." /></Field>
+                    <Field label={shopRequired ? "Shop *" : "Shop (optional)"}>
+                      <Select
+                        value={shopId === "" ? NO_SHOP : shopId}
+                        onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
+                        disabled={shopsLoading}
+                      >
+                        <SelectTrigger className={shopMissing ? "border-destructive" : ""}>
+                          <SelectValue
+                            placeholder={
+                              shopsLoading
+                                ? "Loading shops…"
+                                : shopsError
+                                ? "Failed to load — using free text fallback"
+                                : "Select a shop"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {!shopRequired && (
+                            <SelectItem value={NO_SHOP}>— No shop —</SelectItem>
+                          )}
+                          {shops.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name} ({s.module})
+                            </SelectItem>
+                          ))}
+                          {shops.length === 0 && !shopsLoading && shopRequired && (
+                            <SelectItem value="__empty" disabled>
+                              No active shops
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {shopMissing && (
+                        <p className="text-xs text-destructive">
+                          Role "{staffRole}" must be linked to a shop
+                        </p>
+                      )}
+                      {!shopRequired && staffRole === "staff" && (
+                        <p className="text-xs text-muted-foreground">
+                          Staff (general) ปกติไม่ต้องผูก shop — ใช้สำหรับครู/บุคลากรทั่วไป
+                        </p>
+                      )}
+                    </Field>
                   </>
                 )}
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
@@ -263,7 +348,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
           )}
           <Button variant="ghost" onClick={close}>{t("shopUsers.btnCancel")}</Button>
           {step === "form" && (
-            <Button onClick={submit} disabled={submitting}>
+            <Button onClick={submit} disabled={submitting || shopMissing}>
               {submitting ? t("cardholders.create_.submitting") : t("cardholders.create_.submit")}
             </Button>
           )}
