@@ -106,8 +106,13 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   // on the staff form — we want the admin to see *something* even if every
   // shop happens to be flagged inactive. The dropdown sorts active first and
   // marks inactive shops so the admin can spot the mismatch and re-activate.
+  //
+  // NB: shopsLoading is intentionally NOT in the dep array. Including it caused
+  // setShopsLoading(true) to retrigger the effect, which then cancelled its
+  // own fetch via the cleanup function — leaving the dropdown stuck on
+  // "Loading shops…" forever.
   useEffect(() => {
-    if (!open || kind !== "staff" || step !== "form" || shops.length > 0 || shopsLoading) return;
+    if (!open || kind !== "staff" || step !== "form" || shops.length > 0) return;
     let cancelled = false;
     setShopsLoading(true);
     setShopsError(null);
@@ -127,7 +132,8 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
       })
       .finally(() => { if (!cancelled) setShopsLoading(false); });
     return () => { cancelled = true; };
-  }, [open, kind, step, shops.length, shopsLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, kind, step, shops.length]);
 
   const shopRequired = kind === "staff" && SHOP_REQUIRED_ROLES.has(staffRole);
   const shopMissing = shopRequired && !shopId;
