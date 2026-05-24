@@ -266,6 +266,26 @@
     "popupBlocked": "ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต pop-up",
     "cardUidRequired": "กรุณาระบุ UID หรือรหัสนักเรียน",
     "refundDestWallet": "กระเป๋าเงิน — {{label}}",
+    "refundDestWalletWithBalance": "กระเป๋าเงิน — {{label}} (คงเหลือ ฿{{balance}})",
+    "returnSuccess": "คืนสินค้าสำเร็จ",
+    "searchResultsCount_one": "พบ {{count}} ใบเสร็จ — คลิกเพื่อเลือก",
+    "searchResultsCount_other": "พบ {{count}} ใบเสร็จ — คลิกเพื่อเลือก",
+    "actions": "การดำเนินการ",
+    "statusVoided": "ยกเลิก",
+    "statusActive": "ปกติ",
+    "refund": "คืนสินค้า",
+    "exchange": "เปลี่ยนสินค้า",
+    "returned": "คืนแล้ว",
+    "tapCardPrompt": "แตะบัตรนักเรียน หรือพิมพ์ UID / รหัสนักเรียน",
+    "tapCardPlaceholder": "แตะบัตร / 85001 / RFID-xxxx",
+    "verifying": "กำลังตรวจสอบ…",
+    "refundSuccessTitle": "คืนเงินสำเร็จ",
+    "originalReceipt": "ใบเสร็จเดิม",
+    "refundAmount": "ยอดคืนเงิน",
+    "returnedItemsLabel": "รายการสินค้าที่คืน",
+    "buyer": "ผู้ซื้อ",
+    "returnDate": "วันที่คืน",
+    "printCreditNote": "พิมพ์ Credit Note",
     "purchaseDate": "วันที่ซื้อสินค้า",
     "paymentType": "รูปแบบการชำระเงิน",
     "all": "ทั้งหมด",
@@ -604,6 +624,17 @@
     "totalReceipts": "ใบเสร็จทั้งหมด"
   },
   "inventory": {
+    "defaultCategory": "ทั่วไป",
+    "import": {
+      "noDataAfterHeader": "ไม่พบข้อมูลหลัง header",
+      "pickShopFirst": "เลือก shop ก่อน import",
+      "missingColumns": "ขาด column: {{cols}}",
+      "successCount": "Import สำเร็จ {{created}}/{{total}} รายการ",
+      "failedSeeErrors": "ไม่สำเร็จ — ดู errors ด้านล่าง",
+      "orPasteCsv": "หรือวาง CSV ด้านล่าง",
+      "importing": "กำลัง import…",
+      "importCount": "Import {{count}} รายการ"
+    },
     "title": "สต็อคสินค้า",
     "description": "จัดการสินค้าคงคลังทั้งหมด",
     "addProduct": "เพิ่มสินค้า",
@@ -1666,7 +1697,31 @@
     "close": "ปิด",
     "selectDate": "เลือกวันที่",
     "selectDateRange": "เลือกช่วงวันที่",
-    "unknownError": "ข้อผิดพลาดไม่ทราบสาเหตุ"
+    "unknownError": "ข้อผิดพลาดไม่ทราบสาเหตุ",
+    "select": "เลือก"
+  },
+  "errorBoundary": {
+    "title": "เกิดข้อผิดพลาดในการแสดงหน้านี้",
+    "description": "ระบบพบ error ลองรีเฟรชหรือกลับไปหน้าหลัก หากยังมีปัญหากรุณาแจ้งผู้ดูแลระบบพร้อมข้อความข้างล่าง",
+    "retry": "ลองใหม่",
+    "reload": "รีเฟรชหน้า"
+  },
+  "shopImport": {
+    "title": "นำเข้าข้อมูล (.xlsx / .csv)",
+    "importing": "กำลังนำเข้า…",
+    "importProducts": "นำเข้าสินค้า (Excel)",
+    "importStock": "นำเข้ารับสินค้า (Excel)",
+    "productColumns": "คอลัมน์สินค้า",
+    "stockColumns": "คอลัมน์รับสินค้า",
+    "successMsg": "นำเข้าสำเร็จ: สร้าง {{created}} รายการ, อัปเดต {{updated}} รายการ",
+    "stockSuccessMsg": "รับสินค้าเข้าสต็อกสำเร็จ {{count}} รายการ",
+    "errorRow": "แถว {{row}}: {{reason}}",
+    "errorsHeader": "ข้อผิดพลาด {{count}} แถว",
+    "productsFailed": "นำเข้าสินค้าไม่สำเร็จ",
+    "stockFailed": "นำเข้ารับสินค้าไม่สำเร็จ"
+  },
+  "shopDetail": {
+    "panelNamePlaceholder": "เช่น ราคาทั่วไป"
   },
   "login": {
     "demoBanner": "บัญชีเดโม — กระเป๋าของฉัน + POS spending",

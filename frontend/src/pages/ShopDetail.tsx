@@ -143,14 +143,15 @@ const ShopDetail = () => {
         `/admin/import/products?shop_id=${encodeURIComponent(shopId)}`,
         form,
       );
-      const msg = `นำเข้าสำเร็จ: สร้าง ${result.created} รายการ, อัปเดต ${result.updated} รายการ`;
+      const msg = t("shopImport.successMsg", { created: result.created, updated: result.updated, defaultValue: "Import complete: created {{created}}, updated {{updated}}" });
       if (result.errors.length > 0) {
-        toast.warning(`${msg}\nข้อผิดพลาด ${result.errors.length} แถว: ${result.errors.map(e => `แถว ${e.row}: ${e.reason}`).join("; ")}`);
+        const errRows = result.errors.map(e => t("shopImport.errorRow", { row: e.row, reason: e.reason, defaultValue: "Row {{row}}: {{reason}}" })).join("; ");
+        toast.warning(`${msg}\n${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}: ${errRows}`);
       } else {
         toast.success(msg);
       }
     } catch (err: any) {
-      toast.error(err?.detail ?? "นำเข้าสินค้าไม่สำเร็จ");
+      toast.error(err?.detail ?? t("shopImport.productsFailed", "Product import failed"));
     } finally {
       setImportingProducts(false);
     }
@@ -168,14 +169,15 @@ const ShopDetail = () => {
         `/admin/import/stock-receive`,
         form,
       );
-      const msg = `รับสินค้าเข้าสต็อกสำเร็จ ${result.imported} รายการ`;
+      const msg = t("shopImport.stockSuccessMsg", { count: result.imported, defaultValue: "Stock received: {{count}} item(s)" });
       if (result.errors.length > 0) {
-        toast.warning(`${msg}\nข้อผิดพลาด ${result.errors.length} แถว: ${result.errors.map(e => `แถว ${e.row}: ${e.reason}`).join("; ")}`);
+        const errRows = result.errors.map(e => t("shopImport.errorRow", { row: e.row, reason: e.reason, defaultValue: "Row {{row}}: {{reason}}" })).join("; ");
+        toast.warning(`${msg}\n${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}: ${errRows}`);
       } else {
         toast.success(msg);
       }
     } catch (err: any) {
-      toast.error(err?.detail ?? "นำเข้ารับสินค้าไม่สำเร็จ");
+      toast.error(err?.detail ?? t("shopImport.stockFailed", "Stock import failed"));
     } finally {
       setImportingStock(false);
     }
@@ -484,7 +486,7 @@ const ShopDetail = () => {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Upload className="h-4 w-4" />
-                    <span>นำเข้าข้อมูล (.xlsx / .csv)</span>
+                    <span>{t("shopImport.title", "Import data (.xlsx / .csv)")}</span>
                   </div>
 
                   {/* Import products */}
@@ -499,8 +501,8 @@ const ShopDetail = () => {
                     />
                     <Button variant="outline" size="sm" disabled={importingProducts} asChild={false}>
                       {importingProducts
-                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />กำลังนำเข้า...</>
-                        : <>นำเข้าสินค้า (Excel)</>}
+                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.importing", "Importing…")}</>
+                        : <>{t("shopImport.importProducts", "Import products (Excel)")}</>}
                     </Button>
                   </div>
 
@@ -516,15 +518,15 @@ const ShopDetail = () => {
                     />
                     <Button variant="outline" size="sm" disabled={importingStock} asChild={false}>
                       {importingStock
-                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />กำลังนำเข้า...</>
-                        : <>นำเข้ารับสินค้า (Excel)</>}
+                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.importing", "Importing…")}</>
+                        : <>{t("shopImport.importStock", "Import stock receipt (Excel)")}</>}
                     </Button>
                   </div>
 
                   <span className="text-xs text-muted-foreground ml-auto">
-                    คอลัมน์สินค้า: <code className="bg-muted px-1 rounded text-[11px]">name, barcode, price, cost_price, category, uom, shop_id</code>
+                    {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">name, barcode, price, cost_price, category, uom, shop_id</code>
                     {" · "}
-                    คอลัมน์รับสินค้า: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, quantity, cost_per_unit, notes</code>
+                    {t("shopImport.stockColumns", "Stock receive columns")}: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, quantity, cost_per_unit, notes</code>
                   </span>
                 </div>
               </CardContent>
@@ -690,7 +692,7 @@ const ShopDetail = () => {
                   <Input
                     value={newPanelName}
                     onChange={(e) => setNewPanelName(e.target.value)}
-                    placeholder="e.g. ราคาทั่วไป"
+                    placeholder={t("shopDetail.panelNamePlaceholder", "e.g. Standard price")}
                     className="mt-1"
                   />
                 </div>

@@ -266,6 +266,26 @@
     "popupBlocked": "Cannot open print window — please allow pop-ups",
     "cardUidRequired": "Please provide UID or student code",
     "refundDestWallet": "Wallet — {{label}}",
+    "refundDestWalletWithBalance": "Wallet — {{label}} (balance ฿{{balance}})",
+    "returnSuccess": "Return successful",
+    "searchResultsCount_one": "{{count}} receipt found — click to select",
+    "searchResultsCount_other": "{{count}} receipts found — click to select",
+    "actions": "Actions",
+    "statusVoided": "Voided",
+    "statusActive": "Active",
+    "refund": "Refund",
+    "exchange": "Exchange",
+    "returned": "Returned",
+    "tapCardPrompt": "Tap the student card, or type the UID / student code",
+    "tapCardPlaceholder": "Tap card / 85001 / RFID-xxxx",
+    "verifying": "Verifying…",
+    "refundSuccessTitle": "Refund successful",
+    "originalReceipt": "Original receipt",
+    "refundAmount": "Refund amount",
+    "returnedItemsLabel": "Returned items",
+    "buyer": "Buyer",
+    "returnDate": "Return date",
+    "printCreditNote": "Print Credit Note",
     "purchaseDate": "Purchase Date",
     "paymentType": "Payment Type",
     "all": "All",
@@ -604,6 +624,17 @@
     "totalReceipts": "Total Receipts"
   },
   "inventory": {
+    "defaultCategory": "General",
+    "import": {
+      "noDataAfterHeader": "No data found after the header row",
+      "pickShopFirst": "Select a shop before importing",
+      "missingColumns": "Missing columns: {{cols}}",
+      "successCount": "Imported {{created}} of {{total}} items",
+      "failedSeeErrors": "Import failed — see errors below",
+      "orPasteCsv": "Or paste CSV below",
+      "importing": "Importing…",
+      "importCount": "Import {{count}} items"
+    },
     "title": "Inventory",
     "description": "Manage all product inventory",
     "addProduct": "Add Product",
@@ -1666,7 +1697,31 @@
     "close": "Close",
     "selectDate": "Select date",
     "selectDateRange": "Select date range",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "select": "Select"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong while loading this page",
+    "description": "An unexpected error occurred. Try reloading or go back to the home page. If the problem persists, please contact your system administrator with the message below.",
+    "retry": "Try again",
+    "reload": "Reload page"
+  },
+  "shopImport": {
+    "title": "Import data (.xlsx / .csv)",
+    "importing": "Importing…",
+    "importProducts": "Import products (Excel)",
+    "importStock": "Import stock receipt (Excel)",
+    "productColumns": "Product columns",
+    "stockColumns": "Stock receive columns",
+    "successMsg": "Import complete: created {{created}}, updated {{updated}}",
+    "stockSuccessMsg": "Stock received: {{count}} item(s)",
+    "errorRow": "Row {{row}}: {{reason}}",
+    "errorsHeader": "{{count}} error(s)",
+    "productsFailed": "Product import failed",
+    "stockFailed": "Stock import failed"
+  },
+  "shopDetail": {
+    "panelNamePlaceholder": "e.g. Standard price"
   },
   "login": {
     "demoBanner": "Demo accounts — Personal Wallet + POS spending",

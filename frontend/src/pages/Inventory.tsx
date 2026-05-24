@@ -520,7 +520,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
         product_code: newProduct.productCode,
         barcode: newProduct.barcode || null,
         name: newProduct.name,
-        category: newProduct.category || "ทั่วไป",
+        category: newProduct.category || t("inventory.defaultCategory", "General"),
         external_price: parseFloat(newProduct.externalPrice),
         internal_price: newProduct.internalPrice ? parseFloat(newProduct.internalPrice) : parseFloat(newProduct.externalPrice),
         vat_percent: parseFloat(newProduct.vatPercent) || 0,
@@ -570,7 +570,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
         product_code: editForm.productCode,
         barcode: editForm.barcode || null,
         name: editForm.name,
-        category: editForm.category || "ทั่วไป",
+        category: editForm.category || t("inventory.defaultCategory", "General"),
         external_price: parseFloat(editForm.externalPrice),
         internal_price: editForm.internalPrice ? parseFloat(editForm.internalPrice) : parseFloat(editForm.externalPrice),
         vat_percent: parseFloat(editForm.vatPercent) || 0,
@@ -867,7 +867,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
     try {
       const rows = parseCsv(text);
       setImportPreview(rows);
-      setImportParseError(rows.length === 0 ? "ไม่พบข้อมูลหลัง header" : null);
+      setImportParseError(rows.length === 0 ? t("inventory.import.noDataAfterHeader", "No data found after the header row") : null);
     } catch (e) {
       setImportParseError(`Parse failed: ${e}`);
       setImportPreview([]);
@@ -882,21 +882,21 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
   const submitImport = async () => {
     const targetShop = lockedShopId ?? (subMerchantFilter !== "all" ? subMerchantFilter : null);
     if (!targetShop) {
-      toast.error("เลือก shop ก่อน import");
+      toast.error(t("inventory.import.pickShopFirst", "Select a shop before importing"));
       return;
     }
     const required = ["product_code", "name", "external_price"];
     const first = importPreview[0] ?? {};
     const missing = required.filter((k) => !(k in first));
     if (missing.length) {
-      toast.error(`ขาด column: ${missing.join(", ")}`);
+      toast.error(t("inventory.import.missingColumns", { cols: missing.join(", "), defaultValue: "Missing columns: {{cols}}" }));
       return;
     }
     const items = importPreview.map((r) => ({
       product_code: r.product_code,
       barcode: r.barcode || null,
       name: r.name,
-      category: r.category || "ทั่วไป",
+      category: r.category || t("inventory.defaultCategory", "General"),
       external_price: parseFloat(r.external_price) || 0,
       internal_price: r.internal_price ? parseFloat(r.internal_price) : null,
       vat_percent: r.vat_percent ? parseFloat(r.vat_percent) : 7,
@@ -914,7 +914,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
       }>(`/shops/${targetShop}/products/batch`, { items });
       setImportResult(result);
       if (result.created > 0) {
-        toast.success(`Import สำเร็จ ${result.created}/${result.total} รายการ`);
+        toast.success(t("inventory.import.successCount", { created: result.created, total: result.total, defaultValue: "Imported {{created}} of {{total}} items" }));
         // Refresh products list
         if (embedded && lockedShopId) {
           const fresh = await api.get<any[]>(`/shops/${lockedShopId}/products`);
@@ -922,7 +922,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
           void fresh;
         }
       } else {
-        toast.error(`ไม่สำเร็จ — ดู errors ด้านล่าง`);
+        toast.error(t("inventory.import.failedSeeErrors", "Import failed — see errors below"));
       }
     } catch (e: any) {
       toast.error(`Import failed: ${e?.message ?? e}`);
@@ -1824,7 +1824,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                 }}
                 className="max-w-xs"
               />
-              <span className="text-xs text-muted-foreground">หรือวาง CSV ด้านล่าง</span>
+              <span className="text-xs text-muted-foreground">{t("inventory.import.orPasteCsv", "Or paste CSV below")}</span>
             </div>
 
             <Textarea
@@ -1932,7 +1932,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                 onClick={submitImport}
                 disabled={importing || importPreview.length === 0 || !!importParseError}
               >
-                {importing ? "กำลัง import..." : `Import ${importPreview.length} items`}
+                {importing ? t("inventory.import.importing", "Importing…") : t("inventory.import.importCount", { count: importPreview.length, defaultValue: "Import {{count}} items" })}
               </Button>
             )}
           </DialogFooter>

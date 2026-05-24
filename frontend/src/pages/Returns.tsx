@@ -105,7 +105,7 @@ interface NoReceiptItem {
 }
 
 const Returns = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [availableProducts, setAvailableProducts] = useState<ReceiptItem[]>([]);
 
@@ -1268,7 +1268,7 @@ const Returns = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              พบ {searchResults.length} ใบเสร็จ — คลิกเพื่อเลือก
+              {t("returns.searchResultsCount", { count: searchResults.length, defaultValue: "{{count}} receipts found — click to select" })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1294,7 +1294,7 @@ const Returns = () => {
                       <td className="p-3 text-right">฿{Number((r as any).total).toFixed(2)}</td>
                       <td className="p-3">
                         <Button size="sm" onClick={() => pickSearchResult(r)}>
-                          เลือก
+                          {t("common.select", "Select")}
                         </Button>
                       </td>
                     </tr>
@@ -1555,7 +1555,7 @@ const Returns = () => {
                   <TableHead>{t("returns.paymentMethod")}</TableHead>
                   <TableHead className="text-right">{t("returns.total")}</TableHead>
                   <TableHead className="text-center">{t("returns.status")}</TableHead>
-                  <TableHead className="text-center">การดำเนินการ</TableHead>
+                  <TableHead className="text-center">{t("returns.actions", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1577,7 +1577,7 @@ const Returns = () => {
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={r.status === "voided" ? "destructive" : "success"}>
-                        {r.status === "voided" ? "ยกเลิก" : "ปกติ"}
+                        {r.status === "voided" ? t("returns.statusVoided", "Voided") : t("returns.statusActive", "Active")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
@@ -1590,7 +1590,7 @@ const Returns = () => {
                           className="h-7 text-xs"
                         >
                           <RefreshCw className="h-3 w-3 mr-1" />
-                          คืนสินค้า
+                          {t("returns.refund", "Refund")}
                         </Button>
                         <Button
                           size="sm"
@@ -1600,7 +1600,7 @@ const Returns = () => {
                           className="h-7 text-xs"
                         >
                           <ArrowLeftRight className="h-3 w-3 mr-1" />
-                          เปลี่ยนสินค้า
+                          {t("returns.exchange", "Exchange")}
                         </Button>
                       </div>
                     </TableCell>
@@ -2201,7 +2201,7 @@ const Returns = () => {
                   <CreditCard className={`w-12 h-12 text-primary ${cardTapStep === "processing" ? "animate-pulse" : ""}`} />
                 </div>
                 <p className="text-center text-sm text-muted-foreground mb-3">
-                  แตะบัตรนักเรียน หรือพิมพ์ UID / รหัสนักเรียน
+                  {t("returns.tapCardPrompt", "Tap the student card, or type the UID / student code")}
                 </p>
                 <input
                   ref={cardInputRef}
@@ -2213,7 +2213,7 @@ const Returns = () => {
                     if (cardLookupError) setCardLookupError(null);
                   }}
                   onKeyDown={onCardInputKeyDown}
-                  placeholder="แตะบัตร / 85001 / RFID-xxxx"
+                  placeholder={t("returns.tapCardPlaceholder", "Tap card / 85001 / RFID-xxxx")}
                   disabled={cardTapStep === "processing"}
                   className="w-full mb-2 px-3 py-2 border rounded-md text-center font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                 />
@@ -2226,7 +2226,7 @@ const Returns = () => {
                   className="w-full"
                   disabled={cardTapStep === "processing" || !cardUidInput.trim()}
                 >
-                  {cardTapStep === "processing" ? "กำลังตรวจสอบ..." : t('returns.confirmTap')}
+                  {cardTapStep === "processing" ? t("returns.verifying", "Verifying…") : t('returns.confirmTap')}
                 </Button>
               </>
             ) : (
@@ -2269,10 +2269,10 @@ const Returns = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              คืนเงินสำเร็จ
+              {t("returns.refundSuccessTitle", "Refund successful")}
             </DialogTitle>
             <DialogDescription>
-              ใบเสร็จเดิม: {returnResult?.receiptId}
+              {t("returns.originalReceipt", "Original receipt")}: {returnResult?.receiptId}
             </DialogDescription>
           </DialogHeader>
 
@@ -2280,12 +2280,12 @@ const Returns = () => {
             <div className="space-y-4 py-2">
               {/* Summary card */}
               <div className="bg-success/10 border border-success/30 p-4 rounded-lg text-center">
-                <p className="text-xs text-muted-foreground mb-1">ยอดคืนเงิน</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("returns.refundAmount", "Refund amount")}</p>
                 <p className="text-3xl font-bold text-success data-number">฿{returnResult.refundAmount.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {returnResult.refundedTo
                     ? returnResult.refundedTo.balanceAfter !== undefined
-                      ? `กระเป๋าเงิน — ${returnResult.refundedTo.label} (คงเหลือ ฿${returnResult.refundedTo.balanceAfter.toFixed(2)})`
+                      ? t("returns.refundDestWalletWithBalance", { label: returnResult.refundedTo.label, balance: returnResult.refundedTo.balanceAfter.toFixed(2), defaultValue: "Wallet — {{label}} (balance ฿{{balance}})" })
                       : returnResult.refundedTo.type === "edc_card"
                         ? `EDC card ${returnResult.refundedTo.maskedCard || "****"}`
                         : returnResult.refundedTo.label
@@ -2295,7 +2295,7 @@ const Returns = () => {
 
               {/* Items */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">รายการสินค้าที่คืน</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">{t("returns.returnedItemsLabel", "Returned items")}</p>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {returnResult.returnedItems.map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
@@ -2312,12 +2312,12 @@ const Returns = () => {
               {/* Meta */}
               <div className="text-xs text-muted-foreground space-y-0.5">
                 <div className="flex justify-between">
-                  <span>ผู้ซื้อ</span>
+                  <span>{t("returns.buyer", "Buyer")}</span>
                   <span>{returnResult.payerLabel || "—"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>วันที่คืน</span>
-                  <span>{new Date(returnResult.returnedAt).toLocaleString("th-TH")}</span>
+                  <span>{t("returns.returnDate", "Return date")}</span>
+                  <span>{new Date(returnResult.returnedAt).toLocaleString(i18n.language === "th" ? "th-TH" : "en-US")}</span>
                 </div>
               </div>
             </div>
@@ -2328,14 +2328,14 @@ const Returns = () => {
               variant="outline"
               onClick={() => { setIsCreditNoteDialogOpen(false); setReturnResult(null); }}
             >
-              เสร็จสิ้น
+              {t("common.done", "Done")}
             </Button>
             <Button
               onClick={() => { if (returnResult) printReturnSlip(returnResult); }}
               className="gap-2"
             >
               <Printer className="h-4 w-4" />
-              พิมพ์ Credit Note
+              {t("returns.printCreditNote", "Print Credit Note")}
             </Button>
           </DialogFooter>
         </DialogContent>

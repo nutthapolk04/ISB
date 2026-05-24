@@ -1,6 +1,12 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import i18n from "@/i18n";
+
+// ErrorBoundary is a class component, so the useTranslation hook is off
+// limits. Pull keys imperatively off the shared i18n instance instead.
+const t = (key: string, fallback: string) =>
+  i18n.t(key, { defaultValue: fallback });
 
 interface Props {
   children: ReactNode;
@@ -42,10 +48,13 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="h-6 w-6 shrink-0 text-destructive" />
               <div>
                 <h1 className="text-lg font-semibold text-destructive">
-                  เกิดข้อผิดพลาดในการแสดงหน้านี้
+                  {t("errorBoundary.title", "Something went wrong while loading this page")}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  ระบบพบ error ลองรีเฟรชหรือกลับไปหน้าหลัก หากยังมีปัญหากรุณาแจ้งผู้ดูแลระบบพร้อมข้อความข้างล่าง
+                  {t(
+                    "errorBoundary.description",
+                    "An unexpected error occurred. Try reloading or go back to the home page. If the problem persists, please contact your system administrator with the message below.",
+                  )}
                 </p>
               </div>
             </div>
@@ -80,9 +89,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={this.handleReset}>
-                ลองใหม่
+                {t("errorBoundary.retry", "Try again")}
               </Button>
-              <Button onClick={this.handleReload}>รีเฟรชหน้า</Button>
+              <Button onClick={this.handleReload}>
+                {t("errorBoundary.reload", "Reload page")}
+              </Button>
             </div>
           </div>
         </div>
