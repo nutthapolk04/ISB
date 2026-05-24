@@ -35,6 +35,7 @@ interface Product {
   name: string;
   external_price: number;
   stock: number;
+  barcode?: string | null;
 }
 
 interface BundlesProps {
@@ -97,15 +98,18 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
   const [loadingProducts, setLoadingProducts] = useState(false);
 
   // ── Fetch products for bundle items ────────────────────────────────────────
+  // Backend returns List[ShopProductResponse] directly (not wrapped), and
+  // already filters by name / product_code / barcode when `search` is set.
   const fetchProducts = async (query = "") => {
     if (!shopId) return;
     setLoadingProducts(true);
     try {
       const params = query ? `?search=${encodeURIComponent(query)}` : "";
-      const data = await api.get<{ products: Product[] }>(`/shops/${shopId}/products${params}`);
-      setProducts(data.products || []);
+      const data = await api.get<Product[]>(`/shops/${shopId}/products${params}`);
+      setProducts(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to fetch products:", e);
+      setProducts([]);
     } finally {
       setLoadingProducts(false);
     }
@@ -116,6 +120,18 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
       fetchProducts();
     }
   }, [dialogOpen, shopId]);
+
+  // Debounce the search input so we don't hammer the backend on every keystroke.
+  // Empty query resets to the default (first-page) listing.
+  useEffect(() => {
+    if (!dialogOpen || !shopId) return;
+    const timer = setTimeout(() => {
+      fetchProducts(productSearch.trim());
+    }, 250);
+    return () => clearTimeout(timer);
+    // fetchProducts is stable enough — depends only on shopId, captured in the closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productSearch, dialogOpen, shopId]);
 
   // ── Filtered bundles ──────────────────────────────────────────────────────
   const filteredBundles = useMemo(() => {
@@ -271,17 +287,9 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
     }
   };
 
-  const filteredProducts = useMemo(() => {
-    if (!productSearch) return products.slice(0, 10);
-    const q = productSearch.toLowerCase();
-    return products
-      .filter(
-        (p) =>
-          p.product_code.toLowerCase().includes(q) ||
-          p.name.toLowerCase().includes(q)
-      )
-      .slice(0, 10);
-  }, [products, productSearch]);
+  // Backend already filters by name / product_code / barcode when `search`
+  // is set. Slice to 10 to keep the dropdown short.
+  const filteredProducts = useMemo(() => products.slice(0, 10), [products]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (!shopId) {
@@ -563,11 +571,8 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={productSearch}
-                  onChange={(e) => {
-                    setProductSearch(e.target.value);
-                    fetchProducts(e.target.value);
-                  }}
-                  placeholder={t("bundles.searchProducts") || "Search products to add..."}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder={t("bundles.searchProductsHint", "Search by code, name, or barcode…")}
                   className="pl-10"
                 />
               </div>

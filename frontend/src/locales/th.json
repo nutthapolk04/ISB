@@ -2322,6 +2322,7 @@
     "bundleItems": "รายการสินค้าในชุด",
     "totalValue": "มูลค่ารวม",
     "searchProducts": "ค้นหาสินค้าเพื่อเพิ่ม...",
+    "searchProductsHint": "ค้นหาจากรหัส, ชื่อ, หรือบาร์โค้ด…",
     "noProductsFound": "ไม่พบสินค้า",
     "noItemsYet": "ยังไม่มีสินค้าในชุด",
     "searchToAdd": "ค้นหาสินค้าด้านบนเพื่อเพิ่ม",

@@ -2308,6 +2308,7 @@
     "editTitle": "Edit Bundle",
     "dialogDescription": "Create a set of products to sell together at a bundle price.",
     "searchPlaceholder": "Search bundles...",
+    "searchProductsHint": "Search by code, name, or barcode…",
     "empty": "No bundles created yet",
     "noResults": "No bundles match your search",
     "noShopSelected": "No shop selected",
