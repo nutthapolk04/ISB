@@ -67,6 +67,7 @@ import { DepartmentPaymentModal, type DepartmentOption } from "./store/Departmen
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
 import { CardTapModal } from "./canteen/CardTapModal";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
+import { UpToDateSaleButton } from "@/components/canteen/UpToDateSaleButton";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -91,7 +92,7 @@ interface CheckoutResponse {
 
 export default function Canteen() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const schoolInfo = useSchoolInfo();
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
@@ -782,6 +783,12 @@ export default function Canteen() {
               <UserSearch className="h-4 w-4" />
               <span className="hidden sm:inline">{t("canteen.pos.searchMember")}</span>
             </Button>
+            {hasRole("cashier", "manager", "admin") && CANTEEN_SHOP_ID && (
+              <UpToDateSaleButton
+                shopId={CANTEEN_SHOP_ID}
+                shopName={user?.shopName}
+              />
+            )}
             <Badge
               variant="outline"
               className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
