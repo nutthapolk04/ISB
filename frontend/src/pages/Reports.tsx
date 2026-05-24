@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { InfoCallout } from "@/components/InfoCallout";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 

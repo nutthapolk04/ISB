@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { Plus, Minus, Trash2, ShoppingCart, HandHelping } from "lucide-react";
 import UserPicker from "@/components/UserPicker";
 import type { DepartmentOption } from "./DepartmentPaymentModal";

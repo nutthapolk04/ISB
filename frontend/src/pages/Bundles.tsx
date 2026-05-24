@@ -23,7 +23,7 @@ import {
   Package, Plus, Edit, Trash2, X, Layers, Search, Loader2, CheckCircle2, XCircle, Minus,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import { useBundles, type Bundle, type BundleCreate, type BundleUpdate, type BundleItemCreate } from "@/hooks/useBundles";
 

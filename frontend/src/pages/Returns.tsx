@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Search, Calendar, Eye, Trash2, Edit, Plus, X, CreditCard, Package, Minus, Printer, ArrowLeftRight } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslation } from "react-i18next";

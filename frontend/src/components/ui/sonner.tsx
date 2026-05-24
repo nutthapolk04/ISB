@@ -1,28 +1,43 @@
-import { useTheme } from "next-themes";
-import { Toaster as Sonner, toast } from "sonner";
+// Shim that adapts the sonner-style `toast.success(...)` API onto our
+// CenterAlert system. Both the original `Toaster` and `toast` are kept as
+// named exports so existing call sites work without code changes.
+import { alert } from "@/components/CenterAlert/api";
 
-type ToasterProps = React.ComponentProps<typeof Sonner>;
-
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
-
-  return (
-    <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      position="top-right"
-      toastOptions={{
-        classNames: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-        },
-      }}
-      {...props}
-    />
-  );
+type ToastOptions = {
+  description?: string;
+  duration?: number;
+  id?: string;
+  action?: { label: string; onClick?: () => void };
 };
 
-export { Toaster, toast };
+const adapt =
+  (variant: "success" | "error" | "warning" | "info") =>
+  (title: unknown, opts: ToastOptions = {}) => {
+    const text = typeof title === "string" ? title : String(title ?? "");
+    const description =
+      typeof opts.description === "string" ? opts.description : undefined;
+    return alert[variant](text, {
+      description,
+      autoCloseMs: opts.duration,
+      id: opts.id,
+      actions: opts.action
+        ? [{ label: opts.action.label, onClick: opts.action.onClick }]
+        : undefined,
+    });
+  };
+
+const baseToast = (title: unknown, opts: ToastOptions = {}) =>
+  adapt("info")(title, opts);
+
+export const toast = Object.assign(baseToast, {
+  success: adapt("success"),
+  error: adapt("error"),
+  warning: adapt("warning"),
+  info: adapt("info"),
+  message: adapt("info"),
+  dismiss: (id?: string) => (id ? alert.dismiss(id) : alert.dismissAll()),
+});
+
+// The CenterAlertHost is mounted in App.tsx. This stub exists only so
+// the existing `<Toaster />` and `<Sonner />` JSX in App.tsx keeps compiling.
+export const Toaster = () => null;

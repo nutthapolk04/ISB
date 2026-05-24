@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp, Upload } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 
 // ── Types ────────────────────────────────────────────────────────────────────

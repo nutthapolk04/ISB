@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "@/lib/constants";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";

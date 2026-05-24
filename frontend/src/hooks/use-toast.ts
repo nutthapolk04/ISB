@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
+import { alert } from "@/components/CenterAlert/api";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
@@ -134,32 +135,25 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
-function toast({ ...props }: Toast) {
-  const id = genId();
+function toast({ title, description, variant, ...rest }: Toast) {
+  const id = String(genId());
 
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    });
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+  // Route through CenterAlert so every status alert renders centered with
+  // the Apple-style design. Keep the dispatch chain alive for any legacy
+  // <Toaster /> consumers that may still be mounted.
+  const titleText = typeof title === "string" ? title : title ? String(title) : "";
+  const descText =
+    typeof description === "string" ? description : description ? String(description) : undefined;
+  const v: "error" | "success" | "info" =
+    variant === "destructive" ? "error" : "info";
+  alert[v](titleText || descText || "", { description: titleText ? descText : undefined, id });
 
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss();
-      },
-    },
-  });
+  void rest;
 
   return {
-    id: id,
-    dismiss,
-    update,
+    id,
+    dismiss: () => alert.dismiss(id),
+    update: () => {},
   };
 }
 

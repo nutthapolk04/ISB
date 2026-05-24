@@ -36,7 +36,7 @@ import {
   rectSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { useTranslation } from "react-i18next";

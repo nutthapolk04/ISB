@@ -44,7 +44,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";

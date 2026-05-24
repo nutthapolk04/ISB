@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Building2, Plus, Edit, Trash2, Package, Loader2, UtensilsCrossed, Store as StoreIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 
 // ── Types ────────────────────────────────────────────────────────────────────

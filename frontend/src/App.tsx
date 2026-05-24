@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { CenterAlertHost } from "@/components/CenterAlert";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
@@ -169,6 +170,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <CenterAlertHost />
       <BrowserRouter>
         <AuthProvider>
           <SchoolInfoProvider>

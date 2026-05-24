@@ -24,7 +24,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 // ── Scope constants ──────────────────────────────────────────────────────────
 

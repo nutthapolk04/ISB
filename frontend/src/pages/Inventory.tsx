@@ -63,7 +63,7 @@ import {
   Printer,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
 import { useUom, type UnitOfMeasure } from "@/hooks/useUom";

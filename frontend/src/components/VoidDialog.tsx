@@ -29,7 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { XCircle, CreditCard, CheckCircle2, ChevronLeft, ShieldAlert, Loader2, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
