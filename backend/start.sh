@@ -189,6 +189,9 @@ run('ALTER TABLE receipts ADD COLUMN edc_terminal_ref VARCHAR(50)', 'receipts.ed
 run('ALTER TABLE receipts ADD COLUMN edc_approval_code VARCHAR(20)', 'receipts.edc_approval_code')
 run('ALTER TABLE receipts ADD COLUMN edc_masked_card VARCHAR(30)', 'receipts.edc_masked_card')
 
+# === Receipts: cash tendered (for cash payments, so Receipt Details can show change) ===
+run('ALTER TABLE receipts ADD COLUMN cash_received NUMERIC(10,2)', 'receipts.cash_received')
+
 # === P4: Shop functional module (canteen vs store) ===
 run(\"ALTER TABLE shops ADD COLUMN module VARCHAR(20) NOT NULL DEFAULT 'store'\",
     'shops.module')

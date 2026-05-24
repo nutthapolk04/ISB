@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export function CashPaymentModal({
   onConfirm,
   confirming,
 }: CashPaymentModalProps) {
+  const { t } = useTranslation();
   const [received, setReceived] = useState<string>("");
 
   useEffect(() => {
@@ -55,19 +57,19 @@ export function CashPaymentModal({
               variant="ghost"
               onClick={onBack}
               className="-ml-2 h-7 w-7"
-              aria-label="Back"
+              aria-label={t("common.back", "Back")}
               disabled={confirming}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Banknote className="h-5 w-5 text-emerald-600" />
-            Cash Payment
+            {t("cashPay.title", "Cash Payment")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
           <div className="text-xs uppercase text-muted-foreground">
-            Order total
+            {t("cashPay.orderTotal", "Order total")}
           </div>
           <div className="text-3xl font-bold tabular-nums text-emerald-700">
             ฿{total.toFixed(2)}
@@ -76,7 +78,7 @@ export function CashPaymentModal({
 
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground">
-            Tendered amount
+            {t("cashPay.tenderedAmount", "Tendered amount")}
           </label>
           <Input
             type="number"
@@ -104,18 +106,24 @@ export function CashPaymentModal({
             onClick={() => setReceived(total.toFixed(2))}
             className="h-11 w-full mt-1 font-semibold"
           >
-            รับเงินมาพอดี · ฿{total.toFixed(2)}
+            {t("cashPay.exactAmount", "Exact amount")} · ฿{total.toFixed(2)}
           </Button>
         </div>
 
         {receivedNum > 0 && (
           <div className="rounded-xl bg-card border p-3 text-sm space-y-1">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Received</span>
+              <span className="text-muted-foreground">
+                {t("cashPay.received", "Received")}
+              </span>
               <span className="tabular-nums">฿{receivedNum.toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t pt-1 text-base font-bold">
-              <span>{insufficient ? "Short by" : "Change"}</span>
+              <span>
+                {insufficient
+                  ? t("cashPay.shortBy", "Short by")
+                  : t("cashPay.change", "Change")}
+              </span>
               <span
                 className={
                   insufficient
@@ -136,7 +144,7 @@ export function CashPaymentModal({
             onClick={onBack}
             disabled={confirming}
           >
-            Back
+            {t("common.back", "Back")}
           </Button>
           <Button
             className="flex-1 bg-emerald-500 hover:bg-emerald-600"
@@ -146,10 +154,10 @@ export function CashPaymentModal({
             {confirming ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing…
+                {t("cashPay.processing", "Processing…")}
               </>
             ) : (
-              "Complete Sale"
+              t("cashPay.completeSale", "Complete Sale")
             )}
           </Button>
         </div>

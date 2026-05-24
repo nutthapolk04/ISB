@@ -969,7 +969,10 @@ const Store = () => {
       if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(err.detail);
       } else {
-        toast.error(err instanceof ApiError ? err.detail : err?.message ?? "Checkout failed");
+        const detail = err instanceof ApiError ? err.detail : err?.message ?? "";
+        toast.error(t("checkout.failed", "Checkout failed"), {
+          description: detail || t("checkout.failedHint", "Please try again or check your network."),
+        });
       }
     } finally {
       setConfirming(false);

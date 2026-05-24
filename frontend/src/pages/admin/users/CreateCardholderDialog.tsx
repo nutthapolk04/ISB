@@ -275,37 +275,35 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                     </Field>
                     <Field label={shopRequired ? "Shop *" : "Shop (optional)"}>
                       <Select
-                        // Radix Select needs an undefined value (not "") to display the
-                        // placeholder. We also only mirror NO_SHOP when the role allows
-                        // an unlinked shop — otherwise the placeholder ("Select a shop")
-                        // stays visible until the admin picks an entry.
-                        value={
-                          shopId !== ""
-                            ? shopId
-                            : shopRequired
-                            ? undefined
-                            : NO_SHOP
-                        }
+                        // Always keep value defined (NO_SHOP sentinel when nothing
+                        // chosen) so the Select stays controlled across role
+                        // changes — switching between undefined↔string would
+                        // trigger React's "controlled to uncontrolled" warning
+                        // and reset the dropdown UI.
+                        value={shopId === "" ? NO_SHOP : shopId}
                         onValueChange={(v) => setShopId(v === NO_SHOP ? "" : v)}
                         disabled={shopsLoading}
                       >
                         <SelectTrigger className={shopMissing ? "border-destructive" : ""}>
-                          <SelectValue
-                            placeholder={
-                              shopsLoading
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* The "no shop" row is the sentinel value used while
+                              nothing is selected. We disable it (but keep it
+                              rendered) when a role requires a shop, so the
+                              Select keeps a stable controlled value while still
+                              forcing the admin to pick a real shop. */}
+                          <SelectItem value={NO_SHOP} disabled={shopRequired}>
+                            {shopRequired
+                              ? shopsLoading
                                 ? "Loading shops…"
                                 : shopsError
                                 ? `Failed to load: ${shopsError}`
                                 : shops.length === 0
-                                ? "No shops available — click to refresh"
+                                ? "No shops available — pick one below"
                                 : "Select a shop"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!shopRequired && (
-                            <SelectItem value={NO_SHOP}>— No shop —</SelectItem>
-                          )}
+                              : "— No shop —"}
+                          </SelectItem>
                           {shops.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.name} ({s.module}){!s.is_active && " — inactive"}

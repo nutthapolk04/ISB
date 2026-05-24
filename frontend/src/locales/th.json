@@ -1670,6 +1670,21 @@
     "autoPrint": "พิมพ์อัตโนมัติ",
     "autoPrintTooltip": "พิมพ์ใบเสร็จอัตโนมัติหลังขายเสร็จทุกครั้ง"
   },
+  "checkout": {
+    "failed": "ชำระเงินไม่สำเร็จ",
+    "failedHint": "กรุณาลองใหม่ หรือตรวจสอบการเชื่อมต่อ"
+  },
+  "cashPay": {
+    "title": "ชำระด้วยเงินสด",
+    "orderTotal": "ยอดที่ต้องชำระ",
+    "tenderedAmount": "เงินที่รับมา",
+    "exactAmount": "รับเงินมาพอดี",
+    "received": "รับเงินมา",
+    "change": "เงินทอน",
+    "shortBy": "ขาดอีก",
+    "completeSale": "ยืนยันการขาย",
+    "processing": "กำลังประมวลผล…"
+  },
   "sync": {
     "loadFailed": "โหลดสถิติไม่สำเร็จ",
     "selectRole": "กรุณาเลือกอย่างน้อย 1 role",

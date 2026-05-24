@@ -1670,6 +1670,21 @@
     "autoPrint": "Auto-print",
     "autoPrintTooltip": "Auto-print receipt after each sale"
   },
+  "checkout": {
+    "failed": "Checkout failed",
+    "failedHint": "Please try again or check your network connection."
+  },
+  "cashPay": {
+    "title": "Cash Payment",
+    "orderTotal": "Order Total",
+    "tenderedAmount": "Tendered amount",
+    "exactAmount": "Exact amount",
+    "received": "Received",
+    "change": "Change",
+    "shortBy": "Short by",
+    "completeSale": "Complete Sale",
+    "processing": "Processing…"
+  },
   "sync": {
     "loadFailed": "Failed to load sync stats",
     "selectRole": "Please select at least 1 role",

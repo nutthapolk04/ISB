@@ -576,7 +576,9 @@ export default function Canteen() {
       const res = await doCheckout("department", { kind: "department", departmentId: deptId });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
+      toast.error(t("checkout.failed", "Checkout failed"), {
+        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
+      });
     }
   };
 
@@ -629,7 +631,9 @@ export default function Canteen() {
       if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(e.detail);
       } else {
-        toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
+        toast.error(t("checkout.failed", "Checkout failed"), {
+        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
+      });
       }
     }
   };
@@ -640,9 +644,9 @@ export default function Canteen() {
       const res = await doCheckout("cash", undefined, { cashReceived });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
-      toast.error(
-        e instanceof ApiError ? e.detail : "Checkout failed",
-      );
+      toast.error(t("checkout.failed", "Checkout failed"), {
+        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
+      });
     }
   };
 
@@ -652,9 +656,9 @@ export default function Canteen() {
       const res = await doCheckout("other");
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
-      toast.error(
-        e instanceof ApiError ? e.detail : "Checkout failed",
-      );
+      toast.error(t("checkout.failed", "Checkout failed"), {
+        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
+      });
     }
   };
 
@@ -664,9 +668,9 @@ export default function Canteen() {
       const res = await doCheckout("edc");
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
-      toast.error(
-        e instanceof ApiError ? e.detail : "Checkout failed",
-      );
+      toast.error(t("checkout.failed", "Checkout failed"), {
+        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
+      });
     }
   };
 
@@ -706,7 +710,9 @@ export default function Canteen() {
         if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
           setWalletLimitError(e.detail);
         } else {
-          toast.error(e instanceof ApiError ? e.detail : "Checkout failed");
+          toast.error(t("checkout.failed", "Checkout failed"), {
+        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
+      });
         }
       } finally {
         setConfirming(false);
