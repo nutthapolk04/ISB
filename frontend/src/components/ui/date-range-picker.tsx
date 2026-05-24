@@ -1,6 +1,7 @@
 import * as React from "react";
 import { format, parseISO, isValid } from "date-fns";
-import { th } from "date-fns/locale";
+import { enUS, th } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 
@@ -16,8 +17,6 @@ const toDate = (iso: string | undefined): Date | undefined => {
 };
 
 const toIso = (d: Date | undefined): string => (d ? format(d, "yyyy-MM-dd") : "");
-
-const formatLabel = (d: Date) => format(d, "dd MMM yyyy", { locale: th });
 
 export interface DateRangePickerProps {
   startDate: string;
@@ -36,12 +35,16 @@ export function DateRangePicker({
   endDate,
   onStartChange,
   onEndChange,
-  placeholder = "เลือกช่วงวันที่",
+  placeholder,
   disabled,
   id,
   className,
   numberOfMonths = 2,
 }: DateRangePickerProps) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "th" ? th : enUS;
+  const formatLabel = (d: Date) => format(d, "dd MMM yyyy", { locale: dateLocale });
+  const effectivePlaceholder = placeholder ?? t("common.selectDateRange");
   const [open, setOpen] = React.useState(false);
   const from = toDate(startDate);
   const to = toDate(endDate);
@@ -50,7 +53,7 @@ export function DateRangePicker({
   const label = (() => {
     if (from && to) return `${formatLabel(from)} — ${formatLabel(to)}`;
     if (from) return `${formatLabel(from)} — …`;
-    return placeholder;
+    return effectivePlaceholder;
   })();
 
   return (
@@ -81,7 +84,7 @@ export function DateRangePicker({
             if (r?.from && r?.to) setOpen(false);
           }}
           numberOfMonths={numberOfMonths}
-          locale={th}
+          locale={dateLocale}
           initialFocus
         />
       </PopoverContent>

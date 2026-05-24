@@ -259,6 +259,12 @@
     },
     "searchReceipt": "ค้นหาใบเสร็จ",
     "receiptId": "เลขที่ใบเสร็จ",
+    "studentCodeOrName": "รหัส/ชื่อนักเรียน",
+    "studentCodePlaceholder": "S001 หรือ สมชาย",
+    "multipleResults": "พบใบเสร็จ {{count}} ใบ — เลือกหนึ่งใบ",
+    "popupBlocked": "ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต pop-up",
+    "cardUidRequired": "กรุณาระบุ UID หรือรหัสนักเรียน",
+    "refundDestWallet": "กระเป๋าเงิน — {{label}}",
     "purchaseDate": "วันที่ซื้อสินค้า",
     "paymentType": "รูปแบบการชำระเงิน",
     "all": "ทั้งหมด",
@@ -1654,7 +1660,9 @@
     },
     "optional": "ไม่บังคับ",
     "done": "เสร็จสิ้น",
-    "close": "ปิด"
+    "close": "ปิด",
+    "selectDate": "เลือกวันที่",
+    "selectDateRange": "เลือกช่วงวันที่"
   },
   "sync": {
     "loadFailed": "โหลดสถิติไม่สำเร็จ",

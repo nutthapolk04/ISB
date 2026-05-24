@@ -259,6 +259,12 @@
     },
     "searchReceipt": "Search Receipt",
     "receiptId": "Receipt ID",
+    "studentCodeOrName": "Student code / name",
+    "studentCodePlaceholder": "S001 or John",
+    "multipleResults": "{{count}} receipts found — pick one",
+    "popupBlocked": "Cannot open print window — please allow pop-ups",
+    "cardUidRequired": "Please provide UID or student code",
+    "refundDestWallet": "Wallet — {{label}}",
     "purchaseDate": "Purchase Date",
     "paymentType": "Payment Type",
     "all": "All",
@@ -1654,7 +1660,9 @@
     },
     "optional": "Optional",
     "done": "Done",
-    "close": "Close"
+    "close": "Close",
+    "selectDate": "Select date",
+    "selectDateRange": "Select date range"
   },
   "sync": {
     "loadFailed": "Failed to load sync stats",

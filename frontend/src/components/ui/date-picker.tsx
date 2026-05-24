@@ -1,6 +1,7 @@
 import * as React from "react";
 import { format, parseISO, isValid } from "date-fns";
-import { th } from "date-fns/locale";
+import { enUS, th } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,13 +31,16 @@ export interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "เลือกวันที่",
+  placeholder,
   disabled,
   min,
   max,
   id,
   className,
 }: DatePickerProps) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "th" ? th : enUS;
+  const effectivePlaceholder = placeholder ?? t("common.selectDate");
   const [open, setOpen] = React.useState(false);
   const selected = toDate(value);
   const fromDate = toDate(min);
@@ -57,7 +61,7 @@ export function DatePicker({
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {selected ? format(selected, "dd MMM yyyy", { locale: th }) : placeholder}
+          {selected ? format(selected, "dd MMM yyyy", { locale: dateLocale }) : effectivePlaceholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -70,7 +74,7 @@ export function DatePicker({
           }}
           fromDate={fromDate}
           toDate={toDateLimit}
-          locale={th}
+          locale={dateLocale}
           initialFocus
         />
       </PopoverContent>

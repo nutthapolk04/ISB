@@ -418,7 +418,7 @@ const Returns = () => {
         setSelectedReceipt(null);
         setExistingReturns([]);
         setSearchResults(results);
-        toast.success(`${results.length} receipts found — เลือกหนึ่งใบ`);
+        toast.success(t('returns.multipleResults', { count: results.length }));
       }
     } catch {
       setSelectedReceipt(null);
@@ -1218,10 +1218,10 @@ const Returns = () => {
               />
             </div>
             <div>
-              <Label htmlFor="searchStudent" className="text-sm font-semibold">รหัส/ชื่อนักเรียน</Label>
+              <Label htmlFor="searchStudent" className="text-sm font-semibold">{t('returns.studentCodeOrName')}</Label>
               <Input
                 id="searchStudent"
-                placeholder="S001 หรือ สมชาย"
+                placeholder={t('returns.studentCodePlaceholder')}
                 value={searchStudent}
                 onChange={(e) => setSearchStudent(e.target.value)}
                 className="mt-1.5"
