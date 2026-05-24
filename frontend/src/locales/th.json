@@ -1665,7 +1665,13 @@
     "done": "เสร็จสิ้น",
     "close": "ปิด",
     "selectDate": "เลือกวันที่",
-    "selectDateRange": "เลือกช่วงวันที่"
+    "selectDateRange": "เลือกช่วงวันที่",
+    "unknownError": "ข้อผิดพลาดไม่ทราบสาเหตุ"
+  },
+  "login": {
+    "demoBanner": "บัญชีเดโม — กระเป๋าของฉัน + POS spending",
+    "demoHint": "คลิกเพื่อเข้าระบบทันที — ทดลอง topup, family transfer และจ่ายเงินที่ POS ด้วยกระเป๋าตัวเอง",
+    "otherAccounts": "บัญชีอื่นๆ (Reference)"
   },
   "pos": {
     "autoPrint": "พิมพ์อัตโนมัติ",
@@ -1687,6 +1693,14 @@
     "processing": "กำลังประมวลผล…"
   },
   "sync": {
+    "startFailed": "เริ่ม sync ไม่สำเร็จ",
+    "loadAuditFailed": "โหลด audit ไม่สำเร็จ",
+    "description": "ดึงข้อมูล Staff / Parent / Student จาก PowerSchool — ทำงานในเบื้องหลังและบันทึก audit ทุก record",
+    "idleHint": "กด Run sync เพื่อเริ่มดึงข้อมูล. คุณสามารถปิด dialog ได้ระหว่าง sync รัน — งานยังเดินต่อ",
+    "starting": "กำลังเริ่ม…",
+    "runFull": "Run sync (full)",
+    "restart": "เริ่มใหม่",
+    "noAuditRows": "ไม่มี audit row",
     "loadFailed": "โหลดสถิติไม่สำเร็จ",
     "selectRole": "กรุณาเลือกอย่างน้อย 1 role",
     "failed": "Sync ไม่สำเร็จ",
@@ -1889,6 +1903,20 @@
     "noShopAssigned": "ผู้จัดการยังไม่มีการกำหนดร้านค้า"
   },
   "cardholders": {
+    "fields": {
+      "fullName": "ชื่อ-นามสกุล *",
+      "name": "ชื่อ *"
+    },
+    "kindDesc": {
+      "student": "นักเรียน — Customer + wallet + บัตร",
+      "parent": "ผู้ปกครอง — User + personal wallet",
+      "staff": "พนักงาน — User + personal wallet (cashier/manager/kitchen)",
+      "department": "แผนก — Department + wallet (เครดิตติดลบได้)",
+      "other": "Visitor / etc. — Customer (wallet optional)"
+    },
+    "noShopsHint": "ยังไม่มี shop ในระบบ — ไปสร้างที่ Shop Management ก่อน",
+    "deptHint": "Department wallet ติดลบได้ — admin ปรับยอดผ่านหน้า \"ปรับยอดกระเป๋าแผนก\" เป็นรายเดือน",
+    "createWalletToo": "สร้าง wallet ให้ด้วย (default: ไม่มี wallet)",
     "kindAll": "ทั้งหมด",
     "kindStudent": "นักเรียน",
     "kindParent": "ผู้ปกครอง",

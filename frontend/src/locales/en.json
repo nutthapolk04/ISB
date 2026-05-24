@@ -1665,7 +1665,13 @@
     "done": "Done",
     "close": "Close",
     "selectDate": "Select date",
-    "selectDateRange": "Select date range"
+    "selectDateRange": "Select date range",
+    "unknownError": "Unknown error"
+  },
+  "login": {
+    "demoBanner": "Demo accounts — Personal Wallet + POS spending",
+    "demoHint": "Click to log in instantly — try top-up, family transfer, and pay at POS from your own wallet",
+    "otherAccounts": "Other accounts (Reference)"
   },
   "pos": {
     "autoPrint": "Auto-print",
@@ -1687,6 +1693,14 @@
     "processing": "Processing…"
   },
   "sync": {
+    "startFailed": "Failed to start sync",
+    "loadAuditFailed": "Failed to load audit",
+    "description": "Pull Staff / Parent / Student data from PowerSchool — runs in the background and records an audit row for every record",
+    "idleHint": "Press Run sync to start pulling data. You can close this dialog while the sync runs — the job keeps going.",
+    "starting": "Starting…",
+    "runFull": "Run sync (full)",
+    "restart": "Restart",
+    "noAuditRows": "No audit rows",
     "loadFailed": "Failed to load sync stats",
     "selectRole": "Please select at least 1 role",
     "failed": "Sync failed",
@@ -1891,6 +1905,20 @@
     "noShopAssigned": "Manager has no shop assignment"
   },
   "cardholders": {
+    "fields": {
+      "fullName": "Full Name *",
+      "name": "Name *"
+    },
+    "kindDesc": {
+      "student": "Student — Customer + wallet + card",
+      "parent": "Parent — User + personal wallet",
+      "staff": "Staff — User + personal wallet (cashier/manager/kitchen)",
+      "department": "Department — Department + wallet (overdraft allowed)",
+      "other": "Visitor / etc. — Customer (wallet optional)"
+    },
+    "noShopsHint": "No shops in the system yet — create one via Shop Management first",
+    "deptHint": "Department wallet may go negative — admin tops it up monthly via \"Department wallet adjust\"",
+    "createWalletToo": "Create a wallet as well (default: no wallet)",
     "kindAll": "All",
     "kindStudent": "Student",
     "kindParent": "Parent",

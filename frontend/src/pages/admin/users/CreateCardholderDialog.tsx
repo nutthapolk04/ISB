@@ -48,12 +48,12 @@ interface Props {
   onCreated?: () => void;
 }
 
-const KINDS: { kind: Kind; label: string; icon: any; desc: string }[] = [
-  { kind: "student",    label: "Student",    icon: GraduationCap,    desc: "นักเรียน — Customer + wallet + บัตร" },
-  { kind: "parent",     label: "Parent",     icon: UsersIcon,        desc: "ผู้ปกครอง — User + personal wallet" },
-  { kind: "staff",      label: "Staff",      icon: UtensilsCrossed,  desc: "พนักงาน — User + personal wallet (cashier/manager/kitchen)" },
-  { kind: "department", label: "Department", icon: Building2,        desc: "แผนก — Department + wallet (เครดิตติดลบได้)" },
-  { kind: "other",      label: "Other",      icon: UserCircle2,      desc: "Visitor / etc. — Customer (wallet optional)" },
+const KINDS: { kind: Kind; label: string; icon: any; descKey: string; descFallback: string }[] = [
+  { kind: "student",    label: "Student",    icon: GraduationCap,    descKey: "cardholders.kindDesc.student",    descFallback: "Student — Customer + wallet + card" },
+  { kind: "parent",     label: "Parent",     icon: UsersIcon,        descKey: "cardholders.kindDesc.parent",     descFallback: "Parent — User + personal wallet" },
+  { kind: "staff",      label: "Staff",      icon: UtensilsCrossed,  descKey: "cardholders.kindDesc.staff",      descFallback: "Staff — User + personal wallet (cashier/manager/kitchen)" },
+  { kind: "department", label: "Department", icon: Building2,        descKey: "cardholders.kindDesc.department", descFallback: "Department — Department + wallet (overdraft allowed)" },
+  { kind: "other",      label: "Other",      icon: UserCircle2,      descKey: "cardholders.kindDesc.other",      descFallback: "Visitor / etc. — Customer (wallet optional)" },
 ];
 
 export default function CreateCardholderDialog({ open, onOpenChange, onCreated }: Props) {
@@ -216,7 +216,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
 
         {step === "pick" && (
           <div className="grid grid-cols-1 gap-2">
-            {KINDS.map(({ kind: k, label, icon: Icon, desc }) => (
+            {KINDS.map(({ kind: k, label, icon: Icon, descKey, descFallback }) => (
               <button
                 key={k}
                 type="button"
@@ -228,7 +228,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">{label}</div>
-                  <div className="text-xs text-muted-foreground">{desc}</div>
+                  <div className="text-xs text-muted-foreground">{t(descKey, descFallback)}</div>
                 </div>
               </button>
             ))}
@@ -239,7 +239,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
           <div className="space-y-3">
             {kind === "student" && (
               <>
-                <Field label="ชื่อ-นามสกุล *"><Input value={name} onChange={e => setName(e.target.value)} /></Field>
+                <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <Field label="Student code (Customer code) *"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="85001" /></Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Grade"><Input value={grade} onChange={e => setGrade(e.target.value)} placeholder="04" /></Field>
@@ -262,7 +262,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
 
             {(kind === "parent" || kind === "staff") && (
               <>
-                <Field label="ชื่อ-นามสกุล *"><Input value={name} onChange={e => setName(e.target.value)} /></Field>
+                <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <Field label="Username *"><Input value={username} onChange={e => setUsername(e.target.value)} /></Field>
                 <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
                 <Field label="Password *"><Input type="password" value={password} onChange={e => setPassword(e.target.value)} /></Field>
@@ -354,7 +354,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                         )}
                         {!shopsLoading && !shopsError && shops.length === 0 && (
                           <p className="text-xs text-amber-600">
-                            ยังไม่มี shop ในระบบ — ไปสร้างที่ Shop Management ก่อน
+                            {t("cardholders.noShopsHint", "No shops in the system yet — create one via Shop Management first")}
                           </p>
                         )}
                       </Field>
@@ -372,21 +372,21 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 <Field label="Department name *"><Input value={deptName} onChange={e => setDeptName(e.target.value)} /></Field>
                 <Field label="Initial credit (THB)"><Input type="number" value={initialCredit} onChange={e => setInitialCredit(e.target.value)} /></Field>
                 <p className="text-xs text-muted-foreground">
-                  Department wallet ติดลบได้ — admin ปรับยอดผ่านหน้า "ปรับยอดกระเป๋าแผนก" เป็นรายเดือน
+                  {t("cardholders.deptHint", 'Department wallet may go negative — admin tops it up monthly via "Department wallet adjust"')}
                 </p>
               </>
             )}
 
             {kind === "other" && (
               <>
-                <Field label="ชื่อ *"><Input value={name} onChange={e => setName(e.target.value)} /></Field>
+                <Field label={t("cardholders.fields.name", "Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <Field label="Visitor code (Customer code)"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="auto if blank" /></Field>
                 <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
                 <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={withWallet} onCheckedChange={(v) => setWithWallet(!!v)} />
-                  <span>สร้าง wallet ให้ด้วย (default: ไม่มี wallet)</span>
+                  <span>{t("cardholders.createWalletToo", "Create a wallet as well (default: no wallet)")}</span>
                 </label>
               </>
             )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import {
   Dialog,
@@ -53,6 +54,7 @@ interface Props {
 }
 
 export default function SyncRunDialog({ open, onOpenChange, onFinished }: Props) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [running, setRunning] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
@@ -95,8 +97,8 @@ export default function SyncRunDialog({ open, onOpenChange, onFinished }: Props)
       }, 1500);
     } catch (e) {
       toast({
-        title: "เริ่ม sync ไม่สำเร็จ",
-        description: e instanceof ApiError ? e.detail : "Unknown error",
+        title: t("sync.startFailed", "Failed to start sync"),
+        description: e instanceof ApiError ? e.detail : t("common.unknownError", "Unknown error"),
         variant: "destructive",
       });
     } finally {
@@ -112,8 +114,8 @@ export default function SyncRunDialog({ open, onOpenChange, onFinished }: Props)
       setShowAudit(true);
     } catch (e) {
       toast({
-        title: "โหลด audit ไม่สำเร็จ",
-        description: e instanceof ApiError ? e.detail : "Unknown error",
+        title: t("sync.loadAuditFailed", "Failed to load audit"),
+        description: e instanceof ApiError ? e.detail : t("common.unknownError", "Unknown error"),
         variant: "destructive",
       });
     }
@@ -148,18 +150,18 @@ export default function SyncRunDialog({ open, onOpenChange, onFinished }: Props)
         <DialogHeader>
           <DialogTitle>PowerSchool Sync</DialogTitle>
           <DialogDescription>
-            ดึงข้อมูล Staff / Parent / Student จาก PowerSchool — ทำงานในเบื้องหลังและบันทึก audit ทุก record
+            {t("sync.description", "Pull Staff / Parent / Student data from PowerSchool — runs in the background and records an audit row for every record")}
           </DialogDescription>
         </DialogHeader>
 
         {!status && (
           <div className="py-8 text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              กด Run sync เพื่อเริ่มดึงข้อมูล. คุณสามารถปิด dialog ได้ระหว่าง sync รัน — งานยังเดินต่อ
+              {t("sync.idleHint", "Press Run sync to start pulling data. You can close this dialog while the sync runs — the job keeps going.")}
             </p>
             <Button onClick={startSync} disabled={running}>
               {running ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
-              {running ? "กำลังเริ่ม..." : "Run sync (full)"}
+              {running ? t("sync.starting", "Starting…") : t("sync.runFull", "Run sync (full)")}
             </Button>
           </div>
         )}
@@ -185,7 +187,7 @@ export default function SyncRunDialog({ open, onOpenChange, onFinished }: Props)
                   {showAudit ? "Loaded" : "View changes"}
                 </Button>
                 <Button size="sm" onClick={() => { setStatus(null); setShowAudit(false); setAudit([]); }}>
-                  เริ่มใหม่
+                  {t("sync.restart", "Restart")}
                 </Button>
               </div>
             )}
@@ -233,13 +235,15 @@ export default function SyncRunDialog({ open, onOpenChange, onFinished }: Props)
               </div>
             )}
             {showAudit && audit.length === 0 && (
-              <p className="text-center text-xs text-muted-foreground">ไม่มี audit row</p>
+              <p className="text-center text-xs text-muted-foreground">
+                {t("sync.noAuditRows", "No audit rows")}
+              </p>
             )}
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ปิด</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.close", "Close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
