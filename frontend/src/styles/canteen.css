@@ -51,19 +51,16 @@
            active:scale-[0.98];
   }
 
-  /* Custom-color treatment: soft ring + tinted glow on hover. Requires
-   * inline style to set --card-color (e.g. "#ff5733"). */
+  /* Solid-color treatment: use the color as full background (store-style). */
   .canteen-product-card[data-card-color="true"] {
-    border-color: var(--card-color);
+    border-color: transparent;
     box-shadow:
-      0 0 0 2px var(--card-color),
-      0 1px 3px color-mix(in srgb, var(--card-color) 25%, transparent);
+      0 1px 3px color-mix(in srgb, var(--card-color) 40%, transparent);
   }
 
   .canteen-product-card[data-card-color="true"]:hover {
-    border-color: var(--card-color);
+    border-color: transparent;
     box-shadow:
-      0 0 0 2px var(--card-color),
       0 14px 32px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
   }
 

@@ -730,7 +730,6 @@ const Store = () => {
         return [...prev, { ...product, quantity: 1, priceOverride: panelPrice }];
       });
       setLastAddedId(product.id);
-      toast.success(t("store.itemAdded", { name: product.name }), { duration: 1000 });
     },
     [t, activePanelId, panelPrices],
   );
@@ -1377,13 +1376,6 @@ const Store = () => {
       <div className="canteen-content">
         {/* Header */}
         <div className="page-header flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="page-title flex items-center gap-2">
-              <ScanBarcode className="h-7 w-7 text-amber-500" />
-              {t("store.addItemsTitle")}
-            </h1>
-            <p className="page-description">{t("store.scanEmptyHint")}</p>
-          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -1461,7 +1453,7 @@ const Store = () => {
 
         {/* Search with suggestion dropdown */}
         <div ref={dropdownRef} className="relative">
-          <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+          <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none z-10" />
           <Input
             ref={searchInputRef}
             value={searchTerm}
@@ -1473,7 +1465,7 @@ const Store = () => {
             onKeyDown={handleSearchKeyDown}
             onFocus={() => searchTerm.trim() && setDropdownOpen(true)}
             placeholder={t("store.searchPlaceholder")}
-            className="pl-9 font-mono text-sm h-11"
+            className="pl-9 font-mono text-sm h-11 text-amber-500 placeholder:text-amber-400/70"
             autoComplete="off"
           />
 
@@ -1536,15 +1528,6 @@ const Store = () => {
           )}
         </div>
 
-        {/* Keyboard hint */}
-        <p className="text-xs text-muted-foreground select-none -mt-1">
-          <kbd className="rounded border bg-muted px-1 font-mono text-xs">Enter</kbd>{" "}
-          {t("store.searchHintToAdd")} ·{" "}
-          <kbd className="rounded border bg-muted px-1 font-mono text-xs">↑↓</kbd>{" "}
-          {t("store.searchHintToNavigate")} ·{" "}
-          <kbd className="rounded border bg-muted px-1 font-mono text-xs">Esc</kbd>{" "}
-          {t("store.searchHintToClear")}
-        </p>
 
         {/* Panel selector — only shown for shop-scoped users with panels */}
         {user?.shopId && panels.length > 0 && (
@@ -1586,15 +1569,10 @@ const Store = () => {
 
         {/* Browse grid */}
         {allProducts.length > 0 && (() => {
-          const cats = Array.from(
-            new Set(allProducts.map((p) => p.category).filter(Boolean)),
-          ).sort();
           // In reorder mode: show regular products only (bundles excluded from reorder)
           const gridProducts = reorderMode
             ? allProducts.filter((p) => !p.isBundle && (!user?.shopId || p.subMerchantId === user.shopId))
-            : allProducts.filter((p) =>
-                gridCategory === "All" ? true : p.category === gridCategory,
-              );
+            : allProducts;
 
           const cardContent = (p: Product, handleProps: React.HTMLAttributes<HTMLElement>) => {
             const displayPrice = priceMode === "internal"
@@ -1710,26 +1688,6 @@ const Store = () => {
 
           return (
             <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border/60 bg-card/40 p-3 gap-3">
-              {/* Category filter — hidden in reorder mode */}
-              {!reorderMode && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
-                  {(["All", ...cats]).map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setGridCategory(c)}
-                      className={cn(
-                        "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
-                        gridCategory === c
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
-                      )}
-                    >
-                      {c === "All" ? t("store.allCategories") : c}
-                    </button>
-                  ))}
-                </div>
-              )}
               {reorderMode && (
                 <p className="text-xs text-muted-foreground shrink-0">
                   <GripVertical className="inline h-3 w-3 mr-1" />

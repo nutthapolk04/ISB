@@ -71,7 +71,7 @@ export function ProductCard({
         hasColor
           ? ({
               "--card-color": product.color,
-              backgroundColor: `${product.color}18`,
+              backgroundColor: product.color!,
             } as React.CSSProperties)
           : undefined
       }
@@ -92,13 +92,13 @@ export function ProductCard({
       )}
 
       {/* Name */}
-      <div className="line-clamp-2 text-sm font-semibold leading-tight">
+      <div className={cn("line-clamp-2 text-sm font-semibold leading-tight", hasColor && "text-white")}>
         {product.name}
       </div>
 
       {/* Footer: price + (palette) + category */}
       <div className="mt-auto flex items-end justify-between pt-1">
-        <span className="text-base font-bold text-amber-700 tabular-nums">
+        <span className={cn("text-base font-bold tabular-nums", hasColor ? "text-white" : "text-amber-700")}>
           ฿{displayPrice.toFixed(0)}
         </span>
         <div className="flex items-center gap-1">
@@ -183,7 +183,13 @@ export function ProductCard({
             </Popover>
           )}
           {product.category && (
-            <Badge variant="outline" className="text-[10px] px-1 py-0">
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] px-1 py-0",
+                hasColor && "border-white/50 text-white",
+              )}
+            >
               {product.category}
             </Badge>
           )}

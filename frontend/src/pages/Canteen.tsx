@@ -740,14 +740,6 @@ export default function Canteen() {
               or QR.
             </p>
           </div>
-          <InfoCallout
-            id="canteen.retailVsInternal"
-            variant="tip"
-            title="Retail vs Internal"
-            className="mt-2 max-w-xl"
-          >
-            {t("canteen.pos.retailVsInternalDesc")}
-          </InfoCallout>
           <div className="flex items-center gap-3">
             {usesDualPricing && (
               <div
@@ -781,15 +773,6 @@ export default function Canteen() {
                 </button>
               </div>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTopupOpen(true)}
-              className="gap-1.5"
-            >
-              <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("canteen.pos.topUp")}</span>
-            </Button>
             <Button
               variant="outline"
               size="sm"

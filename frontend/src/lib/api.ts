@@ -95,6 +95,16 @@ async function request<T>(
     } catch {
       /* use statusText fallback */
     }
+
+    // Session expired — clear stored credentials and force re-login
+    if (res.status === 401) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("schooney_auth_user");
+      window.location.href = "/login";
+      throw new ApiError(res.status, detail, body, code);
+    }
+
     throw new ApiError(res.status, detail, body, code);
   }
 
