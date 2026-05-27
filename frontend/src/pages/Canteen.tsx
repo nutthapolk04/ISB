@@ -730,12 +730,6 @@ export default function Canteen() {
       <div className="canteen-content">
         {/* Header */}
         <div className="page-header flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="page-title flex items-center gap-2">
-              <UtensilsCrossed className="h-7 w-7 text-amber-500" />
-              Canteen POS
-            </h1>
-          </div>
           <div className="flex items-center gap-3">
             {usesDualPricing && (
               <div
