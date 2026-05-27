@@ -192,6 +192,10 @@ run('ALTER TABLE receipts ADD COLUMN edc_masked_card VARCHAR(30)', 'receipts.edc
 # === Receipts: cash tendered (for cash payments, so Receipt Details can show change) ===
 run('ALTER TABLE receipts ADD COLUMN cash_received NUMERIC(10,2)', 'receipts.cash_received')
 
+# === Price panel items: short name + inclusion flag (for Store POS panel display) ===
+run('ALTER TABLE price_panel_items ADD COLUMN short_name VARCHAR(100)', 'price_panel_items.short_name')
+run("ALTER TABLE price_panel_items ADD COLUMN included BOOLEAN NOT NULL DEFAULT true", 'price_panel_items.included')
+
 # === P4: Shop functional module (canteen vs store) ===
 run(\"ALTER TABLE shops ADD COLUMN module VARCHAR(20) NOT NULL DEFAULT 'store'\",
     'shops.module')
