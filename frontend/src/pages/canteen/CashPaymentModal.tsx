@@ -34,8 +34,8 @@ export function CashPaymentModal({
   const [received, setReceived] = useState<string>("");
 
   useEffect(() => {
-    if (open) setReceived("");
-  }, [open]);
+    if (open) setReceived(total.toFixed(2));
+  }, [open, total]);
 
   const receivedNum = parseFloat(received) || 0;
   const change = receivedNum - total;

@@ -536,7 +536,7 @@ export default function Canteen() {
     // Skipped entirely when the per-station auto-print toggle is off.
     if (fullReceipt && autoPrint) {
       try {
-        printReceipt(fullReceipt, schoolInfo, user?.shopName, i18n.language);
+        printReceipt(fullReceipt, schoolInfo, user?.shopName, "en");
       } catch (printErr) {
         console.warn("Auto-print failed:", printErr);
       }

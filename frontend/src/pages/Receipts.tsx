@@ -147,8 +147,22 @@ const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
 
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 
+const PAYMENT_LABELS_EN: Record<string, string> = {
+  cash: "Cash",
+  wallet: "Wallet",
+  credit_card: "Credit Card",
+  debit_card: "Debit Card",
+  bank_transfer: "Bank Transfer",
+  qr: "QR PromptPay",
+  qr_promptpay: "QR PromptPay",
+  edc: "EDC",
+  department: "Budget Deduction",
+  other: "Other",
+};
+
 function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string | null): string {
-  const paymentLabel = PAYMENT_LABELS[r.payment_method] ?? r.payment_method;
+  const paymentLabel = PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method;
+  const dateStr = new Date(r.transaction_date).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" });
   const itemRows = r.items.map((item) => {
     const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
     const isBundle = opts?.is_bundle === true;
@@ -164,7 +178,7 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
         ).join("")
       : "";
     const discountLine = item.discount > 0
-      ? `<div class="row disc"><span>ส่วนลด</span><span>-฿${item.discount.toLocaleString()}</span></div>`
+      ? `<div class="row disc"><span>Discount</span><span>-฿${item.discount.toLocaleString()}</span></div>`
       : "";
     return `
       <div class="row">
@@ -176,27 +190,31 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   }).join("");
 
   const discountSection = r.discount > 0
-    ? `<div class="row small"><span>ส่วนลดท้ายบิล</span><span>-฿${r.discount.toLocaleString()}</span></div>`
+    ? `<div class="row small"><span>Bill Discount</span><span>-฿${r.discount.toLocaleString()}</span></div>`
     : "";
   const taxSection = r.tax > 0
-    ? `<div class="row small"><span>ภาษี</span><span>฿${r.tax.toLocaleString()}</span></div>`
+    ? `<div class="row small"><span>Tax</span><span>฿${r.tax.toLocaleString()}</span></div>`
     : "";
   const payerSection = r.payer_label
-    ? `<div class="row small"><span>ผู้ชำระ</span><span>${r.payer_label}</span></div>`
+    ? `<div class="row small"><span>Payer</span><span>${r.payer_label}</span></div>`
     : "";
   const voidedSection = r.status !== "active"
-    ? `<div class="voided">*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***</div>`
+    ? `<div class="voided">*** THIS RECEIPT HAS BEEN VOIDED ***</div>`
     : "";
 
-  // Balance before / after — only for wallet payments that have payer_detail
   const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;
   const balanceBeforeSection =
     r.payment_method === "wallet" && walletBalanceAfter !== null
-      ? `<div class="row small"><span>ยอดก่อนชำระ</span><span>฿${(walletBalanceAfter + r.total).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>`
+      ? `<div class="row small"><span>Balance Before</span><span>฿${(walletBalanceAfter + r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>`
       : "";
   const balanceAfterSection =
     r.payment_method === "wallet" && walletBalanceAfter !== null
-      ? `<div class="row balance-after"><span>ยอดคงเหลือ</span><span>฿${walletBalanceAfter.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</span></div>`
+      ? `<div class="row balance-after"><span>Balance After</span><span>฿${walletBalanceAfter.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>`
+      : "";
+  const cashSection =
+    r.payment_method === "cash" && r.cash_received != null
+      ? `<div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
+         <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>`
       : "";
 
   const shopLine = shopName
@@ -209,17 +227,17 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
     ? `<p class="sub">${school.address}</p>`
     : "";
   const taxPhoneLine = (school.taxId || school.phone)
-    ? `<p class="sub">${school.taxId ? `เลขภาษี: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `โทร: ${school.phone}` : ""}</p>`
+    ? `<p class="sub">${school.taxId ? `Tax ID: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `Tel: ${school.phone}` : ""}</p>`
     : "";
 
   return `<!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>ใบเสร็จ ${r.receipt_number}</title>
+<title>Receipt ${r.receipt_number}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Sarabun', 'Courier New', monospace; font-size: 12px;
+  body { font-family: 'Courier New', monospace; font-size: 12px;
          width: 80mm; margin: 0 auto; padding: 8px; color: #111; }
   .logo-wrap { display: flex; justify-content: center; margin-bottom: 4px; }
   h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
@@ -244,24 +262,25 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   ${addressLine}
   ${taxPhoneLine}
   ${shopLine}
-  <p class="sub">ใบเสร็จรับเงิน / Receipt</p>
+  <p class="sub">Receipt</p>
   ${voidedSection}
   <hr/>
-  <div class="row"><span>เลขที่</span><span>${r.receipt_number}</span></div>
-  <div class="row small"><span>วันที่</span><span>${fmtDate(r.transaction_date)}</span></div>
+  <div class="row"><span>Receipt No.</span><span>${r.receipt_number}</span></div>
+  <div class="row small"><span>Date</span><span>${dateStr}</span></div>
   ${payerSection}
-  <div class="row small"><span>ชำระด้วย</span><span>${paymentLabel}</span></div>
+  <div class="row small"><span>Payment</span><span>${paymentLabel}</span></div>
   <hr/>
   ${itemRows}
   <hr/>
   ${balanceBeforeSection}
-  <div class="row small"><span>ยอดรวม</span><span>฿${r.subtotal.toLocaleString()}</span></div>
+  <div class="row small"><span>Subtotal</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}
   ${taxSection}
-  <div class="row total"><span>รวมสุทธิ</span><span>฿${r.total.toLocaleString()}</span></div>
+  <div class="row total"><span>Grand Total</span><span>฿${r.total.toLocaleString()}</span></div>
   ${balanceAfterSection}
+  ${cashSection ? `<hr/>${cashSection}` : ""}
   <hr/>
-  <p class="center sub">ขอบคุณที่ใช้บริการ / Thank you</p>
+  <p class="center sub">Thank you for your purchase</p>
 </body>
 </html>`;
 }

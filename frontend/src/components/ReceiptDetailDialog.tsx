@@ -183,8 +183,8 @@ const PAYMENT_LABELS_EN: Record<string, string> = {
   other: "Other",
 };
 
-function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "th"): string {
-  const isEn = lang.startsWith("en");
+function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "en"): string {
+  const isEn = !lang.startsWith("th");
   const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
   const paymentLabel = isEn
     ? (PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method)
@@ -261,11 +261,15 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
   <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}${taxSection}
   <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
+  ${r.payment_method === "cash" && r.cash_received != null ? `
+  <hr/>
+  <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
+  <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
   <hr/><p class="center sub">${lbl.thanks}</p>
 </body></html>`;
 }
 
-function printReceipt(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "th"): void {
+function printReceipt(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "en"): void {
   const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;
   win.document.write(buildReceiptHtml(r, school, shopName, lang));
@@ -539,7 +543,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             <Button
               className="w-full"
               variant="outline"
-              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, "en")}
             >
               <Download className="h-4 w-4 mr-2" />
               {t("receipts.download", "พิมพ์ / บันทึก PDF")}

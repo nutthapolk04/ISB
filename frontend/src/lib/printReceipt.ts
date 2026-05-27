@@ -166,9 +166,9 @@ export function buildReceiptHtml(
   r: ReceiptApi,
   school: SchoolInfo,
   shopName?: string | null,
-  lang: string = "th",
+  lang: string = "en",
 ): string {
-  const isEn = lang.startsWith("en");
+  const isEn = !lang.startsWith("th");
   const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
   const paymentLabel = isEn
     ? (PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method)
@@ -292,6 +292,10 @@ export function buildReceiptHtml(
   ${taxSection}
   <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
   ${balanceAfterSection}
+  ${r.payment_method === "cash" && r.cash_received != null ? `
+  <hr/>
+  <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
+  <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
   <hr/>
   <p class="center sub">${lbl.thanks}</p>
 </body>
@@ -312,7 +316,7 @@ export function printReceipt(
   r: ReceiptApi,
   school: SchoolInfo,
   shopName?: string | null,
-  lang: string = "th",
+  lang: string = "en",
 ): void {
   const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;

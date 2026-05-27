@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { IconButton } from "@/components/IconButton";
@@ -27,6 +26,7 @@ import {
   ArrowUpDown,
   Check,
   Printer,
+  Loader2,
 } from "lucide-react";
 import {
   DndContext,
@@ -957,7 +957,12 @@ const Store = () => {
       // Skipped entirely when the per-station auto-print toggle is off.
       if (autoPrint) {
         try {
-          printReceipt(receipt as unknown as ReceiptApi, schoolInfo, user?.shopName, i18n.language);
+          printReceipt(
+            { ...(receipt as unknown as ReceiptApi), cash_received: backendMethod === "cash" ? (ctx.cashReceived ?? null) : null },
+            schoolInfo,
+            user?.shopName,
+            "en",
+          );
         } catch (printErr) {
           console.warn("Auto-print failed:", printErr);
         }
@@ -1080,19 +1085,29 @@ const Store = () => {
   // local state, focus, etc.). A render fn returning JSX side-steps that.
   const renderCartPanel = (asSheet: boolean) => (
     <div className={asSheet ? "canteen-cart-sheet" : "canteen-cart-panel"}>
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-bold">{t("store.payment")}</h2>
+        <div>
+          <h2 className="text-base font-bold leading-none">{t("store.order", "Order")}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {t("store.itemCount", { count: itemCount })}
+          </p>
         </div>
         {cart.length > 0 && (
-          <Badge className="text-sm px-3 py-1 tabular-nums">฿{total.toLocaleString()}</Badge>
+          <button
+            type="button"
+            onClick={clearCart}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t("store.clearAll", "Clear all")}
+          </button>
         )}
       </div>
 
       {/* Selected Member */}
       {preSelectedMember && (
-        <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+        <div className="mx-3 mt-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
               {preSelectedMember.photo_url ? (
@@ -1234,8 +1249,8 @@ const Store = () => {
                           {t("store.tableDiscount", "ส่วนลด")}:
                         </span>
                         {(item.discountValue ?? 0) > 0 && (
-                          <span className="text-[10px] font-medium text-amber-700">
-                            {item.discountValue}{item.discountMode === "percent" ? "%" : "฿"}
+                          <span className="text-xs font-semibold text-amber-700">
+                            −{item.discountValue}{item.discountMode === "percent" ? "%" : "฿"}
                           </span>
                         )}
                         <DiscountShortcutPopover
@@ -1285,88 +1300,98 @@ const Store = () => {
         )}
       </div>
 
-      {/* Footer: bill discount + totals + checkout button */}
+      {/* Footer */}
       {cart.length > 0 && (
-        <div className="border-t-2 border-border bg-muted/30 px-4 py-3 space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <button
-              className="text-destructive hover:underline font-medium"
-              onClick={clearCart}
-            >
-              {t("store.clearAll")}
-            </button>
-            <span className="text-muted-foreground">
-              {t("store.itemCount", { count: itemCount })}
-            </span>
+        <div className="border-t border-border/60 px-4 py-3 space-y-2.5">
+          {/* Subtotal */}
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{t("store.subtotal", "ยอดรวม")}</span>
+            <span className="tabular-nums">฿{subtotal.toLocaleString()}</span>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-muted-foreground">
-                {t("store.billDiscount")}
-              </span>
-              <div className="flex items-center gap-1">
+          {/* Bill discount row (shown when active) */}
+          {billDiscountAmount > 0 && (
+            <div className="flex justify-between text-sm text-destructive">
+              <span>{t("store.billDiscount")}</span>
+              <span className="tabular-nums">-฿{billDiscountAmount.toLocaleString()}</span>
+            </div>
+          )}
+
+          {/* Add Discount popover button */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "w-full h-10 rounded-xl border text-sm font-semibold transition",
+                  billDiscountAmount > 0
+                    ? "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    : "border-amber-400 text-amber-600 hover:bg-amber-50",
+                )}
+              >
+                {billDiscountAmount > 0
+                  ? `${t("store.billDiscount")} · -฿${billDiscountAmount.toLocaleString()}`
+                  : t("store.addDiscount", "Add Discount")}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3 space-y-3" side="top">
+              <p className="text-xs font-semibold text-muted-foreground">{t("store.billDiscount")}</p>
+              <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   min="0"
                   placeholder="0"
                   value={billDiscountValue}
                   onChange={(e) => setBillDiscountValue(e.target.value)}
-                  className="h-7 w-16 text-right text-xs"
+                  className="h-9 text-right text-sm flex-1"
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2 text-xs font-bold"
+                  className="h-9 px-3 font-bold shrink-0"
                   onClick={() => setBillDiscountMode((m) => (m === "percent" ? "amount" : "percent"))}
                 >
                   {billDiscountMode === "percent" ? "%" : "฿"}
                 </Button>
               </div>
-            </div>
-            {/* Discount shortcuts */}
-            <div className="flex gap-1">
-              {(billDiscountMode === "percent" ? [5, 10, 15, 20] : [10, 20, 50, 100]).map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setBillDiscountValue(String(q))}
-                  className={cn(
-                    "flex-1 h-6 rounded text-[10px] font-semibold border transition",
-                    parseFloat(billDiscountValue) === q
-                      ? "border-amber-500 bg-amber-50 text-amber-700"
-                      : "border-border bg-muted/50 text-muted-foreground hover:border-amber-400 hover:text-foreground",
-                  )}
-                >
-                  {billDiscountMode === "percent" ? `${q}%` : `฿${q}`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-1 text-sm tabular-nums">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{t("store.subtotal", "ยอดรวม")}</span>
-              <span>฿{subtotal.toLocaleString()}</span>
-            </div>
-            {billDiscountAmount > 0 && (
-              <div className="flex justify-between text-xs text-destructive">
-                <span>{t("store.billDiscount")}</span>
-                <span>-฿{billDiscountAmount.toLocaleString()}</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(billDiscountMode === "percent" ? [5, 10, 15, 20] : [10, 20, 50, 100]).map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setBillDiscountValue(String(q))}
+                    className={cn(
+                      "h-9 rounded-lg border text-xs font-semibold transition",
+                      parseFloat(billDiscountValue) === q
+                        ? "border-amber-500 bg-amber-500 text-white"
+                        : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
+                    )}
+                  >
+                    {billDiscountMode === "percent" ? `${q}%` : `฿${q}`}
+                  </button>
+                ))}
               </div>
-            )}
-            <div className="flex justify-between items-baseline pt-1">
-              <span className="text-sm font-semibold text-muted-foreground">
-                {t("store.tableTotal")}
-              </span>
-              <span className="text-2xl font-bold text-primary">
-                ฿{total.toLocaleString()}
-              </span>
-            </div>
+              {billDiscountAmount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setBillDiscountValue("")}
+                  className="w-full h-8 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted transition"
+                >
+                  Clear
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Total */}
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm font-semibold">{t("store.tableTotal")}</span>
+            <span className="text-2xl font-bold text-primary tabular-nums">
+              ฿{total.toLocaleString()}
+            </span>
           </div>
 
+          {/* Charge button */}
           <Button
             onClick={() => {
               if (asSheet) setCartSheetOpen(false);
@@ -1375,8 +1400,11 @@ const Store = () => {
             disabled={cart.length === 0 || confirming}
             className="w-full h-12 text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/40"
           >
-            <CreditCard className="h-5 w-5 mr-2" />
-            {t("store.payment")} · ฿{total.toLocaleString()}
+            {confirming ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              `${t("store.charge", "Charge")} ฿${total.toLocaleString()}`
+            )}
           </Button>
         </div>
       )}
