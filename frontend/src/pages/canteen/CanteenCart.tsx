@@ -68,22 +68,22 @@ function DiscountShortcutPopover({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-2"
+        className="w-64 p-3"
         align="start"
         side="top"
         sideOffset={6}
       >
-        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
+        <p className="mb-3 text-xs font-semibold text-muted-foreground">
           {t("canteen.cart.discountHeader")} {mode === "percent" ? "%" : "฿"}
         </p>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-3 gap-2">
           {shortcuts.map((q) => (
             <button
               key={q}
               type="button"
               onClick={() => handleShortcut(q)}
               className={cn(
-                "h-9 min-w-[3.5rem] rounded-lg border text-sm font-bold transition-colors",
+                "h-11 w-full rounded-xl border text-sm font-bold transition-colors",
                 currentValue === q && (currentMode ?? "percent") === mode
                   ? "border-amber-500 bg-amber-500 text-white"
                   : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 active:bg-amber-200",
@@ -93,18 +93,18 @@ function DiscountShortcutPopover({
             </button>
           ))}
         </div>
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-3 flex gap-2">
           <button
             type="button"
             onClick={handleClear}
-            className="flex-1 h-8 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
+            className="flex-1 h-9 rounded-xl border border-border bg-background text-xs font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
             Clear / 0
           </button>
           <button
             type="button"
             onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
-            className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
+            className="h-9 px-4 rounded-xl border border-border bg-background text-xs font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
             {mode === "percent" ? t("canteen.cart.useBaht") : t("canteen.cart.usePercent")}
           </button>
@@ -344,11 +344,13 @@ export function CanteenCart({
                         </span>
                       </div>
                       {/* Per-item discount row */}
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground">{t("canteen.cart.discountLabel")}:</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs text-muted-foreground">{t("canteen.cart.discountLabel")}:</span>
                         {(item.lineDiscountValue ?? 0) > 0 && (
-                          <span className="text-[10px] font-medium text-amber-700">
-                            {item.lineDiscountValue}{item.lineDiscountMode === "percent" ? "%" : "฿"}
+                          <span className="text-xs font-semibold text-amber-700 tabular-nums">
+                            −{item.lineDiscountMode === "percent"
+                              ? `${item.lineDiscountValue}%`
+                              : `฿${item.lineDiscountValue}`}
                           </span>
                         )}
                         <DiscountShortcutPopover
