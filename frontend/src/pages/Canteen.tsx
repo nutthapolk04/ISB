@@ -729,8 +729,50 @@ export default function Canteen() {
       {/* Main — catalog */}
       <div className="canteen-content">
         {/* Header */}
-        <div className="page-header flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="page-header flex flex-wrap items-center gap-2">
+          {/* Search + reorder */}
+          <div className="relative flex-1 min-w-[160px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search dishes…"
+              className="pl-9 h-9 bg-card/90"
+              disabled={reorderMode}
+            />
+          </div>
+          {reorderMode ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setReorderMode(false); setReorderDirty(false); }}
+                disabled={reorderSaving}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveReorder}
+                disabled={!reorderDirty || reorderSaving}
+                className="bg-amber-500 hover:bg-amber-600"
+              >
+                <CheckIcon className="h-3 w-3 mr-1" />
+                {reorderSaving ? "…" : t("common.save")}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReorderMode(true)}
+              className="shrink-0"
+            >
+              <ArrowUpDown className="h-3 w-3 mr-1" />
+              {t("canteen.reorder.enter")}
+            </Button>
+          )}
+          <div className="flex items-center gap-2 shrink-0">
             {usesDualPricing && (
               <div
                 className="flex items-center gap-1 rounded-full bg-muted p-1"
@@ -801,51 +843,8 @@ export default function Canteen() {
           </div>
         </div>
 
-        {/* Search + categories + reorder toggle */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search dishes…"
-                className="pl-9 h-11 bg-card/90"
-                disabled={reorderMode}
-              />
-            </div>
-            {reorderMode ? (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { setReorderMode(false); setReorderDirty(false); }}
-                  disabled={reorderSaving}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={saveReorder}
-                  disabled={!reorderDirty || reorderSaving}
-                  className="bg-amber-500 hover:bg-amber-600"
-                >
-                  <CheckIcon className="h-3 w-3 mr-1" />
-                  {reorderSaving ? "…" : t("common.save")}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setReorderMode(true)}
-                className="shrink-0"
-              >
-                <ArrowUpDown className="h-3 w-3 mr-1" />
-                {t("canteen.reorder.enter")}
-              </Button>
-            )}
-          </div>
+        {/* Category tabs */}
+        <div>
           {!reorderMode && (
             <CategoryTabs
               active={activeCategory}
