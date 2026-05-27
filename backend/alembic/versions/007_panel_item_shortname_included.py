@@ -1,13 +1,13 @@
 """add short_name and included to price_panel_items
 
-Revision ID: 007_panel_item_shortname_included
+Revision ID: 007_panel_shortname
 Revises: 006_receipt_cash_received
 Create Date: 2026-05-27
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = '007_panel_item_shortname_included'
+revision = '007_panel_shortname'
 down_revision = '006_receipt_cash_received'
 branch_labels = None
 depends_on = None
