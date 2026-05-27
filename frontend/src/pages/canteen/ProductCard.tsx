@@ -92,13 +92,13 @@ export function ProductCard({
       )}
 
       {/* Name */}
-      <div className={cn("line-clamp-2 text-sm font-semibold leading-tight", hasColor && "text-white")}>
+      <div className="line-clamp-2 text-sm font-semibold leading-tight text-zinc-900">
         {product.name}
       </div>
 
       {/* Footer: price + (palette) + category */}
       <div className="mt-auto flex items-end justify-between pt-1">
-        <span className={cn("text-base font-bold tabular-nums", hasColor ? "text-white" : "text-amber-700")}>
+        <span className="text-base font-bold tabular-nums text-zinc-900">
           ฿{displayPrice.toFixed(0)}
         </span>
         <div className="flex items-center gap-1">
@@ -185,10 +185,7 @@ export function ProductCard({
           {product.category && (
             <Badge
               variant="outline"
-              className={cn(
-                "text-[10px] px-1 py-0",
-                hasColor && "border-white/50 text-white",
-              )}
+              className="text-[10px] px-1 py-0"
             >
               {product.category}
             </Badge>

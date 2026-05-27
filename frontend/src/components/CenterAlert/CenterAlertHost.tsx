@@ -58,7 +58,7 @@ function AlertCard({ item }: { item: AlertItem }) {
       role={item.variant === "error" || item.variant === "warning" ? "alertdialog" : "alert"}
       aria-modal="true"
       className={cn(
-        "pointer-events-auto relative w-full max-w-md",
+        "pointer-events-auto relative w-full min-w-[300px] max-w-md",
         "rounded-3xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl",
         "shadow-2xl ring-1 ring-black/5",
         "animate-in fade-in zoom-in-95 duration-200",

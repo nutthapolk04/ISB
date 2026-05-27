@@ -143,7 +143,7 @@ export default function Canteen() {
       setProductsOrderVersion(res.version);
       setReorderDirty(false);
       setReorderMode(false);
-      toast.success(t("canteen.reorder.saved"));
+      toast.success(t("canteen.reorder.saved"), { duration: 1500 });
     } catch (e: any) {
       if (e?.status === 409 || e?.detail?.current_version) {
         toast.error(t("canteen.reorder.conflict"));
