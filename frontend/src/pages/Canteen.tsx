@@ -735,10 +735,6 @@ export default function Canteen() {
               <UtensilsCrossed className="h-7 w-7 text-amber-500" />
               Canteen POS
             </h1>
-            <p className="page-description">
-              Tap a dish to add it to the order — then charge via wallet, cash
-              or QR.
-            </p>
           </div>
           <div className="flex items-center gap-3">
             {usesDualPricing && (
