@@ -107,9 +107,9 @@ def get_panel_items(
         .order_by(ShopProduct.sort_order, ShopProduct.id)
         .all()
     )
-    # Build lookup map: product_id -> panel price
+    # Build lookup map: product_id -> panel item
     item_map = {
-        item.product_id: item.price
+        item.product_id: item
         for item in db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
     }
     return [
@@ -118,7 +118,9 @@ def get_panel_items(
             product_code=p.product_code,
             product_name=p.name,
             external_price=float(p.external_price),
-            panel_price=float(item_map[p.id]) if item_map.get(p.id) is not None else None,
+            panel_price=float(item_map[p.id].price) if item_map.get(p.id) is not None and item_map[p.id].price is not None else None,
+            short_name=item_map[p.id].short_name if item_map.get(p.id) is not None else None,
+            included=getattr(item_map[p.id], 'included', True) if item_map.get(p.id) is not None else True,
         )
         for p in products
     ]
@@ -143,6 +145,10 @@ def set_item_price(
     ).first()
     if item:
         item.price = body.price
+        if body.short_name is not None:
+            item.short_name = body.short_name if body.short_name.strip() else None
+        if body.included is not None:
+            item.included = body.included
     else:
         item = PricePanelItem(panel_id=panel_id, product_id=product_id, price=body.price)
         db.add(item)
@@ -153,4 +159,6 @@ def set_item_price(
         product_name=product.name,
         external_price=float(product.external_price),
         panel_price=float(item.price) if item.price is not None else None,
+        short_name=item.short_name,
+        included=getattr(item, 'included', True),
     )

@@ -20,6 +20,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp, Upload } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
@@ -61,6 +62,8 @@ interface PricePanelItem {
   product_name: string;
   external_price: number;
   panel_price: number | null;
+  short_name: string | null;
+  included: boolean;
 }
 
 const PANEL_COLORS = [
@@ -217,6 +220,8 @@ const ShopDetail = () => {
   const [editPanelSaving, setEditPanelSaving] = useState(false);
   // Track cell edit values: panelId -> productId -> string value
   const [cellDrafts, setCellDrafts] = useState<Record<number, Record<number, string>>>({});
+  // Track short name edit values: panelId -> productId -> string value
+  const [shortNameDrafts, setShortNameDrafts] = useState<Record<number, Record<number, string>>>({});
 
   const fetchPanels = useCallback(async () => {
     if (!shopId) return;
@@ -243,6 +248,12 @@ const ShopDetail = () => {
         drafts[item.product_id] = item.panel_price != null ? String(item.panel_price) : "";
       });
       setCellDrafts((prev) => ({ ...prev, [panelId]: drafts }));
+      // Initialize short name drafts
+      const sndrafts: Record<number, string> = {};
+      data.forEach((item) => {
+        sndrafts[item.product_id] = item.short_name ?? "";
+      });
+      setShortNameDrafts((prev) => ({ ...prev, [panelId]: sndrafts }));
     } catch {
       toast.error("Failed to load panel items");
     } finally {
@@ -330,6 +341,42 @@ const ShopDetail = () => {
       }));
     } catch {
       toast.error("Failed to save price");
+    }
+  };
+
+  const handleShortNameBlur = async (panelId: number, productId: number) => {
+    if (!shopId) return;
+    const val = shortNameDrafts[panelId]?.[productId] ?? "";
+    try {
+      await api.patch(`/shops/${shopId}/price-panels/${panelId}/items/${productId}`, {
+        short_name: val.trim() || null,
+      });
+      setPanelItems((prev) => ({
+        ...prev,
+        [panelId]: (prev[panelId] ?? []).map((item) =>
+          item.product_id === productId ? { ...item, short_name: val.trim() || null } : item,
+        ),
+      }));
+    } catch {
+      toast.error("Failed to save short name");
+    }
+  };
+
+  const handleInclusionToggle = async (panelId: number, productId: number, currentIncluded: boolean) => {
+    if (!shopId) return;
+    const newVal = !currentIncluded;
+    try {
+      await api.patch(`/shops/${shopId}/price-panels/${panelId}/items/${productId}`, {
+        included: newVal,
+      });
+      setPanelItems((prev) => ({
+        ...prev,
+        [panelId]: (prev[panelId] ?? []).map((item) =>
+          item.product_id === productId ? { ...item, included: newVal } : item,
+        ),
+      }));
+    } catch {
+      toast.error("Failed to update inclusion");
     }
   };
 
@@ -559,6 +606,17 @@ const ShopDetail = () => {
             </Card>
           ) : (
             <div className="space-y-3">
+              {/* Base price pseudo-panel */}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-sm">ราคาปกติ (Base)</span>
+                      <Badge variant="outline" className="text-xs text-muted-foreground">Base</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               {panels.map((panel) => (
                 <Card key={panel.id}>
                   <CardContent className="p-0">
@@ -626,8 +684,10 @@ const ShopDetail = () => {
                               <TableRow>
                                 <TableHead className="w-28">Code</TableHead>
                                 <TableHead>Product</TableHead>
+                                <TableHead className="w-36">Short Name</TableHead>
                                 <TableHead className="w-32 text-right">Ext. Price</TableHead>
                                 <TableHead className="w-36 text-right">Panel Price</TableHead>
+                                <TableHead className="w-24 text-center">In Panel</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -635,13 +695,32 @@ const ShopDetail = () => {
                                 const draftVal = cellDrafts[panel.id]?.[item.product_id] ?? "";
                                 const panelFloat = item.panel_price;
                                 const differs = panelFloat != null && panelFloat !== item.external_price;
+                                const snDraftVal = shortNameDrafts[panel.id]?.[item.product_id] ?? "";
                                 return (
-                                  <TableRow key={item.product_id}>
+                                  <TableRow key={item.product_id} className={!item.included ? "opacity-50" : ""}>
                                     <TableCell className="font-mono text-xs text-muted-foreground">
                                       {item.product_code}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       {item.product_name}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Input
+                                        type="text"
+                                        placeholder="—"
+                                        value={snDraftVal}
+                                        onChange={(e) =>
+                                          setShortNameDrafts((prev) => ({
+                                            ...prev,
+                                            [panel.id]: {
+                                              ...(prev[panel.id] ?? {}),
+                                              [item.product_id]: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                        onBlur={() => handleShortNameBlur(panel.id, item.product_id)}
+                                        className="h-7 w-32 text-xs"
+                                      />
                                     </TableCell>
                                     <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
                                       ฿{item.external_price.toLocaleString()}
@@ -664,6 +743,12 @@ const ShopDetail = () => {
                                         }
                                         onBlur={() => handleCellBlur(panel.id, item.product_id)}
                                         className={`h-7 w-28 text-right text-xs ml-auto ${differs ? "border-yellow-400 bg-yellow-50" : ""}`}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={item.included}
+                                        onCheckedChange={() => handleInclusionToggle(panel.id, item.product_id, item.included)}
                                       />
                                     </TableCell>
                                   </TableRow>

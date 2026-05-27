@@ -335,6 +335,10 @@ const Store = () => {
   const [activePanelId, setActivePanelId] = useState<number | null>(null);
   // panelPrices: panelId -> productId -> price
   const [panelPrices, setPanelPrices] = useState<Record<number, Record<number, number>>>({});
+  // panelShortNames: panelId -> productId -> short_name
+  const [panelShortNames, setPanelShortNames] = useState<Record<number, Record<number, string>>>({});
+  // panelIncluded: panelId -> Set of included product ids
+  const [panelIncluded, setPanelIncluded] = useState<Record<number, Set<number>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -416,23 +420,33 @@ const Store = () => {
         setPanels(panelList);
         // Fetch items for each panel
         const priceMap: Record<number, Record<number, number>> = {};
+        const snameMap: Record<number, Record<number, string>> = {};
+        const includedMap: Record<number, Set<number>> = {};
         await Promise.all(
           panelList.map(async (panel) => {
             try {
-              const items = await api.get<Array<{ product_id: number; panel_price: number | null }>>(
+              const items = await api.get<Array<{ product_id: number; panel_price: number | null; short_name: string | null; included: boolean }>>(
                 `/shops/${user.shopId}/price-panels/${panel.id}/items`,
               );
               const productMap: Record<number, number> = {};
+              const snMap: Record<number, string> = {};
+              const includedSet = new Set<number>();
               items.forEach((item) => {
-                if (item.panel_price != null) {
-                  productMap[item.product_id] = item.panel_price;
-                }
+                if (item.panel_price != null) productMap[item.product_id] = item.panel_price;
+                if (item.short_name) snMap[item.product_id] = item.short_name;
+                if (item.included !== false) includedSet.add(item.product_id);
               });
               priceMap[panel.id] = productMap;
+              snameMap[panel.id] = snMap;
+              includedMap[panel.id] = includedSet;
             } catch { /* panel fetch failed — skip */ }
           }),
         );
-        if (!cancelled) setPanelPrices(priceMap);
+        if (!cancelled) {
+          setPanelPrices(priceMap);
+          setPanelShortNames(snameMap);
+          setPanelIncluded(includedMap);
+        }
       } catch { /* shop has no panels — tolerate */ }
     })();
     return () => { cancelled = true; };
@@ -1572,7 +1586,9 @@ const Store = () => {
           // In reorder mode: show regular products only (bundles excluded from reorder)
           const gridProducts = reorderMode
             ? allProducts.filter((p) => !p.isBundle && (!user?.shopId || p.subMerchantId === user.shopId))
-            : allProducts;
+            : activePanelId != null && panelIncluded[activePanelId]
+              ? allProducts.filter((p) => panelIncluded[activePanelId].has(p.id))
+              : allProducts;
 
           const cardContent = (p: Product, handleProps: React.HTMLAttributes<HTMLElement>) => {
             const displayPrice = priceMode === "internal"
@@ -1631,7 +1647,11 @@ const Store = () => {
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight">{p.name}</div>
+                <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight">
+                  {activePanelId != null && panelShortNames[activePanelId]?.[p.id]
+                    ? panelShortNames[activePanelId][p.id]
+                    : p.name}
+                </div>
                 <div className="mt-auto pt-1 flex items-center justify-between">
                   <span className="text-sm font-bold tabular-nums text-primary">฿{displayPrice.toLocaleString()}</span>
                   <div className="flex items-center gap-1">

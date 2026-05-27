@@ -19,6 +19,8 @@ class PricePanelItemResponse(BaseModel):
     product_name: str
     external_price: float
     panel_price: Optional[float] = None  # null = not set
+    short_name: Optional[str] = None
+    included: bool = True
 
     class Config:
         from_attributes = True
@@ -38,3 +40,5 @@ class PricePanelResponse(BaseModel):
 
 class PricePanelItemPatch(BaseModel):
     price: Optional[float] = None  # null clears the override
+    short_name: Optional[str] = None
+    included: Optional[bool] = None

@@ -3,7 +3,7 @@ Price Panel Model
 Each shop can have multiple named price panels (e.g. ราคาทั่วไป, ราคาพิเศษ).
 Each panel stores override prices per product; null = fall back to external_price.
 """
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, Column, Integer, String, Numeric, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -31,6 +31,8 @@ class PricePanelItem(Base):
     panel_id = Column(Integer, ForeignKey("price_panels.id", ondelete="CASCADE"), nullable=False, index=True)
     product_id = Column(Integer, ForeignKey("shop_products.id", ondelete="CASCADE"), nullable=False, index=True)
     price = Column(Numeric(10, 2), nullable=True)  # null = use external_price
+    short_name = Column(String(100), nullable=True)   # display name override in POS
+    included = Column(Boolean, nullable=False, default=True)  # whether product appears in POS when this panel is active
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     panel = relationship("PricePanel", back_populates="items")
