@@ -64,19 +64,17 @@
       0 14px 32px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
   }
 
-  /* Store POS tile — same color-ring treatment */
+  /* Store POS tile — solid-color treatment, matches canteen (no ring) */
   .pos-product-tile[data-card-color="true"] {
-    border-color: var(--card-color);
+    border-color: transparent;
     box-shadow:
-      0 0 0 2px var(--card-color),
-      0 1px 3px color-mix(in srgb, var(--card-color) 25%, transparent);
+      0 1px 3px color-mix(in srgb, var(--card-color) 40%, transparent);
   }
 
   .pos-product-tile[data-card-color="true"]:hover {
-    border-color: var(--card-color);
+    border-color: transparent;
     box-shadow:
-      0 0 0 2px var(--card-color),
-      0 12px 24px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
+      0 14px 32px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
   }
 
   .canteen-product-card-image {

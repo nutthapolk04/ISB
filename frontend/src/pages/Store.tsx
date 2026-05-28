@@ -1643,15 +1643,15 @@ const Store = () => {
                 onClick={reorderMode ? undefined : () => addToCart(p)}
                 data-card-color={p.color ? "true" : undefined}
                 className={cn(
-                  "pos-product-tile group relative flex flex-col rounded-lg border bg-card p-2 text-left transition w-full",
-                  !p.color && !reorderMode && "border-border/60 hover:border-primary hover:shadow-sm",
+                  "pos-product-tile group relative flex flex-col justify-between rounded-lg border p-2.5 text-left transition w-full min-h-[6.5rem]",
+                  !p.color && !reorderMode && "bg-card border-border/60 hover:border-primary hover:shadow-sm",
                   reorderMode && "cursor-default select-none",
                 )}
                 style={
                   p.color
                     ? ({
                         "--card-color": p.color,
-                        ...(!p.photoUrl && { backgroundColor: p.color + "18" }),
+                        backgroundColor: p.color,
                       } as React.CSSProperties)
                     : undefined
                 }
@@ -1663,38 +1663,30 @@ const Store = () => {
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 )}
-                <div
-                  className="relative h-20 w-full overflow-hidden rounded-md"
-                  style={p.color ? { backgroundColor: p.color } : undefined}
-                >
-                  {p.photoUrl ? (
-                    <img src={p.photoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className={cn(
-                      "flex h-full w-full items-center justify-center",
-                      p.color ? "text-white/70" : "text-muted-foreground/60",
-                    )}>
-                      <Package className="h-7 w-7" />
-                    </div>
-                  )}
-                  {!p.isBundle && (
-                    <span className={cn(
-                      "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
-                      zeroStock ? "bg-amber-500 text-white" :
-                      lowStock  ? "bg-orange-400 text-white" :
-                                  "bg-background/90 text-foreground",
-                    )}>
-                      {`${t("store.stockLabel")} ${p.stock}`}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight">
+                {/* Stock badge — top-right */}
+                {!p.isBundle && (
+                  <span className={cn(
+                    "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
+                    zeroStock ? "bg-amber-500 text-white" :
+                    lowStock  ? "bg-orange-400 text-white" :
+                                "bg-background/90 text-foreground",
+                  )}>
+                    {`${t("store.stockLabel")} ${p.stock}`}
+                  </span>
+                )}
+                <div className={cn(
+                  "line-clamp-2 text-sm font-semibold leading-tight pr-16",
+                  p.color ? "text-zinc-900" : "text-foreground",
+                )}>
                   {activePanelId != null && panelShortNames[activePanelId]?.[p.id]
                     ? panelShortNames[activePanelId][p.id]
                     : p.name}
                 </div>
-                <div className="mt-auto pt-1 flex items-center justify-between">
-                  <span className="text-sm font-bold tabular-nums text-primary">฿{displayPrice.toLocaleString()}</span>
+                <div className="mt-auto pt-1 flex items-end justify-between">
+                  <span className={cn(
+                    "text-base font-bold tabular-nums",
+                    p.color ? "text-zinc-900" : "text-primary",
+                  )}>฿{displayPrice.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
                     {p.isBundle && (
                       <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 border border-violet-300 shrink-0">
