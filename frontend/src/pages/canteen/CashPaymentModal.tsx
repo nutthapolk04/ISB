@@ -101,13 +101,6 @@ export function CashPaymentModal({
               </Button>
             ))}
           </div>
-          <Button
-            variant="secondary"
-            onClick={() => setReceived(total.toFixed(2))}
-            className="h-11 w-full mt-1 font-semibold"
-          >
-            {t("cashPay.exactAmount", "Exact amount")} · ฿{total.toFixed(2)}
-          </Button>
         </div>
 
         {receivedNum > 0 && (
