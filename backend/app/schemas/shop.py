@@ -9,6 +9,21 @@ from app.models.shop import ShopType, MovementType, OptionSelectionType
 ShopModule = Literal["canteen", "store"]
 
 
+# ── Product Barcodes ──────────────────────────────────────────────────────────
+
+class ExtraBarcodeCreate(BaseModel):
+    barcode: str = Field(..., min_length=1, max_length=100)
+    label: Optional[str] = Field(None, max_length=100)
+
+
+class ExtraBarcodeResponse(BaseModel):
+    id: int
+    barcode: str
+    label: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 # ── Shop ──────────────────────────────────────────────────────────────────────
 
 class ShopBase(BaseModel):
@@ -122,6 +137,7 @@ class ShopProductResponse(BaseModel):
     uom_code: Optional[str] = None
     uom_name: Optional[str] = None
     short_name: Optional[str] = None
+    extra_barcodes: List[ExtraBarcodeResponse] = []
 
     model_config = {"from_attributes": True}
 

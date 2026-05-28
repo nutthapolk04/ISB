@@ -15,7 +15,7 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 from app.models.shop import (
     Shop, ShopProduct, ShopCategory, ShopMovement, MovementType,
-    MenuOptionGroup, MenuOption, ProductOrderHistory,
+    MenuOptionGroup, MenuOption, ProductOrderHistory, ProductBarcode,
 )
 from app.models.fifo_lot import FifoLot
 from app.models.unit_of_measure import UnitOfMeasure
@@ -27,7 +27,7 @@ from app.schemas.shop import (
     BatchImportRequest, BatchImportResult, BatchImportError,
     MenuOptionGroupCreate, MenuOptionGroupUpdate, MenuOptionGroupResponse,
     ReorderRequest, ReorderResponse, ReorderConflictResponse,
-    OrderHistoryEntry,
+    OrderHistoryEntry, ExtraBarcodeCreate, ExtraBarcodeResponse,
 )
 from app.services.inventory_service import InventoryService
 from app.services.audit_service import create_audit_log
@@ -62,12 +62,13 @@ def _get_product_or_404(
     return product
 
 
-def _product_to_response(p: ShopProduct) -> ShopProductResponse:
+def _product_to_response(p: ShopProduct, extra_barcodes: list | None = None) -> ShopProductResponse:
     # p.option_groups is a relationship; loading it here is OK — list_products
     # eagerly joinedloads it to avoid N+1.
     has_options = bool(getattr(p, "option_groups", None))
     # UOM info (eagerly loaded or lazy)
     uom = getattr(p, "uom", None)
+    barcodes = [ExtraBarcodeResponse(id=b.id, barcode=b.barcode, label=b.label) for b in (extra_barcodes or [])]
     return ShopProductResponse(
         id=p.id,
         shop_id=p.shop_id,
@@ -90,6 +91,7 @@ def _product_to_response(p: ShopProduct) -> ShopProductResponse:
         uom_code=uom.code if uom else None,
         uom_name=uom.name if uom else None,
         short_name=getattr(p, 'short_name', None),
+        extra_barcodes=barcodes,
     )
 
 
@@ -208,10 +210,19 @@ def list_products(
         q = q.filter(ShopProduct.category == category)
     # Honour per-shop drag-and-drop order; fall back to alphabetical for any
     # legacy rows that still have sort_order=0.
-    return [
-        _product_to_response(p)
-        for p in q.order_by(ShopProduct.sort_order, ShopProduct.name).all()
-    ]
+    products = q.order_by(ShopProduct.sort_order, ShopProduct.name).all()
+    # Batch-load extra barcodes for all products (avoid N+1)
+    product_ids = [p.id for p in products]
+    all_barcodes = (
+        db.query(ProductBarcode)
+        .filter(ProductBarcode.product_id.in_(product_ids))
+        .order_by(ProductBarcode.created_at)
+        .all()
+    ) if product_ids else []
+    barcode_map: dict = {}
+    for b in all_barcodes:
+        barcode_map.setdefault(b.product_id, []).append(b)
+    return [_product_to_response(p, barcode_map.get(p.id, [])) for p in products]
 
 
 # ── Product order (drag-and-drop) ─────────────────────────────────────────────
@@ -505,6 +516,55 @@ def update_product(
     db.commit()
     db.refresh(product)
     return _product_to_response(product)
+
+
+# ── Product Barcodes CRUD ────────────────────────────────────────────────────
+
+@router.get("/{shop_id}/products/{product_id}/barcodes", response_model=List[ExtraBarcodeResponse])
+def list_product_barcodes(
+    shop_id: str,
+    product_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_shop_access),
+):
+    _get_product_or_404(product_id, shop_id, db)
+    return db.query(ProductBarcode).filter(ProductBarcode.product_id == product_id).order_by(ProductBarcode.created_at).all()
+
+
+@router.post("/{shop_id}/products/{product_id}/barcodes", response_model=ExtraBarcodeResponse, status_code=201)
+def add_product_barcode(
+    shop_id: str,
+    product_id: int,
+    body: ExtraBarcodeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_shop_manager),
+):
+    _get_product_or_404(product_id, shop_id, db)
+    # Check uniqueness across ALL products
+    existing = db.query(ProductBarcode).filter(ProductBarcode.barcode == body.barcode).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Barcode '{body.barcode}' already assigned to another product")
+    b = ProductBarcode(product_id=product_id, barcode=body.barcode, label=body.label)
+    db.add(b)
+    db.commit()
+    db.refresh(b)
+    return b
+
+
+@router.delete("/{shop_id}/products/{product_id}/barcodes/{barcode_id}", status_code=204)
+def delete_product_barcode(
+    shop_id: str,
+    product_id: int,
+    barcode_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_shop_manager),
+):
+    _get_product_or_404(product_id, shop_id, db)
+    b = db.query(ProductBarcode).filter(ProductBarcode.id == barcode_id, ProductBarcode.product_id == product_id).first()
+    if not b:
+        raise HTTPException(status_code=404, detail="Barcode not found")
+    db.delete(b)
+    db.commit()
 
 
 @router.delete("/{shop_id}/products/{product_id}", status_code=204)

@@ -199,6 +199,19 @@ run('ALTER TABLE price_panel_items ADD COLUMN included BOOLEAN NOT NULL DEFAULT 
 # === Shop products: short name (for Base panel display in POS) ===
 run('ALTER TABLE shop_products ADD COLUMN short_name VARCHAR(100)', 'shop_products.short_name')
 
+# === Product barcodes: multi-barcode support per product ===
+run('''
+    CREATE TABLE IF NOT EXISTS product_barcodes (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+        barcode VARCHAR(100) NOT NULL,
+        label VARCHAR(100),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT uq_product_barcodes_barcode UNIQUE(barcode)
+    )
+''', 'product_barcodes table')
+run('CREATE INDEX IF NOT EXISTS ix_product_barcodes_product ON product_barcodes(product_id)', 'product_barcodes idx product')
+
 # === P4: Shop functional module (canteen vs store) ===
 run(\"ALTER TABLE shops ADD COLUMN module VARCHAR(20) NOT NULL DEFAULT 'store'\",
     'shops.module')

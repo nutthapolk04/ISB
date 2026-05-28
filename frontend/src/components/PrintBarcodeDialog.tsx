@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -31,16 +31,26 @@ import { Search, Printer, Plus, Minus, X } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import JsBarcode from "jsbarcode";
 
-interface Product {
+export interface ExtraBarcode {
+  id: number;
+  barcode: string;
+  label: string | null;
+}
+
+export interface Product {
   id: number;
   productCode: string;
-  barcode: string;
+  barcode: string;         // primary barcode
   name: string;
   externalPrice: number;
+  extraBarcodes?: ExtraBarcode[];
 }
 
 interface PrintItem {
+  key: string;             // `${productId}-${barcodeValue}`
   product: Product;
+  barcodeValue: string;
+  barcodeLabel: string;    // "Primary" | label | barcode value
   quantity: number;
 }
 
@@ -66,7 +76,6 @@ export function PrintBarcodeDialog({
   selectedProduct,
 }: PrintBarcodeDialogProps) {
   const { t } = useTranslation();
-  const printRef = useRef<HTMLDivElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
@@ -77,9 +86,10 @@ export function PrintBarcodeDialog({
   // Initialize with selected product if provided
   useEffect(() => {
     if (open && selectedProduct) {
-      const barcodeToUse = selectedProduct.barcode || selectedProduct.productCode;
-      if (barcodeToUse) {
-        setPrintItems([{ product: selectedProduct, quantity: 1 }]);
+      const primary = selectedProduct.barcode || selectedProduct.productCode;
+      if (primary) {
+        const key = `${selectedProduct.id}-${primary}`;
+        setPrintItems([{ key, product: selectedProduct, barcodeValue: primary, barcodeLabel: "Primary", quantity: 1 }]);
       }
     }
   }, [open, selectedProduct]);
@@ -90,44 +100,53 @@ export function PrintBarcodeDialog({
         (p) =>
           p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           p.productCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
+          p.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
       ).slice(0, 10)
     : [];
 
-  const addProduct = (product: Product) => {
-    const barcodeToUse = product.barcode || product.productCode;
-    if (!barcodeToUse) {
-      toast.error(t("barcode.noBarcode") || "Product has no barcode");
-      return;
+  /** Returns all barcode options for a product: primary + extras */
+  const getBarcodeOptions = (product: Product) => {
+    const opts: { value: string; label: string }[] = [];
+    const primary = product.barcode || product.productCode;
+    if (primary) opts.push({ value: primary, label: "Primary" });
+    for (const b of product.extraBarcodes ?? []) {
+      opts.push({ value: b.barcode, label: b.label || b.barcode });
     }
+    return opts;
+  };
 
-    const existing = printItems.find((i) => i.product.id === product.id);
+  const addBarcode = (product: Product, barcodeValue: string, barcodeLabel: string) => {
+    const key = `${product.id}-${barcodeValue}`;
+    const existing = printItems.find((i) => i.key === key);
     if (existing) {
-      setPrintItems(
-        printItems.map((i) =>
-          i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
-        )
-      );
+      setPrintItems(printItems.map((i) => i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
     } else {
-      setPrintItems([...printItems, { product, quantity: 1 }]);
+      setPrintItems([...printItems, { key, product, barcodeValue, barcodeLabel, quantity: 1 }]);
     }
     setSearchTerm("");
   };
 
-  const updateQuantity = (productId: number, delta: number) => {
+  /** Add all barcodes of a product at once */
+  const addProduct = (product: Product) => {
+    const opts = getBarcodeOptions(product);
+    if (opts.length === 0) {
+      toast.error(t("barcode.noBarcode") || "Product has no barcode");
+      return;
+    }
+    for (const opt of opts) addBarcode(product, opt.value, opt.label);
+  };
+
+  const updateQuantity = (key: string, delta: number) => {
     setPrintItems(
       printItems
-        .map((i) =>
-          i.product.id === productId
-            ? { ...i, quantity: Math.max(0, i.quantity + delta) }
-            : i
-        )
+        .map((i) => i.key === key ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i)
         .filter((i) => i.quantity > 0)
     );
   };
 
-  const removeItem = (productId: number) => {
-    setPrintItems(printItems.filter((i) => i.product.id !== productId));
+  const removeItem = (key: string) => {
+    setPrintItems(printItems.filter((i) => i.key !== key));
   };
 
   const handlePrint = useCallback(() => {
@@ -136,7 +155,6 @@ export function PrintBarcodeDialog({
       return;
     }
 
-    // Generate barcodes
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       toast.error(t("barcode.popupBlocked") || "Popup blocked. Please allow popups.");
@@ -144,15 +162,14 @@ export function PrintBarcodeDialog({
     }
 
     const sizeConfig = LABEL_SIZES.find((s) => s.value === labelSize) || LABEL_SIZES[1];
+    const fontSize = { small: { name: "6pt", code: "5pt", price: "6pt" }, medium: { name: "8pt", code: "7pt", price: "8pt" }, large: { name: "10pt", code: "9pt", price: "10pt" } }[labelSize];
 
-    // Build HTML for print
     let labelsHtml = "";
     printItems.forEach((item) => {
-      const barcodeValue = item.product.barcode || item.product.productCode;
       for (let i = 0; i < item.quantity; i++) {
         const canvas = document.createElement("canvas");
         try {
-          JsBarcode(canvas, barcodeValue, {
+          JsBarcode(canvas, item.barcodeValue, {
             format: "CODE128",
             width: labelSize === "small" ? 1 : labelSize === "medium" ? 1.5 : 2,
             height: labelSize === "small" ? 30 : labelSize === "medium" ? 40 : 50,
@@ -160,7 +177,6 @@ export function PrintBarcodeDialog({
             margin: 2,
           });
           const barcodeImg = canvas.toDataURL("image/png");
-
           labelsHtml += `
             <div class="label" style="
               width: ${sizeConfig.width};
@@ -175,19 +191,18 @@ export function PrintBarcodeDialog({
               border: 1px dashed #ccc;
               margin: 1mm;
             ">
-              <div style="font-size: ${labelSize === "small" ? "6pt" : labelSize === "medium" ? "8pt" : "10pt"}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${item.product.name}
               </div>
+              ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #666; text-align: center;">${item.barcodeLabel}</div>` : ""}
               <img src="${barcodeImg}" style="max-width: 90%; height: auto;" />
-              <div style="font-size: ${labelSize === "small" ? "5pt" : labelSize === "medium" ? "7pt" : "9pt"}; font-family: monospace;">
-                ${barcodeValue}
-              </div>
-              ${showPrice ? `<div style="font-size: ${labelSize === "small" ? "6pt" : labelSize === "medium" ? "8pt" : "10pt"}; font-weight: bold;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
-              ${showProductCode && item.product.barcode ? `<div style="font-size: ${labelSize === "small" ? "5pt" : "6pt"}; color: #666;">${item.product.productCode}</div>` : ""}
+              <div style="font-size: ${fontSize.code}; font-family: monospace;">${item.barcodeValue}</div>
+              ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
+              ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #666;">${item.product.productCode}</div>` : ""}
             </div>
           `;
         } catch (e) {
-          console.error("Failed to generate barcode for:", barcodeValue, e);
+          console.error("Failed to generate barcode:", item.barcodeValue, e);
         }
       }
     });
@@ -198,32 +213,17 @@ export function PrintBarcodeDialog({
       <head>
         <title>Print Barcodes</title>
         <style>
-          @media print {
-            @page { margin: 5mm; }
-            body { margin: 0; }
-          }
-          body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-start;
-            align-content: flex-start;
-          }
+          @media print { @page { margin: 5mm; } body { margin: 0; } }
+          body { font-family: Arial, sans-serif; display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; }
         </style>
       </head>
       <body>
         ${labelsHtml}
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() { window.close(); };
-          };
-        </script>
+        <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };<\/script>
       </body>
       </html>
     `);
     printWindow.document.close();
-
     toast.success(t("barcode.printStarted") || "Print dialog opened");
   }, [printItems, labelSize, showPrice, showProductCode, t]);
 
@@ -243,7 +243,7 @@ export function PrintBarcodeDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search products */}
+          {/* Search */}
           <div className="relative">
             <Label>{t("barcode.searchProducts") || "Search Products"}</Label>
             <div className="relative mt-1.5">
@@ -256,22 +256,41 @@ export function PrintBarcodeDialog({
               />
             </div>
             {filteredProducts.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {filteredProducts.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                    onClick={() => addProduct(p)}
-                  >
-                    <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {p.productCode} {p.barcode && `· ${p.barcode}`}
+              <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-56 overflow-y-auto">
+                {filteredProducts.map((p) => {
+                  const opts = getBarcodeOptions(p);
+                  return (
+                    <div key={p.id} className="border-b last:border-b-0">
+                      {/* Product header — click adds ALL barcodes */}
+                      <div
+                        className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
+                        onClick={() => addProduct(p)}
+                      >
+                        <div>
+                          <div className="font-medium text-sm">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">{p.productCode}</div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {opts.length > 1 && (
+                            <span className="text-xs text-muted-foreground">{opts.length} barcodes</span>
+                          )}
+                          <Plus className="h-4 w-4 text-primary" />
+                        </div>
                       </div>
+                      {/* Individual barcode rows when product has extras */}
+                      {opts.length > 1 && opts.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className="flex items-center justify-between px-4 py-1 hover:bg-muted/60 cursor-pointer text-xs"
+                          onClick={(e) => { e.stopPropagation(); addBarcode(p, opt.value, opt.label); }}
+                        >
+                          <span className="font-mono text-muted-foreground">{opt.value}</span>
+                          <span className="text-muted-foreground">{opt.label}</span>
+                        </div>
+                      ))}
                     </div>
-                    <Plus className="h-4 w-4 text-primary" />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -284,47 +303,32 @@ export function PrintBarcodeDialog({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("barcode.product") || "Product"}</TableHead>
+                    <TableHead className="w-24">Barcode</TableHead>
                     <TableHead className="text-center w-32">{t("barcode.copies") || "Copies"}</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {printItems.map((item) => (
-                    <TableRow key={item.product.id}>
+                    <TableRow key={item.key}>
                       <TableCell>
-                        <div className="font-medium">{item.product.name}</div>
-                        <div className="text-sm text-muted-foreground font-mono">
-                          {item.product.barcode || item.product.productCode}
-                        </div>
+                        <div className="font-medium text-sm">{item.product.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{item.barcodeValue}</div>
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{item.barcodeLabel}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.product.id, -1)}
-                          >
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, -1)}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="w-8 text-center font-mono">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.product.id, 1)}
-                          >
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, 1)}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => removeItem(item.product.id)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(item.key)}>
                           <X className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -348,42 +352,26 @@ export function PrintBarcodeDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {LABEL_SIZES.map((size) => (
-                    <SelectItem key={size.value} value={size.value}>
-                      {size.label}
-                    </SelectItem>
+                    <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-3 pt-6">
               <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showPrice"
-                  checked={showPrice}
-                  onCheckedChange={(c) => setShowPrice(c as boolean)}
-                />
-                <label htmlFor="showPrice" className="text-sm">
-                  {t("barcode.showPrice") || "Show price on label"}
-                </label>
+                <Checkbox id="showPrice" checked={showPrice} onCheckedChange={(c) => setShowPrice(c as boolean)} />
+                <label htmlFor="showPrice" className="text-sm">{t("barcode.showPrice") || "Show price on label"}</label>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showProductCode"
-                  checked={showProductCode}
-                  onCheckedChange={(c) => setShowProductCode(c as boolean)}
-                />
-                <label htmlFor="showProductCode" className="text-sm">
-                  {t("barcode.showProductCode") || "Show product code"}
-                </label>
+                <Checkbox id="showProductCode" checked={showProductCode} onCheckedChange={(c) => setShowProductCode(c as boolean)} />
+                <label htmlFor="showProductCode" className="text-sm">{t("barcode.showProductCode") || "Show product code"}</label>
               </div>
             </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.cancel") || "Cancel"}
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel") || "Cancel"}</Button>
           <Button onClick={handlePrint} disabled={printItems.length === 0}>
             <Printer className="h-4 w-4 mr-2" />
             {t("barcode.print") || "Print"} ({totalLabels})

@@ -61,6 +61,7 @@ import {
   CheckCircle2,
   HandHelping,
   Printer,
+  Barcode,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
@@ -68,12 +69,19 @@ import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
 import { useUom, type UnitOfMeasure } from "@/hooks/useUom";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
+import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface SubMerchant {
   id: string;
   name: string;
+}
+
+interface ExtraBarcode {
+  id: number;
+  barcode: string;
+  label: string | null;
 }
 
 interface Product {
@@ -93,6 +101,7 @@ interface Product {
   uomId?: number | null;
   uomCode?: string | null;
   uomName?: string | null;
+  extraBarcodes?: ExtraBarcode[];
 }
 
 type MovementType = "receive" | "sale" | "adjustment" | "internal_use" | "void" | "exchange";
@@ -261,6 +270,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isPrintBarcodeOpen, setIsPrintBarcodeOpen] = useState(false);
   const [selectedProductForBarcode, setSelectedProductForBarcode] = useState<Product | null>(null);
+  const [manageBarcodeProduct, setManageBarcodeProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState({
     ...emptyForm,
     subMerchantId: lockedShopId ?? emptyForm.subMerchantId,
@@ -340,6 +350,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
             vatPercent: p.vat_percent, avgCost: p.avg_cost, stock: p.stock, minStock: p.min_stock,
             color: p.color ?? null,
             uomId: p.uom_id ?? null, uomCode: p.uom_code ?? null, uomName: p.uom_name ?? null,
+            extraBarcodes: p.extra_barcodes ?? [],
           })));
         } catch { /* skip unavailable shop */ }
       }
@@ -354,6 +365,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
           vatPercent: p.vat_percent, avgCost: p.avg_cost, stock: p.stock, minStock: p.min_stock,
           color: p.color ?? null,
           uomId: p.uom_id ?? null, uomCode: p.uom_code ?? null, uomName: p.uom_name ?? null,
+          extraBarcodes: p.extra_barcodes ?? [],
         })));
       } catch { /* ignore */ }
     }
@@ -1205,6 +1217,12 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                                 onClick={() => setRequisitionTarget(item)}
                               >
                                 <HandHelping className="h-4 w-4" />
+                              </IconButton>
+                              <IconButton
+                                tooltip="Manage barcodes"
+                                onClick={() => setManageBarcodeProduct(item)}
+                              >
+                                <Barcode className="h-4 w-4" />
                               </IconButton>
                               <IconButton
                                 tooltip={t("inventory.editProduct")}
@@ -2258,6 +2276,18 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
         products={shopFilteredProducts}
         selectedProduct={selectedProductForBarcode}
       />
+
+      {/* Manage Barcodes Dialog */}
+      {manageBarcodeProduct && (
+        <ManageBarcodesDialog
+          open={!!manageBarcodeProduct}
+          onOpenChange={(o) => { if (!o) setManageBarcodeProduct(null); }}
+          shopId={manageBarcodeProduct.subMerchantId}
+          productId={manageBarcodeProduct.id}
+          productName={manageBarcodeProduct.name}
+          primaryBarcode={manageBarcodeProduct.barcode}
+        />
+      )}
     </div>
   );
 };

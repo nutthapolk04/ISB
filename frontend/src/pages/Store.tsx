@@ -96,6 +96,12 @@ const panelColorClass: Record<string, string> = {
   gray: "bg-gray-100 text-gray-700 border-gray-300",
 };
 
+interface ExtraBarcode {
+  id: number;
+  barcode: string;
+  label: string | null;
+}
+
 interface Product {
   id: number;
   productCode: string;
@@ -108,6 +114,7 @@ interface Product {
   subMerchantId: string;
   photoUrl?: string | null;
   color?: string | null;
+  extraBarcodes?: ExtraBarcode[];
   // Bundle / Grade-Set fields (only present when isBundle=true)
   isBundle?: boolean;
   bundleId?: number;
@@ -374,6 +381,7 @@ const Store = () => {
               subMerchantId: p.shop_id,
               photoUrl: p.photo_url ?? null,
               color: p.color ?? null,
+              extraBarcodes: p.extra_barcodes ?? [],
             })),
           );
         } catch { /* shop unavailable */ }
@@ -669,7 +677,8 @@ const Store = () => {
           return (
             p.barcode.toLowerCase().includes(q) ||
             p.productCode.toLowerCase().includes(q) ||
-            p.name.toLowerCase().includes(q)
+            p.name.toLowerCase().includes(q) ||
+            (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase().includes(q))
           );
         })
         .slice(0, 6)
@@ -805,7 +814,11 @@ const Store = () => {
     if (e.key !== "Enter" || !searchTerm.trim()) return;
 
     const q = searchTerm.trim();
-    const byBarcode = allProducts.find((p) => p.barcode.toLowerCase() === q.toLowerCase());
+    const byBarcode = allProducts.find(
+      (p) =>
+        p.barcode.toLowerCase() === q.toLowerCase() ||
+        (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase() === q.toLowerCase())
+    );
     if (byBarcode) {
       commitSuggestion(byBarcode);
       return;
