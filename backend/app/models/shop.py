@@ -133,19 +133,6 @@ class ShopProduct(Base):
 
     extra_barcodes = relationship("ProductBarcode", back_populates="product", cascade="all, delete-orphan", lazy="dynamic")
 
-
-class ProductBarcode(Base):
-    """Additional barcodes per product (multi-supplier support)."""
-    __tablename__ = "product_barcodes"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    product_id = Column(Integer, ForeignKey("shop_products.id", ondelete="CASCADE"), nullable=False, index=True)
-    barcode = Column(String(100), nullable=False, unique=True)
-    label = Column(String(100), nullable=True)  # Vendor / supplier description
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    product = relationship("ShopProduct", back_populates="extra_barcodes")
-
     # Relationships
     shop = relationship("Shop", back_populates="products")
     movements = relationship("ShopMovement", back_populates="product")
@@ -160,6 +147,19 @@ class ProductBarcode(Base):
 
     def __repr__(self):
         return f"<ShopProduct(id={self.id}, shop='{self.shop_id}', name='{self.name}')>"
+
+
+class ProductBarcode(Base):
+    """Additional barcodes per product (multi-supplier support)."""
+    __tablename__ = "product_barcodes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    product_id = Column(Integer, ForeignKey("shop_products.id", ondelete="CASCADE"), nullable=False, index=True)
+    barcode = Column(String(100), nullable=False, unique=True)
+    label = Column(String(100), nullable=True)  # Vendor / supplier description
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    product = relationship("ShopProduct", back_populates="extra_barcodes")
 
 
 class MenuOptionGroup(Base):
