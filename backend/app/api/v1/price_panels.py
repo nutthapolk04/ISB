@@ -220,25 +220,64 @@ def set_item_price(
     product = db.query(ShopProduct).filter(ShopProduct.id == product_id, ShopProduct.shop_id == shop_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    # If the bundle_id column is missing in DB the ORM-level SELECT below would
-    # blow up. Defer it in that case so the SELECT only touches columns that
-    # are guaranteed to exist.
-    if _has_bundle_id_column(db):
-        item = db.query(PricePanelItem).filter(
-            PricePanelItem.panel_id == panel_id,
-            PricePanelItem.product_id == product_id,
+
+    # When the bundle_id column hasn't shipped yet on this environment, the
+    # ORM would still try to include it in every INSERT/UPDATE because the
+    # model declares it. That blows up with "column does not exist". Run the
+    # upsert as raw SQL on that path so the statement only touches columns
+    # that are guaranteed to exist on every deploy.
+    if not _has_bundle_id_column(db):
+        existing = db.execute(
+            text(
+                "SELECT id, price, short_name, included FROM price_panel_items "
+                "WHERE panel_id = :pid AND product_id = :prid"
+            ),
+            {"pid": panel_id, "prid": product_id},
         ).first()
-    else:
-        from sqlalchemy.orm import defer
-        item = (
-            db.query(PricePanelItem)
-            .options(defer(PricePanelItem.bundle_id))
-            .filter(
-                PricePanelItem.panel_id == panel_id,
-                PricePanelItem.product_id == product_id,
-            )
-            .first()
+        normalised_short = (
+            body.short_name.strip() if body.short_name and body.short_name.strip() else None
+        ) if body.short_name is not None else (existing[2] if existing else None)
+        new_included = body.included if body.included is not None else (
+            existing[3] if existing else True
         )
+        new_price = body.price
+        if existing:
+            db.execute(
+                text(
+                    "UPDATE price_panel_items SET price = :price, "
+                    "short_name = :short_name, included = :included WHERE id = :rid"
+                ),
+                {"price": new_price, "short_name": normalised_short,
+                 "included": new_included, "rid": existing[0]},
+            )
+        else:
+            db.execute(
+                text(
+                    "INSERT INTO price_panel_items (panel_id, product_id, price, short_name, included) "
+                    "VALUES (:pid, :prid, :price, :short_name, :included)"
+                ),
+                {"pid": panel_id, "prid": product_id, "price": new_price,
+                 "short_name": normalised_short, "included": new_included},
+            )
+        db.commit()
+        return PricePanelItemResponse(
+            kind="product",
+            product_id=product.id,
+            bundle_id=None,
+            product_code=product.product_code,
+            product_name=product.name,
+            external_price=float(product.external_price),
+            panel_price=float(new_price) if new_price is not None else None,
+            short_name=normalised_short,
+            included=new_included if new_included is not None else True,
+            is_bundle=False,
+        )
+
+    # ── ORM path: bundle_id column exists, full bundle support active ───────
+    item = db.query(PricePanelItem).filter(
+        PricePanelItem.panel_id == panel_id,
+        PricePanelItem.product_id == product_id,
+    ).first()
     if item:
         item.price = body.price
         if body.short_name is not None:
@@ -254,7 +293,7 @@ def set_item_price(
         db.add(item)
     # Build the response BEFORE commit: SQLAlchemy expires all instance attrs
     # after commit, so accessing item.included/short_name later would trigger
-    # a refresh SELECT — which fails if bundle_id is missing from the DB.
+    # a refresh SELECT.
     response = PricePanelItemResponse(
         kind="product",
         product_id=product.id,
