@@ -938,9 +938,24 @@ const ShopDetail = () => {
                                   No products in this panel yet. Click "Add Product" to add some.
                                 </p>
                               ) : visibleItems.length === 0 ? (
-                                <p className="text-center text-sm text-muted-foreground py-8">
-                                  No products match your search.
-                                </p>
+                                <div className="text-center py-8 space-y-3">
+                                  <p className="text-sm text-muted-foreground">
+                                    No products in this panel match your search.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Hand the in-panel filter query off to the
+                                      // catalogue search so the user can add it
+                                      // straight away instead of retyping it.
+                                      setAddQuery((prev) => ({ ...prev, [panel.id]: filterQ }));
+                                      setAddPopoverOpen((prev) => ({ ...prev, [panel.id]: true }));
+                                    }}
+                                  >
+                                    Search catalogue for "{filterQ}" instead
+                                  </Button>
+                                </div>
                               ) : (
                                 <Table>
                                   <TableHeader>

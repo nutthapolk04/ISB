@@ -252,8 +252,10 @@ def set_item_price(
         if body.included is not None:
             item.included = body.included
         db.add(item)
-    db.commit()
-    return PricePanelItemResponse(
+    # Build the response BEFORE commit: SQLAlchemy expires all instance attrs
+    # after commit, so accessing item.included/short_name later would trigger
+    # a refresh SELECT — which fails if bundle_id is missing from the DB.
+    response = PricePanelItemResponse(
         kind="product",
         product_id=product.id,
         bundle_id=None,
@@ -262,9 +264,11 @@ def set_item_price(
         external_price=float(product.external_price),
         panel_price=float(item.price) if item.price is not None else None,
         short_name=item.short_name,
-        included=getattr(item, 'included', True),
+        included=item.included if item.included is not None else True,
         is_bundle=False,
     )
+    db.commit()
+    return response
 
 
 @router.patch("/{shop_id}/price-panels/{panel_id}/bundle-items/{bundle_id}", response_model=PricePanelItemResponse)
@@ -300,8 +304,8 @@ def set_bundle_item_price(
         if body.included is not None:
             item.included = body.included
         db.add(item)
-    db.commit()
-    return PricePanelItemResponse(
+    # Build response BEFORE commit — see comment in set_item_price.
+    response = PricePanelItemResponse(
         kind="bundle",
         product_id=bundle.id,
         bundle_id=bundle.id,
@@ -310,6 +314,8 @@ def set_bundle_item_price(
         external_price=float(bundle.external_price),
         panel_price=float(item.price) if item.price is not None else None,
         short_name=item.short_name,
-        included=getattr(item, 'included', True),
+        included=item.included if item.included is not None else True,
         is_bundle=True,
     )
+    db.commit()
+    return response
