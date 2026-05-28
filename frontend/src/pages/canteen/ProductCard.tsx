@@ -114,12 +114,17 @@ export function ProductCard({
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
-                  className="rounded p-0.5 transition hover:bg-muted"
+                  className={cn(
+                    "rounded p-0.5 transition",
+                    hasColor ? "hover:bg-black/10" : "hover:bg-muted",
+                  )}
                   title={t("canteen.productCard.changeColor")}
                 >
                   <Palette
-                    className="h-3.5 w-3.5"
-                    style={{ color: product.color ?? undefined }}
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      hasColor ? "text-zinc-900" : "text-muted-foreground",
+                    )}
                   />
                 </button>
               </PopoverTrigger>

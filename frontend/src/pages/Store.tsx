@@ -1705,10 +1705,18 @@ const Store = () => {
                           <button
                             type="button"
                             onClick={(e) => e.stopPropagation()}
-                            className="rounded p-0.5 transition hover:bg-muted"
+                            className={cn(
+                              "rounded p-0.5 transition",
+                              p.color ? "hover:bg-black/10" : "hover:bg-muted",
+                            )}
                             title={t("store.cardColorTitle")}
                           >
-                            <Palette className="h-3.5 w-3.5" style={{ color: p.color ?? undefined }} />
+                            <Palette
+                              className={cn(
+                                "h-3.5 w-3.5",
+                                p.color ? "text-zinc-900" : "text-muted-foreground",
+                              )}
+                            />
                           </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-56 p-3 space-y-3" onClick={(e) => e.stopPropagation()} side="top" align="end">
