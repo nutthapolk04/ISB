@@ -19,7 +19,6 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp, Upload, Search, Plus, X } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "@/components/ui/sonner";
@@ -239,9 +238,6 @@ const ShopDetail = () => {
   const [shortNameDrafts, setShortNameDrafts] = useState<Record<number, Record<number, string>>>({});
   // Per-panel filter on already-included items
   const [panelFilter, setPanelFilter] = useState<Record<number, string>>({});
-  // Per-panel "+ Add Product" popover state and query
-  const [addPopoverOpen, setAddPopoverOpen] = useState<Record<number, boolean>>({});
-  const [addQuery, setAddQuery] = useState<Record<number, string>>({});
   // Track per-panel load errors so we can surface them in-place instead of
   // showing the misleading "all products are already in this panel" message
   // when the list is empty because the fetch failed.
@@ -846,19 +842,12 @@ const ShopDetail = () => {
                                 it.product_name.toLowerCase().includes(filterQ),
                               )
                             : [];
-                          const addQ = (addQuery[panel.id] ?? "").trim().toLowerCase();
-                          const addCandidates = addQ
-                            ? excludedItems.filter((it) =>
-                                it.product_code.toLowerCase().includes(addQ) ||
-                                it.product_name.toLowerCase().includes(addQ),
-                              )
-                            : excludedItems;
                           return (
                             <>
-                              {/* Toolbar: unified search (filters in-panel items
-                                  AND surfaces catalogue matches inline below) +
-                                  "+ Add Product" popover for full-catalogue
-                                  browsing. */}
+                              {/* Toolbar: single search that filters in-panel
+                                  items AND surfaces catalogue matches inline
+                                  below the toolbar. No separate popover — the
+                                  inline list IS the add UI. */}
                               <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
                                 <div className="relative w-full max-w-sm">
                                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -871,74 +860,6 @@ const ShopDetail = () => {
                                     className="h-8 pl-7 text-sm"
                                   />
                                 </div>
-                                <Popover
-                                  open={!!addPopoverOpen[panel.id]}
-                                  onOpenChange={(open) => {
-                                    setAddPopoverOpen((prev) => ({ ...prev, [panel.id]: open }));
-                                    if (!open) {
-                                      setAddQuery((prev) => ({ ...prev, [panel.id]: "" }));
-                                    }
-                                  }}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <Button size="sm" className="h-8 gap-1">
-                                      <Plus className="h-3.5 w-3.5" /> Add Product
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-96 p-0" align="end">
-                                    <div className="p-3 border-b">
-                                      <div className="relative">
-                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                        <Input
-                                          autoFocus
-                                          placeholder="Search catalogue by code or name…"
-                                          value={addQuery[panel.id] ?? ""}
-                                          onChange={(e) =>
-                                            setAddQuery((prev) => ({ ...prev, [panel.id]: e.target.value }))
-                                          }
-                                          className="h-8 pl-7 text-sm"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="max-h-72 overflow-y-auto">
-                                      {addCandidates.length === 0 ? (
-                                        <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-                                          {excludedItems.length === 0
-                                            ? "All products are already in this panel."
-                                            : "No matching products."}
-                                        </p>
-                                      ) : (
-                                        <ul className="divide-y">
-                                          {addCandidates.map((it) => (
-                                            <li key={`${it.is_bundle ? "b" : "p"}-${it.product_id}`}>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  handleInclusionToggle(panel.id, it.product_id, false);
-                                                  setAddQuery((prev) => ({ ...prev, [panel.id]: "" }));
-                                                }}
-                                                className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-muted transition"
-                                              >
-                                                <span className="flex-1 min-w-0">
-                                                  <span className="flex items-center gap-1.5">
-                                                    <span className="block text-sm font-medium truncate">{it.product_name}</span>
-                                                    {it.is_bundle && (
-                                                      <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-bold text-violet-700 border border-violet-300 shrink-0">SET</span>
-                                                    )}
-                                                  </span>
-                                                  <span className="block text-xs font-mono text-muted-foreground">{it.product_code}</span>
-                                                </span>
-                                                <span className="text-xs tabular-nums text-muted-foreground">
-                                                  ฿{it.external_price.toLocaleString()}
-                                                </span>
-                                              </button>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
                               </div>
 
                               {/* Inline catalogue matches — appears immediately
