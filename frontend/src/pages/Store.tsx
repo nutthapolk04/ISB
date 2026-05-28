@@ -1675,7 +1675,9 @@ const Store = () => {
                   </span>
                 )}
                 <div className={cn(
-                  "line-clamp-2 text-base font-bold leading-tight pr-16",
+                  // Top margin pushes the name below the absolute Remaining
+                  // badge so long two-line names don't overlap with it.
+                  "line-clamp-2 text-base font-bold leading-tight mt-5",
                   p.color ? "text-zinc-900" : "text-foreground",
                 )}>
                   {activePanelId != null && panelShortNames[activePanelId]?.[p.id]

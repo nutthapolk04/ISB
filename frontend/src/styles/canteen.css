@@ -17,7 +17,7 @@
 
   /* Desktop: side panel ≥lg (pinned full-height). Below lg: hidden — use sheet instead. */
   .canteen-cart-panel {
-    @apply hidden lg:flex lg:h-full lg:w-[22rem] xl:w-[26rem] flex-col border-l border-border/70 bg-card/95 shadow-[-8px_0_24px_-18px_rgba(251,146,60,0.35)];
+    @apply hidden lg:flex lg:h-full lg:w-[26rem] xl:w-[30rem] flex-col border-l border-border/70 bg-card/95 shadow-[-8px_0_24px_-18px_rgba(251,146,60,0.35)];
   }
 
   /* Sheet variant: fills SheetContent, no border since sheet already has one */

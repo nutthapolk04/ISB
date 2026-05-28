@@ -91,8 +91,9 @@ export function ProductCard({
         </span>
       )}
 
-      {/* Name */}
-      <div className="line-clamp-2 text-base font-bold leading-tight text-zinc-900">
+      {/* Name — top margin keeps it clear of the absolute Staff badge that
+          sits in the top-right corner on internal-price mode. */}
+      <div className="line-clamp-2 text-base font-bold leading-tight text-zinc-900 mt-5">
         {product.name}
       </div>
 
