@@ -801,19 +801,27 @@ const ShopDetail = () => {
                             : excludedItems;
                           return (
                             <>
-                              {/* Toolbar: search filter + Add product popover */}
+                              {/* Toolbar: in-panel filter (only when there's
+                                  something to filter) + "+ Add Product"
+                                  popover that searches the catalogue. */}
                               <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
-                                <div className="relative flex-1 max-w-sm">
-                                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                  <Input
-                                    placeholder="Search by code or name…"
-                                    value={panelFilter[panel.id] ?? ""}
-                                    onChange={(e) =>
-                                      setPanelFilter((prev) => ({ ...prev, [panel.id]: e.target.value }))
-                                    }
-                                    className="h-8 pl-7 text-sm"
-                                  />
-                                </div>
+                                {includedItems.length > 0 ? (
+                                  <div className="relative flex-1 max-w-sm">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                      placeholder="Filter products in this panel…"
+                                      value={panelFilter[panel.id] ?? ""}
+                                      onChange={(e) =>
+                                        setPanelFilter((prev) => ({ ...prev, [panel.id]: e.target.value }))
+                                      }
+                                      className="h-8 pl-7 text-sm"
+                                    />
+                                  </div>
+                                ) : (
+                                  <p className="flex-1 text-xs text-muted-foreground">
+                                    Use "Add Product" to search the catalogue and add items to this panel.
+                                  </p>
+                                )}
                                 <Popover
                                   open={!!addPopoverOpen[panel.id]}
                                   onOpenChange={(open) => {
@@ -834,7 +842,7 @@ const ShopDetail = () => {
                                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                         <Input
                                           autoFocus
-                                          placeholder="Search by code or name…"
+                                          placeholder="Search catalogue by code or name…"
                                           value={addQuery[panel.id] ?? ""}
                                           onChange={(e) =>
                                             setAddQuery((prev) => ({ ...prev, [panel.id]: e.target.value }))
