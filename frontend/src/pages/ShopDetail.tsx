@@ -242,6 +242,10 @@ const ShopDetail = () => {
   // Per-panel "+ Add Product" popover state and query
   const [addPopoverOpen, setAddPopoverOpen] = useState<Record<number, boolean>>({});
   const [addQuery, setAddQuery] = useState<Record<number, string>>({});
+  // Track per-panel load errors so we can surface them in-place instead of
+  // showing the misleading "all products are already in this panel" message
+  // when the list is empty because the fetch failed.
+  const [panelLoadError, setPanelLoadError] = useState<Record<number, string | null>>({});
 
   // Base panel expand state
   const [baseExpanded, setBaseExpanded] = useState(false);
@@ -265,6 +269,7 @@ const ShopDetail = () => {
   const fetchPanelItems = useCallback(async (panelId: number) => {
     if (!shopId) return;
     setPanelItemsLoading((prev) => ({ ...prev, [panelId]: true }));
+    setPanelLoadError((prev) => ({ ...prev, [panelId]: null }));
     try {
       const data = await api.get<PricePanelItem[]>(`/shops/${shopId}/price-panels/${panelId}/items`);
       setPanelItems((prev) => ({ ...prev, [panelId]: data }));
@@ -280,8 +285,12 @@ const ShopDetail = () => {
         sndrafts[item.product_id] = item.short_name ?? "";
       });
       setShortNameDrafts((prev) => ({ ...prev, [panelId]: sndrafts }));
-    } catch {
-      toast.error("Failed to load panel items");
+    } catch (err: any) {
+      // Surface the actual API error message so misconfigured deploys and
+      // schema-patch failures are debuggable from the UI itself.
+      const msg = err?.detail ?? err?.message ?? "Failed to load panel items";
+      setPanelLoadError((prev) => ({ ...prev, [panelId]: String(msg) }));
+      toast.error(`Failed to load panel items: ${msg}`);
     } finally {
       setPanelItemsLoading((prev) => ({ ...prev, [panelId]: false }));
     }
@@ -799,6 +808,19 @@ const ShopDetail = () => {
                         {panelItemsLoading[panel.id] ? (
                           <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : panelLoadError[panel.id] ? (
+                          <div className="px-4 py-6 text-center text-sm space-y-3">
+                            <p className="text-destructive font-medium">
+                              {panelLoadError[panel.id]}
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fetchPanelItems(panel.id)}
+                            >
+                              Retry
+                            </Button>
                           </div>
                         ) : (() => {
                           const allItems = panelItems[panel.id] ?? [];
