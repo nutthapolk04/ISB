@@ -826,6 +826,10 @@ const ShopDetail = () => {
                           const allItems = panelItems[panel.id] ?? [];
                           const includedItems = allItems.filter((it) => it.included);
                           const excludedItems = allItems.filter((it) => !it.included);
+                          // Single unified query string drives both the in-panel
+                          // filter AND the inline catalogue search, so the
+                          // manager types once and sees matches from both sides
+                          // immediately.
                           const filterQ = (panelFilter[panel.id] ?? "").trim().toLowerCase();
                           const visibleItems = filterQ
                             ? includedItems.filter((it) =>
@@ -833,6 +837,15 @@ const ShopDetail = () => {
                                 it.product_name.toLowerCase().includes(filterQ),
                               )
                             : includedItems;
+                          // Inline add list — only used when the user is typing.
+                          // When the popover is opened with no query it falls
+                          // back to showing every excluded item.
+                          const inlineCatalogMatches = filterQ
+                            ? excludedItems.filter((it) =>
+                                it.product_code.toLowerCase().includes(filterQ) ||
+                                it.product_name.toLowerCase().includes(filterQ),
+                              )
+                            : [];
                           const addQ = (addQuery[panel.id] ?? "").trim().toLowerCase();
                           const addCandidates = addQ
                             ? excludedItems.filter((it) =>
@@ -842,26 +855,22 @@ const ShopDetail = () => {
                             : excludedItems;
                           return (
                             <>
-                              {/* Toolbar: in-panel filter (only when there's
-                                  something to filter) + "+ Add Product"
-                                  popover that searches the catalogue. Order is
-                                  always [filter/hint, Add button] kept on the
-                                  left so the Add button doesn't jump positions
-                                  when the panel goes from empty to populated. */}
+                              {/* Toolbar: unified search (filters in-panel items
+                                  AND surfaces catalogue matches inline below) +
+                                  "+ Add Product" popover for full-catalogue
+                                  browsing. */}
                               <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
-                                {includedItems.length > 0 ? (
-                                  <div className="relative w-full max-w-sm">
-                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                    <Input
-                                      placeholder="Filter products in this panel…"
-                                      value={panelFilter[panel.id] ?? ""}
-                                      onChange={(e) =>
-                                        setPanelFilter((prev) => ({ ...prev, [panel.id]: e.target.value }))
-                                      }
-                                      className="h-8 pl-7 text-sm"
-                                    />
-                                  </div>
-                                ) : null}
+                                <div className="relative w-full max-w-sm">
+                                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search products by code or name…"
+                                    value={panelFilter[panel.id] ?? ""}
+                                    onChange={(e) =>
+                                      setPanelFilter((prev) => ({ ...prev, [panel.id]: e.target.value }))
+                                    }
+                                    className="h-8 pl-7 text-sm"
+                                  />
+                                </div>
                                 <Popover
                                   open={!!addPopoverOpen[panel.id]}
                                   onOpenChange={(open) => {
@@ -932,30 +941,63 @@ const ShopDetail = () => {
                                 </Popover>
                               </div>
 
+                              {/* Inline catalogue matches — appears immediately
+                                  when the user types in the toolbar search and
+                                  any catalogue product matches. Click to add
+                                  directly without opening the popover. */}
+                              {filterQ && inlineCatalogMatches.length > 0 && (
+                                <div className="border-b bg-amber-50/40">
+                                  <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Add from catalogue ({inlineCatalogMatches.length})
+                                  </p>
+                                  <ul className="divide-y">
+                                    {inlineCatalogMatches.map((it) => (
+                                      <li key={`add-${it.is_bundle ? "b" : "p"}-${it.product_id}`}>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleInclusionToggle(panel.id, it.product_id, false);
+                                            setPanelFilter((prev) => ({ ...prev, [panel.id]: "" }));
+                                          }}
+                                          className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-amber-100/60 transition"
+                                        >
+                                          <span className="flex items-center gap-2 min-w-0">
+                                            <Plus className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                            <span className="flex flex-col min-w-0">
+                                              <span className="flex items-center gap-1.5">
+                                                <span className="text-sm font-medium truncate">{it.product_name}</span>
+                                                {it.is_bundle && (
+                                                  <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-bold text-violet-700 border border-violet-300 shrink-0">SET</span>
+                                                )}
+                                              </span>
+                                              <span className="text-xs font-mono text-muted-foreground">{it.product_code}</span>
+                                            </span>
+                                          </span>
+                                          <span className="text-xs tabular-nums text-muted-foreground">
+                                            ฿{it.external_price.toLocaleString()}
+                                          </span>
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
                               {/* Panel items table */}
                               {includedItems.length === 0 ? (
                                 <p className="text-center text-sm text-muted-foreground py-8">
-                                  No products in this panel yet. Click "Add Product" to add some.
+                                  {filterQ
+                                    ? (inlineCatalogMatches.length > 0
+                                        ? "Click a product above to add it to this panel."
+                                        : `No products match "${filterQ}".`)
+                                    : 'No products in this panel yet. Click "Add Product" to add some.'}
                                 </p>
                               ) : visibleItems.length === 0 ? (
-                                <div className="text-center py-8 space-y-3">
-                                  <p className="text-sm text-muted-foreground">
-                                    No products in this panel match your search.
-                                  </p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      // Hand the in-panel filter query off to the
-                                      // catalogue search so the user can add it
-                                      // straight away instead of retyping it.
-                                      setAddQuery((prev) => ({ ...prev, [panel.id]: filterQ }));
-                                      setAddPopoverOpen((prev) => ({ ...prev, [panel.id]: true }));
-                                    }}
-                                  >
-                                    Search catalogue for "{filterQ}" instead
-                                  </Button>
-                                </div>
+                                <p className="text-center text-sm text-muted-foreground py-8">
+                                  {inlineCatalogMatches.length > 0
+                                    ? "No products in this panel match — click a catalogue match above to add it."
+                                    : `No products match "${filterQ}".`}
+                                </p>
                               ) : (
                                 <Table>
                                   <TableHeader>
