@@ -19,8 +19,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp, Upload } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Pencil, Trash2, ChevronDown, ChevronUp, Upload, Search, Plus, X } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
@@ -230,6 +230,11 @@ const ShopDetail = () => {
   const [cellDrafts, setCellDrafts] = useState<Record<number, Record<number, string>>>({});
   // Track short name edit values: panelId -> productId -> string value
   const [shortNameDrafts, setShortNameDrafts] = useState<Record<number, Record<number, string>>>({});
+  // Per-panel filter on already-included items
+  const [panelFilter, setPanelFilter] = useState<Record<number, string>>({});
+  // Per-panel "+ Add Product" popover state and query
+  const [addPopoverOpen, setAddPopoverOpen] = useState<Record<number, boolean>>({});
+  const [addQuery, setAddQuery] = useState<Record<number, string>>({});
 
   // Base panel expand state
   const [baseExpanded, setBaseExpanded] = useState(false);
@@ -776,89 +781,200 @@ const ShopDetail = () => {
                           <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                           </div>
-                        ) : (panelItems[panel.id] ?? []).length === 0 ? (
-                          <p className="text-center text-sm text-muted-foreground py-6">
-                            No products in this shop.
-                          </p>
-                        ) : (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-28">Code</TableHead>
-                                <TableHead>Product</TableHead>
-                                <TableHead className="w-36">Short Name</TableHead>
-                                <TableHead className="w-32 text-right">Ext. Price</TableHead>
-                                <TableHead className="w-36 text-right">Panel Price</TableHead>
-                                <TableHead className="w-24 text-center">In Panel</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {(panelItems[panel.id] ?? []).map((item) => {
-                                const draftVal = cellDrafts[panel.id]?.[item.product_id] ?? "";
-                                const panelFloat = item.panel_price;
-                                const differs = panelFloat != null && panelFloat !== item.external_price;
-                                const snDraftVal = shortNameDrafts[panel.id]?.[item.product_id] ?? "";
-                                return (
-                                  <TableRow key={item.product_id} className={!item.included ? "opacity-50" : ""}>
-                                    <TableCell className="font-mono text-xs text-muted-foreground">
-                                      {item.product_code}
-                                    </TableCell>
-                                    <TableCell className="text-sm font-medium">
-                                      {item.product_name}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Input
-                                        type="text"
-                                        placeholder="—"
-                                        value={snDraftVal}
-                                        onChange={(e) =>
-                                          setShortNameDrafts((prev) => ({
-                                            ...prev,
-                                            [panel.id]: {
-                                              ...(prev[panel.id] ?? {}),
-                                              [item.product_id]: e.target.value,
-                                            },
-                                          }))
-                                        }
-                                        onBlur={() => handleShortNameBlur(panel.id, item.product_id)}
-                                        className="h-7 w-32 text-xs"
-                                      />
-                                    </TableCell>
-                                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                                      ฿{item.external_price.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="—"
-                                        value={draftVal}
-                                        onChange={(e) =>
-                                          setCellDrafts((prev) => ({
-                                            ...prev,
-                                            [panel.id]: {
-                                              ...(prev[panel.id] ?? {}),
-                                              [item.product_id]: e.target.value,
-                                            },
-                                          }))
-                                        }
-                                        onBlur={() => handleCellBlur(panel.id, item.product_id)}
-                                        className={`h-7 w-28 text-right text-xs ml-auto ${differs ? "border-yellow-400 bg-yellow-50" : ""}`}
-                                      />
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                      <Checkbox
-                                        checked={item.included}
-                                        onCheckedChange={() => handleInclusionToggle(panel.id, item.product_id, item.included)}
-                                      />
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        )}
+                        ) : (() => {
+                          const allItems = panelItems[panel.id] ?? [];
+                          const includedItems = allItems.filter((it) => it.included);
+                          const excludedItems = allItems.filter((it) => !it.included);
+                          const filterQ = (panelFilter[panel.id] ?? "").trim().toLowerCase();
+                          const visibleItems = filterQ
+                            ? includedItems.filter((it) =>
+                                it.product_code.toLowerCase().includes(filterQ) ||
+                                it.product_name.toLowerCase().includes(filterQ),
+                              )
+                            : includedItems;
+                          const addQ = (addQuery[panel.id] ?? "").trim().toLowerCase();
+                          const addCandidates = addQ
+                            ? excludedItems.filter((it) =>
+                                it.product_code.toLowerCase().includes(addQ) ||
+                                it.product_name.toLowerCase().includes(addQ),
+                              )
+                            : excludedItems;
+                          return (
+                            <>
+                              {/* Toolbar: search filter + Add product popover */}
+                              <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+                                <div className="relative flex-1 max-w-sm">
+                                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search by code or name…"
+                                    value={panelFilter[panel.id] ?? ""}
+                                    onChange={(e) =>
+                                      setPanelFilter((prev) => ({ ...prev, [panel.id]: e.target.value }))
+                                    }
+                                    className="h-8 pl-7 text-sm"
+                                  />
+                                </div>
+                                <Popover
+                                  open={!!addPopoverOpen[panel.id]}
+                                  onOpenChange={(open) => {
+                                    setAddPopoverOpen((prev) => ({ ...prev, [panel.id]: open }));
+                                    if (!open) {
+                                      setAddQuery((prev) => ({ ...prev, [panel.id]: "" }));
+                                    }
+                                  }}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <Button size="sm" className="h-8 gap-1">
+                                      <Plus className="h-3.5 w-3.5" /> Add Product
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-96 p-0" align="end">
+                                    <div className="p-3 border-b">
+                                      <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                        <Input
+                                          autoFocus
+                                          placeholder="Search by code or name…"
+                                          value={addQuery[panel.id] ?? ""}
+                                          onChange={(e) =>
+                                            setAddQuery((prev) => ({ ...prev, [panel.id]: e.target.value }))
+                                          }
+                                          className="h-8 pl-7 text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="max-h-72 overflow-y-auto">
+                                      {addCandidates.length === 0 ? (
+                                        <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                                          {excludedItems.length === 0
+                                            ? "All products are already in this panel."
+                                            : "No matching products."}
+                                        </p>
+                                      ) : (
+                                        <ul className="divide-y">
+                                          {addCandidates.map((it) => (
+                                            <li key={it.product_id}>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  handleInclusionToggle(panel.id, it.product_id, false);
+                                                  setAddQuery((prev) => ({ ...prev, [panel.id]: "" }));
+                                                }}
+                                                className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-muted transition"
+                                              >
+                                                <span className="flex-1 min-w-0">
+                                                  <span className="block text-sm font-medium truncate">{it.product_name}</span>
+                                                  <span className="block text-xs font-mono text-muted-foreground">{it.product_code}</span>
+                                                </span>
+                                                <span className="text-xs tabular-nums text-muted-foreground">
+                                                  ฿{it.external_price.toLocaleString()}
+                                                </span>
+                                              </button>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+
+                              {/* Panel items table */}
+                              {includedItems.length === 0 ? (
+                                <p className="text-center text-sm text-muted-foreground py-8">
+                                  No products in this panel yet. Click "Add Product" to add some.
+                                </p>
+                              ) : visibleItems.length === 0 ? (
+                                <p className="text-center text-sm text-muted-foreground py-8">
+                                  No products match your search.
+                                </p>
+                              ) : (
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-28">Code</TableHead>
+                                      <TableHead>Product</TableHead>
+                                      <TableHead className="w-36">Short Name</TableHead>
+                                      <TableHead className="w-32 text-right">Ext. Price</TableHead>
+                                      <TableHead className="w-36 text-right">Panel Price</TableHead>
+                                      <TableHead className="w-16 text-center">Actions</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {visibleItems.map((item) => {
+                                      const draftVal = cellDrafts[panel.id]?.[item.product_id] ?? "";
+                                      const panelFloat = item.panel_price;
+                                      const differs = panelFloat != null && panelFloat !== item.external_price;
+                                      const snDraftVal = shortNameDrafts[panel.id]?.[item.product_id] ?? "";
+                                      return (
+                                        <TableRow key={item.product_id}>
+                                          <TableCell className="font-mono text-xs text-muted-foreground">
+                                            {item.product_code}
+                                          </TableCell>
+                                          <TableCell className="text-sm font-medium">
+                                            {item.product_name}
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              type="text"
+                                              placeholder="—"
+                                              value={snDraftVal}
+                                              onChange={(e) =>
+                                                setShortNameDrafts((prev) => ({
+                                                  ...prev,
+                                                  [panel.id]: {
+                                                    ...(prev[panel.id] ?? {}),
+                                                    [item.product_id]: e.target.value,
+                                                  },
+                                                }))
+                                              }
+                                              onBlur={() => handleShortNameBlur(panel.id, item.product_id)}
+                                              className="h-7 w-32 text-xs"
+                                            />
+                                          </TableCell>
+                                          <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                                            ฿{item.external_price.toLocaleString()}
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              placeholder="—"
+                                              value={draftVal}
+                                              onChange={(e) =>
+                                                setCellDrafts((prev) => ({
+                                                  ...prev,
+                                                  [panel.id]: {
+                                                    ...(prev[panel.id] ?? {}),
+                                                    [item.product_id]: e.target.value,
+                                                  },
+                                                }))
+                                              }
+                                              onBlur={() => handleCellBlur(panel.id, item.product_id)}
+                                              className={`h-7 w-28 text-right text-xs ml-auto ${differs ? "border-yellow-400 bg-yellow-50" : ""}`}
+                                            />
+                                          </TableCell>
+                                          <TableCell className="text-center">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-7 px-2 text-destructive hover:text-destructive"
+                                              onClick={() => handleInclusionToggle(panel.id, item.product_id, true)}
+                                              title="Remove from panel"
+                                            >
+                                              <X className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </CardContent>
