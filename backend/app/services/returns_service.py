@@ -17,6 +17,34 @@ from app.models.return_request import ReturnRequest, ReturnStatus
 from app.models.receipt import Receipt, PaymentMethod
 from app.models.shop import ShopProduct, ShopMovement, MovementType
 from app.models.wallet import Wallet, WalletTransaction, WalletTransactionType
+from app.models.bundle import BundleItem
+
+
+def _restore_one(
+    db: Session,
+    product: ShopProduct,
+    qty: int,
+    rr: "ReturnRequest",
+    user_id: Optional[int],
+) -> None:
+    """Add `qty` to `product.stock` and log a void-type ShopMovement.
+    Shared by both bundle and non-bundle return paths in _restore_stock."""
+    stock_before = product.stock
+    product.stock = stock_before + qty
+    db.add(ShopMovement(
+        date=date.today(),
+        product_id=product.id,
+        product_name=product.name,
+        shop_id=product.shop_id,
+        type=MovementType.void,
+        quantity=qty,
+        stock_before=stock_before,
+        stock_after=product.stock,
+        cost_per_unit=float(rr.price),
+        reference=f"RTN-{rr.receipt_id}",
+        note=rr.reason,
+        created_by=user_id or rr.created_by,
+    ))
 
 
 class ReturnsService:
@@ -40,17 +68,25 @@ class ReturnsService:
         for item in items:
             purchased_qty = item["quantity"]
             requested_qty = item["returnQuantity"]
+            bundle_id_in = item.get("bundleId")
 
-            # Sum already-returned quantity (pending + approved) for this product on this receipt
-            existing_returns = (
+            # Sum already-returned quantity (pending + approved) for THIS specific
+            # line. A bundle line and a non-bundle line can share the same
+            # product_code (the bundle's anchor sub-product), so we also key on
+            # bundle_id to keep the two lines' return budgets separate.
+            existing_q = (
                 db.query(ReturnRequest)
                 .filter(
                     ReturnRequest.receipt_id == receipt_id,
                     ReturnRequest.product_code == item["productCode"],
                     ReturnRequest.status != ReturnStatus.rejected,
                 )
-                .all()
             )
+            if bundle_id_in is not None:
+                existing_q = existing_q.filter(ReturnRequest.bundle_id == bundle_id_in)
+            else:
+                existing_q = existing_q.filter(ReturnRequest.bundle_id.is_(None))
+            existing_returns = existing_q.all()
             already_returned_qty = sum(r.return_quantity for r in existing_returns)
             remaining_qty = purchased_qty - already_returned_qty
 
@@ -70,6 +106,7 @@ class ReturnsService:
                 receipt_id=receipt_id,
                 product_code=item["productCode"],
                 product_name=item["productName"],
+                bundle_id=bundle_id_in,
                 quantity=purchased_qty,
                 return_quantity=requested_qty,
                 price=item.get("price", 0),
@@ -515,11 +552,20 @@ class ReturnsService:
             pv = item.product_variant
             if pv and not shop_id:
                 shop_id = pv.shop_id
+            opts = item.options or {}
+            is_bundle = bool(opts.get("is_bundle"))
+            bundle_id = opts.get("bundle_id") if is_bundle else None
+            bundle_code = opts.get("bundle_code") if is_bundle else None
+            bundle_name = opts.get("bundle_name") if is_bundle else None
             items.append({
                 "productCode": pv.product_code if pv else "UNKNOWN",
-                "productName": pv.name if pv else "Unknown",
+                "productName": bundle_name if (is_bundle and bundle_name)
+                               else (pv.name if pv else "Unknown"),
                 "quantity": item.quantity,
                 "price": float(item.unit_price),
+                "isBundle": is_bundle,
+                "bundleId": bundle_id,
+                "bundleCode": bundle_code,
             })
 
         payer_info: dict = {"type": "unknown", "label": ""}
@@ -618,7 +664,49 @@ class ReturnsService:
 
     @staticmethod
     def _restore_stock(db: Session, rr: ReturnRequest, user_id: Optional[int] = None):
-        """Find the ShopProduct by product_code and restore stock."""
+        """Restore stock for an approved return.
+
+        Two paths:
+        - Bundle return (`rr.bundle_id` set): loop the bundle's sub-SKUs and
+          restore `bi.quantity * rr.return_quantity` to each one — mirrors the
+          deduction that ran at checkout in pos_service. Without this, only
+          the anchor sub-product was getting restored, leaving the rest of the
+          bundle silently short on stock after every return.
+        - Non-bundle: restore stock on the single ShopProduct matched by
+          product_code.
+        """
+        # ── Bundle return ────────────────────────────────────────────────────
+        if rr.bundle_id is not None:
+            bundle_items: list[BundleItem] = (
+                db.query(BundleItem)
+                .filter(BundleItem.bundle_id == rr.bundle_id)
+                .all()
+            )
+            if not bundle_items:
+                # Bundle definition gone — fall back to anchor product so we at
+                # least restore something, rather than silently no-op.
+                product = (
+                    db.query(ShopProduct)
+                    .filter(ShopProduct.product_code == rr.product_code)
+                    .first()
+                )
+                if product:
+                    _restore_one(db, product, rr.return_quantity, rr, user_id)
+                return
+
+            for bi in bundle_items:
+                sub_product = (
+                    db.query(ShopProduct)
+                    .filter(ShopProduct.id == bi.product_id)
+                    .first()
+                )
+                if not sub_product:
+                    continue
+                restore_qty = bi.quantity * rr.return_quantity
+                _restore_one(db, sub_product, restore_qty, rr, user_id)
+            return
+
+        # ── Non-bundle return ────────────────────────────────────────────────
         product = (
             db.query(ShopProduct)
             .filter(ShopProduct.product_code == rr.product_code)
@@ -626,22 +714,4 @@ class ReturnsService:
         )
         if not product:
             return
-
-        stock_before = product.stock
-        product.stock = stock_before + rr.return_quantity
-
-        movement = ShopMovement(
-            date=date.today(),
-            product_id=product.id,
-            product_name=product.name,
-            shop_id=product.shop_id,
-            type=MovementType.void,
-            quantity=rr.return_quantity,
-            stock_before=stock_before,
-            stock_after=product.stock,
-            cost_per_unit=float(rr.price),
-            reference=f"RTN-{rr.receipt_id}",
-            note=rr.reason,
-            created_by=user_id or rr.created_by,
-        )
-        db.add(movement)
+        _restore_one(db, product, rr.return_quantity, rr, user_id)

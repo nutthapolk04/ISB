@@ -44,6 +44,9 @@ interface ReceiptItem {
   productName: string;
   quantity: number;
   price: number;
+  isBundle?: boolean;
+  bundleId?: number | null;
+  bundleCode?: string | null;
 }
 
 interface ReceiptPayer {
@@ -84,6 +87,7 @@ interface ReturnRequest {
   receiptId: string;
   productCode?: string;
   productName: string;
+  bundleId?: number | null;
   quantity: number;
   returnQuantity: number;
   reason: string;
@@ -219,7 +223,10 @@ const Returns = () => {
   const [searchResults, setSearchResults] = useState<(Receipt & { shopId?: string })[]>([]);
 
   // Return form states
-  const [selectedItems, setSelectedItems] = useState<{ [key: string]: { selected: boolean; returnQty: number } }>({});
+  // Key = `${productCode}::${bundleId ?? 0}` so a bundle line and a regular
+  // line that share the same anchor product code can coexist on one receipt
+  // without their selections / quantities colliding.
+  const [selectedItems, setSelectedItems] = useState<{ [key: string]: { selected: boolean; returnQty: number; productCode: string; bundleId: number | null } }>({});
   const [reason, setReason] = useState("");
 
   // History search
@@ -428,23 +435,32 @@ const Returns = () => {
     }
   };
 
-  const handleItemSelect = (productCode: string, isSelected: boolean, maxQty: number) => {
+  // Compose the per-line key used by selectedItems / returnedQtyMap. Stays
+  // stable as long as the (productCode, bundleId) pair is unique within a
+  // receipt — which the backend guarantees.
+  const itemKey = (item: { productCode: string; bundleId?: number | null }) =>
+    `${item.productCode}::${item.bundleId ?? 0}`;
+
+  const handleItemSelect = (item: ReceiptItem, isSelected: boolean, _maxQty: number) => {
+    const k = itemKey(item);
     setSelectedItems((prev) => ({
       ...prev,
-      [productCode]: {
+      [k]: {
         selected: isSelected,
         returnQty: isSelected ? 1 : 0,
+        productCode: item.productCode,
+        bundleId: item.bundleId ?? null,
       },
     }));
   };
 
-  const handleQuantityChange = (productCode: string, qty: number, maxQty: number) => {
+  const handleQuantityChange = (item: ReceiptItem, qty: number, maxQty: number) => {
     if (qty < 1 || qty > maxQty) return;
-
+    const k = itemKey(item);
     setSelectedItems((prev) => ({
       ...prev,
-      [productCode]: {
-        ...prev[productCode],
+      [k]: {
+        ...prev[k],
         returnQty: qty,
       },
     }));
@@ -468,14 +484,19 @@ const Returns = () => {
       return;
     }
 
-    const items = selectedProducts.map(([productCode, data]) => {
-      const item = selectedReceipt.items.find((i: ReceiptItem) => i.productCode === productCode);
+    const items = selectedProducts.map(([_k, data]) => {
+      const item = selectedReceipt.items.find(
+        (i: ReceiptItem) =>
+          i.productCode === data.productCode &&
+          (i.bundleId ?? null) === data.bundleId,
+      );
       return {
-        productCode,
-        productName: item?.productName ?? productCode,
+        productCode: data.productCode,
+        productName: item?.productName ?? data.productCode,
         quantity: item?.quantity ?? data.returnQty,
         returnQuantity: data.returnQty,
         price: item?.price ?? 0,
+        bundleId: data.bundleId,
       };
     });
 
@@ -508,8 +529,10 @@ const Returns = () => {
       if (err?.status === 409) {
         // Show modal with conflicting items
         setDuplicateConflicts(existingReturns.filter(r =>
-          Object.keys(selectedItems).some(code =>
-            selectedItems[code].selected && r.productCode === code
+          Object.values(selectedItems).some(sel =>
+            sel.selected &&
+            sel.productCode === r.productCode &&
+            (sel.bundleId ?? null) === (r.bundleId ?? null)
           )
         ));
         setIsDuplicateDialogOpen(true);
@@ -557,19 +580,18 @@ const Returns = () => {
     setEditReason(returnItem.reason);
 
     // Initialize selected items based on the current return
-    const initialSelection: { [key: string]: { selected: boolean; returnQty: number } } = {};
+    const initialSelection: { [key: string]: { selected: boolean; returnQty: number; productCode: string; bundleId: number | null } } = {};
     viewingReceipt?.items.forEach((item: ReceiptItem) => {
-      if (item.productName === returnItem.productName) {
-        initialSelection[item.productCode] = {
-          selected: true,
-          returnQty: returnItem.returnQuantity,
-        };
-      } else {
-        initialSelection[item.productCode] = {
-          selected: false,
-          returnQty: 1,
-        };
-      }
+      const k = itemKey(item);
+      const matchesReturn =
+        item.productName === returnItem.productName &&
+        (item.bundleId ?? null) === (returnItem.bundleId ?? null);
+      initialSelection[k] = {
+        selected: matchesReturn,
+        returnQty: matchesReturn ? returnItem.returnQuantity : 1,
+        productCode: item.productCode,
+        bundleId: item.bundleId ?? null,
+      };
     });
     setSelectedItems(initialSelection);
 
@@ -702,9 +724,13 @@ const Returns = () => {
 
   /** Build returnItems payload from selectedItems state */
   const buildReturnItems = () =>
-    Object.entries(selectedItems)
-      .filter(([_, d]) => d.selected)
-      .map(([code, d]) => ({ productCode: code, returnQuantity: d.returnQty }));
+    Object.values(selectedItems)
+      .filter((d) => d.selected)
+      .map((d) => ({
+        productCode: d.productCode,
+        returnQuantity: d.returnQty,
+        bundleId: d.bundleId,
+      }));
 
   /** Build exchangeItems payload from exchangeItems state */
   const buildExchangeItems = () =>
@@ -1333,23 +1359,31 @@ const Returns = () => {
 
           {/* Items Table — split into returnable vs already-returned */}
           {(() => {
-            // Compute remaining returnable qty per product
+            // Compute remaining returnable qty per line (keyed by
+            // productCode + bundleId so bundle vs non-bundle lines that share
+            // a code don't share a return budget).
+            const lineKey = (rOrI: { productCode?: string; bundleId?: number | null }) =>
+              `${rOrI.productCode ?? ''}::${rOrI.bundleId ?? 0}`;
             const returnedQtyMap: Record<string, number> = {};
             const returnInfoMap: Record<string, ReturnRequest[]> = {};
             existingReturns.forEach(r => {
               if (r.productCode) {
-                returnedQtyMap[r.productCode] = (returnedQtyMap[r.productCode] || 0) + r.returnQuantity;
-                if (!returnInfoMap[r.productCode]) returnInfoMap[r.productCode] = [];
-                returnInfoMap[r.productCode].push(r);
+                const k = lineKey(r);
+                returnedQtyMap[k] = (returnedQtyMap[k] || 0) + r.returnQuantity;
+                if (!returnInfoMap[k]) returnInfoMap[k] = [];
+                returnInfoMap[k].push(r);
               }
             });
 
-            const itemsWithRemaining = selectedReceipt.items.map(item => ({
-              ...item,
-              alreadyReturned: returnedQtyMap[item.productCode] || 0,
-              remaining: item.quantity - (returnedQtyMap[item.productCode] || 0),
-              returnInfos: returnInfoMap[item.productCode] || [],
-            }));
+            const itemsWithRemaining = selectedReceipt.items.map(item => {
+              const k = lineKey(item);
+              return {
+                ...item,
+                alreadyReturned: returnedQtyMap[k] || 0,
+                remaining: item.quantity - (returnedQtyMap[k] || 0),
+                returnInfos: returnInfoMap[k] || [],
+              };
+            });
 
             const hasReturnHistory = itemsWithRemaining.some(i => i.alreadyReturned > 0);
             const returnableItems = itemsWithRemaining.filter(i => i.remaining > 0);
@@ -1378,7 +1412,7 @@ const Returns = () => {
                         </TableHeader>
                         <TableBody>
                           {itemsWithRemaining.filter(i => i.alreadyReturned > 0).map((item) => (
-                            <TableRow key={item.productCode} className={item.remaining <= 0 ? "opacity-50" : ""}>
+                            <TableRow key={lineKey(item)} className={item.remaining <= 0 ? "opacity-50" : ""}>
                               <TableCell>
                                 <div>
                                   <p className="font-medium">{item.productName}</p>
@@ -1434,17 +1468,18 @@ const Returns = () => {
                         </TableHeader>
                         <TableBody>
                           {returnableItems.map((item) => {
-                            const isSelected = selectedItems[item.productCode]?.selected || false;
-                            const returnQty = selectedItems[item.productCode]?.returnQty || 1;
+                            const k = itemKey(item);
+                            const isSelected = selectedItems[k]?.selected || false;
+                            const returnQty = selectedItems[k]?.returnQty || 1;
                             const maxQty = item.remaining;
 
                             return (
-                              <TableRow key={item.productCode}>
+                              <TableRow key={k}>
                                 <TableCell>
                                   <Checkbox
                                     checked={isSelected}
                                     onCheckedChange={(checked) =>
-                                      handleItemSelect(item.productCode, checked as boolean, maxQty)
+                                      handleItemSelect(item, checked as boolean, maxQty)
                                     }
                                   />
                                 </TableCell>
@@ -1467,7 +1502,7 @@ const Returns = () => {
                                       max={maxQty}
                                       value={returnQty}
                                       onChange={(e) =>
-                                        handleQuantityChange(item.productCode, parseInt(e.target.value), maxQty)
+                                        handleQuantityChange(item, parseInt(e.target.value), maxQty)
                                       }
                                       className="w-20 mx-auto"
                                     />
@@ -1803,17 +1838,18 @@ const Returns = () => {
                     </TableHeader>
                     <TableBody>
                       {viewingReceipt.items.map((item) => {
-                        const isSelected = selectedItems[item.productCode]?.selected || false;
-                        const returnQty = selectedItems[item.productCode]?.returnQty || 1;
+                        const k = itemKey(item);
+                        const isSelected = selectedItems[k]?.selected || false;
+                        const returnQty = selectedItems[k]?.returnQty || 1;
 
                         return (
                           <>
-                            <TableRow key={item.productCode}>
+                            <TableRow key={k}>
                               <TableCell>
                                 <Checkbox
                                   checked={isSelected}
                                   onCheckedChange={(checked) =>
-                                    handleItemSelect(item.productCode, checked as boolean, item.quantity)
+                                    handleItemSelect(item, checked as boolean, item.quantity)
                                   }
                                 />
                               </TableCell>
@@ -1830,7 +1866,7 @@ const Returns = () => {
                                   <Select
                                     value={returnQty.toString()}
                                     onValueChange={(value) =>
-                                      handleQuantityChange(item.productCode, parseInt(value), item.quantity)
+                                      handleQuantityChange(item, parseInt(value), item.quantity)
                                     }
                                   >
                                     <SelectTrigger className="w-24 mx-auto">

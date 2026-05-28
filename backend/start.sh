@@ -608,6 +608,13 @@ run('ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS reverses_id INTEGER REF
 run('ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS reversed_by_id INTEGER REFERENCES shop_movements(id) ON DELETE SET NULL',
     'shop_movements.reversed_by_id')
 
+# === Bundle-aware returns: track which ProductBundle a return came from so
+#     refund/exchange can restore stock on every sub-SKU, not just the anchor ===
+run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
+    'return_requests.bundle_id')
+run('CREATE INDEX IF NOT EXISTS ix_return_requests_bundle_id ON return_requests(bundle_id)',
+    'return_requests idx bundle_id')
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),
@@ -655,6 +662,7 @@ required_cols = [
     ('users', 'ps_department'),
     ('shop_movements', 'reverses_id'),
     ('shop_movements', 'reversed_by_id'),
+    ('return_requests', 'bundle_id'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',

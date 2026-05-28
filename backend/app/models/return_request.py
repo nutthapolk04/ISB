@@ -22,6 +22,10 @@ class ReturnRequest(Base):
     receipt_id = Column(String(50), nullable=False, index=True)  # receipt_number
     product_code = Column(String(50), nullable=False)
     product_name = Column(String(255), nullable=False)
+    # When the returned line was sold as a bundle, this points to the source
+    # ProductBundle so _restore_stock can loop back every sub-SKU that was
+    # deducted at checkout. NULL for regular (non-bundle) lines.
+    bundle_id = Column(Integer, nullable=True, index=True)
     quantity = Column(Integer, nullable=False)          # original qty
     return_quantity = Column(Integer, nullable=False)   # qty being returned
     price = Column(Numeric(10, 2), nullable=False, default=0)

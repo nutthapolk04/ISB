@@ -283,6 +283,7 @@ def _rr_to_response(rr) -> dict:
         "receiptId": rr.receipt_id,
         "productCode": rr.product_code,
         "productName": rr.product_name,
+        "bundleId": rr.bundle_id,
         "quantity": rr.quantity,
         "returnQuantity": rr.return_quantity,
         "reason": rr.reason,
