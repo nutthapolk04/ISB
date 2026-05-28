@@ -57,7 +57,7 @@ function DiscountShortcutPopover({
         <button
           type="button"
           className={cn(
-            "h-5 px-1.5 text-[10px] font-bold rounded border bg-background transition-colors",
+            "h-7 px-2.5 text-xs font-bold rounded border bg-background transition-colors",
             mode === "percent"
               ? "border-amber-400 text-amber-700 hover:bg-amber-50"
               : "border-border text-foreground hover:bg-muted",
@@ -68,12 +68,12 @@ function DiscountShortcutPopover({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-64 p-3"
+        className="w-72 p-4"
         align="start"
         side="top"
         sideOffset={6}
       >
-        <p className="mb-3 text-xs font-semibold text-muted-foreground">
+        <p className="mb-3 text-sm font-semibold text-muted-foreground">
           {t("canteen.cart.discountHeader")} {mode === "percent" ? "%" : "฿"}
         </p>
         <div className="grid grid-cols-3 gap-2">
@@ -83,7 +83,7 @@ function DiscountShortcutPopover({
               type="button"
               onClick={() => handleShortcut(q)}
               className={cn(
-                "h-11 w-full rounded-xl border text-sm font-bold transition-colors",
+                "h-12 w-full rounded-xl border text-base font-bold transition-colors",
                 currentValue === q && (currentMode ?? "percent") === mode
                   ? "border-amber-500 bg-amber-500 text-white"
                   : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 active:bg-amber-200",
@@ -97,14 +97,14 @@ function DiscountShortcutPopover({
           <button
             type="button"
             onClick={handleClear}
-            className="flex-1 h-9 rounded-xl border border-border bg-background text-xs font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
+            className="flex-1 h-10 rounded-xl border border-border bg-background text-sm font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
             Clear / 0
           </button>
           <button
             type="button"
             onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
-            className="h-9 px-4 rounded-xl border border-border bg-background text-xs font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
+            className="h-10 px-4 rounded-xl border border-border bg-background text-sm font-medium text-muted-foreground hover:bg-muted active:bg-muted/80 transition-colors"
           >
             {mode === "percent" ? t("canteen.cart.useBaht") : t("canteen.cart.usePercent")}
           </button>
@@ -434,21 +434,21 @@ export function CanteenCart({
       <Separator />
 
       {/* Summary */}
-      <div className="px-5 pt-3 pb-4 space-y-2">
-        <div className="flex justify-between text-sm">
+      <div className="px-5 pt-4 pb-5 space-y-3">
+        <div className="flex justify-between items-baseline text-base">
           <span className="text-muted-foreground">Subtotal</span>
-          <span className="tabular-nums">฿{subtotal.toFixed(2)}</span>
+          <span className="tabular-nums font-semibold">฿{subtotal.toFixed(2)}</span>
         </div>
         {billDiscountAmount > 0 && (
-          <div className="flex justify-between text-sm text-emerald-600">
+          <div className="flex justify-between text-base text-emerald-600">
             <button
               type="button"
               onClick={onClearDiscount}
-              className="text-left hover:underline"
+              className="text-left hover:underline font-medium"
             >
               Discount ({discountLabel}) ×
             </button>
-            <span className="tabular-nums">
+            <span className="tabular-nums font-semibold">
               −฿{billDiscountAmount.toFixed(2)}
             </span>
           </div>
@@ -457,24 +457,24 @@ export function CanteenCart({
           variant="outline"
           onClick={onOpenDiscount}
           disabled={isEmpty}
-          className="h-9 w-full border-amber-300 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 font-semibold"
+          className="h-12 w-full border-amber-300 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 font-semibold text-base"
         >
           {discountLabel ? `Add Discount: ${discountLabel}` : "Add Discount"}
         </Button>
 
-        <div className="flex justify-between pt-1 text-xl font-bold">
-          <span>Total</span>
-          <span className="tabular-nums text-amber-700">
+        <div className="flex justify-between items-baseline pt-2">
+          <span className="text-lg font-bold">Total</span>
+          <span className="tabular-nums text-3xl font-extrabold text-amber-700">
             ฿{total.toFixed(2)}
           </span>
         </div>
 
         <Button
-          className="mt-2 h-14 w-full text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/40"
+          className="mt-2 h-16 w-full text-lg font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/40"
           disabled={isEmpty}
           onClick={onCharge}
         >
-          <CreditCard className="mr-2 h-5 w-5" />
+          <CreditCard className="mr-2 h-6 w-6" />
           Charge ฿{total.toFixed(2)}
         </Button>
       </div>

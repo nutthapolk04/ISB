@@ -154,7 +154,7 @@ function DiscountShortcutPopover({
         <button
           type="button"
           className={cn(
-            "h-5 px-1.5 text-[10px] font-bold rounded border bg-background transition-colors",
+            "h-7 px-2.5 text-xs font-bold rounded border bg-background transition-colors",
             mode === "percent"
               ? "border-amber-400 text-amber-700 hover:bg-amber-50"
               : "border-border text-foreground hover:bg-muted",
@@ -163,18 +163,18 @@ function DiscountShortcutPopover({
           {mode === "percent" ? "%" : "฿"}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" align="start" side="top" sideOffset={6}>
-        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">
+      <PopoverContent className="w-72 p-4" align="start" side="top" sideOffset={6}>
+        <p className="mb-3 text-sm font-semibold text-muted-foreground">
           {t("store.cart.discountHeader")} {mode === "percent" ? "%" : "฿"}
         </p>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-3 gap-2">
           {shortcuts.map((q) => (
             <button
               key={q}
               type="button"
               onClick={() => { onUpdate(itemId, q, mode); setOpen(false); }}
               className={cn(
-                "h-9 min-w-[3.5rem] rounded-lg border text-sm font-bold transition-colors",
+                "h-12 min-w-[4.5rem] rounded-lg border text-base font-bold transition-colors",
                 currentValue === q && currentMode === mode
                   ? "border-amber-500 bg-amber-500 text-white"
                   : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
@@ -184,18 +184,18 @@ function DiscountShortcutPopover({
             </button>
           ))}
         </div>
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-3 flex gap-2">
           <button
             type="button"
             onClick={() => { onUpdate(itemId, null, mode); setOpen(false); }}
-            className="flex-1 h-8 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+            className="flex-1 h-10 rounded-lg border border-border bg-background text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
             Clear / 0
           </button>
           <button
             type="button"
             onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
-            className="h-8 px-3 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+            className="h-10 px-4 rounded-lg border border-border bg-background text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
             {mode === "percent" ? t("store.cart.useBaht") : t("store.cart.usePercent")}
           </button>
@@ -1315,18 +1315,18 @@ const Store = () => {
 
       {/* Footer */}
       {cart.length > 0 && (
-        <div className="border-t border-border/60 px-4 py-3 space-y-2.5">
+        <div className="border-t border-border/60 px-5 py-5 space-y-3">
           {/* Subtotal */}
-          <div className="flex justify-between text-sm text-muted-foreground">
+          <div className="flex justify-between items-baseline text-base text-muted-foreground">
             <span>{t("store.subtotal", "ยอดรวม")}</span>
-            <span className="tabular-nums">฿{subtotal.toLocaleString()}</span>
+            <span className="tabular-nums font-semibold text-foreground">฿{subtotal.toLocaleString()}</span>
           </div>
 
           {/* Bill discount row (shown when active) */}
           {billDiscountAmount > 0 && (
-            <div className="flex justify-between text-sm text-destructive">
+            <div className="flex justify-between text-base text-destructive">
               <span>{t("store.billDiscount")}</span>
-              <span className="tabular-nums">-฿{billDiscountAmount.toLocaleString()}</span>
+              <span className="tabular-nums font-semibold">-฿{billDiscountAmount.toLocaleString()}</span>
             </div>
           )}
 
@@ -1336,7 +1336,7 @@ const Store = () => {
               <button
                 type="button"
                 className={cn(
-                  "w-full h-10 rounded-xl border text-sm font-semibold transition",
+                  "w-full h-12 rounded-xl border text-base font-semibold transition",
                   billDiscountAmount > 0
                     ? "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100"
                     : "border-amber-400 text-amber-600 hover:bg-amber-50",
@@ -1397,9 +1397,9 @@ const Store = () => {
           </Popover>
 
           {/* Total */}
-          <div className="flex justify-between items-baseline">
-            <span className="text-sm font-semibold">{t("store.tableTotal")}</span>
-            <span className="text-2xl font-bold text-primary tabular-nums">
+          <div className="flex justify-between items-baseline pt-2">
+            <span className="text-lg font-bold">{t("store.tableTotal")}</span>
+            <span className="text-3xl font-extrabold text-primary tabular-nums">
               ฿{total.toLocaleString()}
             </span>
           </div>
@@ -1411,10 +1411,10 @@ const Store = () => {
               handleOpenPayment();
             }}
             disabled={cart.length === 0 || confirming}
-            className="w-full h-12 text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/40"
+            className="mt-2 w-full h-16 text-lg font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/40"
           >
             {confirming ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               `${t("store.charge", "Charge")} ฿${total.toLocaleString()}`
             )}
