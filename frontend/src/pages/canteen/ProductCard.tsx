@@ -63,8 +63,8 @@ export function ProductCard({
       data-added={justAdded}
       data-card-color={hasColor ? "true" : undefined}
       className={cn(
-        "canteen-product-card relative flex flex-col justify-between p-2.5 text-left",
-        "min-h-[6.5rem]",
+        "canteen-product-card relative flex flex-col justify-between p-3 text-left",
+        "min-h-[7.5rem]",
         reorderMode && "cursor-grab active:cursor-grabbing select-none",
       )}
       style={
@@ -92,13 +92,13 @@ export function ProductCard({
       )}
 
       {/* Name */}
-      <div className="line-clamp-2 text-sm font-semibold leading-tight text-zinc-900">
+      <div className="line-clamp-2 text-base font-bold leading-tight text-zinc-900">
         {product.name}
       </div>
 
       {/* Footer: price + (palette) + category */}
       <div className="mt-auto flex items-end justify-between pt-1">
-        <span className="text-base font-bold tabular-nums text-zinc-900">
+        <span className="text-lg font-extrabold tabular-nums text-zinc-900">
           ฿{displayPrice.toFixed(0)}
         </span>
         <div className="flex items-center gap-1">

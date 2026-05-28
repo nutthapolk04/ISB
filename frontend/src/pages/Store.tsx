@@ -1643,7 +1643,7 @@ const Store = () => {
                 onClick={reorderMode ? undefined : () => addToCart(p)}
                 data-card-color={p.color ? "true" : undefined}
                 className={cn(
-                  "pos-product-tile group relative flex flex-col justify-between rounded-2xl border border-amber-200/60 p-2.5 text-left transition w-full min-h-[6.5rem]",
+                  "pos-product-tile group relative flex flex-col justify-between rounded-2xl border border-amber-200/60 p-3 text-left transition w-full min-h-[7.5rem]",
                   !p.color && !reorderMode && "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/50 hover:border-amber-300",
                   reorderMode && "cursor-default select-none",
                 )}
@@ -1675,7 +1675,7 @@ const Store = () => {
                   </span>
                 )}
                 <div className={cn(
-                  "line-clamp-2 text-sm font-semibold leading-tight pr-16",
+                  "line-clamp-2 text-base font-bold leading-tight pr-16",
                   p.color ? "text-zinc-900" : "text-foreground",
                 )}>
                   {activePanelId != null && panelShortNames[activePanelId]?.[p.id]
@@ -1684,7 +1684,7 @@ const Store = () => {
                 </div>
                 <div className="mt-auto pt-1 flex items-end justify-between">
                   <span className={cn(
-                    "text-base font-bold tabular-nums",
+                    "text-lg font-extrabold tabular-nums",
                     p.color ? "text-zinc-900" : "text-primary",
                   )}>฿{displayPrice.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
