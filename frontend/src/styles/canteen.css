@@ -51,28 +51,29 @@
            active:scale-[0.98];
   }
 
-  /* Solid-color treatment: use the color as full background (store-style). */
+  /* Solid-color treatment: use the color as full background with a visible
+   * frame (darker tint of the card color). */
   .canteen-product-card[data-card-color="true"] {
-    border-color: transparent;
+    border-color: color-mix(in srgb, var(--card-color) 65%, black 20%);
     box-shadow:
       0 1px 3px color-mix(in srgb, var(--card-color) 40%, transparent);
   }
 
   .canteen-product-card[data-card-color="true"]:hover {
-    border-color: transparent;
+    border-color: color-mix(in srgb, var(--card-color) 55%, black 30%);
     box-shadow:
       0 14px 32px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
   }
 
-  /* Store POS tile — solid-color treatment, matches canteen (no ring) */
+  /* Store POS tile — same visible-frame solid-color treatment */
   .pos-product-tile[data-card-color="true"] {
-    border-color: transparent;
+    border-color: color-mix(in srgb, var(--card-color) 65%, black 20%);
     box-shadow:
       0 1px 3px color-mix(in srgb, var(--card-color) 40%, transparent);
   }
 
   .pos-product-tile[data-card-color="true"]:hover {
-    border-color: transparent;
+    border-color: color-mix(in srgb, var(--card-color) 55%, black 30%);
     box-shadow:
       0 14px 32px -6px color-mix(in srgb, var(--card-color) 55%, transparent);
   }

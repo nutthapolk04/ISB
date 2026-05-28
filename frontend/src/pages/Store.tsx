@@ -1313,9 +1313,8 @@ const Store = () => {
         )}
       </div>
 
-      {/* Footer */}
-      {cart.length > 0 && (
-        <div className="border-t border-border/60 px-5 py-5 space-y-3">
+      {/* Footer — always shown (Charge button disabled when cart empty) */}
+      <div className="border-t border-border/60 px-5 py-5 space-y-3">
           {/* Subtotal */}
           <div className="flex justify-between items-baseline text-base text-muted-foreground">
             <span>{t("store.subtotal", "ยอดรวม")}</span>
@@ -1335,8 +1334,10 @@ const Store = () => {
             <PopoverTrigger asChild>
               <button
                 type="button"
+                disabled={cart.length === 0}
                 className={cn(
                   "w-full h-12 rounded-xl border text-base font-semibold transition",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
                   billDiscountAmount > 0
                     ? "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100"
                     : "border-amber-400 text-amber-600 hover:bg-amber-50",
@@ -1419,8 +1420,7 @@ const Store = () => {
               `${t("store.charge", "Charge")} ฿${total.toLocaleString()}`
             )}
           </Button>
-        </div>
-      )}
+      </div>
     </div>
   );
 
@@ -1643,8 +1643,8 @@ const Store = () => {
                 onClick={reorderMode ? undefined : () => addToCart(p)}
                 data-card-color={p.color ? "true" : undefined}
                 className={cn(
-                  "pos-product-tile group relative flex flex-col justify-between rounded-lg border p-2.5 text-left transition w-full min-h-[6.5rem]",
-                  !p.color && !reorderMode && "bg-card border-border/60 hover:border-primary hover:shadow-sm",
+                  "pos-product-tile group relative flex flex-col justify-between rounded-2xl border border-amber-200/60 p-2.5 text-left transition w-full min-h-[6.5rem]",
+                  !p.color && !reorderMode && "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/50 hover:border-amber-300",
                   reorderMode && "cursor-default select-none",
                 )}
                 style={
@@ -1750,7 +1750,7 @@ const Store = () => {
               <div className="flex-1 overflow-y-auto">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={gridProducts.map((p) => String(p.id))} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="canteen-grid">
                       {gridProducts.map((p) => (
                         <SortableCard key={p.id} id={p.id} reorderMode={reorderMode}>
                           {(handleProps, _isDragging) => cardContent(p, handleProps)}
