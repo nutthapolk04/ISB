@@ -249,6 +249,7 @@ POS_TABLES = (
     "wallets", "wallet_transactions", "payment_intents",
     "system_settings",
     "shop_categories", "shop_products", "shop_movements",
+    "menu_option_groups", "menu_options",
     "product_bundles", "bundle_items",
     "receipts", "receipt_items",
     "fifo_lots",
