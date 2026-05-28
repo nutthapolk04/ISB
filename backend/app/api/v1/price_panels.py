@@ -1,11 +1,11 @@
 """
 Price Panel API Routes
 GET    /api/v1/shops/{shop_id}/price-panels                        — list panels
-POST   /api/v1/shops/{shop_id}/price-panels                        — create panel (auto-creates null items for all products)
+POST   /api/v1/shops/{shop_id}/price-panels                        — create panel (starts empty; products are added explicitly)
 PATCH  /api/v1/shops/{shop_id}/price-panels/{panel_id}             — rename/recolor panel
 DELETE /api/v1/shops/{shop_id}/price-panels/{panel_id}             — delete panel
-GET    /api/v1/shops/{shop_id}/price-panels/{panel_id}/items       — get all items with prices
-PATCH  /api/v1/shops/{shop_id}/price-panels/{panel_id}/items/{product_id} — set price for one product (auto-save)
+GET    /api/v1/shops/{shop_id}/price-panels/{panel_id}/items       — list every shop product joined with panel rows (included=false for products without a row)
+PATCH  /api/v1/shops/{shop_id}/price-panels/{panel_id}/items/{product_id} — set price / add / remove product (auto-save, upserts row)
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -52,11 +52,6 @@ def create_panel(
 ):
     panel = PricePanel(shop_id=shop_id, name=body.name, color=body.color)
     db.add(panel)
-    db.flush()
-    # Auto-create null items for all existing products in this shop
-    products = db.query(ShopProduct).filter(ShopProduct.shop_id == shop_id, ShopProduct.is_active == True).all()
-    for p in products:
-        db.add(PricePanelItem(panel_id=panel.id, product_id=p.id, price=None))
     db.commit()
     db.refresh(panel)
     return panel
@@ -112,6 +107,10 @@ def get_panel_items(
         item.product_id: item
         for item in db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
     }
+    # Products without a PricePanelItem row are treated as NOT included in this
+    # panel (default included=False). Newly-created panels therefore start
+    # empty until the manager adds products via PATCH. Existing panels already
+    # have rows for every product, so their behaviour is preserved.
     return [
         PricePanelItemResponse(
             product_id=p.id,
@@ -120,7 +119,7 @@ def get_panel_items(
             external_price=float(p.external_price),
             panel_price=float(item_map[p.id].price) if item_map.get(p.id) is not None and item_map[p.id].price is not None else None,
             short_name=item_map[p.id].short_name if item_map.get(p.id) is not None else None,
-            included=getattr(item_map[p.id], 'included', True) if item_map.get(p.id) is not None else True,
+            included=getattr(item_map[p.id], 'included', True) if item_map.get(p.id) is not None else False,
         )
         for p in products
     ]
