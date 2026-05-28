@@ -24,12 +24,21 @@ class PricePanel(Base):
 
 
 class PricePanelItem(Base):
+    """A panel row pointing at either a ShopProduct or a ProductBundle.
+
+    Exactly one of `product_id` / `bundle_id` is set on each row — the
+    panel acts as a polymorphic price override for both shop products
+    (regular SKUs) and bundles (Grade Sets / combos), so a Promotion
+    panel can discount a bundle just like it can discount a product.
+    """
     __tablename__ = "price_panel_items"
     __table_args__ = (UniqueConstraint("panel_id", "product_id", name="uq_panel_product"),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     panel_id = Column(Integer, ForeignKey("price_panels.id", ondelete="CASCADE"), nullable=False, index=True)
-    product_id = Column(Integer, ForeignKey("shop_products.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Product or bundle reference — exactly one is set per row.
+    product_id = Column(Integer, ForeignKey("shop_products.id", ondelete="CASCADE"), nullable=True, index=True)
+    bundle_id = Column(Integer, ForeignKey("product_bundles.id", ondelete="CASCADE"), nullable=True, index=True)
     price = Column(Numeric(10, 2), nullable=True)  # null = use external_price
     short_name = Column(String(100), nullable=True)   # display name override in POS
     included = Column(Boolean, nullable=False, default=True)  # whether product appears in POS when this panel is active
@@ -37,3 +46,4 @@ class PricePanelItem(Base):
 
     panel = relationship("PricePanel", back_populates="items")
     product = relationship("ShopProduct")
+    bundle = relationship("ProductBundle")

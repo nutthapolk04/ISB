@@ -15,6 +15,7 @@ from app.core.database import get_db
 from app.api.deps import get_current_user, require_role
 from app.models.price_panel import PricePanel, PricePanelItem
 from app.models.shop import ShopProduct
+from app.models.bundle import ProductBundle
 from app.models.user import User
 from app.schemas.price_panel import (
     PricePanelCreate, PricePanelUpdate, PricePanelResponse,
@@ -95,34 +96,59 @@ def get_panel_items(
     current_user: User = Depends(get_current_user),
 ):
     panel = _get_panel_or_404(db, shop_id, panel_id)
-    # Get all active products in shop, join with panel items
     products = (
         db.query(ShopProduct)
         .filter(ShopProduct.shop_id == shop_id, ShopProduct.is_active == True)
         .order_by(ShopProduct.sort_order, ShopProduct.id)
         .all()
     )
-    # Build lookup map: product_id -> panel item
-    item_map = {
-        item.product_id: item
-        for item in db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
-    }
-    # Products without a PricePanelItem row are treated as NOT included in this
-    # panel (default included=False). Newly-created panels therefore start
-    # empty until the manager adds products via PATCH. Existing panels already
-    # have rows for every product, so their behaviour is preserved.
-    return [
-        PricePanelItemResponse(
+    bundles = (
+        db.query(ProductBundle)
+        .filter(ProductBundle.shop_id == shop_id, ProductBundle.is_active == True)
+        .order_by(ProductBundle.sort_order, ProductBundle.id)
+        .all()
+    )
+    # Build separate lookup maps so a panel row never collides between a
+    # product id and a bundle id that happen to share the same number.
+    rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
+    product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+    bundle_item_map = {r.bundle_id: r for r in rows if r.bundle_id is not None}
+
+    out: list[PricePanelItemResponse] = []
+    # Newly created panels start empty: rows that don't exist mean included=False
+    # so the Add Product popover surfaces every product/bundle as a candidate.
+    for p in products:
+        r = product_item_map.get(p.id)
+        out.append(PricePanelItemResponse(
+            kind="product",
             product_id=p.id,
+            bundle_id=None,
             product_code=p.product_code,
             product_name=p.name,
             external_price=float(p.external_price),
-            panel_price=float(item_map[p.id].price) if item_map.get(p.id) is not None and item_map[p.id].price is not None else None,
-            short_name=item_map[p.id].short_name if item_map.get(p.id) is not None else None,
-            included=getattr(item_map[p.id], 'included', True) if item_map.get(p.id) is not None else False,
-        )
-        for p in products
-    ]
+            panel_price=float(r.price) if r is not None and r.price is not None else None,
+            short_name=r.short_name if r is not None else None,
+            included=getattr(r, "included", True) if r is not None else False,
+            is_bundle=False,
+        ))
+    for b in bundles:
+        r = bundle_item_map.get(b.id)
+        out.append(PricePanelItemResponse(
+            kind="bundle",
+            # product_id is reused as the stable row key on the frontend; for
+            # bundle rows we put the bundle id here so the existing
+            # selectedItems / table-key flow keeps working unchanged.
+            product_id=b.id,
+            bundle_id=b.id,
+            product_code=b.bundle_code,
+            product_name=b.name,
+            external_price=float(b.external_price),
+            panel_price=float(r.price) if r is not None and r.price is not None else None,
+            short_name=r.short_name if r is not None else None,
+            included=getattr(r, "included", True) if r is not None else False,
+            is_bundle=True,
+        ))
+    return out
 
 
 @router.patch("/{shop_id}/price-panels/{panel_id}/items/{product_id}", response_model=PricePanelItemResponse)
@@ -150,14 +176,69 @@ def set_item_price(
             item.included = body.included
     else:
         item = PricePanelItem(panel_id=panel_id, product_id=product_id, price=body.price)
+        if body.short_name is not None:
+            item.short_name = body.short_name if body.short_name.strip() else None
+        if body.included is not None:
+            item.included = body.included
         db.add(item)
     db.commit()
     return PricePanelItemResponse(
+        kind="product",
         product_id=product.id,
+        bundle_id=None,
         product_code=product.product_code,
         product_name=product.name,
         external_price=float(product.external_price),
         panel_price=float(item.price) if item.price is not None else None,
         short_name=item.short_name,
         included=getattr(item, 'included', True),
+        is_bundle=False,
+    )
+
+
+@router.patch("/{shop_id}/price-panels/{panel_id}/bundle-items/{bundle_id}", response_model=PricePanelItemResponse)
+def set_bundle_item_price(
+    shop_id: str,
+    panel_id: int,
+    bundle_id: int,
+    body: PricePanelItemPatch,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
+):
+    """Same semantics as set_item_price but for a bundle row in this panel."""
+    _get_panel_or_404(db, shop_id, panel_id)
+    bundle = db.query(ProductBundle).filter(
+        ProductBundle.id == bundle_id, ProductBundle.shop_id == shop_id
+    ).first()
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    item = db.query(PricePanelItem).filter(
+        PricePanelItem.panel_id == panel_id,
+        PricePanelItem.bundle_id == bundle_id,
+    ).first()
+    if item:
+        item.price = body.price
+        if body.short_name is not None:
+            item.short_name = body.short_name if body.short_name.strip() else None
+        if body.included is not None:
+            item.included = body.included
+    else:
+        item = PricePanelItem(panel_id=panel_id, bundle_id=bundle_id, price=body.price)
+        if body.short_name is not None:
+            item.short_name = body.short_name if body.short_name.strip() else None
+        if body.included is not None:
+            item.included = body.included
+        db.add(item)
+    db.commit()
+    return PricePanelItemResponse(
+        kind="bundle",
+        product_id=bundle.id,
+        bundle_id=bundle.id,
+        product_code=bundle.bundle_code,
+        product_name=bundle.name,
+        external_price=float(bundle.external_price),
+        panel_price=float(item.price) if item.price is not None else None,
+        short_name=item.short_name,
+        included=getattr(item, 'included', True),
+        is_bundle=True,
     )

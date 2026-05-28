@@ -14,13 +14,19 @@ class PricePanelUpdate(BaseModel):
 
 
 class PricePanelItemResponse(BaseModel):
+    # Discriminator: "product" for ShopProduct rows, "bundle" for ProductBundle.
+    kind: str = "product"
+    # product_id stays as the stable per-row key the frontend already uses.
+    # For bundle rows it carries the bundle's id and bundle_id mirrors it.
     product_id: int
+    bundle_id: Optional[int] = None
     product_code: str
     product_name: str
     external_price: float
     panel_price: Optional[float] = None  # null = not set
     short_name: Optional[str] = None
     included: bool = True
+    is_bundle: bool = False
 
     class Config:
         from_attributes = True

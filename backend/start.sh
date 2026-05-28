@@ -615,6 +615,16 @@ run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
 run('CREATE INDEX IF NOT EXISTS ix_return_requests_bundle_id ON return_requests(bundle_id)',
     'return_requests idx bundle_id')
 
+# === Price panels can now reference bundles too (polymorphic row: exactly
+#     one of product_id / bundle_id is set). product_id becomes nullable so
+#     bundle-only rows are legal. ===
+run('ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER REFERENCES product_bundles(id) ON DELETE CASCADE',
+    'price_panel_items.bundle_id')
+run('ALTER TABLE price_panel_items ALTER COLUMN product_id DROP NOT NULL',
+    'price_panel_items.product_id nullable')
+run('CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id ON price_panel_items(bundle_id)',
+    'price_panel_items idx bundle_id')
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),
@@ -663,6 +673,7 @@ required_cols = [
     ('shop_movements', 'reverses_id'),
     ('shop_movements', 'reversed_by_id'),
     ('return_requests', 'bundle_id'),
+    ('price_panel_items', 'bundle_id'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',

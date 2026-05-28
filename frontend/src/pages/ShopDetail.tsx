@@ -57,13 +57,20 @@ interface PricePanel {
 }
 
 interface PricePanelItem {
+  // Discriminator: "product" for shop SKUs, "bundle" for ProductBundle rows.
+  // Both share the same row shape — only kind / is_bundle differ.
+  kind?: "product" | "bundle";
+  // For bundle rows product_id is reused as a stable key on the frontend and
+  // carries the bundle id; bundle_id mirrors it so PATCH routing is explicit.
   product_id: number;
+  bundle_id?: number | null;
   product_code: string;
   product_name: string;
   external_price: number;
   panel_price: number | null;
   short_name: string | null;
   included: boolean;
+  is_bundle?: boolean;
 }
 
 interface BaseProduct {
@@ -375,6 +382,18 @@ const ShopDetail = () => {
     }
   };
 
+  // Resolve the PATCH path for a panel row. Bundle rows go to
+  // /bundle-items/{bundle_id}, product rows to /items/{product_id}. The lookup
+  // walks the row list because the handlers only know the per-row key
+  // (which is product_id for products and bundle_id for bundles).
+  const itemPatchPath = (panelId: number, rowKey: number): string => {
+    const row = (panelItems[panelId] ?? []).find((i) => i.product_id === rowKey);
+    if (row?.is_bundle) {
+      return `/shops/${shopId}/price-panels/${panelId}/bundle-items/${row.bundle_id ?? rowKey}`;
+    }
+    return `/shops/${shopId}/price-panels/${panelId}/items/${rowKey}`;
+  };
+
   const handleCellBlur = async (panelId: number, productId: number) => {
     if (!shopId) return;
     const rawValue = cellDrafts[panelId]?.[productId] ?? "";
@@ -382,7 +401,7 @@ const ShopDetail = () => {
     const price = trimmed === "" ? null : parseFloat(trimmed);
     if (trimmed !== "" && (isNaN(price!) || price! < 0)) return;
     try {
-      await api.patch(`/shops/${shopId}/price-panels/${panelId}/items/${productId}`, { price });
+      await api.patch(itemPatchPath(panelId, productId), { price });
       // Update local state
       setPanelItems((prev) => ({
         ...prev,
@@ -399,7 +418,7 @@ const ShopDetail = () => {
     if (!shopId) return;
     const val = shortNameDrafts[panelId]?.[productId] ?? "";
     try {
-      await api.patch(`/shops/${shopId}/price-panels/${panelId}/items/${productId}`, {
+      await api.patch(itemPatchPath(panelId, productId), {
         short_name: val.trim() || null,
       });
       setPanelItems((prev) => ({
@@ -417,7 +436,7 @@ const ShopDetail = () => {
     if (!shopId) return;
     const newVal = !currentIncluded;
     try {
-      await api.patch(`/shops/${shopId}/price-panels/${panelId}/items/${productId}`, {
+      await api.patch(itemPatchPath(panelId, productId), {
         included: newVal,
       });
       setPanelItems((prev) => ({
@@ -803,10 +822,13 @@ const ShopDetail = () => {
                             <>
                               {/* Toolbar: in-panel filter (only when there's
                                   something to filter) + "+ Add Product"
-                                  popover that searches the catalogue. */}
+                                  popover that searches the catalogue. Order is
+                                  always [filter/hint, Add button] kept on the
+                                  left so the Add button doesn't jump positions
+                                  when the panel goes from empty to populated. */}
                               <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
                                 {includedItems.length > 0 ? (
-                                  <div className="relative flex-1 max-w-sm">
+                                  <div className="relative w-full max-w-sm">
                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                     <Input
                                       placeholder="Filter products in this panel…"
@@ -817,11 +839,7 @@ const ShopDetail = () => {
                                       className="h-8 pl-7 text-sm"
                                     />
                                   </div>
-                                ) : (
-                                  <p className="flex-1 text-xs text-muted-foreground">
-                                    Use "Add Product" to search the catalogue and add items to this panel.
-                                  </p>
-                                )}
+                                ) : null}
                                 <Popover
                                   open={!!addPopoverOpen[panel.id]}
                                   onOpenChange={(open) => {
@@ -861,7 +879,7 @@ const ShopDetail = () => {
                                       ) : (
                                         <ul className="divide-y">
                                           {addCandidates.map((it) => (
-                                            <li key={it.product_id}>
+                                            <li key={`${it.is_bundle ? "b" : "p"}-${it.product_id}`}>
                                               <button
                                                 type="button"
                                                 onClick={() => {
@@ -871,7 +889,12 @@ const ShopDetail = () => {
                                                 className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-muted transition"
                                               >
                                                 <span className="flex-1 min-w-0">
-                                                  <span className="block text-sm font-medium truncate">{it.product_name}</span>
+                                                  <span className="flex items-center gap-1.5">
+                                                    <span className="block text-sm font-medium truncate">{it.product_name}</span>
+                                                    {it.is_bundle && (
+                                                      <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-bold text-violet-700 border border-violet-300 shrink-0">SET</span>
+                                                    )}
+                                                  </span>
                                                   <span className="block text-xs font-mono text-muted-foreground">{it.product_code}</span>
                                                 </span>
                                                 <span className="text-xs tabular-nums text-muted-foreground">
@@ -915,12 +938,17 @@ const ShopDetail = () => {
                                       const differs = panelFloat != null && panelFloat !== item.external_price;
                                       const snDraftVal = shortNameDrafts[panel.id]?.[item.product_id] ?? "";
                                       return (
-                                        <TableRow key={item.product_id}>
+                                        <TableRow key={`${item.is_bundle ? "b" : "p"}-${item.product_id}`}>
                                           <TableCell className="font-mono text-xs text-muted-foreground">
                                             {item.product_code}
                                           </TableCell>
                                           <TableCell className="text-sm font-medium">
-                                            {item.product_name}
+                                            <span className="inline-flex items-center gap-1.5">
+                                              {item.product_name}
+                                              {item.is_bundle && (
+                                                <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-bold text-violet-700 border border-violet-300 shrink-0">SET</span>
+                                              )}
+                                            </span>
                                           </TableCell>
                                           <TableCell>
                                             <Input
