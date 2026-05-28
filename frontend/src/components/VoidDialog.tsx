@@ -85,7 +85,7 @@ export function VoidDialog({
   total,
   onConfirmed,
 }: VoidDialogProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [step,       setStep]       = useState<Step>("review");
   const [reason,     setReason]     = useState("");
@@ -167,7 +167,33 @@ export function VoidDialog({
   const printVoidSlip = () => {
     if (!voidResult) return;
 
-    const voidedAtFormatted = new Date(voidResult.voidedAt).toLocaleString("th-TH", {
+    const isEn = i18n.language.startsWith("en");
+    const locale = isEn ? "en-US" : "th-TH";
+    const lbl = isEn
+      ? {
+          subtitle: "Void Receipt",
+          receiptNo: "Receipt #",
+          voidedAt: "Voided at",
+          reason: "Reason",
+          voidedItems: "Voided items",
+          voidTotal: "Total voided",
+          printedAt: "Printed at",
+          internalOnly: "This document is for internal verification only",
+          piece: t("store.pieces", "pcs"),
+        }
+      : {
+          subtitle: "ใบยกเลิกบิล",
+          receiptNo: "เลขที่ใบเสร็จ",
+          voidedAt: "วันเวลาที่ void",
+          reason: "เหตุผล",
+          voidedItems: "รายการที่ยกเลิก",
+          voidTotal: "ยอดรวมที่ void",
+          printedAt: "พิมพ์เมื่อ",
+          internalOnly: "เอกสารนี้ใช้เพื่อตรวจสอบภายในเท่านั้น",
+          piece: t("store.pieces", "ชิ้น"),
+        };
+
+    const voidedAtFormatted = new Date(voidResult.voidedAt).toLocaleString(locale, {
       day: "2-digit",
       month: "short",
       year: "2-digit",
@@ -187,16 +213,16 @@ export function VoidDialog({
             <td style="text-align:right;padding:2px 0">฿${(item.unitPrice * item.quantity).toLocaleString()}</td>
           </tr>
           <tr>
-            <td colspan="3" style="font-size:10px;color:#555;padding-bottom:4px">${item.barcode} · ฿${item.unitPrice.toLocaleString()} / ${t("store.pieces", "ชิ้น")}</td>
+            <td colspan="3" style="font-size:10px;color:#555;padding-bottom:4px">${item.barcode} · ฿${item.unitPrice.toLocaleString()} / ${lbl.piece}</td>
           </tr>`
       )
       .join("");
 
     const html = `<!DOCTYPE html>
-<html lang="th">
+<html lang="${isEn ? "en" : "th"}">
 <head>
   <meta charset="UTF-8" />
-  <title>Void Receipt</title>
+  <title>${lbl.subtitle}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -231,41 +257,41 @@ export function VoidDialog({
   <div class="title-block center">
     <div class="bold" style="font-size:13px">ISB SCHOOL STORE</div>
     <div class="void-badge">VOID RECEIPT</div>
-    <div style="font-size:11px">ใบยกเลิกบิล</div>
+    <div style="font-size:11px">${lbl.subtitle}</div>
   </div>
 
   <div class="divider"></div>
 
   <table>
     <tr>
-      <td>เลขที่ใบเสร็จ</td>
+      <td>${lbl.receiptNo}</td>
       <td style="text-align:right" class="bold">${voidResult.receiptNumber}</td>
     </tr>
     <tr>
-      <td>วันเวลาที่ void</td>
+      <td>${lbl.voidedAt}</td>
       <td style="text-align:right">${voidedAtFormatted}</td>
     </tr>
     <tr>
-      <td>เหตุผล</td>
+      <td>${lbl.reason}</td>
       <td style="text-align:right">${reasonLabel}</td>
     </tr>
   </table>
 
   <div class="divider"></div>
 
-  <div class="bold" style="margin-bottom:4px">รายการที่ยกเลิก</div>
+  <div class="bold" style="margin-bottom:4px">${lbl.voidedItems}</div>
   <table>
     ${itemRows}
     <tr class="total-row">
-      <td colspan="2">ยอดรวมที่ void</td>
+      <td colspan="2">${lbl.voidTotal}</td>
       <td style="text-align:right">฿${total.toLocaleString()}</td>
     </tr>
   </table>
 
   <div class="divider"></div>
   <div class="center" style="font-size:10px;color:#555;margin-top:4px">
-    พิมพ์เมื่อ: ${new Date().toLocaleString("th-TH")}<br/>
-    เอกสารนี้ใช้เพื่อตรวจสอบภายในเท่านั้น
+    ${lbl.printedAt}: ${new Date().toLocaleString(locale)}<br/>
+    ${lbl.internalOnly}
   </div>
 </body>
 </html>`;

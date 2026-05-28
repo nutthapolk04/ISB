@@ -106,7 +106,7 @@ interface ReceiptApi {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const PAYMENT_LABELS: Record<string, string> = {
+const PAYMENT_LABELS_TH: Record<string, string> = {
   cash: "เงินสด",
   credit_card: "บัตรเครดิต",
   debit_card: "บัตรเดบิต",
@@ -115,13 +115,76 @@ const PAYMENT_LABELS: Record<string, string> = {
   qr: "QR PromptPay",
   qr_promptpay: "QR PromptPay",
   edc: "EDC (บัตรเครดิต/เดบิต)",
+  department: "หักจากงบแผนก",
   other: "อื่นๆ",
 };
 
-function fmtDate(iso: string): string {
+const PAYMENT_LABELS_EN: Record<string, string> = {
+  cash: "Cash",
+  credit_card: "Credit Card",
+  debit_card: "Debit Card",
+  wallet: "Wallet",
+  bank_transfer: "Bank Transfer",
+  qr: "QR PromptPay",
+  qr_promptpay: "QR PromptPay",
+  edc: "EDC (Credit/Debit Card)",
+  department: "Budget Deduction",
+  other: "Other",
+};
+
+const RECEIPT_LABELS = {
+  th: {
+    htmlLang: "th",
+    locale: "th-TH",
+    title: "ใบเสร็จ",
+    subtitle: "ใบเสร็จรับเงิน / Receipt",
+    receiptNo: "เลขที่",
+    date: "วันที่",
+    payer: "ผู้ชำระ",
+    payment: "ชำระด้วย",
+    itemDiscount: "ส่วนลด",
+    billDiscount: "ส่วนลดท้ายบิล",
+    tax: "ภาษี",
+    subtotal: "ยอดรวม",
+    grandTotal: "รวมสุทธิ",
+    balanceBefore: "ยอดก่อนชำระ",
+    balanceAfter: "ยอดคงเหลือ",
+    voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
+    thanks: "ขอบคุณที่ใช้บริการ / Thank you",
+    taxId: "เลขภาษี",
+    tel: "โทร",
+    cashReceived: "รับเงินสด",
+    change: "เงินทอน",
+  },
+  en: {
+    htmlLang: "en",
+    locale: "en-US",
+    title: "Receipt",
+    subtitle: "Sales Receipt",
+    receiptNo: "Receipt #",
+    date: "Date",
+    payer: "Payer",
+    payment: "Payment",
+    itemDiscount: "Discount",
+    billDiscount: "Bill Discount",
+    tax: "Tax",
+    subtotal: "Subtotal",
+    grandTotal: "Grand Total",
+    balanceBefore: "Balance before",
+    balanceAfter: "Balance after",
+    voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
+    thanks: "Thank you for your purchase",
+    taxId: "Tax ID",
+    tel: "Tel",
+    cashReceived: "Cash received",
+    change: "Change",
+  },
+};
+
+function fmtDate(iso: string, locale: string = "th-TH"): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+    return d.toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
   } catch {
     return iso;
   }
@@ -147,22 +210,11 @@ const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
 
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 
-const PAYMENT_LABELS_EN: Record<string, string> = {
-  cash: "Cash",
-  wallet: "Wallet",
-  credit_card: "Credit Card",
-  debit_card: "Debit Card",
-  bank_transfer: "Bank Transfer",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
-  edc: "EDC",
-  department: "Budget Deduction",
-  other: "Other",
-};
-
-function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string | null): string {
-  const paymentLabel = PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method;
-  const dateStr = new Date(r.transaction_date).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" });
+function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string | null, lang: string = "th"): string {
+  const isEn = lang.startsWith("en");
+  const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
+  const paymentMap = isEn ? PAYMENT_LABELS_EN : PAYMENT_LABELS_TH;
+  const paymentLabel = paymentMap[r.payment_method] ?? r.payment_method;
   const itemRows = r.items.map((item) => {
     const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
     const isBundle = opts?.is_bundle === true;
@@ -178,7 +230,7 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
         ).join("")
       : "";
     const discountLine = item.discount > 0
-      ? `<div class="row disc"><span>Discount</span><span>-฿${item.discount.toLocaleString()}</span></div>`
+      ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
       : "";
     return `
       <div class="row">
@@ -190,31 +242,31 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   }).join("");
 
   const discountSection = r.discount > 0
-    ? `<div class="row small"><span>Bill Discount</span><span>-฿${r.discount.toLocaleString()}</span></div>`
+    ? `<div class="row small"><span>${lbl.billDiscount}</span><span>-฿${r.discount.toLocaleString()}</span></div>`
     : "";
   const taxSection = r.tax > 0
-    ? `<div class="row small"><span>Tax</span><span>฿${r.tax.toLocaleString()}</span></div>`
+    ? `<div class="row small"><span>${lbl.tax}</span><span>฿${r.tax.toLocaleString()}</span></div>`
     : "";
   const payerSection = r.payer_label
-    ? `<div class="row small"><span>Payer</span><span>${r.payer_label}</span></div>`
+    ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
   const voidedSection = r.status !== "active"
-    ? `<div class="voided">*** THIS RECEIPT HAS BEEN VOIDED ***</div>`
+    ? `<div class="voided">${lbl.voided}</div>`
     : "";
 
   const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;
   const balanceBeforeSection =
     r.payment_method === "wallet" && walletBalanceAfter !== null
-      ? `<div class="row small"><span>Balance Before</span><span>฿${(walletBalanceAfter + r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>`
+      ? `<div class="row small"><span>${lbl.balanceBefore}</span><span>฿${(walletBalanceAfter + r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
       : "";
   const balanceAfterSection =
     r.payment_method === "wallet" && walletBalanceAfter !== null
-      ? `<div class="row balance-after"><span>Balance After</span><span>฿${walletBalanceAfter.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>`
+      ? `<div class="row balance-after"><span>${lbl.balanceAfter}</span><span>฿${walletBalanceAfter.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
       : "";
   const cashSection =
     r.payment_method === "cash" && r.cash_received != null
-      ? `<div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
-         <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>`
+      ? `<div class="row small"><span>${lbl.cashReceived}</span><span>฿${Number(r.cash_received).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>
+         <div class="row small" style="font-weight:bold;color:#059669"><span>${lbl.change}</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
       : "";
 
   const shopLine = shopName
@@ -227,14 +279,14 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
     ? `<p class="sub">${school.address}</p>`
     : "";
   const taxPhoneLine = (school.taxId || school.phone)
-    ? `<p class="sub">${school.taxId ? `Tax ID: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `Tel: ${school.phone}` : ""}</p>`
+    ? `<p class="sub">${school.taxId ? `${lbl.taxId}: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `${lbl.tel}: ${school.phone}` : ""}</p>`
     : "";
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${lbl.htmlLang}">
 <head>
 <meta charset="UTF-8" />
-<title>Receipt ${r.receipt_number}</title>
+<title>${lbl.title} ${r.receipt_number}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Courier New', monospace; font-size: 12px;
@@ -262,33 +314,33 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   ${addressLine}
   ${taxPhoneLine}
   ${shopLine}
-  <p class="sub">Receipt</p>
+  <p class="sub">${lbl.subtitle}</p>
   ${voidedSection}
   <hr/>
-  <div class="row"><span>Receipt No.</span><span>${r.receipt_number}</span></div>
-  <div class="row small"><span>Date</span><span>${dateStr}</span></div>
+  <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
+  <div class="row small"><span>${lbl.date}</span><span>${fmtDate(r.transaction_date, lbl.locale)}</span></div>
   ${payerSection}
-  <div class="row small"><span>Payment</span><span>${paymentLabel}</span></div>
+  <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
   <hr/>
   ${itemRows}
   <hr/>
   ${balanceBeforeSection}
-  <div class="row small"><span>Subtotal</span><span>฿${r.subtotal.toLocaleString()}</span></div>
+  <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}
   ${taxSection}
-  <div class="row total"><span>Grand Total</span><span>฿${r.total.toLocaleString()}</span></div>
+  <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
   ${balanceAfterSection}
   ${cashSection ? `<hr/>${cashSection}` : ""}
   <hr/>
-  <p class="center sub">Thank you for your purchase</p>
+  <p class="center sub">${lbl.thanks}</p>
 </body>
 </html>`;
 }
 
-function printReceipt(r: ReceiptApi, school: SchoolInfo, shopName?: string | null): void {
+function printReceipt(r: ReceiptApi, school: SchoolInfo, shopName?: string | null, lang: string = "th"): void {
   const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;
-  win.document.write(buildReceiptHtml(r, school, shopName));
+  win.document.write(buildReceiptHtml(r, school, shopName, lang));
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); win.close(); }, 300);
@@ -297,7 +349,7 @@ function printReceipt(r: ReceiptApi, school: SchoolInfo, shopName?: string | nul
 // ── Component ────────────────────────────────────────────────────────────────
 
 const Receipts = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { pathname } = useLocation();
   const schoolInfo = useSchoolInfo();
@@ -1110,7 +1162,7 @@ const Receipts = () => {
                   </div>
                 </div>
               )}
-              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName)}>
+              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName, i18n.language)}>
                 <Download className="h-4 w-4 mr-2" />
                 {t("receipts.download")}
               </Button>
