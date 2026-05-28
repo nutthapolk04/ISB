@@ -7,9 +7,11 @@ DELETE /api/v1/shops/{shop_id}/price-panels/{panel_id}             — delete pa
 GET    /api/v1/shops/{shop_id}/price-panels/{panel_id}/items       — list every shop product joined with panel rows (included=false for products without a row)
 PATCH  /api/v1/shops/{shop_id}/price-panels/{panel_id}/items/{product_id} — set price / add / remove product (auto-save, upserts row)
 """
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.api.deps import get_current_user, require_role
@@ -21,6 +23,8 @@ from app.schemas.price_panel import (
     PricePanelCreate, PricePanelUpdate, PricePanelResponse,
     PricePanelItemResponse, PricePanelItemPatch,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -88,6 +92,21 @@ def delete_panel(
     db.commit()
 
 
+def _has_bundle_id_column(db: Session) -> bool:
+    """Schema patches run via start.sh, but a failed/queued deploy can leave
+    the bundle_id column missing on production. Detect that explicitly so the
+    endpoint can fall back to the product-only path with a clean 200 instead
+    of crashing the whole query with a 500 the browser can't read past CORS."""
+    try:
+        row = db.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'price_panel_items' AND column_name = 'bundle_id'"
+        )).first()
+        return row is not None
+    except Exception:
+        return False
+
+
 @router.get("/{shop_id}/price-panels/{panel_id}/items", response_model=List[PricePanelItemResponse])
 def get_panel_items(
     shop_id: str,
@@ -102,17 +121,54 @@ def get_panel_items(
         .order_by(ShopProduct.sort_order, ShopProduct.id)
         .all()
     )
-    bundles = (
-        db.query(ProductBundle)
-        .filter(ProductBundle.shop_id == shop_id, ProductBundle.is_active == True)
-        .order_by(ProductBundle.sort_order, ProductBundle.id)
-        .all()
-    )
+
+    bundle_id_available = _has_bundle_id_column(db)
+    if bundle_id_available:
+        bundles = (
+            db.query(ProductBundle)
+            .filter(ProductBundle.shop_id == shop_id, ProductBundle.is_active == True)
+            .order_by(ProductBundle.sort_order, ProductBundle.id)
+            .all()
+        )
+    else:
+        # Production schema not yet patched — log and proceed as products-only
+        # so the panel still loads. Bundles will show up once the deploy
+        # finishes (or once the patch is re-run).
+        logger.warning(
+            "price_panel_items.bundle_id missing — falling back to product-only response for panel %s",
+            panel_id,
+        )
+        bundles = []
+
     # Build separate lookup maps so a panel row never collides between a
     # product id and a bundle id that happen to share the same number.
-    rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
-    product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
-    bundle_item_map = {r.bundle_id: r for r in rows if r.bundle_id is not None}
+    # Use raw SQL when bundle_id column doesn't exist yet — going through the
+    # ORM here would SELECT bundle_id and explode with a "column does not
+    # exist" error that browsers swallow behind CORS.
+    if bundle_id_available:
+        rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
+        product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+        bundle_item_map = {r.bundle_id: r for r in rows if r.bundle_id is not None}
+    else:
+        raw_rows = db.execute(
+            text(
+                "SELECT product_id, price, short_name, included "
+                "FROM price_panel_items WHERE panel_id = :pid"
+            ),
+            {"pid": panel_id},
+        ).fetchall()
+
+        class _RowStub:
+            def __init__(self, product_id, price, short_name, included):
+                self.product_id = product_id
+                self.price = price
+                self.short_name = short_name
+                self.included = included
+
+        product_item_map = {
+            r[0]: _RowStub(r[0], r[1], r[2], r[3]) for r in raw_rows if r[0] is not None
+        }
+        bundle_item_map = {}
 
     out: list[PricePanelItemResponse] = []
     # Newly created panels start empty: rows that don't exist mean included=False
@@ -164,10 +220,25 @@ def set_item_price(
     product = db.query(ShopProduct).filter(ShopProduct.id == product_id, ShopProduct.shop_id == shop_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    item = db.query(PricePanelItem).filter(
-        PricePanelItem.panel_id == panel_id,
-        PricePanelItem.product_id == product_id,
-    ).first()
+    # If the bundle_id column is missing in DB the ORM-level SELECT below would
+    # blow up. Defer it in that case so the SELECT only touches columns that
+    # are guaranteed to exist.
+    if _has_bundle_id_column(db):
+        item = db.query(PricePanelItem).filter(
+            PricePanelItem.panel_id == panel_id,
+            PricePanelItem.product_id == product_id,
+        ).first()
+    else:
+        from sqlalchemy.orm import defer
+        item = (
+            db.query(PricePanelItem)
+            .options(defer(PricePanelItem.bundle_id))
+            .filter(
+                PricePanelItem.panel_id == panel_id,
+                PricePanelItem.product_id == product_id,
+            )
+            .first()
+        )
     if item:
         item.price = body.price
         if body.short_name is not None:
