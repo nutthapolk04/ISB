@@ -196,6 +196,9 @@ run('ALTER TABLE receipts ADD COLUMN cash_received NUMERIC(10,2)', 'receipts.cas
 run('ALTER TABLE price_panel_items ADD COLUMN short_name VARCHAR(100)', 'price_panel_items.short_name')
 run('ALTER TABLE price_panel_items ADD COLUMN included BOOLEAN NOT NULL DEFAULT true', 'price_panel_items.included')
 
+# === Shop products: short name (for Base panel display in POS) ===
+run('ALTER TABLE shop_products ADD COLUMN short_name VARCHAR(100)', 'shop_products.short_name')
+
 # === P4: Shop functional module (canteen vs store) ===
 run(\"ALTER TABLE shops ADD COLUMN module VARCHAR(20) NOT NULL DEFAULT 'store'\",
     'shops.module')

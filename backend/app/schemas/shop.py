@@ -96,6 +96,7 @@ class ShopProductUpdate(BaseModel):
     photo_url: Optional[str] = None
     color: Optional[str] = None
     uom_id: Optional[int] = None  # Unit of measure ID (0 or null to clear)
+    short_name: Optional[str] = None
 
 
 class ShopProductResponse(BaseModel):
@@ -120,6 +121,7 @@ class ShopProductResponse(BaseModel):
     uom_id: Optional[int] = None
     uom_code: Optional[str] = None
     uom_name: Optional[str] = None
+    short_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

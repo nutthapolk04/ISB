@@ -66,6 +66,14 @@ interface PricePanelItem {
   included: boolean;
 }
 
+interface BaseProduct {
+  id: number;
+  product_code: string;
+  name: string;
+  external_price: number;
+  short_name: string | null;
+}
+
 const PANEL_COLORS = [
   { value: "blue", label: "Blue", class: "bg-blue-500" },
   { value: "green", label: "Green", class: "bg-green-500" },
@@ -223,6 +231,12 @@ const ShopDetail = () => {
   // Track short name edit values: panelId -> productId -> string value
   const [shortNameDrafts, setShortNameDrafts] = useState<Record<number, Record<number, string>>>({});
 
+  // Base panel expand state
+  const [baseExpanded, setBaseExpanded] = useState(false);
+  const [baseProducts, setBaseProducts] = useState<BaseProduct[]>([]);
+  const [baseProductsLoading, setBaseProductsLoading] = useState(false);
+  const [baseShortNameDrafts, setBaseShortNameDrafts] = useState<Record<number, string>>({});
+
   const fetchPanels = useCallback(async () => {
     if (!shopId) return;
     setPanelsLoading(true);
@@ -260,6 +274,38 @@ const ShopDetail = () => {
       setPanelItemsLoading((prev) => ({ ...prev, [panelId]: false }));
     }
   }, [shopId]);
+
+  const fetchBaseProducts = useCallback(async () => {
+    if (!shopId) return;
+    setBaseProductsLoading(true);
+    try {
+      const data = await api.get<BaseProduct[]>(`/shops/${shopId}/products`);
+      const active = data.filter((p: BaseProduct) => true); // all active returned by API
+      setBaseProducts(active);
+      const drafts: Record<number, string> = {};
+      active.forEach((p: BaseProduct) => { drafts[p.id] = p.short_name ?? ""; });
+      setBaseShortNameDrafts(drafts);
+    } catch {
+      toast.error("Failed to load base products");
+    } finally {
+      setBaseProductsLoading(false);
+    }
+  }, [shopId]);
+
+  const handleBaseShortNameBlur = async (productId: number) => {
+    if (!shopId) return;
+    const val = baseShortNameDrafts[productId] ?? "";
+    try {
+      await api.patch(`/shops/${shopId}/products/${productId}`, {
+        short_name: val.trim() || null,
+      });
+      setBaseProducts((prev) =>
+        prev.map((p) => p.id === productId ? { ...p, short_name: val.trim() || null } : p)
+      );
+    } catch {
+      toast.error("Failed to save short name");
+    }
+  };
 
   const handleTogglePanel = (panelId: number) => {
     if (expandedPanelId === panelId) {
@@ -611,10 +657,66 @@ const ShopDetail = () => {
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="font-semibold text-sm">ราคาปกติ (Base)</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !baseExpanded;
+                          setBaseExpanded(next);
+                          if (next && baseProducts.length === 0) fetchBaseProducts();
+                        }}
+                        className="flex items-center gap-2 font-semibold text-sm hover:text-primary transition-colors"
+                      >
+                        {baseExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        ราคาปกติ (Base)
+                      </button>
                       <Badge variant="outline" className="text-xs text-muted-foreground">Base</Badge>
                     </div>
                   </div>
+                  {baseExpanded && (
+                    <div className="border-t">
+                      {baseProductsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : baseProducts.length === 0 ? (
+                        <p className="text-center text-sm text-muted-foreground py-6">No products in this shop.</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-28">Code</TableHead>
+                              <TableHead>Product</TableHead>
+                              <TableHead className="w-36">Short Name</TableHead>
+                              <TableHead className="w-32 text-right">Base Price</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseProducts.map((p) => (
+                              <TableRow key={p.id}>
+                                <TableCell className="font-mono text-xs text-muted-foreground">{p.product_code}</TableCell>
+                                <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="text"
+                                    placeholder="—"
+                                    value={baseShortNameDrafts[p.id] ?? ""}
+                                    onChange={(e) =>
+                                      setBaseShortNameDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                                    }
+                                    onBlur={() => handleBaseShortNameBlur(p.id)}
+                                    className="h-7 w-32 text-xs"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                                  ฿{p.external_price.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               {panels.map((panel) => (

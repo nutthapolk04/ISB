@@ -127,6 +127,7 @@ class ShopProduct(Base):
     # Per-shop display order. Drag-and-drop in admin/POS bulk-updates these
     # via /shops/{id}/products/reorder; lower number renders first.
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
+    short_name = Column(String(100), nullable=True)  # Display name override for Base panel in POS
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

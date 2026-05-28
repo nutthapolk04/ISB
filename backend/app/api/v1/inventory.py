@@ -89,6 +89,7 @@ def _product_to_response(p: ShopProduct) -> ShopProductResponse:
         uom_id=p.uom_id,
         uom_code=uom.code if uom else None,
         uom_name=uom.name if uom else None,
+        short_name=getattr(p, 'short_name', None),
     )
 
 
@@ -469,7 +470,7 @@ def update_product(
     roles = _effective_roles(current_user)
     if not (roles & {"admin", "manager"}):
         sent = body.model_dump(exclude_unset=True)
-        forbidden = set(sent.keys()) - {"color", "sort_order"}
+        forbidden = set(sent.keys()) - {"color", "sort_order", "short_name"}
         if forbidden:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
