@@ -29,7 +29,11 @@ export function SchoolInfoProvider({ children }: { children: ReactNode }) {
   const [info, setInfo] = useState<SchoolInfo>(DEFAULT);
 
   useEffect(() => {
+    // Try the full admin endpoint first (admin role); fall back to the
+    // public endpoint (no auth) so managers/cashiers still see the correct
+    // school name and logo even though they can't access /school.
     api.get<Record<string, string>>("/admin/settings/school")
+      .catch(() => api.get<Record<string, string>>("/admin/settings/public"))
       .then((d) => {
         setInfo({
           name:     d.school_name     || DEFAULT.name,

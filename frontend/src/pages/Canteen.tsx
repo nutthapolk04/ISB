@@ -130,6 +130,14 @@ export default function Canteen() {
     });
   };
 
+  const enterReorderMode = async () => {
+    try {
+      const meta = await api.get<{ products_order_version?: number }>(`/shops/${CANTEEN_SHOP_ID}`);
+      if (meta.products_order_version != null) setProductsOrderVersion(meta.products_order_version);
+    } catch { /* use cached version */ }
+    setReorderMode(true);
+  };
+
   const saveReorder = async () => {
     setReorderSaving(true);
     try {
@@ -765,7 +773,7 @@ export default function Canteen() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setReorderMode(true)}
+              onClick={() => void enterReorderMode()}
               className="shrink-0"
             >
               <ArrowUpDown className="h-3 w-3 mr-1" />

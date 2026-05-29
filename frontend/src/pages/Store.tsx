@@ -305,6 +305,18 @@ const Store = () => {
     });
   };
 
+  const enterReorderMode = async () => {
+    const sid = user?.shopId;
+    if (!sid) { setReorderMode(true); return; }
+    try {
+      const meta = await api.get<{ products_order_version?: number }>(`/shops/${sid}`);
+      if (meta.products_order_version != null) {
+        setSortVersions((prev) => ({ ...prev, [sid]: meta.products_order_version! }));
+      }
+    } catch { /* use cached version */ }
+    setReorderMode(true);
+  };
+
   const saveReorder = async () => {
     const sid = user?.shopId;
     if (!sid) return;
@@ -1476,7 +1488,7 @@ const Store = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setReorderMode(true)}
+                  onClick={() => void enterReorderMode()}
                   className="gap-1.5"
                 >
                   <ArrowUpDown className="h-4 w-4" />

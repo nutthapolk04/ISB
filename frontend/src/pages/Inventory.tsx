@@ -304,8 +304,17 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
   const [intakeSearch, setIntakeSearch] = useState("");
   const [intakeCostMode, setIntakeCostMode] = useState<"unit" | "total">("unit");
 
-  // Batch queue
-  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  // Batch queue — persisted in sessionStorage so navigate away/back doesn't lose items
+  const BATCH_KEY = "inventory_batch_queue";
+  const [batchItems, setBatchItems] = useState<BatchItem[]>(() => {
+    try {
+      const saved = sessionStorage.getItem(BATCH_KEY);
+      return saved ? (JSON.parse(saved) as BatchItem[]) : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(BATCH_KEY, JSON.stringify(batchItems)); } catch { /* ignore */ }
+  }, [batchItems]);
 
   // Movement log filters
   const [movTypeFilter, setMovTypeFilter] = useState<MovementType | "all">("all");

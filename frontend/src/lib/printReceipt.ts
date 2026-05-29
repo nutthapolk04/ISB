@@ -251,22 +251,22 @@ export function buildReceiptHtml(
 <title>${isEn ? "Receipt" : "ใบเสร็จ"} ${r.receipt_number}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Sarabun', 'Courier New', monospace; font-size: 12px;
-         width: 80mm; margin: 0 auto; padding: 8px; color: #111; }
-  .logo-wrap { display: flex; justify-content: center; margin-bottom: 4px; }
-  h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
+  body { font-family: 'Sarabun', 'Arial', sans-serif; font-size: 14px;
+         width: 80mm; margin: 0 auto; padding: 10px; color: #000; }
+  .logo-wrap { display: flex; justify-content: center; margin-bottom: 6px; }
+  h1 { text-align: center; font-size: 17px; font-weight: bold; margin-bottom: 3px; }
   .center { text-align: center; }
-  .sub { font-size: 11px; color: #555; text-align: center; margin-bottom: 3px; }
-  hr { border: none; border-top: 1px dashed #888; margin: 6px 0; }
-  .row { display: flex; justify-content: space-between; margin: 2px 0; }
-  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 6px; }
-  .opt { padding-left: 12px; font-size: 11px; color: #666; }
-  .disc { color: #c00; font-size: 11px; }
-  .small { font-size: 11px; color: #555; }
-  .total { font-size: 15px; font-weight: bold; margin-top: 4px; }
-  .balance-after { font-size: 16px; font-weight: bold; color: #1d4ed8; margin-top: 6px; }
+  .sub { font-size: 12px; color: #444; text-align: center; margin-bottom: 3px; }
+  hr { border: none; border-top: 1px dashed #666; margin: 7px 0; }
+  .row { display: flex; justify-content: space-between; margin: 3px 0; font-size: 14px; }
+  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; }
+  .opt { padding-left: 14px; font-size: 12px; color: #555; }
+  .disc { color: #c00; font-size: 13px; }
+  .small { font-size: 13px; color: #444; }
+  .total { font-size: 17px; font-weight: bold; margin-top: 5px; }
+  .balance-after { font-size: 18px; font-weight: bold; color: #1d4ed8; margin-top: 7px; }
   .voided { text-align: center; color: #c00; font-weight: bold;
-             font-size: 13px; margin: 6px 0; border: 1px solid #c00; padding: 3px; }
+             font-size: 14px; margin: 7px 0; border: 2px solid #c00; padding: 4px; }
   @media print { @page { margin: 0; size: 80mm auto; } }
 </style>
 </head>
