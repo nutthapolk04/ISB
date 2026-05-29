@@ -7,6 +7,7 @@ DELETE /api/v1/shops/{shop_id}/price-panels/{panel_id}             — delete pa
 GET    /api/v1/shops/{shop_id}/price-panels/{panel_id}/items       — list every shop product joined with panel rows (included=false for products without a row)
 PATCH  /api/v1/shops/{shop_id}/price-panels/{panel_id}/items/{product_id} — set price / add / remove product (auto-save, upserts row)
 """
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ from app.schemas.price_panel import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _get_panel_or_404(db: Session, shop_id: str, panel_id: int) -> PricePanel:
@@ -192,40 +194,91 @@ def set_item_price(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    item = db.query(PricePanelItem).filter(
-        PricePanelItem.panel_id == panel_id,
-        PricePanelItem.product_id == product_id,
-    ).first()
-    if item:
-        item.price = body.price
-        if body.short_name is not None:
-            item.short_name = body.short_name if body.short_name.strip() else None
-        if body.included is not None:
-            item.included = body.included
-    else:
-        item = PricePanelItem(panel_id=panel_id, product_id=product_id, price=body.price)
-        if body.short_name is not None:
-            item.short_name = body.short_name if body.short_name.strip() else None
-        if body.included is not None:
-            item.included = body.included
-        db.add(item)
-    # Build the response BEFORE commit: SQLAlchemy expires all instance attrs
-    # after commit, so accessing item.included/short_name later would trigger
-    # a refresh SELECT.
-    response = PricePanelItemResponse(
-        kind="product",
-        product_id=product.id,
-        bundle_id=None,
-        product_code=product.product_code,
-        product_name=product.name,
-        external_price=float(product.external_price),
-        panel_price=float(item.price) if item.price is not None else None,
-        short_name=item.short_name,
-        included=item.included if item.included is not None else True,
-        is_bundle=False,
-    )
-    db.commit()
-    return response
+    # Same protection as get_panel_items: if bundle_id column is missing in DB
+    # the ORM will SELECT/INSERT it and crash. Try ORM, on column-missing fall
+    # back to raw-SQL upsert touching only the legacy columns.
+    try:
+        item = db.query(PricePanelItem).filter(
+            PricePanelItem.panel_id == panel_id,
+            PricePanelItem.product_id == product_id,
+        ).first()
+        if item:
+            item.price = body.price
+            if body.short_name is not None:
+                item.short_name = body.short_name if body.short_name.strip() else None
+            if body.included is not None:
+                item.included = body.included
+        else:
+            item = PricePanelItem(panel_id=panel_id, product_id=product_id, price=body.price)
+            if body.short_name is not None:
+                item.short_name = body.short_name if body.short_name.strip() else None
+            if body.included is not None:
+                item.included = body.included
+            db.add(item)
+        # Build response BEFORE commit: commit expires instance attrs which
+        # would trigger a refresh SELECT on bundle_id.
+        response = PricePanelItemResponse(
+            kind="product",
+            product_id=product.id,
+            bundle_id=None,
+            product_code=product.product_code,
+            product_name=product.name,
+            external_price=float(product.external_price),
+            panel_price=float(item.price) if item.price is not None else None,
+            short_name=item.short_name,
+            included=item.included if item.included is not None else True,
+            is_bundle=False,
+        )
+        db.commit()
+        return response
+    except Exception as _orm_err:
+        if "bundle_id" not in str(_orm_err):
+            raise
+        db.rollback()
+        normalised_short = (
+            body.short_name.strip() if body.short_name and body.short_name.strip() else None
+        ) if body.short_name is not None else None
+        existing = db.execute(
+            text(
+                "SELECT id, price, short_name, included FROM price_panel_items "
+                "WHERE panel_id = :pid AND product_id = :prid"
+            ),
+            {"pid": panel_id, "prid": product_id},
+        ).first()
+        if existing:
+            final_short = normalised_short if body.short_name is not None else existing[2]
+            final_included = body.included if body.included is not None else existing[3]
+            db.execute(
+                text(
+                    "UPDATE price_panel_items SET price = :price, "
+                    "short_name = :sn, included = :inc WHERE id = :rid"
+                ),
+                {"price": body.price, "sn": final_short,
+                 "inc": final_included, "rid": existing[0]},
+            )
+        else:
+            final_included = body.included if body.included is not None else True
+            db.execute(
+                text(
+                    "INSERT INTO price_panel_items (panel_id, product_id, price, short_name, included) "
+                    "VALUES (:pid, :prid, :price, :sn, :inc)"
+                ),
+                {"pid": panel_id, "prid": product_id, "price": body.price,
+                 "sn": normalised_short, "inc": final_included},
+            )
+        db.commit()
+        return PricePanelItemResponse(
+            kind="product",
+            product_id=product.id,
+            bundle_id=None,
+            product_code=product.product_code,
+            product_name=product.name,
+            external_price=float(product.external_price),
+            panel_price=float(body.price) if body.price is not None else None,
+            short_name=normalised_short,
+            included=final_included if final_included is not None else True,
+            is_bundle=False,
+        )
 
 
 @router.patch("/{shop_id}/price-panels/{panel_id}/bundle-items/{bundle_id}", response_model=PricePanelItemResponse)
@@ -244,35 +297,57 @@ def set_bundle_item_price(
     ).first()
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found")
-    item = db.query(PricePanelItem).filter(
-        PricePanelItem.panel_id == panel_id,
-        PricePanelItem.bundle_id == bundle_id,
-    ).first()
-    if item:
-        item.price = body.price
-        if body.short_name is not None:
-            item.short_name = body.short_name if body.short_name.strip() else None
-        if body.included is not None:
-            item.included = body.included
-    else:
-        item = PricePanelItem(panel_id=panel_id, bundle_id=bundle_id, price=body.price)
-        if body.short_name is not None:
-            item.short_name = body.short_name if body.short_name.strip() else None
-        if body.included is not None:
-            item.included = body.included
-        db.add(item)
-    # Build response BEFORE commit — see comment in set_item_price.
-    response = PricePanelItemResponse(
-        kind="bundle",
-        product_id=bundle.id,
-        bundle_id=bundle.id,
-        product_code=bundle.bundle_code,
-        product_name=bundle.name,
-        external_price=float(bundle.external_price),
-        panel_price=float(item.price) if item.price is not None else None,
-        short_name=item.short_name,
-        included=item.included if item.included is not None else True,
-        is_bundle=True,
-    )
-    db.commit()
-    return response
+
+    # Bundle rows require the bundle_id column. If the live DB hasn't received
+    # the schema patch yet, every ORM write here would 500. Return a clear 503
+    # instead of letting psycopg2 raise UndefinedColumn — the next start.sh
+    # boot will land the column and this branch goes away.
+    try:
+        item = db.query(PricePanelItem).filter(
+            PricePanelItem.panel_id == panel_id,
+            PricePanelItem.bundle_id == bundle_id,
+        ).first()
+        if item:
+            item.price = body.price
+            if body.short_name is not None:
+                item.short_name = body.short_name if body.short_name.strip() else None
+            if body.included is not None:
+                item.included = body.included
+        else:
+            item = PricePanelItem(panel_id=panel_id, bundle_id=bundle_id, price=body.price)
+            if body.short_name is not None:
+                item.short_name = body.short_name if body.short_name.strip() else None
+            if body.included is not None:
+                item.included = body.included
+            db.add(item)
+        response = PricePanelItemResponse(
+            kind="bundle",
+            product_id=bundle.id,
+            bundle_id=bundle.id,
+            product_code=bundle.bundle_code,
+            product_name=bundle.name,
+            external_price=float(bundle.external_price),
+            panel_price=float(item.price) if item.price is not None else None,
+            short_name=item.short_name,
+            included=item.included if item.included is not None else True,
+            is_bundle=True,
+        )
+        db.commit()
+        return response
+    except Exception as _orm_err:
+        if "bundle_id" not in str(_orm_err):
+            raise
+        db.rollback()
+        logger.warning(
+            "bundle_id column missing — cannot persist bundle %s in panel %s; "
+            "deploy needs to apply the schema patch first",
+            bundle_id, panel_id,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Bundle support is being rolled out. The database schema patch "
+                "for this column hasn't shipped yet — please retry after the "
+                "next deploy completes."
+            ),
+        )
