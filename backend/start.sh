@@ -694,6 +694,7 @@ with engine.begin() as conn:
                 'JOIN pg_class r ON r.oid = a.attrelid '
                 'JOIN pg_namespace n ON n.oid = r.relnamespace '
                 'WHERE n.nspname = \'public\' AND r.relname = :t '
+                'AND r.relkind = \'r\' '
                 'AND a.attname = :c AND NOT a.attisdropped'
             ),
             {'t': t, 'c': c},

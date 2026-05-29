@@ -110,12 +110,32 @@ def get_panel_items(
         .all()
     )
 
-    # start.sh guarantees price_panel_items.bundle_id exists before the app boots
-    # (it's in required_cols and the process exits 1 if missing).  No runtime
-    # column-detection needed — just use the ORM directly.
-    rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
-    product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
-    bundle_item_map = {r.bundle_id: r for r in rows if r.bundle_id is not None}
+    # Attempt ORM query; fall back to raw SQL if bundle_id column is not yet
+    # migrated in the live DB (required_cols check should prevent this, but a
+    # stale pg_attribute false positive can still slip through).
+    try:
+        rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
+        product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+        bundle_item_map  = {r.bundle_id:  r for r in rows if r.bundle_id  is not None}
+    except Exception as _orm_err:
+        if "bundle_id" not in str(_orm_err):
+            raise
+        # bundle_id column missing — load only product rows via raw SQL
+        raw = db.execute(
+            text(
+                "SELECT id, panel_id, product_id, price, short_name, included "
+                "FROM price_panel_items WHERE panel_id = :pid"
+            ),
+            {"pid": panel_id},
+        ).fetchall()
+        class _FakeRow:
+            def __init__(self, r):
+                self.product_id = r.product_id; self.bundle_id = None
+                self.price = r.price; self.short_name = r.short_name
+                self.included = r.included
+        rows = [_FakeRow(r) for r in raw]
+        product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+        bundle_item_map  = {}
 
     out: list[PricePanelItemResponse] = []
     # Newly created panels start empty: rows that don't exist mean included=False
