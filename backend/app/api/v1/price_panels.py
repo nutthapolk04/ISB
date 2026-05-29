@@ -7,7 +7,6 @@ DELETE /api/v1/shops/{shop_id}/price-panels/{panel_id}             — delete pa
 GET    /api/v1/shops/{shop_id}/price-panels/{panel_id}/items       — list every shop product joined with panel rows (included=false for products without a row)
 PATCH  /api/v1/shops/{shop_id}/price-panels/{panel_id}/items/{product_id} — set price / add / remove product (auto-save, upserts row)
 """
-import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -23,8 +22,6 @@ from app.schemas.price_panel import (
     PricePanelCreate, PricePanelUpdate, PricePanelResponse,
     PricePanelItemResponse, PricePanelItemPatch,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -92,31 +89,6 @@ def delete_panel(
     db.commit()
 
 
-def _has_bundle_id_column(db: Session) -> bool:
-    """Check if price_panel_items.bundle_id exists.
-
-    Uses pg_attribute (system catalog) instead of information_schema
-    because information_schema results can be affected by search_path /
-    permission settings and has given false negatives in production.
-    Falls back to a live column probe if pg_attribute itself fails.
-    """
-    try:
-        row = db.execute(text(
-            "SELECT 1 FROM pg_attribute "
-            "WHERE attrelid = 'price_panel_items'::regclass "
-            "AND attname = 'bundle_id' AND NOT attisdropped"
-        )).first()
-        return row is not None
-    except Exception:
-        pass
-    # Last-resort probe: try to select the column with a false predicate.
-    try:
-        db.execute(text("SELECT bundle_id FROM price_panel_items WHERE 1=0"))
-        return True
-    except Exception:
-        return False
-
-
 @router.get("/{shop_id}/price-panels/{panel_id}/items", response_model=List[PricePanelItemResponse])
 def get_panel_items(
     shop_id: str,
@@ -131,54 +103,19 @@ def get_panel_items(
         .order_by(ShopProduct.sort_order, ShopProduct.id)
         .all()
     )
+    bundles = (
+        db.query(ProductBundle)
+        .filter(ProductBundle.shop_id == shop_id, ProductBundle.is_active == True)
+        .order_by(ProductBundle.sort_order, ProductBundle.id)
+        .all()
+    )
 
-    bundle_id_available = _has_bundle_id_column(db)
-    if bundle_id_available:
-        bundles = (
-            db.query(ProductBundle)
-            .filter(ProductBundle.shop_id == shop_id, ProductBundle.is_active == True)
-            .order_by(ProductBundle.sort_order, ProductBundle.id)
-            .all()
-        )
-    else:
-        # Production schema not yet patched — log and proceed as products-only
-        # so the panel still loads. Bundles will show up once the deploy
-        # finishes (or once the patch is re-run).
-        logger.warning(
-            "price_panel_items.bundle_id missing — falling back to product-only response for panel %s",
-            panel_id,
-        )
-        bundles = []
-
-    # Build separate lookup maps so a panel row never collides between a
-    # product id and a bundle id that happen to share the same number.
-    # Use raw SQL when bundle_id column doesn't exist yet — going through the
-    # ORM here would SELECT bundle_id and explode with a "column does not
-    # exist" error that browsers swallow behind CORS.
-    if bundle_id_available:
-        rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
-        product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
-        bundle_item_map = {r.bundle_id: r for r in rows if r.bundle_id is not None}
-    else:
-        raw_rows = db.execute(
-            text(
-                "SELECT product_id, price, short_name, included "
-                "FROM price_panel_items WHERE panel_id = :pid"
-            ),
-            {"pid": panel_id},
-        ).fetchall()
-
-        class _RowStub:
-            def __init__(self, product_id, price, short_name, included):
-                self.product_id = product_id
-                self.price = price
-                self.short_name = short_name
-                self.included = included
-
-        product_item_map = {
-            r[0]: _RowStub(r[0], r[1], r[2], r[3]) for r in raw_rows if r[0] is not None
-        }
-        bundle_item_map = {}
+    # start.sh guarantees price_panel_items.bundle_id exists before the app boots
+    # (it's in required_cols and the process exits 1 if missing).  No runtime
+    # column-detection needed — just use the ORM directly.
+    rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
+    product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+    bundle_item_map = {r.bundle_id: r for r in rows if r.bundle_id is not None}
 
     out: list[PricePanelItemResponse] = []
     # Newly created panels start empty: rows that don't exist mean included=False
@@ -231,59 +168,6 @@ def set_item_price(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # When the bundle_id column hasn't shipped yet on this environment, the
-    # ORM would still try to include it in every INSERT/UPDATE because the
-    # model declares it. That blows up with "column does not exist". Run the
-    # upsert as raw SQL on that path so the statement only touches columns
-    # that are guaranteed to exist on every deploy.
-    if not _has_bundle_id_column(db):
-        existing = db.execute(
-            text(
-                "SELECT id, price, short_name, included FROM price_panel_items "
-                "WHERE panel_id = :pid AND product_id = :prid"
-            ),
-            {"pid": panel_id, "prid": product_id},
-        ).first()
-        normalised_short = (
-            body.short_name.strip() if body.short_name and body.short_name.strip() else None
-        ) if body.short_name is not None else (existing[2] if existing else None)
-        new_included = body.included if body.included is not None else (
-            existing[3] if existing else True
-        )
-        new_price = body.price
-        if existing:
-            db.execute(
-                text(
-                    "UPDATE price_panel_items SET price = :price, "
-                    "short_name = :short_name, included = :included WHERE id = :rid"
-                ),
-                {"price": new_price, "short_name": normalised_short,
-                 "included": new_included, "rid": existing[0]},
-            )
-        else:
-            db.execute(
-                text(
-                    "INSERT INTO price_panel_items (panel_id, product_id, price, short_name, included) "
-                    "VALUES (:pid, :prid, :price, :short_name, :included)"
-                ),
-                {"pid": panel_id, "prid": product_id, "price": new_price,
-                 "short_name": normalised_short, "included": new_included},
-            )
-        db.commit()
-        return PricePanelItemResponse(
-            kind="product",
-            product_id=product.id,
-            bundle_id=None,
-            product_code=product.product_code,
-            product_name=product.name,
-            external_price=float(product.external_price),
-            panel_price=float(new_price) if new_price is not None else None,
-            short_name=normalised_short,
-            included=new_included if new_included is not None else True,
-            is_bundle=False,
-        )
-
-    # ── ORM path: bundle_id column exists, full bundle support active ───────
     item = db.query(PricePanelItem).filter(
         PricePanelItem.panel_id == panel_id,
         PricePanelItem.product_id == product_id,
