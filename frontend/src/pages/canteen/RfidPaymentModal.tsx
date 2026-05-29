@@ -592,8 +592,16 @@ export function RfidPaymentModal({
         {stage === "identity" && hasPayer && (
           <div className="space-y-4">
             {/* Identity card — student, user, or department */}
-            <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
+            <div className={cn(
+              "flex gap-4 rounded-2xl border p-4",
+              overLimit
+                ? "border-red-300 bg-gradient-to-br from-red-50 to-rose-50"
+                : "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50",
+            )}>
+              <div className={cn(
+                "h-20 w-20 shrink-0 overflow-hidden rounded-xl ring-2",
+                overLimit ? "bg-red-100 ring-red-400" : "bg-amber-100 ring-amber-300",
+              )}>
                 {payerKind === "department" ? (
                   <div className="flex h-full w-full items-center justify-center text-rose-500">
                     <Building2 className="h-12 w-12" />
@@ -605,7 +613,7 @@ export function RfidPaymentModal({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-amber-400">
+                  <div className={cn("flex h-full w-full items-center justify-center", overLimit ? "text-red-400" : "text-amber-400")}>
                     <UserCircle2 className="h-14 w-14" />
                   </div>
                 )}

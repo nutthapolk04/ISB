@@ -1431,7 +1431,7 @@ const Store = () => {
       <div className="canteen-content">
         {/* Header */}
         <div className="page-header flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <Button
               variant="outline"
               size="sm"
@@ -1498,12 +1498,12 @@ const Store = () => {
                 aria-label={t("pos.autoPrint", "Auto-print")}
               />
             </label>
-            {user?.shopName && (
-              <Badge variant="outline" className="text-sm font-medium px-3 py-1">
-                {user.shopName}
-              </Badge>
-            )}
           </div>
+          {user?.shopName && (
+            <Badge variant="outline" className="text-base font-bold px-4 py-1.5 shrink-0 border-2">
+              {user.shopName}
+            </Badge>
+          )}
         </div>
 
         {/* Search with suggestion dropdown */}

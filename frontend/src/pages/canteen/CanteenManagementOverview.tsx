@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Shop {
   id: string;
@@ -18,11 +19,18 @@ interface Shop {
 export default function CanteenManagementOverview() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const { data: shops = [], isLoading } = useQuery<Shop[]>({
+  const { data: allShops = [], isLoading } = useQuery<Shop[]>({
     queryKey: ["canteen-shops"],
     queryFn: () => api.get<Shop[]>("/shops?module=canteen"),
   });
+
+  // Manager sees only their own shop; admin sees all
+  const shops =
+    user?.role === "admin" ? allShops
+    : user?.shopId ? allShops.filter((s) => s.id === user.shopId)
+    : allShops;
 
   return (
     <div className="page-shell">
