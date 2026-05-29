@@ -459,16 +459,21 @@ const Store = () => {
         await Promise.all(
           panelList.map(async (panel) => {
             try {
-              const items = await api.get<Array<{ product_id: number; panel_price: number | null; short_name: string | null; included: boolean }>>(
+              const items = await api.get<Array<{ product_id: number; panel_price: number | null; short_name: string | null; included: boolean; is_bundle?: boolean }>>(
                 `/shops/${user.shopId}/price-panels/${panel.id}/items`,
               );
               const productMap: Record<number, number> = {};
               const snMap: Record<number, string> = {};
               const includedSet = new Set<number>();
               items.forEach((item) => {
-                if (item.panel_price != null) productMap[item.product_id] = item.panel_price;
-                if (item.short_name) snMap[item.product_id] = item.short_name;
-                if (item.included !== false) includedSet.add(item.product_id);
+                // Bundles live in a negative id space in `allProducts`
+                // (see id: -(b.id) above) so their panel rows must be
+                // mirrored with the same negation, otherwise the POS
+                // filter and the panel-price lookup both miss them.
+                const key = item.is_bundle ? -item.product_id : item.product_id;
+                if (item.panel_price != null) productMap[key] = item.panel_price;
+                if (item.short_name) snMap[key] = item.short_name;
+                if (item.included !== false) includedSet.add(key);
               });
               priceMap[panel.id] = productMap;
               snameMap[panel.id] = snMap;
