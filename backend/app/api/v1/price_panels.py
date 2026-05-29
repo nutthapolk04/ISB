@@ -112,9 +112,11 @@ def get_panel_items(
         .all()
     )
 
-    # Attempt ORM query; fall back to raw SQL if bundle_id column is not yet
-    # migrated in the live DB (required_cols check should prevent this, but a
-    # stale pg_attribute false positive can still slip through).
+    # Self-healing schema bootstrap: try ORM. If bundle_id column is missing
+    # (start.sh patch didn't land, or Railway dropped the patch line past its
+    # 500 logs/sec rate limit), add the column on the fly and retry. This
+    # avoids the "waiting for the next deploy" trap that left managers stuck
+    # in production for hours after the bundle feature shipped.
     bundle_id_available = True
     try:
         rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
@@ -123,27 +125,50 @@ def get_panel_items(
     except Exception as _orm_err:
         if "bundle_id" not in str(_orm_err):
             raise
-        # bundle_id column missing — the failed ORM query left the Postgres
-        # transaction in an aborted state, so we MUST rollback before issuing
-        # the raw-SQL fallback. Without this the next db.execute() raises
-        # InFailedSqlTransaction and the endpoint still 500s.
+        # The failed ORM SELECT aborted the transaction; must rollback first.
         db.rollback()
-        bundle_id_available = False
-        raw = db.execute(
-            text(
-                "SELECT id, panel_id, product_id, price, short_name, included "
-                "FROM price_panel_items WHERE panel_id = :pid"
-            ),
-            {"pid": panel_id},
-        ).fetchall()
-        class _FakeRow:
-            def __init__(self, r):
-                self.product_id = r.product_id; self.bundle_id = None
-                self.price = r.price; self.short_name = r.short_name
-                self.included = r.included
-        rows = [_FakeRow(r) for r in raw]
-        product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
-        bundle_item_map  = {}
+        # Attempt the schema patch directly, then retry the ORM query. The
+        # ALTER and the index are idempotent so re-running them is safe.
+        try:
+            with db.connection().execution_options(isolation_level="AUTOCOMMIT"):
+                db.execute(text(
+                    "ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER"
+                ))
+                db.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id "
+                    "ON price_panel_items(bundle_id)"
+                ))
+            logger.warning(
+                "price_panel_items.bundle_id was missing — added it on the fly"
+            )
+            db.rollback()
+            rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
+            product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+            bundle_item_map  = {r.bundle_id:  r for r in rows if r.bundle_id  is not None}
+        except Exception as _patch_err:
+            # Couldn't add the column (e.g. permission denied) — degrade to
+            # the legacy raw-SQL path so the page at least loads with
+            # products. Bundles stay hidden in this branch.
+            logger.error(
+                "Failed to lazily add price_panel_items.bundle_id: %s", _patch_err
+            )
+            db.rollback()
+            bundle_id_available = False
+            raw = db.execute(
+                text(
+                    "SELECT id, panel_id, product_id, price, short_name, included "
+                    "FROM price_panel_items WHERE panel_id = :pid"
+                ),
+                {"pid": panel_id},
+            ).fetchall()
+            class _FakeRow:
+                def __init__(self, r):
+                    self.product_id = r.product_id; self.bundle_id = None
+                    self.price = r.price; self.short_name = r.short_name
+                    self.included = r.included
+            rows = [_FakeRow(r) for r in raw]
+            product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
+            bundle_item_map  = {}
 
     out: list[PricePanelItemResponse] = []
     # Newly created panels start empty: rows that don't exist mean included=False
