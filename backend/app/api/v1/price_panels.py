@@ -133,9 +133,14 @@ def get_panel_items(
         # don't try to flip isolation_level here, SQLAlchemy refuses once the
         # session has auto-begun a transaction.
         try:
-            from sqlalchemy import bindparam  # noqa: F401 — keep linter happy
             db.execute(text(
                 "ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER"
+            ))
+            # Bundle rows store product_id=NULL, so the legacy NOT NULL on
+            # product_id has to come off too. Idempotent: PG silently no-ops
+            # DROP NOT NULL when the column is already nullable.
+            db.execute(text(
+                "ALTER TABLE price_panel_items ALTER COLUMN product_id DROP NOT NULL"
             ))
             db.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id "
@@ -143,7 +148,7 @@ def get_panel_items(
             ))
             db.commit()
             logger.warning(
-                "price_panel_items.bundle_id was missing — added it on the fly"
+                "price_panel_items.bundle_id/product_id nullable missing — patched on the fly"
             )
             rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
             product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
@@ -379,13 +384,17 @@ def set_bundle_item_price(
             db.execute(text(
                 "ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER"
             ))
+            # product_id must be nullable too — bundle rows leave it NULL.
+            db.execute(text(
+                "ALTER TABLE price_panel_items ALTER COLUMN product_id DROP NOT NULL"
+            ))
             db.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id "
                 "ON price_panel_items(bundle_id)"
             ))
             db.commit()
             logger.warning(
-                "bundle_id column missing — added it on the fly from bundle PATCH"
+                "bundle_id/product_id nullable missing — patched on the fly from bundle PATCH"
             )
         except Exception as _patch_err:
             db.rollback()
