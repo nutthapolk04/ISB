@@ -371,17 +371,65 @@ def set_bundle_item_price(
     except Exception as _orm_err:
         if "bundle_id" not in str(_orm_err):
             raise
+        # Try the same self-healing path as get_panel_items: add the column on
+        # the fly so this very request (and every subsequent one) succeeds
+        # without waiting for another deploy cycle.
         db.rollback()
-        logger.warning(
-            "bundle_id column missing — cannot persist bundle %s in panel %s; "
-            "deploy needs to apply the schema patch first",
-            bundle_id, panel_id,
+        try:
+            db.execute(text(
+                "ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER"
+            ))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id "
+                "ON price_panel_items(bundle_id)"
+            ))
+            db.commit()
+            logger.warning(
+                "bundle_id column missing — added it on the fly from bundle PATCH"
+            )
+        except Exception as _patch_err:
+            db.rollback()
+            logger.error(
+                "Failed to lazily add price_panel_items.bundle_id from bundle PATCH: %s",
+                _patch_err,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Bundle support is being rolled out. The database schema "
+                    "patch for this column hasn't shipped yet — please retry "
+                    "after the next deploy completes."
+                ),
+            )
+        # Column is in now — retry the original upsert via ORM.
+        item = db.query(PricePanelItem).filter(
+            PricePanelItem.panel_id == panel_id,
+            PricePanelItem.bundle_id == bundle_id,
+        ).first()
+        if item:
+            item.price = body.price
+            if body.short_name is not None:
+                item.short_name = body.short_name if body.short_name.strip() else None
+            if body.included is not None:
+                item.included = body.included
+        else:
+            item = PricePanelItem(panel_id=panel_id, bundle_id=bundle_id, price=body.price)
+            if body.short_name is not None:
+                item.short_name = body.short_name if body.short_name.strip() else None
+            if body.included is not None:
+                item.included = body.included
+            db.add(item)
+        response = PricePanelItemResponse(
+            kind="bundle",
+            product_id=bundle.id,
+            bundle_id=bundle.id,
+            product_code=bundle.bundle_code,
+            product_name=bundle.name,
+            external_price=float(bundle.external_price),
+            panel_price=float(item.price) if item.price is not None else None,
+            short_name=item.short_name,
+            included=item.included if item.included is not None else True,
+            is_bundle=True,
         )
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Bundle support is being rolled out. The database schema patch "
-                "for this column hasn't shipped yet — please retry after the "
-                "next deploy completes."
-            ),
-        )
+        db.commit()
+        return response
