@@ -120,7 +120,11 @@ def get_panel_items(
     except Exception as _orm_err:
         if "bundle_id" not in str(_orm_err):
             raise
-        # bundle_id column missing — load only product rows via raw SQL
+        # bundle_id column missing — the failed ORM query left the Postgres
+        # transaction in an aborted state, so we MUST rollback before issuing
+        # the raw-SQL fallback. Without this the next db.execute() raises
+        # InFailedSqlTransaction and the endpoint still 500s.
+        db.rollback()
         raw = db.execute(
             text(
                 "SELECT id, panel_id, product_id, price, short_name, included "

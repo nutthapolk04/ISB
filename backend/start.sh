@@ -618,8 +618,22 @@ run('CREATE INDEX IF NOT EXISTS ix_return_requests_bundle_id ON return_requests(
 # === Price panels can now reference bundles too (polymorphic row: exactly
 #     one of product_id / bundle_id is set). product_id becomes nullable so
 #     bundle-only rows are legal. ===
-run('ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER REFERENCES product_bundles(id) ON DELETE CASCADE',
-    'price_panel_items.bundle_id')
+# Split into TWO ALTERs: add the bare column first so it's guaranteed to land
+# even if the FK reference fails (e.g. transient lock on product_bundles), then
+# attach the FK as a separate idempotent ADD CONSTRAINT. The previous single
+# ALTER … REFERENCES … died silently in run() when the FK couldn't be created,
+# leaving the column missing — which made the runtime ORM 500.
+run('ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
+    'price_panel_items.bundle_id (column only)')
+run(
+    \"DO $$ BEGIN \"
+    \"  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'price_panel_items_bundle_id_fkey') THEN \"
+    \"    ALTER TABLE price_panel_items ADD CONSTRAINT price_panel_items_bundle_id_fkey \"
+    \"      FOREIGN KEY (bundle_id) REFERENCES product_bundles(id) ON DELETE CASCADE; \"
+    \"  END IF; \"
+    \"END $$;\",
+    'price_panel_items.bundle_id (FK)',
+)
 run('ALTER TABLE price_panel_items ALTER COLUMN product_id DROP NOT NULL',
     'price_panel_items.product_id nullable')
 run('CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id ON price_panel_items(bundle_id)',
