@@ -1655,7 +1655,7 @@ const Store = () => {
                 onClick={reorderMode ? undefined : () => addToCart(p)}
                 data-card-color={p.color ? "true" : undefined}
                 className={cn(
-                  "pos-product-tile group relative flex flex-col justify-between rounded-2xl border border-amber-200/60 p-3 text-left transition w-full min-h-[7.5rem]",
+                  "pos-product-tile group relative flex flex-col justify-between rounded-2xl border border-amber-200/60 p-3 text-left transition w-full h-[7.5rem] overflow-hidden",
                   !p.color && !reorderMode && "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/50 hover:border-amber-300",
                   reorderMode && "cursor-default select-none",
                 )}
@@ -1689,7 +1689,7 @@ const Store = () => {
                 <div className={cn(
                   // Top margin pushes the name below the absolute Remaining
                   // badge so long two-line names don't overlap with it.
-                  "line-clamp-2 text-base font-bold leading-tight mt-5",
+                  "line-clamp-2 text-sm font-bold leading-tight mt-5",
                   p.color ? "text-zinc-900" : "text-foreground",
                 )}>
                   {activePanelId != null && panelShortNames[activePanelId]?.[p.id]
@@ -1698,7 +1698,7 @@ const Store = () => {
                 </div>
                 <div className="mt-auto pt-1 flex items-end justify-between">
                   <span className={cn(
-                    "text-lg font-extrabold tabular-nums",
+                    "text-base font-extrabold tabular-nums",
                     p.color ? "text-zinc-900" : "text-primary",
                   )}>฿{displayPrice.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
@@ -1754,7 +1754,9 @@ const Store = () => {
                         </PopoverContent>
                       </Popover>
                     )}
-                    <Badge variant="outline" className="text-[10px] px-1 py-0">{p.category}</Badge>
+                    {!p.isBundle && (
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 max-w-[5rem] truncate">{p.category}</Badge>
+                    )}
                   </div>
                 </div>
               </button>
