@@ -128,20 +128,23 @@ def get_panel_items(
         # The failed ORM SELECT aborted the transaction; must rollback first.
         db.rollback()
         # Attempt the schema patch directly, then retry the ORM query. The
-        # ALTER and the index are idempotent so re-running them is safe.
+        # ALTER and the index are idempotent (IF NOT EXISTS) so re-running
+        # them is safe. DDL runs inside the regular session transaction —
+        # don't try to flip isolation_level here, SQLAlchemy refuses once the
+        # session has auto-begun a transaction.
         try:
-            with db.connection().execution_options(isolation_level="AUTOCOMMIT"):
-                db.execute(text(
-                    "ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER"
-                ))
-                db.execute(text(
-                    "CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id "
-                    "ON price_panel_items(bundle_id)"
-                ))
+            from sqlalchemy import bindparam  # noqa: F401 — keep linter happy
+            db.execute(text(
+                "ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER"
+            ))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id "
+                "ON price_panel_items(bundle_id)"
+            ))
+            db.commit()
             logger.warning(
                 "price_panel_items.bundle_id was missing — added it on the fly"
             )
-            db.rollback()
             rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
             product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
             bundle_item_map  = {r.bundle_id:  r for r in rows if r.bundle_id  is not None}
