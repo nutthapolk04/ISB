@@ -77,41 +77,46 @@ function fmt(n: number | undefined) {
 
 type PaymentMethodKey = "wallet" | "cash" | "qr" | "edc" | "department" | string;
 
-const METHOD_META: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; border: string }> = {
+const METHOD_META: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; border: string; bar: string }> = {
   wallet: {
     label: "Wallet",
-    icon: <Wallet className="h-4 w-4" />,
+    icon: <Wallet className="h-3.5 w-3.5" />,
     color: "text-amber-700",
     bg: "bg-amber-50",
     border: "border-amber-200",
+    bar: "bg-amber-400",
   },
   cash: {
     label: "Cash",
-    icon: <Banknote className="h-4 w-4" />,
+    icon: <Banknote className="h-3.5 w-3.5" />,
     color: "text-green-700",
     bg: "bg-green-50",
     border: "border-green-200",
+    bar: "bg-green-400",
   },
   qr: {
     label: "QR Code",
-    icon: <QrCode className="h-4 w-4" />,
+    icon: <QrCode className="h-3.5 w-3.5" />,
     color: "text-blue-700",
     bg: "bg-blue-50",
     border: "border-blue-200",
+    bar: "bg-blue-400",
   },
   edc: {
     label: "EDC / Card",
-    icon: <CreditCard className="h-4 w-4" />,
+    icon: <CreditCard className="h-3.5 w-3.5" />,
     color: "text-purple-700",
     bg: "bg-purple-50",
     border: "border-purple-200",
+    bar: "bg-purple-400",
   },
   department: {
     label: "Department",
-    icon: <Building2 className="h-4 w-4" />,
+    icon: <Building2 className="h-3.5 w-3.5" />,
     color: "text-indigo-700",
     bg: "bg-indigo-50",
     border: "border-indigo-200",
+    bar: "bg-indigo-400",
   },
 };
 
@@ -302,57 +307,60 @@ export default function ShopDashboard() {
             Payment Channel Breakdown — Today
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-5 space-y-3">
+        <CardContent className="p-4 space-y-3">
           {(paymentData?.rows ?? []).length === 0 ? (
             <p className="text-center text-muted-foreground py-4 text-sm">No transactions today</p>
-          ) : (
-            <>
-              {(paymentData?.rows ?? [])
-                .slice()
-                .sort((a, b) => b.total - a.total)
-                .map((row) => {
-                  const meta = getMethodMeta(row.payment_method);
-                  const pct = grandTotal > 0 ? (row.total / grandTotal) * 100 : 0;
-                  return (
-                    <div
-                      key={row.payment_method}
-                      className={cn("rounded-xl border p-4", meta.bg, meta.border)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={cn("flex items-center gap-2 font-semibold text-sm", meta.color)}>
+          ) : (() => {
+            const sorted = [...(paymentData?.rows ?? [])].sort((a, b) => b.total - a.total);
+            return (
+              <>
+                {/* Stacked bar */}
+                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted gap-px">
+                  {sorted.map((row) => {
+                    const meta = getMethodMeta(row.payment_method);
+                    const pct = grandTotal > 0 ? (row.total / grandTotal) * 100 : 0;
+                    return (
+                      <div
+                        key={row.payment_method}
+                        className={cn("h-full transition-all duration-500", meta.bar)}
+                        style={{ width: `${pct}%` }}
+                        title={`${meta.label}: ${pct.toFixed(1)}%`}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Compact rows */}
+                <div className="divide-y divide-border/50">
+                  {sorted.map((row) => {
+                    const meta = getMethodMeta(row.payment_method);
+                    const pct = grandTotal > 0 ? (row.total / grandTotal) * 100 : 0;
+                    return (
+                      <div key={row.payment_method} className="flex items-center gap-3 py-2">
+                        <div className={cn("flex items-center gap-1.5 w-28 shrink-0 font-medium text-sm", meta.color)}>
+                          <span className={cn("h-2.5 w-2.5 rounded-sm shrink-0", meta.bar)} />
                           {meta.icon}
                           {meta.label}
                         </div>
-                        <div className="text-right">
-                          <p className={cn("text-xl font-bold tabular-nums", meta.color)}>
-                            ฿{fmt(row.total)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {row.receipt_count} {row.receipt_count === 1 ? "transaction" : "transactions"}
-                          </p>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className={cn("h-full rounded-full transition-all duration-500", meta.bar)} style={{ width: `${pct}%` }} />
                         </div>
+                        <span className="w-10 text-right text-xs text-muted-foreground tabular-nums shrink-0">{pct.toFixed(0)}%</span>
+                        <span className="w-8 text-right text-xs text-muted-foreground tabular-nums shrink-0">{row.receipt_count}x</span>
+                        <span className={cn("w-24 text-right font-bold tabular-nums text-sm shrink-0", meta.color)}>฿{fmt(row.total)}</span>
                       </div>
-                      {/* Progress bar */}
-                      <div className="h-1.5 rounded-full bg-black/10 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-current transition-all duration-500"
-                          style={{ width: `${pct}%`, opacity: 0.5 }}
-                        />
-                      </div>
-                      <p className="text-xs text-right mt-1 text-muted-foreground">
-                        {pct.toFixed(1)}% of today's total
-                      </p>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
 
-              {/* Total row */}
-              <div className="flex items-center justify-between pt-3 border-t px-1">
-                <span className="font-semibold text-sm">Total Today</span>
-                <span className="text-xl font-bold tabular-nums">฿{fmt(grandTotal)}</span>
-              </div>
-            </>
-          )}
+                {/* Total row */}
+                <div className="flex items-center justify-between pt-2 border-t px-1">
+                  <span className="font-semibold text-sm">Total Today</span>
+                  <span className="text-lg font-bold tabular-nums">฿{fmt(grandTotal)}</span>
+                </div>
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
