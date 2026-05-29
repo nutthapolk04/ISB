@@ -115,6 +115,7 @@ def get_panel_items(
     # Attempt ORM query; fall back to raw SQL if bundle_id column is not yet
     # migrated in the live DB (required_cols check should prevent this, but a
     # stale pg_attribute false positive can still slip through).
+    bundle_id_available = True
     try:
         rows = db.query(PricePanelItem).filter(PricePanelItem.panel_id == panel_id).all()
         product_item_map = {r.product_id: r for r in rows if r.product_id is not None}
@@ -127,6 +128,7 @@ def get_panel_items(
         # the raw-SQL fallback. Without this the next db.execute() raises
         # InFailedSqlTransaction and the endpoint still 500s.
         db.rollback()
+        bundle_id_available = False
         raw = db.execute(
             text(
                 "SELECT id, panel_id, product_id, price, short_name, included "
@@ -160,7 +162,11 @@ def get_panel_items(
             included=getattr(r, "included", True) if r is not None else False,
             is_bundle=False,
         ))
-    for b in bundles:
+    # When bundle_id isn't migrated yet the bundle PATCH returns 503, so don't
+    # surface bundles in the response — otherwise they show up as "+ Add"
+    # candidates that just error out when clicked.
+    bundles_to_emit = bundles if bundle_id_available else []
+    for b in bundles_to_emit:
         r = bundle_item_map.get(b.id)
         out.append(PricePanelItemResponse(
             kind="bundle",

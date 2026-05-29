@@ -450,8 +450,11 @@ const ShopDetail = () => {
           item.product_id === productId ? { ...item, included: newVal } : item,
         ),
       }));
-    } catch {
-      toast.error("Failed to update inclusion");
+    } catch (err: any) {
+      // Surface backend's error detail (e.g. 503 "Bundle support is being
+      // rolled out…") instead of a generic toast so the cashier can see why.
+      const detail = err?.detail ?? err?.message ?? "Failed to update inclusion";
+      toast.error(String(detail));
     }
   };
 
