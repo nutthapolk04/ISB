@@ -93,16 +93,26 @@ def delete_panel(
 
 
 def _has_bundle_id_column(db: Session) -> bool:
-    """Schema patches run via start.sh, but a failed/queued deploy can leave
-    the bundle_id column missing on production. Detect that explicitly so the
-    endpoint can fall back to the product-only path with a clean 200 instead
-    of crashing the whole query with a 500 the browser can't read past CORS."""
+    """Check if price_panel_items.bundle_id exists.
+
+    Uses pg_attribute (system catalog) instead of information_schema
+    because information_schema results can be affected by search_path /
+    permission settings and has given false negatives in production.
+    Falls back to a live column probe if pg_attribute itself fails.
+    """
     try:
         row = db.execute(text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = 'price_panel_items' AND column_name = 'bundle_id'"
+            "SELECT 1 FROM pg_attribute "
+            "WHERE attrelid = 'price_panel_items'::regclass "
+            "AND attname = 'bundle_id' AND NOT attisdropped"
         )).first()
         return row is not None
+    except Exception:
+        pass
+    # Last-resort probe: try to select the column with a false predicate.
+    try:
+        db.execute(text("SELECT bundle_id FROM price_panel_items WHERE 1=0"))
+        return True
     except Exception:
         return False
 
