@@ -352,17 +352,21 @@ def delete_bundle(
     return {"success": True, "message": f"Bundle '{bundle.name}' deactivated"}
 
 
+class BundleReorderRequest(BaseModel):
+    sort_map: dict[str, int]
+
+
 @router.post("/{shop_id}/bundles/reorder")
 def reorder_bundles(
     shop_id: str,
-    sort_map: dict,
+    payload: BundleReorderRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Reorder bundles. sort_map is {bundle_id: new_sort_order}."""
     _get_shop_or_404(shop_id, db)
 
-    for bundle_id, sort_order in sort_map.items():
+    for bundle_id, sort_order in payload.sort_map.items():
         db.query(ProductBundle).filter(
             ProductBundle.id == int(bundle_id),
             ProductBundle.shop_id == shop_id,

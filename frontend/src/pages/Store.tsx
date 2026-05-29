@@ -1688,7 +1688,7 @@ const Store = () => {
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 )}
-                {/* Stock badge — top-right */}
+                {/* Stock badge — top-right for products */}
                 {!p.isBundle && (
                   <span className={cn(
                     "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
@@ -1697,6 +1697,12 @@ const Store = () => {
                                 "bg-background/90 text-foreground",
                   )}>
                     {`${t("store.stockLabel")} ${p.stock}`}
+                  </span>
+                )}
+                {/* SET badge — top-right for bundles */}
+                {p.isBundle && (
+                  <span className="absolute right-1 top-1 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 border border-violet-300 shadow">
+                    SET
                   </span>
                 )}
                 <div className={cn(
@@ -1714,12 +1720,7 @@ const Store = () => {
                     "text-base font-extrabold tabular-nums",
                     p.color ? "text-zinc-900" : "text-primary",
                   )}>฿{displayPrice.toLocaleString()}</span>
-                  <div className="flex items-center gap-1">
-                    {p.isBundle && (
-                      <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 border border-violet-300 shrink-0">
-                        SET
-                      </span>
-                    )}
+                  <div className="flex items-center gap-1 min-w-0 overflow-hidden">
                     {!reorderMode && (
                       <Popover
                         open={colorEditId === p.id}
@@ -1768,7 +1769,7 @@ const Store = () => {
                       </Popover>
                     )}
                     {!p.isBundle && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 max-w-[5rem] truncate">{p.category}</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 shrink min-w-0 overflow-hidden whitespace-nowrap text-ellipsis block max-w-[5rem]">{p.category}</Badge>
                     )}
                   </div>
                 </div>
