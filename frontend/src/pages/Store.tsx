@@ -266,7 +266,11 @@ const Store = () => {
   const saveProductColor = async (product: Product, color: string | null) => {
     setColorSaving(true);
     try {
-      await api.patch(`/shops/${product.subMerchantId}/products/${product.id}`, { color });
+      if (product.isBundle && product.bundleId != null) {
+        await api.patch(`/shops/${product.subMerchantId}/bundles/${product.bundleId}`, { color });
+      } else {
+        await api.patch(`/shops/${product.subMerchantId}/products/${product.id}`, { color });
+      }
       setAllProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, color } : p)),
       );
@@ -323,14 +327,24 @@ const Store = () => {
     setReorderSaving(true);
     try {
       const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
-      const sortMap: Record<string, number> = {};
-      shopProds.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
+      const prods = shopProds.filter((p) => !p.isBundle);
+      const bunds = shopProds.filter((p) => p.isBundle && p.bundleId != null);
+
+      const productSortMap: Record<string, number> = {};
+      prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
       const version = sortVersions[sid] ?? 1;
       const result = await api.post<{ version: number; updated: number }>(
         `/shops/${sid}/products/reorder`,
-        { version, sort_map: sortMap },
+        { version, sort_map: productSortMap },
       );
       setSortVersions((prev) => ({ ...prev, [sid]: result.version }));
+
+      if (bunds.length > 0) {
+        const bundleSortMap: Record<string, number> = {};
+        bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
+        await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
+      }
+
       setReorderMode(false);
       setReorderDirty(false);
       toast.success(t("store.orderSaved"));
@@ -1636,9 +1650,8 @@ const Store = () => {
 
         {/* Browse grid */}
         {allProducts.length > 0 && (() => {
-          // In reorder mode: show regular products only (bundles excluded from reorder)
           const gridProducts = reorderMode
-            ? allProducts.filter((p) => !p.isBundle && (!user?.shopId || p.subMerchantId === user.shopId))
+            ? allProducts.filter((p) => !user?.shopId || p.subMerchantId === user.shopId)
             : activePanelId != null && panelIncluded[activePanelId]
               ? allProducts.filter((p) => panelIncluded[activePanelId].has(p.id))
               : allProducts;
@@ -1707,7 +1720,7 @@ const Store = () => {
                         SET
                       </span>
                     )}
-                    {!reorderMode && !p.isBundle && (
+                    {!reorderMode && (
                       <Popover
                         open={colorEditId === p.id}
                         onOpenChange={(open) => {
