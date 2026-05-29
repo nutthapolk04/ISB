@@ -505,19 +505,65 @@ class ReturnsService:
         db: Session,
         q: Optional[str] = None,
     ) -> List[dict]:
-        query = (
-            db.query(ReturnRequest)
-            .filter(ReturnRequest.status != ReturnStatus.pending)
-            .order_by(desc(ReturnRequest.processed_at))
-        )
-        if q:
-            query = query.filter(
-                ReturnRequest.receipt_id.ilike(f"%{q}%")
-                | ReturnRequest.product_name.ilike(f"%{q}%")
+        try:
+            query = (
+                db.query(ReturnRequest)
+                .filter(ReturnRequest.status != ReturnStatus.pending)
+                .order_by(desc(ReturnRequest.processed_at))
             )
+            if q:
+                query = query.filter(
+                    ReturnRequest.receipt_id.ilike(f"%{q}%")
+                    | ReturnRequest.product_name.ilike(f"%{q}%")
+                )
+            rows = query.all()
+        except Exception as orm_err:
+            # Fallback for deployments where return_requests.bundle_id column
+            # hasn't been migrated yet (information_schema false positive in
+            # start.sh allowed the app to boot before the column existed).
+            # Select only the stable columns so the history page doesn't 500.
+            if "bundle_id" not in str(orm_err):
+                raise
+            from sqlalchemy import text as _text
+            like_q = f"%{q}%" if q else None
+            sql = _text("""
+                SELECT id, receipt_id, product_name, product_code, quantity,
+                       return_quantity, price, reason, status, refund_amount,
+                       exchange_amount, exchange_product_codes, processed_at, created_at
+                FROM return_requests
+                WHERE status != 'pending'
+                  AND (:q IS NULL
+                       OR receipt_id ILIKE :q
+                       OR product_name ILIKE :q)
+                ORDER BY processed_at DESC NULLS LAST
+            """)
+            raw_rows = db.execute(sql, {"q": like_q}).fetchall()
+
+            results = []
+            for row in raw_rows:
+                exchanged = [c.strip() for c in (row.exchange_product_codes or "").split(",") if c.strip()]
+                computed = float(row.price or 0) * int(row.return_quantity or 0)
+                return_val = float(row.refund_amount) if row.refund_amount is not None else computed
+                exchange_val = float(row.exchange_amount or 0)
+                ts = row.processed_at or row.created_at
+                results.append({
+                    "id": f"RT-{row.id:03d}",
+                    "date": ts.strftime("%Y-%m-%d %H:%M") if ts else "",
+                    "receiptId": row.receipt_id,
+                    "studentId": "",
+                    "studentName": "",
+                    "returnedItems": [f"{row.product_name} x{row.return_quantity}"],
+                    "exchangedItems": exchanged,
+                    "returnValue": return_val,
+                    "exchangeValue": exchange_val,
+                    "difference": exchange_val - return_val,
+                    "status": row.status,
+                    "reason": row.reason,
+                })
+            return results
 
         results = []
-        for rr in query.all():
+        for rr in rows:
             exchanged = []
             if rr.exchange_product_codes:
                 exchanged = [c.strip() for c in rr.exchange_product_codes.split(",") if c.strip()]

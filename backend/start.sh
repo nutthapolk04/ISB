@@ -684,15 +684,29 @@ required_tables = [
 missing = []
 with engine.begin() as conn:
     for t, c in required_cols:
+        # Use pg_attribute instead of information_schema to avoid false positives
+        # on Railway PostgreSQL where information_schema can match columns in
+        # non-public schemas (e.g. pg_catalog) and return a row even when the
+        # column does not exist in public.<table>.
         row = conn.execute(
-            text('SELECT 1 FROM information_schema.columns WHERE table_name=:t AND column_name=:c'),
+            text(
+                'SELECT 1 FROM pg_attribute a '
+                'JOIN pg_class r ON r.oid = a.attrelid '
+                'JOIN pg_namespace n ON n.oid = r.relnamespace '
+                'WHERE n.nspname = \'public\' AND r.relname = :t '
+                'AND a.attname = :c AND NOT a.attisdropped'
+            ),
             {'t': t, 'c': c},
         ).first()
         if not row:
             missing.append(f'{t}.{c}')
     for t in required_tables:
         row = conn.execute(
-            text('SELECT 1 FROM information_schema.tables WHERE table_name=:t'),
+            text(
+                'SELECT 1 FROM pg_class r '
+                'JOIN pg_namespace n ON n.oid = r.relnamespace '
+                'WHERE n.nspname = \'public\' AND r.relname = :t AND r.relkind = \'r\''
+            ),
             {'t': t},
         ).first()
         if not row:
