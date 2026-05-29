@@ -344,7 +344,12 @@ export function RfidPaymentModal({
         : Number(student?.wallet_balance ?? 0);
   const remaining = balance - total;
   const negLimit = student?.negative_credit_limit ?? null;
-  const allowedFloor = negLimit !== null ? -Number(negLimit) : null;
+  // Backend treats negative_credit_limit=null as zero overdraft (no negative
+  // allowed) unless the global allow_negative_customer_wallet flag is on. The
+  // frontend was treating null as "unlimited" and confidently telling the
+  // cashier "Within allowed overdraft" even when the backend was about to
+  // 422 with EXCEEDS_NEGATIVE_CREDIT_LIMIT. Mirror the backend default here.
+  const allowedFloor = negLimit !== null ? -Number(negLimit) : 0;
   const isFrozen = payerKind === "customer" && student?.card_frozen === true;
   const dailyLimitVal =
     payerKind === "customer" && student?.daily_limit
@@ -354,7 +359,6 @@ export function RfidPaymentModal({
   // User/department wallet has no overdraft cap or daily limit.
   const overLimit =
     payerKind === "customer" &&
-    allowedFloor !== null &&
     remaining < allowedFloor &&
     !isFrozen;
   const goingNegative = !overLimit && remaining < 0 && !isFrozen && payerKind !== "department";
