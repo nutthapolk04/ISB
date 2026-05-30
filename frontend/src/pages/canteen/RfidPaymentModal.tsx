@@ -18,6 +18,7 @@ import {
   Loader2,
   ArrowLeft,
   Users,
+  XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api, ApiError } from "@/lib/api";
@@ -711,12 +712,12 @@ export function RfidPaymentModal({
 
             {/* Warning banners */}
             {overLimit && (
-              <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
-                <ShieldAlert className="h-5 w-5 shrink-0" />
-                <div>
-                  <div className="font-semibold">{r("overLimitTitle")}</div>
+              <div className="flex items-center gap-3 rounded-lg border-2 border-red-400 bg-red-50 p-4 text-red-800">
+                <XCircle className="h-10 w-10 shrink-0 text-red-600" strokeWidth={2.5} />
+                <div className="flex-1">
+                  <div className="text-base font-bold text-red-700">{r("overLimitTitle")}</div>
                   <div className="text-xs">
-                    {r("overLimitDesc", { amount: Math.abs(remaining).toFixed(2), cap: Number(negLimit).toFixed(2) })}
+                    {r("overLimitDesc", { amount: Math.abs(remaining).toFixed(2), cap: Number(negLimit ?? 0).toFixed(2) })}
                   </div>
                 </div>
               </div>
