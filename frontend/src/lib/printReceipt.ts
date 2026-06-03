@@ -217,6 +217,9 @@ export function buildReceiptHtml(
   const payerSection = r.payer_label
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
+  const notesSection = r.notes?.trim()
+    ? `<hr/><div class="notes-block"><span class="notes-label">${isEn ? "Note" : "หมายเหตุ"}</span><span class="notes-text">${r.notes.trim()}</span></div>`
+    : "";
   const voidedSection = r.status !== "active"
     ? `<div class="voided">${lbl.voided}</div>`
     : "";
@@ -267,6 +270,9 @@ export function buildReceiptHtml(
   .balance-after { font-size: 18px; font-weight: bold; color: #1d4ed8; margin-top: 7px; }
   .voided { text-align: center; color: #c00; font-weight: bold;
              font-size: 14px; margin: 7px 0; border: 2px solid #c00; padding: 4px; }
+  .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
+  .notes-label { font-size: 12px; font-weight: bold; color: #555; }
+  .notes-text { font-size: 13px; color: #111; word-break: break-word; }
   @media print { @page { margin: 0; size: 80mm auto; } }
 </style>
 </head>
@@ -296,6 +302,7 @@ export function buildReceiptHtml(
   <hr/>
   <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
   <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
+  ${notesSection}
   <hr/>
   <p class="center sub">${lbl.thanks}</p>
 </body>

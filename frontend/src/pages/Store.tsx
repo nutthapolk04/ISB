@@ -1012,10 +1012,19 @@ const Store = () => {
       if (autoPrint) {
         try {
           printReceipt(
-            { ...(receipt as unknown as ReceiptApi), cash_received: backendMethod === "cash" ? (ctx.cashReceived ?? null) : null },
+            {
+              ...(receipt as unknown as ReceiptApi),
+              cash_received: backendMethod === "cash" ? (ctx.cashReceived ?? null) : null,
+              notes: (() => {
+                const parts: string[] = [];
+                if (isDept) parts.push(`Dept: ${ctx.deptId ?? ""}${ctx.empCode ? ` · Emp: ${ctx.empCode}` : ""}`);
+                if (receiptNote.trim()) parts.push(receiptNote.trim());
+                return parts.length > 0 ? parts.join(" | ") : null;
+              })(),
+            },
             schoolInfo,
             user?.shopName,
-            "en",
+            i18n.language,
           );
         } catch (printErr) {
           console.warn("Auto-print failed:", printErr);
@@ -1440,12 +1449,15 @@ const Store = () => {
           </Popover>
 
           {/* Receipt note */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="pt-1">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              {t("store.receiptNoteLabel", "Note")}
+            </p>
             <Input
-              placeholder={t("store.receiptNote", "Note (optional)")}
+              placeholder={t("store.receiptNote", "Add a note to this receipt (optional)")}
               value={receiptNote}
               onChange={(e) => setReceiptNote(e.target.value)}
-              className="h-8 text-xs flex-1"
+              className="h-10 text-sm"
               maxLength={200}
             />
           </div>
