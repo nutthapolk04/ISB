@@ -45,7 +45,6 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
 import type { SelectedOptionGroup } from "./canteen/menuOptionTypes";
-import { CategoryTabs } from "./canteen/CategoryTabs";
 import { ProductGrid } from "./canteen/ProductGrid";
 import { CanteenCart } from "./canteen/CanteenCart";
 import { DiscountModal } from "./canteen/DiscountModal";
@@ -183,7 +182,6 @@ export default function Canteen() {
   const [shopDisplayName, setShopDisplayName] = useState<string | null>(null);
   const [productsLoading, setProductsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
   // Per-shop pricing model — single-pricing canteens hide the Retail/Internal
   // toggle entirely. Defaults to dual until the shop meta loads.
   const [usesDualPricing, setUsesDualPricing] = useState(true);
@@ -433,6 +431,59 @@ export default function Canteen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [CANTEEN_SHOP_ID]);
 
+  // ── Price panels (replaces category tabs) ─────────────────────────────
+  const [panels, setPanels] = useState<{ id: number; name: string; color: string | null }[]>([]);
+  const [activePanelId, setActivePanelId] = useState<number | null>(null); // null = All
+  // Cache of included product IDs per panel: panelId → Set<productId>
+  const [panelProductIds, setPanelProductIds] = useState<Record<number, Set<number>>>({});
+  const [panelTabsLoading, setPanelTabsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPanelTabsLoading(true);
+    api.get<{ id: number; name: string; color: string | null }[]>(
+      `/shops/${CANTEEN_SHOP_ID}/price-panels`,
+    ).then(async (data) => {
+      if (cancelled) return;
+      setPanels(data);
+      // Pre-fetch all panel product IDs so counts are visible immediately
+      await Promise.all(data.map(async (panel) => {
+        try {
+          const items = await api.get<{ product_id: number; included: boolean }[]>(
+            `/shops/${CANTEEN_SHOP_ID}/price-panels/${panel.id}/items`,
+          );
+          if (!cancelled) {
+            const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
+            setPanelProductIds((prev) => ({ ...prev, [panel.id]: ids }));
+          }
+        } catch { /* tolerate */ }
+      }));
+    }).catch(() => {
+      // panels optional — fall back to showing all
+    }).finally(() => {
+      if (!cancelled) setPanelTabsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [CANTEEN_SHOP_ID]);
+
+  const fetchPanelProducts = async (panelId: number) => {
+    if (panelProductIds[panelId]) return; // already cached
+    try {
+      const items = await api.get<{ product_id: number; included: boolean }[]>(
+        `/shops/${CANTEEN_SHOP_ID}/price-panels/${panelId}/items`,
+      );
+      const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
+      setPanelProductIds((prev) => ({ ...prev, [panelId]: ids }));
+    } catch {
+      // tolerate — panel just shows all if fetch fails
+    }
+  };
+
+  const handlePanelChange = async (panelId: number | null) => {
+    setActivePanelId(panelId);
+    if (panelId !== null) await fetchPanelProducts(panelId);
+  };
+
   useEffect(() => {
     let cancelled = false;
     api
@@ -456,26 +507,18 @@ export default function Canteen() {
   }, [usesDualPricing, cart]);
 
   // ── Filtering ──────────────────────────────────────────────────────────
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const p of products) {
-      counts[p.category] = (counts[p.category] ?? 0) + 1;
-    }
-    return counts;
-  }, [products]);
-
   const visibleProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
     return products.filter((p) => {
-      if (activeCategory !== "All" && p.category !== activeCategory)
-        return false;
+      if (panelIds && !panelIds.has(p.id)) return false;
       if (!q) return true;
       return (
         p.name.toLowerCase().includes(q) ||
         p.productCode.toLowerCase().includes(q)
       );
     });
-  }, [products, search, activeCategory]);
+  }, [products, search, activePanelId, panelProductIds]);
 
   // ── Checkout ───────────────────────────────────────────────────────────
   const doCheckout = async (
@@ -854,16 +897,57 @@ export default function Canteen() {
           </div>
         </div>
 
-        {/* Category tabs */}
-        <div>
-          {!reorderMode && (
-            <CategoryTabs
-              active={activeCategory}
-              onChange={setActiveCategory}
-              counts={categoryCounts}
-            />
-          )}
-        </div>
+        {/* Panel tabs (replaces category tabs) */}
+        {!reorderMode && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {/* All tab */}
+            <button
+              type="button"
+              onClick={() => handlePanelChange(null)}
+              className={cn(
+                "shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition-all border border-transparent",
+                activePanelId === null
+                  ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-300/40"
+                  : "bg-card/80 text-muted-foreground border-amber-100 hover:bg-amber-50 hover:text-amber-700",
+              )}
+            >
+              {t("canteen.tabAll", "All")}
+              <span className={cn(
+                "ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs",
+                activePanelId === null ? "bg-white/25" : "bg-muted",
+              )}>
+                {products.length}
+              </span>
+            </button>
+
+            {/* Panel tabs */}
+            {!panelTabsLoading && panels.map((panel) => {
+              const isActive = activePanelId === panel.id;
+              const count = panelProductIds[panel.id]?.size ?? "…";
+              return (
+                <button
+                  key={panel.id}
+                  type="button"
+                  onClick={() => handlePanelChange(panel.id)}
+                  className={cn(
+                    "shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition-all border border-transparent",
+                    isActive
+                      ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-300/40"
+                      : "bg-card/80 text-muted-foreground border-amber-100 hover:bg-amber-50 hover:text-amber-700",
+                  )}
+                >
+                  {panel.name}
+                  <span className={cn(
+                    "ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs",
+                    isActive ? "bg-white/25" : "bg-muted",
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-1 pb-24 lg:pb-2">

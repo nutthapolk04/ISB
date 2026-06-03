@@ -74,6 +74,8 @@ def update_panel(
         panel.name = body.name
     if body.color is not None:
         panel.color = body.color
+    if body.sort_order is not None:
+        panel.sort_order = body.sort_order
     db.commit()
     db.refresh(panel)
     return panel

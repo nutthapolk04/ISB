@@ -2,11 +2,20 @@
  * PricePanelManager — reusable price-panel management UI.
  * Used in both Store (ShopDetail) and Canteen (CanteenShopDetail).
  */
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ChevronDown, ChevronUp, Loader2, Pencil, Plus, Search, Tag, Trash2, X,
+  ChevronDown, ChevronUp, GripVertical, Loader2, Pencil, Plus, Search, Tag, Trash2, X,
 } from "lucide-react";
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy,
+  arrayMove, useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +39,29 @@ interface PricePanel {
   color: string | null;
   sort_order: number;
   created_at: string;
+}
+
+// ── Sortable panel card wrapper ───────────────────────────────────────────────
+function SortablePanelCard({ id, children }: { id: number; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+    >
+      <div className="relative group">
+        <button
+          {...attributes} {...listeners}
+          type="button"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 interface PricePanelItem {
@@ -83,6 +115,12 @@ interface Props {
 
 export function PricePanelManager({ shopId, autoLoad = false }: Props) {
   const { t } = useTranslation();
+
+  // ── DnD sensors ────────────────────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [loaded, setLoaded] = useState(false);
@@ -232,6 +270,22 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
     } catch (err: any) {
       toast.error(err?.detail ?? "Failed to delete panel");
     }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = panels.findIndex((p) => p.id === active.id);
+    const newIdx = panels.findIndex((p) => p.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(panels, oldIdx, newIdx);
+    setPanels(reordered);
+    // Persist new sort_order for each panel
+    await Promise.all(
+      reordered.map((panel, idx) =>
+        api.patch(`/shops/${shopId}/price-panels/${panel.id}`, { sort_order: idx + 1 }).catch(() => {}),
+      ),
+    );
   };
 
   const handleTogglePanel = (panelId: number) => {
@@ -406,9 +460,12 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
             </CardContent>
           </Card>
 
-          {/* Custom panels */}
+          {/* Custom panels — draggable to reorder */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={panels.map((p) => p.id)} strategy={verticalListSortingStrategy}>
           {panels.map((panel) => (
-            <Card key={panel.id}>
+            <SortablePanelCard key={panel.id} id={panel.id}>
+            <Card>
               <CardContent className="p-0">
                 {/* Panel header */}
                 <div className="flex items-center justify-between px-4 py-3">
@@ -629,7 +686,10 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                 )}
               </CardContent>
             </Card>
+            </SortablePanelCard>
           ))}
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 

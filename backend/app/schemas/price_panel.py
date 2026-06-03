@@ -11,6 +11,7 @@ class PricePanelCreate(BaseModel):
 class PricePanelUpdate(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
+    sort_order: Optional[int] = None
 
 
 class PricePanelItemResponse(BaseModel):
