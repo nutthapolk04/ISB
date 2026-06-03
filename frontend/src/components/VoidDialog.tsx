@@ -31,6 +31,7 @@ import { XCircle, CreditCard, CheckCircle2, ChevronLeft, ShieldAlert, Loader2, P
 import { useTranslation } from "react-i18next";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,6 +87,7 @@ export function VoidDialog({
   onConfirmed,
 }: VoidDialogProps) {
   const { t, i18n } = useTranslation();
+  const schoolInfo = useSchoolInfo();
 
   const [step,       setStep]       = useState<Step>("review");
   const [reason,     setReason]     = useState("");
@@ -255,7 +257,11 @@ export function VoidDialog({
 </head>
 <body>
   <div class="title-block center">
-    <div class="bold" style="font-size:13px">ISB SCHOOL STORE</div>
+    ${schoolInfo.logoUrl ? `<img src="${schoolInfo.logoUrl}" width="48" height="48" style="object-fit:contain;display:block;margin:0 auto 4px"/>` : ""}
+    <div class="bold" style="font-size:13px">${schoolInfo.name || "ISB School Store"}</div>
+    ${schoolInfo.address ? `<div style="font-size:9px;color:#555">${schoolInfo.address}</div>` : ""}
+    ${schoolInfo.taxId ? `<div style="font-size:9px;color:#555">Tax ID: ${schoolInfo.taxId}</div>` : ""}
+    ${schoolInfo.phone ? `<div style="font-size:9px;color:#555">Tel: ${schoolInfo.phone}</div>` : ""}
     <div class="void-badge">VOID RECEIPT</div>
     <div style="font-size:11px">${lbl.subtitle}</div>
   </div>

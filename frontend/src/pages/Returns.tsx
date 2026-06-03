@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
   Dialog,
   DialogContent,
@@ -110,6 +111,7 @@ interface NoReceiptItem {
 
 const Returns = () => {
   const { t, i18n } = useTranslation();
+  const schoolInfo = useSchoolInfo();
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [availableProducts, setAvailableProducts] = useState<ReceiptItem[]>([]);
 
@@ -739,10 +741,49 @@ const Returns = () => {
       .map(([_, d]) => ({ productCode: d.productCode, quantity: d.quantity }));
 
   const printReturnSlip = (result: ReturnResult) => {
+    const isEn = !i18n.language.startsWith("th");
+    const locale = isEn ? "en-US" : "th-TH";
+
+    const lbl = isEn ? {
+      title: "CREDIT NOTE",
+      subtitle: "Return / Credit Note",
+      origReceipt: "Original Receipt",
+      purchaseDate: "Purchase Date",
+      payer: "Payer",
+      returnDate: "Return Date",
+      reason: "Reason",
+      item: "Item",
+      qty: "Qty",
+      unitPrice: "Unit Price",
+      total: "Total",
+      refundAmount: "Refund Amount",
+      refundMethod: "Refund Method",
+      balance: "Balance After",
+      footer: "*** This document serves as a credit note ***",
+      thanks: "Thank you for your purchase",
+    } : {
+      title: "CREDIT NOTE",
+      subtitle: "ใบคืนสินค้า / ใบแจ้งหนี้ลด",
+      origReceipt: "ใบเสร็จเดิม",
+      purchaseDate: "วันที่ซื้อ",
+      payer: "ผู้ซื้อ",
+      returnDate: "วันที่คืน",
+      reason: "เหตุผล",
+      item: "รายการ",
+      qty: "จำนวน",
+      unitPrice: "ราคา/ชิ้น",
+      total: "รวม",
+      refundAmount: "ยอดคืนเงิน",
+      refundMethod: "ช่องทางคืน",
+      balance: "ยอดคงเหลือ",
+      footer: "*** เอกสารนี้ใช้แทนใบลดหนี้ ***",
+      thanks: "ขอบคุณที่ใช้บริการ",
+    };
+
     const refundMethodLabel = (() => {
       const dest = result.refundedTo;
       if (!dest) return result.refundMethod;
-      if (dest.balanceAfter !== undefined) return `กระเป๋าเงิน — ${dest.label}`;
+      if (dest.balanceAfter !== undefined) return `Wallet — ${dest.label}`;
       if (dest.type === "edc_card") return `EDC card ${dest.maskedCard || "****"}`;
       return dest.label || result.refundMethod;
     })();
@@ -759,8 +800,12 @@ const Returns = () => {
       )
       .join("");
 
+    const logoHtml = schoolInfo.logoUrl
+      ? `<img src="${schoolInfo.logoUrl}" width="48" height="48" style="object-fit:contain;display:block;margin:0 auto 4px"/>`
+      : "";
+
     const html = `<!DOCTYPE html>
-<html lang="th">
+<html lang="${isEn ? "en" : "th"}">
 <head>
   <meta charset="UTF-8"/>
   <title>Credit Note</title>
@@ -779,24 +824,31 @@ const Returns = () => {
   </style>
 </head>
 <body>
-  <h1>CREDIT NOTE</h1>
-  <h2>ใบคืนสินค้า / ใบแจ้งหนี้ลด</h2>
+  <div class="center">
+    ${logoHtml}
+    <div style="font-size:12px;font-weight:bold">${schoolInfo.name || ""}</div>
+    ${schoolInfo.address ? `<div style="font-size:9px;color:#555">${schoolInfo.address}</div>` : ""}
+    ${schoolInfo.taxId ? `<div style="font-size:9px;color:#555">Tax ID: ${schoolInfo.taxId}</div>` : ""}
+    ${schoolInfo.phone ? `<div style="font-size:9px;color:#555">Tel: ${schoolInfo.phone}</div>` : ""}
+  </div>
+  <h1>${lbl.title}</h1>
+  <h2>${lbl.subtitle}</h2>
   <hr class="divider"/>
   <table>
-    <tr><td class="meta">ใบเสร็จเดิม</td><td style="text-align:right" class="meta">${result.receiptId}</td></tr>
-    <tr><td class="meta">วันที่ซื้อ</td><td style="text-align:right" class="meta">${result.receiptDate}</td></tr>
-    <tr><td class="meta">ผู้ซื้อ</td><td style="text-align:right" class="meta">${result.payerLabel || "—"}</td></tr>
-    <tr><td class="meta">วันที่คืน</td><td style="text-align:right" class="meta">${new Date(result.returnedAt).toLocaleString("th-TH")}</td></tr>
-    <tr><td class="meta">เหตุผล</td><td style="text-align:right" class="meta">${result.reason || "—"}</td></tr>
+    <tr><td class="meta">${lbl.origReceipt}</td><td style="text-align:right" class="meta">${result.receiptId}</td></tr>
+    <tr><td class="meta">${lbl.purchaseDate}</td><td style="text-align:right" class="meta">${result.receiptDate}</td></tr>
+    <tr><td class="meta">${lbl.payer}</td><td style="text-align:right" class="meta">${result.payerLabel || "—"}</td></tr>
+    <tr><td class="meta">${lbl.returnDate}</td><td style="text-align:right" class="meta">${new Date(result.returnedAt).toLocaleString(locale)}</td></tr>
+    <tr><td class="meta">${lbl.reason}</td><td style="text-align:right" class="meta">${result.reason || "—"}</td></tr>
   </table>
   <hr class="divider"/>
   <table>
     <thead>
       <tr>
-        <th style="text-align:left">รายการ</th>
-        <th style="text-align:center">จำนวน</th>
-        <th style="text-align:right">ราคา/ชิ้น</th>
-        <th style="text-align:right">รวม</th>
+        <th style="text-align:left">${lbl.item}</th>
+        <th style="text-align:center">${lbl.qty}</th>
+        <th style="text-align:right">${lbl.unitPrice}</th>
+        <th style="text-align:right">${lbl.total}</th>
       </tr>
     </thead>
     <tbody>
@@ -806,26 +858,26 @@ const Returns = () => {
   <hr class="divider"/>
   <table>
     <tr class="total-row">
-      <td>ยอดคืนเงิน</td>
+      <td>${lbl.refundAmount}</td>
       <td colspan="3" style="text-align:right">฿${result.refundAmount.toFixed(2)}</td>
     </tr>
     <tr>
-      <td class="meta">ช่องทางคืน</td>
+      <td class="meta">${lbl.refundMethod}</td>
       <td colspan="3" style="text-align:right" class="meta">${refundMethodLabel}</td>
     </tr>
-    ${result.refundedTo?.balanceAfter !== undefined ? `<tr><td class="meta">ยอดคงเหลือ</td><td colspan="3" style="text-align:right" class="meta">฿${result.refundedTo.balanceAfter.toFixed(2)}</td></tr>` : ""}
+    ${result.refundedTo?.balanceAfter !== undefined ? `<tr><td class="meta">${lbl.balance}</td><td colspan="3" style="text-align:right" class="meta">฿${result.refundedTo.balanceAfter.toFixed(2)}</td></tr>` : ""}
   </table>
   <hr class="divider"/>
   <div class="footer">
-    <p>*** เอกสารนี้ใช้แทนใบลดหนี้ ***</p>
-    <p>ขอบคุณที่ใช้บริการ</p>
+    <p>${lbl.footer}</p>
+    <p>${lbl.thanks}</p>
   </div>
 </body>
 </html>`;
 
     const win = window.open("", "_blank", "width=320,height=600");
     if (!win) {
-      toast.error("ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต pop-up");
+      toast.error(t("returns.popupBlocked", "Cannot open print window — please allow pop-ups"));
       return;
     }
     win.document.write(html);

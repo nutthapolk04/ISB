@@ -313,11 +313,11 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
-            {t("receipts.details", "รายละเอียดใบเสร็จ")}
+            {t("receipts.details", "Receipt Details")}
           </DialogTitle>
           {receipt && (
             <DialogDescription>
-              {t("receipts.receiptId", "เลขที่")}: {receipt.receipt_number}
+              {t("receipts.receiptId", "No.")}: {receipt.receipt_number}
             </DialogDescription>
           )}
         </DialogHeader>
@@ -335,17 +335,17 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             {/* Meta */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.dateTime", "วันที่/เวลา")}:</span>
+                <span className="text-sm text-muted-foreground">{t("receipts.dateTime", "Date/Time")}:</span>
                 <span className="text-sm font-medium">{fmtDate(receipt.transaction_date)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.paymentMethod", "วิธีชำระ")}:</span>
+                <span className="text-sm text-muted-foreground">{t("receipts.paymentMethod", "Payment")}:</span>
                 <span className="text-sm font-semibold">
                   {t(`common.paymentMethods.${receipt.payment_method}`, receipt.payment_method)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.status", "สถานะ")}:</span>
+                <span className="text-sm text-muted-foreground">{t("receipts.status", "Status")}:</span>
                 <Badge variant={receipt.status === "active" ? "success" : "destructive"}>
                   {receipt.status === "active" ? "Active" : "Voided"}
                 </Badge>
@@ -369,7 +369,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             {/* Seller (shop) */}
             {receipt.shop_name && (
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.shop", "ร้านค้า")}:</span>
+                <span className="text-sm text-muted-foreground">{t("receipts.shop", "Shop")}:</span>
                 <span className="text-sm font-semibold">{receipt.shop_name}</span>
               </div>
             )}
@@ -377,7 +377,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             {/* Cashier */}
             {receipt.created_by_name && (
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.cashier", "พนักงาน")}:</span>
+                <span className="text-sm text-muted-foreground">{t("receipts.cashier", "Cashier")}:</span>
                 <span className="text-sm">{receipt.created_by_name}</span>
               </div>
             )}
@@ -445,7 +445,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
 
             {/* Items */}
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">{t("receipts.productList", "รายการสินค้า")}</h4>
+              <h4 className="font-semibold text-sm">{t("receipts.productList", "Items")}</h4>
               {receipt.items.map((item) => {
                 const hasDiscount = item.discount > 0;
                 const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
@@ -497,18 +497,18 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             {/* Totals */}
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("receipts.subtotal", "ยอดรวม")}</span>
+                <span className="text-muted-foreground">{t("receipts.subtotal", "Subtotal")}</span>
                 <span className="tabular-nums">฿{receipt.subtotal.toLocaleString()}</span>
               </div>
               {receipt.discount > 0 && (
                 <div className="flex justify-between text-destructive">
-                  <span>{t("receipts.billDiscount", "ส่วนลดท้ายบิล")}</span>
+                  <span>{t("receipts.billDiscount", "Bill Discount")}</span>
                   <span className="tabular-nums">-฿{receipt.discount.toLocaleString()}</span>
                 </div>
               )}
               {receipt.tax > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("receipts.tax", "ภาษี")}</span>
+                  <span className="text-muted-foreground">{t("receipts.tax", "Tax")}</span>
                   <span className="tabular-nums">฿{receipt.tax.toLocaleString()}</span>
                 </div>
               )}
@@ -517,7 +517,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             <Separator />
 
             <div className="flex justify-between text-lg font-bold">
-              <span>{t("receipts.grandTotal", "รวมสุทธิ")}</span>
+              <span>{t("receipts.grandTotal", "Grand Total")}</span>
               <span className="text-primary tabular-nums">฿{receipt.total.toLocaleString()}</span>
             </div>
 
@@ -543,10 +543,10 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             <Button
               className="w-full"
               variant="outline"
-              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, "en")}
+              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
             >
               <Download className="h-4 w-4 mr-2" />
-              {t("receipts.download", "พิมพ์ / บันทึก PDF")}
+              {t("receipts.download", "Print / Save PDF")}
             </Button>
           </div>
         )}
