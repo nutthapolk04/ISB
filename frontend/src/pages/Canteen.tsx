@@ -826,6 +826,7 @@ export default function Canteen() {
               <UpToDateSaleButton
                 shopId={CANTEEN_SHOP_ID}
                 shopName={user?.shopName}
+                schoolInfo={schoolInfo}
               />
             )}
             <label

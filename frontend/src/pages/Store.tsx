@@ -528,6 +528,9 @@ const Store = () => {
   const [billDiscountValue, setBillDiscountValue] = useState<string>("");
   const [billDiscountMode, setBillDiscountMode] = useState<DiscountMode>("amount");
 
+  // ── Receipt note (optional cashier memo, saved to receipt.notes) ────────
+  const [receiptNote, setReceiptNote] = useState<string>("");
+
   // ── Modal pipeline state ────────────────────────────────────────────────
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
@@ -794,9 +797,12 @@ const Store = () => {
         .map((item) => {
           if (item.id !== id) return item;
           const next = item.quantity + change;
-          // Allow negative qty for refund-via-POS, but skip the zero crossing
-          // so a single tap from -1 doesn't reach 0 and leave a useless line.
-          if (next === 0) return null;
+          // Skip zero in both directions:
+          //   1 → press minus → -1  (positive sale becomes a return/refund line)
+          //  -1 → press plus  →  1  (cancel the refund, back to normal sale)
+          // Pressing minus on qty=1 no longer removes the item — use the trash
+          // button to remove. This lets cashiers do refund-via-POS by going negative.
+          if (next === 0) return { ...item, quantity: change > 0 ? 1 : -1 };
           return { ...item, quantity: next };
         })
         .filter((item): item is CartItem => item !== null),
@@ -812,6 +818,7 @@ const Store = () => {
     setCart([]);
     setLastAddedId(null);
     setBillDiscountValue("");
+    setReceiptNote("");
     setPreSelectedMember(null);
     toast.success(t("store.cartCleared"));
   };
@@ -964,9 +971,12 @@ const Store = () => {
           };
         }),
         discount: billDiscountAmount,
-        notes: isDept
-          ? `Dept: ${ctx.deptId ?? ""}${ctx.empCode ? ` · Emp: ${ctx.empCode}` : ""}`
-          : undefined,
+        notes: (() => {
+          const parts: string[] = [];
+          if (isDept) parts.push(`Dept: ${ctx.deptId ?? ""}${ctx.empCode ? ` · Emp: ${ctx.empCode}` : ""}`);
+          if (receiptNote.trim()) parts.push(receiptNote.trim());
+          return parts.length > 0 ? parts.join(" | ") : undefined;
+        })(),
         edc_terminal_ref: ctx.edcRefs?.terminal_ref,
         edc_approval_code: ctx.edcRefs?.approval_code,
         edc_masked_card: ctx.edcRefs?.masked_card,
@@ -1027,6 +1037,7 @@ const Store = () => {
       setRequesterUserId(null);
       setBillDiscountValue("");
       setBillDiscountMode("amount");
+      setReceiptNote("");
       setPreSelectedMember(null);
       setMethodPickerOpen(false);
       setWalletOpen(false);
@@ -1427,6 +1438,17 @@ const Store = () => {
               )}
             </PopoverContent>
           </Popover>
+
+          {/* Receipt note */}
+          <div className="flex items-center gap-2 pt-1">
+            <Input
+              placeholder={t("store.receiptNote", "Note (optional)")}
+              value={receiptNote}
+              onChange={(e) => setReceiptNote(e.target.value)}
+              className="h-8 text-xs flex-1"
+              maxLength={200}
+            />
+          </div>
 
           {/* Total */}
           <div className="flex justify-between items-baseline pt-2">

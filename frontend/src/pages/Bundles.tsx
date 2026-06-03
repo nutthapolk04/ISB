@@ -20,8 +20,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Package, Plus, Edit, Trash2, X, Layers, Search, Loader2, CheckCircle2, XCircle, Minus,
+  Package, Plus, Edit, Trash2, X, Layers, Search, Loader2, CheckCircle2, XCircle, Minus, Printer,
 } from "lucide-react";
+import { PrintBarcodeDialog, type Product as BarcodePrintProduct } from "@/components/PrintBarcodeDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
@@ -91,6 +92,8 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingBundle, setDeletingBundle] = useState<Bundle | null>(null);
+  const [printBarcodeOpen, setPrintBarcodeOpen] = useState(false);
+  const [selectedBundleForBarcode, setSelectedBundleForBarcode] = useState<BarcodePrintProduct | null>(null);
 
   // Product search for adding items to bundle
   const [products, setProducts] = useState<Product[]>([]);
@@ -317,10 +320,16 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
             </p>
           </div>
         </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t("bundles.create") || "Create Bundle"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { setSelectedBundleForBarcode(null); setPrintBarcodeOpen(true); }}>
+            <Printer className="h-4 w-4 mr-2" />
+            {t("bundles.printBarcodes", "Print Barcodes")}
+          </Button>
+          <Button onClick={openCreateDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("bundles.create") || "Create Bundle"}
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -428,6 +437,21 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <IconButton
+                          tooltip={t("bundles.printBarcode", "Print Barcode")}
+                          onClick={() => {
+                            setSelectedBundleForBarcode({
+                              id: bundle.id,
+                              productCode: bundle.bundle_code,
+                              barcode: bundle.bundle_code,
+                              name: bundle.name,
+                              externalPrice: bundle.external_price,
+                            });
+                            setPrintBarcodeOpen(true);
+                          }}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </IconButton>
                         <IconButton
                           tooltip={t("bundles.edit") || "Edit"}
                           onClick={() => openEditDialog(bundle)}
@@ -745,6 +769,20 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Print Barcode Dialog — bundles use bundle_code as the barcode value */}
+      <PrintBarcodeDialog
+        open={printBarcodeOpen}
+        onOpenChange={setPrintBarcodeOpen}
+        products={(bundles ?? []).map((b) => ({
+          id: b.id,
+          productCode: b.bundle_code,
+          barcode: b.bundle_code,
+          name: b.name,
+          externalPrice: b.external_price,
+        }))}
+        selectedProduct={selectedBundleForBarcode}
+      />
     </div>
   );
 };

@@ -787,7 +787,7 @@ const Receipts = () => {
                         </IconButton>
                         <IconButton
                           tooltip={t("receipts.tooltip.download")}
-                          onClick={() => printReceipt(receipt, schoolInfo, user?.shopName)}
+                          onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
                         >
                           <Download className="h-4 w-4" />
                         </IconButton>

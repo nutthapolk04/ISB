@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
+import { type SchoolInfo } from "@/contexts/SchoolInfoContext";
 
 export interface CloseDaySummary {
   shop_id: string;
@@ -41,12 +42,13 @@ export interface CloseDaySummary {
 interface Props {
   shopId: string;
   shopName?: string | null;
+  schoolInfo?: SchoolInfo | null;
   /** Compact mode — small icon-only on narrow screens. Default false. */
   size?: "sm" | "default";
   className?: string;
 }
 
-export function UpToDateSaleButton({ shopId, shopName, size = "sm", className }: Props) {
+export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", className }: Props) {
   const { t } = useTranslation();
   const [summary, setSummary] = useState<CloseDaySummary | null>(null);
   const [open, setOpen] = useState(false);
@@ -95,18 +97,28 @@ export function UpToDateSaleButton({ shopId, shopName, size = "sm", className }:
       })
       .join("");
 
+    const logoHtml = schoolInfo?.logoUrl
+      ? `<img src="${schoolInfo.logoUrl}" width="56" height="56" style="object-fit:contain;display:block;margin:0 auto 4px" />`
+      : "";
+    const schoolName = schoolInfo?.name ?? shopName ?? s.shop_id;
+    const schoolAddr = schoolInfo?.address ? `<p style="margin:0;font-size:.75rem;color:#555">${schoolInfo.address}</p>` : "";
+    const schoolTax  = schoolInfo?.taxId   ? `<p style="margin:0;font-size:.75rem;color:#555">Tax ID: ${schoolInfo.taxId}</p>` : "";
+    const schoolTel  = schoolInfo?.phone   ? `<p style="margin:0;font-size:.75rem;color:#555">Tel: ${schoolInfo.phone}</p>` : "";
+
     const html = `
       <html><head><title>Close Day Slip — ${s.date}</title>
       <style>body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px}
-      h2{text-align:center;font-size:1rem;margin-bottom:4px}
-      p{text-align:center;color:#666;font-size:.8rem;margin:0 0 12px}
+      h2{text-align:center;font-size:1rem;margin-bottom:2px}
+      p{text-align:center;color:#666;font-size:.8rem;margin:0 0 4px}
       table{width:100%;border-collapse:collapse}
       td{font-size:.85rem}
       hr{border:none;border-top:1px dashed #999;margin:8px 0}
       .total{font-weight:bold}</style></head>
       <body>
-        <h2>${shopName ?? s.shop_id}</h2>
-        <p>${t("canteen.closeDayConfirm", { date: s.date })}</p>
+        ${logoHtml}
+        <h2>${schoolName}</h2>
+        ${schoolAddr}${schoolTax}${schoolTel}
+        <p style="margin-top:6px">${t("canteen.closeDayConfirm", { date: s.date })}</p>
         <hr/>
         <table>
           <tr><td style="padding:4px 8px">${t("canteen.totalOrders")}</td><td style="padding:4px 8px;text-align:right">${s.total_orders}</td></tr>
