@@ -180,6 +180,7 @@ export default function Canteen() {
       setColorSaving(false);
     }
   };
+  const [shopDisplayName, setShopDisplayName] = useState<string | null>(null);
   const [productsLoading, setProductsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -212,8 +213,9 @@ export default function Canteen() {
         if (!cancelled) setDepartmentOptions(data);
       } catch { /* tolerate */ }
       try {
-        const meta = await api.get<{ allow_department_charge?: boolean; products_order_version?: number }>(`/shops/${CANTEEN_SHOP_ID}`);
+        const meta = await api.get<{ name?: string; allow_department_charge?: boolean; products_order_version?: number; uses_dual_pricing?: boolean }>(`/shops/${CANTEEN_SHOP_ID}`);
         if (!cancelled) {
+          if (meta.name) setShopDisplayName(meta.name);
           setShopAllowsDept(meta.allow_department_charge ?? false);
           if (meta.products_order_version != null) setProductsOrderVersion(meta.products_order_version);
         }
@@ -847,7 +849,7 @@ export default function Canteen() {
               variant="outline"
               className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
             >
-              {user?.shopName ?? user?.shopId ?? "Canteen"}
+              {shopDisplayName ?? user?.shopName ?? user?.shopId ?? "Canteen"}
             </Badge>
           </div>
         </div>

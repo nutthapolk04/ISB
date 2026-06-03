@@ -22,6 +22,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import CanteenProducts from "./CanteenProducts";
 import CanteenCategories from "./CanteenCategories";
+import { PricePanelManager } from "@/components/PricePanelManager";
 
 interface Shop {
   id: string;
@@ -219,6 +220,7 @@ export default function CanteenShopDetail() {
         <TabsList>
           <TabsTrigger value="menu">{t("canteen.tabMenu")}</TabsTrigger>
           <TabsTrigger value="categories">{t("canteen.tabCategories")}</TabsTrigger>
+          <TabsTrigger value="panels">{t("canteen.tabPanels", "Price Panels")}</TabsTrigger>
           <TabsTrigger value="info">{t("canteen.tabInfo")}</TabsTrigger>
         </TabsList>
 
@@ -228,6 +230,10 @@ export default function CanteenShopDetail() {
 
         <TabsContent value="categories" className="mt-4">
           {shopId && <CanteenCategories shopId={shopId} />}
+        </TabsContent>
+
+        <TabsContent value="panels" className="mt-4">
+          {shopId && <PricePanelManager shopId={shopId} autoLoad />}
         </TabsContent>
 
         <TabsContent value="info" className="mt-4">
