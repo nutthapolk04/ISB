@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>Schooney — Test Cases ภาษาไทย</title>
+<style>
+  :root { --slate: #334155; --slate-light: #f1f5f9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Noto Sans Thai", -apple-system, system-ui, sans-serif; color: var(--slate); background: #fafafa; line-height: 1.6; }
+  header { background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); color: white; padding: 36px 32px; }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; opacity: 0.92; font-size: 14px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 28px; }
+  section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  h2 { margin: 0 0 8px; font-size: 22px; color: #1e293b; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+  h3 { margin: 18px 0 6px; font-size: 16px; color: #1e293b; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  th { background: var(--slate-light); font-weight: 600; color: #475569; font-size: 12px; }
+  td.id { font-family: ui-monospace, monospace; font-weight: 600; color: #2563eb; white-space: nowrap; width: 88px; }
+  td.steps { font-size: 12.5px; }
+  td.steps ol { margin: 0; padding-left: 18px; }
+  td.expected { font-size: 12.5px; color: #047857; }
+  td.status { text-align: center; width: 80px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .badge-p1 { background: #fee2e2; color: #b91c1c; }
+  .badge-p2 { background: #fef3c7; color: #b45309; }
+  .badge-p3 { background: #dbeafe; color: #1e40af; }
+  .module-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-right: 4px; }
+  .module-canteen { background: #fef3c7; color: #b45309; }
+  .module-store { background: #d1fae5; color: #047857; }
+  .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 18px; }
+  .stat { background: var(--slate-light); padding: 14px 18px; border-radius: 8px; }
+  .stat-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--slate); }
+  footer { text-align: center; padding: 28px; color: #94a3b8; font-size: 12px; }
+  .legend { background: #f8fafc; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Schooney — รายการ Test Case ของระบบ</h1>
+  <p>แผนการทดสอบแยกตามบทบาทและโมดูล · 5 มิ.ย. 2026 · รันก่อน demo ลูกค้า</p>
+</header>
+<main>
+
+<section>
+  <h2>📊 สรุปจำนวน Test</h2>
+  <div class="summary-stats">
+    <div class="stat"><div class="stat-label">Test Case รวม</div><div class="stat-value">95</div></div>
+    <div class="stat"><div class="stat-label">P1 (วิกฤต)</div><div class="stat-value">45</div></div>
+    <div class="stat"><div class="stat-label">P2 (สำคัญ)</div><div class="stat-value">32</div></div>
+    <div class="stat"><div class="stat-label">P3 (รอง)</div><div class="stat-value">18</div></div>
+    <div class="stat"><div class="stat-label">โมดูล + Apps</div><div class="stat-value">Canteen · Store · Kiosk</div></div>
+  </div>
+  <div class="legend">
+    <strong>วิธีใช้:</strong> ทำเครื่องหมาย ✅ ผ่าน / ❌ ไม่ผ่าน / ⏭ ข้าม / 🔄 ทดสอบใหม่ ในช่อง Status<br />
+    <strong>Tag โมดูล:</strong> <span class="module-tag module-canteen">CANTEEN</span> เฉพาะโรงอาหาร · <span class="module-tag module-store">STORE</span> เฉพาะสหกรณ์ · ไม่มี tag = ใช้ได้ทั้งสองโมดูล<br />
+    <strong>ระดับความสำคัญ:</strong> P1 = ห้ามตกในการ release · P2 = ควรทำ · P3 = nice to have<br />
+    <strong>แนะนำ:</strong> รัน P1 ทั้งหมดใหม่หลังทุก deploy production
+  </div>
+</section>
+
+<section>
+  <h2>🔐 1. การ Login (ทุกบทบาท)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">AUTH-01</td><td>Login ด้วย username/password</td><td class="steps"><ol><li>เปิดหน้า /login</li><li>กรอก username/password ของ admin</li><li>กด Sign In</li></ol></td><td class="expected">redirect ไปที่ / (HomeHub) เก็บ token ใน localStorage</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-02</td><td>Login รหัสผิด</td><td class="steps"><ol><li>กรอก username ถูก password ผิด</li><li>กด Sign In</li></ol></td><td class="expected">ขึ้น toast "Invalid username or password" ไม่เก็บ token</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-03</td><td>Login ด้วย Google OAuth</td><td class="steps"><ol><li>กด "Sign in with Google"</li><li>เลือก Google account ที่ตรงกับ email โรงเรียน</li></ol></td><td class="expected">login สำเร็จ ระบบจับ user ตาม email</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-04</td><td>Google OAuth ปิด (env var ไม่ตั้ง)</td><td class="steps"><ol><li>เปิด /login เมื่อ VITE_GOOGLE_CLIENT_ID ยังไม่ตั้ง</li></ol></td><td class="expected">ปุ่ม Google ซ่อน แต่ login ด้วย username/password ยังใช้ได้</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-05</td><td>Token หมดอายุ → redirect</td><td class="steps"><ol><li>เปลี่ยน access_token ใน localStorage ให้พัง</li><li>คลิกหน้าที่ต้อง auth</li></ol></td><td class="expected">redirect ไป /login อัตโนมัติ token ถูกลบ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-06</td><td>customer-display ไม่ redirect ตอน 401</td><td class="steps"><ol><li>เปิด /customer-display โดยไม่มี auth</li></ol></td><td class="expected">อยู่ที่ /customer-display แสดง standby ไม่ redirect ไป /login</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-07</td><td>Role Picker สำหรับ user หลายบทบาท</td><td class="steps"><ol><li>login user ที่มี 2 บทบาทขึ้นไป</li></ol></td><td class="expected">เห็น Role Picker ก่อนถึง HomeHub เลือกแล้วระบบจำ activeRole</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-08</td><td>Logout เคลียร์ state</td><td class="steps"><ol><li>กดปุ่ม logout</li></ol></td><td class="expected">redirect ไป /login token ใน localStorage ถูกลบ</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>👨‍💼 2. ฟังก์ชัน Admin</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">ADM-01</td><td>สร้าง user ใหม่</td><td class="steps"><ol><li>เปิด /users</li><li>สร้าง user พร้อม role + ร้าน</li></ol></td><td class="expected">user ถูกสร้าง เห็นในรายการ มี audit log</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-02</td><td>ปรับยอดกระเป๋าเงิน</td><td class="steps"><ol><li>เปิด /admin/wallet-adjust</li><li>เลือกนักเรียน ปรับ +500</li></ol></td><td class="expected">ยอด +500 มี audit log</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-03</td><td>โอนระหว่างกระเป๋า (admin)</td><td class="steps"><ol><li>เปิด /admin/wallet-transfer</li><li>โอน 100 จากพ่อแม่ไปนักเรียน</li></ol></td><td class="expected">ทั้งสองกระเป๋าอัพเดต atomic</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-04</td><td>ปรับยอดแผนก</td><td class="steps"><ol><li>เปิด /admin/department-adjust</li><li>เติม 5000 ให้แผนก</li></ol></td><td class="expected">ยอดแผนกอัพเดต มี audit log</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-05</td><td>ผูกครอบครัวด้วย family_code</td><td class="steps"><ol><li>เปิด /admin/families</li><li>ผูกผู้ปกครอง → ลูก 2 คน</li></ol></td><td class="expected">เกิดกลุ่มครอบครัว ผู้ปกครองเห็นลูก 2 คนบนหน้าครอบครัว</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-06</td><td>อัพโหลดรูป Customer Display</td><td class="steps"><ol><li>/admin/customer-display</li><li>อัพรูป PNG ≤2MB</li></ol></td><td class="expected">รูปเข้า rotation เห็นทั้ง admin panel + customer display</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-07</td><td>ลิมิตรูปสูงสุด 10 รูป</td><td class="steps"><ol><li>อัพรูปที่ 11</li></ol></td><td class="expected">รับ 422 พร้อมข้อความบอกครบ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-08</td><td>ลากเรียงรูปแล้วบันทึก</td><td class="steps"><ol><li>ลากเรียงรูปใหม่</li><li>refresh หน้า</li></ol></td><td class="expected">ลำดับถูกบันทึกใน server</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-09</td><td>แก้ข้อมูลโรงเรียน</td><td class="steps"><ol><li>/admin/settings</li><li>เปลี่ยนชื่อโรงเรียน กด save</li></ol></td><td class="expected">ชื่อใหม่ขึ้นในใบเสร็จ PDF report และ customer display</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-10</td><td>Audit log</td><td class="steps"><ol><li>/admin/audit-logs</li></ol></td><td class="expected">เห็น operation สำคัญทั้งหมด พร้อม actor วันเวลา ก่อน/หลัง</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-11</td><td>admin login แล้วจอ 2 ไม่เด้ง</td><td class="steps"><ol><li>logout แล้ว login เป็น admin</li></ol></td><td class="expected">customer display popup ไม่เด้งอัตโนมัติ (admin ไม่อยู่ในรายการ POS role)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-12</td><td>ปุ่ม Monitor ไม่แสดงสำหรับ admin</td><td class="steps"><ol><li>login เป็น admin</li></ol></td><td class="expected">ไม่เห็นไอคอน Monitor บน header</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>👔 3. ฟังก์ชัน Manager</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">MGR-01</td><td><span class="module-tag module-canteen">CANTEEN</span>Manager เห็นเฉพาะร้านตัวเอง</td><td class="steps"><ol><li>login canteen manager</li><li>เปิด Reports</li></ol></td><td class="expected">เห็นเฉพาะใบเสร็จของ canteen ของตัวเอง ไม่เห็น store</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-02</td><td><span class="module-tag module-canteen">CANTEEN</span>Area Manager เห็นทุก stall ในโซน</td><td class="steps"><ol><li>login canteen area mgr (ไม่มี shop_id)</li></ol></td><td class="expected">เห็น stall picker แสดงทุก stall ใน canteen</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-03</td><td>สร้าง cashier ในร้านตัวเอง</td><td class="steps"><ol><li>/users → Add new</li></ol></td><td class="expected">cashier ใหม่ผูกกับร้านของ manager เลือกร้านอื่นไม่ได้</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-04</td><td>manager login แล้วจอ 2 เด้ง</td><td class="steps"><ol><li>login เป็น manager → POS</li></ol></td><td class="expected">customer display popup เด้งเองอัตโนมัติ</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-05</td><td>ปรับ stock พร้อมเหตุผล</td><td class="steps"><ol><li>Inventory → Adjust</li></ol></td><td class="expected">stock อัพเดต มี ShopMovement audit row</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-06</td><td><span class="module-tag module-store">STORE</span>คืน bundle คืน stock ครบทุก sub-SKU</td><td class="steps"><ol><li>คืนสินค้าที่เป็น bundle</li><li>เช็ค stock ของ sub-SKU ทุกตัว</li></ol></td><td class="expected">sub-SKU ทุกตัวเพิ่มขึ้นตามจำนวนใน bundle</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-07</td><td><span class="module-tag module-store">STORE</span>ประวัติคืนสินค้า</td><td class="steps"><ol><li>/store/return-history</li></ol></td><td class="expected">เห็นรายการคืนทั้งหมด สถานะถูกต้อง</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🍜 4. โมดูล Canteen (โรงอาหาร)</h2>
+  <p style="font-size:13px;color:#64748b;">การทดสอบเฉพาะ POS canteen — flow ขายอาหาร ไม่มี bundle ไม่มีคืนสินค้า ไม่มีเบิกแผนก</p>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">CAN-01</td><td>เปิด POS Canteen</td><td class="steps"><ol><li>login เป็น cashier ของ canteen</li><li>เข้า /canteen</li></ol></td><td class="expected">เห็น grid card สี เมนูทั้งหมด tab All/Best/ขายดี ค้นหาได้</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-02</td><td>กดเมนูเพิ่มลงตะกร้า</td><td class="steps"><ol><li>กด Pad Thai 1 ครั้ง</li></ol></td><td class="expected">Order list ขวามือเพิ่ม 1 รายการ ราคา = ฿55</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-03</td><td>เพิ่มจำนวนของเมนูเดียวกัน</td><td class="steps"><ol><li>กด Pad Thai 3 ครั้ง</li></ol></td><td class="expected">รายการเดียว quantity = 3 ราคา ฿165</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-04</td><td>ขายเงินสด + ทอน</td><td class="steps"><ol><li>ใส่ ผัดไทย ฿55</li><li>เลือกจ่ายเงินสด</li><li>รับเงิน ฿100</li></ol></td><td class="expected">ทอน ฿45 พิมพ์ใบเสร็จ เห็นบรรทัด Cash + Change</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-05</td><td>ขายโดยแตะบัตร campus card</td><td class="steps"><ol><li>ใส่เมนู</li><li>กดจ่าย → "บัตร"</li><li>แตะ RFID card</li></ol></td><td class="expected">ระบบระบุสมาชิก ตัดเงินจากกระเป๋า ใบเสร็จและจอ 2 แสดง balanceAfter</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-06</td><td>ขายผ่าน QR PromptPay</td><td class="steps"><ol><li>ใส่เมนู กด QR</li><li>scan + จ่ายผ่าน mobile banking</li></ol></td><td class="expected">QR แสดงบนจอ 2 (60:40) เช็คสถานะ auto-update เป็น success</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-07</td><td>ไม่มี EDC ใน canteen</td><td class="steps"><ol><li>เปิดวิธีจ่ายเงินในหน้า POS canteen</li></ol></td><td class="expected">ไม่มีตัวเลือก EDC card (เฉพาะ store เท่านั้น)</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-08</td><td>ไม่มี Department Billing ใน canteen</td><td class="steps"><ol><li>เปิดวิธีจ่ายเงินในหน้า POS canteen</li></ol></td><td class="expected">ไม่มีตัวเลือก "เบิกแผนก" (เฉพาะ coop store)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-09</td><td>ตัวนับยอดวันนี้ Up-to-date Sale</td><td class="steps"><ol><li>หลังขายเสร็จ กดปุ่ม Up-to-date Sale</li></ol></td><td class="expected">เห็นยอดสะสมของวันนี้ พร้อมจำนวนใบเสร็จ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-10</td><td>Best Selling tab</td><td class="steps"><ol><li>กด tab "Best selling products"</li></ol></td><td class="expected">แสดงเมนูที่ขายดี เรียงตามจำนวน</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-11</td><td>ค้นหาเมนูด้วยข้อความ</td><td class="steps"><ol><li>พิมพ์ "noodle" ในช่อง search</li></ol></td><td class="expected">เหลือเฉพาะเมนูที่มีคำว่า noodle</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-12</td><td>ยกเลิกใบเสร็จ canteen</td><td class="steps"><ol><li>/canteen/receipts → กดยกเลิก</li><li>ใส่เหตุผล</li></ol></td><td class="expected">ใบเสร็จเป็น VOIDED ไม่ restore stock (food)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-13</td><td>ไม่มีหน้าคืนสินค้าใน canteen</td><td class="steps"><ol><li>เปิด sidebar ของ canteen module</li></ol></td><td class="expected">ไม่มี menu "Returns" / "Return History" (เฉพาะ store)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-14</td><td>Auto-print toggle</td><td class="steps"><ol><li>เปิด toggle Auto-print</li><li>ขาย 1 ใบ</li></ol></td><td class="expected">ใบเสร็จพิมพ์อัตโนมัติโดยไม่ต้องกด print</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CAN-15</td><td>Customer Display เฉพาะ canteen</td><td class="steps"><ol><li>กดเพิ่มเมนู กด Pay</li></ol></td><td class="expected">จอ 2 เปลี่ยนเป็น Order Review พร้อมรายการอาหาร</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🛒 5. โมดูล Store (สหกรณ์ / Bookstore / Sports)</h2>
+  <p style="font-size:13px;color:#64748b;">การทดสอบเฉพาะ POS store — มี bundle / คืนสินค้า / เบิกแผนก / EDC card</p>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">STR-01</td><td>เปิด POS Store</td><td class="steps"><ol><li>login เป็น cashier ของ store</li><li>เข้า /store</li></ol></td><td class="expected">เห็น product grid + cart side panel (ขวา)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-02</td><td>ค้นหาสินค้าด้วย barcode</td><td class="steps"><ol><li>scan barcode หรือพิมพ์รหัส</li></ol></td><td class="expected">สินค้าตรงกัน auto-add ลงตะกร้า</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-03</td><td>เพิ่มส่วนลดรายชิ้น (line discount)</td><td class="steps"><ol><li>เพิ่มสินค้าลงตะกร้า</li><li>กดส่วนลดบนแถวนั้น</li><li>ลด ฿10</li></ol></td><td class="expected">ราคารวมแถวลดลง ใบเสร็จแสดงส่วนลด</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-04</td><td><span class="module-tag module-store">STORE</span>ขาย bundle / SET</td><td class="steps"><ol><li>กด bundle card "ชุดเครื่องแบบ"</li><li>จ่ายเงินสด</li></ol></td><td class="expected">stock ของ sub-SKU ทุกตัวลด ใบเสร็จแสดงชื่อ bundle</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-05</td><td>ขายผ่านบัตร EDC</td><td class="steps"><ol><li>เลือกวิธีจ่าย "บัตร EDC"</li><li>แตะบัตรที่เครื่อง EDC</li><li>ใส่ approval code</li></ol></td><td class="expected">ใบเสร็จมี masked card + approval code</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-06</td><td><span class="module-tag module-store">STORE</span>เบิกผ่านแผนก (Department Billing)</td><td class="steps"><ol><li>เพิ่มของลงตะกร้า</li><li>เลือก "เบิกแผนก"</li><li>เลือก staff + แผนก</li></ol></td><td class="expected">ยอดงบแผนกลดลง ไม่มีเงินสดแลกเปลี่ยน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-07</td><td>เบิกแผนกใน sport shop (ไม่มี)</td><td class="steps"><ol><li>เปิดวิธีจ่ายเงินใน Sport shop</li></ol></td><td class="expected">ไม่มีตัวเลือก "เบิกแผนก" (เฉพาะ category="coop")</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-08</td><td><span class="module-tag module-store">STORE</span>คืนสินค้าเป็นเงิน (refund)</td><td class="steps"><ol><li>/store/returns</li><li>กรอกเลขใบเสร็จ เลือกสินค้า</li><li>เลือก "คืนเป็นเงิน"</li></ol></td><td class="expected">เงินคืนผ่าน wallet/cash stock ของสินค้าเพิ่ม audit log</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-09</td><td><span class="module-tag module-store">STORE</span>เปลี่ยนสินค้า (exchange)</td><td class="steps"><ol><li>/store/returns → "เปลี่ยนสินค้า"</li><li>เลือกสินค้าเก่าและสินค้าใหม่</li></ol></td><td class="expected">stock เก่าเพิ่ม stock ใหม่ลด ส่วนต่างราคาเรียกเก็บ/คืน</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-10</td><td><span class="module-tag module-store">STORE</span>Store Requisition</td><td class="steps"><ol><li>/store/requisition</li><li>ขอเบิกของจากสำนัก</li></ol></td><td class="expected">บันทึก requisition ติดตามสถานะได้</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-11</td><td>ขายแบบ overdraft block ตอน null limit</td><td class="steps"><ol><li>ลูกค้าที่ negative_credit_limit=null</li><li>cart total > ยอดในกระเป๋า</li></ol></td><td class="expected">refuse พร้อม popup ตัว X สีแดง ไม่ตัดเงิน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">STR-12</td><td>Cart panel กว้างพอ</td><td class="steps"><ol><li>เพิ่ม 10 สินค้าลงตะกร้า</li></ol></td><td class="expected">cart panel กว้างพอที่จะอ่านชื่อสินค้าและจำนวนได้ ไม่ล้น</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>💵 6. POS Flow ทั่วไป (ทั้ง 2 โมดูล)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">POS-01</td><td>พิมพ์ใบเสร็จเป็นภาษาอังกฤษ</td><td class="steps"><ol><li>ขายเงินสด</li><li>กด print</li></ol></td><td class="expected">ใบเสร็จเป็นภาษาอังกฤษไม่ว่า UI ภาษาอะไร (โรงเรียนนานาชาติ)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-02</td><td>ใบเสร็จแสดง Cash + Change</td><td class="steps"><ol><li>ขายเงินสดมีทอน</li></ol></td><td class="expected">ใบเสร็จมีบรรทัด "Cash" และ "Change"</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-03</td><td>ส่งใบเสร็จทาง email</td><td class="steps"><ol><li>ขายให้ลูกค้าที่มี email</li><li>เลือก "Send email"</li></ol></td><td class="expected">email ส่งไปถึง ใบเสร็จเป็น PDF แนบ</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-04</td><td>จอ 2 — Order Review</td><td class="steps"><ol><li>เพิ่มลงตะกร้า กด Pay</li></ol></td><td class="expected">จอ 2 เปลี่ยนเป็น OrderReviewScreen แสดงรายการและยอดรวม</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-05</td><td>จอ 2 — QR แบ่ง 60:40</td><td class="steps"><ol><li>จ่าย QR</li></ol></td><td class="expected">ซ้าย 60% แสดงรายการ ขวา 40% แสดง QR + เวลาหมดอายุ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-06</td><td>จอ 2 — แสดงยอดผู้จ่ายตอนแตะบัตร</td><td class="steps"><ol><li>แตะบัตร confirm จ่าย</li></ol></td><td class="expected">Processing screen แสดงชื่อ ยอดก่อน/หลัง</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-07</td><td>จอ 2 — Success แล้วกลับ standby</td><td class="steps"><ol><li>ขายเสร็จ</li></ol></td><td class="expected">Success 5 วินาที → กลับ standby rotation</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-08</td><td>จอ 2 — Failed แสดงเหตุผล</td><td class="steps"><ol><li>force fail (ยอดไม่พอ)</li></ol></td><td class="expected">Failed screen พร้อมเหตุผล กลับ standby อัตโนมัติ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-09</td><td>จอ 2 — ไม่แสดงรูปนักเรียน (privacy)</td><td class="steps"><ol><li>แตะบัตร เช็คจอ 2</li></ol></td><td class="expected">จอ 2 <strong>ไม่</strong> แสดงรูป (เฉพาะฝั่ง cashier)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-10</td><td>popup เมื่อหาบัตรไม่เจอ</td><td class="steps"><ol><li>แตะบัตรที่ไม่รู้จัก</li></ol></td><td class="expected">popup ตัว X สีแดง เฉพาะฝั่ง cashier</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-11</td><td>popup เมื่อใส่รหัสไม่เจอ</td><td class="steps"><ol><li>search รหัสที่ไม่มี</li></ol></td><td class="expected">popup ตัว X สีแดง ไม่เงียบหาย</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-12</td><td>Customer Search ใช้งานได้</td><td class="steps"><ol><li>กด Search Member</li><li>พิมพ์ชื่อ</li></ol></td><td class="expected">รายชื่อตรงกัน เลือกได้ pre-select ก่อน Pay</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>👨‍👩‍👧 7. ฟังก์ชัน Parent และ Staff (กระเป๋าเงิน)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">PAR-01</td><td>หน้าครอบครัวเห็นลูกครบ</td><td class="steps"><ol><li>login เป็น parent</li></ol></td><td class="expected">เห็นลูกที่ผูกไว้ทุกคน พร้อมยอดเงินและชั้น</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-02</td><td>เติมเงินกระเป๋าตัวเองผ่าน QR</td><td class="steps"><ol><li>กด Top Up</li><li>scan QR และจ่าย</li></ol></td><td class="expected">กระเป๋าเพิ่ม toast ยืนยัน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-03</td><td>เติมเงินกระเป๋าลูก</td><td class="steps"><ol><li>เลือกลูกในหน้าครอบครัว</li><li>กด Top Up</li><li>จ่ายผ่าน QR</li></ol></td><td class="expected">กระเป๋าลูกเพิ่ม มี audit log</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-04</td><td>Parent <strong>โอนเงินไม่ได้</strong> (ตามนโยบาย)</td><td class="steps"><ol><li>login parent</li><li>พิมพ์ URL /parent/transfer ตรงๆ</li></ol></td><td class="expected">ถูก redirect ออก — route จำกัดเฉพาะ staff+admin (RequireRole guard)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-05</td><td>Parent เห็นว่าลูกซื้ออะไร</td><td class="steps"><ol><li>เปิดประวัติของลูก</li></ol></td><td class="expected">ใบเสร็จแต่ละใบแสดงรายการสินค้า (ผัดไทย ฿55, ลาเต้ ฿45) + ร้าน + วันเวลา</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-06</td><td>Parent เห็นการเติมเงินของลูก</td><td class="steps"><ol><li>เปิดประวัติของลูก กรองประเภท = top-up</li></ol></td><td class="expected">เห็นทุกการเติมเงิน วันที่ จำนวน แหล่งที่มา</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-07</td><td>Filter ประวัติของลูก</td><td class="steps"><ol><li>กรองตามวันที่</li></ol></td><td class="expected">เห็นรายการในช่วงนั้นเท่านั้น</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-08</td><td>ส่งออกประวัติเป็น PDF</td><td class="steps"><ol><li>กด Export PDF</li></ol></td><td class="expected">PDF ดาวน์โหลด มีโลโก้โรงเรียน + ชื่อลูก + รายการ</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-09</td><td><span class="module-tag module-store">STORE</span>Staff เบิกแผนกที่ coop</td><td class="steps"><ol><li>Staff ที่ coop POS</li><li>เบิกของผ่านแผนก</li></ol></td><td class="expected">ยอดงบแผนกลดถูก staff เห็นรายการเบิกของตัวเอง</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>📊 8. รายงาน (Reports)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">RPT-01</td><td>Sales Report</td><td class="steps"><ol><li>Reports → Sales</li><li>เลือก 30 วัน export</li></ol></td><td class="expected">CSV ดาวน์โหลด มี grand total และจำนวนใบเสร็จ</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-02</td><td>Sales by Payment — แยก dept use</td><td class="steps"><ol><li>รัน report</li></ol></td><td class="expected">Grand total ไม่รวม DEPARTMENT แสดง dept use แยกต่างหาก</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-03</td><td>Stock Card report</td><td class="steps"><ol><li>Reports → Stock Card</li><li>เลือก Variant ID + ช่วงวันที่</li></ol></td><td class="expected">แสดง movements + opening/closing balance</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-04</td><td>Stock Card export PDF</td><td class="steps"><ol><li>โหลด Stock Card</li><li>กด Export PDF</li></ol></td><td class="expected">PDF มีโลโก้ + ชื่อโรงเรียนใน header closing balance ใน TOTAL row</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-05</td><td>Stock Card export Excel</td><td class="steps"><ol><li>โหลด Stock Card</li><li>กด Export Excel</li></ol></td><td class="expected">.xlsx มี numeric cells + currency format</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-06</td><td>Sales Summary — ไม่ใส่ filter</td><td class="steps"><ol><li>Reports → Sales Summary</li><li>กด Search ทั้งหมดเปล่า</li></ol></td><td class="expected">คืนใบเสร็จทุกใบในขอบเขตของ user</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-07</td><td>Sales Summary — กรอง family code</td><td class="steps"><ol><li>ใส่ family code</li></ol></td><td class="expected">เห็นเฉพาะใบเสร็จของครอบครัวนั้น</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-08</td><td>Sales Summary — column ของวิธีชำระ</td><td class="steps"><ol><li>รันที่มีหลายวิธีจ่าย</li></ol></td><td class="expected">แต่ละแถวยอดไปอยู่ที่ Amt.* column เดียวเท่านั้น column อื่นเป็น 0</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-09</td><td>Sales Summary TOTAL row</td><td class="steps"><ol><li>รัน report</li></ol></td><td class="expected">TOTAL = ผลรวมแต่ละ column. amt_receive = grand total</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-10</td><td>Sales Summary export PDF</td><td class="steps"><ol><li>Search</li><li>Export PDF</li></ol></td><td class="expected">PDF landscape A4 มี header โรงเรียน เห็น 14 column ครบ</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-11</td><td>Sales by Item — ไม่ใส่ filter</td><td class="steps"><ol><li>Search ทั้งหมดเปล่า</li></ol></td><td class="expected">เห็น receipt items ทั้งหมดในขอบเขต</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-12</td><td>Sales by Item — กรอง category</td><td class="steps"><ol><li>ใส่ category</li></ol></td><td class="expected">เห็นเฉพาะรายการใน category นั้น</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-13</td><td>Sales by Item TOTAL By Item</td><td class="steps"><ol><li>รัน</li></ol></td><td class="expected">Footer รวม Sales Qty + Sales AMT</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-14</td><td>Reports เคารพ shop scope</td><td class="steps"><ol><li>login cashier</li><li>รัน reports</li></ol></td><td class="expected">เห็นเฉพาะข้อมูลของร้านตัวเอง ไม่หลุดข้ามร้าน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>📺 9. Customer Display (จอที่ 2)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">CD-01</td><td>โหมด standby หมุนรูป</td><td class="steps"><ol><li>เปิด /customer-display</li><li>รอ 10 วินาที</li></ol></td><td class="expected">หมุนรูปทุก 5 วินาที เห็น dot indicator</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-02</td><td>ไม่มีรูป → Welcome placeholder</td><td class="steps"><ol><li>admin ลบรูปหมด</li><li>เปิด display</li></ol></td><td class="expected">เห็น "Welcome / International School Bangkok" + ไอคอน chip status "no images uploaded"</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-03</td><td>เด้งอัตโนมัติตอน cashier login</td><td class="steps"><ol><li>login เป็น cashier</li></ol></td><td class="expected">popup เด้งอัตโนมัติ (browser อาจต้องอนุญาตก่อน)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-04</td><td>ปุ่ม Monitor บน header (เฉพาะ cashier/manager)</td><td class="steps"><ol><li>login เป็น cashier</li></ol></td><td class="expected">เห็นไอคอน Monitor กดแล้วเปิดหน้าต่างใหม่</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-05</td><td>ปุ่ม Monitor ซ่อนสำหรับ admin</td><td class="steps"><ol><li>login เป็น admin</li></ol></td><td class="expected">ไม่เห็นไอคอน Monitor</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-06</td><td>POS broadcast standby ตอน mount</td><td class="steps"><ol><li>ไปที่หน้า Canteen POS</li></ol></td><td class="expected">จอ 2 reset เป็น standby rotation ไม่ค้างที่ state เก่า</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-07</td><td>ไม่มี reload loop</td><td class="steps"><ol><li>เปิด display</li><li>รอ 30 วินาที</li><li>เปิด DevTools Network</li></ol></td><td class="expected">มีแค่ HTML/JS/CSS + images list/binaries ไม่ reload ซ้ำ</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-08</td><td>State sync ระหว่าง tab</td><td class="steps"><ol><li>ปิด display</li><li>POS broadcast state</li><li>เปิด display ใหม่</li></ol></td><td class="expected">display หยิบ state ล่าสุดจาก localStorage</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🖥️ 10. Kiosk (ตู้บริการตนเอง)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">KSK-01</td><td>หน้า Welcome ตอน idle</td><td class="steps"><ol><li>เปิด URL ของ kiosk</li></ol></td><td class="expected">เห็น Welcome view, CTA "แตะบัตรหรือใส่รหัส", มี branding โรงเรียน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-02</td><td>แตะ RFID → เห็นยอด</td><td class="steps"><ol><li>จากหน้า Welcome แตะบัตรบนเครื่องอ่าน</li></ol></td><td class="expected">ระบุผู้ถือบัตร แสดงยอด + 3 รายการล่าสุด ไม่แสดงรูป (privacy)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-03</td><td>ใส่รหัสด้วย Numpad</td><td class="steps"><ol><li>กด "ใส่รหัส"</li><li>พิมพ์รหัสด้วย Numpad</li><li>กดยืนยัน</li></ol></td><td class="expected">โหลดหน้ายอดของรหัสนั้น</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-04</td><td>รหัสผิดแสดง error</td><td class="steps"><ol><li>ใส่รหัสมั่ว</li></ol></td><td class="expected">ข้อความ error + กลับ Welcome ไม่เงียบหาย</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-05</td><td>ประวัติธุรกรรม pagination</td><td class="steps"><ol><li>จาก Balance กด "ประวัติทั้งหมด"</li></ol></td><td class="expected">รายการ paginated มี icon ตามประเภท เลื่อนได้</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-06</td><td>Popup ใบเสร็จ</td><td class="steps"><ol><li>จากประวัติ แตะรายการ</li></ol></td><td class="expected">เปิด ReceiptPreview แสดงรายการสินค้าครบ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-07</td><td>เติมเงินผ่าน PromptPay QR</td><td class="steps"><ol><li>จาก Balance กด Top Up</li><li>เลือก preset 100</li><li>สร้าง QR</li><li>จ่ายผ่าน mobile banking</li></ol></td><td class="expected">QR แสดง เช็คสถานะ auto-poll หน้า success เมื่อจ่ายแล้ว กระเป๋าเพิ่ม</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-08</td><td>ใส่จำนวนเงินเอง</td><td class="steps"><ol><li>Top Up → "Custom"</li><li>พิมพ์ 350 ด้วย Numpad</li></ol></td><td class="expected">สร้าง QR สำหรับ ฿350 ไม่อนุญาตทศนิยม</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-09</td><td>QR หมดอายุ</td><td class="steps"><ol><li>สร้าง QR</li><li>รอ 15+ นาทีไม่จ่าย</li></ol></td><td class="expected">QR แสดงหมดอายุ กลับ Welcome</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-10</td><td>ยกเลิกกลับ Welcome</td><td class="steps"><ol><li>จากหน้าใดๆ กด Cancel/Done</li></ol></td><td class="expected">กลับ Welcome session เคลียร์ ผู้ใช้ถัดไปเริ่มใหม่</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-11</td><td>Idle timeout</td><td class="steps"><ol><li>ทิ้งหน้า Balance ค้าง 30+ วินาที</li></ol></td><td class="expected">กลับ Welcome อัตโนมัติ ป้องกัน privacy</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-12</td><td>Read-only — ไม่มี admin endpoints</td><td class="steps"><ol><li>เช็ค Network tab ตอนใช้ kiosk</li></ol></td><td class="expected">มีแค่ GET /wallets, /transactions, /topup-qr ไม่มี write หรือ admin endpoint</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-13</td><td>ไม่แสดงรูป (privacy)</td><td class="steps"><ol><li>แตะบัตรนักเรียน</li><li>เช็คหน้า Balance</li></ol></td><td class="expected">ไม่แสดงรูป (ตู้อยู่พื้นที่สาธารณะ)</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-14</td><td>เปลี่ยนภาษา en/th</td><td class="steps"><ol><li>จาก Welcome กดเปลี่ยนภาษา</li></ol></td><td class="expected">ทุกหน้าเปลี่ยนภาษา จำในรอบ session reset เมื่อกลับ Welcome</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-15</td><td>ปุ่มใหญ่พอ touch ได้</td><td class="steps"><ol><li>ใช้ kiosk บนหน้าจอ touch จริง</li></ol></td><td class="expected">ทุกปุ่มแตะง่ายในระยะแขน ไม่ต้องใช้ tooltip</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🧭 11. User Guide และอื่นๆ</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">GUI-01</td><td>Guide กรองตาม role (cashier)</td><td class="steps"><ol><li>login cashier → /guide</li></ol></td><td class="expected">เห็นเฉพาะ role cashier ใน sidebar role อื่นซ่อน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-02</td><td>Guide admin เห็นทุก role</td><td class="steps"><ol><li>login admin → /guide</li></ol></td><td class="expected">เห็นทั้ง 6 role (สำหรับ admin support)</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-03</td><td>เปลี่ยนภาษา en ↔ th</td><td class="steps"><ol><li>กด language switcher</li></ol></td><td class="expected">UI เปลี่ยนตาม ใบเสร็จยังเป็นภาษาอังกฤษ</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-04</td><td>Resync (admin)</td><td class="steps"><ol><li>Top bar → Resync</li><li>รัน PowerSchool sync</li></ol></td><td class="expected">บันทึก sync log มี user ใหม่นำเข้ามา</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-05</td><td>ตัวบอกสถานะ server</td><td class="steps"><ol><li>ดึงสายเน็ตออก</li></ol></td><td class="expected">indicator เปลี่ยนเป็นแดงภายใน 30 วินาที กลับเขียวเมื่อเน็ตกลับมา</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🔐 12. Security &amp; Performance</h2>
+  <table>
+    <thead><tr><th>ID</th><th>หัวข้อ</th><th>ขั้นตอน</th><th>ผลที่คาดหวัง</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SEC-01</td><td>cashier เข้า /admin/* ไม่ได้</td><td class="steps"><ol><li>login cashier</li><li>พิมพ์ URL /admin</li></ol></td><td class="expected">redirect ออก หรือ 403</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-02</td><td>manager สร้าง admin ไม่ได้</td><td class="steps"><ol><li>login manager → /users → Create</li></ol></td><td class="expected">role dropdown ไม่มี admin</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-03</td><td>ใบเสร็จกรองตามร้าน</td><td class="steps"><ol><li>cashier ร้าน A ดูใบเสร็จ</li></ol></td><td class="expected">เห็นเฉพาะใบเสร็จร้าน A ไม่หลุดข้ามร้าน</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-04</td><td>Audit log การปรับยอด</td><td class="steps"><ol><li>admin ปรับยอดกระเป๋า</li><li>เช็ค /admin/audit-logs</li></ol></td><td class="expected">มีแถวที่มี actor, target, delta, reason</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-05</td><td>CORS allow-list</td><td class="steps"><ol><li>ลองเรียก API จาก origin อื่น</li></ol></td><td class="expected">browser block backend reject</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PRF-01</td><td>หน้า POS โหลดไม่เกิน 3 วินาที</td><td class="steps"><ol><li>cold-cache โหลด Canteen POS</li></ol></td><td class="expected">interactive ภายใน 3 วินาทีบน broadband</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PRF-02</td><td>Customer display เสถียร 1 ชั่วโมง</td><td class="steps"><ol><li>เปิด popup ทิ้งไว้ 1 ชั่วโมง</li></ol></td><td class="expected">ไม่ memory leak หมุนรูปต่อเนื่อง ไม่มี reload spam</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+<footer>สร้างเมื่อ 5 มิ.ย. 2026 · Schooney · รันก่อน demo ลูกค้า · รันซ้ำหลังทุก deploy production</footer>
+</body>
+</html>

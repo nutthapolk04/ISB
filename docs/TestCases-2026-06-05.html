@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Schooney — System Test Cases</title>
+<style>
+  :root {
+    --amber: #f59e0b;
+    --slate: #334155;
+    --slate-light: #f1f5f9;
+    --green: #10b981;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; color: var(--slate); background: #fafafa; line-height: 1.55; }
+  header { background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); color: white; padding: 36px 32px; }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; opacity: 0.92; font-size: 14px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 28px; }
+  section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  h2 { margin: 0 0 8px; font-size: 22px; color: #1e293b; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+  h3 { margin: 18px 0 6px; font-size: 16px; color: #1e293b; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  th { background: var(--slate-light); font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.id { font-family: ui-monospace, monospace; font-weight: 600; color: #2563eb; white-space: nowrap; width: 80px; }
+  td.steps { font-size: 12.5px; }
+  td.steps ol { margin: 0; padding-left: 18px; }
+  td.expected { font-size: 12.5px; color: #047857; }
+  td.status { text-align: center; width: 90px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  .badge-p1 { background: #fee2e2; color: #b91c1c; }
+  .badge-p2 { background: #fef3c7; color: #b45309; }
+  .badge-p3 { background: #dbeafe; color: #1e40af; }
+  .checkbox { font-size: 18px; display: inline-block; padding: 4px 8px; }
+  details { margin-bottom: 10px; }
+  summary { cursor: pointer; padding: 10px 14px; background: #f8fafc; border-radius: 8px; font-weight: 600; }
+  summary:hover { background: #f1f5f9; }
+  .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 18px; }
+  .stat { background: var(--slate-light); padding: 14px 18px; border-radius: 8px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.05em; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--slate); }
+  footer { text-align: center; padding: 28px; color: #94a3b8; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Schooney — System Test Cases</h1>
+  <p>End-to-end test plan grouped by role · 2026-06-05 · Run before customer demo</p>
+</header>
+<main>
+
+<section>
+  <h2>📊 Coverage Summary</h2>
+  <div class="summary-stats">
+    <div class="stat"><div class="stat-label">Total Cases</div><div class="stat-value">78</div></div>
+    <div class="stat"><div class="stat-label">P1 (Critical)</div><div class="stat-value">37</div></div>
+    <div class="stat"><div class="stat-label">P2 (Major)</div><div class="stat-value">27</div></div>
+    <div class="stat"><div class="stat-label">P3 (Minor)</div><div class="stat-value">14</div></div>
+    <div class="stat"><div class="stat-label">Roles + Apps</div><div class="stat-value">6 + Kiosk</div></div>
+  </div>
+  <p style="font-size:13px;color:#64748b;">Mark each case ✅ Pass / ❌ Fail / ⏭ Skip / 🔄 Retest. Re-run all P1s after every prod deploy.</p>
+</section>
+
+<section>
+  <h2>🔐 1. Authentication (All Roles)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">AUTH-01</td><td>Username/password login</td><td class="steps"><ol><li>Open /login</li><li>Enter valid admin credentials</li><li>Click Sign In</li></ol></td><td class="expected">Redirected to / (HomeHub). Token stored in localStorage.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-02</td><td>Wrong password</td><td class="steps"><ol><li>Enter valid username + bad password</li><li>Click Sign In</li></ol></td><td class="expected">Error toast "Invalid username or password". Token not stored.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-03</td><td>Google OAuth (if configured)</td><td class="steps"><ol><li>Click "Sign in with Google"</li><li>Select Google account matching school email</li></ol></td><td class="expected">Successful login, user record matched by email.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-04</td><td>Google OAuth disabled (env var missing)</td><td class="steps"><ol><li>Open /login when VITE_GOOGLE_CLIENT_ID unset</li></ol></td><td class="expected">Google button hidden. Username/password still works.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-05</td><td>Token expiry redirect</td><td class="steps"><ol><li>Manually corrupt access_token in localStorage</li><li>Click any protected page</li></ol></td><td class="expected">Auto-redirect to /login. Tokens cleared.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-06</td><td>Customer-display does NOT redirect on 401</td><td class="steps"><ol><li>Open /customer-display with no auth</li></ol></td><td class="expected">Stays on /customer-display, shows standby. No /login redirect.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-07</td><td>Role picker for multi-role users</td><td class="steps"><ol><li>Login as user with 2+ roles</li></ol></td><td class="expected">Role Picker shown before HomeHub. activeRole set on selection.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">AUTH-08</td><td>Logout clears state</td><td class="steps"><ol><li>Click logout icon</li></ol></td><td class="expected">Redirect to /login. localStorage tokens cleared.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>👨‍💼 2. Admin Functions</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">ADM-01</td><td>Create new user</td><td class="steps"><ol><li>Open /users</li><li>Create user with role + shop</li></ol></td><td class="expected">User created. Visible in list. Audit log entry.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-02</td><td>Wallet adjustment</td><td class="steps"><ol><li>Open /admin/wallet-adjust</li><li>Select student, adjust +500</li></ol></td><td class="expected">Wallet balance +500. Audit log entry.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-03</td><td>Wallet transfer (admin)</td><td class="steps"><ol><li>Open /admin/wallet-transfer</li><li>Transfer 100 from parent to student</li></ol></td><td class="expected">Both wallets updated atomically.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-04</td><td>Department adjust</td><td class="steps"><ol><li>Open /admin/department-adjust</li><li>Add 5000 to a department</li></ol></td><td class="expected">Department balance updated. Audit log entry.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-05</td><td>Family code linking</td><td class="steps"><ol><li>Open /admin/families</li><li>Link parent → 2 students via family_code</li></ol></td><td class="expected">Family group formed; parent sees both kids on dashboard.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-06</td><td>Customer Display image upload</td><td class="steps"><ol><li>/admin/customer-display</li><li>Upload PNG ≤2MB</li></ol></td><td class="expected">Image added to rotation. Visible in admin panel + customer display.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-07</td><td>Image cap (10 max)</td><td class="steps"><ol><li>Upload 11th image</li></ol></td><td class="expected">Rejected at 422 with cap message.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-08</td><td>Image drag-reorder persists</td><td class="steps"><ol><li>Reorder by drag</li><li>Refresh page</li></ol></td><td class="expected">Order persisted server-side.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-09</td><td>School info edit</td><td class="steps"><ol><li>/admin/settings</li><li>Change school name, save</li></ol></td><td class="expected">New name appears in receipts + PDF reports + customer display.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-10</td><td>Audit log viewer</td><td class="steps"><ol><li>/admin/audit-logs</li></ol></td><td class="expected">All sensitive ops listed with actor, timestamp, before/after.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-11</td><td>Customer Display admin (NO auto-popup)</td><td class="steps"><ol><li>Logout, login as admin</li></ol></td><td class="expected">Customer display popup NOT auto-opened (admin role excluded).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">ADM-12</td><td>Monitor toolbar button hidden</td><td class="steps"><ol><li>Login as admin</li></ol></td><td class="expected">Monitor icon NOT shown in top-right header.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>👔 3. Manager Functions</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">MGR-01</td><td>Manager sees only own shop</td><td class="steps"><ol><li>Login as canteen manager</li><li>Open Reports</li></ol></td><td class="expected">Only canteen receipts visible. Store data hidden.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-02</td><td>Area manager sees all stalls in module</td><td class="steps"><ol><li>Login as canteen area mgr (no shop_id)</li></ol></td><td class="expected">Stall selector shows all canteen stalls.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-03</td><td>Create cashier in own shop</td><td class="steps"><ol><li>/users → Add new</li></ol></td><td class="expected">New cashier in mgr's shop. Cannot pick other shops.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-04</td><td>Manager auto-opens customer display</td><td class="steps"><ol><li>Login as manager → POS</li></ol></td><td class="expected">Customer display popup opens automatically.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-05</td><td>Stock adjustment with reason</td><td class="steps"><ol><li>Inventory → Adjust</li></ol></td><td class="expected">Stock updated. ShopMovement audit row added.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-06</td><td>Bundle return restores all sub-SKUs</td><td class="steps"><ol><li>Return a bundle</li><li>Check stock of every sub-SKU</li></ol></td><td class="expected">All sub-SKUs incremented by their bundle quantities.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">MGR-07</td><td>Refund history</td><td class="steps"><ol><li>/store/return-history</li></ol></td><td class="expected">All returns visible, status accurate.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>💵 4. Cashier &amp; POS Flow</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">POS-01</td><td>Cash sale + change</td><td class="steps"><ol><li>Add ฿120 product</li><li>Pay cash ฿200</li></ol></td><td class="expected">Change=฿80 shown. Receipt printed. Audit row.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-02</td><td>Campus card tap (wallet)</td><td class="steps"><ol><li>Add product</li><li>Tap RFID card</li></ol></td><td class="expected">Member identified. Wallet charged. Display shows balanceAfter.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-03</td><td>Overdraft blocked when null limit</td><td class="steps"><ol><li>Charge user with null neg_credit_limit</li><li>Cart total > balance</li></ol></td><td class="expected">Refused with red X popup. No deduction.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-04</td><td>QR PromptPay</td><td class="steps"><ol><li>Pay via QR</li><li>Scan and pay</li></ol></td><td class="expected">QR displays on second monitor. Status auto-updates to success.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-05</td><td>EDC card payment</td><td class="steps"><ol><li>Pay via card</li><li>Tap on EDC terminal</li><li>Enter approval code</li></ol></td><td class="expected">Receipt has masked card + approval code.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-06</td><td>Department billing (coop only)</td><td class="steps"><ol><li>Coop POS → Add items</li><li>Select staff + department</li></ol></td><td class="expected">Department balance decremented. No cash exchange.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-07</td><td>Bundle (SET) on price panel</td><td class="steps"><ol><li>Click bundle card</li><li>Pay</li></ol></td><td class="expected">All sub-SKU stocks decremented. Receipt shows bundle name.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-08</td><td>Void receipt</td><td class="steps"><ol><li>/receipts → Void</li><li>Enter reason</li></ol></td><td class="expected">Receipt status=VOIDED. Stock restored. Audit row.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-09</td><td>Print receipt — English forced</td><td class="steps"><ol><li>Complete cash sale</li><li>Print</li></ol></td><td class="expected">Receipt in English regardless of UI language.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-10</td><td>Receipt shows cash + change</td><td class="steps"><ol><li>Pay cash with change</li></ol></td><td class="expected">Receipt lists "Cash" and "Change" lines.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-11</td><td>Customer display review state</td><td class="steps"><ol><li>Add to cart</li><li>Click Pay</li></ol></td><td class="expected">Display switches to OrderReviewScreen with items + total.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-12</td><td>Customer display QR — 60:40 layout</td><td class="steps"><ol><li>QR payment</li></ol></td><td class="expected">Items left 60%, QR right 40%, expiry visible.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-13</td><td>Display shows payer balance on wallet pay</td><td class="steps"><ol><li>Tap card → confirm</li></ol></td><td class="expected">Processing screen shows name + balanceBefore/After.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-14</td><td>Display Success then back to standby</td><td class="steps"><ol><li>Complete sale</li></ol></td><td class="expected">Success screen 5s → return to image rotation.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-15</td><td>Display Failed shows reason</td><td class="steps"><ol><li>Force a failure (insufficient balance)</li></ol></td><td class="expected">Failed screen with reason. Auto-back to standby.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-16</td><td>Display NOT customer photo</td><td class="steps"><ol><li>Tap card</li><li>Check display</li></ol></td><td class="expected">Display does NOT show student photo (privacy).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-17</td><td>Card-not-found popup</td><td class="steps"><ol><li>Tap unknown RFID</li></ol></td><td class="expected">Popup with red X. Cashier-side only.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">POS-18</td><td>Not-found by code popup</td><td class="steps"><ol><li>Search invalid code</li></ol></td><td class="expected">Popup with red X. No silent fail.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>👨‍👩‍👧 5. Parent &amp; Staff (Wallet)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">PAR-01</td><td>Family dashboard shows all kids</td><td class="steps"><ol><li>Login as parent</li></ol></td><td class="expected">All linked students visible with balance + grade.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-02</td><td>Top up own wallet via QR</td><td class="steps"><ol><li>Click Top Up</li><li>Scan QR, pay</li></ol></td><td class="expected">Wallet credited. Confirmation toast.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-03</td><td>Top up child's wallet</td><td class="steps"><ol><li>Select child on dashboard</li><li>Click Top Up</li><li>Pay via QR</li></ol></td><td class="expected">Child wallet credited. Audit row.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-04</td><td>Parent CANNOT transfer (policy)</td><td class="steps"><ol><li>Login as parent</li><li>Try URL /parent/transfer directly</li></ol></td><td class="expected">Redirected away — route restricted to staff+admin (RequireRole guard).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-05a</td><td>Parent sees what kid ate / bought</td><td class="steps"><ol><li>Open kid's transaction history</li></ol></td><td class="expected">Each receipt shows line items (Pad Thai ฿55, Latte ฿45, etc.) + shop + date.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-05</td><td>Transaction history pagination</td><td class="steps"><ol><li>Open child's history</li></ol></td><td class="expected">All transactions visible. Filter by date works.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PAR-06</td><td>Staff department billing pull</td><td class="steps"><ol><li>Staff at coop POS</li><li>Charge to department</li></ol></td><td class="expected">Dept balance ↓ correctly. Staff sees own pull.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>📊 6. Reports</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">RPT-01</td><td>Sales report (date range)</td><td class="steps"><ol><li>Reports → Sales</li><li>Pick last 30 days</li><li>Export</li></ol></td><td class="expected">CSV downloaded with rows + grand total + receipt count.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-02</td><td>Sales by Payment — dept use separate</td><td class="steps"><ol><li>Run report</li></ol></td><td class="expected">Grand total excludes DEPARTMENT. Dept use shown separately.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-03</td><td>Stock Card report</td><td class="steps"><ol><li>Reports → Stock Card</li><li>Variant ID + date range</li></ol></td><td class="expected">Movements + opening/closing balance shown.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-04</td><td>Stock Card PDF export with school header</td><td class="steps"><ol><li>Load Stock Card</li><li>Click Export PDF</li></ol></td><td class="expected">PDF has school logo + name in header. Closing balance in TOTAL row.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-05</td><td>Stock Card Excel export</td><td class="steps"><ol><li>Load Stock Card</li><li>Click Export Excel</li></ol></td><td class="expected">.xlsx with numeric cells + currency format.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-06</td><td>Sales Summary — no filters</td><td class="steps"><ol><li>Reports → Sales Summary</li><li>Click Search (all blank)</li></ol></td><td class="expected">Returns every active receipt in scope.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-07</td><td>Sales Summary — filter by family code</td><td class="steps"><ol><li>Enter family code</li></ol></td><td class="expected">Only matching family's receipts.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-08</td><td>Sales Summary — payment method column allocation</td><td class="steps"><ol><li>Run with mixed payments</li></ol></td><td class="expected">Each row's amount lands in only ONE Amt.* column. Other Amt.* = 0.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-09</td><td>Sales Summary TOTAL row</td><td class="steps"><ol><li>Run report</li></ol></td><td class="expected">TOTAL row = sum of each Amt.* column. amt_receive = grand total.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-10</td><td>Sales Summary PDF export</td><td class="steps"><ol><li>Search</li><li>Export PDF</li></ol></td><td class="expected">Landscape A4 with school header. All 14 columns visible.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-11</td><td>Sales by Item — no filters</td><td class="steps"><ol><li>Search blank</li></ol></td><td class="expected">All active receipt-items in scope.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-12</td><td>Sales by Item — category filter</td><td class="steps"><ol><li>Enter category</li></ol></td><td class="expected">Only that category's items.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-13</td><td>Sales by Item TOTAL By Item</td><td class="steps"><ol><li>Run</li></ol></td><td class="expected">Footer sums Sales Qty + Sales AMT.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">RPT-14</td><td>Reports respect shop scope</td><td class="steps"><ol><li>Login as cashier</li><li>Run reports</li></ol></td><td class="expected">Only own shop data. No cross-shop leakage.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>📺 7. Customer Display (Second Monitor)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">CD-01</td><td>Standby rotation</td><td class="steps"><ol><li>Open /customer-display</li><li>Wait 10s</li></ol></td><td class="expected">Rotates uploaded images every 5s. Dot indicator visible.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-02</td><td>No images → Welcome placeholder</td><td class="steps"><ol><li>Delete all images (admin)</li><li>Open display</li></ol></td><td class="expected">"Welcome / International School Bangkok" + Monitor icon. Status chip "no images uploaded".</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-03</td><td>Auto-open on cashier login</td><td class="steps"><ol><li>Login as cashier</li></ol></td><td class="expected">Popup opens automatically (browser may need permission).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-04</td><td>Monitor button on header (cashier/manager only)</td><td class="steps"><ol><li>Login as cashier</li></ol></td><td class="expected">Monitor icon visible. Click reopens display window.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-05</td><td>Monitor button hidden for admin</td><td class="steps"><ol><li>Login as admin</li></ol></td><td class="expected">No Monitor icon.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-06</td><td>POS broadcasts standby on mount</td><td class="steps"><ol><li>Navigate to Canteen POS</li></ol></td><td class="expected">Display resets to standby rotation (no stale state).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-07</td><td>No reload loop on popup</td><td class="steps"><ol><li>Open display</li><li>Wait 30s</li><li>Open DevTools Network</li></ol></td><td class="expected">Only initial HTML/JS/CSS + images list/binaries. No repeated reloads.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">CD-08</td><td>Cross-tab state via localStorage</td><td class="steps"><ol><li>Close display</li><li>POS broadcasts state</li><li>Reopen display</li></ol></td><td class="expected">Display picks up last broadcast on reopen.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🧭 8. User Guide &amp; Misc</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">GUI-01</td><td>Guide filtered by role (cashier)</td><td class="steps"><ol><li>Login as cashier → /guide</li></ol></td><td class="expected">Only cashier role visible in sidebar. Other roles hidden.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-02</td><td>Guide admin sees all roles</td><td class="steps"><ol><li>Login as admin → /guide</li></ol></td><td class="expected">All 6 roles visible (admin support flow).</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-03</td><td>Language switch en ↔ th</td><td class="steps"><ol><li>Click language switcher</li></ol></td><td class="expected">UI updates. Receipt stays English regardless.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-04</td><td>Resync button (admin)</td><td class="steps"><ol><li>Top bar → Resync</li><li>Run PowerSchool sync</li></ol></td><td class="expected">Sync log saved. New users imported.</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">GUI-05</td><td>Server status indicator</td><td class="steps"><ol><li>Pull network cable</li></ol></td><td class="expected">Indicator turns red within 30s. Reconnects when back.</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🖥️ 9. Kiosk (Self-Service Touch Terminal)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">KSK-01</td><td>Welcome screen on idle</td><td class="steps"><ol><li>Open kiosk URL</li></ol></td><td class="expected">Welcome view shown. "Tap card or enter code" CTA visible. School branding present.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-02</td><td>RFID card tap → Balance</td><td class="steps"><ol><li>From Welcome, tap card on attached reader</li></ol></td><td class="expected">Identifies cardholder. Shows balance + last 3 transactions. No photo displayed (privacy).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-03</td><td>Manual code entry fallback</td><td class="steps"><ol><li>Click "Enter Code" on Welcome</li><li>Type customer code via Numpad</li><li>Confirm</li></ol></td><td class="expected">Balance view loads for the entered code.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-04</td><td>Invalid code shows error</td><td class="steps"><ol><li>Enter random code via Numpad</li></ol></td><td class="expected">Error message + return to Welcome. No silent fail.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-05</td><td>Transaction History pagination</td><td class="steps"><ol><li>From Balance, click "Full History"</li></ol></td><td class="expected">List of transactions with type icons, dates, shop names, amounts. Scrollable.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-06</td><td>Receipt preview popup</td><td class="steps"><ol><li>From History, tap a transaction</li></ol></td><td class="expected">ReceiptPreview component opens with full line items.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-07</td><td>Top-up via PromptPay QR</td><td class="steps"><ol><li>From Balance, click Top Up</li><li>Select preset 100</li><li>Generate QR</li><li>Pay via banking app</li></ol></td><td class="expected">QR shown. Status auto-polls. Success screen on payment confirmation. Wallet credited.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-08</td><td>Custom top-up amount via Numpad</td><td class="steps"><ol><li>Top Up → "Custom"</li><li>Enter 350 via Numpad</li></ol></td><td class="expected">QR generated for ฿350. Decimal not allowed.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-09</td><td>QR expiry</td><td class="steps"><ol><li>Generate QR</li><li>Wait 15+ minutes without paying</li></ol></td><td class="expected">QR marked expired. Return to Welcome.</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-10</td><td>Cancel back to Welcome</td><td class="steps"><ol><li>From any view, click Cancel/Done</li></ol></td><td class="expected">Returns to Welcome. Session cleared (next user starts fresh).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-11</td><td>Idle timeout to Welcome</td><td class="steps"><ol><li>Leave Balance view idle for 30+ seconds</li></ol></td><td class="expected">Auto-returns to Welcome. Privacy maintained.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-12</td><td>Read-only — no admin endpoints</td><td class="steps"><ol><li>Inspect Network tab while using kiosk</li></ol></td><td class="expected">Only GET /wallets/{id}, /transactions, /topup-qr called. No write endpoints, no admin endpoints.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-13</td><td>No photo on screen (privacy)</td><td class="steps"><ol><li>Tap student card</li><li>Check Balance view</li></ol></td><td class="expected">No photo rendered (public area policy).</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-14</td><td>Language switch en ↔ th</td><td class="steps"><ol><li>From Welcome, toggle language</li></ol></td><td class="expected">All views update text. Persists for the session, resets on return to Welcome.</td><td><span class="badge badge-p3">P3</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">KSK-15</td><td>Touch hit targets large enough</td><td class="steps"><ol><li>Use kiosk on actual touch display</li></ol></td><td class="expected">All buttons easily tappable at arm's length. No tooltips required.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🔐 10. Cross-Cutting Tests</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Case</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SEC-01</td><td>Cashier cannot access /admin/*</td><td class="steps"><ol><li>Login as cashier</li><li>Type /admin URL</li></ol></td><td class="expected">Redirect to / or 403.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-02</td><td>Manager cannot create admin user</td><td class="steps"><ol><li>Login as manager → /users → Create</li></ol></td><td class="expected">Role dropdown excludes admin.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-03</td><td>Receipts list scoped by shop</td><td class="steps"><ol><li>Cashier in shop A views receipts</li></ol></td><td class="expected">Only shop A receipts. No cross-shop bleed.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-04</td><td>Audit log for wallet adjust</td><td class="steps"><ol><li>Admin adjusts wallet</li><li>Check /admin/audit-logs</li></ol></td><td class="expected">Row with actor, target, delta, reason.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">SEC-05</td><td>CORS allow-list</td><td class="steps"><ol><li>Try API call from unknown origin</li></ol></td><td class="expected">Browser blocks. Backend rejects.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PRF-01</td><td>POS page loads < 3s</td><td class="steps"><ol><li>Cold-cache Canteen POS load</li></ol></td><td class="expected">Interactive within 3s on broadband.</td><td><span class="badge badge-p2">P2</span></td><td class="status">☐</td></tr>
+      <tr><td class="id">PRF-02</td><td>Customer display steady</td><td class="steps"><ol><li>Leave popup running 1 hour</li></ol></td><td class="expected">No memory leak, rotation continues, no reload spam.</td><td><span class="badge badge-p1">P1</span></td><td class="status">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+<footer>Generated 2026-06-05 · Schooney · Run before customer demo · Re-run after every prod deploy</footer>
+</body>
+</html>

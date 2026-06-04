@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>Schooney — เอกสารความต้องการระบบ (TH)</title>
+<style>
+  :root {
+    --amber: #f59e0b;
+    --amber-light: #fef3c7;
+    --slate: #334155;
+    --slate-light: #f1f5f9;
+    --green: #10b981;
+    --red: #ef4444;
+    --violet: #8b5cf6;
+    --sky: #0ea5e9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; font-family: "Noto Sans Thai", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--slate); background: #fafafa; line-height: 1.7; }
+  header { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); color: white; padding: 40px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  header h1 { margin: 0 0 6px; font-size: 28px; }
+  header p { margin: 0; opacity: 0.92; font-size: 14px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px; }
+  section { background: white; border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  h2 { margin: 0 0 16px; font-size: 22px; color: #1e293b; display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 2px solid var(--amber-light); }
+  h3 { margin: 20px 0 10px; font-size: 17px; color: #1e293b; }
+  h4 { margin: 14px 0 6px; font-size: 14px; color: #64748b; }
+  ul { margin: 6px 0 14px; padding-left: 22px; }
+  li { margin: 5px 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill-admin   { background: #ede9fe; color: var(--violet); }
+  .pill-manager { background: #fef3c7; color: #b45309; }
+  .pill-cashier { background: #dbeafe; color: #1d4ed8; }
+  .pill-parent  { background: #fce7f3; color: #be185d; }
+  .pill-student { background: #d1fae5; color: #047857; }
+  .pill-staff   { background: #e0f2fe; color: var(--sky); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+  th { background: var(--slate-light); font-weight: 600; color: #475569; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .meta-item { background: var(--slate-light); padding: 14px 18px; border-radius: 8px; }
+  .meta-item-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+  .meta-item-value { font-size: 15px; font-weight: 600; color: var(--slate); }
+  .role-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 22px; margin: 12px 0; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: ui-monospace, "SF Mono", monospace; }
+  .priority-high { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .priority-mid  { background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Schooney — เอกสารความต้องการระบบ</h1>
+  <p>ระบบบริหารสหกรณ์โรงเรียน ISB · จำแนกตามบทบาทผู้ใช้งาน · วันที่ 5 มิ.ย. 2026</p>
+</header>
+<main>
+
+<section>
+  <h2>📋 ภาพรวมระบบ</h2>
+  <div class="meta">
+    <div class="meta-item"><div class="meta-item-label">ชื่อระบบ</div><div class="meta-item-value">Schooney</div></div>
+    <div class="meta-item"><div class="meta-item-label">ลูกค้า</div><div class="meta-item-value">International School Bangkok</div></div>
+    <div class="meta-item"><div class="meta-item-label">เทคโนโลยี</div><div class="meta-item-value">FastAPI + React + PostgreSQL</div></div>
+    <div class="meta-item"><div class="meta-item-label">โฮสติ้ง</div><div class="meta-item-value">Vercel + Railway</div></div>
+    <div class="meta-item"><div class="meta-item-label">โมดูล</div><div class="meta-item-value">โรงอาหาร · สหกรณ์ · กระเป๋าเงิน · ผู้ดูแล · ตู้บริการ</div></div>
+    <div class="meta-item"><div class="meta-item-label">บทบาทผู้ใช้</div><div class="meta-item-value">6 (admin / manager / cashier / parent / student / staff)</div></div>
+    <div class="meta-item"><div class="meta-item-label">แอป</div><div class="meta-item-value">หลัก (React) + Kiosk (Vue 3 self-service)</div></div>
+  </div>
+  <h3>วัตถุประสงค์</h3>
+  <p>ระบบชำระเงินและบริหารงานครบวงจรสำหรับสหกรณ์และโรงอาหารของโรงเรียนนานาชาติ ผู้ปกครองและบุคลากรเติมเงินเข้ากระเป๋า campus card นักเรียนและบุคลากรใช้จ่ายที่หน้า POS ผู้ดูแลระบบจัดการผู้ใช้ แผนก คืนสินค้า ตั้งค่าระบบ และดู report ระบบยังขับเคลื่อนหน้าจอที่ 2 (Customer Display) เพื่อให้ลูกค้าเห็นรายการที่ซื้อแบบโปร่งใส</p>
+</section>
+
+<section>
+  <h2>🏪 โมดูล Canteen vs Store</h2>
+  <p style="font-size:13px;color:#64748b;">
+    ระบบ POS แบ่งเป็น 2 โมดูลหลักที่ทำงานคนละแบบและมี business rule ต่างกัน
+    การออกแบบใดๆ ต่อจากนี้ ต้องเช็คก่อนว่ากำลังทำที่โมดูลไหน
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:25%;">หัวข้อ</th>
+        <th>🍜 Canteen (โรงอาหาร)</th>
+        <th>🛒 Store / Coop (สหกรณ์ ร้านหนังสือ Sports)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ประเภทสินค้า</strong></td>
+        <td>อาหาร เครื่องดื่ม ขนม (ผัดไทย, ก๋วยเตี๋ยว, ลาเต้ ฯลฯ)</td>
+        <td>เครื่องเขียน เครื่องแบบ หนังสือ อุปกรณ์กีฬา</td>
+      </tr>
+      <tr>
+        <td><strong>หน้าจอ POS</strong></td>
+        <td><code>/canteen</code> — Grid card สี เน้นการกดเร็ว</td>
+        <td><code>/store</code> — Card + Sheet cart side panel</td>
+      </tr>
+      <tr>
+        <td><strong>วิธีชำระเงิน</strong></td>
+        <td>เงินสด · บัตร campus card (wallet) · QR PromptPay</td>
+        <td>เงินสด · บัตร · QR · บัตร EDC · <strong>เบิกแผนก</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Bundle / SET</strong></td>
+        <td>❌ ไม่มี (อาหารขายเป็นรายชิ้น)</td>
+        <td>✅ มี (เช่น "ชุดเครื่องแบบ" 1 SET = เสื้อ+กางเกง+ป้ายชื่อ)</td>
+      </tr>
+      <tr>
+        <td><strong>การคืนสินค้า</strong></td>
+        <td>❌ ไม่มี (อาหารคืนไม่ได้)</td>
+        <td>✅ มี — Returns + Return History + bundle restore stock ครบทุก sub-SKU</td>
+      </tr>
+      <tr>
+        <td><strong>Department Billing</strong></td>
+        <td>❌ ไม่มี</td>
+        <td>✅ มี (เฉพาะร้าน category="coop") — staff เบิกของผ่านงบแผนก</td>
+      </tr>
+      <tr>
+        <td><strong>การเบิก (Requisition)</strong></td>
+        <td>❌ ไม่มี</td>
+        <td>✅ มี — <code>/store/requisition</code> ติดตามการเบิกข้ามร้าน</td>
+      </tr>
+      <tr>
+        <td><strong>โครงสร้างร้าน</strong></td>
+        <td>หลาย stall ภายในโซนเดียว (Thai Kitchen, Western, Drinks)</td>
+        <td>ร้านเดี่ยว (Sports, Bookstore, Coop) แต่ละร้านมี shop_id ของตัวเอง</td>
+      </tr>
+      <tr>
+        <td><strong>Area Manager</strong></td>
+        <td>มี — manager ที่ไม่ผูก shop_id เห็นทุก stall ในโซนนี้</td>
+        <td>มี — manager ที่ไม่ผูก shop_id เห็นทุก store</td>
+      </tr>
+      <tr>
+        <td><strong>เมนูจัดการสินค้า</strong></td>
+        <td><code>/canteen/products</code> (CanteenMenuPage) — เน้นรูป + สี</td>
+        <td><code>/store/management/{shopId}</code> — เน้น SKU + price panel</td>
+      </tr>
+      <tr>
+        <td><strong>หน้าหลัก Manager</strong></td>
+        <td><code>/canteen/management</code> + <code>/canteen/management/{shopId}</code></td>
+        <td><code>/store/management</code> + ShopDetail per shop</td>
+      </tr>
+      <tr>
+        <td><strong>รายงาน</strong></td>
+        <td><code>/canteen/reports</code> — สรุปยอดและ best-selling อาหาร</td>
+        <td><code>/store/reports</code> — รวม Returns, Stock Card, Sales Summary, Sales by Item ด้วย</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:24px;">หลักการเข้าถึงโมดูล (Module Access)</h3>
+  <ul>
+    <li><strong>Admin:</strong> เห็นทั้ง 2 โมดูล ไม่จำกัด</li>
+    <li><strong>Manager/Cashier ที่ผูก shop_id:</strong> เห็นเฉพาะโมดูลที่ shop นั้นสังกัด (canteen หรือ store)</li>
+    <li><strong>Area Manager (ไม่มี shop_id):</strong> มี <code>shop_module</code> = canteen หรือ store → เห็นเฉพาะโมดูลของตัวเอง</li>
+    <li><strong>RequireModule guard:</strong> ป้องกัน manager โซน canteen เข้า <code>/store/*</code> หรือกลับด้าน</li>
+  </ul>
+</section>
+
+<section>
+  <h2>👥 รายชื่อบทบาท (Roles)</h2>
+  <table>
+    <thead><tr><th>บทบาท</th><th>กลุ่มเป้าหมาย</th><th>สิทธิ์การเข้าถึง</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill pill-admin">Admin</span></td><td>ฝ่าย IT/ปฏิบัติการของโรงเรียน</td><td>ตั้งค่าระบบทั้งหมด ดูข้อมูลและรายงานทุกร้าน</td></tr>
+      <tr><td><span class="pill pill-manager">Manager</span></td><td>ผู้จัดการร้าน (ร้านเดียวหรือทั้งโซน)</td><td>POS + Reports + Users (เฉพาะร้านตัวเอง) ไม่เห็นการตั้งค่าระบบ</td></tr>
+      <tr><td><span class="pill pill-cashier">Cashier</span></td><td>พนักงานคิดเงิน</td><td>เฉพาะ POS — ขาย คืน ยกเลิก ในร้านตัวเอง</td></tr>
+      <tr><td><span class="pill pill-parent">Parent</span></td><td>ผู้ปกครองนักเรียน</td><td>หน้าครอบครัว เติมเงิน ดูยอด ดูประวัติการใช้จ่ายของลูก</td></tr>
+      <tr><td><span class="pill pill-student">Student</span></td><td>นักเรียน</td><td>ดูยอดและประวัติของตัวเองเท่านั้น</td></tr>
+      <tr><td><span class="pill pill-staff">Staff</span></td><td>ครู/บุคลากร</td><td>กระเป๋าเงินส่วนตัว + การเบิกของผ่านแผนก</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2><span class="pill pill-admin">Admin</span> ฟังก์ชันของผู้ดูแลระบบ</h2>
+
+  <div class="role-card">
+    <h4>การจัดการผู้ใช้</h4>
+    <ul>
+      <li>สร้าง/แก้ไข/ปิดบัญชีผู้ใช้ทุกบทบาท <span class="priority-high">สูง</span></li>
+      <li>นำเข้าข้อมูลแบบ Bulk จาก PowerSchool (CSV) — นักเรียน ผู้ปกครอง บุคลากร</li>
+      <li>รีเซ็ตรหัสผ่าน กำหนดบทบาทและร้านสังกัด</li>
+      <li>เชื่อมผู้ปกครอง ↔ นักเรียน ผ่าน <code>family_code</code></li>
+      <li>อนุมัติการสลับบทบาทสำหรับผู้ใช้ที่มีหลายบทบาท (เช่น manager + cashier)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>กระเป๋าเงินและบัตร</h4>
+    <ul>
+      <li>ปรับยอดเงินในกระเป๋าใดก็ได้ (บันทึก audit log) <span class="priority-high">สูง</span></li>
+      <li>โอนระหว่างกระเป๋า (เฉพาะ admin เท่านั้น — ผู้ใช้ทำไม่ได้)</li>
+      <li>จัดการการผูกบัตร RFID/NFC กับกระเป๋าเงิน</li>
+      <li>กำหนด <code>negative_credit_limit</code> ต่อผู้ใช้ (วงเงิน overdraft)</li>
+      <li>workflow เปลี่ยนบัตร (ปิดบัตรหาย เปิดบัตรใหม่)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>การเบิกผ่านแผนก (Department Billing)</h4>
+    <ul>
+      <li>สร้าง/ใส่งบให้แต่ละแผนก <span class="priority-high">สูง</span></li>
+      <li>ปรับยอดงบแผนก พร้อม audit trail</li>
+      <li>เบิกของผ่านสหกรณ์โดยใช้งบแผนก (ไม่มีเงินสดเปลี่ยนมือ)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>แคตตาล็อกและการตั้งราคา</h4>
+    <ul>
+      <li>จัดการสินค้าในร้าน (เมนูโรงอาหาร สินค้าสหกรณ์ ร้านหนังสือ)</li>
+      <li>ตั้ง price panel (ราคาแยกตามร้าน)</li>
+      <li>จัดการ Bundle/SET (1 SKU = หลาย sub-SKU)</li>
+      <li>จัดการหมวดหมู่สินค้าต่อร้าน</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>รายงาน (Admin: เห็นทุกร้าน)</h4>
+    <ul>
+      <li>Sales Report (ตามช่วงวันที่ ร้าน สินค้า) <span class="priority-high">สูง</span></li>
+      <li>Top-Selling Products สินค้าขายดี</li>
+      <li>Sales by Payment Method แยกตามวิธีชำระเงิน</li>
+      <li>Stock Report สต็อกทุกร้าน</li>
+      <li>Return Report การคืนสินค้า</li>
+      <li>Stock Card รายการเคลื่อนไหวต่อ SKU (เปิด-ปิด)</li>
+      <li><strong>Sales Summary</strong> รายงานต่อใบเสร็จพร้อมแยกวิธีชำระเงิน <span class="priority-high">ใหม่</span></li>
+      <li><strong>Sales by Item</strong> รายงานต่อรายการสินค้าในใบเสร็จ <span class="priority-high">ใหม่</span></li>
+      <li>ทุก report ส่งออกเป็น CSV / Excel / PDF (พร้อมโลโก้และชื่อโรงเรียน)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>การตั้งค่าระบบ</h4>
+    <ul>
+      <li>ข้อมูลโรงเรียน (ชื่อ ที่อยู่ เลขผู้เสียภาษี โลโก้ Cover) <span class="priority-mid">ปานกลาง</span></li>
+      <li>จัดการรูปภาพ Customer Display (สูงสุด 10 รูป 2 MB JPG/PNG)</li>
+      <li>ดู Audit log (บันทึก operation สำคัญที่แก้ไม่ได้)</li>
+      <li>Sync กับ PowerSchool ผ่าน cron</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-manager">Manager</span> ฟังก์ชันของผู้จัดการ</h2>
+
+  <div class="role-card">
+    <h4>การใช้งาน POS (เฉพาะร้านที่จัดการ)</h4>
+    <ul>
+      <li>ใช้งาน POS แบบเดียวกับ cashier (ขาย ยกเลิก คืนสินค้า) <span class="priority-high">สูง</span></li>
+      <li>รับเงินได้ทุกรูปแบบ: เงินสด, กระเป๋าเงิน, บัตร EDC, QR, เบิกแผนก</li>
+      <li>มีหน้าจอที่ 2 (Customer Display) แสดงรายการให้ลูกค้าเห็น</li>
+      <li>ตัวนับยอดขายแบบ real-time วันนี้</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>ผู้ใช้ในร้าน</h4>
+    <ul>
+      <li>เพิ่ม/แก้ไข cashier และ staff ในร้านตัวเอง <span class="priority-high">สูง</span></li>
+      <li>ไม่สามารถสร้าง admin หรือเลือกร้านอื่นได้</li>
+      <li>รีเซ็ตรหัสผ่านของพนักงานในร้าน</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>การคืนสินค้าและเปลี่ยนของ (เฉพาะสหกรณ์)</h4>
+    <ul>
+      <li>คืนเงินพร้อมบันทึก audit</li>
+      <li>คืน bundle จะคืน stock ไปยังทุก sub-SKU อัตโนมัติ</li>
+      <li>ประวัติการคืนสินค้า กรองตามสถานะได้</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>คลังสินค้า</h4>
+    <ul>
+      <li>ปรับ stock พร้อมเหตุผล</li>
+      <li>ปฏิบัติการแบบ batch — เก็บใน localStorage 12 ชั่วโมง</li>
+      <li>ติดตามการเบิก (Store Requisition)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>รายงาน (Manager: เฉพาะร้านตัวเอง)</h4>
+    <ul>
+      <li>รายงานเหมือน admin แต่จำกัดที่ shop_id ของ manager</li>
+      <li>Area manager (ไม่มี shop_id) เห็นทุกร้านในโมดูล (โรงอาหารหรือสหกรณ์)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-cashier">Cashier</span> ฟังก์ชันของพนักงานคิดเงิน</h2>
+
+  <div class="role-card">
+    <h4>การขายที่ POS</h4>
+    <ul>
+      <li>ค้นหาสินค้าด้วยชื่อ/บาร์โค้ด/หมวดหมู่ <span class="priority-high">สูง</span></li>
+      <li>เพิ่มลงตะกร้า กำหนดจำนวน และส่วนลดรายชิ้น</li>
+      <li>แตะบัตร campus card → ระบุสมาชิก → ตัดเงินจากกระเป๋า</li>
+      <li>สร้าง QR PromptPay + เช็คสถานะการชำระอัตโนมัติ</li>
+      <li>รับเงินสดพร้อมคำนวณเงินทอนอัตโนมัติ</li>
+      <li>พิมพ์ใบเสร็จความร้อน (Star Micronics 80mm ภาษาอังกฤษ ฟอนต์ใหญ่)</li>
+      <li>ส่งใบเสร็จทาง email ได้</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>หน้าจอที่ 2 (Customer Display)</h4>
+    <ul>
+      <li>Popup window ที่ <code>/customer-display</code></li>
+      <li>โหมด standby หมุนรูปที่ admin อัพโหลด</li>
+      <li>หน้า Order Review + QR (แบ่ง 60:40) + Processing (โชว์ผู้จ่ายและยอดคงเหลือ) + Success / Failed</li>
+      <li>กลับ standby อัตโนมัติหลัง 5 วินาทีเมื่อเสร็จ</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>ใบเสร็จและการยกเลิก</h4>
+    <ul>
+      <li>รายการใบเสร็จ กรองวันที่ + ค้นหาได้</li>
+      <li>พิมพ์ใบเสร็จซ้ำ</li>
+      <li>ยกเลิกใบเสร็จ (ใส่เหตุผล บันทึก audit)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-parent">Parent</span> ฟังก์ชันของผู้ปกครอง</h2>
+
+  <div class="role-card">
+    <h4>หน้าครอบครัว</h4>
+    <ul>
+      <li>เห็นนักเรียนทุกคนที่ผูกไว้ พร้อมกระเป๋าเงิน <span class="priority-high">สูง</span></li>
+      <li>เห็นยอดเงินปัจจุบันและรายการล่าสุดของลูกแต่ละคน</li>
+      <li>เห็นรูปและชั้นของลูก (มีนโยบายความเป็นส่วนตัวกำกับ)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>การเติมเงิน</h4>
+    <ul>
+      <li>เติมเงินกระเป๋าตัวเองผ่าน PromptPay QR + Bank Transfer <span class="priority-high">สูง</span></li>
+      <li>เติมเงินกระเป๋าลูกได้โดยตรง (เป็นการ <strong>เติมเงิน</strong> ไม่ใช่การ <strong>โอน</strong>)</li>
+      <li>รับการยืนยันธุรกรรมทาง push / email</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>ประวัติธุรกรรม (อ่านอย่างเดียว)</h4>
+    <ul>
+      <li>เห็นว่าลูกซื้ออะไร ที่ไหน เมื่อไหร่ <span class="priority-high">สูง</span></li>
+      <li>เห็นทุกการเติมเงินเข้ากระเป๋าลูก (วันที่ จำนวน แหล่งที่มา)</li>
+      <li>กรองตามวันที่ ประเภทธุรกรรม ร้าน</li>
+      <li>เห็นรายการสินค้าในใบเสร็จ (เช่น "ผัดไทย ฿55", "ลาเต้เย็น ฿45")</li>
+      <li>ส่งออก PDF เก็บไว้</li>
+    </ul>
+  </div>
+
+  <div class="role-card" style="border-color:#fecaca;background:#fef2f2;">
+    <h4 style="color:#b91c1c;">สิ่งที่ผู้ปกครองทำ <strong>ไม่ได้</strong> (ตามนโยบาย)</h4>
+    <ul>
+      <li><strong>ห้ามโอนเงินจากกระเป๋าตัวเองไปกระเป๋าลูก</strong> — ทำได้แค่เติมเงินเท่านั้น</li>
+      <li>ห้ามโอนระหว่างลูก 2 คน — ต้องให้ admin เป็นคนทำ</li>
+      <li>ห้ามจ่ายเงินแทนลูกที่หน้า POS — ลูกต้องแตะบัตรเอง</li>
+      <li>ห้ามขอคืนเงินเอง — ต้องไปที่ผู้จัดการร้าน</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-student">Student</span> ฟังก์ชันของนักเรียน</h2>
+
+  <div class="role-card">
+    <h4>ดูข้อมูลตัวเอง</h4>
+    <ul>
+      <li>ดูยอดเงินในกระเป๋าตัวเอง</li>
+      <li>ดูธุรกรรมล่าสุด (การซื้อที่โรงอาหาร/สหกรณ์/ร้านหนังสือ)</li>
+      <li>เติมเงินเองไม่ได้ — ต้องผ่านผู้ปกครองหรือ admin</li>
+      <li>โอนเงินไม่ได้ — ปิดตามนโยบาย</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-staff">Staff</span> ฟังก์ชันของบุคลากร</h2>
+
+  <div class="role-card">
+    <h4>กระเป๋าเงินส่วนตัว</h4>
+    <ul>
+      <li>UI เดียวกับผู้ปกครองสำหรับกระเป๋าตัวเอง</li>
+      <li>เติมเงินผ่าน QR / Bank Transfer</li>
+      <li>ดูประวัติของตัวเอง</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>การเบิกผ่านแผนก (เฉพาะสหกรณ์)</h4>
+    <ul>
+      <li>เบิกของโดยใช้งบแผนก (ไม่ใช่เงินสด)</li>
+      <li>มียอดงบแผนกและเพดานอนุมัติกำกับ</li>
+      <li>เห็นรายการเบิกของตัวเองและประวัติของแผนก</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>โหมด Cashier เสริม (ถ้ามี shop_id)</h4>
+    <ul>
+      <li>Staff ที่ผูกกับ shop_id ใดร้านหนึ่งจะได้สิทธิ์เทียบเท่า cashier</li>
+      <li>เหมาะสำหรับครูช่วยขายที่งานโรงอาหาร</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>🔒 ข้อกำหนดที่ใช้ร่วมกัน</h2>
+  <h3>ความปลอดภัย</h3>
+  <ul>
+    <li>JWT-based auth พร้อม refresh token</li>
+    <li>Google OAuth (เลือกเปิด ใช้ <code>VITE_GOOGLE_CLIENT_ID</code>)</li>
+    <li>ควบคุมสิทธิ์ตามบทบาททั้งฝั่ง API และ UI</li>
+    <li>Audit log สำหรับ operation สำคัญ (ปรับยอด, ยกเลิกบิล, ปรับยอดแผนก)</li>
+    <li>CORS อนุญาตเฉพาะ Vercel host</li>
+  </ul>
+  <h3>การปฏิบัติตามกฎ</h3>
+  <ul>
+    <li>รูปนักเรียน: แสดงเฉพาะฝั่ง cashier ไม่แสดงบน customer display</li>
+    <li>สอดคล้อง PDPA (ไม่มี PII บนหน้าจอที่ลูกค้าเห็น)</li>
+    <li>Department use ไม่ถูกรวมใน Grand Total ของรายงานการชำระเงิน</li>
+  </ul>
+  <h3>ประสิทธิภาพและความเสถียร</h3>
+  <ul>
+    <li>Self-heal schema migration ตอน deploy production</li>
+    <li>ตัวบอกสถานะ server poll ทุก 15 วินาที</li>
+    <li>ใบเสร็จคงอยู่หลัง pg_attribute verification ของ Railway</li>
+    <li>หน้าต่าง customer display ยังคงอยู่หลัง reload (mirror state ผ่าน localStorage)</li>
+  </ul>
+  <h3>ภาษา</h3>
+  <ul>
+    <li>i18next (en + th) ทั่วทั้งระบบ; ใบเสร็จบังคับเป็นภาษาอังกฤษ (เพราะเป็นโรงเรียนนานาชาติ)</li>
+    <li>หน้าต่าง customer display: ภาษาอังกฤษเท่านั้น</li>
+  </ul>
+</section>
+
+<section>
+  <h2>🖥️ Kiosk — ตู้บริการตนเอง (Touch Screen)</h2>
+  <p style="font-size:14px;color:#475569;">
+    แอป Vue 3 แยกต่างหากจาก React หลัก ออกแบบสำหรับตู้หน้าจอสัมผัสที่ตั้งไว้บริเวณทางเข้าโรงอาหาร/สหกรณ์
+    ให้นักเรียน/บุคลากรเช็คยอด ดูประวัติ และเติมเงินได้เองโดยไม่ต้องต่อคิวที่แคชเชียร์
+    <strong>ไม่มีการ login</strong> — ระบุตัวตนด้วย<u>การแตะบัตร RFID</u> หรือ<u>ใส่รหัสด้วย Numpad</u>เท่านั้น
+    เป็น read-only สำหรับข้อมูลส่วนตัว การเติมเงินทำผ่าน QR ไม่เก็บข้อมูลบัตร
+  </p>
+
+  <div class="role-card">
+    <h4>การระบุตัวตน</h4>
+    <ul>
+      <li>แตะบัตร RFID บนเครื่องอ่านที่ติดอยู่ (วิธีหลัก) <span class="priority-high">สูง</span></li>
+      <li>ใส่รหัสด้วย Numpad บนหน้าจอ (วิธีสำรอง)</li>
+      <li>กลับสู่หน้า Welcome อัตโนมัติเมื่อไม่มีการใช้งาน 30 วินาที</li>
+      <li>ไม่มีรหัสผ่าน/PIN — บัตรในมือคือการยืนยันตัวตน</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>เช็คยอดเงิน (BalanceView)</h4>
+    <ul>
+      <li>แสดง: ชื่อผู้ถือบัตร ยอดปัจจุบัน รายการล่าสุด 3 รายการ <span class="priority-high">สูง</span></li>
+      <li>ฟอนต์ใหญ่อ่านง่ายในระยะแขน</li>
+      <li>ปุ่ม "เติมเงิน" / "ประวัติทั้งหมด" / "เสร็จสิ้น"</li>
+      <li><strong>ไม่แสดงรูป</strong> (เพราะตู้อยู่ในพื้นที่สาธารณะ — privacy)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>ประวัติธุรกรรม (TransactionHistoryView)</h4>
+    <ul>
+      <li>รายการแบ่งหน้า มี icon ตามประเภท (ซื้อ/เติม/โอน/คืน) <span class="priority-mid">ปานกลาง</span></li>
+      <li>เห็นวันที่ ชื่อร้าน และจำนวนเงินในแต่ละบรรทัด</li>
+      <li>Popup ดูรายละเอียดใบเสร็จ (ReceiptPreview)</li>
+      <li>กรองตามวันที่และประเภทธุรกรรม</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>เติมเงิน (TopUpView)</h4>
+    <ul>
+      <li>Numpad ใส่จำนวนเงิน (preset: 50, 100, 200, 500) <span class="priority-high">สูง</span></li>
+      <li>สร้าง PromptPay QR ผ่าน backend <code>/wallets/{id}/topup-qr</code></li>
+      <li>เช็คสถานะการจ่ายอัตโนมัติ แสดงหน้า success เมื่อยืนยัน</li>
+      <li>ยกเลิกกลับ Welcome ได้ตลอด; QR หมดอายุใน 15 นาที</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>หน้า Welcome / Idle</h4>
+    <ul>
+      <li>คำเชิญใหญ่ "แตะบัตรหรือใส่รหัส"</li>
+      <li>มี animation/branding ของโรงเรียน</li>
+      <li>หน้า default หลังหน้าอื่น timeout</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>ข้อจำกัดในการทำงาน</h4>
+    <ul>
+      <li>API ที่ใช้เป็น read-only สำหรับยอดและประวัติ ไม่มี endpoint ของ admin</li>
+      <li>Stateless: ไม่เก็บข้อมูลข้าม session ทุกการแตะเริ่มใหม่</li>
+      <li>UI สำหรับ touch: ปุ่มใหญ่ ไม่มี tooltip ไม่ใช้ hover</li>
+      <li>เปลี่ยนภาษา en/th ได้จากหน้า Welcome</li>
+      <li>รันใน fullscreen / kiosk mode (ไม่มี nav bar)</li>
+      <li>Deploy แยกใน Vercel มี URL ของตัวเอง</li>
+    </ul>
+  </div>
+
+  <h3>เทคโนโลยี</h3>
+  <ul>
+    <li>Vue 3 + TypeScript + Vite + Pinia + Vue Router</li>
+    <li>อยู่ใน <code>~/ISB/kiosk/</code> มี <code>package.json</code> และ <code>vercel.json</code> แยก</li>
+    <li>Components: <code>Numpad.vue</code> (ตัวเลข), <code>ReceiptPreview.vue</code></li>
+    <li>Views: Welcome / ManualInput / Balance / TransactionHistory / TopUp</li>
+    <li>QA: <code>qa-test.js</code> + <code>qa-screenshots/</code></li>
+  </ul>
+</section>
+
+</main>
+<footer>สร้างเมื่อ 5 มิ.ย. 2026 · Schooney · ISB Cooperative Payment System</footer>
+</body>
+</html>

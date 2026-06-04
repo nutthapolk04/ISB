@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Schooney — System Requirements by Role</title>
+<style>
+  :root {
+    --amber: #f59e0b;
+    --amber-light: #fef3c7;
+    --slate: #334155;
+    --slate-light: #f1f5f9;
+    --green: #10b981;
+    --red: #ef4444;
+    --violet: #8b5cf6;
+    --sky: #0ea5e9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color: var(--slate);
+    background: #fafafa;
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+    color: white;
+    padding: 40px 32px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  header h1 { margin: 0 0 6px; font-size: 28px; }
+  header p { margin: 0; opacity: 0.92; font-size: 14px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px; }
+  section { background: white; border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  h2 { margin: 0 0 16px; font-size: 22px; color: #1e293b; display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 2px solid var(--amber-light); }
+  h3 { margin: 20px 0 10px; font-size: 17px; color: #1e293b; }
+  h4 { margin: 14px 0 6px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+  ul { margin: 6px 0 14px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pill-admin   { background: #ede9fe; color: var(--violet); }
+  .pill-manager { background: #fef3c7; color: #b45309; }
+  .pill-cashier { background: #dbeafe; color: #1d4ed8; }
+  .pill-parent  { background: #fce7f3; color: #be185d; }
+  .pill-student { background: #d1fae5; color: #047857; }
+  .pill-staff   { background: #e0f2fe; color: var(--sky); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+  th { background: var(--slate-light); font-weight: 600; color: #475569; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .meta-item { background: var(--slate-light); padding: 14px 18px; border-radius: 8px; }
+  .meta-item-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 4px; }
+  .meta-item-value { font-size: 15px; font-weight: 600; color: var(--slate); }
+  .role-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 22px; margin: 12px 0; }
+  .role-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .role-name { font-size: 17px; font-weight: 600; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: ui-monospace, "SF Mono", monospace; }
+  .priority-high   { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .priority-mid    { background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .priority-low    { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Schooney — System Requirements</h1>
+  <p>ISB Cooperative Payment System · Per-role functional inventory · 2026-06-05</p>
+</header>
+<main>
+
+<section>
+  <h2>📋 System Overview</h2>
+  <div class="meta">
+    <div class="meta-item"><div class="meta-item-label">System</div><div class="meta-item-value">Schooney</div></div>
+    <div class="meta-item"><div class="meta-item-label">Customer</div><div class="meta-item-value">International School Bangkok</div></div>
+    <div class="meta-item"><div class="meta-item-label">Stack</div><div class="meta-item-value">FastAPI + React + PostgreSQL</div></div>
+    <div class="meta-item"><div class="meta-item-label">Hosting</div><div class="meta-item-value">Vercel + Railway</div></div>
+    <div class="meta-item"><div class="meta-item-label">Modules</div><div class="meta-item-value">Canteen · Store · Wallet · Admin · Kiosk</div></div>
+    <div class="meta-item"><div class="meta-item-label">Roles</div><div class="meta-item-value">6 (admin / manager / cashier / parent / student / staff)</div></div>
+    <div class="meta-item"><div class="meta-item-label">Apps</div><div class="meta-item-value">Main (React) + Kiosk (Vue 3 self-service)</div></div>
+  </div>
+  <h3>Purpose</h3>
+  <p>An end-to-end payment and operations platform for an international school's cooperative store and canteen. Parents and staff fund campus-card wallets; students and staff spend at POS terminals; admins manage users, departments, refunds, settings, and reports. The system also drives a customer-facing second-monitor display for transparent checkout.</p>
+</section>
+
+<section>
+  <h2>👥 Role Inventory</h2>
+  <table>
+    <thead><tr><th>Role</th><th>Primary Audience</th><th>Access Surface</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill pill-admin">Admin</span></td><td>School IT / Operations</td><td>System-wide configuration, all data, all reports</td></tr>
+      <tr><td><span class="pill pill-manager">Manager</span></td><td>Shop manager (single shop or area)</td><td>POS + Reports + Users (shop-scoped), no system settings</td></tr>
+      <tr><td><span class="pill pill-cashier">Cashier</span></td><td>POS operator</td><td>POS only — sell, refund, void within shop</td></tr>
+      <tr><td><span class="pill pill-parent">Parent</span></td><td>Student guardian</td><td>Family dashboard, topup, transfer, wallet history</td></tr>
+      <tr><td><span class="pill pill-student">Student</span></td><td>Cardholder buyer</td><td>Self-service balance + transaction history</td></tr>
+      <tr><td><span class="pill pill-staff">Staff</span></td><td>Teachers / school staff</td><td>Personal wallet + department billing for issue-goods</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2><span class="pill pill-admin">Admin</span> Functional Requirements</h2>
+
+  <div class="role-card">
+    <h4>User Management</h4>
+    <ul>
+      <li>Create / edit / deactivate users across all roles <span class="priority-high">High</span></li>
+      <li>Bulk import from PowerSchool (CSV) — students, parents, staff</li>
+      <li>Reset user passwords; assign roles + shop scope</li>
+      <li>Map parent ↔ student via <code>family_code</code></li>
+      <li>Approve role switches for multi-role users (e.g. manager + cashier)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Wallet &amp; Card Management</h4>
+    <ul>
+      <li>Adjust any wallet balance (audit-logged) <span class="priority-high">High</span></li>
+      <li>Transfer between wallets (admin override; users cannot)</li>
+      <li>Manage campus card mappings (RFID / NFC card ↔ wallet)</li>
+      <li>Configure per-user <code>negative_credit_limit</code> (overdraft policy)</li>
+      <li>Card replacement workflow (deactivate lost card, activate new)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Department Billing</h4>
+    <ul>
+      <li>Create / fund department budgets <span class="priority-high">High</span></li>
+      <li>Adjust department balances with audit trail</li>
+      <li>Department-only issue-goods at coop store (no cash exchange)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Catalog &amp; Pricing</h4>
+    <ul>
+      <li>Manage shop products (canteen menu, coop SKUs, bookstore)</li>
+      <li>Configure price panels (per-shop variant pricing)</li>
+      <li>Bundle / SET pricing (one bundle SKU → multiple sub-SKUs)</li>
+      <li>Category management per shop</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Reporting (Admin Scope: All Shops)</h4>
+    <ul>
+      <li>Sales Report (date range, shop, product) <span class="priority-high">High</span></li>
+      <li>Top-Selling Products</li>
+      <li>Sales by Payment Method</li>
+      <li>Stock Report (all shops)</li>
+      <li>Return Report</li>
+      <li>Stock Card (per SKU, opening + closing)</li>
+      <li><strong>Sales Summary</strong> (per-receipt, payment breakdown) <span class="priority-high">New</span></li>
+      <li><strong>Sales by Item</strong> (per-line-item activity) <span class="priority-high">New</span></li>
+      <li>All reports exportable to CSV / Excel / PDF (with school branding)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>System Settings</h4>
+    <ul>
+      <li>School info (name, address, tax ID, logo, cover) <span class="priority-mid">Med</span></li>
+      <li>Customer Display image rotation (10 images, 2 MB JPG/PNG)</li>
+      <li>Audit log viewer (immutable record of sensitive ops)</li>
+      <li>Cron-based PowerSchool sync</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-manager">Manager</span> Functional Requirements</h2>
+
+  <div class="role-card">
+    <h4>POS Operations (Manager's Shop)</h4>
+    <ul>
+      <li>Operate POS like a cashier (sell, void, refund) <span class="priority-high">High</span></li>
+      <li>Accept all payment methods: Cash, Wallet, EDC card, QR, Department Billing</li>
+      <li>Multi-monitor checkout with customer display popup</li>
+      <li>Up-to-date sales counter (today's running totals)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Shop Users</h4>
+    <ul>
+      <li>Add / edit cashiers + staff in own shop <span class="priority-high">High</span></li>
+      <li>Cannot create admins or assign to other shops</li>
+      <li>Reset shop-staff passwords</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Returns &amp; Exchanges (Store Module)</h4>
+    <ul>
+      <li>Process refunds with audit trail</li>
+      <li>Bundle returns restore stock to all sub-SKUs</li>
+      <li>Return history with status filter</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Inventory</h4>
+    <ul>
+      <li>Stock adjustments (with reason code)</li>
+      <li>Batch operations with 12h localStorage queue</li>
+      <li>Requisition tracking (Store)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Reporting (Manager Scope: Own Shop)</h4>
+    <ul>
+      <li>All admin reports but scoped to manager's shop_id</li>
+      <li>Area managers (no shop_id) see all shops in their module (canteen / store)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-cashier">Cashier</span> Functional Requirements</h2>
+
+  <div class="role-card">
+    <h4>POS Sales Flow</h4>
+    <ul>
+      <li>Search products by name / barcode / category <span class="priority-high">High</span></li>
+      <li>Add to cart with quantity + line discount</li>
+      <li>Tap campus card → identify member → charge wallet</li>
+      <li>QR PromptPay generation + status polling</li>
+      <li>Cash with tendered amount + automatic change calc</li>
+      <li>Print thermal receipt (Star Micronics 80mm, English, larger fonts)</li>
+      <li>Email receipt option</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Customer Display Window</h4>
+    <ul>
+      <li>Second-monitor popup at <code>/customer-display</code></li>
+      <li>Standby image rotation (admin-uploaded)</li>
+      <li>Order review + QR (60:40 split) + Processing (with payer card) + Success / Failed</li>
+      <li>Auto-back to standby after 5 sec on terminal states</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Receipts &amp; Voids</h4>
+    <ul>
+      <li>Receipt list with date filter + search</li>
+      <li>Reprint receipts</li>
+      <li>Void receipt (with reason, audit-logged)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-parent">Parent</span> Functional Requirements</h2>
+
+  <div class="role-card">
+    <h4>Family Dashboard</h4>
+    <ul>
+      <li>View all linked students + their wallets <span class="priority-high">High</span></li>
+      <li>See current balance + recent transactions per child</li>
+      <li>Student photo + grade visible (privacy controls apply)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Wallet Top-up</h4>
+    <ul>
+      <li>Top up own wallet via PromptPay QR + Bank Transfer <span class="priority-high">High</span></li>
+      <li>Top up linked students' wallets directly (parent → child top-up only, not a transfer)</li>
+      <li>Receive transaction confirmation push / email</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Transaction History (Read-Only)</h4>
+    <ul>
+      <li>Per-student timeline: what each kid bought, where, and when <span class="priority-high">High</span></li>
+      <li>See every top-up to a kid's wallet (date, amount, source)</li>
+      <li>Filter by date range, transaction type, shop</li>
+      <li>Detailed line items per receipt (e.g. "Pad Thai ฿55", "Iced Latte ฿45")</li>
+      <li>Export as PDF for parent records</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>What Parent CANNOT Do (policy)</h4>
+    <ul>
+      <li><strong>NO wallet-to-wallet transfer</strong> between parent and kids — only top-up</li>
+      <li>NO transfer between two of their own kids — admin must do that</li>
+      <li>NO spending on a kid's behalf at POS — kid taps their own card</li>
+      <li>NO refund processing — must go to shop manager</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-student">Student</span> Functional Requirements</h2>
+
+  <div class="role-card">
+    <h4>Self-Service View</h4>
+    <ul>
+      <li>View own wallet balance</li>
+      <li>Recent transactions (purchases at canteen / coop / bookstore)</li>
+      <li>Cannot top up directly (relies on parent or admin)</li>
+      <li>Cannot transfer (policy-restricted)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="pill pill-staff">Staff</span> Functional Requirements</h2>
+
+  <div class="role-card">
+    <h4>Personal Wallet</h4>
+    <ul>
+      <li>Same UI as parent for own wallet</li>
+      <li>Top-up via QR / Bank Transfer</li>
+      <li>View own transaction history</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Department Billing (Coop Only)</h4>
+    <ul>
+      <li>Issue goods charged to department budget (no cash)</li>
+      <li>Department balance + approval ceiling apply</li>
+      <li>Staff sees own pulls + department's history</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Optional POS Cashier Mode</h4>
+    <ul>
+      <li>Staff assigned to a shop_id get cashier-equivalent access</li>
+      <li>Useful for teacher-volunteer shifts at canteen events</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>🔒 Cross-Cutting Requirements</h2>
+  <h3>Security</h3>
+  <ul>
+    <li>JWT-based auth with refresh tokens</li>
+    <li>Google OAuth (optional, configured via <code>VITE_GOOGLE_CLIENT_ID</code>)</li>
+    <li>Role-based access control at API + UI</li>
+    <li>Audit log for sensitive ops (wallet adjust, void, dept adjust)</li>
+    <li>CORS allow-list to Vercel host only</li>
+  </ul>
+  <h3>Compliance</h3>
+  <ul>
+    <li>Student photo privacy: shown on cashier-side only, never customer display</li>
+    <li>PDPA-aligned (no PII on public display)</li>
+    <li>Department use never mixed into Grand Total of payment reports</li>
+  </ul>
+  <h3>Performance / Reliability</h3>
+  <ul>
+    <li>Self-heal schema migration on production deploy</li>
+    <li>Server-status indicator polls every 15s</li>
+    <li>Receipts retain after Railway pg-attribute verification</li>
+    <li>Customer display window survives reload via localStorage state mirror</li>
+  </ul>
+  <h3>Internationalization</h3>
+  <ul>
+    <li>i18next (en + th) globally; receipts forced to English per international-school directive</li>
+    <li>Customer display window: English-only</li>
+  </ul>
+</section>
+
+<section>
+  <h2>🖥️ Kiosk — Self-Service Touch Terminal</h2>
+  <p style="font-size:13px;color:#64748b;">
+    Standalone Vue 3 app deployed separately from the main React app. Designed for unattended touch-screen
+    terminals (typically near canteen / coop entrance) so cardholders can check balance, view history, and
+    top up without queueing at the cashier. No authentication — identification by RFID card tap or manual
+    code entry only. Read-only for sensitive data; write actions go through QR payment, no card storage.
+  </p>
+
+  <div class="role-card">
+    <h4>Identification</h4>
+    <ul>
+      <li>RFID card tap on attached reader (preferred path) <span class="priority-high">High</span></li>
+      <li>Manual code entry via on-screen Numpad (fallback)</li>
+      <li>Auto-timeout to Welcome screen after 30s idle</li>
+      <li>No password / no PIN — physical card possession is the auth boundary</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Balance Check (BalanceView)</h4>
+    <ul>
+      <li>Display: holder name, current balance, last 3 transactions <span class="priority-high">High</span></li>
+      <li>Big readable font for touch viewing at arm's length</li>
+      <li>"Top Up" / "Full History" / "Done" action buttons</li>
+      <li>NO photo on screen (privacy — kiosk is in a public area)</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Transaction History (TransactionHistoryView)</h4>
+    <ul>
+      <li>Paginated list with type icons (purchase / top-up / transfer / refund) <span class="priority-mid">Med</span></li>
+      <li>Date + shop name + amount visible on each line</li>
+      <li>Receipt preview popup (ReceiptPreview component)</li>
+      <li>Filter by date range / transaction type</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Top Up (TopUpView)</h4>
+    <ul>
+      <li>Numpad for amount entry (preset amounts: 50, 100, 200, 500) <span class="priority-high">High</span></li>
+      <li>Generate PromptPay QR via backend <code>/wallets/{id}/topup-qr</code></li>
+      <li>Auto-poll payment status; show success screen on confirmation</li>
+      <li>Cancel back to welcome anytime; QR auto-expires after 15 min</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Welcome / Idle (WelcomeView)</h4>
+    <ul>
+      <li>Big "Tap card or enter code" call-to-action</li>
+      <li>Optional background animation / school branding</li>
+      <li>Default landing after every other screen times out</li>
+    </ul>
+  </div>
+
+  <div class="role-card">
+    <h4>Operational Constraints</h4>
+    <ul>
+      <li>Read-only API surface for balance + history (no admin endpoints)</li>
+      <li>Stateless: nothing persisted across sessions — every tap starts fresh</li>
+      <li>Touch-first UI: large hit targets, no tooltips, no hover-only patterns</li>
+      <li>English + Thai i18n switchable from welcome screen</li>
+      <li>Runs in browser fullscreen / kiosk mode (no nav bar)</li>
+      <li>Independent Vercel deployment with its own URL</li>
+    </ul>
+  </div>
+
+  <h3 style="margin-top:18px;">Tech</h3>
+  <ul>
+    <li>Vue 3 + TypeScript + Vite + Pinia + Vue Router</li>
+    <li>Lives in <code>~/ISB/kiosk/</code>; its own <code>package.json</code> and <code>vercel.json</code></li>
+    <li>Components: <code>Numpad.vue</code> (number entry), <code>ReceiptPreview.vue</code></li>
+    <li>Views: Welcome / ManualInput / Balance / TransactionHistory / TopUp</li>
+    <li>QA harness: <code>qa-test.js</code> + <code>qa-screenshots/</code> directory</li>
+  </ul>
+</section>
+
+</main>
+<footer>Generated 2026-06-05 · Schooney · ISB Cooperative Payment System</footer>
+</body>
+</html>
