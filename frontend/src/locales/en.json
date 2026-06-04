@@ -2561,5 +2561,31 @@
   },
   "users": {
     "tabMyTeamDesc": "Manage staff in your shop"
+  },
+  "customerDisplay": {
+    "openWindow": "Open Customer Display",
+    "welcome": "Welcome",
+    "schoolSubtitle": "International School Bangkok",
+    "orderHeading": "Your Order",
+    "orderSubheading": "Please verify the items below",
+    "orderTotal": "Total",
+    "payingAs": "Paying as",
+    "scanToPay": "Scan to Pay",
+    "scanToPayHint": "Open your banking app and scan the QR code below",
+    "qrExpiresIn": "Expires in {{time}}",
+    "qrExpired": "QR code expired",
+    "processingPayment": "Processing Payment…",
+    "processingHint": "Please wait",
+    "cardPrompt": "Insert or Tap Your Card",
+    "cardPromptHint": "Follow the prompts on the card reader",
+    "departmentCharge": "Charging Department Budget…",
+    "paymentSuccessful": "Payment Successful",
+    "paymentSuccessfulMessage": "Thank you. {{amount}} paid.",
+    "receiptLabel": "Receipt {{number}}",
+    "paymentFailed": "Payment Failed",
+    "paymentFailedHint": "Please ask the cashier to try again.",
+    "balanceCurrent": "Current Balance",
+    "balanceCharged": "Amount Charged",
+    "balanceAfter": "Balance After"
   }
 }
