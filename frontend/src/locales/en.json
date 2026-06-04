@@ -621,6 +621,10 @@
     "totalExchange": "Total exchange",
     "stockCardReport": "Stock Card",
     "stockCardReportDesc": "Per-SKU movement history with opening and closing balance",
+    "salesSummaryReport": "Sales Summary",
+    "salesSummaryReportDesc": "Per-receipt summary with payment-method breakdown, filterable by date, customer, family, or receipt range",
+    "salesByItemReport": "Sales by Item",
+    "salesByItemReportDesc": "Per-item sales activity grouped by SKU with quantity and amount totals",
     "stockCard": {
       "variantId": "Product Variant ID",
       "load": "Load",

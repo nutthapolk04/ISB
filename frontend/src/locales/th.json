@@ -621,6 +621,10 @@
     "totalExchange": "ยอดเปลี่ยนสินค้ารวม",
     "stockCardReport": "Stock Card",
     "stockCardReportDesc": "ประวัติความเคลื่อนไหวสต็อคแยกตาม SKU พร้อมยอดเปิด-ปิด",
+    "salesSummaryReport": "Sales Summary",
+    "salesSummaryReportDesc": "สรุปยอดขายต่อใบเสร็จ แยกตามวิธีชำระเงิน กรองด้วยวันที่ ลูกค้า รหัสครอบครัว หรือเลขใบเสร็จได้",
+    "salesByItemReport": "Sales by Item",
+    "salesByItemReportDesc": "สรุปการขายต่อรายการสินค้า แยกตาม SKU พร้อมจำนวนและยอดรวม",
     "stockCard": {
       "variantId": "รหัสสินค้า (Variant ID)",
       "load": "โหลดข้อมูล",

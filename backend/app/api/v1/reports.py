@@ -139,6 +139,41 @@ class SalesSummaryReport(BaseModel):
     receipt_count: int
 
 
+class SalesByItemRow(BaseModel):
+    """One ReceiptItem rendered as a Sales-by-Item line.
+
+    Each row represents one product appearing on one receipt. A receipt with
+    five line items produces five rows here, each carrying its own
+    quantity and amount. Totals at the bottom sum across all rows so users
+    can see total units sold and total amount within the active filter.
+    """
+    seq: int
+    transaction_date: datetime
+    item_no: Optional[str] = None       # ShopProduct.product_code (SKU)
+    item_name: str
+    receipt_number: str
+    customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    sales_qty: float
+    sales_amt: float
+    receive_type: str                   # human-readable payment method label
+    remark: Optional[str] = None        # receipt.notes
+
+
+class SalesByItemTotals(BaseModel):
+    sales_qty: float = 0.0
+    sales_amt: float = 0.0
+
+
+class SalesByItemReport(BaseModel):
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    shop_id: Optional[str] = None
+    rows: List[SalesByItemRow]
+    totals: SalesByItemTotals
+    line_count: int
+
+
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 def _scope_shop(current_user: User, shop_id: Optional[str]) -> Optional[str]:
@@ -687,4 +722,139 @@ def sales_summary_report(
         rows=rows,
         totals=SalesSummaryTotals(**totals_dict),
         receipt_count=len(rows),
+    )
+
+
+# ── Sales by Item Report ────────────────────────────────────────────────────
+
+# Human-readable label for each payment method. Used in the "Receive Type"
+# column of Sales by Item — the customer's reference report shows the
+# method as plain text rather than a code.
+_PAYMENT_METHOD_LABEL: dict[PaymentMethod, str] = {
+    PaymentMethod.CASH:          "Cash",
+    PaymentMethod.WALLET:        "Campus Card",
+    PaymentMethod.CARD_TAP:      "Campus Card",
+    PaymentMethod.CREDIT_CARD:   "Credit Card",
+    PaymentMethod.DEBIT_CARD:    "Credit Card",
+    PaymentMethod.EDC:           "Credit Card",
+    PaymentMethod.BANK_TRANSFER: "QR Code",
+    PaymentMethod.DEPARTMENT:    "Department",
+    PaymentMethod.OTHER:         "Other",
+}
+
+
+@router.get("/sales-by-item", response_model=SalesByItemReport)
+def sales_by_item_report(
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    user_name: Optional[str] = Query(None, description="case-insensitive substring on customer/payer name"),
+    category_code: Optional[str] = Query(None, description="ShopProduct.category exact match"),
+    item_no_from: Optional[str] = Query(None, description="ShopProduct.product_code lower bound"),
+    item_no_to: Optional[str] = Query(None, description="ShopProduct.product_code upper bound"),
+    shop_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Per-item sales activity across receipts.
+
+    Each row = one ReceiptItem. Every filter is optional. Designed to back
+    the Sales by Item export on the Reports page.
+    """
+    # ── Scope ─────────────────────────────────────────────────────────────
+    effective_shop_id = _scope_shop(current_user, shop_id)
+    effective_module = None if effective_shop_id else _effective_module(current_user, module)
+
+    # Base query joins ReceiptItem → Receipt + ShopProduct so we can filter
+    # on both sides in one pass. Outer-join Customer so receipts without a
+    # linked customer (guest sales) still appear unless a customer filter
+    # narrows them out.
+    q = (
+        db.query(ReceiptItem, Receipt, ShopProduct, Customer)
+        .join(Receipt, Receipt.id == ReceiptItem.receipt_id)
+        .join(ShopProduct, ShopProduct.id == ReceiptItem.product_variant_id)
+        .outerjoin(Customer, Customer.id == Receipt.customer_id)
+        .filter(Receipt.status == ReceiptStatus.ACTIVE)
+    )
+
+    # ── Date range (both ends optional) ───────────────────────────────────
+    if date_from:
+        start = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
+        q = q.filter(Receipt.transaction_date >= start)
+    if date_to:
+        end = datetime.combine(date_to, time.max, tzinfo=TZ_BKK)
+        q = q.filter(Receipt.transaction_date <= end)
+
+    # ── Shop / module scope ───────────────────────────────────────────────
+    if effective_shop_id:
+        q = q.filter(Receipt.shop_id == effective_shop_id)
+    elif effective_module:
+        module_shop_ids = [
+            r[0]
+            for r in db.query(Shop.id)
+            .filter(Shop.module == effective_module, Shop.is_active == True)  # noqa: E712
+            .all()
+        ]
+        if module_shop_ids:
+            q = q.filter(Receipt.shop_id.in_(module_shop_ids))
+
+    # ── Customer name (also matches payer user) ───────────────────────────
+    if user_name:
+        # Need an outer-join on payer_user for the OR condition. Using a
+        # separate alias-less join is safe here because we don't already
+        # join the User table elsewhere in this query.
+        q = q.outerjoin(User, User.id == Receipt.payer_user_id).filter(
+            (Customer.name.ilike(f"%{user_name}%")) | (User.full_name.ilike(f"%{user_name}%"))
+        )
+
+    # ── Category + item number filters (on ShopProduct) ───────────────────
+    if category_code:
+        q = q.filter(ShopProduct.category == category_code)
+    if item_no_from:
+        q = q.filter(ShopProduct.product_code >= item_no_from)
+    if item_no_to:
+        q = q.filter(ShopProduct.product_code <= item_no_to)
+
+    rows_raw = q.order_by(Receipt.transaction_date.asc(), Receipt.id.asc(), ReceiptItem.id.asc()).all()
+
+    # ── Build rows + running totals ───────────────────────────────────────
+    rows: List[SalesByItemRow] = []
+    total_qty = 0.0
+    total_amt = 0.0
+    for i, (item, receipt, product, customer) in enumerate(rows_raw, start=1):
+        qty = float(item.quantity or 0)
+        amt = float(item.line_total or 0)
+
+        cust_id: Optional[str] = None
+        cust_name: Optional[str] = None
+        if customer is not None:
+            cust_id = customer.customer_code
+            cust_name = customer.name
+        elif receipt.payer_user is not None:
+            cust_id = getattr(receipt.payer_user, "external_id", None) or receipt.payer_user.username
+            cust_name = receipt.payer_user.full_name
+
+        rows.append(SalesByItemRow(
+            seq=i,
+            transaction_date=receipt.transaction_date,
+            item_no=product.product_code,
+            item_name=product.name,
+            receipt_number=receipt.receipt_number,
+            customer_id=cust_id,
+            customer_name=cust_name,
+            sales_qty=qty,
+            sales_amt=amt,
+            receive_type=_PAYMENT_METHOD_LABEL.get(receipt.payment_method, "Other"),
+            remark=receipt.notes,
+        ))
+        total_qty += qty
+        total_amt += amt
+
+    return SalesByItemReport(
+        date_from=date_from,
+        date_to=date_to,
+        shop_id=effective_shop_id,
+        rows=rows,
+        totals=SalesByItemTotals(sales_qty=total_qty, sales_amt=total_amt),
+        line_count=len(rows),
     )
