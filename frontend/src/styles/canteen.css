@@ -157,3 +157,14 @@
   0%   { transform: scale(0.75); opacity: 0; }
   100% { transform: scale(1);    opacity: 1; }
 }
+
+/* Customer-display standby image cross-fade — used when the rotation
+ * advances every 5 s. Image element is remounted on index change so
+ * this keyframe runs fresh each time. */
+@keyframes display-fade-in {
+  0%   { opacity: 0; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: display-fade-in 600ms ease-out;
+}

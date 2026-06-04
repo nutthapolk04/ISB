@@ -52,6 +52,7 @@ import CanteenManagementOverview from "./pages/canteen/CanteenManagementOverview
 import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
 import CustomerDisplaySettings from "./pages/admin/CustomerDisplaySettings";
+import CustomerDisplay from "./pages/CustomerDisplay";
 import GuidePage from "./pages/GuidePage";
 import ShopDashboard from "./pages/ShopDashboard";
 
@@ -182,6 +183,8 @@ const App = () => (
           <Routes>
             {/* Public route */}
             <Route path="/login" element={<Login />} />
+            {/* Customer-facing second-monitor display — no auth, no shell */}
+            <Route path="/customer-display" element={<CustomerDisplay />} />
 
             {/* Protected layout — all children require auth */}
             <Route element={<RequireAuth />}>
