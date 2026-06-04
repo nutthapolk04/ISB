@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList } from "lucide-react";
+import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import {
+  exportToPDF,
+  exportToExcel,
+  type ReportColumn,
+  type ReportPayload,
+} from "@/lib/reportExport";
 
 interface CanteenShop { id: string; name: string; }
 
@@ -106,6 +113,7 @@ const csvEscape = (v: string | number | null | undefined): string => {
 const Reports = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const school = useSchoolInfo();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState<string>("");
   const [startDate, setStartDate] = useState("");
@@ -164,20 +172,78 @@ const Reports = () => {
     }
   };
 
-  const handleExportStockCard = () => {
-    if (!stockCardData) return;
+  /**
+   * Build the shared ReportPayload for Stockcard. Used by both PDF and Excel
+   * exporters so the two outputs stay structurally identical.
+   */
+  const buildStockCardPayload = (): ReportPayload<Record<string, unknown>> | null => {
+    if (!stockCardData) return null;
     const { product_name, sku, date_from, date_to, opening_balance, rows, closing_balance } = stockCardData;
-    let csv = `${t("reports.stockCardReport")}\n`;
-    csv += `${t("reports.stockCard.product")}: ${csvEscape(product_name)} (SKU: ${csvEscape(sku)})\n`;
-    csv += `${t("reports.startDate")}: ${date_from}  ${t("reports.endDate")}: ${date_to}\n`;
-    csv += `${t("reports.stockCard.openingBalance")}: ${opening_balance}\n\n`;
-    csv += `${t("reports.colDate")},${t("reports.stockCard.colType")},${t("reports.colQuantity")},${t("reports.stockCard.colRunning")},${t("reports.stockCard.colReference")},${t("reports.stockCard.colNotes")}\n`;
-    for (const r of rows) {
-      csv += `${r.date.slice(0, 19).replace("T", " ")},${csvEscape(r.movement_type)},${r.quantity},${r.running_balance},${csvEscape(r.reference)},${csvEscape(r.notes)}\n`;
+
+    const columns: ReportColumn[] = [
+      { header: "Date", key: "date", format: "datetime", width: 130 },
+      { header: "Type", key: "movement_type", width: 80 },
+      { header: "Quantity", key: "quantity", format: "number", width: 70 },
+      { header: "Running Balance", key: "running_balance", format: "number", width: 90 },
+      { header: "Reference", key: "reference" },
+      { header: "Notes", key: "notes" },
+    ];
+
+    // Pre-format quantity with explicit sign so users can tell incoming vs
+    // outgoing movements at a glance, just like the on-screen table.
+    const body = rows.map((r) => ({
+      date: r.date,
+      movement_type: r.movement_type,
+      quantity: r.quantity, // keep numeric so totals/sums work
+      running_balance: r.running_balance,
+      reference: r.reference ?? "",
+      notes: r.notes ?? "",
+    }));
+
+    return {
+      meta: {
+        title: "Stock Card Report",
+        schoolName: school.name,
+        schoolLogoUrl: school.logoUrl || undefined,
+        filters: [
+          `Product: ${product_name}  (SKU: ${sku})`,
+          `Date Range: ${date_from} → ${date_to}`,
+          `Opening Balance: ${opening_balance}`,
+        ],
+      },
+      columns,
+      rows: body,
+      totals: {
+        date: "CLOSING BALANCE",
+        running_balance: closing_balance,
+      },
+    };
+  };
+
+  const handleExportStockCardPdf = async () => {
+    const payload = buildStockCardPayload();
+    if (!payload || !stockCardData) return;
+    try {
+      const fname = `StockCard_${stockCardData.sku}_${stockCardData.date_from}_${stockCardData.date_to}.pdf`;
+      await exportToPDF(payload, fname);
+      toast.success(t("reports.exportSuccess"));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : t("shopUsers.errorGeneric");
+      toast.error(detail);
     }
-    csv += `\n${t("reports.stockCard.closingBalance")},,,${closing_balance},,\n`;
-    downloadCsv(`StockCard_${sku}_${date_from}_${date_to}.csv`, csv);
-    toast.success(t("reports.exportSuccess"));
+  };
+
+  const handleExportStockCardExcel = () => {
+    const payload = buildStockCardPayload();
+    if (!payload || !stockCardData) return;
+    try {
+      const fname = `StockCard_${stockCardData.sku}_${stockCardData.date_from}_${stockCardData.date_to}.xlsx`;
+      exportToExcel(payload, fname);
+      toast.success(t("reports.exportSuccess"));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : t("shopUsers.errorGeneric");
+      toast.error(detail);
+    }
   };
 
   // Build scope query param
@@ -346,10 +412,16 @@ const Reports = () => {
                   {t("reports.stockCard.load")}
                 </Button>
                 {stockCardData && (
-                  <Button variant="outline" onClick={handleExportStockCard}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    {t("reports.exportExcel")}
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={handleExportStockCardPdf}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export PDF
+                    </Button>
+                    <Button variant="outline" onClick={handleExportStockCardExcel}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Export Excel
+                    </Button>
+                  </>
                 )}
               </div>
 

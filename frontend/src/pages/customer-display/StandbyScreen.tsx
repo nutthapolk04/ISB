@@ -28,12 +28,18 @@ export function StandbyScreen() {
   // after changing the rotation.
   useEffect(() => {
     let cancelled = false;
+    // Diagnostic logging — the customer-display window has no UI for errors,
+    // so we surface state transitions to the console for troubleshooting
+    // (cashier can press F12 → Console if the rotation looks wrong).
+    console.log("[CustomerDisplay] Fetching rotation images…");
     api
       .get<DisplayImage[]>("/customer-display/images")
       .then((data) => {
-        if (!cancelled) setImages(data);
+        console.log("[CustomerDisplay] Got", data?.length ?? 0, "images:", data);
+        if (!cancelled) setImages(Array.isArray(data) ? data : []);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[CustomerDisplay] Failed to load images:", err);
         /* render placeholder */
       });
     return () => {

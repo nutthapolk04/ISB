@@ -138,15 +138,17 @@ function AppShell() {
                       <Wallet className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => openCustomerDisplayWindow()}
-                    title={t("customerDisplay.openWindow", "Open Customer Display")}
-                    aria-label="Open Customer Display"
-                  >
-                    <Monitor className="h-4 w-4" />
-                  </Button>
+                  {hasRole("cashier", "manager") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openCustomerDisplayWindow()}
+                      title={t("customerDisplay.openWindow", "Open Customer Display")}
+                      aria-label="Open Customer Display"
+                    >
+                      <Monitor className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
