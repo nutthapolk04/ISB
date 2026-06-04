@@ -304,16 +304,35 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
   const [intakeSearch, setIntakeSearch] = useState("");
   const [intakeCostMode, setIntakeCostMode] = useState<"unit" | "total">("unit");
 
-  // Batch queue — persisted in sessionStorage so navigate away/back doesn't lose items
-  const BATCH_KEY = "inventory_batch_queue";
+  // Batch queue — persisted in localStorage with a 12 h expiry so:
+  //   - navigate away → back: batch survives (sessionStorage broke when the
+  //     cashier had Inventory in two tabs and closed the active one)
+  //   - close laptop → next morning: stale batch from yesterday gets dropped
+  //     instead of silently re-submitting yesterday's items.
+  const BATCH_KEY = "inventory_batch_queue_v2";
+  const BATCH_TTL_MS = 12 * 60 * 60 * 1000;
+  interface BatchEnvelope { items: BatchItem[]; savedAt: number; }
   const [batchItems, setBatchItems] = useState<BatchItem[]>(() => {
     try {
-      const saved = sessionStorage.getItem(BATCH_KEY);
-      return saved ? (JSON.parse(saved) as BatchItem[]) : [];
+      const saved = localStorage.getItem(BATCH_KEY);
+      if (!saved) return [];
+      const env = JSON.parse(saved) as BatchEnvelope;
+      if (!env?.savedAt || Date.now() - env.savedAt > BATCH_TTL_MS) {
+        localStorage.removeItem(BATCH_KEY);
+        return [];
+      }
+      return Array.isArray(env.items) ? env.items : [];
     } catch { return []; }
   });
   useEffect(() => {
-    try { sessionStorage.setItem(BATCH_KEY, JSON.stringify(batchItems)); } catch { /* ignore */ }
+    try {
+      if (batchItems.length === 0) {
+        localStorage.removeItem(BATCH_KEY);
+      } else {
+        const env: BatchEnvelope = { items: batchItems, savedAt: Date.now() };
+        localStorage.setItem(BATCH_KEY, JSON.stringify(env));
+      }
+    } catch { /* quota / private mode — ignore */ }
   }, [batchItems]);
 
   // Movement log filters

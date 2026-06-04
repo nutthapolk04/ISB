@@ -258,7 +258,7 @@ function SortableCard({
 }
 
 const Store = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`store:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
@@ -1071,7 +1071,9 @@ const Store = () => {
             },
             schoolInfo,
             user?.shopName,
-            i18n.language,
+            // School is international — receipt is always English on paper,
+            // regardless of the cashier's UI language.
+            "en",
           );
         } catch (printErr) {
           console.warn("Auto-print failed:", printErr);

@@ -238,16 +238,21 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
 <title>Receipt ${r.receipt_number}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Sarabun','Courier New',monospace;font-size:12px;width:80mm;margin:0 auto;padding:8px;color:#111}
-  .logo-wrap{display:flex;justify-content:center;margin-bottom:4px}
-  h1{text-align:center;font-size:15px;margin-bottom:2px}
-  .center{text-align:center}.sub{font-size:11px;color:#555;text-align:center;margin-bottom:3px}
-  hr{border:none;border-top:1px dashed #888;margin:6px 0}
-  .row{display:flex;justify-content:space-between;margin:2px 0}
-  .row span:last-child{text-align:right;white-space:nowrap;padding-left:6px}
-  .opt{padding-left:12px;font-size:11px;color:#666}.disc{color:#c00;font-size:11px}
-  .small{font-size:11px;color:#555}.total{font-size:15px;font-weight:bold;margin-top:4px}
-  .voided{text-align:center;color:#c00;font-weight:bold;font-size:13px;margin:6px 0;border:1px solid #c00;padding:3px}
+  /* Print legibility — match the inline size scheme in lib/printReceipt.ts.
+   * Thermal printheads bleed at thin strokes so we use 16px base + bolder
+   * amounts. */
+  body{font-family:'Sarabun','Arial',sans-serif;font-size:16px;font-weight:500;line-height:1.4;width:80mm;margin:0 auto;padding:10px;color:#000}
+  .logo-wrap{display:flex;justify-content:center;margin-bottom:6px}
+  h1{text-align:center;font-size:20px;font-weight:800;margin-bottom:3px}
+  .center{text-align:center}.sub{font-size:13px;color:#333;text-align:center;margin-bottom:3px}
+  hr{border:none;border-top:1.5px dashed #444;margin:7px 0}
+  .row{display:flex;justify-content:space-between;margin:4px 0;font-size:16px}
+  .row span:first-child{font-weight:600}
+  .row span:last-child{text-align:right;white-space:nowrap;padding-left:8px;font-weight:700}
+  .opt{padding-left:14px;font-size:14px;color:#333}.disc{color:#a00;font-size:15px;font-weight:600}
+  .small{font-size:14px;color:#222}.small span:last-child{font-weight:700}
+  .total{font-size:22px;font-weight:800;margin-top:5px}
+  .voided{text-align:center;color:#a00;font-weight:800;font-size:16px;margin:7px 0;border:2px solid #a00;padding:5px}
   @media print{@page{margin:0;size:80mm auto}}
 </style></head><body>
   <div class="logo-wrap">${logoHtml}</div>
@@ -289,7 +294,7 @@ interface ReceiptDetailDialogProps {
 }
 
 export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const schoolInfo = useSchoolInfo();
   const [receipt, setReceipt] = useState<ReceiptDetailData | null>(null);
@@ -543,7 +548,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             <Button
               className="w-full"
               variant="outline"
-              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, "en")}
             >
               <Download className="h-4 w-4 mr-2" />
               {t("receipts.download", "Print / Save PDF")}

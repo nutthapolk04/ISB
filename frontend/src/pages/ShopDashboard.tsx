@@ -214,10 +214,14 @@ export default function ShopDashboard() {
   }
 
   const grandTotal = paymentData?.grand_total ?? 0;
+  // Skip the #1 best-seller and show ranks 2–6 instead. The top item
+  // overshadows the rest visually and the manager already knows it; the
+  // next tier is what they actually need to act on (re-stock decisions,
+  // pricing tweaks).
   const topItems = (todaySales?.rows ?? [])
     .slice()
     .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+    .slice(1, 6);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">

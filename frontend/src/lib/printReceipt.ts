@@ -253,26 +253,33 @@ export function buildReceiptHtml(
 <meta charset="UTF-8" />
 <title>${isEn ? "Receipt" : "ใบเสร็จ"} ${r.receipt_number}</title>
 <style>
+  /* 58 mm thermal printers render thin strokes badly — bump every size
+   * up a notch and lean on bolder weights for amounts so cashiers and
+   * customers can read the slip without squinting. */
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Sarabun', 'Arial', sans-serif; font-size: 14px;
+  body { font-family: 'Sarabun', 'Arial', sans-serif; font-size: 16px;
+         font-weight: 500; line-height: 1.4;
          width: 80mm; margin: 0 auto; padding: 10px; color: #000; }
   .logo-wrap { display: flex; justify-content: center; margin-bottom: 6px; }
-  h1 { text-align: center; font-size: 17px; font-weight: bold; margin-bottom: 3px; }
+  h1 { text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 3px; }
   .center { text-align: center; }
-  .sub { font-size: 12px; color: #444; text-align: center; margin-bottom: 3px; }
-  hr { border: none; border-top: 1px dashed #666; margin: 7px 0; }
-  .row { display: flex; justify-content: space-between; margin: 3px 0; font-size: 14px; }
-  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; }
-  .opt { padding-left: 14px; font-size: 12px; color: #555; }
-  .disc { color: #c00; font-size: 13px; }
-  .small { font-size: 13px; color: #444; }
-  .total { font-size: 17px; font-weight: bold; margin-top: 5px; }
-  .balance-after { font-size: 18px; font-weight: bold; color: #1d4ed8; margin-top: 7px; }
-  .voided { text-align: center; color: #c00; font-weight: bold;
-             font-size: 14px; margin: 7px 0; border: 2px solid #c00; padding: 4px; }
+  .sub { font-size: 13px; color: #333; text-align: center; margin-bottom: 3px; }
+  hr { border: none; border-top: 1.5px dashed #444; margin: 7px 0; }
+  .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; }
+  .row span:first-child { font-weight: 600; }
+  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; }
+  .opt { padding-left: 14px; font-size: 14px; color: #333; }
+  .disc { color: #a00; font-size: 15px; font-weight: 600; }
+  .small { font-size: 14px; color: #222; }
+  .small span:last-child { font-weight: 700; }
+  .total { font-size: 22px; font-weight: 800; margin-top: 5px; }
+  .total span { font-weight: 800; }
+  .balance-after { font-size: 20px; font-weight: 800; color: #1d4ed8; margin-top: 7px; }
+  .voided { text-align: center; color: #a00; font-weight: 800;
+             font-size: 16px; margin: 7px 0; border: 2px solid #a00; padding: 5px; }
   .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
-  .notes-label { font-size: 12px; font-weight: bold; color: #555; }
-  .notes-text { font-size: 13px; color: #111; word-break: break-word; }
+  .notes-label { font-size: 13px; font-weight: 700; color: #333; }
+  .notes-text { font-size: 14px; color: #000; word-break: break-word; }
   @media print { @page { margin: 0; size: 80mm auto; } }
 </style>
 </head>
