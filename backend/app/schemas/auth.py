@@ -58,3 +58,8 @@ class MockSSORequest(BaseModel):
     email: str
     full_name: Optional[str] = None
     provider: str = "mock"  # azure | google | mock
+
+
+class GoogleSSORequest(BaseModel):
+    """Real Google OAuth — access_token from Google OAuth2 implicit flow."""
+    access_token: str

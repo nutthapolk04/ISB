@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user, require_role
 from app.models.user import User, Role
-from app.schemas.auth import LoginRequest, TokenResponse, MeResponse, UserResponse, RoleResponse, CreateUserRequest, MockSSORequest
+import httpx
+from app.schemas.auth import LoginRequest, TokenResponse, MeResponse, UserResponse, RoleResponse, CreateUserRequest, MockSSORequest, GoogleSSORequest
 from app.services.auth_service import AuthService
 from app.core.security import get_password_hash, verify_password
 
@@ -62,6 +63,51 @@ def mock_sso(payload: MockSSORequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404,
             detail="This email is not registered in the system. Please contact your school administrator."
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
+
+    service = AuthService(db)
+    tokens = service.create_tokens(user)
+    return TokenResponse(**tokens)
+
+
+@router.post("/sso/google", response_model=TokenResponse)
+def google_sso(payload: GoogleSSORequest, db: Session = Depends(get_db)):
+    """
+    Real Google OAuth SSO — receives access_token from Google OAuth2 implicit flow.
+    Calls Google userinfo API to verify token and extract email.
+    Only allows login if email exists in the system.
+    """
+    if not payload.access_token:
+        raise HTTPException(status_code=400, detail="access_token is required")
+
+    try:
+        resp = httpx.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {payload.access_token}"},
+            timeout=10.0,
+        )
+    except httpx.RequestError:
+        raise HTTPException(status_code=503, detail="Cannot reach Google authentication service")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired Google token")
+
+    token_data = resp.json()
+    email = (token_data.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not found in Google token")
+
+    if not token_data.get("email_verified", False):
+        raise HTTPException(status_code=400, detail="Google email is not verified")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="This Google account is not registered in the system. Please contact your school administrator.",
         )
 
     if not user.is_active:

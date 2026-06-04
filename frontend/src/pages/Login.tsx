@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useGoogleLogin } from "@react-oauth/google";
 import { useTranslation } from "react-i18next";
 import { API_BASE_URL } from "@/lib/constants";
 import { toast } from "@/components/ui/sonner";
@@ -25,7 +26,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-type SsoStep = "email" | "pdpa" | null;
+type SsoStep = "pdpa" | null;
 
 const GoogleLogo = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
@@ -240,7 +241,7 @@ function CredentialCarousel() {
 // ────────────────────────────────────────────────────────────────────────────
 const Login = () => {
   const { t } = useTranslation();
-  const { login, loginWithMockSSO, isAuthenticated } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -248,7 +249,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
   const [ssoStep, setSsoStep] = useState<SsoStep>(null);
-  const [googleEmail, setGoogleEmail] = useState("");
+  const [pendingGoogleToken, setPendingGoogleToken] = useState("");
   const [coverBg, setCoverBg] = useState("/login-bg.png");
   const fetchedCover = useRef(false);
 
@@ -285,28 +286,34 @@ const Login = () => {
     else setError(result.error ?? "Login failed");
   };
 
-  const handleGoogleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!googleEmail.trim()) return;
-    setSsoStep("pdpa");
-  };
-
   const handlePdpaAccept = async () => {
     setSsoLoading(true); setError("");
-    const result = await loginWithMockSSO(googleEmail.trim());
+    const result = await loginWithGoogle(pendingGoogleToken);
     setSsoLoading(false);
     if (result.success) {
       navigate("/", { replace: true });
     } else {
-      toast.error(result.error ?? "SSO login failed", {
-        description: "Please check your email or contact your school administrator.",
+      toast.error(result.error ?? "Google login failed", {
+        description: "This Google account is not registered. Contact your school administrator.",
         duration: 6000,
       });
       setSsoStep(null);
+      setPendingGoogleToken("");
     }
   };
 
-  const resetSso = () => { setSsoStep(null); setGoogleEmail(""); };
+  const resetSso = () => { setSsoStep(null); setPendingGoogleToken(""); };
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: (tokenResponse) => {
+      setPendingGoogleToken(tokenResponse.access_token);
+      setSsoStep("pdpa");
+      setError("");
+    },
+    onError: () => {
+      toast.error("Google sign-in failed. Please try again.");
+    },
+  });
 
   return (
     <div className="flex min-h-screen">
@@ -368,36 +375,17 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* Google SSO — step 0 */}
+              {/* Google SSO button */}
               {ssoStep === null && (
                 <Button type="button" variant="outline" className="w-full gap-2"
-                  onClick={() => { setSsoStep("email"); setGoogleEmail(""); setError(""); }}
+                  onClick={() => googleLogin()}
                   disabled={loading || ssoLoading}>
                   <GoogleLogo />
-                  Sign in with Google (Mock)
+                  Sign in with Google
                 </Button>
               )}
 
-              {/* Step 1: Email */}
-              {ssoStep === "email" && (
-                <form onSubmit={handleGoogleEmailSubmit} className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
-                      <GoogleLogo /> Sign in with Google
-                    </div>
-                    <button type="button" onClick={resetSso} className="text-muted-foreground hover:text-foreground">
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-blue-700/80">Enter your ISB Google email</p>
-                  <Input type="email" autoFocus placeholder="your@isb.ac.th" value={googleEmail}
-                    onChange={(e) => setGoogleEmail(e.target.value)} className="bg-white" />
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={!googleEmail.trim()}>Next</Button>
-                </form>
-              )}
-
-              {/* Step 2: PDPA */}
+              {/* PDPA step */}
               {ssoStep === "pdpa" && (
                 <div className="rounded-lg border border-green-200 bg-green-50/50 p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-semibold text-green-900">

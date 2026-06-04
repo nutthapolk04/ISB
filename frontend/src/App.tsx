@@ -1,3 +1,4 @@
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { CenterAlertHost } from "@/components/CenterAlert";
@@ -164,7 +165,10 @@ function AppShell() {
   );
 }
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
 const App = () => (
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -288,6 +292,7 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
   </ErrorBoundary>
+  </GoogleOAuthProvider>
 );
 
 export default App;
