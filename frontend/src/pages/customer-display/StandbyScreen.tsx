@@ -6,7 +6,6 @@
 import { useEffect, useState } from "react";
 import { Monitor } from "lucide-react";
 
-import { api } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface DisplayImage {
@@ -33,8 +32,22 @@ export function StandbyScreen() {
     let cancelled = false;
     console.log("[CustomerDisplay] Fetching rotation images…");
     setFetchStatus("loading…");
-    api
-      .get<DisplayImage[]>("/customer-display/images")
+
+    // Use raw fetch instead of the shared api helper. The helper attaches
+    // the cashier's Authorization header from localStorage and, on a 401,
+    // hard-redirects the popup window to /login while clearing the auth
+    // state — which silently broke this public endpoint whenever the
+    // stored token was stale (e.g. cached from a prior session, expired
+    // refresh window, etc.). The endpoint itself doesn't need auth, so we
+    // skip the helper entirely.
+    fetch(`${API_BASE_URL}/customer-display/images`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        return (await res.json()) as DisplayImage[];
+      })
       .then((data) => {
         console.log("[CustomerDisplay] Got", data?.length ?? 0, "images:", data);
         if (cancelled) return;
@@ -44,7 +57,7 @@ export function StandbyScreen() {
       })
       .catch((err) => {
         console.error("[CustomerDisplay] Failed to load images:", err);
-        const msg = err?.detail || err?.message || String(err);
+        const msg = err?.message || String(err);
         if (!cancelled) setFetchStatus(`fetch error: ${msg}`);
       });
     return () => {
