@@ -189,7 +189,32 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 // the Google button via the same env check so the placeholder is never used.
 const GOOGLE_PROVIDER_ID = GOOGLE_CLIENT_ID || "google-oauth-disabled.invalid";
 
-const App = () => (
+// Customer-display popup is a separate-monitor window that runs without
+// auth, school info, OAuth, or any of the heavy providers. Mounting those
+// providers on the popup window did pointless API calls (e.g. SchoolInfo
+// → /admin/settings/school → 401 → reload loop) and even the Google
+// Identity client script for no reason. Render the popup with a minimal
+// app shell instead — TooltipProvider, Toaster, and the router are enough
+// for the screens it renders.
+const CustomerDisplayStandalone = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Sonner />
+      <CustomerDisplay />
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+const App = () => {
+  // Detect the popup early — before any provider mounts — so we never even
+  // construct the auth/school/oauth context for that window.
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname === "/customer-display"
+  ) {
+    return <CustomerDisplayStandalone />;
+  }
+  return (
   <GoogleOAuthProvider clientId={GOOGLE_PROVIDER_ID}>
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
@@ -318,6 +343,7 @@ const App = () => (
   </QueryClientProvider>
   </ErrorBoundary>
   </GoogleOAuthProvider>
-);
+  );
+};
 
 export default App;

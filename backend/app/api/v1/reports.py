@@ -17,8 +17,9 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.models.customer import Customer, CustomerType
 from app.models.product import Product, ProductVariant
-from app.models.receipt import Receipt, ReceiptItem, ReceiptStatus
+from app.models.receipt import PaymentMethod, Receipt, ReceiptItem, ReceiptStatus
 from app.models.return_request import ReturnRequest
 from app.models.shop import Shop, ShopProduct, ShopMovement
 from app.models.user import User
@@ -92,6 +93,50 @@ class ReturnReport(BaseModel):
     rows: List[ReturnRow]
     total_refund: float
     total_exchange: float
+
+
+class SalesSummaryRow(BaseModel):
+    """One receipt rendered as a Sales Summary line.
+
+    The Amt.* columns are mutually exclusive — only the column matching the
+    receipt's payment method holds a value; the rest are 0. This matches the
+    customer's reference report layout where each receipt occupies exactly
+    one row with one payment-method column populated.
+    """
+    seq: int
+    transaction_date: datetime
+    receipt_number: str
+    customer_id: Optional[str] = None     # student/parent code; null for guest sales
+    customer_name: Optional[str] = None
+    amt_receive: float                    # gross amount paid (= receipt total)
+    amt_change: float                     # cash change returned (cash sales only)
+    amt_billing: float                    # department billing amount
+    amt_cash: float
+    amt_campus_card: float                # wallet / card_tap
+    amt_credit_card: float                # credit_card / debit_card / edc
+    amt_qr_code: float                    # bank_transfer (PromptPay / QR)
+    amt_other: float                      # OTHER + unknown payment methods
+    remark: Optional[str] = None          # receipt.notes
+
+
+class SalesSummaryTotals(BaseModel):
+    amt_receive: float = 0.0
+    amt_change: float = 0.0
+    amt_billing: float = 0.0
+    amt_cash: float = 0.0
+    amt_campus_card: float = 0.0
+    amt_credit_card: float = 0.0
+    amt_qr_code: float = 0.0
+    amt_other: float = 0.0
+
+
+class SalesSummaryReport(BaseModel):
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    shop_id: Optional[str] = None
+    rows: List[SalesSummaryRow]
+    totals: SalesSummaryTotals
+    receipt_count: int
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -459,4 +504,187 @@ def stock_card_report(
         opening_balance=opening_balance,
         rows=rows,
         closing_balance=closing_balance,
+    )
+
+
+# ── Sales Summary Report ────────────────────────────────────────────────────
+
+# Map the high-level "receive type" filter (frontend dropdown) to the set of
+# concrete PaymentMethod enum values that should match. Kept here as a single
+# source of truth so the row-rendering loop and the filter clause agree.
+_RECEIVE_TYPE_GROUPS: dict[str, list[PaymentMethod]] = {
+    "cash": [PaymentMethod.CASH],
+    "wallet": [PaymentMethod.WALLET, PaymentMethod.CARD_TAP],
+    "credit": [PaymentMethod.CREDIT_CARD, PaymentMethod.DEBIT_CARD, PaymentMethod.EDC],
+    "qr": [PaymentMethod.BANK_TRANSFER],
+    "department": [PaymentMethod.DEPARTMENT],
+    "other": [PaymentMethod.OTHER],
+}
+
+
+def _amount_column_for(method: PaymentMethod) -> str:
+    """Return the SalesSummaryRow column key that a given payment method
+    populates. Unknown methods fall through to amt_other so totals stay
+    consistent even when the enum grows."""
+    if method == PaymentMethod.CASH:
+        return "amt_cash"
+    if method in (PaymentMethod.WALLET, PaymentMethod.CARD_TAP):
+        return "amt_campus_card"
+    if method in (PaymentMethod.CREDIT_CARD, PaymentMethod.DEBIT_CARD, PaymentMethod.EDC):
+        return "amt_credit_card"
+    if method == PaymentMethod.BANK_TRANSFER:
+        return "amt_qr_code"
+    if method == PaymentMethod.DEPARTMENT:
+        return "amt_billing"
+    return "amt_other"
+
+
+@router.get("/sales-summary", response_model=SalesSummaryReport)
+def sales_summary_report(
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    customer_type: Optional[str] = Query(None, description="parent | student | staff | guest | all"),
+    user_name: Optional[str] = Query(None, description="case-insensitive substring on customer/payer name"),
+    family_code: Optional[str] = Query(None),
+    receipt_no_from: Optional[str] = Query(None),
+    receipt_no_to: Optional[str] = Query(None),
+    receive_type: Optional[str] = Query(None, description="cash | wallet | credit | qr | department | other | all"),
+    shop_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Per-receipt sales summary with payment-method breakdown.
+
+    Every filter is optional — leaving them blank returns every active
+    receipt visible to the caller (admin sees all shops, others see their
+    own). Designed to back the Sales Summary export on the Reports page.
+    """
+    # ── Scope ─────────────────────────────────────────────────────────────
+    effective_shop_id = _scope_shop(current_user, shop_id)
+    effective_module = None if effective_shop_id else _effective_module(current_user, module)
+
+    q = db.query(Receipt).filter(Receipt.status == ReceiptStatus.ACTIVE)
+
+    # ── Date range (both ends optional) ───────────────────────────────────
+    if date_from:
+        start = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
+        q = q.filter(Receipt.transaction_date >= start)
+    if date_to:
+        end = datetime.combine(date_to, time.max, tzinfo=TZ_BKK)
+        q = q.filter(Receipt.transaction_date <= end)
+
+    # ── Shop / module scope ───────────────────────────────────────────────
+    if effective_shop_id:
+        q = q.filter(Receipt.shop_id == effective_shop_id)
+    elif effective_module:
+        module_shop_ids = [
+            r[0]
+            for r in db.query(Shop.id)
+            .filter(Shop.module == effective_module, Shop.is_active == True)  # noqa: E712
+            .all()
+        ]
+        if module_shop_ids:
+            q = q.filter(Receipt.shop_id.in_(module_shop_ids))
+
+    # ── Receipt number range (string compare; treat as opaque IDs) ────────
+    if receipt_no_from:
+        q = q.filter(Receipt.receipt_number >= receipt_no_from)
+    if receipt_no_to:
+        q = q.filter(Receipt.receipt_number <= receipt_no_to)
+
+    # ── Payment method ────────────────────────────────────────────────────
+    if receive_type and receive_type != "all":
+        methods = _RECEIVE_TYPE_GROUPS.get(receive_type)
+        if methods:
+            q = q.filter(Receipt.payment_method.in_(methods))
+
+    # ── Customer joins (only when filter requires them) ───────────────────
+    # Done as outer joins so receipts without a linked customer (guest sale)
+    # still pass through when no customer filter is active.
+    needs_customer_join = bool(customer_type or user_name or family_code)
+    if needs_customer_join:
+        q = q.outerjoin(Customer, Customer.id == Receipt.customer_id)
+
+    if customer_type and customer_type != "all":
+        q = q.outerjoin(CustomerType, CustomerType.id == Customer.customer_type_id).filter(
+            CustomerType.type_name == customer_type
+        )
+
+    if family_code:
+        # family_code lives on Customer (students) AND User (staff/parents).
+        # For sales report purposes we match the customer side; payer-side
+        # filtering is rare and noisy. Substring match is a footgun on a
+        # 20-char code, so use equality.
+        q = q.filter(Customer.family_code == family_code)
+
+    if user_name:
+        # Match either the linked customer's name OR the payer user's name.
+        # Outer-join payer_user so receipts with no payer link still pass.
+        q = q.outerjoin(User, User.id == Receipt.payer_user_id).filter(
+            (Customer.name.ilike(f"%{user_name}%")) | (User.full_name.ilike(f"%{user_name}%"))
+        )
+
+    receipts = q.order_by(Receipt.transaction_date.asc(), Receipt.id.asc()).all()
+
+    # ── Build rows + running totals ───────────────────────────────────────
+    rows: List[SalesSummaryRow] = []
+    totals_dict = {
+        "amt_receive": 0.0, "amt_change": 0.0, "amt_billing": 0.0,
+        "amt_cash": 0.0, "amt_campus_card": 0.0, "amt_credit_card": 0.0,
+        "amt_qr_code": 0.0, "amt_other": 0.0,
+    }
+
+    for i, r in enumerate(receipts, start=1):
+        amt_receive = float(r.total or 0)
+
+        # Cash change only applies when payment is cash and we recorded the
+        # tendered amount. Other methods always have 0 change.
+        amt_change = 0.0
+        if r.payment_method == PaymentMethod.CASH and r.cash_received is not None:
+            amt_change = max(float(r.cash_received) - amt_receive, 0.0)
+
+        # Customer identity — prefer the linked Customer (students/parents).
+        # Fall back to payer_user (staff/teacher charging their own wallet),
+        # then to None for guest cash sales.
+        cust_id: Optional[str] = None
+        cust_name: Optional[str] = None
+        if r.customer is not None:
+            cust_id = r.customer.customer_code
+            cust_name = r.customer.name
+        elif r.payer_user is not None:
+            cust_id = getattr(r.payer_user, "external_id", None) or r.payer_user.username
+            cust_name = r.payer_user.full_name
+
+        # Allocate the receipt amount into exactly one Amt.* bucket.
+        col = _amount_column_for(r.payment_method)
+        row_amounts = {
+            "amt_billing": 0.0, "amt_cash": 0.0, "amt_campus_card": 0.0,
+            "amt_credit_card": 0.0, "amt_qr_code": 0.0, "amt_other": 0.0,
+        }
+        row_amounts[col] = amt_receive
+
+        rows.append(SalesSummaryRow(
+            seq=i,
+            transaction_date=r.transaction_date,
+            receipt_number=r.receipt_number,
+            customer_id=cust_id,
+            customer_name=cust_name,
+            amt_receive=amt_receive,
+            amt_change=amt_change,
+            remark=r.notes,
+            **row_amounts,
+        ))
+
+        totals_dict["amt_receive"] += amt_receive
+        totals_dict["amt_change"] += amt_change
+        totals_dict[col] += amt_receive
+
+    return SalesSummaryReport(
+        date_from=date_from,
+        date_to=date_to,
+        shop_id=effective_shop_id,
+        rows=rows,
+        totals=SalesSummaryTotals(**totals_dict),
+        receipt_count=len(rows),
     )
