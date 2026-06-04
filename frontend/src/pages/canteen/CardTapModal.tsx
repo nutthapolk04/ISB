@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, UserCircle2 } from "lucide-react";
+import { Loader2, UserCircle2, XCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type {
   StudentLookupResult,
@@ -54,6 +54,10 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
   const [error, setError] = useState<string | null>(null);
   const [found, setFound] = useState<StudentLookupResult | null>(null);
   const [replaceOpen, setReplaceOpen] = useState(false);
+  // The inline red text under the search row is easy to miss when the
+  // cashier is looking elsewhere. Pop a real alert too so a missed scan
+  // / wrong code is impossible to overlook.
+  const [notFoundOpen, setNotFoundOpen] = useState(false);
 
   // Reset state on open
   useEffect(() => {
@@ -122,7 +126,9 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
 
       throw new ApiError(404, t("canteen.cardTap.notFoundInSystem"), undefined);
     } catch (e) {
-      setError(e instanceof ApiError ? e.detail : t("canteen.cardTap.notFound"));
+      const msg = e instanceof ApiError ? e.detail : t("canteen.cardTap.notFound");
+      setError(msg);
+      setNotFoundOpen(true);
     } finally {
       setLoading(false);
     }
@@ -233,6 +239,35 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Not-found alert — pops on top of the search dialog so the cashier
+          can't miss it. Auto-focuses the input again when dismissed. */}
+      <AlertDialog open={notFoundOpen} onOpenChange={setNotFoundOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <XCircle className="h-10 w-10 shrink-0 text-red-600" strokeWidth={2.5} />
+              <AlertDialogTitle className="text-red-700">
+                {t("canteen.cardTap.notFound", "Not found")}
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="pt-2">
+              {error ?? t("canteen.cardTap.notFoundInSystem", "Not found in the system")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                setNotFoundOpen(false);
+                inputRef.current?.focus();
+                inputRef.current?.select();
+              }}
+            >
+              {t("common.ok", "OK")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Replace confirmation */}
       <AlertDialog open={replaceOpen} onOpenChange={setReplaceOpen}>

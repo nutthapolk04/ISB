@@ -6,6 +6,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -129,6 +138,9 @@ export function RfidPaymentModal({
   const [cardInput, setCardInput] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  // Mirror the inline error as a modal popup so the cashier can't miss
+  // "code not found" while looking at the cart.
+  const [notFoundOpen, setNotFoundOpen] = useState(false);
   const [student, setStudent] = useState<StudentLookupResult | null>(null);
   const [userPayer, setUserPayer] = useState<UserPayerLookup | null>(null);
   const [departmentPayer, setDepartmentPayer] = useState<DepartmentLookupResult | null>(null);
@@ -272,11 +284,9 @@ export function RfidPaymentModal({
       }
       throw new ApiError(404, t("canteen.rfid.notFoundInSystem"), undefined);
     } catch (e) {
-      setLookupError(
-        e instanceof ApiError
-          ? e.detail
-          : t("canteen.rfid.notFoundRetry"),
-      );
+      const msg = e instanceof ApiError ? e.detail : t("canteen.rfid.notFoundRetry");
+      setLookupError(msg);
+      setNotFoundOpen(true);
     } finally {
       setLookupLoading(false);
     }
@@ -385,6 +395,7 @@ export function RfidPaymentModal({
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(v) => {
@@ -775,5 +786,29 @@ export function RfidPaymentModal({
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Not-found alert — pops over the lookup dialog so a wrong/unknown
+        code is impossible to miss while the cashier is on the cart. */}
+    <AlertDialog open={notFoundOpen} onOpenChange={setNotFoundOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="flex items-center gap-3">
+            <XCircle className="h-10 w-10 shrink-0 text-red-600" strokeWidth={2.5} />
+            <AlertDialogTitle className="text-red-700">
+              {t("canteen.rfid.notFound", "Not found")}
+            </AlertDialogTitle>
+          </div>
+          <AlertDialogDescription className="pt-2">
+            {lookupError ?? t("canteen.rfid.notFoundInSystem", "Not found in the system")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => setNotFoundOpen(false)}>
+            {t("common.ok", "OK")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
