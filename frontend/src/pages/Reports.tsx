@@ -120,6 +120,35 @@ interface SalesSummaryReportData {
   receipt_count: number;
 }
 
+// ── Sales by Item ──────────────────────────────────────────────────────────
+interface SalesByItemRow {
+  seq: number;
+  transaction_date: string;
+  item_no: string | null;
+  item_name: string;
+  receipt_number: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  sales_qty: number;
+  sales_amt: number;
+  receive_type: string;
+  remark: string | null;
+}
+
+interface SalesByItemTotals {
+  sales_qty: number;
+  sales_amt: number;
+}
+
+interface SalesByItemReportData {
+  date_from: string | null;
+  date_to: string | null;
+  shop_id: string | null;
+  rows: SalesByItemRow[];
+  totals: SalesByItemTotals;
+  line_count: number;
+}
+
 const REPORT_DEFS: { type: string; icon: typeof FileText; needsRange: boolean }[] = [
   { type: "salesReport",          icon: FileText,        needsRange: true  },
   { type: "topSellingReport",     icon: TrendingUp,      needsRange: true  },
@@ -130,6 +159,7 @@ const REPORT_DEFS: { type: string; icon: typeof FileText; needsRange: boolean }[
   // Sales Summary and Sales by Item use their own inline panels (like
   // stockCardReport) — they don't need the legacy date-range dialog.
   { type: "salesSummaryReport",   icon: FileText,        needsRange: false },
+  { type: "salesByItemReport",    icon: Package,         needsRange: false },
 ];
 
 // Receive-type filter options for the Sales Summary panel. Values match the
@@ -219,6 +249,16 @@ const Reports = () => {
   const [ssLoading, setSsLoading] = useState(false);
   const [ssData, setSsData] = useState<SalesSummaryReportData | null>(null);
 
+  // ── Sales by Item state ─────────────────────────────────────────────────
+  const [siDateFrom, setSiDateFrom] = useState("");
+  const [siDateTo, setSiDateTo] = useState("");
+  const [siUserName, setSiUserName] = useState("");
+  const [siCategoryCode, setSiCategoryCode] = useState("");
+  const [siItemNoFrom, setSiItemNoFrom] = useState("");
+  const [siItemNoTo, setSiItemNoTo] = useState("");
+  const [siLoading, setSiLoading] = useState(false);
+  const [siData, setSiData] = useState<SalesByItemReportData | null>(null);
+
   const currentDef = REPORT_DEFS.find((d) => d.type === selectedReportType);
   const needsRange = currentDef?.needsRange ?? true;
 
@@ -231,6 +271,11 @@ const Reports = () => {
     if (reportType === "salesSummaryReport") {
       setSelectedReportType(reportType);
       setSsData(null);
+      return;
+    }
+    if (reportType === "salesByItemReport") {
+      setSelectedReportType(reportType);
+      setSiData(null);
       return;
     }
     setSelectedReportType(reportType);
@@ -467,6 +512,116 @@ const Reports = () => {
     if (!payload || !ssData) return;
     try {
       const fname = `SalesSummary_${ssDateFrom || "any"}_${ssDateTo || "any"}.xlsx`;
+      exportToExcel(payload, fname);
+      toast.success(t("reports.exportSuccess"));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : t("shopUsers.errorGeneric");
+      toast.error(detail);
+    }
+  };
+
+  // ── Sales by Item handlers ──────────────────────────────────────────────
+
+  const buildSalesByItemQuery = (): string => {
+    const params = new URLSearchParams();
+    if (siDateFrom) params.set("date_from", siDateFrom);
+    if (siDateTo) params.set("date_to", siDateTo);
+    if (siUserName.trim()) params.set("user_name", siUserName.trim());
+    if (siCategoryCode.trim()) params.set("category_code", siCategoryCode.trim());
+    if (siItemNoFrom.trim()) params.set("item_no_from", siItemNoFrom.trim());
+    if (siItemNoTo.trim()) params.set("item_no_to", siItemNoTo.trim());
+    if (isCanteenAreaMgr) {
+      if (selectedStall === "all") params.set("module", "canteen");
+      else params.set("shop_id", selectedStall);
+    } else if (user?.shopId) {
+      params.set("shop_id", user.shopId);
+    }
+    return params.toString();
+  };
+
+  const handleLoadSalesByItem = async () => {
+    setSiLoading(true);
+    try {
+      const qs = buildSalesByItemQuery();
+      const data = await api.get<SalesByItemReportData>(
+        `/reports/sales-by-item${qs ? `?${qs}` : ""}`,
+      );
+      setSiData(data);
+      if (data.rows.length === 0) toast.message("No line items match these filters.");
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
+      toast.error(detail);
+    } finally {
+      setSiLoading(false);
+    }
+  };
+
+  const buildSalesByItemFilterLines = (): string[] => {
+    const lines: string[] = [];
+    const dateLine = buildDateFilterLine("Date", siDateFrom, siDateTo);
+    if (dateLine) lines.push(dateLine);
+    if (siUserName.trim()) lines.push(`Name: ${siUserName.trim()}`);
+    if (siCategoryCode.trim()) lines.push(`Category: ${siCategoryCode.trim()}`);
+    if (siItemNoFrom.trim() || siItemNoTo.trim()) {
+      lines.push(`Item NO: ${siItemNoFrom.trim() || "—"} → ${siItemNoTo.trim() || "—"}`);
+    }
+    if (isCanteenAreaMgr && selectedStall !== "all") {
+      const stall = canteenStalls.find((s) => s.id === selectedStall);
+      if (stall) lines.push(`Shop: ${stall.name}`);
+    }
+    return lines;
+  };
+
+  const buildSalesByItemPayload = (): ReportPayload<Record<string, unknown>> | null => {
+    if (!siData) return null;
+    const columns: ReportColumn[] = [
+      { header: "Seq",          key: "seq",              format: "number",   align: "right", width: 36  },
+      { header: "Date/Time",    key: "transaction_date", format: "datetime", width: 110 },
+      { header: "Item NO.",     key: "item_no",          width: 80  },
+      { header: "Item Name",    key: "item_name",        width: 140 },
+      { header: "Receipt NO.",  key: "receipt_number",   width: 90  },
+      { header: "ID",           key: "customer_id",      width: 70  },
+      { header: "Name",         key: "customer_name",    width: 110 },
+      { header: "Sales Qty",    key: "sales_qty",        format: "number"   },
+      { header: "Sales AMT",    key: "sales_amt",        format: "currency" },
+      { header: "Receive Type", key: "receive_type",     width: 80  },
+      { header: "Remark",       key: "remark",           width: 110 },
+    ];
+    return {
+      meta: {
+        title: "Sales by Item Report",
+        schoolName: school.name,
+        schoolLogoUrl: school.logoUrl || undefined,
+        filters: buildSalesByItemFilterLines(),
+      },
+      columns,
+      rows: siData.rows as unknown as Record<string, unknown>[],
+      totals: {
+        seq: "TOTAL By Item",
+        sales_qty: siData.totals.sales_qty,
+        sales_amt: siData.totals.sales_amt,
+      },
+    };
+  };
+
+  const handleExportSalesByItemPdf = async () => {
+    const payload = buildSalesByItemPayload();
+    if (!payload || !siData) return;
+    try {
+      const fname = `SalesByItem_${siDateFrom || "any"}_${siDateTo || "any"}.pdf`;
+      await exportToPDF(payload, fname);
+      toast.success(t("reports.exportSuccess"));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : t("shopUsers.errorGeneric");
+      toast.error(detail);
+    }
+  };
+
+  const handleExportSalesByItemExcel = () => {
+    const payload = buildSalesByItemPayload();
+    if (!payload || !siData) return;
+    try {
+      const fname = `SalesByItem_${siDateFrom || "any"}_${siDateTo || "any"}.xlsx`;
       exportToExcel(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -910,6 +1065,158 @@ const Reports = () => {
                             <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                             <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_other.toFixed(2)}</td>
                             <td />
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Sales by Item inline panel — every filter optional. */}
+      {selectedReportType === "salesByItemReport" && (
+        <div className="mt-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                Sales by Item Report
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                All filters are optional. Leave any field blank to skip that filter.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                  <Label>Date Range</Label>
+                  <DateRangePicker
+                    id="siDateRange"
+                    startDate={siDateFrom}
+                    endDate={siDateTo}
+                    onStartChange={setSiDateFrom}
+                    onEndChange={setSiDateTo}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="siUserName">User Name</Label>
+                  <Input id="siUserName" placeholder="Search name (customer or payer)"
+                    value={siUserName} onChange={(e) => setSiUserName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="siCategoryCode">Category Code</Label>
+                  <Input id="siCategoryCode" placeholder="Exact category match"
+                    value={siCategoryCode} onChange={(e) => setSiCategoryCode(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="siItemNoFrom">Item NO. From</Label>
+                  <Input id="siItemNoFrom" placeholder="SKU lower bound"
+                    value={siItemNoFrom} onChange={(e) => setSiItemNoFrom(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="siItemNoTo">Item NO. To</Label>
+                  <Input id="siItemNoTo" placeholder="SKU upper bound"
+                    value={siItemNoTo} onChange={(e) => setSiItemNoTo(e.target.value)} />
+                </div>
+                {isCanteenAreaMgr && (
+                  <div className="space-y-2">
+                    <Label htmlFor="siShop">Shop</Label>
+                    <Select value={selectedStall} onValueChange={setSelectedStall}>
+                      <SelectTrigger id="siShop"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All canteen stalls</SelectItem>
+                        {canteenStalls.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleLoadSalesByItem} disabled={siLoading}>
+                  {siLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Search
+                </Button>
+                {siData && (
+                  <>
+                    <Button variant="outline" onClick={handleExportSalesByItemPdf}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export PDF
+                    </Button>
+                    <Button variant="outline" onClick={handleExportSalesByItemExcel}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Export Excel
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {siData && (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    Found <span className="font-semibold text-foreground">{siData.line_count}</span> line items
+                    {" · "}Total Qty{" "}
+                    <span className="font-semibold text-foreground">{siData.totals.sales_qty}</span>
+                    {" · "}Total Amount{" "}
+                    <span className="font-semibold text-foreground">
+                      ฿{siData.totals.sales_amt.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 whitespace-nowrap">
+                        <tr>
+                          <th className="px-2 py-2 text-right">Seq</th>
+                          <th className="px-2 py-2 text-left">Date/Time</th>
+                          <th className="px-2 py-2 text-left">Item NO.</th>
+                          <th className="px-2 py-2 text-left">Item Name</th>
+                          <th className="px-2 py-2 text-left">Receipt NO.</th>
+                          <th className="px-2 py-2 text-left">ID</th>
+                          <th className="px-2 py-2 text-left">Name</th>
+                          <th className="px-2 py-2 text-right">Sales Qty</th>
+                          <th className="px-2 py-2 text-right">Sales AMT</th>
+                          <th className="px-2 py-2 text-left">Receive Type</th>
+                          <th className="px-2 py-2 text-left">Remark</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {siData.rows.length === 0 ? (
+                          <tr>
+                            <td colSpan={11} className="px-3 py-4 text-center text-muted-foreground">
+                              No line items match these filters.
+                            </td>
+                          </tr>
+                        ) : (
+                          siData.rows.map((r) => (
+                            <tr key={r.seq} className="border-t">
+                              <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
+                              <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
+                              <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
+                              <td className="px-2 py-1.5">{r.item_name}</td>
+                              <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
+                              <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
+                              <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>
+                              <td className="px-2 py-1.5 text-right font-mono">{r.sales_qty}</td>
+                              <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
+                              <td className="px-2 py-1.5">{r.receive_type}</td>
+                              <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                      {siData.rows.length > 0 && (
+                        <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                          <tr className="border-t">
+                            <td colSpan={7} className="px-2 py-2 text-left">TOTAL By Item</td>
+                            <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
+                            <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
+                            <td colSpan={2} />
                           </tr>
                         </tfoot>
                       )}

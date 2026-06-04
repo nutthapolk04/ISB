@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth, type UserRole } from "@/contexts/AuthContext";
 import {
   ShieldCheck,
   Users,
@@ -230,9 +231,31 @@ const roleGuides: RoleGuide[] = [
 
 export default function GuidePage() {
   const { t } = useTranslation();
-  const [activeRole, setActiveRole] = useState<string>(roleGuides[0].id);
+  const { user } = useAuth();
 
-  const activeGuide = roleGuides.find((r) => r.id === activeRole)!;
+  // Filter the role guides to only the role the signed-in user actually
+  // plays. Admin sees every role (so support staff who need to coach a
+  // cashier can still flip through their guide). Everyone else sees just
+  // their own role's steps — no point in a cashier reading admin docs and
+  // wondering where the menu items are.
+  //
+  // Effective role = the user's activeRole (multi-role users pick it on the
+  // Role Picker) and falls back to their primary user.role.
+  const effectiveRole = (user?.activeRole ?? user?.role ?? "cashier") as UserRole;
+  const visibleGuides = useMemo(() => {
+    if (effectiveRole === "admin") return roleGuides;
+    return roleGuides.filter((g) => g.id === effectiveRole);
+  }, [effectiveRole]);
+
+  // Initial selection — first visible guide. If the user only sees one
+  // role, the sidebar collapses to that single tab (still useful as a
+  // visual anchor showing which role's docs they're reading).
+  const [activeRole, setActiveRole] = useState<string>(
+    visibleGuides[0]?.id ?? roleGuides[0].id,
+  );
+
+  const activeGuide =
+    visibleGuides.find((r) => r.id === activeRole) ?? visibleGuides[0] ?? roleGuides[0];
 
   return (
     <div className="flex flex-col min-h-full">
@@ -257,7 +280,7 @@ export default function GuidePage() {
           <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("guide.selectRole")}
           </p>
-          {roleGuides.map((role) => {
+          {visibleGuides.map((role) => {
             const Icon = role.icon;
             const isActive = role.id === activeRole;
             return (
