@@ -49,6 +49,14 @@ import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
+import {
+  cartToDisplayItems,
+  payerForCustomer,
+  payerForDepartment,
+  payerForUser,
+  paymentMethodForDisplay,
+} from "@/lib/customerDisplay";
 
 import {
   AlertDialog,
@@ -531,6 +539,9 @@ const Store = () => {
   // ── Receipt note (optional cashier memo, saved to receipt.notes) ────────
   const [receiptNote, setReceiptNote] = useState<string>("");
 
+  // ── Customer display broadcast (second-monitor) ─────────────────────────
+  const display = useDisplayBroadcast();
+
   // ── Modal pipeline state ────────────────────────────────────────────────
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
@@ -750,6 +761,22 @@ const Store = () => {
     return Math.max(0, gross - discount);
   };
 
+  // Cart snapshot for the customer-display second monitor. Computed every
+  // render so payer-card / order-review screens stay in sync as the
+  // cashier tweaks discounts / overrides inside the payment modal.
+  const buildDisplayItems = () =>
+    cartToDisplayItems(
+      cart.map((item) => ({
+        name:
+          activePanelId != null && panelShortNames[activePanelId]?.[item.id]
+            ? panelShortNames[activePanelId][item.id]
+            : item.name,
+        quantity: item.quantity,
+        unitPrice: getPriceForItem(item),
+        discount: getItemDiscountAmount(item),
+      })),
+    );
+
   const subtotal = cart.reduce((s, i) => s + getItemLineTotal(i), 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
   const billDiscountAmount = (() => {
@@ -884,6 +911,26 @@ const Store = () => {
 
   const doCheckout = async (method: CanteenPaymentMethod, ctx: CheckoutCtx = {}) => {
     setConfirming(true);
+    // Tell the customer display the payment is going through. Payer info
+    // resolved best-effort so the screen can show the balance preview.
+    const displayMethod = paymentMethodForDisplay(method);
+    const displayPayer =
+      method === "wallet" && ctx.payer
+        ? ctx.payer.kind === "customer"
+          ? payerForCustomer(ctx.payer.student, total)
+          : payerForUser(ctx.payer.user, total)
+        : method === "department" && ctx.deptId
+          ? (() => {
+              const d = departmentOptions.find((x) => x.id === ctx.deptId);
+              return d ? payerForDepartment(d, total) : null;
+            })()
+          : null;
+    display.processing({
+      items: buildDisplayItems(),
+      total,
+      payer: displayPayer,
+      method: displayMethod,
+    });
     try {
       const isWallet = method === "wallet";
       const isDept = method === "department";
@@ -1055,6 +1102,15 @@ const Store = () => {
       setDeptOpen(false);
       setEdcOpen(false);
       setSuccessOpen(true);
+
+      // Customer display: payment landed. The display window auto-returns
+      // to Standby 5 s after this success message.
+      display.success({
+        total: receipt.total,
+        payer: displayPayer,
+        method: displayMethod,
+        receiptNumber: receipt.receipt_number,
+      });
     } catch (err: any) {
       if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(err.detail);
@@ -1064,6 +1120,13 @@ const Store = () => {
           description: detail || t("checkout.failedHint", "Please try again or check your network."),
         });
       }
+      // Customer display: surface the failure with the same message the
+      // cashier sees, so the customer can react accordingly.
+      const reason =
+        err instanceof ApiError
+          ? err.detail
+          : err?.message ?? "Payment could not be completed.";
+      display.failed({ reason: String(reason), method: displayMethod });
     } finally {
       setConfirming(false);
     }
@@ -1075,6 +1138,18 @@ const Store = () => {
       toast.error(t("store.pleaseAddProducts"));
       return;
     }
+
+    // Customer display: surface "Your Order" the moment the cashier moves
+    // to the payment step (whether the picker opens or a fast-path wallet
+    // charge runs immediately for a pre-selected member).
+    display.review({
+      items: buildDisplayItems(),
+      total,
+      payer:
+        preSelectedMember != null
+          ? payerForCustomer(preSelectedMember, total)
+          : null,
+    });
 
     // If member is pre-selected, charge directly via wallet
     if (preSelectedMember) {
@@ -1115,7 +1190,19 @@ const Store = () => {
     setMethodPickerOpen(false);
     if (method === "wallet") setWalletOpen(true);
     else if (method === "cash") setCashOpen(true);
-    else if (method === "qr") setQrOpen(true);
+    else if (method === "qr") {
+      setQrOpen(true);
+      // QR is special: the customer needs to see the code before confirming.
+      // Push it to the second monitor the moment the QR modal opens.
+      display.qr({
+        items: buildDisplayItems(),
+        total,
+        // No real PromptPay integration yet — encode the amount so the
+        // customer-display QR renders something deterministic.
+        qrPayload: `PROMPTPAY|AMOUNT|${total.toFixed(2)}`,
+        expiresAt: null,
+      });
+    }
     else if (method === "department") setDeptOpen(true);
     else if (method === "edc") setEdcOpen(true);
   };
@@ -1932,7 +2019,13 @@ const Store = () => {
       {/* Receipt success */}
       <ReceiptSuccessModal
         open={successOpen}
-        onClose={() => setSuccessOpen(false)}
+        onClose={() => {
+          setSuccessOpen(false);
+          // Cashier acknowledged the receipt — release the customer
+          // display back to standby so the next customer sees a clean
+          // welcome screen.
+          display.standby();
+        }}
         receiptNumber={lastReceipt?.receiptNumber ?? ""}
         amount={lastReceipt?.amount ?? 0}
         remainingBalance={lastReceipt?.remainingBalance ?? null}

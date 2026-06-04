@@ -39,6 +39,15 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
+import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
+import {
+  cartToDisplayItems,
+  payerForCustomer,
+  payerForDepartment,
+  payerForUser,
+  paymentMethodForDisplay,
+} from "@/lib/customerDisplay";
+import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -187,6 +196,21 @@ export default function Canteen() {
   const [usesDualPricing, setUsesDualPricing] = useState(true);
 
   const [discountOpen, setDiscountOpen] = useState(false);
+  // Customer display broadcast — drives the second-monitor screen.
+  const display = useDisplayBroadcast();
+  const buildDisplayItems = () =>
+    cartToDisplayItems(
+      cart.items.map((i) => ({
+        name: i.name,
+        quantity: i.quantity,
+        unitPrice:
+          cart.priceMode === "internal"
+            ? (i.internalPrice ?? i.price)
+            : (i.priceOverride ?? i.price),
+        discount: cart.lineDiscountAmountFor(i),
+      })),
+    );
+
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [rfidOpen, setRfidOpen] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
@@ -624,11 +648,27 @@ export default function Canteen() {
   };
 
   const handleConfirmDept = async (deptId: number, _empCode: string | null) => {
+    const amount = cart.total;
+    // No DepartmentPayer lookup available here yet — show the department-
+    // budget heading without the balance preview rather than blocking.
+    display.processing({
+      items: buildDisplayItems(),
+      total: amount,
+      payer: null,
+      method: "department",
+    });
     try {
-      const amount = cart.total;
       const res = await doCheckout("department", { kind: "department", departmentId: deptId });
+      display.success({
+        total: amount,
+        payer: null,
+        method: "department",
+        receiptNumber: res.receipt_number,
+      });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
+      const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
+      display.failed({ reason: String(reason), method: "department" });
       toast.error(t("checkout.failed", "Checkout failed"), {
         description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
       });
@@ -636,12 +676,33 @@ export default function Canteen() {
   };
 
   const handleConfirmWallet = async (payer: WalletPayer) => {
+    const amount = cart.total;
+    // Resolve a DisplayPayer up-front so the customer screen can show the
+    // balance preview while we wait for the backend.
+    const displayPayer: DisplayPayer | null =
+      payer.kind === "department"
+        ? payerForDepartment(payer.department, amount)
+        : payer.kind === "customer"
+          ? payerForCustomer(payer.student, amount)
+          : payerForUser(payer.user, amount);
+    const displayMethod = payer.kind === "department" ? "department" : "wallet";
+    display.processing({
+      items: buildDisplayItems(),
+      total: amount,
+      payer: displayPayer,
+      method: displayMethod,
+    });
     try {
-      const amount = cart.total;
       if (payer.kind === "department") {
         const res = await doCheckout("department", {
           kind: "department",
           departmentId: payer.department.id,
+        });
+        display.success({
+          total: amount,
+          payer: displayPayer,
+          method: "department",
+          receiptNumber: res.receipt_number,
         });
         finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
         return;
@@ -652,6 +713,12 @@ export default function Canteen() {
         const res = await doCheckout("wallet", {
           kind: "customer",
           customerId: student.id,
+        });
+        display.success({
+          total: amount,
+          payer: displayPayer,
+          method: "wallet",
+          receiptNumber: res.receipt_number,
         });
         finalizeSuccess(
           res.receipt_number,
@@ -669,6 +736,12 @@ export default function Canteen() {
         kind: "user",
         userId: u.user_id,
       });
+      display.success({
+        total: amount,
+        payer: displayPayer,
+        method: "wallet",
+        receiptNumber: res.receipt_number,
+      });
       finalizeSuccess(res.receipt_number, amount, currentBalance - amount, {
         // Reuse the receipt-success modal slot for the payer name + photo so
         // cashier sees confirmation of who was charged.
@@ -681,6 +754,8 @@ export default function Canteen() {
         wallet_balance: u.wallet_balance,
       } as StudentLookupResult, res as unknown as ReceiptApi);
     } catch (e) {
+      const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
+      display.failed({ reason: String(reason), method: displayMethod });
       if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(e.detail);
       } else {
@@ -692,11 +767,25 @@ export default function Canteen() {
   };
 
   const handleConfirmCash = async (cashReceived: number) => {
+    const amount = cart.total;
+    display.processing({
+      items: buildDisplayItems(),
+      total: amount,
+      payer: null,
+      method: "cash",
+    });
     try {
-      const amount = cart.total;
       const res = await doCheckout("cash", undefined, { cashReceived });
+      display.success({
+        total: amount,
+        payer: null,
+        method: "cash",
+        receiptNumber: res.receipt_number,
+      });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
+      const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
+      display.failed({ reason: String(reason), method: "cash" });
       toast.error(t("checkout.failed", "Checkout failed"), {
         description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
       });
@@ -704,11 +793,28 @@ export default function Canteen() {
   };
 
   const handleConfirmQr = async () => {
+    const amount = cart.total;
+    // The cashier's QR modal has no real PromptPay integration yet; push a
+    // deterministic placeholder so the customer screen renders a QR (the
+    // amount is also shown big underneath).
+    display.qr({
+      items: buildDisplayItems(),
+      total: amount,
+      qrPayload: `PROMPTPAY|AMOUNT|${amount.toFixed(2)}`,
+      expiresAt: null,
+    });
     try {
-      const amount = cart.total;
       const res = await doCheckout("other");
+      display.success({
+        total: amount,
+        payer: null,
+        method: "qr",
+        receiptNumber: res.receipt_number,
+      });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
+      const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
+      display.failed({ reason: String(reason), method: "qr" });
       toast.error(t("checkout.failed", "Checkout failed"), {
         description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
       });
@@ -716,11 +822,25 @@ export default function Canteen() {
   };
 
   const handleConfirmEdc = async () => {
+    const amount = cart.total;
+    display.processing({
+      items: buildDisplayItems(),
+      total: amount,
+      payer: null,
+      method: "edc",
+    });
     try {
-      const amount = cart.total;
       const res = await doCheckout("edc");
+      display.success({
+        total: amount,
+        payer: null,
+        method: "edc",
+        receiptNumber: res.receipt_number,
+      });
       finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
     } catch (e) {
+      const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
+      display.failed({ reason: String(reason), method: "edc" });
       toast.error(t("checkout.failed", "Checkout failed"), {
         description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
       });
@@ -731,15 +851,30 @@ export default function Canteen() {
   const handleCharge = async () => {
     if (preSelectedMember) {
       // Direct charge for pre-selected member (wallet or department)
+      const amount = cart.total;
+      const displayPayer = payerForCustomer(preSelectedMember, amount);
+      const displayMethod =
+        preSelectedMember.customer_kind === "department" ? "department" : "wallet";
+      display.processing({
+        items: buildDisplayItems(),
+        total: amount,
+        payer: displayPayer,
+        method: displayMethod,
+      });
       setConfirming(true);
       try {
-        const amount = cart.total;
         const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
         // Department payer — use dept checkout path
         if (preSelectedMember.customer_kind === "department") {
           const res = await doCheckout("department", {
             kind: "department",
             departmentId: preSelectedMember.id,
+          });
+          display.success({
+            total: amount,
+            payer: displayPayer,
+            method: "department",
+            receiptNumber: res.receipt_number,
           });
           finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
           setPreSelectedMember(null);
@@ -751,6 +886,12 @@ export default function Canteen() {
             ? { kind: "user", userId: preSelectedMember.user_id }
             : { kind: "customer", customerId: preSelectedMember.id },
         );
+        display.success({
+          total: amount,
+          payer: displayPayer,
+          method: "wallet",
+          receiptNumber: res.receipt_number,
+        });
         finalizeSuccess(
           res.receipt_number,
           amount,
@@ -760,6 +901,8 @@ export default function Canteen() {
         );
         setPreSelectedMember(null);
       } catch (e) {
+        const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
+        display.failed({ reason: String(reason), method: displayMethod });
         if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
           setWalletLimitError(e.detail);
         } else {
@@ -771,7 +914,14 @@ export default function Canteen() {
         setConfirming(false);
       }
     } else {
-      // No member selected - show payment method picker
+      // No member selected — broadcast the order to the second monitor so
+      // the customer sees it before the cashier picks a payment method,
+      // then show the picker.
+      display.review({
+        items: buildDisplayItems(),
+        total: cart.total,
+        payer: null,
+      });
       setMethodPickerOpen(true);
     }
   };
@@ -1124,8 +1274,14 @@ export default function Canteen() {
         confirming={confirming}
       />
       <ReceiptSuccessModal
+        // The cashier dismissing the success modal frees the customer
+        // display to return to standby right away (no need to wait out
+        // the 5-second auto-dwell).
         open={successOpen}
-        onClose={() => setSuccessOpen(false)}
+        onClose={() => {
+          setSuccessOpen(false);
+          display.standby();
+        }}
         receiptNumber={lastReceipt?.number ?? ""}
         amount={lastReceipt?.amount ?? 0}
         remainingBalance={lastReceipt?.remainingBalance ?? null}
