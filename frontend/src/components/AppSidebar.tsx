@@ -19,6 +19,7 @@ import {
   Settings as SettingsIcon,
   ArrowLeftRight,
   BookOpen,
+  Monitor,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -112,6 +113,7 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.adminDeptAdjust",   url: "/admin/department-adjust", icon: Building2,        roles: ["admin"] },
       { titleKey: "nav.adminAuditLogs",    url: "/admin/audit-logs",     icon: History,           roles: ["admin"] },
       { titleKey: "nav.adminSettings",     url: "/admin/settings",       icon: SettingsIcon,      roles: ["admin"] },
+      { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display", icon: Monitor,        roles: ["admin"] },
     ],
   },
   {

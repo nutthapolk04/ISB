@@ -51,6 +51,7 @@ import CanteenShopDetail from "./pages/canteen/CanteenShopDetail";
 import CanteenManagementOverview from "./pages/canteen/CanteenManagementOverview";
 import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
+import CustomerDisplaySettings from "./pages/admin/CustomerDisplaySettings";
 import GuidePage from "./pages/GuidePage";
 import ShopDashboard from "./pages/ShopDashboard";
 
@@ -250,6 +251,7 @@ const App = () => (
                   <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
                   <Route path="/admin/audit-logs" element={<AuditLogList />} />
                   <Route path="/admin/settings" element={<SystemSettings />} />
+                  <Route path="/admin/customer-display" element={<CustomerDisplaySettings />} />
                   <Route path="/admin/cards" element={<CardManagement />} />
                   <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                   <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
