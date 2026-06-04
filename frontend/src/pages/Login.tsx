@@ -28,6 +28,11 @@ import {
 
 type SsoStep = "pdpa" | null;
 
+// Mirror of App.tsx — the Google SSO button only appears when this is set,
+// even though the OAuth provider always mounts (with a placeholder) so that
+// the page never crashes when the env var is missing on a fresh deploy.
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
 const GoogleLogo = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -367,22 +372,29 @@ const Login = () => {
                 </Button>
               </form>
 
-              {/* Divider */}
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
+              {/* Google SSO — only shown when VITE_GOOGLE_CLIENT_ID is
+                  configured. The provider in App.tsx mounts unconditionally
+                  with a placeholder when the env is missing so the page
+                  doesn't crash, but we hide the button here because clicking
+                  it would fail against the placeholder. */}
+              {GOOGLE_CLIENT_ID && (
+                <>
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
 
-              {/* Google SSO button */}
-              {ssoStep === null && (
-                <Button type="button" variant="outline" className="w-full gap-2"
-                  onClick={() => googleLogin()}
-                  disabled={loading || ssoLoading}>
-                  <GoogleLogo />
-                  Sign in with Google
-                </Button>
+                  {ssoStep === null && (
+                    <Button type="button" variant="outline" className="w-full gap-2"
+                      onClick={() => googleLogin()}
+                      disabled={loading || ssoLoading}>
+                      <GoogleLogo />
+                      Sign in with Google
+                    </Button>
+                  )}
+                </>
               )}
 
               {/* PDPA step */}

@@ -179,8 +179,16 @@ function AppShell() {
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
+// GoogleOAuthProvider throws "Missing required parameter client_id" the moment
+// it mounts with an empty clientId, which crashed the entire /login page on
+// any environment where VITE_GOOGLE_CLIENT_ID isn't set. Feed the provider a
+// sentinel string when the real id is missing — the provider mounts fine, the
+// useGoogleLogin hook inside Login.tsx still wires up, and Login.tsx hides
+// the Google button via the same env check so the placeholder is never used.
+const GOOGLE_PROVIDER_ID = GOOGLE_CLIENT_ID || "google-oauth-disabled.invalid";
+
 const App = () => (
-  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+  <GoogleOAuthProvider clientId={GOOGLE_PROVIDER_ID}>
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
