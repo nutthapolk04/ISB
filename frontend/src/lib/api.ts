@@ -96,12 +96,28 @@ async function request<T>(
       /* use statusText fallback */
     }
 
-    // Session expired — clear stored credentials and force re-login
-    if (res.status === 401) {
+    // Session expired — clear stored credentials and force re-login.
+    //
+    // Exception: the customer-display second-monitor window is a public
+    // route with no auth. Background calls from shared providers (e.g.
+    // SchoolInfoProvider hitting /admin/settings/school) will naturally
+    // 401 there, and we must NOT redirect that popup to /login because
+    // the resulting navigation cycle (popup → /login → bounce back via
+    // router → /customer-display → 401 again) creates an infinite reload
+    // loop that burns hundreds of requests and never lets the rotation
+    // render. Let the caller catch the 401 and fall back to defaults.
+    if (
+      res.status === 401 &&
+      window.location.pathname !== "/customer-display"
+    ) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("schooney_auth_user");
       window.location.href = "/login";
+      throw new ApiError(res.status, detail, body, code);
+    }
+    if (res.status === 401) {
+      // On /customer-display, just surface the error to the caller.
       throw new ApiError(res.status, detail, body, code);
     }
 
