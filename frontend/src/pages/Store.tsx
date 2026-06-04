@@ -542,6 +542,14 @@ const Store = () => {
   // ── Customer display broadcast (second-monitor) ─────────────────────────
   const display = useDisplayBroadcast();
 
+  // Reset the customer-facing window to the standby rotation whenever the
+  // cashier enters this POS page. Without this, a stale "review" / "success"
+  // state from a previous session can stick around in the popup and hide the
+  // image rotation until the cashier starts a new checkout.
+  useEffect(() => {
+    display.standby();
+  }, [display]);
+
   // ── Modal pipeline state ────────────────────────────────────────────────
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
