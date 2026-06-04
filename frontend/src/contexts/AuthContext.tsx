@@ -118,14 +118,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = user !== null;
 
-  // Auto-open the customer display once per fresh session — for every role,
-  // per the spec. Fires on login (user transitions null → set) AND on cold
-  // app open with a stored session. Browser may block the popup if the
-  // event chain isn't user-gesture rooted; the "Open Customer Display"
-  // toolbar button in the POS header lets the cashier recover.
+  // Auto-open the customer display once per fresh session — but ONLY for
+  // roles that actually run the POS. Admin / parent / staff / student have
+  // no POS access (RequireRole guards in App.tsx) so popping the second
+  // monitor on their login is confusing UX. Cashiers and managers operate
+  // the till, so they get it. The toolbar button in the app header is still
+  // available to anyone who wants it manually.
   const autoOpenedRef = useRef(false);
   useEffect(() => {
-    if (user && !autoOpenedRef.current) {
+    const POS_ROLES: ReadonlyArray<UserRole> = ["cashier", "manager"];
+    const runsPos = !!user && POS_ROLES.includes(user.activeRole ?? user.role);
+    if (runsPos && !autoOpenedRef.current) {
       autoOpenedRef.current = true;
       openCustomerDisplayWindow();
     }
