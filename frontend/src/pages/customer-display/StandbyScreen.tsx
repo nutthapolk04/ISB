@@ -21,6 +21,9 @@ const ROTATION_MS = 5000;
 export function StandbyScreen() {
   const [images, setImages] = useState<DisplayImage[]>([]);
   const [index, setIndex] = useState(0);
+  // Surface fetch status on-screen so the cashier can diagnose a blank
+  // rotation without having to open DevTools. Cleared on success.
+  const [fetchStatus, setFetchStatus] = useState<string>("loading…");
 
   // Load the rotation once; admin uploads while the page is open won't
   // hot-reload until the next page refresh, which is fine — the standby
@@ -28,19 +31,21 @@ export function StandbyScreen() {
   // after changing the rotation.
   useEffect(() => {
     let cancelled = false;
-    // Diagnostic logging — the customer-display window has no UI for errors,
-    // so we surface state transitions to the console for troubleshooting
-    // (cashier can press F12 → Console if the rotation looks wrong).
     console.log("[CustomerDisplay] Fetching rotation images…");
+    setFetchStatus("loading…");
     api
       .get<DisplayImage[]>("/customer-display/images")
       .then((data) => {
         console.log("[CustomerDisplay] Got", data?.length ?? 0, "images:", data);
-        if (!cancelled) setImages(Array.isArray(data) ? data : []);
+        if (cancelled) return;
+        const arr = Array.isArray(data) ? data : [];
+        setImages(arr);
+        setFetchStatus(arr.length === 0 ? "no images uploaded" : `${arr.length} images`);
       })
       .catch((err) => {
         console.error("[CustomerDisplay] Failed to load images:", err);
-        /* render placeholder */
+        const msg = err?.detail || err?.message || String(err);
+        if (!cancelled) setFetchStatus(`fetch error: ${msg}`);
       });
     return () => {
       cancelled = true;
@@ -67,6 +72,11 @@ export function StandbyScreen() {
         <p className="mt-3 text-base text-zinc-500">
           International School Bangkok
         </p>
+        {/* Diagnostic chip — bottom-right. Tiny and unobtrusive but visible
+            without DevTools when troubleshooting a blank rotation. */}
+        <div className="absolute bottom-3 right-4 text-[10px] font-mono text-zinc-400">
+          {fetchStatus}
+        </div>
       </div>
     );
   }
