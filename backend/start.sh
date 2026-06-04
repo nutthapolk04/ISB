@@ -615,6 +615,25 @@ run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
 run('CREATE INDEX IF NOT EXISTS ix_return_requests_bundle_id ON return_requests(bundle_id)',
     'return_requests idx bundle_id')
 
+# === Customer Display — admin-managed standby images shown on the
+#     second-monitor customer-facing screen between transactions. Image
+#     bytes live in Postgres (BYTEA) so backups stay atomic and there are
+#     no external storage credentials to manage. ===
+run('''
+    CREATE TABLE IF NOT EXISTS customer_display_images (
+        id            SERIAL PRIMARY KEY,
+        data          BYTEA NOT NULL,
+        content_type  VARCHAR(50) NOT NULL,
+        filename      VARCHAR(200),
+        size_bytes    INTEGER NOT NULL,
+        sort_order    INTEGER NOT NULL DEFAULT 0,
+        uploaded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        uploaded_by   INTEGER REFERENCES users(id) ON DELETE SET NULL
+    )
+''', 'customer_display_images table')
+run('CREATE INDEX IF NOT EXISTS ix_customer_display_images_sort ON customer_display_images(sort_order)',
+    'customer_display_images idx sort')
+
 # === Price panels can now reference bundles too (polymorphic row: exactly
 #     one of product_id / bundle_id is set). product_id becomes nullable so
 #     bundle-only rows are legal. ===
@@ -688,6 +707,7 @@ required_cols = [
     ('shop_movements', 'reversed_by_id'),
     ('return_requests', 'bundle_id'),
     ('price_panel_items', 'bundle_id'),
+    ('customer_display_images', 'data'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',
