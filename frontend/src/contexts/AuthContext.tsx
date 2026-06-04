@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { API_BASE_URL } from "@/lib/constants";
+import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
 export type UserRole =
   | "admin"
@@ -116,6 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const isAuthenticated = user !== null;
+
+  // Auto-open the customer display once per fresh session — for every role,
+  // per the spec. Fires on login (user transitions null → set) AND on cold
+  // app open with a stored session. Browser may block the popup if the
+  // event chain isn't user-gesture rooted; the "Open Customer Display"
+  // toolbar button in the POS header lets the cashier recover.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (user && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      openCustomerDisplayWindow();
+    }
+    if (!user) autoOpenedRef.current = false; // reset on logout
+  }, [user]);
 
   const login = async (
     username: string,

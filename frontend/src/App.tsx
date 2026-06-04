@@ -15,7 +15,7 @@ import { AuthProvider, useAuth, UserRole } from "@/contexts/AuthContext";
 import { SchoolInfoProvider } from "@/contexts/SchoolInfoContext";
 import { RequireModule } from "@/components/guards/RequireModule";
 import { Button } from "@/components/ui/button";
-import { LogOut, UserIcon, KeyRound, RefreshCcw, Wallet } from "lucide-react";
+import { LogOut, UserIcon, KeyRound, RefreshCcw, Wallet, Monitor } from "lucide-react";
 import { useState } from "react";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { useTranslation } from "react-i18next";
@@ -53,6 +53,7 @@ import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
 import CustomerDisplaySettings from "./pages/admin/CustomerDisplaySettings";
 import CustomerDisplay from "./pages/CustomerDisplay";
+import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 import GuidePage from "./pages/GuidePage";
 import ShopDashboard from "./pages/ShopDashboard";
 
@@ -137,6 +138,15 @@ function AppShell() {
                       <Wallet className="h-4 w-4" />
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openCustomerDisplayWindow()}
+                    title={t("customerDisplay.openWindow", "Open Customer Display")}
+                    aria-label="Open Customer Display"
+                  >
+                    <Monitor className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
