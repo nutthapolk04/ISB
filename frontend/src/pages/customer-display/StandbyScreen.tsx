@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Monitor } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/constants";
 
 interface DisplayImage {
   id: number;
@@ -69,7 +70,7 @@ export function StandbyScreen() {
     <div className="h-screen w-screen relative overflow-hidden bg-black">
       <img
         key={current.id}
-        src={`/api/v1/customer-display/images/${current.id}/binary`}
+        src={`${API_BASE_URL}/customer-display/images/${current.id}/binary`}
         alt=""
         className="absolute inset-0 h-full w-full object-cover animate-fade-in"
       />

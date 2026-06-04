@@ -28,6 +28,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { api, ApiError } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
@@ -72,7 +73,9 @@ function SortableThumb({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const imgUrl = `/api/v1/customer-display/images/${image.id}/binary`;
+  // Full backend URL — relative path would hit the Vercel host, where
+  // /api/v1/* is not proxied, so the image would 404.
+  const imgUrl = `${API_BASE_URL}/customer-display/images/${image.id}/binary`;
 
   return (
     <div
