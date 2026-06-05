@@ -32,6 +32,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -250,6 +251,11 @@ function SortableCard({
         transition,
         opacity: isDragging ? 0.4 : 1,
         position: "relative",
+        // Disable native touch gestures only while reorder mode is on,
+        // so cashier scrolling the catalogue normally still works. Once
+        // they enter reorder mode, holding a card for ~250 ms (matches
+        // TouchSensor's delay) initiates drag instead of scroll.
+        touchAction: reorderMode ? "none" : "auto",
       }}
     >
       {children(reorderMode ? { ...attributes, ...listeners } : {}, isDragging)}
@@ -297,8 +303,15 @@ const Store = () => {
   const [reorderSaving, setReorderSaving] = useState(false);
   const canManageOrder = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
 
+  // PointerSensor on its own dispatches via mouse + pen; touch events on
+  // Windows POS terminals don't reliably trigger drag with it (browser
+  // tends to capture the touch as a scroll). Add an explicit TouchSensor
+  // with a long-press delay so a tap-to-select still works but holding
+  // the card for ~250 ms initiates drag mode — clear enough mental model
+  // for cashiers without accidental drags during normal POS browsing.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 

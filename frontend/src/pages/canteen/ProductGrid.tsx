@@ -40,6 +40,11 @@ function SortableCard({
         transition,
         opacity: isDragging ? 0.4 : 1,
         position: "relative",
+        // touch-action: none disables the browser's default touch
+        // gestures (scroll / pinch / zoom) over the card while it's in
+        // reorder mode, otherwise Windows touch terminals capture the
+        // touch as a scroll and the TouchSensor never fires.
+        touchAction: "none",
       }}
     >
       {children({ ...attributes, ...listeners }, isDragging)}

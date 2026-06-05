@@ -25,6 +25,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -121,8 +122,15 @@ export default function Canteen() {
   const [reorderSaving, setReorderSaving] = useState(false);
   const [productsOrderVersion, setProductsOrderVersion] = useState<number | null>(null);
 
+  // PointerSensor on its own dispatches via mouse + pen; touch events on
+  // Windows POS terminals don't reliably trigger drag with it (browser
+  // tends to capture the touch as a scroll). Add an explicit TouchSensor
+  // with a long-press delay so a tap-to-select still works but holding
+  // the card for ~250 ms initiates drag mode — clear enough mental model
+  // for cashiers without accidental drags during normal POS browsing.
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
