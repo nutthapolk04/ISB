@@ -1137,6 +1137,8 @@ const Store = () => {
           ? err.detail
           : err?.message ?? "Payment could not be completed.";
       display.failed({ reason: String(reason), method: displayMethod });
+      // QR modal was closed immediately on confirm — reopen so cashier can retry
+      if (method === "qr") setQrOpen(true);
     } finally {
       setConfirming(false);
     }
@@ -1230,7 +1232,10 @@ const Store = () => {
   const handleConfirmWallet = (payer: WalletPayer) => doCheckout("wallet", { payer });
   const handleConfirmCash = (cashReceived: number) =>
     doCheckout("cash", { cashReceived });
-  const handleConfirmQr = () => doCheckout("qr");
+  const handleConfirmQr = () => {
+    setQrOpen(false); // Close modal immediately — no stuck spinner
+    doCheckout("qr");
+  };
   const handleConfirmDept = (deptId: number, empCode: string | null) =>
     doCheckout("department", { deptId, empCode });
   const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) =>

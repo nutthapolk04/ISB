@@ -803,9 +803,9 @@ export default function Canteen() {
 
   const handleConfirmQr = async () => {
     const amount = cart.total;
-    // The cashier's QR modal has no real PromptPay integration yet; push a
-    // deterministic placeholder so the customer screen renders a QR (the
-    // amount is also shown big underneath).
+    // Close modal immediately — cashier shouldn't be stuck watching a spinner.
+    // Checkout runs in the background; success animation fires when it's done.
+    setQrOpen(false);
     display.qr({
       items: buildDisplayItems(),
       total: amount,
@@ -827,6 +827,8 @@ export default function Canteen() {
       toast.error(t("checkout.failed", "Checkout failed"), {
         description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
       });
+      // Reopen modal so cashier can retry
+      setQrOpen(true);
     }
   };
 
