@@ -454,21 +454,25 @@ const Reports = () => {
 
   const buildSalesSummaryPayload = (): ReportPayload<Record<string, unknown>> | null => {
     if (!ssData) return null;
+    // Compact column headers so 14 columns can fit on a single A4 landscape
+    // row without wrapping into vertical char-stacks. Header rows in the
+    // helper are tight on 6.5pt font (see reportExport.ts); short strings
+    // keep them readable. Widths sum to ~770pt (table width budget).
     const columns: ReportColumn[] = [
-      { header: "Seq",             key: "seq",             format: "number",   align: "right", width: 36  },
-      { header: "Date/Time",       key: "transaction_date", format: "datetime", width: 110 },
-      { header: "Receipt NO.",     key: "receipt_number",  width: 90  },
-      { header: "ID",              key: "customer_id",     width: 70  },
-      { header: "Name",            key: "customer_name",   width: 130 },
-      { header: "Amt.Receive",     key: "amt_receive",     format: "currency" },
-      { header: "Amt.Change",      key: "amt_change",      format: "currency" },
-      { header: "Amt.Billing",     key: "amt_billing",     format: "currency" },
-      { header: "Amt.Cash",        key: "amt_cash",        format: "currency" },
-      { header: "Amt.Campus card", key: "amt_campus_card", format: "currency" },
-      { header: "Amt.Credit card", key: "amt_credit_card", format: "currency" },
-      { header: "Amt.QR Code",     key: "amt_qr_code",     format: "currency" },
-      { header: "Amt.Other",       key: "amt_other",       format: "currency" },
-      { header: "Remark",          key: "remark",          width: 120 },
+      { header: "Seq",        key: "seq",              format: "number",   align: "right", width: 26  },
+      { header: "Date/Time",  key: "transaction_date", format: "datetime", width: 90  },
+      { header: "Receipt",    key: "receipt_number",   width: 70  },
+      { header: "ID",         key: "customer_id",      width: 55  },
+      { header: "Name",       key: "customer_name",    width: 100 },
+      { header: "Receive",    key: "amt_receive",      format: "currency", width: 50 },
+      { header: "Change",     key: "amt_change",       format: "currency", width: 45 },
+      { header: "Billing",    key: "amt_billing",      format: "currency", width: 45 },
+      { header: "Cash",       key: "amt_cash",         format: "currency", width: 45 },
+      { header: "Campus",     key: "amt_campus_card",  format: "currency", width: 48 },
+      { header: "Credit",     key: "amt_credit_card",  format: "currency", width: 45 },
+      { header: "QR",         key: "amt_qr_code",      format: "currency", width: 42 },
+      { header: "Other",      key: "amt_other",        format: "currency", width: 42 },
+      { header: "Remark",     key: "remark",           width: 75  },
     ];
 
     return {
@@ -574,18 +578,21 @@ const Reports = () => {
 
   const buildSalesByItemPayload = (): ReportPayload<Record<string, unknown>> | null => {
     if (!siData) return null;
+    // 11 columns — comfortable on A4 landscape at 7pt font. Total widths
+    // ≈ 770pt (table budget). Header strings kept short to avoid the
+    // vertical-stack wrapping bug seen at narrower defaults.
     const columns: ReportColumn[] = [
-      { header: "Seq",          key: "seq",              format: "number",   align: "right", width: 36  },
-      { header: "Date/Time",    key: "transaction_date", format: "datetime", width: 110 },
-      { header: "Item NO.",     key: "item_no",          width: 80  },
-      { header: "Item Name",    key: "item_name",        width: 140 },
-      { header: "Receipt NO.",  key: "receipt_number",   width: 90  },
-      { header: "ID",           key: "customer_id",      width: 70  },
-      { header: "Name",         key: "customer_name",    width: 110 },
-      { header: "Sales Qty",    key: "sales_qty",        format: "number"   },
-      { header: "Sales AMT",    key: "sales_amt",        format: "currency" },
-      { header: "Receive Type", key: "receive_type",     width: 80  },
-      { header: "Remark",       key: "remark",           width: 110 },
+      { header: "Seq",       key: "seq",              format: "number",   align: "right", width: 28  },
+      { header: "Date/Time", key: "transaction_date", format: "datetime", width: 95  },
+      { header: "Item NO.",  key: "item_no",          width: 70  },
+      { header: "Item Name", key: "item_name",        width: 130 },
+      { header: "Receipt",   key: "receipt_number",   width: 70  },
+      { header: "ID",        key: "customer_id",      width: 55  },
+      { header: "Name",      key: "customer_name",    width: 90  },
+      { header: "Qty",       key: "sales_qty",        format: "number",   width: 38 },
+      { header: "Amount",    key: "sales_amt",        format: "currency", width: 60 },
+      { header: "Receive",   key: "receive_type",     width: 60  },
+      { header: "Remark",    key: "remark",           width: 80  },
     ];
     return {
       meta: {

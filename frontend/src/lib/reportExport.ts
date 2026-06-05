@@ -242,14 +242,31 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     foot = [row];
   }
 
+  // Auto-size font when there are many columns so we stop wrapping headers
+  // character-by-character. A4 landscape minus margins ≈ 778pt — once we
+  // get past ~10 columns the default 8pt font with a 4pt cell padding
+  // forces the headers like "Amt.Campus card" to line-break into a
+  // vertical stack. Tighten font + padding for wide reports.
+  const tableFontSize = columns.length >= 12 ? 6.5 : columns.length >= 10 ? 7 : 8;
+  const tableCellPadding = columns.length >= 12 ? 2 : columns.length >= 10 ? 2.5 : 4;
+
   autoTable(doc, {
     head,
     body,
     foot,
     startY: cursorY,
     margin: { left: marginX, right: marginX },
-    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
-    headStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: "bold" },
+    tableWidth: "auto",
+    styles: { fontSize: tableFontSize, cellPadding: tableCellPadding, overflow: "linebreak" },
+    headStyles: {
+      fillColor: [241, 245, 249],
+      textColor: 30,
+      fontStyle: "bold",
+      // Headers stay readable even at 6.5pt — give them an extra
+      // half-point so the columns don't all collapse into 1-char width.
+      fontSize: tableFontSize + 0.5,
+      cellPadding: tableCellPadding,
+    },
     footStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: "bold" },
     columnStyles: Object.fromEntries(
       columns.map((c, i) => [
