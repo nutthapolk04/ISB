@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Activity, ListChecks, IdCard, CreditCard, Link2 } from "lucide-react";
+import { Users, Activity, ListChecks, IdCard, CreditCard, Link2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShopUserManagement } from "@/components/ShopUserManagement";
 import CardholderList from "./CardholderList";
 import UserList from "./UserList";
 import SyncDashboard from "./SyncDashboard";
 import SyncLog from "./SyncLog";
-import CardManagement from "@/pages/admin/CardManagement";
-import FamilyLinks from "@/pages/admin/FamilyLinks";
+
+const CardManagement = lazy(() => import("@/pages/admin/CardManagement"));
+const FamilyLinks = lazy(() => import("@/pages/admin/FamilyLinks"));
 
 export default function UserManagement() {
   const { t } = useTranslation();
@@ -90,10 +91,14 @@ export default function UserManagement() {
           <UserList />
         </TabsContent>
         <TabsContent value="cards">
-          <CardManagement />
+          <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
+            <CardManagement />
+          </Suspense>
         </TabsContent>
         <TabsContent value="families">
-          <FamilyLinks />
+          <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
+            <FamilyLinks />
+          </Suspense>
         </TabsContent>
         <TabsContent value="dashboard" className="space-y-4">
           <SyncDashboard />
