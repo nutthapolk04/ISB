@@ -484,7 +484,7 @@ _MOVEMENT_DESCRIPTION: dict[str, str] = {
     "sale": "Sales",
     "adjustment": "Adjustment",
     "internal_use": "Internal Use",
-    "void": "Return / Void",
+    "void": "Return",
     "exchange": "Exchange",
 }
 

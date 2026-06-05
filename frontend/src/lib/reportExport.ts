@@ -30,6 +30,54 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
+// ─── Thai-capable font loader ────────────────────────────────────────────
+//
+// jsPDF ships with Helvetica only, which has no Thai glyphs — Thai text
+// gets transliterated into random Latin characters in the output. Register
+// Sarabun (Thai + Latin) from /public/fonts before the first render. The
+// TTF is fetched lazily on first call and cached for the lifetime of the
+// page so subsequent exports skip the network round-trip.
+const FONT_NAME = "Sarabun";
+const FONT_FILES: Record<"normal" | "bold", { vfsName: string; url: string }> = {
+  normal: { vfsName: "Sarabun-Regular.ttf", url: "/fonts/sarabun-regular.ttf" },
+  bold:   { vfsName: "Sarabun-Bold.ttf",    url: "/fonts/sarabun-bold.ttf"    },
+};
+const fontCache: Partial<Record<"normal" | "bold", string>> = {};
+
+async function fetchFontBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`font fetch ${url}: ${res.status}`);
+  const buf = await res.arrayBuffer();
+  // btoa needs a binary string — feed it one byte at a time so we never
+  // hit "Maximum call stack size exceeded" on the 130KB file.
+  let s = "";
+  const u8 = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    s += String.fromCharCode(...u8.subarray(i, i + chunk));
+  }
+  return btoa(s);
+}
+
+async function ensureThaiFont(doc: jsPDF): Promise<void> {
+  for (const weight of ["normal", "bold"] as const) {
+    const f = FONT_FILES[weight];
+    if (!fontCache[weight]) {
+      try {
+        fontCache[weight] = await fetchFontBase64(f.url);
+      } catch (e) {
+        // Network failed — caller falls back to helvetica. Log so we can
+        // diagnose deploy issues without crashing the export.
+        console.warn("Sarabun fetch failed, falling back to Helvetica:", e);
+        return;
+      }
+    }
+    doc.addFileToVFS(f.vfsName, fontCache[weight]!);
+    doc.addFont(f.vfsName, FONT_NAME, weight);
+  }
+  doc.setFont(FONT_NAME, "normal");
+}
+
 // ─── Public types ────────────────────────────────────────────────────────
 
 export type ColumnFormat = "text" | "number" | "currency" | "date" | "datetime";
@@ -192,6 +240,11 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   const marginX = 32;
   let cursorY = 36;
 
+  // Register Sarabun before drawing anything so headers / table can render
+  // Thai. Falls back to Helvetica silently if the font fetch fails.
+  await ensureThaiFont(doc);
+  const fontFamily = doc.getFontList()[FONT_NAME] ? FONT_NAME : "helvetica";
+
   // ─── Header: logo (left) + school name (right of logo) ────────────────
   const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
   const headerStartX = marginX;
@@ -205,11 +258,11 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   }
 
   // School name + title
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.setFontSize(14);
   doc.text(meta.schoolName, textStartX, cursorY + 14);
 
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   doc.setFontSize(11);
   doc.text(meta.title, textStartX, cursorY + 30);
 
@@ -294,8 +347,14 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     startY: cursorY,
     margin: { left: marginX, right: marginX },
     tableWidth: "auto",
-    styles: { fontSize: tableFontSize, cellPadding: tableCellPadding, overflow: "linebreak" },
+    styles: {
+      font: fontFamily,
+      fontSize: tableFontSize,
+      cellPadding: tableCellPadding,
+      overflow: "linebreak",
+    },
     headStyles: {
+      font: fontFamily,
       fillColor: [241, 245, 249],
       textColor: 30,
       fontStyle: "bold",
@@ -304,7 +363,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
       fontSize: tableFontSize + 0.5,
       cellPadding: tableCellPadding,
     },
-    footStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: "bold" },
+    footStyles: { font: fontFamily, fillColor: [241, 245, 249], textColor: 30, fontStyle: "bold" },
     columnStyles: Object.fromEntries(
       columns.map((c, i) => [
         i,

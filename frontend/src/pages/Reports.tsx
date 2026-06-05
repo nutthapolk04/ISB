@@ -369,15 +369,15 @@ const Reports = () => {
 
     const columns: ReportColumn[] = [
       { header: "Date", key: "date", format: "date", width: 60 },
-      { header: "Description", key: "description", width: 100 },
-      { header: "Invoice No.", key: "invoice_no", width: 70 },
-      { header: "Qty In", key: "qty_in", format: "number", width: 40 },
-      { header: "Qty Out", key: "qty_out", format: "number", width: 40 },
-      { header: "Qty Balance", key: "qty_balance", format: "number", width: 50 },
-      { header: "Amt In", key: "amount_in", format: "currency", width: 55 },
-      { header: "Amt Out", key: "amount_out", format: "currency", width: 55 },
+      { header: "Description", key: "description", width: 80 },
+      { header: "Invoice No.", key: "invoice_no", width: 95 },
+      { header: "Qty In", key: "qty_in", format: "number", width: 45 },
+      { header: "Qty Out", key: "qty_out", format: "number", width: 45 },
+      { header: "Qty Balance", key: "qty_balance", format: "number", width: 55 },
+      { header: "Amt In", key: "amount_in", format: "currency", width: 60 },
+      { header: "Amt Out", key: "amount_out", format: "currency", width: 60 },
       { header: "Cost/Unit", key: "cost_per_unit", format: "currency", width: 55 },
-      { header: "Amt Balance", key: "amount_balance", format: "currency", width: 65 },
+      { header: "Amt Balance", key: "amount_balance", format: "currency", width: 70 },
     ];
 
     const body: Record<string, unknown>[] = [];
@@ -386,7 +386,7 @@ const Reports = () => {
       // exporter merges the cell across every column (matching the legacy
       // MyCampusCard layout where the product label sits on its own row).
       body.push({
-        [SECTION_KEY]: `Product Code  ${block.product_code}    ${block.product_name}`,
+        [SECTION_KEY]: `Product Code: ${block.product_code} — ${block.product_name}`,
       });
       for (const r of block.rows) {
         body.push({
