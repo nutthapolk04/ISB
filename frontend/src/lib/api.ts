@@ -106,8 +106,11 @@ async function request<T>(
     // router → /customer-display → 401 again) creates an infinite reload
     // loop that burns hundreds of requests and never lets the rotation
     // render. Let the caller catch the 401 and fall back to defaults.
+    const isInactiveUser =
+      res.status === 403 && (detail === "Inactive user" || detail === "User not found");
+
     if (
-      res.status === 401 &&
+      (res.status === 401 || isInactiveUser) &&
       window.location.pathname !== "/customer-display"
     ) {
       localStorage.removeItem("access_token");

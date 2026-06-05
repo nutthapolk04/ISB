@@ -242,10 +242,17 @@ export default function GuidePage() {
   // Effective role = the user's activeRole (multi-role users pick it on the
   // Role Picker) and falls back to their primary user.role.
   const effectiveRole = (user?.activeRole ?? user?.role ?? "cashier") as UserRole;
+  // cashier has no dedicated guide — map to canteen or store based on shop module
+  const guideRole = useMemo(() => {
+    if (effectiveRole !== "cashier") return effectiveRole;
+    const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
+    return mod === "canteen" ? "canteen" : "store";
+  }, [effectiveRole, user]);
+
   const visibleGuides = useMemo(() => {
-    if (effectiveRole === "admin") return roleGuides;
-    return roleGuides.filter((g) => g.id === effectiveRole);
-  }, [effectiveRole]);
+    if (guideRole === "admin") return roleGuides;
+    return roleGuides.filter((g) => g.id === guideRole);
+  }, [guideRole]);
 
   // Initial selection — first visible guide. If the user only sees one
   // role, the sidebar collapses to that single tab (still useful as a

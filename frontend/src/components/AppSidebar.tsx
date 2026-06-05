@@ -63,8 +63,8 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.shopDashboard",    url: "/shop-dashboard",    icon: LayoutDashboard, roles: ["manager"] },
       { titleKey: "nav.canteenPos",       url: "/canteen",           icon: UtensilsCrossed, roles: ["manager", "cashier"] },
       { titleKey: "nav.canteenReceipts",  url: "/canteen/receipts",  icon: Receipt,         roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.canteenProducts",  url: "/canteen/products",  icon: Package,         roles: ["manager", "cashier"] },
-      { titleKey: "nav.canteenReports",   url: "/canteen/reports",   icon: BarChart3,       roles: ["admin", "manager", "cashier"] },
+      { titleKey: "nav.canteenProducts",  url: "/canteen/products",  icon: Package,         roles: ["manager"] },
+      { titleKey: "nav.canteenReports",   url: "/canteen/reports",   icon: BarChart3,       roles: ["admin", "manager"] },
     ],
   },
   {

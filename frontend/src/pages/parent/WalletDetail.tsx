@@ -21,6 +21,7 @@ import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 // credits the face amount; the 3% is shown as the cost the parent pays the
 // processor.
 const MAX_TOPUP_THB = 50_000;
+const MAX_WALLET_BALANCE = 50_000;
 const CREDIT_FEE_RATE = 0.03;
 
 interface StudentProfile {
@@ -155,6 +156,20 @@ export default function WalletDetail() {
     }
     if (amt > MAX_TOPUP_THB) {
       toast({ title: t("parent.wallet.maxAmount"), variant: "destructive" });
+      return;
+    }
+    const currentBalance = profile?.wallet_balance ?? 0;
+    if (currentBalance + amt > MAX_WALLET_BALANCE) {
+      toast({
+        title: t("parent.wallet.balanceCapTitle", "Balance limit exceeded"),
+        description: t("parent.wallet.balanceCapDesc", {
+          max: formatTHB(MAX_WALLET_BALANCE),
+          current: formatTHB(currentBalance),
+          available: formatTHB(Math.max(0, MAX_WALLET_BALANCE - currentBalance)),
+          defaultValue: "Maximum wallet balance is {{max}}. Current balance: {{current}}. You can top up at most {{available}}.",
+        }),
+        variant: "destructive",
+      });
       return;
     }
 

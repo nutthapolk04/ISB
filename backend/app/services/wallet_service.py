@@ -283,6 +283,14 @@ class WalletService:
             raise ValueError(f"Wallet {wallet_id} not found")
         if amount <= 0:
             raise ValueError("Top-up amount must be positive")
+        MAX_WALLET_BALANCE = 50_000
+        if float(wallet.balance) + amount > MAX_WALLET_BALANCE:
+            available = max(0, MAX_WALLET_BALANCE - float(wallet.balance))
+            raise ValueError(
+                f"Wallet balance cannot exceed ฿{MAX_WALLET_BALANCE:,.0f}. "
+                f"Current balance: ฿{float(wallet.balance):,.2f}. "
+                f"You can top up at most ฿{available:,.2f}."
+            )
 
         ref = _generate_ref_code(db)
         intent = PaymentIntent(
