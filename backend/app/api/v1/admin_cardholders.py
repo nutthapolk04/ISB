@@ -285,6 +285,11 @@ def create_cardholder(
     if kind in ("parent", "staff"):
         if not payload.username or not payload.name or not payload.password:
             raise HTTPException(400, "username, name, password are required")
+        pw = payload.password
+        if len(pw) < 8:
+            raise HTTPException(400, "Password must be at least 8 characters")
+        if not any(c.isdigit() or not c.isalnum() for c in pw):
+            raise HTTPException(400, "Password must contain at least one number or special character")
         if db.query(User).filter(User.username == payload.username).first():
             raise HTTPException(409, f"Username {payload.username} exists")
         role = "parent" if kind == "parent" else (payload.role or "staff")

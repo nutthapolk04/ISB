@@ -106,8 +106,6 @@ const menuGroups: MenuGroup[] = [
     module: null,
     items: [
       { titleKey: "nav.adminDashboard",    url: "/admin",                icon: LayoutDashboard,   roles: ["admin"] },
-      { titleKey: "nav.adminCards",        url: "/admin/cards",          icon: CreditCard,        roles: ["admin"] },
-      { titleKey: "nav.adminFamilies",     url: "/admin/families",       icon: Users,             roles: ["admin"] },
       { titleKey: "nav.adminWalletAdjust",    url: "/admin/wallet-adjust",    icon: SlidersHorizontal, roles: ["admin"] },
       { titleKey: "nav.adminWalletTransfer", url: "/admin/wallet-transfer",  icon: ArrowLeftRight,    roles: ["admin"] },
       { titleKey: "nav.adminDeptAdjust",   url: "/admin/department-adjust", icon: Building2,        roles: ["admin"] },

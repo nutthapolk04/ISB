@@ -3,33 +3,54 @@
  * /customer-display route into a separate browser window.
  *
  * Uses a fixed window name ("isb-customer-display") so calling this twice
- * just re-focuses the same window instead of spawning duplicates — the
- * cashier can keep clicking "Open Customer Display" without filling the
- * desktop with stacked clones.
+ * just re-focuses the same window instead of spawning duplicates.
  *
- * Browsers only honour popups triggered by a user gesture (the login
- * button click, the toolbar button click). The first time the auto-open
- * runs from inside a fetch/await chain the popup may be blocked; the
- * recover button on the POS header lets the cashier reopen manually.
- *
- * Returns true if a window was opened (or focused), false if blocked.
+ * Strategy:
+ * 1. Try Window Management API (Chrome 100+) to place window on the second
+ *    monitor automatically — requires a one-time browser permission grant.
+ * 2. Fall back to a sensible default position on the primary screen.
  */
 const WINDOW_NAME = "isb-customer-display";
-const WINDOW_FEATURES =
-  "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
+const FALLBACK_FEATURES = "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
 
-export function openCustomerDisplayWindow(): boolean {
+export async function openCustomerDisplayWindow(): Promise<boolean> {
   if (typeof window === "undefined") return false;
+
+  // Try Window Management API to place on the second monitor
   try {
-    const w = window.open("/customer-display", WINDOW_NAME, WINDOW_FEATURES);
-    if (!w) return false;
-    // Focus the window so it surfaces over the cashier's main window when
-    // re-opened from the toolbar button.
-    try {
-      w.focus();
-    } catch {
-      /* cross-origin or detached — ignore */
+    if ("getScreenDetails" in window) {
+      const screenDetails = await (window as any).getScreenDetails();
+      const screens: any[] = screenDetails.screens ?? [];
+      // Prefer a non-primary screen; fall back to the current screen
+      const target =
+        screens.find((s) => !s.isPrimary) ??
+        screenDetails.currentScreen ??
+        screens[0];
+      if (target) {
+        const features = [
+          "popup=yes",
+          "noopener=no",
+          `left=${target.availLeft}`,
+          `top=${target.availTop}`,
+          `width=${target.availWidth}`,
+          `height=${target.availHeight}`,
+        ].join(",");
+        const w = window.open("/customer-display", WINDOW_NAME, features);
+        if (w) {
+          try { w.focus(); } catch { /* cross-origin — ignore */ }
+          return true;
+        }
+      }
     }
+  } catch {
+    // API unavailable or permission denied — fall through to fallback
+  }
+
+  // Fallback: open at a fixed position (user can drag to second monitor)
+  try {
+    const w = window.open("/customer-display", WINDOW_NAME, FALLBACK_FEATURES);
+    if (!w) return false;
+    try { w.focus(); } catch { /* ignore */ }
     return true;
   } catch {
     return false;

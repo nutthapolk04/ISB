@@ -1,21 +1,27 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Activity, ListChecks, IdCard } from "lucide-react";
+import { Users, Activity, ListChecks, IdCard, CreditCard, Link2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShopUserManagement } from "@/components/ShopUserManagement";
 import CardholderList from "./CardholderList";
 import UserList from "./UserList";
 import SyncDashboard from "./SyncDashboard";
 import SyncLog from "./SyncLog";
+import CardManagement from "@/pages/admin/CardManagement";
+import FamilyLinks from "@/pages/admin/FamilyLinks";
 
 export default function UserManagement() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [tab, setTab] = useState("cardholders");
+  const [tab, setTab] = useState(defaultTab);
 
   const activeRole = user?.activeRole ?? user?.role;
   const isAdmin = activeRole === "admin";
+
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") ?? "cardholders";
 
   // Manager view: shop-scoped single tab
   if (!isAdmin) {
@@ -56,12 +62,18 @@ export default function UserManagement() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="cardholders" className="gap-2">
             <IdCard className="h-4 w-4" /> Cardholders
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" /> {t("admin.users.tabUsers")}
+          </TabsTrigger>
+          <TabsTrigger value="cards" className="gap-2">
+            <CreditCard className="h-4 w-4" /> Card Management
+          </TabsTrigger>
+          <TabsTrigger value="families" className="gap-2">
+            <Link2 className="h-4 w-4" /> Family Links
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="gap-2">
             <Activity className="h-4 w-4" /> {t("admin.users.tabSyncDashboard")}
@@ -76,6 +88,12 @@ export default function UserManagement() {
         </TabsContent>
         <TabsContent value="users" className="space-y-4">
           <UserList />
+        </TabsContent>
+        <TabsContent value="cards">
+          <CardManagement />
+        </TabsContent>
+        <TabsContent value="families">
+          <FamilyLinks />
         </TabsContent>
         <TabsContent value="dashboard" className="space-y-4">
           <SyncDashboard />

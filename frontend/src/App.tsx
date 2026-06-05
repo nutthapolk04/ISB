@@ -142,7 +142,7 @@ function AppShell() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => openCustomerDisplayWindow()}
+                      onClick={() => void openCustomerDisplayWindow()}
                       title={t("customerDisplay.openWindow", "Open Customer Display")}
                       aria-label="Open Customer Display"
                     >
@@ -293,14 +293,14 @@ const App = () => {
                 {/* Admin Ops */}
                 <Route element={<RequireRole roles={["admin"]} />}>
                   <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/families" element={<FamilyLinks />} />
+                  <Route path="/admin/families" element={<Navigate to="/users?tab=families" replace />} />
                   <Route path="/admin/wallet-adjust" element={<WalletAdjust />} />
                   <Route path="/admin/wallet-transfer" element={<WalletTransfer />} />
                   <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
                   <Route path="/admin/audit-logs" element={<AuditLogList />} />
                   <Route path="/admin/settings" element={<SystemSettings />} />
                   <Route path="/admin/customer-display" element={<CustomerDisplaySettings />} />
-                  <Route path="/admin/cards" element={<CardManagement />} />
+                  <Route path="/admin/cards" element={<Navigate to="/users?tab=cards" replace />} />
                   <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                   <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
                   <Route path="/admin/reports" element={<Reports />} />

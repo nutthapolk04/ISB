@@ -107,13 +107,37 @@ export default function AuditLogList() {
   }, [page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const formatChanges = (changes: unknown) => {
-    if (!changes) return null;
-    try {
-      return JSON.stringify(changes, null, 2);
-    } catch {
-      return String(changes);
-    }
+
+  const renderChanges = (changes: unknown) => {
+    if (!changes || typeof changes !== "object") return null;
+    const entries = Object.entries(changes as Record<string, unknown>);
+    if (entries.length === 0) return null;
+    return (
+      <table className="mt-2 text-xs w-full border-collapse">
+        <thead>
+          <tr className="bg-muted text-muted-foreground">
+            <th className="text-left px-2 py-1 font-medium border border-border w-1/3">Field</th>
+            <th className="text-left px-2 py-1 font-medium border border-border">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map(([key, val]) => {
+            const display =
+              val === null ? <span className="italic text-muted-foreground">null</span>
+              : val === true ? <span className="text-green-600">true</span>
+              : val === false ? <span className="text-red-500">false</span>
+              : typeof val === "object" ? <code className="text-[11px]">{JSON.stringify(val)}</code>
+              : String(val);
+            return (
+              <tr key={key} className="even:bg-muted/30">
+                <td className="px-2 py-1 font-mono border border-border text-muted-foreground">{key}</td>
+                <td className="px-2 py-1 border border-border break-all">{display}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
   };
 
   return (
@@ -249,9 +273,9 @@ export default function AuditLogList() {
                             </Button>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
-                            <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-x-auto max-w-2xl">
-                              {formatChanges(row.changes)}
-                            </pre>
+                            <div className="max-w-2xl overflow-x-auto rounded border border-border mt-1">
+                              {renderChanges(row.changes)}
+                            </div>
                           </CollapsibleContent>
                         </Collapsible>
                       ) : (

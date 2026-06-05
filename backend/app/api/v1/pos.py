@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user, require_role, user_can_access_shop
 from app.models.receipt import Receipt
-from app.models.shop import ShopProduct
+from app.models.shop import Shop, ShopProduct
 from app.models.user import User
 from app.models.wallet import Wallet, WalletTransaction
 from app.schemas.pos import CheckoutPayload, ReceiptResponse, VoidReceiptRequest
@@ -54,14 +54,21 @@ def checkout(
 ):
     """Create a new receipt, deduct stock for each item. Enforces shop scope."""
     shop_id = _resolve_checkout_shop_id(payload, db)
-    if shop_id and not user_can_access_shop(current_user, shop_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                f"User {current_user.username} (shop={getattr(current_user, 'shop_id', None)}) "
-                f"is not authorized to checkout at shop '{shop_id}'"
-            ),
-        )
+    if shop_id:
+        if not user_can_access_shop(current_user, shop_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"User {current_user.username} (shop={getattr(current_user, 'shop_id', None)}) "
+                    f"is not authorized to checkout at shop '{shop_id}'"
+                ),
+            )
+        shop = db.query(Shop).filter(Shop.id == shop_id).first()
+        if shop and not shop.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Shop '{shop_id}' is inactive and not accepting sales",
+            )
     try:
         receipt = POSService.checkout(
             db,

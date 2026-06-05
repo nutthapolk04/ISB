@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const runsPos = !!user && POS_ROLES.includes(user.activeRole ?? user.role);
     if (runsPos && !autoOpenedRef.current) {
       autoOpenedRef.current = true;
-      openCustomerDisplayWindow();
+      void openCustomerDisplayWindow();
     }
     if (!user) autoOpenedRef.current = false; // reset on logout
   }, [user]);

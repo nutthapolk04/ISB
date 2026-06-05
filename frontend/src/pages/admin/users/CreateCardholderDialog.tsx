@@ -138,6 +138,13 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   const shopRequired = kind === "staff" && SHOP_REQUIRED_ROLES.has(staffRole);
   const shopMissing = shopRequired && !shopId;
 
+  const validatePassword = (pw: string): string | null => {
+    if (pw.length < 8) return "Password must be at least 8 characters";
+    if (!/[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pw))
+      return "Password must contain at least one number or special character";
+    return null;
+  };
+
   const submit = async () => {
     if (shopMissing) {
       toast({
@@ -146,6 +153,13 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
         variant: "destructive",
       });
       return;
+    }
+    if ((kind === "parent" || kind === "staff")) {
+      const pwErr = validatePassword(password);
+      if (pwErr) {
+        toast({ title: "Invalid password", description: pwErr, variant: "destructive" });
+        return;
+      }
     }
     setSubmitting(true);
     try {
@@ -265,7 +279,12 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <Field label="Username *"><Input value={username} onChange={e => setUsername(e.target.value)} /></Field>
                 <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
-                <Field label="Password *"><Input type="password" value={password} onChange={e => setPassword(e.target.value)} /></Field>
+                <Field label="Password *">
+                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                  {password && validatePassword(password) && (
+                    <p className="text-xs text-destructive mt-1">{validatePassword(password)}</p>
+                  )}
+                </Field>
                 {kind === "staff" && (
                   <>
                     <Field label="Role *">
