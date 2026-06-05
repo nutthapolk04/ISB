@@ -16,13 +16,12 @@ const FamilyLinks = lazy(() => import("@/pages/admin/FamilyLinks"));
 export default function UserManagement() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") ?? "cardholders";
   const [tab, setTab] = useState(defaultTab);
 
   const activeRole = user?.activeRole ?? user?.role;
   const isAdmin = activeRole === "admin";
-
-  const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") ?? "cardholders";
 
   // Manager view: shop-scoped single tab
   if (!isAdmin) {
