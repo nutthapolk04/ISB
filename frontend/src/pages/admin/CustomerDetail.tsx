@@ -21,7 +21,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Camera, CreditCard, GraduationCap, Lock, Unlock, Upload, User as UserIcon,
-  AlertTriangle, Edit3, Save, X, Wifi, ShieldAlert,
+  AlertTriangle, Edit3, Save, X, Wifi, ShieldAlert, Plus, Trash2, Loader2,
 } from "lucide-react";
 
 interface StudentProfile {
@@ -65,6 +65,12 @@ interface FamilyLink {
   child_name?: string | null;
   child_student_code?: string | null;
   relation: string;
+}
+
+interface ParentUser {
+  id: number;
+  username: string;
+  full_name?: string | null;
 }
 
 const formatTHB = (n: number) =>
@@ -121,6 +127,15 @@ export default function CustomerDetail() {
 
   // Freeze toggle
   const [togglingFreeze, setTogglingFreeze] = useState(false);
+
+  // Link parent dialog
+  const [linkParentOpen, setLinkParentOpen] = useState(false);
+  const [parentUsers, setParentUsers] = useState<ParentUser[]>([]);
+  const [parentSearch, setParentSearch] = useState("");
+  const [selectedParentId, setSelectedParentId] = useState<string>("");
+  const [linkRelation, setLinkRelation] = useState("parent");
+  const [linkingParent, setLinkingParent] = useState(false);
+  const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
 
   const loadAll = async () => {
     if (!customerId) return;
@@ -317,6 +332,54 @@ export default function CustomerDetail() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const openLinkParentDialog = async () => {
+    setLinkParentOpen(true);
+    setSelectedParentId("");
+    setParentSearch("");
+    setLinkRelation("parent");
+    if (parentUsers.length === 0) {
+      try {
+        const users = await api.get<ParentUser[]>("/users-admin/?role=parent&limit=500");
+        setParentUsers(users);
+      } catch {
+        // non-critical — user can still type to search
+      }
+    }
+  };
+
+  const handleLinkParent = async () => {
+    if (!profile || !selectedParentId) return;
+    setLinkingParent(true);
+    try {
+      await api.post("/family/links", {
+        parent_user_id: parseInt(selectedParentId),
+        child_customer_id: profile.id,
+        relation: linkRelation,
+      });
+      toast({ title: t("admin.customer.parentLinked", "Parent linked successfully") });
+      setLinkParentOpen(false);
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setLinkingParent(false);
+    }
+  };
+
+  const handleUnlinkParent = async (linkId: number) => {
+    if (!window.confirm(t("admin.customer.unlinkConfirm", "Remove this parent link?"))) return;
+    setUnlinkingId(linkId);
+    try {
+      await api.delete(`/family/links/${linkId}`);
+      toast({ title: t("admin.customer.parentUnlinked", "Parent unlinked") });
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setUnlinkingId(null);
     }
   };
 
@@ -670,8 +733,13 @@ export default function CustomerDetail() {
         {/* Family links */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <UserIcon className="h-4 w-4" /> {t("admin.customer.familyTitle")}
+            <CardTitle className="text-base flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <UserIcon className="h-4 w-4" /> {t("admin.customer.familyTitle")}
+              </span>
+              <Button variant="outline" size="sm" onClick={openLinkParentDialog} className="h-7 px-2 text-xs">
+                <Plus className="h-3.5 w-3.5 mr-1" /> {t("admin.customer.linkParent", "Link Parent")}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -682,6 +750,16 @@ export default function CustomerDetail() {
                   <p className="font-medium">{l.parent_full_name || l.parent_username}</p>
                   <p className="text-xs text-muted-foreground">@{l.parent_username} · {l.relation}</p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => handleUnlinkParent(l.id)}
+                  disabled={unlinkingId === l.id}
+                  title={t("admin.customer.unlinkParent", "Unlink parent")}
+                >
+                  {unlinkingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                </Button>
               </div>
             ))}
             {siblings.length > 0 && (
@@ -780,6 +858,79 @@ export default function CustomerDetail() {
             )}
             <Button onClick={handleBindCard} disabled={bindingCard}>
               {bindingCard ? t("admin.customer.saving") : t("admin.customer.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link parent dialog */}
+      <Dialog open={linkParentOpen} onOpenChange={setLinkParentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.customer.linkParentTitle", "Link Parent")}</DialogTitle>
+            <DialogDescription>
+              {t("admin.customer.linkParentDesc", "Search for a parent account and link them to this student.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t("admin.customer.parentSearch", "Parent account")}</Label>
+              <Input
+                className="mt-1"
+                placeholder={t("admin.customer.parentSearchPlaceholder", "Search by name or username…")}
+                value={parentSearch}
+                onChange={(e) => { setParentSearch(e.target.value); setSelectedParentId(""); }}
+              />
+              {parentSearch.trim().length >= 1 && (
+                <div className="mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover shadow-sm">
+                  {parentUsers
+                    .filter((u) => {
+                      const q = parentSearch.toLowerCase();
+                      return u.username.toLowerCase().includes(q) || (u.full_name ?? "").toLowerCase().includes(q);
+                    })
+                    .slice(0, 20)
+                    .map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${selectedParentId === String(u.id) ? "bg-primary/10 font-medium" : ""}`}
+                        onClick={() => { setSelectedParentId(String(u.id)); setParentSearch(u.full_name || u.username); }}
+                      >
+                        <span className="font-medium">{u.full_name || u.username}</span>
+                        <span className="text-xs text-muted-foreground ml-1">@{u.username}</span>
+                      </button>
+                    ))}
+                  {parentUsers.filter((u) => {
+                    const q = parentSearch.toLowerCase();
+                    return u.username.toLowerCase().includes(q) || (u.full_name ?? "").toLowerCase().includes(q);
+                  }).length === 0 && (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">{t("admin.customer.parentNotFound", "No matching parent accounts")}</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div>
+              <Label>{t("admin.customer.relation", "Relation")}</Label>
+              <Select value={linkRelation} onValueChange={setLinkRelation}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="parent">{t("relation.parent", "Parent")}</SelectItem>
+                  <SelectItem value="guardian">{t("relation.guardian", "Guardian")}</SelectItem>
+                  <SelectItem value="grandparent">{t("relation.grandparent", "Grandparent")}</SelectItem>
+                  <SelectItem value="other">{t("relation.other", "Other")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkParentOpen(false)} disabled={linkingParent}>
+              {t("admin.customer.cancel")}
+            </Button>
+            <Button onClick={handleLinkParent} disabled={!selectedParentId || linkingParent}>
+              {linkingParent ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              {t("admin.customer.linkParentConfirm", "Link")}
             </Button>
           </DialogFooter>
         </DialogContent>
