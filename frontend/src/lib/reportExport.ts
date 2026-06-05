@@ -61,6 +61,14 @@ export interface ReportMeta {
   generatedAt?: Date;
 }
 
+/**
+ * Sentinel key used on a row object to flag it as a full-width "section"
+ * header (e.g. a product code label in a multi-section stockcard). When
+ * present, the renderer ignores `columns` for that row and instead renders
+ * a single merged cell spanning every column. Other rows are unaffected.
+ */
+export const SECTION_KEY = "__section" as const;
+
 export interface ReportPayload<TRow extends Record<string, unknown>> {
   meta: ReportMeta;
   columns: ReportColumn[];
@@ -71,6 +79,12 @@ export interface ReportPayload<TRow extends Record<string, unknown>> {
    * automatically unless you provide an explicit value for it.
    */
   totals?: Record<string, string | number>;
+}
+
+/** A row carrying a SECTION_KEY value is rendered as a merged-cell header. */
+function sectionLabel(row: Record<string, unknown>): string | null {
+  const v = row[SECTION_KEY];
+  return typeof v === "string" ? v : null;
 }
 
 // ─── Value formatting (shared between PDF and Excel) ─────────────────────
@@ -224,9 +238,32 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
 
   // ─── Table ────────────────────────────────────────────────────────────
   const head = [columns.map((c) => c.header)];
-  const body = rows.map((row) =>
-    columns.map((c) => formatCell(row[c.key], c.format)),
-  );
+  // Rows are either plain arrays of cell strings OR — for section markers —
+  // a single merged cell that spans every column. autoTable accepts both
+  // shapes inside the same body array.
+  type AutoTableCell = string | {
+    content: string;
+    colSpan?: number;
+    styles?: Record<string, unknown>;
+  };
+  const body: AutoTableCell[][] = rows.map((row) => {
+    const label = sectionLabel(row);
+    if (label !== null) {
+      return [
+        {
+          content: label,
+          colSpan: columns.length,
+          styles: {
+            fontStyle: "bold",
+            fillColor: [226, 232, 240],
+            textColor: 15,
+            halign: "left",
+          },
+        },
+      ];
+    }
+    return columns.map((c) => formatCell(row[c.key], c.format));
+  });
 
   let foot: string[][] | undefined;
   if (totals) {
@@ -316,7 +353,21 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
   aoa.push([]); // blank spacer
   aoa.push(columns.map((c) => c.header));
 
+  // Track row indices that need a merge across all columns (section headers)
+  // so we can apply ws["!merges"] after the sheet exists.
+  const sectionMergeRows: number[] = [];
+
   for (const row of rows) {
+    const label = sectionLabel(row);
+    if (label !== null) {
+      // Put the label in column 0 and pad the rest with "" so the row aligns
+      // with the column count, then queue a merge for it.
+      const padded: (string | number)[] = [label];
+      for (let i = 1; i < columns.length; i++) padded.push("");
+      sectionMergeRows.push(aoa.length);
+      aoa.push(padded);
+      continue;
+    }
     aoa.push(
       columns.map((c) => {
         const raw = row[c.key];
@@ -346,6 +397,15 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
   }
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Merge section-header rows across every column so the label visually
+  // spans the table the same way it does in the PDF.
+  if (sectionMergeRows.length > 0) {
+    ws["!merges"] = sectionMergeRows.map((r) => ({
+      s: { r, c: 0 },
+      e: { r, c: columns.length - 1 },
+    }));
+  }
 
   // Column widths — fall back to a sensible default per format.
   ws["!cols"] = columns.map((c) => ({

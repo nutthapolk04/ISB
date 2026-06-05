@@ -439,68 +439,87 @@ def returns_report(
 # ── Stock Card ───────────────────────────────────────────────────────────────
 
 class StockCardRow(BaseModel):
-    date: datetime
-    movement_type: str
-    quantity: float
-    reference: Optional[str]
-    notes: Optional[str]
-    running_balance: float
+    """One line in the per-product stockcard.
+
+    `date` and `invoice_no` are None for synthetic Beginning/Closing rows.
+    Quantity is split into in/out columns so a printed report can show
+    both sides of each movement without a separate sign indicator.
+    """
+
+    date: Optional[datetime]
+    description: str
+    invoice_no: Optional[str]
+    qty_in: float
+    qty_out: float
+    qty_balance: float
+    amount_in: float
+    amount_out: float
+    cost_per_unit: float
+    amount_balance: float
+
+
+class StockCardProductBlock(BaseModel):
+    product_variant_id: int
+    product_code: str
+    product_name: str
+    rows: List[StockCardRow]
+    total_qty_in: float
+    total_qty_out: float
+    total_amount_in: float
+    total_amount_out: float
 
 
 class StockCardReport(BaseModel):
-    product_variant_id: int
-    product_name: str
-    sku: str
+    shop_id: Optional[str]
+    shop_name: Optional[str]
     date_from: date
     date_to: date
-    opening_balance: float
-    rows: List[StockCardRow]
-    closing_balance: float
+    products: List[StockCardProductBlock]
 
 
-@router.get("/stock-card", response_model=StockCardReport)
-def stock_card_report(
-    product_variant_id: int = Query(...),
-    date_from: date = Query(...),
-    date_to: date = Query(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Per-SKU movement history with opening/closing balance.
+# Human-readable label per MovementType for the "Description" column in the
+# printed report. Kept here so the on-screen and exported PDF match.
+_MOVEMENT_DESCRIPTION: dict[str, str] = {
+    "receive": "Receive",
+    "sale": "Sales",
+    "adjustment": "Adjustment",
+    "internal_use": "Internal Use",
+    "void": "Return / Void",
+    "exchange": "Exchange",
+}
 
-    product_variant_id here is the ShopProduct.id (the operative stock unit in
-    this system).  ShopMovement is the live audit table written by checkout,
-    void, and inventory adjustments.
-    """
-    shop_product = (
-        db.query(ShopProduct)
-        .filter(ShopProduct.id == product_variant_id, ShopProduct.is_active == True)  # noqa: E712
-        .first()
-    )
-    if not shop_product:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
 
+def _build_product_block(
+    db: Session,
+    shop_product: ShopProduct,
+    date_from: date,
+    date_to: date,
+) -> StockCardProductBlock:
+    """Compose Beginning + movement rows + Closing for one SKU."""
     start, end = _date_range(date_from, date_to)
     start_bkk = datetime.combine(date_from, time.min, tzinfo=TZ_BKK)
 
-    # Opening balance: stock_after of the last movement BEFORE date_from
+    # Opening balance: stock_after of the last movement BEFORE date_from.
     last_before = (
         db.query(ShopMovement)
         .filter(
-            ShopMovement.product_id == product_variant_id,
+            ShopMovement.product_id == shop_product.id,
             ShopMovement.created_at < start_bkk,
         )
         .order_by(ShopMovement.created_at.desc())
         .first()
     )
-    opening_balance = float(last_before.stock_after if last_before else (shop_product.stock or 0))
-    # If no prior movements exist, fall back to current stock as a best-guess opening.
+    opening_qty = float(last_before.stock_after) if last_before else float(shop_product.stock or 0)
+    opening_cost = (
+        float(last_before.cost_per_unit)
+        if last_before and last_before.cost_per_unit is not None
+        else float(shop_product.avg_cost or 0)
+    )
 
-    # Movements within range
     movements = (
         db.query(ShopMovement)
         .filter(
-            ShopMovement.product_id == product_variant_id,
+            ShopMovement.product_id == shop_product.id,
             ShopMovement.created_at >= start,
             ShopMovement.created_at <= end,
         )
@@ -508,37 +527,154 @@ def stock_card_report(
         .all()
     )
 
-    # Deduction types reduce balance; receive/void/exchange add to it.
-    _DEDUCT_TYPES = {"sale", "internal_use", "adjustment"}
+    rows: List[StockCardRow] = [
+        StockCardRow(
+            date=None,
+            description="Beginning Balance",
+            invoice_no=None,
+            qty_in=0,
+            qty_out=0,
+            qty_balance=opening_qty,
+            amount_in=0,
+            amount_out=0,
+            cost_per_unit=opening_cost,
+            amount_balance=round(opening_qty * opening_cost, 2),
+        )
+    ]
 
-    rows: List[StockCardRow] = []
+    total_qty_in = 0.0
+    total_qty_out = 0.0
+    total_amount_in = 0.0
+    total_amount_out = 0.0
+    last_cost = opening_cost
+
     for m in movements:
-        movement_type_str = m.type.value if hasattr(m.type, "value") else str(m.type)
+        type_str = m.type.value if hasattr(m.type, "value") else str(m.type)
         signed_qty = float(m.quantity)
-        if movement_type_str in _DEDUCT_TYPES:
-            signed_qty = -signed_qty
+        cost = float(m.cost_per_unit) if m.cost_per_unit is not None else last_cost
+        if signed_qty >= 0:
+            qty_in, qty_out = signed_qty, 0.0
+            amount_in, amount_out = round(signed_qty * cost, 2), 0.0
+        else:
+            qty_in, qty_out = 0.0, -signed_qty
+            amount_in, amount_out = 0.0, round(-signed_qty * cost, 2)
+        balance_qty = float(m.stock_after)
         rows.append(
             StockCardRow(
                 date=m.created_at,
-                movement_type=movement_type_str,
-                quantity=signed_qty,
-                reference=m.reference,
-                notes=m.note,
-                running_balance=float(m.stock_after),
+                description=_MOVEMENT_DESCRIPTION.get(type_str, type_str),
+                invoice_no=m.reference,
+                qty_in=qty_in,
+                qty_out=qty_out,
+                qty_balance=balance_qty,
+                amount_in=amount_in,
+                amount_out=amount_out,
+                cost_per_unit=cost,
+                amount_balance=round(balance_qty * cost, 2),
             )
         )
+        total_qty_in += qty_in
+        total_qty_out += qty_out
+        total_amount_in += amount_in
+        total_amount_out += amount_out
+        last_cost = cost
 
-    closing_balance = float(movements[-1].stock_after) if movements else opening_balance
+    closing_qty = float(movements[-1].stock_after) if movements else opening_qty
+    rows.append(
+        StockCardRow(
+            date=None,
+            description="Closing Balance",
+            invoice_no=None,
+            qty_in=0,
+            qty_out=0,
+            qty_balance=closing_qty,
+            amount_in=0,
+            amount_out=0,
+            cost_per_unit=last_cost,
+            amount_balance=round(closing_qty * last_cost, 2),
+        )
+    )
+
+    return StockCardProductBlock(
+        product_variant_id=shop_product.id,
+        product_code=shop_product.product_code or "",
+        product_name=shop_product.name,
+        rows=rows,
+        total_qty_in=total_qty_in,
+        total_qty_out=total_qty_out,
+        total_amount_in=round(total_amount_in, 2),
+        total_amount_out=round(total_amount_out, 2),
+    )
+
+
+@router.get("/stock-card", response_model=StockCardReport)
+def stock_card_report(
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    shop_id: Optional[str] = Query(None),
+    product_variant_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Multi-product stockcard (default) or single SKU mode.
+
+    Modes:
+      - product_variant_id set → returns one block for that SKU only.
+      - shop_id set → returns one block per active product in the shop that
+        has any movement OR a non-zero opening balance during the range.
+
+    ShopMovement is the live audit table written by checkout, void, returns,
+    and inventory adjustments.
+    """
+    scoped_shop_id = _scope_shop(current_user, shop_id)
+
+    if product_variant_id is not None:
+        shop_product = (
+            db.query(ShopProduct)
+            .filter(ShopProduct.id == product_variant_id, ShopProduct.is_active == True)  # noqa: E712
+            .first()
+        )
+        if not shop_product:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
+        if scoped_shop_id and shop_product.shop_id != scoped_shop_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Product not in your shop")
+        target_products = [shop_product]
+        effective_shop_id = shop_product.shop_id
+    else:
+        if not scoped_shop_id:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="shop_id is required when product_variant_id is not provided",
+            )
+        target_products = (
+            db.query(ShopProduct)
+            .filter(ShopProduct.shop_id == scoped_shop_id, ShopProduct.is_active == True)  # noqa: E712
+            .order_by(ShopProduct.product_code, ShopProduct.id)
+            .all()
+        )
+        effective_shop_id = scoped_shop_id
+
+    blocks = [_build_product_block(db, p, date_from, date_to) for p in target_products]
+    # When listing the whole shop, hide rows that are completely empty in the
+    # range (no movement and zero opening balance) so the report stays compact.
+    if product_variant_id is None:
+        blocks = [
+            b
+            for b in blocks
+            if b.total_qty_in or b.total_qty_out or b.rows[0].qty_balance
+        ]
+
+    shop_name: Optional[str] = None
+    if effective_shop_id:
+        shop = db.query(Shop).filter(Shop.id == effective_shop_id).first()
+        shop_name = shop.name if shop else None
 
     return StockCardReport(
-        product_variant_id=product_variant_id,
-        product_name=shop_product.name,
-        sku=shop_product.product_code or "",
+        shop_id=effective_shop_id,
+        shop_name=shop_name,
         date_from=date_from,
         date_to=date_to,
-        opening_balance=opening_balance,
-        rows=rows,
-        closing_balance=closing_balance,
+        products=blocks,
     )
 
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,6 +31,7 @@ import {
   exportToPDF,
   exportToExcel,
   buildDateFilterLine,
+  SECTION_KEY,
   type ReportColumn,
   type ReportPayload,
 } from "@/lib/reportExport";
@@ -61,23 +62,36 @@ interface SalesByPaymentReportData {
 }
 
 interface StockCardRow {
-  date: string;
-  movement_type: string;
-  quantity: number;
-  reference: string | null;
-  notes: string | null;
-  running_balance: number;
+  date: string | null;
+  description: string;
+  invoice_no: string | null;
+  qty_in: number;
+  qty_out: number;
+  qty_balance: number;
+  amount_in: number;
+  amount_out: number;
+  cost_per_unit: number;
+  amount_balance: number;
+}
+interface StockCardProductBlock {
+  product_variant_id: number;
+  product_code: string;
+  product_name: string;
+  rows: StockCardRow[];
+  total_qty_in: number;
+  total_qty_out: number;
+  total_amount_in: number;
+  total_amount_out: number;
 }
 interface StockCardReportData {
-  product_variant_id: number;
-  product_name: string;
-  sku: string;
+  shop_id: string | null;
+  shop_name: string | null;
   date_from: string;
   date_to: string;
-  opening_balance: number;
-  rows: StockCardRow[];
-  closing_balance: number;
+  products: StockCardProductBlock[];
 }
+
+interface ShopOption { id: string; name: string; }
 
 // ── Sales Summary ──────────────────────────────────────────────────────────
 // Per-receipt summary with payment-method breakdown. Mirrors the backend
@@ -247,12 +261,20 @@ const Reports = () => {
     api.get<CanteenShop[]>("/shops?module=canteen").then(setCanteenStalls).catch(() => {});
   }, [isCanteenAreaMgr]);
 
-  // Stock Card state
-  const [stockCardVariantId, setStockCardVariantId] = useState("");
+  // Stock Card state. Multi-product mode requires shop_id; admins pick the
+  // shop, single-shop users (manager/cashier) auto-use their own.
+  const [stockCardShopId, setStockCardShopId] = useState<string>("");
   const [stockCardFrom, setStockCardFrom] = useState("");
   const [stockCardTo, setStockCardTo] = useState("");
   const [stockCardLoading, setStockCardLoading] = useState(false);
   const [stockCardData, setStockCardData] = useState<StockCardReportData | null>(null);
+  const [stockCardShops, setStockCardShops] = useState<ShopOption[]>([]);
+
+  // Admin needs a shop dropdown — fetch active shops once.
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    api.get<ShopOption[]>("/shops/?active_only=true").then(setStockCardShops).catch(() => {});
+  }, [user?.role]);
 
   // ── Sales Summary state ─────────────────────────────────────────────────
   // Every filter is optional. Strings start empty (untouched), dropdown
@@ -305,14 +327,22 @@ const Reports = () => {
   };
 
   const handleLoadStockCard = async () => {
-    if (!stockCardVariantId || !stockCardFrom || !stockCardTo) {
+    // Resolve the effective shop_id: admins choose, others are locked to their
+    // own shop. Backend will 400 if it ends up empty.
+    const effectiveShopId = user?.role === "admin" ? stockCardShopId : (user?.shopId ?? "");
+    if (!effectiveShopId || !stockCardFrom || !stockCardTo) {
       toast.error(t("reports.stockCard.fillAll"));
       return;
     }
     setStockCardLoading(true);
     try {
+      const params = new URLSearchParams({
+        shop_id: effectiveShopId,
+        date_from: stockCardFrom,
+        date_to: stockCardTo,
+      });
       const data = await api.get<StockCardReportData>(
-        `/reports/stock-card?product_variant_id=${encodeURIComponent(stockCardVariantId)}&date_from=${stockCardFrom}&date_to=${stockCardTo}`,
+        `/reports/stock-card?${params.toString()}`,
       );
       setStockCardData(data);
     } catch (err) {
@@ -326,48 +356,80 @@ const Reports = () => {
   /**
    * Build the shared ReportPayload for Stockcard. Used by both PDF and Excel
    * exporters so the two outputs stay structurally identical.
+   *
+   * Layout mirrors the legacy MyCampusCard printed report: per-product
+   * sections with a "Product Code … Name" header row, the Beginning Balance
+   * row, every movement, the Closing Balance row, and a per-product TOTAL
+   * row. All sections share the same column structure so the underlying
+   * table renderer doesn't need to know about sections.
    */
   const buildStockCardPayload = (): ReportPayload<Record<string, unknown>> | null => {
     if (!stockCardData) return null;
-    const { product_name, sku, date_from, date_to, opening_balance, rows, closing_balance } = stockCardData;
+    const { shop_name, date_from, date_to, products } = stockCardData;
 
     const columns: ReportColumn[] = [
-      { header: "Date", key: "date", format: "datetime", width: 130 },
-      { header: "Type", key: "movement_type", width: 80 },
-      { header: "Quantity", key: "quantity", format: "number", width: 70 },
-      { header: "Running Balance", key: "running_balance", format: "number", width: 90 },
-      { header: "Reference", key: "reference" },
-      { header: "Notes", key: "notes" },
+      { header: "Date", key: "date", format: "date", width: 60 },
+      { header: "Description", key: "description", width: 100 },
+      { header: "Invoice No.", key: "invoice_no", width: 70 },
+      { header: "Qty In", key: "qty_in", format: "number", width: 40 },
+      { header: "Qty Out", key: "qty_out", format: "number", width: 40 },
+      { header: "Qty Balance", key: "qty_balance", format: "number", width: 50 },
+      { header: "Amt In", key: "amount_in", format: "currency", width: 55 },
+      { header: "Amt Out", key: "amount_out", format: "currency", width: 55 },
+      { header: "Cost/Unit", key: "cost_per_unit", format: "currency", width: 55 },
+      { header: "Amt Balance", key: "amount_balance", format: "currency", width: 65 },
     ];
 
-    // Pre-format quantity with explicit sign so users can tell incoming vs
-    // outgoing movements at a glance, just like the on-screen table.
-    const body = rows.map((r) => ({
-      date: r.date,
-      movement_type: r.movement_type,
-      quantity: r.quantity, // keep numeric so totals/sums work
-      running_balance: r.running_balance,
-      reference: r.reference ?? "",
-      notes: r.notes ?? "",
-    }));
+    const body: Record<string, unknown>[] = [];
+    for (const block of products) {
+      // Section header — uses the SECTION_KEY sentinel so the PDF/Excel
+      // exporter merges the cell across every column (matching the legacy
+      // MyCampusCard layout where the product label sits on its own row).
+      body.push({
+        [SECTION_KEY]: `Product Code  ${block.product_code}    ${block.product_name}`,
+      });
+      for (const r of block.rows) {
+        body.push({
+          date: r.date ?? "",
+          description: r.description,
+          invoice_no: r.invoice_no ?? "",
+          qty_in: r.qty_in || "",
+          qty_out: r.qty_out || "",
+          qty_balance: r.qty_balance,
+          amount_in: r.amount_in || "",
+          amount_out: r.amount_out || "",
+          cost_per_unit: r.cost_per_unit || "",
+          amount_balance: r.amount_balance,
+        });
+      }
+      // Per-product subtotal row.
+      body.push({
+        date: "",
+        description: "Total :",
+        invoice_no: "",
+        qty_in: block.total_qty_in,
+        qty_out: block.total_qty_out,
+        qty_balance: "",
+        amount_in: block.total_amount_in,
+        amount_out: block.total_amount_out,
+        cost_per_unit: "",
+        amount_balance: "",
+      });
+    }
 
     return {
       meta: {
-        title: "Stock Card Report",
+        title: `Stockcard Report From ${date_from} To ${date_to}`,
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
         filters: [
-          `Product: ${product_name}  (SKU: ${sku})`,
-          `Date Range: ${date_from} → ${date_to}`,
-          `Opening Balance: ${opening_balance}`,
+          `Shop: ${shop_name ?? stockCardData.shop_id ?? "-"}`,
+          `User ID: ${user?.username ?? user?.fullName ?? "-"}`,
+          `Print Date: ${new Date().toLocaleString("en-GB")}`,
         ],
       },
       columns,
       rows: body,
-      totals: {
-        date: "CLOSING BALANCE",
-        running_balance: closing_balance,
-      },
     };
   };
 
@@ -375,7 +437,7 @@ const Reports = () => {
     const payload = buildStockCardPayload();
     if (!payload || !stockCardData) return;
     try {
-      const fname = `StockCard_${stockCardData.sku}_${stockCardData.date_from}_${stockCardData.date_to}.pdf`;
+      const fname = `StockCard_${stockCardData.shop_id ?? "shop"}_${stockCardData.date_from}_${stockCardData.date_to}.pdf`;
       await exportToPDF(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -388,7 +450,7 @@ const Reports = () => {
     const payload = buildStockCardPayload();
     if (!payload || !stockCardData) return;
     try {
-      const fname = `StockCard_${stockCardData.sku}_${stockCardData.date_from}_${stockCardData.date_to}.xlsx`;
+      const fname = `StockCard_${stockCardData.shop_id ?? "shop"}_${stockCardData.date_from}_${stockCardData.date_to}.xlsx`;
       exportToExcel(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -794,18 +856,22 @@ const Reports = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="scVariantId">{t("reports.stockCard.variantId")}</Label>
-                  <Input
-                    id="scVariantId"
-                    type="number"
-                    min={1}
-                    placeholder="1"
-                    value={stockCardVariantId}
-                    onChange={(e) => setStockCardVariantId(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
+                {user?.role === "admin" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="scShop">{t("reports.colShop")}</Label>
+                    <Select value={stockCardShopId} onValueChange={setStockCardShopId}>
+                      <SelectTrigger id="scShop">
+                        <SelectValue placeholder={t("reports.selectShopPlaceholder", "Select shop")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stockCardShops.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className={`space-y-2 ${user?.role === "admin" ? "md:col-span-2" : "md:col-span-3"}`}>
                   <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
                   <DateRangePicker
                     id="scDateRange"
@@ -821,7 +887,7 @@ const Reports = () => {
                   {stockCardLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                   {t("reports.stockCard.load")}
                 </Button>
-                {stockCardData && (
+                {stockCardData && stockCardData.products.length > 0 && (
                   <>
                     <Button variant="outline" onClick={handleExportStockCardPdf}>
                       <FileText className="h-4 w-4 mr-2" />
@@ -836,55 +902,74 @@ const Reports = () => {
               </div>
 
               {stockCardData && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">{stockCardData.product_name}</span>
-                    {" · SKU: "}{stockCardData.sku}
+                    <span className="font-medium">{stockCardData.shop_name ?? stockCardData.shop_id ?? "—"}</span>
+                    {" · "}{stockCardData.date_from} → {stockCardData.date_to}
                   </div>
-                  <div className="rounded-md border p-3 bg-secondary/50 text-sm flex justify-between">
-                    <span>{t("reports.stockCard.openingBalance")}</span>
-                    <span className="font-semibold">{stockCardData.opening_balance}</span>
-                  </div>
-                  <div className="overflow-x-auto rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="px-3 py-2 text-left">{t("reports.colDate")}</th>
-                          <th className="px-3 py-2 text-left">{t("reports.stockCard.colType")}</th>
-                          <th className="px-3 py-2 text-right">{t("reports.colQuantity")}</th>
-                          <th className="px-3 py-2 text-right">{t("reports.stockCard.colRunning")}</th>
-                          <th className="px-3 py-2 text-left">{t("reports.stockCard.colReference")}</th>
-                          <th className="px-3 py-2 text-left">{t("reports.stockCard.colNotes")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stockCardData.rows.length === 0 ? (
+                  {stockCardData.products.length === 0 ? (
+                    <div className="rounded-md border p-6 text-center text-muted-foreground text-sm">
+                      {t("reports.stockCard.noMovements")}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-md border">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/50">
                           <tr>
-                            <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
-                              {t("reports.stockCard.noMovements")}
-                            </td>
+                            <th className="px-2 py-2 text-left">{t("reports.colDate")}</th>
+                            <th className="px-2 py-2 text-left">Description</th>
+                            <th className="px-2 py-2 text-left">Invoice No.</th>
+                            <th className="px-2 py-2 text-right">Qty In</th>
+                            <th className="px-2 py-2 text-right">Qty Out</th>
+                            <th className="px-2 py-2 text-right">Qty Bal.</th>
+                            <th className="px-2 py-2 text-right">Amt In</th>
+                            <th className="px-2 py-2 text-right">Amt Out</th>
+                            <th className="px-2 py-2 text-right">Cost/Unit</th>
+                            <th className="px-2 py-2 text-right">Amt Bal.</th>
                           </tr>
-                        ) : (
-                          stockCardData.rows.map((row, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-3 py-2 whitespace-nowrap">{row.date.slice(0, 19).replace("T", " ")}</td>
-                              <td className="px-3 py-2">{row.movement_type}</td>
-                              <td className={`px-3 py-2 text-right font-mono ${row.quantity >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                {row.quantity >= 0 ? "+" : ""}{row.quantity}
-                              </td>
-                              <td className="px-3 py-2 text-right font-mono">{row.running_balance}</td>
-                              <td className="px-3 py-2">{row.reference ?? "—"}</td>
-                              <td className="px-3 py-2 text-muted-foreground">{row.notes ?? ""}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="rounded-md border p-3 bg-primary/5 text-sm flex justify-between font-medium">
-                    <span>{t("reports.stockCard.closingBalance")}</span>
-                    <span className="font-semibold">{stockCardData.closing_balance}</span>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {stockCardData.products.map((block) => (
+                            <React.Fragment key={block.product_variant_id}>
+                              <tr className="border-t bg-secondary/40">
+                                <td className="px-2 py-2 font-semibold" colSpan={10}>
+                                  Product Code {block.product_code} &nbsp;&nbsp; {block.product_name}
+                                </td>
+                              </tr>
+                              {block.rows.map((row, i) => (
+                                <tr key={`${block.product_variant_id}-${i}`} className="border-t">
+                                  <td className="px-2 py-1 whitespace-nowrap">
+                                    {row.date ? row.date.slice(0, 10) : ""}
+                                  </td>
+                                  <td className="px-2 py-1">{row.description}</td>
+                                  <td className="px-2 py-1">{row.invoice_no ?? ""}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.qty_in || ""}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.qty_out || ""}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.qty_balance}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.amount_in ? row.amount_in.toFixed(2) : ""}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.amount_out ? row.amount_out.toFixed(2) : ""}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.cost_per_unit ? row.cost_per_unit.toFixed(2) : ""}</td>
+                                  <td className="px-2 py-1 text-right font-mono">{row.amount_balance.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                              <tr className="border-t font-semibold bg-muted/30">
+                                <td className="px-2 py-1"></td>
+                                <td className="px-2 py-1">Total :</td>
+                                <td></td>
+                                <td className="px-2 py-1 text-right font-mono">{block.total_qty_in || ""}</td>
+                                <td className="px-2 py-1 text-right font-mono">{block.total_qty_out || ""}</td>
+                                <td></td>
+                                <td className="px-2 py-1 text-right font-mono">{block.total_amount_in ? block.total_amount_in.toFixed(2) : ""}</td>
+                                <td className="px-2 py-1 text-right font-mono">{block.total_amount_out ? block.total_amount_out.toFixed(2) : ""}</td>
+                                <td></td>
+                                <td></td>
+                              </tr>
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
