@@ -144,7 +144,6 @@ export default function SyncLog() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setSelected(l)}
-                      disabled={!l.error_log && l.status === "success"}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
