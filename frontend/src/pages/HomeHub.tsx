@@ -98,7 +98,8 @@ export default function HomeHub() {
     if (role === "parent" || role === "staff") return <Navigate to="/parent/dashboard" replace />;
     const userModule = user.shopModule ?? moduleOf(user.shopId);
     if (userModule === "canteen") return <Navigate to="/canteen" replace />;
-    return <Navigate to="/store" replace />;
+    if (userModule === "store") return <Navigate to="/store" replace />;
+    // userModule === null: shop not yet assigned — fall through to Hub (shows empty state)
   }
 
   const tiles: Tile[] = [];
@@ -205,6 +206,10 @@ export default function HomeHub() {
             <Skeleton key={i} className="h-32 w-full" />
           ))}
         </div>
+      ) : tiles.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          {t("home.noShopAssigned", "Your account has not been assigned to a shop yet. Please contact your administrator.")}
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {tiles.map((tile) => (
