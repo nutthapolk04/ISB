@@ -1702,7 +1702,7 @@
     "paymentMethods": {
       "cash": "เงินสด",
       "wallet": "กระเป๋าเงิน",
-      "card_tap": "แตะบัตร",
+      "card_tap": "บัตรสมาชิก",
       "credit_card": "บัตรเครดิต",
       "debit_card": "บัตรเดบิต",
       "edc": "EDC",

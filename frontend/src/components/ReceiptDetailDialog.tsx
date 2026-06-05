@@ -104,7 +104,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   credit_card: "บัตรเครดิต",
   debit_card: "บัตรเดบิต",
   wallet: "Wallet",
-  card_tap: "แตะบัตร",
+  card_tap: "บัตรสมาชิก",
   bank_transfer: "โอนเงิน",
   qr: "QR PromptPay",
   qr_promptpay: "QR PromptPay",
@@ -172,7 +172,7 @@ const RECEIPT_LABELS = {
 const PAYMENT_LABELS_EN: Record<string, string> = {
   cash: "Cash",
   wallet: "Wallet",
-  card_tap: "Tap Card",
+  card_tap: "Member Card",
   credit_card: "Credit Card",
   debit_card: "Debit Card",
   edc: "EDC",
@@ -294,7 +294,7 @@ interface ReceiptDetailDialogProps {
 }
 
 export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const schoolInfo = useSchoolInfo();
   const [receipt, setReceipt] = useState<ReceiptDetailData | null>(null);
@@ -548,7 +548,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             <Button
               className="w-full"
               variant="outline"
-              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, "en")}
+              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
             >
               <Download className="h-4 w-4 mr-2" />
               {t("receipts.download", "Print / Save PDF")}

@@ -1702,7 +1702,7 @@
     "paymentMethods": {
       "cash": "Cash",
       "wallet": "Wallet",
-      "card_tap": "Tap Card",
+      "card_tap": "Member Card",
       "credit_card": "Credit Card",
       "debit_card": "Debit Card",
       "edc": "EDC",

@@ -322,7 +322,7 @@ export default function WalletDetail() {
             size="sm"
             onClick={() => setSearchParams({})}
             className={cn(
-              "h-10 gap-1.5 font-semibold transition-all",
+              "h-10 gap-1.5 font-semibold transition-all whitespace-nowrap",
               activeTab === "topup"
                 ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
                 : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
@@ -335,7 +335,7 @@ export default function WalletDetail() {
             size="sm"
             onClick={() => setSearchParams({ tab: "history" })}
             className={cn(
-              "h-10 gap-1.5 font-semibold transition-all",
+              "h-10 gap-1.5 font-semibold transition-all whitespace-nowrap",
               activeTab === "history"
                 ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
                 : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",

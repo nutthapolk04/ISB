@@ -63,6 +63,35 @@ export default function TransactionHistory() {
     return map[type] ?? type;
   };
 
+  const txTypeBadgeClass = (type: string): string => {
+    switch (type) {
+      case "TOPUP":            return "bg-green-100 text-green-700 border-green-200 hover:bg-green-100";
+      case "DEDUCTION":        return "bg-red-100 text-red-600 border-red-200 hover:bg-red-100";
+      case "REFUND":           return "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100";
+      case "ADJUSTMENT_CREDIT":return "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100";
+      case "ADJUSTMENT_DEBIT": return "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100";
+      default:                 return "bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-100";
+    }
+  };
+
+  const txAmountClass = (type: string): string => {
+    switch (type) {
+      case "TOPUP":            return "text-green-600";
+      case "DEDUCTION":        return "text-red-500";
+      case "REFUND":           return "text-blue-600";
+      case "ADJUSTMENT_CREDIT":return "text-purple-600";
+      case "ADJUSTMENT_DEBIT": return "text-orange-600";
+      default:                 return "text-gray-700";
+    }
+  };
+
+  const shopLabel = (tx: Transaction): string | null => {
+    if (tx.transaction_type === "ADJUSTMENT_CREDIT" || tx.transaction_type === "ADJUSTMENT_DEBIT") {
+      return t("parent.transactions.shopAdmin", "Admin");
+    }
+    return tx.shop_name ?? null;
+  };
+
   const loadTransactions = async (walletId: number) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
@@ -214,6 +243,15 @@ export default function TransactionHistory() {
                 {txs.map((tx) => {
                   const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
                   const hasReceipt = tx.reference_type === "receipt" && tx.reference_id;
+                  const accentBar: Record<string, string> = {
+                    TOPUP: "from-green-400 to-emerald-500",
+                    DEDUCTION: "from-red-400 to-orange-400",
+                    REFUND: "from-blue-400 to-blue-500",
+                    ADJUSTMENT_CREDIT: "from-purple-400 to-purple-500",
+                    ADJUSTMENT_DEBIT: "from-orange-400 to-amber-500",
+                  };
+                  const barGradient = accentBar[tx.transaction_type] ?? (isCredit ? "from-green-400 to-emerald-500" : "from-red-400 to-orange-400");
+                  const shopDisplay = shopLabel(tx);
                   return (
                     <li
                       key={tx.id}
@@ -221,26 +259,26 @@ export default function TransactionHistory() {
                       onClick={() => hasReceipt && handleOpenReceipt(tx)}
                     >
                       {/* accent bar */}
-                      <div className={`h-1 w-full ${isCredit ? "bg-gradient-to-r from-green-400 to-emerald-500" : "bg-gradient-to-r from-red-400 to-orange-400"}`} />
+                      <div className={`h-1 w-full bg-gradient-to-r ${barGradient}`} />
                       <div className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <Badge
-                            variant={isCredit ? "default" : "secondary"}
-                            className={`shrink-0 text-xs ${isCredit ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-100" : "bg-red-100 text-red-600 border-red-200 hover:bg-red-100"}`}
+                            variant="secondary"
+                            className={`shrink-0 text-xs ${txTypeBadgeClass(tx.transaction_type)}`}
                           >
                             {txTypeLabel(tx.transaction_type)}
                           </Badge>
                           <div className="flex items-center gap-1">
-                            <div className={`text-right font-bold tabular-nums text-base ${isCredit ? "text-green-600" : "text-red-500"}`}>
+                            <div className={`text-right font-bold tabular-nums text-base ${txAmountClass(tx.transaction_type)}`}>
                               {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
                             </div>
                             {hasReceipt && <ChevronRight className="h-4 w-4 text-orange-400 shrink-0" />}
                           </div>
                         </div>
-                        {(tx.shop_name || tx.description) && (
+                        {(shopDisplay || tx.description) && (
                           <div className="text-sm space-y-0.5">
-                            {tx.shop_name && (
-                              <Badge variant="outline" className="font-normal border-amber-200 text-amber-700 bg-amber-50">{tx.shop_name}</Badge>
+                            {shopDisplay && (
+                              <Badge variant="outline" className="font-normal border-amber-200 text-amber-700 bg-amber-50">{shopDisplay}</Badge>
                             )}
                             {tx.description && (
                               <p className="text-gray-500">{tx.description}</p>
@@ -276,6 +314,7 @@ export default function TransactionHistory() {
                     {txs.map((tx) => {
                       const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
                       const hasReceipt = tx.reference_type === "receipt" && tx.reference_id;
+                      const shopDisplay = shopLabel(tx);
                       return (
                         <TableRow
                           key={tx.id}
@@ -285,15 +324,15 @@ export default function TransactionHistory() {
                           <TableCell className="text-sm text-gray-600">{formatDate(tx.created_at)}</TableCell>
                           <TableCell>
                             <Badge
-                              variant={isCredit ? "default" : "secondary"}
-                              className={`text-xs ${isCredit ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-100" : "bg-red-100 text-red-600 border-red-200 hover:bg-red-100"}`}
+                              variant="secondary"
+                              className={`text-xs ${txTypeBadgeClass(tx.transaction_type)}`}
                             >
                               {txTypeLabel(tx.transaction_type)}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm">
-                            {tx.shop_name
-                              ? <Badge variant="outline" className="font-normal border-amber-200 text-amber-700 bg-amber-50">{tx.shop_name}</Badge>
+                            {shopDisplay
+                              ? <Badge variant="outline" className="font-normal border-amber-200 text-amber-700 bg-amber-50">{shopDisplay}</Badge>
                               : <span className="text-gray-300">-</span>}
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">
@@ -302,7 +341,7 @@ export default function TransactionHistory() {
                               {hasReceipt && <ChevronRight className="h-3.5 w-3.5 text-orange-400" />}
                             </span>
                           </TableCell>
-                          <TableCell className={`text-right font-bold tabular-nums ${isCredit ? "text-green-600" : "text-red-500"}`}>
+                          <TableCell className={`text-right font-bold tabular-nums ${txAmountClass(tx.transaction_type)}`}>
                             {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-gray-600 tabular-nums">{formatTHB(tx.balance_after)}</TableCell>
