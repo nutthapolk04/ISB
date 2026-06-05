@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -149,18 +150,26 @@ interface SalesByItemReportData {
   line_count: number;
 }
 
-const REPORT_DEFS: { type: string; icon: typeof FileText; needsRange: boolean }[] = [
+// Reports that apply to BOTH modules (canteen + store).
+const COMMON_REPORTS = [
   { type: "salesReport",          icon: FileText,        needsRange: true  },
   { type: "topSellingReport",     icon: TrendingUp,      needsRange: true  },
   { type: "salesByPaymentReport", icon: CreditCard,      needsRange: true  },
-  { type: "stockReport",          icon: Package,         needsRange: false },
-  { type: "returnReport",         icon: ArrowLeftRight,  needsRange: true  },
-  { type: "stockCardReport",      icon: ClipboardList,   needsRange: true  },
-  // Sales Summary and Sales by Item use their own inline panels (like
-  // stockCardReport) — they don't need the legacy date-range dialog.
   { type: "salesSummaryReport",   icon: FileText,        needsRange: false },
   { type: "salesByItemReport",    icon: Package,         needsRange: false },
-];
+] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
+
+// Store-only reports — these don't make sense in a canteen context.
+// Canteen has no returns (food can't be returned) and uses portion-based
+// daily prep rather than SKU-level stock tracking, so per-SKU stock and
+// stock-card reports belong to the store/coop module only.
+const STORE_ONLY_REPORTS = [
+  { type: "stockReport",     icon: Package,        needsRange: false },
+  { type: "returnReport",    icon: ArrowLeftRight, needsRange: true  },
+  { type: "stockCardReport", icon: ClipboardList,  needsRange: true  },
+] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
+
+const REPORT_DEFS = [...COMMON_REPORTS, ...STORE_ONLY_REPORTS];
 
 // Receive-type filter options for the Sales Summary panel. Values match the
 // backend's _RECEIVE_TYPE_GROUPS keys. Labels stay English — international
@@ -217,6 +226,16 @@ const Reports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [exporting, setExporting] = useState(false);
+
+  // Determine which module's Reports page we're rendering. /canteen/reports
+  // narrows the visible cards to canteen-relevant ones; /store/reports and
+  // /admin/reports get every report.
+  const location = useLocation();
+  const isCanteenReportsPage = location.pathname.startsWith("/canteen/");
+  const visibleReports = useMemo(
+    () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
+    [isCanteenReportsPage],
+  );
 
   // Canteen area manager: null shopId but shopModule=canteen → show stall selector
   const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && user?.role !== "admin";
@@ -742,7 +761,7 @@ const Reports = () => {
       </InfoCallout>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {REPORT_DEFS.map(({ type, icon: Icon }) => (
+        {visibleReports.map(({ type, icon: Icon }) => (
           <Card
             key={type}
             className="interactive-card"
