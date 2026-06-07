@@ -48,6 +48,7 @@ import {
   payerForUser,
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
+import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,6 +108,20 @@ export default function Canteen() {
   const { user, hasRole } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`canteen:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
+
+  // Pop the customer display once when entering the POS, on desktop only.
+  // Multi-role users (manager+parent, etc.) reach the canteen via the Hub
+  // tile, so deferring the popup to here avoids surprising them at login.
+  const displayOpenedRef = useRef(false);
+  useEffect(() => {
+    if (displayOpenedRef.current) return;
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
+    if (isMobile) return;
+    displayOpenedRef.current = true;
+    void openCustomerDisplayWindow();
+  }, []);
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
   const cart = useCanteenCart();

@@ -119,20 +119,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = user !== null;
 
   // Auto-open the customer display once per fresh session — but ONLY for
-  // roles that actually run the POS. Admin / parent / staff / student have
-  // no POS access (RequireRole guards in App.tsx) so popping the second
-  // monitor on their login is confusing UX. Cashiers and managers operate
-  // the till, so they get it. The toolbar button in the app header is still
-  // available to anyone who wants it manually.
+  // single-role cashier/manager accounts on a desktop pointer. Hybrid
+  // accounts (manager+parent etc.) land on the Hub and shouldn't get a
+  // surprise second window before they pick a role; mobile users have no
+  // second monitor to host it.
+  //
+  // Once the user actually enters /store or /canteen, those pages will
+  // pop the display themselves regardless of how they got there.
   const autoOpenedRef = useRef(false);
   useEffect(() => {
     const POS_ROLES: ReadonlyArray<UserRole> = ["cashier", "manager"];
-    const runsPos = !!user && POS_ROLES.includes(user.activeRole ?? user.role);
-    if (runsPos && !autoOpenedRef.current) {
+    if (!user) { autoOpenedRef.current = false; return; }
+
+    const runsPos = POS_ROLES.includes(user.activeRole ?? user.role);
+    const allRoles = user.allRoles ?? [user.role];
+    const isSingleRole = allRoles.length <= 1;
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
+
+    if (runsPos && isSingleRole && !isMobile && !autoOpenedRef.current) {
       autoOpenedRef.current = true;
       void openCustomerDisplayWindow();
     }
-    if (!user) autoOpenedRef.current = false; // reset on logout
   }, [user]);
 
   const login = async (

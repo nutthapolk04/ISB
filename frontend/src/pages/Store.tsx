@@ -58,6 +58,7 @@ import {
   payerForUser,
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
+import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
 import {
   AlertDialog,
@@ -268,6 +269,20 @@ const Store = () => {
   const { user } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`store:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
+
+  // Pop the customer display once when entering the POS, on desktop only.
+  // Multi-role users (manager+parent, etc.) reach the store via the Hub
+  // tile, so deferring the popup to here avoids surprising them at login.
+  const displayOpenedRef = useRef(false);
+  useEffect(() => {
+    if (displayOpenedRef.current) return;
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
+    if (isMobile) return;
+    displayOpenedRef.current = true;
+    void openCustomerDisplayWindow();
+  }, []);
 
   // ── Products + shop metadata ────────────────────────────────────────────
   const [allProducts, setAllProducts] = useState<Product[]>([]);
