@@ -13,7 +13,8 @@ import time
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -108,8 +109,9 @@ def _int_or_none(val) -> Optional[int]:
 async def import_products(
     file: UploadFile = File(...),
     shop_id: str = "",
+    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin", "manager")),
 ):
     """
     Bulk upsert ShopProduct rows from an Excel or CSV file.
@@ -124,7 +126,27 @@ async def import_products(
 
     shop_id must be supplied either as a query parameter or as a column in the
     file. Rows missing shop_id are skipped with an error.
+
+    Managers may only import into their own shop_id. Admins may import into
+    any shop.
+
+    When dry_run=true the transaction is rolled back at the end so callers
+    can preview the create/update/error counts without persisting changes.
     """
+    is_manager = any(r.name == "manager" for r in current_user.roles) and not any(
+        r.name == "admin" for r in current_user.roles
+    )
+    if is_manager:
+        if not current_user.shop_id:
+            raise HTTPException(status_code=403, detail="Manager has no shop assignment")
+        # Pin shop_id to the manager's own shop regardless of what was passed.
+        if shop_id and shop_id != current_user.shop_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Manager can only import into their own shop",
+            )
+        shop_id = current_user.shop_id
+
     content = await file.read()
     filename = file.filename or ""
 
@@ -144,6 +166,11 @@ async def import_products(
         row_shop_id = _str(row.get("shop_id")) or shop_id
         if not row_shop_id:
             errors.append(ImportError(row=idx, reason="shop_id is required (pass as query param or column)"))
+            continue
+
+        # Managers cannot cross-shop import via the file column either.
+        if is_manager and row_shop_id != current_user.shop_id:
+            errors.append(ImportError(row=idx, reason="Manager can only import into their own shop"))
             continue
 
         shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
@@ -221,7 +248,10 @@ async def import_products(
             logger.warning("import_products row %d error: %s", idx, exc)
             errors.append(ImportError(row=idx, reason=str(exc)))
 
-    db.commit()
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
     return ProductImportResult(created=created, updated=updated, errors=errors)
 
 
@@ -230,6 +260,7 @@ async def import_products(
 @router.post("/stock-receive", response_model=StockImportResult)
 async def import_stock_receive(
     file: UploadFile = File(...),
+    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager")),
 ):
@@ -241,7 +272,16 @@ async def import_stock_receive(
     Optional columns : cost_per_unit, notes, reference
 
     For each row: lookup ShopProduct → call InventoryService.receive_stock.
+
+    When dry_run=true the transaction is rolled back at the end so callers
+    can preview the import without writing any stock movements.
     """
+    is_manager = any(r.name == "manager" for r in current_user.roles) and not any(
+        r.name == "admin" for r in current_user.roles
+    )
+    if is_manager and not current_user.shop_id:
+        raise HTTPException(status_code=403, detail="Manager has no shop assignment")
+
     content = await file.read()
     filename = file.filename or ""
 
@@ -260,6 +300,10 @@ async def import_stock_receive(
         row_shop_id = _str(row.get("shop_id"))
         if not row_shop_id:
             errors.append(ImportError(row=idx, reason="'shop_id' is required"))
+            continue
+
+        if is_manager and row_shop_id != current_user.shop_id:
+            errors.append(ImportError(row=idx, reason="Manager can only receive stock for their own shop"))
             continue
 
         shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
@@ -319,5 +363,82 @@ async def import_stock_receive(
             logger.warning("import_stock_receive row %d error: %s", idx, exc)
             errors.append(ImportError(row=idx, reason=str(exc)))
 
-    db.commit()
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
     return StockImportResult(imported=imported, errors=errors)
+
+
+# ── Template downloads ───────────────────────────────────────────────────────
+
+def _build_template_xlsx(headers: list[str], sample_rows: list[list]) -> bytes:
+    """Build a minimal styled .xlsx workbook with the given header + samples."""
+    import openpyxl
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Template"
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1F2937")
+    center = Alignment(horizontal="center", vertical="center")
+
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center
+        ws.column_dimensions[cell.column_letter].width = max(14, len(header) + 4)
+
+    for row_offset, row in enumerate(sample_rows, start=2):
+        for col_idx, val in enumerate(row, start=1):
+            ws.cell(row=row_offset, column=col_idx, value=val)
+
+    ws.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+_XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+
+@router.get("/products/template")
+def download_products_template(
+    current_user: User = Depends(require_role("admin", "manager")),
+):
+    """Download a ready-to-fill products import template."""
+    headers = ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"]
+    sample_rows = [
+        ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", "bookstore"],
+        ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", "bookstore"],
+    ]
+    data = _build_template_xlsx(headers, sample_rows)
+    return Response(
+        content=data,
+        media_type=_XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": 'attachment; filename="products_template.xlsx"'},
+    )
+
+
+@router.get("/stock-receive/template")
+def download_stock_receive_template(
+    current_user: User = Depends(require_role("admin", "manager")),
+):
+    """Download a ready-to-fill stock-receive import template."""
+    headers = ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"]
+    sample_rows = [
+        ["bookstore", "BK001001", 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
+        ["bookstore", "BK001002", 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
+    ]
+    data = _build_template_xlsx(headers, sample_rows)
+    return Response(
+        content=data,
+        media_type=_XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": 'attachment; filename="stock_receive_template.xlsx"'},
+    )

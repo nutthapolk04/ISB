@@ -19,11 +19,29 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Upload } from "lucide-react";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Upload, Download, Eye, CheckCircle2, AlertCircle } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/constants";
 import { PricePanelManager } from "@/components/PricePanelManager";
+
+// Shape of both import endpoints' response (combined union for the dialog).
+interface ImportResultShape {
+  created?: number;
+  updated?: number;
+  imported?: number;
+  errors: { row: number; reason: string }[];
+}
+
+interface PreviewState {
+  open: boolean;
+  kind: "products" | "stock";
+  result: ImportResultShape | null;
+  fileName: string;
+  file: File | null;
+  confirming: boolean;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,26 +115,31 @@ const ShopDetail = () => {
   // ── Bulk import state ───────────────────────────────────────────────────
   const [importingProducts, setImportingProducts] = useState(false);
   const [importingStock, setImportingStock] = useState(false);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
 
-  const handleImportProducts = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Run the upload against the backend; dry_run=true on first pass so the
+  // user sees a preview before any data is committed.
+  const callImport = useCallback(
+    async (kind: "products" | "stock", file: File, dryRun: boolean): Promise<ImportResultShape> => {
+      const form = new FormData();
+      form.append("file", file);
+      const path =
+        kind === "products"
+          ? `/admin/import/products?shop_id=${encodeURIComponent(shopId ?? "")}&dry_run=${dryRun}`
+          : `/admin/import/stock-receive?dry_run=${dryRun}`;
+      return await api.postFormData<ImportResultShape>(path, form);
+    },
+    [shopId],
+  );
+
+  const startProductsPreview = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !shopId) return;
     e.target.value = "";
     setImportingProducts(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const result = await api.postFormData<{ created: number; updated: number; errors: { row: number; reason: string }[] }>(
-        `/admin/import/products?shop_id=${encodeURIComponent(shopId)}`,
-        form,
-      );
-      const msg = t("shopImport.successMsg", { created: result.created, updated: result.updated, defaultValue: "Import complete: created {{created}}, updated {{updated}}" });
-      if (result.errors.length > 0) {
-        const errRows = result.errors.map(e => t("shopImport.errorRow", { row: e.row, reason: e.reason, defaultValue: "Row {{row}}: {{reason}}" })).join("; ");
-        toast.warning(`${msg}\n${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}: ${errRows}`);
-      } else {
-        toast.success(msg);
-      }
+      const result = await callImport("products", file, true);
+      setPreview({ open: true, kind: "products", result, fileName: file.name, file, confirming: false });
     } catch (err: any) {
       toast.error(err?.detail ?? t("shopImport.productsFailed", "Product import failed"));
     } finally {
@@ -124,29 +147,70 @@ const ShopDetail = () => {
     }
   };
 
-  const handleImportStock = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const startStockPreview = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
     setImportingStock(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const result = await api.postFormData<{ imported: number; errors: { row: number; reason: string }[] }>(
-        `/admin/import/stock-receive`,
-        form,
-      );
-      const msg = t("shopImport.stockSuccessMsg", { count: result.imported, defaultValue: "Stock received: {{count}} item(s)" });
-      if (result.errors.length > 0) {
-        const errRows = result.errors.map(e => t("shopImport.errorRow", { row: e.row, reason: e.reason, defaultValue: "Row {{row}}: {{reason}}" })).join("; ");
-        toast.warning(`${msg}\n${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}: ${errRows}`);
-      } else {
-        toast.success(msg);
-      }
+      const result = await callImport("stock", file, true);
+      setPreview({ open: true, kind: "stock", result, fileName: file.name, file, confirming: false });
     } catch (err: any) {
       toast.error(err?.detail ?? t("shopImport.stockFailed", "Stock import failed"));
     } finally {
       setImportingStock(false);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!preview || !preview.file) return;
+    setPreview({ ...preview, confirming: true });
+    try {
+      const result = await callImport(preview.kind, preview.file, false);
+      if (preview.kind === "products") {
+        const msg = t("shopImport.successMsg", { created: result.created ?? 0, updated: result.updated ?? 0, defaultValue: "Import complete: created {{created}}, updated {{updated}}" });
+        if (result.errors.length > 0) {
+          toast.warning(`${msg} — ${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}`);
+        } else {
+          toast.success(msg);
+        }
+      } else {
+        const msg = t("shopImport.stockSuccessMsg", { count: result.imported ?? 0, defaultValue: "Stock received: {{count}} item(s)" });
+        if (result.errors.length > 0) {
+          toast.warning(`${msg} — ${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}`);
+        } else {
+          toast.success(msg);
+        }
+      }
+      setPreview(null);
+    } catch (err: any) {
+      toast.error(err?.detail ?? t("shopImport.commitFailed", "Import failed"));
+      setPreview((prev) => (prev ? { ...prev, confirming: false } : prev));
+    }
+  };
+
+  // Trigger an authenticated download of the template xlsx; fetch + blob so
+  // we can include the Bearer token (browser <a> downloads cannot set headers).
+  const downloadTemplate = async (kind: "products" | "stock") => {
+    const path =
+      kind === "products" ? "/admin/import/products/template" : "/admin/import/stock-receive/template";
+    const token = localStorage.getItem("access_token");
+    try {
+      const res = await fetch(`${API_BASE_URL}${path}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = kind === "products" ? "products_template.xlsx" : "stock_receive_template.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t("shopImport.templateFailed", "Could not download template"));
     }
   };
 
@@ -314,8 +378,8 @@ const ShopDetail = () => {
 
         {/* ── Tab: Inventory ─────────────────────────────────────────────── */}
         <TabsContent value="inventory" className="space-y-4">
-          {/* Bulk import section — admin only */}
-          {hasRole("admin") && (
+          {/* Bulk import section — admin + manager */}
+          {(hasRole("admin") || hasRole("manager")) && (
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="flex flex-wrap items-center gap-3">
@@ -324,37 +388,59 @@ const ShopDetail = () => {
                     <span>{t("shopImport.title", "Import data (.xlsx / .csv)")}</span>
                   </div>
 
-                  {/* Import products */}
+                  {/* Template downloads */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => downloadTemplate("products")}
+                    title={t("shopImport.downloadProductTemplate", "Download products template")}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    {t("shopImport.templateProducts", "Product template")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => downloadTemplate("stock")}
+                    title={t("shopImport.downloadStockTemplate", "Download stock-receive template")}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    {t("shopImport.templateStock", "Stock template")}
+                  </Button>
+
+                  <div className="h-5 w-px bg-border" />
+
+                  {/* Preview products (dry-run) */}
                   <div className="relative">
                     <input
                       id="import-products-file"
                       type="file"
                       accept=".xlsx,.csv"
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      onChange={handleImportProducts}
+                      onChange={startProductsPreview}
                       disabled={importingProducts}
                     />
                     <Button variant="outline" size="sm" disabled={importingProducts} asChild={false}>
                       {importingProducts
-                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.importing", "Importing…")}</>
-                        : <>{t("shopImport.importProducts", "Import products (Excel)")}</>}
+                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.checking", "Checking…")}</>
+                        : <><Eye className="h-3.5 w-3.5 mr-1.5" />{t("shopImport.previewProducts", "Preview products import")}</>}
                     </Button>
                   </div>
 
-                  {/* Import stock receive */}
+                  {/* Preview stock receive (dry-run) */}
                   <div className="relative">
                     <input
                       id="import-stock-file"
                       type="file"
                       accept=".xlsx,.csv"
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      onChange={handleImportStock}
+                      onChange={startStockPreview}
                       disabled={importingStock}
                     />
                     <Button variant="outline" size="sm" disabled={importingStock} asChild={false}>
                       {importingStock
-                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.importing", "Importing…")}</>
-                        : <>{t("shopImport.importStock", "Import stock receipt (Excel)")}</>}
+                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.checking", "Checking…")}</>
+                        : <><Eye className="h-3.5 w-3.5 mr-1.5" />{t("shopImport.previewStock", "Preview stock receipt")}</>}
                     </Button>
                   </div>
 
@@ -367,6 +453,96 @@ const ShopDetail = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* ── Preview dialog (dry-run results) ──────────────────────── */}
+          <Dialog open={preview?.open ?? false} onOpenChange={(open) => { if (!open) setPreview(null); }}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {preview?.kind === "products"
+                    ? t("shopImport.previewProductsTitle", "Preview products import")
+                    : t("shopImport.previewStockTitle", "Preview stock receipt")}
+                </DialogTitle>
+              </DialogHeader>
+              {preview?.result && (
+                <div className="space-y-3 text-sm">
+                  <p className="text-xs text-muted-foreground">
+                    {t("shopImport.previewFile", "File")}: <span className="font-mono">{preview.fileName}</span>
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {preview.kind === "products" ? (
+                      <>
+                        <div className="rounded-md border border-green-200 bg-green-50 p-3">
+                          <div className="text-xs text-green-700">{t("shopImport.statCreated", "Would create")}</div>
+                          <div className="text-2xl font-bold text-green-800 tabular-nums">{preview.result.created ?? 0}</div>
+                        </div>
+                        <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+                          <div className="text-xs text-blue-700">{t("shopImport.statUpdated", "Would update")}</div>
+                          <div className="text-2xl font-bold text-blue-800 tabular-nums">{preview.result.updated ?? 0}</div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-md border border-green-200 bg-green-50 p-3 col-span-2">
+                        <div className="text-xs text-green-700">{t("shopImport.statImported", "Would receive")}</div>
+                        <div className="text-2xl font-bold text-green-800 tabular-nums">{preview.result.imported ?? 0}</div>
+                      </div>
+                    )}
+                    <div className={`rounded-md border p-3 ${preview.result.errors.length > 0 ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
+                      <div className={`text-xs ${preview.result.errors.length > 0 ? "text-red-700" : "text-slate-600"}`}>
+                        {t("shopImport.statErrors", "Errors")}
+                      </div>
+                      <div className={`text-2xl font-bold tabular-nums ${preview.result.errors.length > 0 ? "text-red-800" : "text-slate-700"}`}>
+                        {preview.result.errors.length}
+                      </div>
+                    </div>
+                  </div>
+
+                  {preview.result.errors.length > 0 ? (
+                    <div className="max-h-64 overflow-y-auto rounded border border-red-200 bg-red-50/40 p-2">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 mb-2">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {t("shopImport.errorsHeader", { count: preview.result.errors.length, defaultValue: "{{count}} error(s)" })}
+                      </div>
+                      <ul className="space-y-1 text-xs">
+                        {preview.result.errors.slice(0, 50).map((e, i) => (
+                          <li key={i} className="text-red-700">
+                            <span className="font-mono mr-1.5">Row {e.row}:</span>{e.reason}
+                          </li>
+                        ))}
+                        {preview.result.errors.length > 50 && (
+                          <li className="text-red-600 italic">
+                            {t("shopImport.errorsTruncated", { rest: preview.result.errors.length - 50, defaultValue: "… and {{rest}} more" })}
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-green-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {t("shopImport.noErrors", "No errors detected — safe to import.")}
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("shopImport.previewNote", "This is a preview — no data has been saved yet.")}
+                  </p>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPreview(null)} disabled={preview?.confirming}>
+                  {t("shopImport.cancel", "Cancel")}
+                </Button>
+                <Button
+                  onClick={confirmImport}
+                  disabled={preview?.confirming}
+                >
+                  {preview?.confirming
+                    ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.importing", "Importing…")}</>
+                    : t("shopImport.confirmImport", "Confirm import")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Inventory lockedShopId={shopId} shopType={shopType} />
         </TabsContent>
