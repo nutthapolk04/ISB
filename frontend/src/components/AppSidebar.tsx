@@ -98,7 +98,7 @@ const menuGroups: MenuGroup[] = [
     labelKey: "nav.groupUsers",
     module: null,
     items: [
-      { titleKey: "nav.users",            url: "/users",                icon: UserCog,     roles: ["manager", "admin"], matchPrefix: true },
+      { titleKey: "nav.users",            url: "/users",                icon: UserCog,     roles: ["admin"], matchPrefix: true },
     ],
   },
   {

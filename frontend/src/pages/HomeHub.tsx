@@ -171,7 +171,10 @@ export default function HomeHub() {
       title: t("home.tileWallet", "My Wallet"),
       status: formatTHB(ownWallet.balance),
       icon: WalletIcon,
-      to: "/parent/wallet/own",
+      // Land on the family dashboard so the user lands on the wallet card
+      // that already has the Top up + History actions, instead of the
+      // standalone wallet detail page which is a deeper drill-down.
+      to: "/parent/dashboard",
       accent: "from-amber-50 to-yellow-50 border-amber-200",
       switchTo: walletSwitch,
     });
