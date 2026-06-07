@@ -433,7 +433,7 @@ export default function DepartmentAdjust() {
                       <button
                         type="button"
                         onClick={() => setShortcutDialogOpen(true)}
-                        className="inline-flex items-center text-xs rounded-full border border-dashed bg-background px-2 py-0.5 text-muted-foreground hover:bg-muted"
+                        className="inline-flex items-center text-xs font-medium rounded-full border border-amber-500 bg-amber-500 text-white px-2.5 py-0.5 shadow-sm hover:bg-amber-600 hover:border-amber-600 transition-colors"
                         title={t("cardholders.deptAdjust.shortcutAdd", "Add custom shortcut")}
                       >
                         <Plus className="h-3 w-3 mr-0.5" />
