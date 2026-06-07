@@ -238,6 +238,15 @@ const App = () => {
             <Route element={<RequireAuth />}>
               {/* Role picker — no sidebar/shell */}
               <Route path="/select-role" element={<RolePicker />} />
+
+              {/* Mock BAY EASYPay redirect pages — rendered standalone so
+                   they feel like leaving the merchant site for the bank's
+                   hosted gateway. Auth is still required (the success
+                   landing calls /wallets/topup/{ref}/parent-confirm). */}
+              <Route path="/payment/bay/form" element={<MockBayPaymentForm />} />
+              <Route path="/payment/bay/success" element={<MockBayPaymentSuccess />} />
+              <Route path="/payment/bay/cancel" element={<MockBayPaymentCancel />} />
+
               <Route element={<AppShell />}>
                 {/* Landing — Hub for multi-role users; auto-redirect for single-role */}
                 <Route path="/" element={<HomeHub />} />
@@ -315,11 +324,6 @@ const App = () => {
                   <Route path="/parent/wallet/:customerId" element={<WalletDetail />} />
                   <Route path="/parent/transactions/:customerId" element={<TransactionHistory />} />
                   <Route path="/parent/profile/:customerId" element={<StudentProfile />} />
-                  {/* Mock BAY EASYPay redirect pages — simulate the hosted
-                       payment gateway flow until PYMT is plugged in. */}
-                  <Route path="/payment/bay/form" element={<MockBayPaymentForm />} />
-                  <Route path="/payment/bay/success" element={<MockBayPaymentSuccess />} />
-                  <Route path="/payment/bay/cancel" element={<MockBayPaymentCancel />} />
                 </Route>
 
                 {/* Transfer — parent-initiated transfers disabled (admin-only per policy) */}
