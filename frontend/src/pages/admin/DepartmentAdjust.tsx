@@ -15,8 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { toast } from "@/hooks/use-toast";
-import { Building2, ArrowDownCircle, ArrowUpCircle, History, Loader2 } from "lucide-react";
+import { Building2, ArrowDownCircle, ArrowUpCircle, History, Loader2, Plus, X, FileText, FileSpreadsheet } from "lucide-react";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import { exportToPDF, exportToExcel, type ReportColumn, type ReportPayload } from "@/lib/reportExport";
 
 interface Department {
   id: number;
@@ -47,7 +53,8 @@ const formatTHB = (n: number) =>
 export default function DepartmentAdjust() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === "en" ? "en-US" : "th-TH";
-  const QUICK_REASONS = [
+  const school = useSchoolInfo();
+  const DEFAULT_REASONS = [
     t("cardholders.deptAdjust.quickClear"),
     t("cardholders.deptAdjust.quickTopup"),
     t("cardholders.deptAdjust.quickFix"),
@@ -63,6 +70,52 @@ export default function DepartmentAdjust() {
   const [submitting, setSubmitting] = useState(false);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
+  // Custom quick-reason chips persisted in system_setting (shared across admins).
+  const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
+  const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
+  const [newShortcutText, setNewShortcutText] = useState("");
+  // Date filter for the transaction history + exports.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const QUICK_REASONS = useMemo(() => [...DEFAULT_REASONS, ...customShortcuts], [DEFAULT_REASONS, customShortcuts]);
+
+  const loadCustomShortcuts = async () => {
+    try {
+      const all = await api.get<Record<string, unknown>>("/admin/settings/");
+      const v = all.department_adjust_shortcuts;
+      if (Array.isArray(v)) setCustomShortcuts(v.filter((x): x is string => typeof x === "string"));
+    } catch { /* not fatal — fall back to defaults */ }
+  };
+
+  const saveCustomShortcuts = async (next: string[]) => {
+    try {
+      await api.put("/admin/settings/department_adjust_shortcuts", { value: next });
+      setCustomShortcuts(next);
+    } catch (e) {
+      toast({
+        title: t("cardholders.deptAdjust.shortcutSaveFailed", "Could not save shortcut"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addShortcut = async () => {
+    const text = newShortcutText.trim();
+    if (!text || DEFAULT_REASONS.includes(text) || customShortcuts.includes(text)) {
+      setShortcutDialogOpen(false);
+      setNewShortcutText("");
+      return;
+    }
+    await saveCustomShortcuts([...customShortcuts, text]);
+    setShortcutDialogOpen(false);
+    setNewShortcutText("");
+  };
+
+  const removeShortcut = async (text: string) => {
+    await saveCustomShortcuts(customShortcuts.filter((s) => s !== text));
+  };
 
   const loadDepartments = async () => {
     setLoading(true);
@@ -84,8 +137,11 @@ export default function DepartmentAdjust() {
   const loadTransactions = async (deptId: number) => {
     setTxLoading(true);
     try {
+      const params = new URLSearchParams({ limit: "500" });
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
       const res = await api.get<{ items: WalletTransaction[] }>(
-        `/admin/departments/${deptId}/transactions?limit=20`,
+        `/admin/departments/${deptId}/transactions?${params.toString()}`,
       );
       setTransactions(res.items);
     } catch {
@@ -97,12 +153,91 @@ export default function DepartmentAdjust() {
 
   useEffect(() => {
     loadDepartments();
+    loadCustomShortcuts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedId != null) loadTransactions(selectedId);
-  }, [selectedId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, dateFrom, dateTo]);
+
+  // ── Export helpers ──────────────────────────────────────────────────────
+  const buildReportPayload = (): ReportPayload<Record<string, unknown>> | null => {
+    if (!selected || transactions.length === 0) return null;
+    const columns: ReportColumn[] = [
+      { header: t("cardholders.deptAdjust.colDate"), key: "date", format: "datetime", width: 90 },
+      { header: t("cardholders.deptAdjust.colType"), key: "type", width: 70 },
+      { header: t("cardholders.deptAdjust.colDesc"), key: "description", width: 220 },
+      { header: t("cardholders.deptAdjust.colAmount"), key: "amount", format: "currency", width: 80 },
+      { header: t("cardholders.deptAdjust.colBalance"), key: "balance", format: "currency", width: 80 },
+    ];
+    let totalIn = 0;
+    let totalOut = 0;
+    // Render newest-first in the UI but oldest-first in the export so the
+    // running balance reads naturally on the printed page.
+    const rows = [...transactions].reverse().map((tx) => {
+      const isCredit = tx.balance_after >= tx.balance_before;
+      const signed = isCredit ? Math.abs(tx.amount) : -Math.abs(tx.amount);
+      if (isCredit) totalIn += Math.abs(tx.amount);
+      else totalOut += Math.abs(tx.amount);
+      return {
+        date: tx.created_at,
+        type: tx.transaction_type,
+        description: tx.description ?? "—",
+        amount: signed,
+        balance: tx.balance_after,
+      };
+    });
+    return {
+      meta: {
+        title: t("cardholders.deptAdjust.reportTitle", "Department wallet transactions"),
+        schoolName: school.name,
+        schoolLogoUrl: school.logoUrl || undefined,
+        filters: [
+          `${t("cardholders.deptAdjust.reportDept", "Department")}: ${selected.department_name} (${selected.department_code})`,
+          `${t("cardholders.deptAdjust.reportPeriod", "Period")}: ${dateFrom || "—"}  →  ${dateTo || "—"}`,
+          `${t("cardholders.deptAdjust.reportBalance", "Current balance")}: ${formatTHB(Number(selected.wallet_balance ?? 0))}`,
+        ],
+      },
+      columns,
+      rows,
+      totals: {
+        type: "TOTAL",
+        amount: totalIn - totalOut,
+      },
+    };
+  };
+
+  const exportPdf = async () => {
+    const payload = buildReportPayload();
+    if (!payload || !selected) return;
+    const period = `${dateFrom || "all"}_${dateTo || "all"}`;
+    try {
+      await exportToPDF(payload, `Dept_${selected.department_code}_${period}.pdf`);
+    } catch (e) {
+      toast({
+        title: t("cardholders.deptAdjust.exportFailed", "Export failed"),
+        description: e instanceof Error ? e.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportExcel = () => {
+    const payload = buildReportPayload();
+    if (!payload || !selected) return;
+    const period = `${dateFrom || "all"}_${dateTo || "all"}`;
+    try {
+      exportToExcel(payload, `Dept_${selected.department_code}_${period}.xlsx`);
+    } catch (e) {
+      toast({
+        title: t("cardholders.deptAdjust.exportFailed", "Export failed"),
+        description: e instanceof Error ? e.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
 
   const selected = useMemo(
     () => departments.find((d) => d.id === selectedId) ?? null,
@@ -266,8 +401,8 @@ export default function DepartmentAdjust() {
                       placeholder={t("cardholders.deptAdjust.reasonPlaceholder")}
                       rows={2}
                     />
-                    <div className="flex flex-wrap gap-1.5">
-                      {QUICK_REASONS.map((r) => (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {DEFAULT_REASONS.map((r) => (
                         <button
                           key={r}
                           type="button"
@@ -277,6 +412,33 @@ export default function DepartmentAdjust() {
                           {r}
                         </button>
                       ))}
+                      {customShortcuts.map((r) => (
+                        <span
+                          key={r}
+                          className="inline-flex items-center text-xs rounded-full border bg-amber-50/60 border-amber-200 pl-2 pr-1 py-0.5"
+                        >
+                          <button type="button" onClick={() => setReason(r)} className="hover:underline">
+                            {r}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeShortcut(r)}
+                            className="ml-1 rounded-full hover:bg-amber-200/60 p-0.5"
+                            title={t("cardholders.deptAdjust.shortcutRemove", "Remove")}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShortcutDialogOpen(true)}
+                        className="inline-flex items-center text-xs rounded-full border border-dashed bg-background px-2 py-0.5 text-muted-foreground hover:bg-muted"
+                        title={t("cardholders.deptAdjust.shortcutAdd", "Add custom shortcut")}
+                      >
+                        <Plus className="h-3 w-3 mr-0.5" />
+                        {t("cardholders.deptAdjust.shortcutAdd", "Add")}
+                      </button>
                     </div>
                   </div>
 
@@ -318,10 +480,42 @@ export default function DepartmentAdjust() {
               </Card>
 
               <Card>
-                <CardHeader>
+                <CardHeader className="space-y-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <History className="h-4 w-4" /> {t("cardholders.deptAdjust.historyTitle")}
                   </CardTitle>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex-1 min-w-[260px]">
+                      <Label className="text-xs">{t("reports.startDate", "Start date")} — {t("reports.endDate", "End date")}</Label>
+                      <DateRangePicker
+                        id="deptTxRange"
+                        startDate={dateFrom}
+                        endDate={dateTo}
+                        onStartChange={setDateFrom}
+                        onEndChange={setDateTo}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportPdf}
+                        disabled={transactions.length === 0}
+                      >
+                        <FileText className="h-3.5 w-3.5 mr-1.5" />
+                        PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportExcel}
+                        disabled={transactions.length === 0}
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                        Excel
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   <Table>
@@ -383,6 +577,37 @@ export default function DepartmentAdjust() {
         </div>
       </div>
       </div>
+
+      {/* ── Add custom shortcut dialog ─────────────────────────────────────── */}
+      <Dialog open={shortcutDialogOpen} onOpenChange={(open) => { if (!open) { setShortcutDialogOpen(false); setNewShortcutText(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("cardholders.deptAdjust.shortcutDialogTitle", "Add custom shortcut")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="shortcut-text">{t("cardholders.deptAdjust.shortcutDialogLabel", "Reason text")}</Label>
+            <Input
+              id="shortcut-text"
+              value={newShortcutText}
+              onChange={(e) => setNewShortcutText(e.target.value)}
+              placeholder={t("cardholders.deptAdjust.shortcutDialogPlaceholder", "e.g. คืนเครดิตงานวิ่งการกุศล")}
+              onKeyDown={(e) => { if (e.key === "Enter") addShortcut(); }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("cardholders.deptAdjust.shortcutDialogHint", "Saved to system settings — shared across all admins.")}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShortcutDialogOpen(false); setNewShortcutText(""); }}>
+              {t("cardholders.deptAdjust.cancel", "Cancel")}
+            </Button>
+            <Button onClick={addShortcut} disabled={!newShortcutText.trim()}>
+              {t("cardholders.deptAdjust.shortcutDialogSave", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

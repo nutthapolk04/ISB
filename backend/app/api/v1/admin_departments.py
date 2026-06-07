@@ -5,9 +5,10 @@ records each tweak in wallet_transactions for the monthly clear-bill workflow.
 Lives separate from `/admin/wallet-adjust` so the UX can lean on bigger amounts
 + preset reasons (e.g. "เคลียร์ยอดเดือน X") without confusing student adjusts.
 """
+from datetime import datetime, time
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -98,6 +99,8 @@ class DepartmentTransactionsResponse(BaseModel):
 def list_department_transactions(
     department_id: int,
     limit: int = 100,
+    date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD (inclusive)"),
+    date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD (inclusive)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
@@ -109,13 +112,21 @@ def list_department_transactions(
     )
     if not dept or not dept.wallet:
         raise HTTPException(404, "Department wallet not found")
-    rows = (
-        db.query(WalletTransaction)
-        .filter(WalletTransaction.wallet_id == dept.wallet.id)
-        .order_by(WalletTransaction.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+
+    q = db.query(WalletTransaction).filter(WalletTransaction.wallet_id == dept.wallet.id)
+    if date_from:
+        try:
+            start = datetime.combine(datetime.fromisoformat(date_from).date(), time.min)
+            q = q.filter(WalletTransaction.created_at >= start)
+        except ValueError:
+            raise HTTPException(400, f"Invalid date_from: {date_from}")
+    if date_to:
+        try:
+            end = datetime.combine(datetime.fromisoformat(date_to).date(), time.max)
+            q = q.filter(WalletTransaction.created_at <= end)
+        except ValueError:
+            raise HTTPException(400, f"Invalid date_to: {date_to}")
+    rows = q.order_by(WalletTransaction.created_at.desc()).limit(limit).all()
     return DepartmentTransactionsResponse(
         items=[
             WalletTransactionResponse(

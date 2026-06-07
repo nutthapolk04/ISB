@@ -36,6 +36,9 @@ KNOWN_FLAGS: Dict[str, Any] = {
     "school_phone": "",
     "school_logo_url": "",   # stores base64 data URL or external URL
     "school_cover_url": "",  # wide cover/banner image for login page
+    # Department wallet adjust — extra "quick reason" chips admins can add via UI.
+    # Stored as a JSON array of strings; merged with the default i18n chips.
+    "department_adjust_shortcuts": [],
 }
 
 
