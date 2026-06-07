@@ -267,47 +267,53 @@ export default function ShopDashboard() {
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Today Revenue */}
-        <Card className="overflow-hidden border-0 shadow-sm">
-          <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-4 text-white">
+        <Card className="overflow-hidden border border-amber-200/60 shadow-sm bg-white">
+          <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium opacity-90">Today's Sales</span>
-              <TrendingUp className="h-5 w-5 opacity-80" />
+              <span className="text-sm font-medium text-slate-700">Today's Sales</span>
+              <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-amber-600" />
+              </div>
             </div>
-            <p className="text-3xl font-bold tabular-nums">฿{fmt(todaySales?.grand_total)}</p>
-            <p className="text-xs opacity-75 mt-1">{todaySales?.receipt_count ?? 0} receipts</p>
+            <p className="text-3xl font-bold tabular-nums text-slate-900">฿{fmt(todaySales?.grand_total)}</p>
+            <p className="text-xs text-slate-500 mt-1">{todaySales?.receipt_count ?? 0} receipts</p>
           </div>
         </Card>
 
         {/* Today Orders */}
-        <Card className="overflow-hidden border-0 shadow-sm">
-          <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 text-white">
+        <Card className="overflow-hidden border border-blue-200/60 shadow-sm bg-white">
+          <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium opacity-90">Today's Orders</span>
-              <ShoppingBag className="h-5 w-5 opacity-80" />
+              <span className="text-sm font-medium text-slate-700">Today's Orders</span>
+              <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                <ShoppingBag className="h-4 w-4 text-blue-600" />
+              </div>
             </div>
-            <p className="text-3xl font-bold tabular-nums">{todaySales?.receipt_count ?? 0}</p>
-            <p className="text-xs opacity-75 mt-1">transactions</p>
+            <p className="text-3xl font-bold tabular-nums text-slate-900">{todaySales?.receipt_count ?? 0}</p>
+            <p className="text-xs text-slate-500 mt-1">transactions</p>
           </div>
         </Card>
 
         {/* Month Revenue */}
-        <Card className="overflow-hidden border-0 shadow-sm">
-          <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-4 text-white">
+        <Card className="overflow-hidden border border-violet-200/60 shadow-sm bg-white">
+          <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium opacity-90">This Month's Sales</span>
-              <Calendar className="h-5 w-5 opacity-80" />
+              <span className="text-sm font-medium text-slate-700">This Month's Sales</span>
+              <div className="h-9 w-9 rounded-lg bg-violet-100 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-violet-600" />
+              </div>
             </div>
-            <p className="text-3xl font-bold tabular-nums">฿{fmt(monthSales?.grand_total)}</p>
-            <p className="text-xs opacity-75 mt-1">{monthSales?.receipt_count ?? 0} receipts</p>
+            <p className="text-3xl font-bold tabular-nums text-slate-900">฿{fmt(monthSales?.grand_total)}</p>
+            <p className="text-xs text-slate-500 mt-1">{monthSales?.receipt_count ?? 0} receipts</p>
           </div>
         </Card>
       </div>
 
       {/* ── Payment Breakdown ── */}
-      <Card className="overflow-hidden shadow-sm">
-        <CardHeader className="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 px-5">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
+      <Card className="overflow-hidden shadow-sm border border-slate-200">
+        <CardHeader className="bg-slate-50/60 border-b border-slate-200 py-3 px-5">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800">
+            <CreditCard className="h-4 w-4 text-amber-600" />
             Payment Channel Breakdown — Today
           </CardTitle>
         </CardHeader>
@@ -370,10 +376,10 @@ export default function ShopDashboard() {
 
       {/* ── Top Items Today ── */}
       {topItems.length > 0 && (
-        <Card className="overflow-hidden shadow-sm">
-          <CardHeader className="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 px-5">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
+        <Card className="overflow-hidden shadow-sm border border-slate-200">
+          <CardHeader className="bg-slate-50/60 border-b border-slate-200 py-3 px-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800">
+              <TrendingUp className="h-4 w-4 text-amber-600" />
               Top Selling Items — Today
             </CardTitle>
           </CardHeader>

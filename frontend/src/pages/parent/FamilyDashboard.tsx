@@ -113,10 +113,10 @@ export default function FamilyDashboard() {
   return (
     <div className="page-shell">
       {/* Header banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 p-6 mb-2 shadow-md">
+      <div className="rounded-2xl bg-amber-50/60 border border-amber-200/60 p-6 mb-2 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
               {isStudent ? (
                 <GraduationCap className="h-6 w-6" />
               ) : (
@@ -124,10 +124,10 @@ export default function FamilyDashboard() {
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white drop-shadow-sm">
+              <h1 className="text-2xl font-bold text-slate-900">
                 {isStudent ? t("parent.dashboard.studentTitle") : t("parent.dashboard.title")}
               </h1>
-              <p className="text-sm text-orange-100">
+              <p className="text-sm text-slate-600">
                 {isStudent ? t("parent.dashboard.studentDescription") : t("parent.dashboard.description")}
               </p>
             </div>
@@ -215,54 +215,54 @@ export default function FamilyDashboard() {
       )}
 
       {!loading && ownWallet && (
-        <Card className="overflow-hidden border-0 shadow-lg">
-          <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-5">
+        <Card className="overflow-hidden border border-amber-200/60 shadow-sm bg-white">
+          <div className="p-5">
             <div className="flex items-start gap-3">
               {ownWallet.photo_url ? (
                 <img
                   src={ownWallet.photo_url}
                   alt={ownWallet.name ?? ""}
-                  className="h-14 w-14 shrink-0 rounded-full object-cover border-2 border-white/50 shadow-md"
+                  className="h-14 w-14 shrink-0 rounded-full object-cover border-2 border-amber-200 shadow-sm"
                 />
               ) : (
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/20 text-white shadow-inner">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <WalletIcon className="h-7 w-7" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-orange-100">{t("parent.dashboard.myWallet")}</p>
-                <p className="text-xl font-bold text-white truncate">
+                <p className="text-sm font-medium text-slate-500">{t("parent.dashboard.myWallet")}</p>
+                <p className="text-xl font-bold text-slate-900 truncate">
                   {ownWallet.name ?? t(`roles.${user?.role ?? "parent"}`, user?.role ?? "Parent / Guardian")}
                 </p>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                     {t(`roles.${user?.role ?? "parent"}`, user?.role ?? "Parent / Guardian")}
                   </span>
                   {ownWallet.username && (
-                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-mono text-white">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-700">
                       {ownWallet.username}
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <div className="mt-4 rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
-              <p className="text-xs text-orange-100">{t("parent.dashboard.balance")}</p>
-              <p className="text-3xl font-extrabold text-white tracking-tight">
+            <div className="mt-4 rounded-xl bg-amber-50/70 border border-amber-200/60 px-4 py-3">
+              <p className="text-xs text-amber-700">{t("parent.dashboard.balance")}</p>
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
                 {formatTHB(ownWallet.balance)}
               </p>
             </div>
           </div>
-          <CardContent className="pt-4 pb-4 bg-amber-50 space-y-0">
+          <CardContent className="pt-4 pb-4 bg-slate-50/40 border-t border-slate-200 space-y-0">
             <div className="grid grid-cols-2 gap-2">
-              <Button asChild className="h-11 px-2 text-xs sm:text-sm bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-sm">
+              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-amber-300 bg-white text-amber-700 hover:bg-amber-50">
                 <Link to={`/parent/wallet/own`}>
                   <WalletIcon className="h-4 w-4 mr-1.5" />
                   {t("parent.dashboard.topUp")}
                 </Link>
               </Button>
               {/* Transfer button removed — wallet transfers are admin-only */}
-              <Button asChild className="h-11 px-2 text-xs sm:text-sm bg-orange-500 hover:bg-orange-600 text-white border-0 shadow-sm">
+              <Button asChild variant="outline" className="h-11 px-2 text-xs sm:text-sm border-amber-300 bg-white text-amber-700 hover:bg-amber-50">
                 <Link to={`/parent/wallet/own?tab=history`}>
                   <History className="h-4 w-4 mr-1.5" />
                   {t("parent.dashboard.history")}
