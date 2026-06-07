@@ -267,6 +267,10 @@ class POSService:
 
         subtotal = 0.0
         receipt_items: List[ReceiptItem] = []
+        # Per-line summary captured during the build loop so the audit log
+        # can show "what was sold" — kept lightweight (name, qty, price)
+        # because changes is stored as JSON in the audit_logs table.
+        audit_lines: List[dict] = []
 
         movement_type = (
             MovementType.internal_use
@@ -347,6 +351,11 @@ class POSService:
                         "bundle_code": bundle.bundle_code,
                     },
                 ))
+                audit_lines.append({
+                    "name": bundle.name,
+                    "qty": qty,
+                    "price": line_total,
+                })
                 continue
 
             # ── Normal (non-bundle) item ─────────────────────────────────
@@ -374,6 +383,11 @@ class POSService:
                 line_total=line_total,
                 options=options_snapshot,
             ))
+            audit_lines.append({
+                "name": product.name,
+                "qty": qty,
+                "price": line_total,
+            })
 
             # ── Deduct stock ────────────────────────────────────────────
             _deduct_product_stock(
@@ -583,7 +597,12 @@ class POSService:
                 entity_name=receipt.receipt_number,
                 shop_id=effective_shop_id,
                 action="CREATE",
-                changes={"payment_method": payment_method, "total": float(total), "items": len(items)},
+                changes={
+                    "payment_method": payment_method,
+                    "total": float(total),
+                    "items": len(items),
+                    "products": audit_lines,
+                },
                 user_id=user_id,
             )
             db.commit()
@@ -772,6 +791,27 @@ class POSService:
         db.commit()
         db.refresh(receipt)
 
+        # Build the same per-line product summary used at sale time so the
+        # void entry shows exactly what was refunded.
+        void_lines: List[dict] = []
+        for item in receipt.items:
+            opts = item.options or {}
+            if opts.get("is_bundle") and opts.get("bundle_name"):
+                void_lines.append({
+                    "name": opts["bundle_name"],
+                    "qty": item.quantity,
+                    "price": float(item.line_total),
+                })
+            else:
+                product_row: ShopProduct | None = (
+                    db.query(ShopProduct).filter(ShopProduct.id == item.product_variant_id).first()
+                )
+                void_lines.append({
+                    "name": product_row.name if product_row else f"#{item.product_variant_id}",
+                    "qty": item.quantity,
+                    "price": float(item.line_total),
+                })
+
         # Audit log: receipt voided
         try:
             create_audit_log(
@@ -781,7 +821,11 @@ class POSService:
                 entity_name=receipt.receipt_number,
                 shop_id=receipt.shop_id,
                 action="VOID",
-                changes={"reason": reason, "total": float(receipt.total)},
+                changes={
+                    "reason": reason,
+                    "total": float(receipt.total),
+                    "products": void_lines,
+                },
                 user_id=user_id,
             )
             db.commit()

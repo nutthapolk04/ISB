@@ -43,6 +43,45 @@ function paymentLabel(t: TFunction, code: string): string {
   return t(`audit.payment.${code}`, { defaultValue: code });
 }
 
+interface ProductLine {
+  name?: string;
+  qty?: number;
+  price?: number;
+}
+
+function isProductLineArray(v: unknown): v is ProductLine[] {
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (x) =>
+        x !== null &&
+        typeof x === "object" &&
+        ("name" in x || "qty" in x || "price" in x),
+    )
+  );
+}
+
+function formatProductLines(t: TFunction, lines: ProductLine[]): string {
+  return lines
+    .map((p) =>
+      t("audit.productLine", {
+        name: p.name ?? "—",
+        qty: p.qty ?? 1,
+        price: fmtMoney(Number(p.price ?? 0)),
+      }),
+    )
+    .join("\n");
+}
+
+/** Short inline hint like "นมจืด ×2 + 3 รายการ" to append after the summary. */
+function productSummaryHint(t: TFunction, raw: unknown): string | null {
+  if (!isProductLineArray(raw) || raw.length === 0) return null;
+  const first = raw[0];
+  const head = `${first.name ?? "—"} ×${first.qty ?? 1}`;
+  if (raw.length === 1) return head;
+  return `${head} ${t("audit.summary.plusMore", { rest: raw.length - 1, defaultValue: "+{{rest}} more" })}`;
+}
+
 function formatValue(t: TFunction, key: string, value: unknown): string {
   if (value === null || value === undefined || value === "") {
     return t("audit.labelEmpty");
@@ -52,6 +91,9 @@ function formatValue(t: TFunction, key: string, value: unknown): string {
   }
   if (key === "payment_method" && typeof value === "string") {
     return paymentLabel(t, value);
+  }
+  if (key === "products" && isProductLineArray(value)) {
+    return formatProductLines(t, value);
   }
   if (MONEY_FIELDS.has(key) && isNumeric(value)) {
     return `฿${fmtMoney(toNumber(value))}`;
@@ -78,18 +120,22 @@ export function humanizeSummary(
   if (entityType === "receipt" && action === "CREATE") {
     const items = c.items ?? c.item_count ?? "?";
     const total = isNumeric(c.total) ? fmtMoney(toNumber(c.total)) : "?";
-    if (typeof c.payment_method === "string") {
-      return t("audit.summary.createReceipt", {
-        items,
-        total,
-        payment: paymentLabel(t, c.payment_method),
-      });
-    }
-    return t("audit.summary.createReceiptNoPayment", { items, total });
+    const productHint = productSummaryHint(t, c.products);
+    const base =
+      typeof c.payment_method === "string"
+        ? t("audit.summary.createReceipt", {
+            items,
+            total,
+            payment: paymentLabel(t, c.payment_method),
+          })
+        : t("audit.summary.createReceiptNoPayment", { items, total });
+    return productHint ? `${base} — ${productHint}` : base;
   }
   if (entityType === "receipt" && action === "VOID") {
     const total = isNumeric(c.total) ? fmtMoney(toNumber(c.total)) : "0.00";
-    return t("audit.summary.voidReceipt", { total });
+    const productHint = productSummaryHint(t, c.products);
+    const base = t("audit.summary.voidReceipt", { total });
+    return productHint ? `${base} — ${productHint}` : base;
   }
 
   // ── Product price update ───────────────────────────────────────────────

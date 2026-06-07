@@ -2098,6 +2098,10 @@
     "totalCount": "{{total}} entries",
     "prev": "Prev",
     "next": "Next",
+    "colField": "Field",
+    "colValue": "Value",
+    "productLine": "{{name}} × {{qty}} = ฿{{price}}",
+    "productsLabel": "Products",
     "entity": {
       "receipt": "Receipt",
       "customer": "Customer",
@@ -2118,6 +2122,7 @@
     "field": {
       "items": "Items",
       "total": "Total",
+      "products": "Products",
       "payment_method": "Payment method",
       "amount": "Amount",
       "balance": "Balance",
@@ -2154,7 +2159,8 @@
       "updateSetting": "Updated setting: {{fields}}",
       "deleteProduct": "Removed product from system",
       "createGeneric": "Created new {{entity}}",
-      "fallback": "{{action}} → {{entity}}"
+      "fallback": "{{action}} → {{entity}}",
+      "plusMore": "+{{rest}} more"
     },
     "labelTrue": "Enabled",
     "labelFalse": "Disabled",

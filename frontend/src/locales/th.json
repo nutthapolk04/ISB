@@ -2096,6 +2096,10 @@
     "totalCount": "ทั้งหมด {{total}} รายการ",
     "prev": "ก่อนหน้า",
     "next": "ถัดไป",
+    "colField": "รายการ",
+    "colValue": "ค่า",
+    "productLine": "{{name}} × {{qty}} = ฿{{price}}",
+    "productsLabel": "สินค้า",
     "entity": {
       "receipt": "ใบเสร็จ",
       "customer": "ลูกค้า",
@@ -2116,6 +2120,7 @@
     "field": {
       "items": "จำนวนรายการ",
       "total": "ยอดรวม",
+      "products": "รายการสินค้า",
       "payment_method": "วิธีจ่ายเงิน",
       "amount": "จำนวนเงิน",
       "balance": "ยอดคงเหลือ",
@@ -2152,7 +2157,8 @@
       "updateSetting": "แก้ค่าระบบ: {{fields}}",
       "deleteProduct": "ลบสินค้าออกจากระบบ",
       "createGeneric": "เพิ่ม{{entity}}ใหม่",
-      "fallback": "{{action}} → {{entity}}"
+      "fallback": "{{action}} → {{entity}}",
+      "plusMore": "และอีก {{rest}} รายการ"
     },
     "labelTrue": "เปิดใช้",
     "labelFalse": "ปิดใช้",

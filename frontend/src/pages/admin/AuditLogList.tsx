@@ -126,18 +126,18 @@ export default function AuditLogList() {
         <thead>
           <tr className="bg-muted text-muted-foreground">
             <th className="text-left px-2 py-1 font-medium border border-border w-1/3">
-              {t("audit.colField", "รายการ")}
+              {t("audit.colField")}
             </th>
             <th className="text-left px-2 py-1 font-medium border border-border">
-              {t("audit.colValue", "ค่า")}
+              {t("audit.colValue")}
             </th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, idx) => (
             <tr key={idx} className="even:bg-muted/30">
-              <td className="px-2 py-1 border border-border text-muted-foreground">{r.label}</td>
-              <td className="px-2 py-1 border border-border break-all">{r.value}</td>
+              <td className="px-2 py-1 border border-border text-muted-foreground align-top">{r.label}</td>
+              <td className="px-2 py-1 border border-border whitespace-pre-line break-words">{r.value}</td>
             </tr>
           ))}
         </tbody>
