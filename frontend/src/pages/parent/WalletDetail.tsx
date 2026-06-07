@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Wallet as WalletIcon, CheckCircle2, Clock, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
+import { storeBayIntent } from "@/pages/payment/MockBayGateway";
 
 // Demo May-2026 — Topup channel limits & fee.
 // Fee is UI-only for now (not persisted on payment_intents) — wallet still
@@ -174,8 +175,34 @@ export default function WalletDetail() {
     }
 
     if (paymentMethod === "credit_card") {
-      setPendingAmt(amt);
-      setGatewayOpen(true);
+      // Real BAY pattern: register the payment intent with PYMT, then
+      // redirect the customer's browser to the hosted bank page. Here we
+      // create the intent against our existing topup API and bounce to
+      // the in-app mock that mimics the hosted form.
+      setCreating(true);
+      try {
+        const resp = await api.post<TopupIntent>(
+          `/wallets/${profile.wallet_id}/topup`,
+          { amount: amt, payment_method: "credit_card" },
+        );
+        const feeAmt = Math.round(amt * CREDIT_FEE_RATE * 100) / 100;
+        storeBayIntent({
+          orderRef: resp.ref_code,
+          walletId: profile.wallet_id,
+          amount: amt,
+          fee: feeAmt,
+          returnUrl: window.location.pathname + window.location.search,
+        });
+        navigate(`/payment/bay/form?ref=${encodeURIComponent(resp.ref_code)}`);
+      } catch (e) {
+        toast({
+          title: t("parent.wallet.topupCreateFailed"),
+          description: e instanceof ApiError ? e.detail : "Unknown error",
+          variant: "destructive",
+        });
+      } finally {
+        setCreating(false);
+      }
       return;
     }
 

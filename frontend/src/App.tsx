@@ -31,6 +31,11 @@ import ShopDetail from "./pages/ShopDetail";
 import Login from "./pages/Login";
 import HomeHub from "./pages/HomeHub";
 import RolePicker from "./pages/RolePicker";
+import {
+  MockBayPaymentForm,
+  MockBayPaymentSuccess,
+  MockBayPaymentCancel,
+} from "./pages/payment/MockBayGateway";
 import NotFound from "./pages/NotFound";
 import FamilyDashboard from "./pages/parent/FamilyDashboard";
 import WalletDetail from "./pages/parent/WalletDetail";
@@ -310,6 +315,11 @@ const App = () => {
                   <Route path="/parent/wallet/:customerId" element={<WalletDetail />} />
                   <Route path="/parent/transactions/:customerId" element={<TransactionHistory />} />
                   <Route path="/parent/profile/:customerId" element={<StudentProfile />} />
+                  {/* Mock BAY EASYPay redirect pages — simulate the hosted
+                       payment gateway flow until PYMT is plugged in. */}
+                  <Route path="/payment/bay/form" element={<MockBayPaymentForm />} />
+                  <Route path="/payment/bay/success" element={<MockBayPaymentSuccess />} />
+                  <Route path="/payment/bay/cancel" element={<MockBayPaymentCancel />} />
                 </Route>
 
                 {/* Transfer — parent-initiated transfers disabled (admin-only per policy) */}
