@@ -158,9 +158,11 @@ export default function HomeHub() {
     });
   }
 
-  if (ownWallet && ownWallet.owner_type === "user") {
-    // Wallet view lives under /parent — switch to a role that's actually
-    // allowed by that route guard so the page renders.
+  // Wallet tile is redundant when the Family tile is already on the page:
+  // both lead to /parent/dashboard, which exposes the same My Wallet card
+  // with Top up + History actions. Only render the standalone wallet tile
+  // for users who don't see Family (e.g. cashier-only without parent role).
+  if (ownWallet && ownWallet.owner_type === "user" && !hasFamilyRole) {
     const walletSwitch: UserRole | undefined = allRoles.includes("parent")
       ? "parent"
       : allRoles.includes("staff")
@@ -171,9 +173,6 @@ export default function HomeHub() {
       title: t("home.tileWallet", "My Wallet"),
       status: formatTHB(ownWallet.balance),
       icon: WalletIcon,
-      // Land on the family dashboard so the user lands on the wallet card
-      // that already has the Top up + History actions, instead of the
-      // standalone wallet detail page which is a deeper drill-down.
       to: "/parent/dashboard",
       accent: "from-amber-50 to-yellow-50 border-amber-200",
       switchTo: walletSwitch,
