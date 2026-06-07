@@ -43,6 +43,7 @@ class UserCreate(BaseModel):
     role: UserRole
     shop_id: Optional[str] = None
     email: Optional[str] = None
+    family_code: Optional[str] = Field(None, max_length=20)
 
 
 class UserUpdate(BaseModel):
@@ -52,6 +53,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
     email: Optional[str] = None
+    family_code: Optional[str] = Field(None, max_length=20)
 
 
 class UserListResponse(BaseModel):

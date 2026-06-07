@@ -78,6 +78,7 @@ class CustomerBasicUpdate(BaseModel):
     school_type: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    family_code: Optional[str] = None
 
 
 class CreateStudentRequest(BaseModel):

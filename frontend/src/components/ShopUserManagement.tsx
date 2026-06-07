@@ -758,6 +758,9 @@ function CreateUserTab({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("cashier");
+  // Optional family group code so admins can tie staff/manager/cashier
+  // accounts to a parent's family for unified portal access.
+  const [familyCode, setFamilyCode] = useState("");
 
   const reset = () => {
     setUsername("");
@@ -765,6 +768,7 @@ function CreateUserTab({
     setFullName("");
     setEmail("");
     setRole("cashier");
+    setFamilyCode("");
   };
 
   const createMutation = useMutation({
@@ -803,6 +807,7 @@ function CreateUserTab({
       shop_id: shopId,
     };
     if (email.trim()) body.email = email.trim();
+    if (familyCode.trim()) body.family_code = familyCode.trim();
     createMutation.mutate(body);
   };
 
@@ -885,6 +890,24 @@ function CreateUserTab({
                 {t("shopUsers.fieldRoleManagerHint")}
               </p>
             )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-family-code">
+              {t("shopUsers.fieldFamilyCode", "Family code")}
+            </Label>
+            <Input
+              id="new-family-code"
+              value={familyCode}
+              onChange={(e) => setFamilyCode(e.target.value)}
+              placeholder="FAM-SMITH"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "shopUsers.fieldFamilyCodeHint",
+                "Optional. Links this user to other family members (parents, children) sharing the same code.",
+              )}
+            </p>
           </div>
 
           <div className="flex items-center gap-3 pt-2">

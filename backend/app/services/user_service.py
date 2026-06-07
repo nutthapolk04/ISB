@@ -106,6 +106,7 @@ class UserService:
             hashed_password=get_password_hash(payload.password),
             role=payload.role,
             shop_id=payload.shop_id,
+            family_code=(payload.family_code or None) or None,
             is_active=True,
             is_superuser=(payload.role == "admin"),
             external_id=None,  # keep null so PS sync can't clobber this row
@@ -156,6 +157,13 @@ class UserService:
         if "is_active" in data and data["is_active"] is not None:
             user.is_active = bool(data["is_active"])
             user.status = "active" if user.is_active else "inactive"
+
+        # family_code groups a user with parents, siblings, and student
+        # cardholders that share the same code. Empty string clears the
+        # association — None (key absent) leaves it untouched.
+        if "family_code" in data:
+            raw = data["family_code"]
+            user.family_code = (raw.strip() or None) if isinstance(raw, str) else None
 
         # If role transitioned into a wallet-eligible role, ensure a wallet exists.
         # Existing wallet (from a previous role) is preserved — the wallet follows

@@ -277,6 +277,9 @@ def update_customer_basic(
         c.email = payload.email
     if payload.phone is not None:
         c.phone = payload.phone
+    if payload.family_code is not None:
+        # Empty string clears the family link — keeps the value optional.
+        c.family_code = payload.family_code.strip() or None
     db.commit()
     db.refresh(c)
     return _to_profile(c)
