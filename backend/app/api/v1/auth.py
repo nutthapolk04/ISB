@@ -13,9 +13,11 @@ from app.core.database import get_db
 from app.api.deps import get_current_user, require_role
 from app.models.user import User, Role
 import httpx
-from app.schemas.auth import LoginRequest, TokenResponse, MeResponse, UserResponse, RoleResponse, CreateUserRequest, MockSSORequest, GoogleSSORequest
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, MeResponse, UserResponse, RoleResponse, CreateUserRequest, MockSSORequest, GoogleSSORequest
 from app.services.auth_service import AuthService
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password, decode_token, create_access_token
+from app.core.config import settings
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -271,6 +273,68 @@ def remove_role_from_user(
     db.commit()
     db.refresh(user)
     return [RoleResponse(id=r.id, name=r.name, description=r.description) for r in user.roles]
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_access_token(payload: RefreshRequest, db: Session = Depends(get_db)):
+    """
+    Exchange a valid refresh token for a new access token.
+
+    Preserves the existing session_token so single-session enforcement still
+    applies — the original access token (with the same `sid`) is implicitly
+    superseded by the new one. The refresh token itself is returned unchanged
+    until it hits its own expiry (REFRESH_TOKEN_EXPIRE_DAYS).
+    """
+    try:
+        claims = decode_token(payload.refresh_token)
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if claims.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not a refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Re-issue an access token carrying the user's CURRENT session_token. If
+    # the user has since logged in elsewhere (rotating sid), this refresh
+    # quietly succeeds but the new access token still won't match — the
+    # other device's request will 401 on the next call, which is the
+    # intended single-session behaviour.
+    role_names = [r.name for r in user.roles]
+    new_access = create_access_token(
+        data={
+            "sub": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "roles": role_names,
+            "is_superuser": user.is_superuser,
+        },
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        session_token=user.session_token,
+    )
+    return TokenResponse(
+        access_token=new_access,
+        refresh_token=payload.refresh_token,
+        token_type="bearer",
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

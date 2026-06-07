@@ -61,12 +61,52 @@ export class ApiError extends Error {
 }
 
 // ---------------------------------------------------------------------------
+// Token refresh — single-flight
+// ---------------------------------------------------------------------------
+
+// All concurrent 401s share the same in-flight refresh promise so we hit
+// /auth/refresh at most once per expiry, then every queued request retries
+// with the freshly minted access token.
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const refreshToken = localStorage.getItem("refresh_token");
+  if (!refreshToken) return null;
+
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { access_token: string; refresh_token: string };
+      localStorage.setItem("access_token", data.access_token);
+      if (data.refresh_token) localStorage.setItem("refresh_token", data.refresh_token);
+      return data.access_token;
+    } catch {
+      return null;
+    } finally {
+      // Release the lock on the next tick so callers awaiting this promise
+      // resolve before another refresh can start.
+      setTimeout(() => { refreshInFlight = null; }, 0);
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+// ---------------------------------------------------------------------------
 // Core request helper
 // ---------------------------------------------------------------------------
 
 async function request<T>(
   path: string,
   options: RequestInit = {},
+  _retried = false,
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
 
@@ -109,6 +149,21 @@ async function request<T>(
     const isInactiveUser =
       res.status === 403 && (detail === "Inactive user" || detail === "User not found");
 
+    // Attempt token refresh on 401 (once per request) — keeps the user
+    // logged in across access-token expiry without bouncing to /login.
+    // Skip for the /auth/refresh endpoint itself to avoid infinite loops.
+    if (
+      res.status === 401 &&
+      !_retried &&
+      !path.startsWith("/auth/refresh") &&
+      window.location.pathname !== "/customer-display"
+    ) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        return request<T>(path, options, true);
+      }
+    }
+
     if (
       (res.status === 401 || isInactiveUser) &&
       window.location.pathname !== "/customer-display"
@@ -137,7 +192,7 @@ async function request<T>(
 // Public helpers
 // ---------------------------------------------------------------------------
 
-async function requestRaw<T>(path: string, options: RequestInit): Promise<T> {
+async function requestRaw<T>(path: string, options: RequestInit, _retried = false): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   const token = localStorage.getItem("access_token");
@@ -146,6 +201,12 @@ async function requestRaw<T>(path: string, options: RequestInit): Promise<T> {
   const res = await fetch(url, { ...options, headers });
 
   if (!res.ok) {
+    // Match request()'s refresh-and-retry behaviour for multipart uploads.
+    if (res.status === 401 && !_retried && !path.startsWith("/auth/refresh")) {
+      const newToken = await refreshAccessToken();
+      if (newToken) return requestRaw<T>(path, options, true);
+    }
+
     let detail: string = res.statusText;
     let code: string | undefined;
     let body: unknown;
