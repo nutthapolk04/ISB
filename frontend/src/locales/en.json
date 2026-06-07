@@ -2409,7 +2409,19 @@
       },
       "step8": {
         "title": "Set Up Department Accounts",
-        "desc": "Go to Admin Ops → Cardholders → + Add Cardholder → Kind: Department. Enter a Department Code (e.g. D0001) and Department Name. A department wallet is created automatically. To top up or debit the department wallet, go to Admin Ops → Dept Wallet Adjust, select the department, choose Credit (+) or Debit (−), enter the amount and reason, then Submit. To allow a shop to accept department charges, edit the shop and enable Allow Department Charge."
+        "desc": "Go to Admin Ops → Cardholders → + Add Cardholder → Kind: Department. Enter a Department Code (e.g. D0001) and Department Name. A department wallet is created automatically. To top up or debit, go to Admin Ops → Dept Wallet Adjust, select the department, choose Credit (+) or Debit (−), enter the amount and reason. You can add reusable reason chips (orange + Add button) that all admins share. Pick a date range in the history card then click PDF/Excel to export. To allow a shop to accept department charges, edit the shop and enable Allow Department Charge."
+      },
+      "step9": {
+        "title": "Hybrid Accounts (Multi-role)",
+        "desc": "A single account can act as both Manager and Parent (or any combination). Go to Users, open the account, scroll to the \"Additional roles\" card, pick a role from the dropdown, then click + Add role. At login the user will see a Role Picker. No duplicate accounts needed. The family_code field is editable for every role (parents, staff, students) in the Edit form — use the same code to group a parent with their children."
+      },
+      "step10": {
+        "title": "Bulk Import Products / Stock from Excel",
+        "desc": "Go to Shop Management → pick a shop → tab Inventory. Click Download template to get one .xlsx with two sheets (Products + StockReceive) with sample rows. Fill the file, then click Import data → pick Products or Stock receipt → choose the file. The system runs a Preview first showing would-create / would-update / would-import counts plus the first 50 error rows. Review, then click Confirm import to actually save. Managers can only import into their own shop; admins can import into any shop."
+      },
+      "step11": {
+        "title": "Inspect the Audit Log",
+        "desc": "Go to Admin Ops → Audit Logs to see every system action, newest first. Each row spells out who-did-what-when in plain language (e.g. \"Sold 1 item for ฿40.00 via Wallet — Thai Iced Milk Tea ×1\"). Click View changes to see the field/value table translated into readable labels. Filter by Entity type, Action, or date range, then Apply filters."
       }
     },
     "parent": {
@@ -2419,7 +2431,7 @@
       },
       "step2": {
         "title": "Top Up a Wallet",
-        "desc": "Click Top Up next to any child's name. Choose PromptPay (scan QR in your banking app and confirm transfer) or Credit/Debit (3% fee, instant). Maximum ฿50,000 per transaction."
+        "desc": "Click Top Up next to any child's name. PromptPay shows a QR code to scan from your banking app. Credit/Debit redirects to the secure bank-hosted payment page (Krungsri EASYPay) — you enter your card on the bank's site, not inside ISB. Maximum ฿50,000 per transaction; credit card fee is 3%."
       },
       "step3": {
         "title": "View Transaction History",
@@ -2498,6 +2510,10 @@
       "step5": {
         "title": "Configure Shop Settings",
         "desc": "Go to Shop Management → your shop. Update shop name, description, and status (active/inactive). The inventory type (FIFO or Average Cost) cannot be changed after creation."
+      },
+      "step6": {
+        "title": "Bulk Import Products / Stock from Excel",
+        "desc": "Go to Shop Management → your shop → tab Inventory. Click Download template for a sample .xlsx with two sheets. Fill it in, then Import data → pick Products or Stock receipt → choose the file. The system runs a Preview showing would-create / would-update counts plus errors. Click Confirm import to save. You can only import into your own shop."
       }
     }
   },

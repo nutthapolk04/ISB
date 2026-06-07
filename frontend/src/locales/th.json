@@ -2407,7 +2407,19 @@
       },
       "step8": {
         "title": "ตั้งค่าบัญชีแผนก",
-        "desc": "ไปที่ Admin Ops → Cardholders → + Add Cardholder → Kind: Department กรอก Department Code (เช่น D0001) และ Department Name ระบบสร้าง department wallet ให้อัตโนมัติ หากต้องการเติม/หักเงิน ไปที่ Admin Ops → Dept Wallet Adjust เลือกแผนก เลือก Credit (+) หรือ Debit (−) ใส่จำนวนและเหตุผล กด Submit เพื่อให้ร้านรับชำระด้วย department ได้ ต้องเปิด Allow Department Charge ในการตั้งค่าร้านค้าก่อน"
+        "desc": "ไปที่ Admin Ops → Cardholders → + Add Cardholder → Kind: Department กรอก Department Code (เช่น D0001) และ Department Name ระบบสร้าง department wallet ให้อัตโนมัติ หากต้องการเติม/หักเงิน ไปที่ Admin Ops → Dept Wallet Adjust เลือกแผนก เลือก Credit (+) หรือ Debit (−) ใส่จำนวนและเหตุผล สามารถเพิ่มเหตุผลใช้บ่อย (+ Add ปุ่มสีส้ม) เพื่อแชร์ให้ admin ทุกคน · เลือกช่วงวันที่ในประวัติแล้วกด PDF/Excel เพื่อส่งออกรายงาน"
+      },
+      "step9": {
+        "title": "บัญชีหลายบทบาท (Hybrid)",
+        "desc": "พนักงานที่เป็นทั้ง Manager และ Parent ใช้บัญชีเดียวได้ — ไปที่ ผู้ใช้งาน เลือกคนนั้น เลื่อนลงไปการ์ด 'Additional roles' กดเลือก role เพิ่ม (parent, staff, ฯลฯ) แล้วกด + Add role · คนๆ นั้นพอ login จะเจอ Role Picker ให้เลือกว่าจะใช้บทบาทไหน · ตอน login ไม่ต้องสร้างบัญชีซ้ำซ้อน · family_code กรอกได้ทุก role (รวมเด็ก) ในหน้า Edit เพื่อผูกพ่อแม่-ลูกเข้าด้วยกัน"
+      },
+      "step10": {
+        "title": "นำเข้าสินค้า/สต็อกด้วย Excel",
+        "desc": "ไปที่ จัดการร้านค้า → เลือกร้าน → tab Inventory จะมีแถบ Import data · กด Download template ได้ไฟล์ .xlsx ที่มี 2 sheets (Products + StockReceive) พร้อมตัวอย่าง · กรอกข้อมูลในไฟล์ → กลับมาที่หน้าเดิม → กด Import data → เลือกประเภท (Products หรือ Stock receipt) → เลือกไฟล์ · ระบบจะ Preview ผลก่อน — แสดง will-create / will-update / will-import + แถวที่ error 50 แถวแรก · ดูแล้วโอเคค่อยกด Confirm import เพื่อบันทึกจริง · Manager นำเข้าได้เฉพาะร้านตัวเอง · admin นำเข้าได้ทุกร้าน"
+      },
+      "step11": {
+        "title": "ตรวจสอบ Audit Log",
+        "desc": "ไปที่ Admin Ops → Audit Logs เห็นทุก action ที่เกิดในระบบเรียงล่าสุดก่อน · แต่ละแถวบอกชัดว่า ใคร-ทำอะไร-เมื่อไหร่ (เช่น 'ขาย 1 รายการ รวม ฿40.00 จ่ายด้วยกระเป๋าเงิน — นมจืด ×1') · กด ดูรายละเอียด เพื่อเห็น field/value แบบแปลเป็นภาษาเข้าใจง่าย · กรองด้วย Entity type, Action, ช่วงวันที่ แล้วกด Apply filters"
       }
     },
     "parent": {
@@ -2417,7 +2429,7 @@
       },
       "step2": {
         "title": "เติมเงินกระเป๋า",
-        "desc": "คลิก เติมเงิน ถัดจากชื่อบุตรหลาน เลือก PromptPay (สแกน QR ในแอปธนาคารแล้วยืนยันการโอน) หรือ บัตรเครดิต/เดบิต (ค่าธรรมเนียม 3% ทันที) สูงสุด 50,000 บาทต่อครั้ง"
+        "desc": "คลิก เติมเงิน ถัดจากชื่อบุตรหลาน · PromptPay จะขึ้น QR ให้สแกนผ่านแอปธนาคาร · บัตรเครดิต/เดบิต จะ redirect ไปหน้า Payment Gateway ของธนาคาร (Krungsri EASYPay) ปลอดภัยกว่า — กรอกบัตรในหน้าธนาคาร ไม่ใช่ในระบบ ISB · สูงสุด 50,000 บาทต่อครั้ง · บัตรเครดิตคิดค่าธรรมเนียม 3%"
       },
       "step3": {
         "title": "ดูประวัติธุรกรรม",
@@ -2496,6 +2508,10 @@
       "step5": {
         "title": "ตั้งค่าร้านค้า",
         "desc": "ไปที่ จัดการร้านค้า → ร้านของคุณ อัปเดตชื่อร้าน คำอธิบาย และสถานะ (เปิด/ปิด) ประเภทสต็อก (FIFO หรือ Average Cost) ไม่สามารถเปลี่ยนได้หลังจากสร้างร้านแล้ว"
+      },
+      "step6": {
+        "title": "นำเข้าสินค้า/รับสต็อกด้วย Excel",
+        "desc": "ไปที่ จัดการร้านค้า → ร้านของคุณ → tab Inventory · กด Download template ได้ไฟล์ตัวอย่าง 2 sheets · กรอกข้อมูลแล้วกด Import data → เลือกประเภท → เลือกไฟล์ · ระบบจะ Preview ก่อนแสดงจำนวนที่จะสร้าง/อัปเดต + error ที่เจอ · กด Confirm import เพื่อบันทึกจริง · นำเข้าได้เฉพาะร้านของคุณเอง"
       }
     }
   },

@@ -21,6 +21,9 @@ import {
   BookOpen,
   Building2,
   UserSearch,
+  Layers,
+  Upload,
+  History as HistoryIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +91,21 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.admin.step8.title",
         descKey: "guide.admin.step8.desc",
         icon: Building2,
+      },
+      {
+        titleKey: "guide.admin.step9.title",
+        descKey: "guide.admin.step9.desc",
+        icon: Layers,
+      },
+      {
+        titleKey: "guide.admin.step10.title",
+        descKey: "guide.admin.step10.desc",
+        icon: Upload,
+      },
+      {
+        titleKey: "guide.admin.step11.title",
+        descKey: "guide.admin.step11.desc",
+        icon: HistoryIcon,
       },
     ],
   },
@@ -224,6 +242,11 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.manager.step5.title",
         descKey: "guide.manager.step5.desc",
         icon: Settings,
+      },
+      {
+        titleKey: "guide.manager.step6.title",
+        descKey: "guide.manager.step6.desc",
+        icon: Upload,
       },
     ],
   },
