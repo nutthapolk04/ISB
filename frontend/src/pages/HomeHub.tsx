@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth, moduleOf, type UserRole } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
@@ -40,11 +40,15 @@ interface Tile {
   icon: React.ElementType;
   to: string;
   accent: string;
+  /** Role this tile belongs to — clicking will switch activeRole to this so
+   *  the sidebar + redirects line up with the page the user lands on. */
+  switchTo?: UserRole;
 }
 
 export default function HomeHub() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, setActiveRole } = useAuth();
+  const navigate = useNavigate();
 
   const allRoles = useMemo<UserRole[]>(
     () => user?.allRoles ?? (user ? [user.role] : []),
@@ -124,6 +128,7 @@ export default function HomeHub() {
         icon: UsersIcon,
         to: "/parent/dashboard",
         accent: "from-pink-50 to-rose-50 border-rose-200",
+        switchTo: allRoles.includes("parent") ? "parent" : "staff",
       });
     }
   }
@@ -145,10 +150,22 @@ export default function HomeHub() {
       accent: isCanteen
         ? "from-amber-50 to-orange-50 border-amber-200"
         : "from-emerald-50 to-teal-50 border-emerald-200",
+      switchTo: isKitchenOnly
+        ? "kitchen"
+        : allRoles.includes("manager")
+          ? "manager"
+          : "cashier",
     });
   }
 
   if (ownWallet && ownWallet.owner_type === "user") {
+    // Wallet view lives under /parent — switch to a role that's actually
+    // allowed by that route guard so the page renders.
+    const walletSwitch: UserRole | undefined = allRoles.includes("parent")
+      ? "parent"
+      : allRoles.includes("staff")
+        ? "staff"
+        : undefined;
     tiles.push({
       key: "wallet",
       title: t("home.tileWallet", "My Wallet"),
@@ -156,6 +173,7 @@ export default function HomeHub() {
       icon: WalletIcon,
       to: "/parent/wallet/own",
       accent: "from-amber-50 to-yellow-50 border-amber-200",
+      switchTo: walletSwitch,
     });
   }
 
@@ -167,6 +185,7 @@ export default function HomeHub() {
       icon: ShieldCheck,
       to: "/admin",
       accent: "from-violet-50 to-purple-50 border-violet-200",
+      switchTo: "admin",
     });
   }
 
@@ -213,10 +232,16 @@ export default function HomeHub() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {tiles.map((tile) => (
-            <Link
+            <button
               key={tile.key}
-              to={tile.to}
-              className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+              type="button"
+              onClick={() => {
+                if (tile.switchTo && allRoles.includes(tile.switchTo)) {
+                  setActiveRole(tile.switchTo);
+                }
+                navigate(tile.to);
+              }}
+              className="group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
             >
               <Card
                 className={`h-full overflow-hidden border bg-gradient-to-br ${tile.accent} transition group-hover:shadow-md group-hover:-translate-y-0.5`}
@@ -238,7 +263,7 @@ export default function HomeHub() {
                   )}
                 </CardContent>
               </Card>
-            </Link>
+            </button>
           ))}
         </div>
       )}

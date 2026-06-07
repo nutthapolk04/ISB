@@ -402,7 +402,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = (...roles: UserRole[]): boolean => {
     if (!user) return false;
-    return roles.includes(user.activeRole ?? user.role);
+    // RBAC checks should reflect *capabilities*, not the current UI mode.
+    // A hybrid manager+parent user must be able to enter parent routes
+    // even while their session's activeRole is "manager" — otherwise the
+    // multi-role experience collapses to whichever role they picked first.
+    const allowed = new Set<UserRole>(user.allRoles ?? [user.role]);
+    allowed.add(user.activeRole ?? user.role);
+    return roles.some((r) => allowed.has(r));
   };
 
   const hasShopAccess = (shopId: ShopId): boolean =>
