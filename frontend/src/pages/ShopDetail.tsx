@@ -19,7 +19,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Upload, Download, Eye, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Upload, Download, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
@@ -116,6 +119,10 @@ const ShopDetail = () => {
   const [importingProducts, setImportingProducts] = useState(false);
   const [importingStock, setImportingStock] = useState(false);
   const [preview, setPreview] = useState<PreviewState | null>(null);
+  // Hidden file inputs triggered from the unified Import menu — kept off-DOM
+  // visible so the trigger button stays clean.
+  const productsFileRef = useRef<HTMLInputElement>(null);
+  const stockFileRef = useRef<HTMLInputElement>(null);
 
   // Run the upload against the backend; dry_run=true on first pass so the
   // user sees a preview before any data is committed.
@@ -400,39 +407,44 @@ const ShopDetail = () => {
 
                   <div className="h-5 w-px bg-border" />
 
-                  {/* Preview products (dry-run) */}
-                  <div className="relative">
-                    <input
-                      id="import-products-file"
-                      type="file"
-                      accept=".xlsx,.csv"
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      onChange={startProductsPreview}
-                      disabled={importingProducts}
-                    />
-                    <Button variant="outline" size="sm" disabled={importingProducts} asChild={false}>
-                      {importingProducts
-                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.checking", "Checking…")}</>
-                        : <><Eye className="h-3.5 w-3.5 mr-1.5" />{t("shopImport.previewProducts", "Preview products import")}</>}
-                    </Button>
-                  </div>
+                  {/* Unified import menu — pick a sheet then file picker opens. */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={importingProducts || importingStock}>
+                        {importingProducts || importingStock ? (
+                          <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.checking", "Checking…")}</>
+                        ) : (
+                          <><Upload className="h-3.5 w-3.5 mr-1.5" />{t("shopImport.importData", "Import data")}<ChevronDown className="h-3.5 w-3.5 ml-1.5 opacity-70" /></>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onSelect={() => productsFileRef.current?.click()}>
+                        {t("shopImport.menuProducts", "Import products (sheet: Products)")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => stockFileRef.current?.click()}>
+                        {t("shopImport.menuStock", "Import stock receipt (sheet: StockReceive)")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-                  {/* Preview stock receive (dry-run) */}
-                  <div className="relative">
-                    <input
-                      id="import-stock-file"
-                      type="file"
-                      accept=".xlsx,.csv"
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      onChange={startStockPreview}
-                      disabled={importingStock}
-                    />
-                    <Button variant="outline" size="sm" disabled={importingStock} asChild={false}>
-                      {importingStock
-                        ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.checking", "Checking…")}</>
-                        : <><Eye className="h-3.5 w-3.5 mr-1.5" />{t("shopImport.previewStock", "Preview stock receipt")}</>}
-                    </Button>
-                  </div>
+                  {/* Hidden file pickers triggered by the menu items above. */}
+                  <input
+                    ref={productsFileRef}
+                    type="file"
+                    accept=".xlsx,.csv"
+                    className="hidden"
+                    onChange={startProductsPreview}
+                    disabled={importingProducts}
+                  />
+                  <input
+                    ref={stockFileRef}
+                    type="file"
+                    accept=".xlsx,.csv"
+                    className="hidden"
+                    onChange={startStockPreview}
+                    disabled={importingStock}
+                  />
 
                   <span className="text-xs text-muted-foreground ml-auto">
                     {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">name, barcode, price, cost_price, category, uom, shop_id</code>
