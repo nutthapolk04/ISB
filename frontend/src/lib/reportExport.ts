@@ -337,8 +337,15 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   // get past ~10 columns the default 8pt font with a 4pt cell padding
   // forces the headers like "Amt.Campus card" to line-break into a
   // vertical stack. Tighten font + padding for wide reports.
-  const tableFontSize = columns.length >= 12 ? 6.5 : columns.length >= 10 ? 7 : 8;
-  const tableCellPadding = columns.length >= 12 ? 2 : columns.length >= 10 ? 2.5 : 4;
+  const tableFontSize = columns.length >= 12 ? 7.5 : columns.length >= 10 ? 9 : 10;
+  const tableCellPadding = columns.length >= 12 ? 2.5 : columns.length >= 10 ? 3.5 : 4;
+
+  // Stretch the table to fill the page width. Sum the requested column
+  // widths and scale them proportionally so the layout keeps its relative
+  // sizing while consuming all available horizontal space.
+  const usableWidth = pageWidth - 2 * marginX;
+  const totalSpecWidth = columns.reduce((sum, c) => sum + (c.width ?? 0), 0);
+  const widthScale = totalSpecWidth > 0 ? usableWidth / totalSpecWidth : 1;
 
   autoTable(doc, {
     head,
@@ -346,7 +353,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     foot,
     startY: cursorY,
     margin: { left: marginX, right: marginX },
-    tableWidth: "auto",
+    tableWidth: usableWidth,
     styles: {
       font: fontFamily,
       fontSize: tableFontSize,
@@ -369,7 +376,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
         i,
         {
           halign: defaultAlign(c),
-          ...(c.width ? { cellWidth: c.width } : {}),
+          ...(c.width ? { cellWidth: c.width * widthScale } : {}),
         },
       ]),
     ),
