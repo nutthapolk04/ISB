@@ -2097,7 +2097,68 @@
     "viewChanges": "View changes",
     "totalCount": "{{total}} entries",
     "prev": "Prev",
-    "next": "Next"
+    "next": "Next",
+    "entity": {
+      "receipt": "Receipt",
+      "customer": "Customer",
+      "user": "User",
+      "wallet": "Wallet",
+      "department": "Department",
+      "shop_product": "Product",
+      "system_setting": "System setting"
+    },
+    "actionLabel": {
+      "CREATE": "Created",
+      "VOID": "Voided",
+      "UPDATE_BALANCE": "Adjusted balance",
+      "UPDATE_PRICE": "Updated price",
+      "UPDATE_SETTING": "Updated setting",
+      "DELETE_PRODUCT": "Deleted product"
+    },
+    "field": {
+      "items": "Items",
+      "total": "Total",
+      "payment_method": "Payment method",
+      "amount": "Amount",
+      "balance": "Balance",
+      "old_balance": "Old balance",
+      "new_balance": "New balance",
+      "price": "Price",
+      "old_price": "Old price",
+      "new_price": "New price",
+      "cost": "Cost",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "role": "Role",
+      "active": "Active",
+      "stock": "Stock",
+      "shop_id": "Shop",
+      "reason": "Reason",
+      "note": "Note"
+    },
+    "payment": {
+      "wallet": "Wallet",
+      "cash": "Cash",
+      "qr": "QR Code",
+      "edc": "Card (EDC)",
+      "department": "Department charge",
+      "credit_card": "Credit card"
+    },
+    "summary": {
+      "createReceipt": "Sold {{items}} items for ฿{{total}} via {{payment}}",
+      "createReceiptNoPayment": "Issued receipt for {{items}} items, total ฿{{total}}",
+      "voidReceipt": "Voided receipt, refund ฿{{total}}",
+      "updatePrice": "Price changed from ฿{{from}} to ฿{{to}}",
+      "updateBalance": "Balance changed from ฿{{from}} to ฿{{to}}",
+      "updateSetting": "Updated setting: {{fields}}",
+      "deleteProduct": "Removed product from system",
+      "createGeneric": "Created new {{entity}}",
+      "fallback": "{{action}} → {{entity}}"
+    },
+    "labelTrue": "Enabled",
+    "labelFalse": "Disabled",
+    "labelEmpty": "(empty)"
   },
   "rolePicker": {
     "title": "Choose Your Role",

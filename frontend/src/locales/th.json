@@ -2095,7 +2095,68 @@
     "viewChanges": "ดูรายละเอียด",
     "totalCount": "ทั้งหมด {{total}} รายการ",
     "prev": "ก่อนหน้า",
-    "next": "ถัดไป"
+    "next": "ถัดไป",
+    "entity": {
+      "receipt": "ใบเสร็จ",
+      "customer": "ลูกค้า",
+      "user": "ผู้ใช้",
+      "wallet": "กระเป๋าเงิน",
+      "department": "แผนก",
+      "shop_product": "สินค้า",
+      "system_setting": "ตั้งค่าระบบ"
+    },
+    "actionLabel": {
+      "CREATE": "ขาย/สร้าง",
+      "VOID": "ยกเลิกใบเสร็จ",
+      "UPDATE_BALANCE": "ปรับยอดเงิน",
+      "UPDATE_PRICE": "ปรับราคา",
+      "UPDATE_SETTING": "แก้ค่าระบบ",
+      "DELETE_PRODUCT": "ลบสินค้า"
+    },
+    "field": {
+      "items": "จำนวนรายการ",
+      "total": "ยอดรวม",
+      "payment_method": "วิธีจ่ายเงิน",
+      "amount": "จำนวนเงิน",
+      "balance": "ยอดคงเหลือ",
+      "old_balance": "ยอดก่อนปรับ",
+      "new_balance": "ยอดหลังปรับ",
+      "price": "ราคา",
+      "old_price": "ราคาเดิม",
+      "new_price": "ราคาใหม่",
+      "cost": "ต้นทุน",
+      "name": "ชื่อ",
+      "email": "อีเมล",
+      "phone": "เบอร์โทร",
+      "role": "บทบาท",
+      "active": "สถานะใช้งาน",
+      "stock": "สต็อก",
+      "shop_id": "ร้าน",
+      "reason": "เหตุผล",
+      "note": "หมายเหตุ"
+    },
+    "payment": {
+      "wallet": "กระเป๋าเงิน",
+      "cash": "เงินสด",
+      "qr": "QR Code",
+      "edc": "บัตรเครดิต/เดบิต",
+      "department": "เบิกจากแผนก",
+      "credit_card": "บัตรเครดิต"
+    },
+    "summary": {
+      "createReceipt": "ขาย {{items}} รายการ รวม ฿{{total}} จ่ายด้วย{{payment}}",
+      "createReceiptNoPayment": "ออกใบเสร็จ {{items}} รายการ รวม ฿{{total}}",
+      "voidReceipt": "ยกเลิกใบเสร็จ คืนเงิน ฿{{total}}",
+      "updatePrice": "เปลี่ยนราคา จาก ฿{{from}} เป็น ฿{{to}}",
+      "updateBalance": "ปรับยอดเงิน จาก ฿{{from}} เป็น ฿{{to}}",
+      "updateSetting": "แก้ค่าระบบ: {{fields}}",
+      "deleteProduct": "ลบสินค้าออกจากระบบ",
+      "createGeneric": "เพิ่ม{{entity}}ใหม่",
+      "fallback": "{{action}} → {{entity}}"
+    },
+    "labelTrue": "เปิดใช้",
+    "labelFalse": "ปิดใช้",
+    "labelEmpty": "(ไม่มีข้อมูล)"
   },
   "rolePicker": {
     "title": "เลือกบทบาทการใช้งาน",

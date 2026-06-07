@@ -29,6 +29,12 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, History, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  entityLabel,
+  actionLabel,
+  humanizeSummary,
+  humanizeChanges,
+} from "@/lib/auditHumanize";
 
 interface AuditLogEntry {
   id: number;
@@ -53,7 +59,11 @@ interface ListResponse {
 const ACTION_BADGE: Record<string, string> = {
   create: "bg-green-100 text-green-800",
   update: "bg-blue-100 text-blue-800",
+  update_balance: "bg-blue-100 text-blue-800",
+  update_price: "bg-blue-100 text-blue-800",
+  update_setting: "bg-blue-100 text-blue-800",
   delete: "bg-red-100 text-red-800",
+  delete_product: "bg-red-100 text-red-800",
   void: "bg-amber-100 text-amber-800",
   return: "bg-purple-100 text-purple-800",
   exchange: "bg-purple-100 text-purple-800",
@@ -109,32 +119,27 @@ export default function AuditLogList() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const renderChanges = (changes: unknown) => {
-    if (!changes || typeof changes !== "object") return null;
-    const entries = Object.entries(changes as Record<string, unknown>);
-    if (entries.length === 0) return null;
+    const rows = humanizeChanges(t, changes);
+    if (rows.length === 0) return null;
     return (
       <table className="mt-2 text-xs w-full border-collapse">
         <thead>
           <tr className="bg-muted text-muted-foreground">
-            <th className="text-left px-2 py-1 font-medium border border-border w-1/3">Field</th>
-            <th className="text-left px-2 py-1 font-medium border border-border">Value</th>
+            <th className="text-left px-2 py-1 font-medium border border-border w-1/3">
+              {t("audit.colField", "รายการ")}
+            </th>
+            <th className="text-left px-2 py-1 font-medium border border-border">
+              {t("audit.colValue", "ค่า")}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {entries.map(([key, val]) => {
-            const display =
-              val === null ? <span className="italic text-muted-foreground">null</span>
-              : val === true ? <span className="text-green-600">true</span>
-              : val === false ? <span className="text-red-500">false</span>
-              : typeof val === "object" ? <code className="text-[11px]">{JSON.stringify(val)}</code>
-              : String(val);
-            return (
-              <tr key={key} className="even:bg-muted/30">
-                <td className="px-2 py-1 font-mono border border-border text-muted-foreground">{key}</td>
-                <td className="px-2 py-1 border border-border break-all">{display}</td>
-              </tr>
-            );
-          })}
+          {rows.map((r, idx) => (
+            <tr key={idx} className="even:bg-muted/30">
+              <td className="px-2 py-1 border border-border text-muted-foreground">{r.label}</td>
+              <td className="px-2 py-1 border border-border break-all">{r.value}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     );
@@ -233,8 +238,10 @@ export default function AuditLogList() {
                 </TableRow>
               )}
               {items.map((row) => {
-                const badgeClass = ACTION_BADGE[row.action] ?? "bg-gray-100 text-gray-700";
+                const actionKey = row.action.toLowerCase();
+                const badgeClass = ACTION_BADGE[actionKey] ?? "bg-gray-100 text-gray-700";
                 const hasChanges = row.changes && Object.keys(row.changes as object).length > 0;
+                const summary = humanizeSummary(t, row.entity_type, row.action, row.changes);
                 return (
                   <TableRow key={row.id} className="align-top">
                     <TableCell className="text-xs text-muted-foreground tabular-nums">
@@ -245,30 +252,31 @@ export default function AuditLogList() {
                       <div className="text-xs text-muted-foreground">@{row.user_username ?? row.user_id}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-mono text-xs">
-                        {row.entity_type}
+                      <div className="text-sm">
+                        <span className="font-medium">{entityLabel(t, row.entity_type)}</span>
                         {row.entity_id !== null && (
                           <span className="text-muted-foreground"> #{row.entity_id}</span>
                         )}
                       </div>
                       {row.entity_name && (
-                        <div className="text-xs text-muted-foreground truncate max-w-[160px]">{row.entity_name}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{row.entity_name}</div>
                       )}
                       {row.shop_id && (
                         <div className="text-[11px] text-muted-foreground/60">{row.shop_id}</div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("text-[11px] font-medium uppercase", badgeClass)}>
-                        {row.action}
+                      <Badge className={cn("text-[11px] font-medium", badgeClass)}>
+                        {actionLabel(t, row.action)}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {hasChanges ? (
+                      <div className="text-sm text-slate-800 mb-1">{summary}</div>
+                      {hasChanges && (
                         <Collapsible open={openId === row.id} onOpenChange={(o) => setOpenId(o ? row.id : null)}>
                           <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 -ml-2">
-                              <ChevronDown className={cn("h-4 w-4 mr-1 transition", openId === row.id && "rotate-180")} />
+                            <Button variant="ghost" size="sm" className="h-7 -ml-2 text-xs text-muted-foreground">
+                              <ChevronDown className={cn("h-3.5 w-3.5 mr-1 transition", openId === row.id && "rotate-180")} />
                               {t("audit.viewChanges")}
                             </Button>
                           </CollapsibleTrigger>
@@ -278,8 +286,6 @@ export default function AuditLogList() {
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                   </TableRow>
