@@ -47,6 +47,19 @@ interface Shop {
   module: string;
 }
 
+// Minimal subset of /pos/receipt we render in the recent-transactions
+// strip — keep the shape narrow so the dashboard never depends on the
+// rest of the receipt schema churning.
+interface RecentReceipt {
+  id: number;
+  receipt_number: string;
+  transaction_date: string;
+  total: number;
+  payment_method: string;
+  status: string;
+  payer_label?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Date helpers
 // ---------------------------------------------------------------------------
@@ -175,9 +188,14 @@ export default function ShopDashboard() {
   // Queries
   // ---------------------------------------------------------------------------
   // Polling so the dashboard reflects new sales without a manual refresh.
-  // refetchOnWindowFocus covers the "tab parked in background, then opened"
-  // case; refetchInterval covers an always-open kiosk-style screen.
-  const LIVE_OPTS = { refetchInterval: 30_000, refetchOnWindowFocus: true } as const;
+  // 10s strikes a balance between feeling near-real-time on an always-open
+  // kiosk and not hammering the API. refetchOnWindowFocus covers the
+  // "tab parked in background, then opened" case.
+  const LIVE_OPTS = {
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: false,
+  } as const;
 
   const { data: todaySales, isLoading: loadingToday } = useQuery<SalesReportData>({
     queryKey: ["shop-dashboard", effectiveShopId, "today"],
@@ -200,6 +218,17 @@ export default function ShopDashboard() {
     ...LIVE_OPTS,
   });
 
+  // Recent transactions — last 5 receipts of this shop, refreshed live.
+  const { data: recentReceipts } = useQuery<RecentReceipt[]>({
+    queryKey: ["shop-dashboard", effectiveShopId, "recent"],
+    queryFn: () =>
+      api.get<RecentReceipt[]>(
+        `/pos/receipt?page=1&page_size=5${effectiveShopId ? `&shop_id=${encodeURIComponent(effectiveShopId)}` : ""}`,
+      ),
+    enabled: !!effectiveShopId || !isAdmin,
+    ...LIVE_OPTS,
+  });
+
   const isLoading = loadingToday || loadingMonth || loadingPayment;
 
   // ---------------------------------------------------------------------------
@@ -214,14 +243,7 @@ export default function ShopDashboard() {
   }
 
   const grandTotal = paymentData?.grand_total ?? 0;
-  // Skip the #1 best-seller and show ranks 2–6 instead. The top item
-  // overshadows the rest visually and the manager already knows it; the
-  // next tier is what they actually need to act on (re-stock decisions,
-  // pricing tweaks).
-  const topItems = (todaySales?.rows ?? [])
-    .slice()
-    .sort((a, b) => b.total - a.total)
-    .slice(1, 6);
+  const recentRows = recentReceipts ?? [];
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -374,41 +396,73 @@ export default function ShopDashboard() {
         </CardContent>
       </Card>
 
-      {/* ── Top Items Today ── */}
-      {topItems.length > 0 && (
-        <Card className="overflow-hidden shadow-sm border border-slate-200">
-          <CardHeader className="bg-slate-50/60 border-b border-slate-200 py-3 px-5">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800">
-              <TrendingUp className="h-4 w-4 text-amber-600" />
-              Top Selling Items — Today
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+      {/* ── Recent Transactions — last 5 receipts of this shop, live ── */}
+      <Card className="overflow-hidden shadow-sm border border-slate-200">
+        <CardHeader className="bg-slate-50/60 border-b border-slate-200 py-3 px-5">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800">
+            <ShoppingBag className="h-4 w-4 text-amber-600" />
+            Recent Transactions
+            <span className="ml-2 text-[10px] font-normal text-muted-foreground">
+              · live · updates every 10s
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {recentRows.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6 text-sm">
+              No transactions yet
+            </p>
+          ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
-                  <th className="text-left px-5 py-2.5 font-medium text-muted-foreground">#</th>
-                  <th className="text-left px-5 py-2.5 font-medium text-muted-foreground">Item</th>
-                  <th className="text-right px-5 py-2.5 font-medium text-muted-foreground">Qty</th>
+                  <th className="text-left px-5 py-2.5 font-medium text-muted-foreground">Time</th>
+                  <th className="text-left px-5 py-2.5 font-medium text-muted-foreground">Receipt</th>
+                  <th className="text-left px-5 py-2.5 font-medium text-muted-foreground">Payer</th>
+                  <th className="text-left px-5 py-2.5 font-medium text-muted-foreground">Payment</th>
                   <th className="text-right px-5 py-2.5 font-medium text-muted-foreground">Amount (฿)</th>
                 </tr>
               </thead>
               <tbody>
-                {topItems.map((item, i) => (
-                  <tr key={item.product_name} className="border-b last:border-0 hover:bg-muted/20">
-                    <td className="px-5 py-3 text-muted-foreground">{i + 1}</td>
-                    <td className="px-5 py-3 font-medium">{item.product_name}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">{item.quantity}</td>
-                    <td className="px-5 py-3 text-right tabular-nums font-semibold">
-                      {fmt(item.total)}
-                    </td>
-                  </tr>
-                ))}
+                {recentRows.map((r) => {
+                  const meta = getMethodMeta(r.payment_method);
+                  const voided = r.status?.toLowerCase() === "voided";
+                  return (
+                    <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20">
+                      <td className="px-5 py-3 text-muted-foreground tabular-nums whitespace-nowrap">
+                        {new Date(r.transaction_date).toLocaleTimeString("en-GB", {
+                          hour: "2-digit", minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-5 py-3 font-mono text-xs">
+                        {r.receipt_number}
+                        {voided && (
+                          <Badge variant="destructive" className="ml-1.5 text-[10px] py-0 px-1">VOID</Badge>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 truncate max-w-[180px]">
+                        {r.payer_label || <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={cn("inline-flex items-center gap-1 text-xs font-medium", meta.color)}>
+                          {meta.icon}
+                          {meta.label}
+                        </span>
+                      </td>
+                      <td className={cn(
+                        "px-5 py-3 text-right tabular-nums font-semibold",
+                        voided && "line-through text-muted-foreground",
+                      )}>
+                        {fmt(r.total)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
