@@ -189,14 +189,13 @@ const ShopDetail = () => {
     }
   };
 
-  // Trigger an authenticated download of the template xlsx; fetch + blob so
-  // we can include the Bearer token (browser <a> downloads cannot set headers).
-  const downloadTemplate = async (kind: "products" | "stock") => {
-    const path =
-      kind === "products" ? "/admin/import/products/template" : "/admin/import/stock-receive/template";
+  // Trigger an authenticated download of the combined template xlsx; fetch
+  // + blob so we can include the Bearer token (browser <a> downloads cannot
+  // set headers).
+  const downloadTemplate = async () => {
     const token = localStorage.getItem("access_token");
     try {
-      const res = await fetch(`${API_BASE_URL}${path}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/import/template`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -204,7 +203,7 @@ const ShopDetail = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = kind === "products" ? "products_template.xlsx" : "stock_receive_template.xlsx";
+      a.download = "import_template.xlsx";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -388,24 +387,15 @@ const ShopDetail = () => {
                     <span>{t("shopImport.title", "Import data (.xlsx / .csv)")}</span>
                   </div>
 
-                  {/* Template downloads */}
+                  {/* Combined template (one workbook, two sheets) */}
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => downloadTemplate("products")}
-                    title={t("shopImport.downloadProductTemplate", "Download products template")}
+                    onClick={downloadTemplate}
+                    title={t("shopImport.downloadTemplate", "Download import template (Products + Stock sheets)")}
                   >
                     <Download className="h-3.5 w-3.5 mr-1.5" />
-                    {t("shopImport.templateProducts", "Product template")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => downloadTemplate("stock")}
-                    title={t("shopImport.downloadStockTemplate", "Download stock-receive template")}
-                  >
-                    <Download className="h-3.5 w-3.5 mr-1.5" />
-                    {t("shopImport.templateStock", "Stock template")}
+                    {t("shopImport.template", "Download template")}
                   </Button>
 
                   <div className="h-5 w-px bg-border" />

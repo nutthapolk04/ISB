@@ -370,16 +370,16 @@ async def import_stock_receive(
     return StockImportResult(imported=imported, errors=errors)
 
 
-# ── Template downloads ───────────────────────────────────────────────────────
+# ── Template download ────────────────────────────────────────────────────────
 
-def _build_template_xlsx(headers: list[str], sample_rows: list[list]) -> bytes:
-    """Build a minimal styled .xlsx workbook with the given header + samples."""
-    import openpyxl
+_XLSX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+
+def _write_template_sheet(ws, headers: list[str], sample_rows: list[list]) -> None:
+    """Populate `ws` with a styled header row + sample data rows."""
     from openpyxl.styles import Alignment, Font, PatternFill
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Template"
 
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="1F2937")
@@ -398,47 +398,49 @@ def _build_template_xlsx(headers: list[str], sample_rows: list[list]) -> bytes:
 
     ws.freeze_panes = "A2"
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
 
-
-_XLSX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
-
-
-@router.get("/products/template")
-def download_products_template(
+@router.get("/template")
+def download_import_template(
     current_user: User = Depends(require_role("admin", "manager")),
 ):
-    """Download a ready-to-fill products import template."""
-    headers = ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"]
-    sample_rows = [
-        ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", "bookstore"],
-        ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", "bookstore"],
-    ]
-    data = _build_template_xlsx(headers, sample_rows)
-    return Response(
-        content=data,
-        media_type=_XLSX_MEDIA_TYPE,
-        headers={"Content-Disposition": 'attachment; filename="products_template.xlsx"'},
+    """Download a single workbook containing both import templates.
+
+    Sheet 1 ("Products")       — columns expected by POST /admin/import/products
+    Sheet 2 ("StockReceive")   — columns expected by POST /admin/import/stock-receive
+
+    Bundling the two into one file means staff only need one download to
+    prepare both a product master and a receiving batch.
+    """
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+
+    products_sheet = wb.active
+    products_sheet.title = "Products"
+    _write_template_sheet(
+        products_sheet,
+        ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
+        [
+            ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", "bookstore"],
+            ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", "bookstore"],
+        ],
     )
 
+    stock_sheet = wb.create_sheet(title="StockReceive")
+    _write_template_sheet(
+        stock_sheet,
+        ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"],
+        [
+            ["bookstore", "BK001001", 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
+            ["bookstore", "BK001002", 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
+        ],
+    )
 
-@router.get("/stock-receive/template")
-def download_stock_receive_template(
-    current_user: User = Depends(require_role("admin", "manager")),
-):
-    """Download a ready-to-fill stock-receive import template."""
-    headers = ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"]
-    sample_rows = [
-        ["bookstore", "BK001001", 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
-        ["bookstore", "BK001002", 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
-    ]
-    data = _build_template_xlsx(headers, sample_rows)
+    buf = io.BytesIO()
+    wb.save(buf)
+
     return Response(
-        content=data,
+        content=buf.getvalue(),
         media_type=_XLSX_MEDIA_TYPE,
-        headers={"Content-Disposition": 'attachment; filename="stock_receive_template.xlsx"'},
+        headers={"Content-Disposition": 'attachment; filename="import_template.xlsx"'},
     )
