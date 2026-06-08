@@ -61,6 +61,7 @@ class LinkResponse(BaseModel):
     child_customer_id: int
     child_name: Optional[str] = None
     child_student_code: Optional[str] = None
+    child_is_active: Optional[bool] = None
     relation: str
 
 
@@ -110,7 +111,7 @@ def my_children(
             .filter(Customer.id == link.child_customer_id)
             .first()
         )
-        if not c:
+        if not c or not c.is_active:
             continue
         if not c.wallet:
             WalletService.ensure_wallet_for_customer(db, c.id)
@@ -207,7 +208,7 @@ def student_family_context(
                 .filter(Customer.id == sl.child_customer_id)
                 .first()
             )
-            if sib:
+            if sib and sib.is_active:
                 if not sib.wallet:
                     _WS.ensure_wallet_for_customer(db, sib.id)
                     db.commit()
@@ -243,7 +244,7 @@ def children_of_user(
             .filter(Customer.id == link.child_customer_id)
             .first()
         )
-        if not c:
+        if not c or not c.is_active:
             continue
         if not c.wallet:
             WalletService.ensure_wallet_for_customer(db, c.id)
@@ -274,6 +275,7 @@ def list_links(
                 child_customer_id=l.child_customer_id,
                 child_name=child.name if child else None,
                 child_student_code=child.student_code if child else None,
+                child_is_active=child.is_active if child else None,
                 relation=l.relation,
             ))
         return out

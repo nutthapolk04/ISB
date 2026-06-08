@@ -467,6 +467,7 @@ class WalletService:
             raise ValueError("Transfer amount must be positive")
         if from_wallet_id == to_wallet_id:
             raise ValueError("Cannot transfer to the same wallet")
+        MAX_WALLET_BALANCE = 50_000
 
         from_wallet = db.query(Wallet).filter(Wallet.id == from_wallet_id).first()
         to_wallet = db.query(Wallet).filter(Wallet.id == to_wallet_id).first()
@@ -474,6 +475,16 @@ class WalletService:
             raise ValueError(f"Source wallet {from_wallet_id} not found")
         if not to_wallet:
             raise ValueError(f"Destination wallet {to_wallet_id} not found")
+
+        # Cap destination balance at 50,000 (department wallets are exempt)
+        if to_wallet.department_id is None:
+            projected_to = float(to_wallet.balance) + amount
+            if projected_to > MAX_WALLET_BALANCE:
+                raise ValueError(
+                    f"Transfer would exceed the ฿{MAX_WALLET_BALANCE:,.0f} wallet balance limit. "
+                    f"Destination balance: ฿{float(to_wallet.balance):,.2f}. "
+                    f"Max transfer: ฿{max(0, MAX_WALLET_BALANCE - float(to_wallet.balance)):,.2f}."
+                )
 
         if not initiator_is_admin:
             # Resolve the set of users that can act on each wallet:

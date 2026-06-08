@@ -64,6 +64,7 @@ interface FamilyLink {
   child_customer_id: number;
   child_name?: string | null;
   child_student_code?: string | null;
+  child_is_active?: boolean | null;
   relation: string;
 }
 
@@ -191,7 +192,11 @@ export default function CustomerDetail() {
     if (!profile) return [] as { id: number; name: string; student_code?: string | null }[];
     const sibMap = new Map<number, { id: number; name: string; student_code?: string | null }>();
     for (const l of allLinks) {
-      if (parentIdsForThisChild.has(l.parent_user_id) && l.child_customer_id !== profile.id) {
+      if (
+        parentIdsForThisChild.has(l.parent_user_id) &&
+        l.child_customer_id !== profile.id &&
+        l.child_is_active !== false
+      ) {
         sibMap.set(l.child_customer_id, {
           id: l.child_customer_id,
           name: l.child_name || `#${l.child_customer_id}`,

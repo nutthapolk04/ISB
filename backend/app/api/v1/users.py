@@ -143,7 +143,7 @@ def get_user_payer_by_username(
         .first()
     )
     if not target:
-        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลในระบบ")
+        raise HTTPException(status_code=404, detail="User not found")
     if not target.is_active:
         raise HTTPException(status_code=400, detail="User is inactive")
 
@@ -181,7 +181,7 @@ def get_user_payer_by_card(
     """
     target = db.query(User).filter(User.card_uid.ilike(uid)).first()
     if not target:
-        raise HTTPException(status_code=404, detail="ไม่พบบัตรนี้ในระบบ")
+        raise HTTPException(status_code=404, detail="Card not found")
     if not target.is_active:
         raise HTTPException(status_code=400, detail="User is inactive")
 
@@ -313,7 +313,7 @@ def family_lookup(
         db.commit()
         return FamilyLookupResponse(family_code=family_code, members=members)
 
-    raise HTTPException(status_code=404, detail="ไม่พบข้อมูล: ลองใช้รหัสพนักงานหรือรหัสครอบครัว")
+    raise HTTPException(status_code=404, detail="Not found — try staff code or family code")
 
 
 # ── Detail ───────────────────────────────────────────────────────────────────
@@ -326,7 +326,7 @@ def get_user(
 ):
     user = UserService.get_user(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลในระบบ")
+        raise HTTPException(status_code=404, detail="User not found")
 
     # Admins may always view. A user may always view themselves. A manager may
     # view any user in their own shop. Everyone else → 403.
@@ -390,7 +390,7 @@ def update_user(
 
     target = UserService.get_user(db, user_id)
     if not target:
-        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลในระบบ")
+        raise HTTPException(status_code=404, detail="User not found")
 
     if _is_manager(current_user):
         if not current_user.shop_id:
@@ -422,7 +422,7 @@ def update_user(
     try:
         return UserService.update_user(db, user_id, payload, actor=current_user)
     except LookupError:
-        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลในระบบ")
+        raise HTTPException(status_code=404, detail="User not found")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -444,5 +444,5 @@ def delete_user(
     try:
         UserService.delete_user(db, user_id)
     except LookupError:
-        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลในระบบ")
+        raise HTTPException(status_code=404, detail="User not found")
     return None
