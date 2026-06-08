@@ -294,7 +294,7 @@ const ShopDetail = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link to={`/users?shop=${shopId}`}>
+            <Link to={`/users?tab=cardholders&kind=staff&shop=${shopId}`}>
               <Users className="h-4 w-4 mr-1.5" />
               {t("shopUsers.manageStaffLink")}
               <ArrowUpRight className="h-3.5 w-3.5 ml-1" />

@@ -323,6 +323,12 @@ run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS txn_no VARCHAR(100)',
 run('CREATE INDEX IF NOT EXISTS ix_payment_intents_txn_no ON payment_intents(txn_no)',
     'payment_intents idx txn_no')
 
+# === Wallet adjustment audit columns ===
+run('ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS reason TEXT',
+    'wallet_transactions.reason')
+run('ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS reference_ticket VARCHAR(100)',
+    'wallet_transactions.reference_ticket')
+
 # === Feature 2: audit_logs table ===
 run('''
     CREATE TABLE IF NOT EXISTS audit_logs (

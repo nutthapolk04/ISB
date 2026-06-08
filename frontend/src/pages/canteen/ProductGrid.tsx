@@ -11,6 +11,8 @@ interface ProductGridProps {
   onAdd: (product: CanteenProduct) => void;
   loading?: boolean;
   priceMode: PriceMode;
+  /** Panel short-name overrides: productId → short name. */
+  shortNames?: Record<number, string>;
   /** When true, tiles render with drag handles instead of click-to-add. */
   reorderMode?: boolean;
   /** Color-editor popover open for this product id (null = closed). */
@@ -58,6 +60,7 @@ export function ProductGrid({
   onAdd,
   loading,
   priceMode,
+  shortNames,
   reorderMode = false,
   colorEditId,
   colorSaving,
@@ -101,6 +104,7 @@ export function ProductGrid({
                   justAdded={false}
                   onAdd={() => {}}
                   priceMode={priceMode}
+                  overrideName={shortNames?.[p.id]}
                   reorderMode
                   dragHandleProps={handleProps}
                 />
@@ -115,6 +119,7 @@ export function ProductGrid({
             justAdded={lastAddedProductId === p.id}
             onAdd={() => onAdd(p)}
             priceMode={priceMode}
+            overrideName={shortNames?.[p.id]}
             colorEditOpen={colorEditId === p.id}
             colorSaving={colorSaving ?? false}
             onOpenColorEdit={onOpenColorEdit ? () => onOpenColorEdit(p.id) : undefined}

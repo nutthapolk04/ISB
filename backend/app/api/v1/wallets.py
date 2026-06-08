@@ -402,3 +402,129 @@ def adjust_wallet_balance(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Admin: adjustment report ─────────────────────────────────────────────────
+
+from datetime import datetime as _dt, timedelta as _td
+from pydantic import BaseModel as _BaseModel
+from app.models.wallet import WalletTransaction, WalletTransactionType as _WTT
+from app.models.customer import Customer as _Customer
+from app.models.department import Department as _Department
+import re as _re
+
+
+class AdjustmentReportRow(_BaseModel):
+    id: int
+    created_at: _dt
+    entity_type: str
+    entity_name: str
+    entity_code: str
+    direction: str
+    amount: float
+    balance_before: float
+    balance_after: float
+    reason: Optional[str]
+    reference_ticket: Optional[str]
+    adjusted_by: str
+
+
+def _parse_adj_description(desc: Optional[str]) -> tuple:
+    """Extract (reason, reference_ticket) from legacy description strings."""
+    if not desc:
+        return ("", None)
+    ticket = None
+    ref_match = _re.search(r'\[ref:([^\]]+)\]', desc)
+    if ref_match:
+        ticket = ref_match.group(1).strip()
+    dash_idx = desc.find(" — ")
+    if dash_idx == -1:
+        dash_idx = desc.find(" - ")
+    if dash_idx != -1:
+        reason = desc[dash_idx + 3:].strip()
+    else:
+        reason = desc
+    return (reason, ticket)
+
+
+@router.get("/admin/adjustment-report", response_model=List[AdjustmentReportRow])
+def adjustment_report(
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD inclusive"),
+    direction: Optional[str] = Query(None, description="credit | debit"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """All manual wallet adjustments for audit/reporting."""
+    q = db.query(WalletTransaction).filter(
+        WalletTransaction.transaction_type == _WTT.ADJUSTMENT
+    )
+    if date_from:
+        try:
+            q = q.filter(WalletTransaction.created_at >= _dt.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            end = _dt.fromisoformat(date_to) + _td(days=1)
+            q = q.filter(WalletTransaction.created_at < end)
+        except ValueError:
+            pass
+    txs = q.order_by(WalletTransaction.created_at.desc()).all()
+
+    rows: List[AdjustmentReportRow] = []
+    for tx in txs:
+        wallet = tx.wallet
+        if not wallet:
+            continue
+        delta = float(tx.balance_after) - float(tx.balance_before)
+        tx_dir = "credit" if delta >= 0 else "debit"
+        if direction in ("credit", "debit") and tx_dir != direction:
+            continue
+
+        entity_type, entity_name, entity_code = "unknown", "—", "—"
+        if wallet.customer_id:
+            cust = db.query(_Customer).filter(_Customer.id == wallet.customer_id).first()
+            if cust:
+                entity_type = "student"
+                entity_name = cust.name
+                entity_code = cust.student_code or cust.customer_code
+        elif wallet.user_id:
+            u = db.query(User).filter(User.id == wallet.user_id).first()
+            if u:
+                entity_type = u.role or "staff"
+                entity_name = u.full_name or u.username
+                entity_code = u.username
+        elif wallet.department_id:
+            dept = db.query(_Department).filter(_Department.id == wallet.department_id).first()
+            if dept:
+                entity_type = "department"
+                entity_name = dept.department_name
+                entity_code = dept.department_code
+
+        creator = db.query(User).filter(User.id == tx.created_by).first()
+        adjusted_by = (creator.full_name or creator.username) if creator else str(tx.created_by)
+
+        reason = tx.reason
+        ref_ticket = tx.reference_ticket
+        if not reason:
+            parsed_reason, parsed_ref = _parse_adj_description(tx.description)
+            reason = parsed_reason or None
+            if not ref_ticket:
+                ref_ticket = parsed_ref
+
+        rows.append(AdjustmentReportRow(
+            id=tx.id,
+            created_at=tx.created_at,
+            entity_type=entity_type,
+            entity_name=entity_name,
+            entity_code=entity_code,
+            direction=tx_dir,
+            amount=float(tx.amount),
+            balance_before=float(tx.balance_before),
+            balance_after=float(tx.balance_after),
+            reason=reason,
+            reference_ticket=ref_ticket,
+            adjusted_by=adjusted_by,
+        ))
+    return rows

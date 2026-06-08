@@ -11,6 +11,8 @@ interface ProductCardProps {
   justAdded: boolean;
   onAdd: () => void;
   priceMode: PriceMode;
+  /** Override display name (e.g. panel short name). Falls back to product.name. */
+  overrideName?: string;
   /** Reorder mode — tile renders a drag handle instead of being clickable. */
   reorderMode?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
@@ -35,6 +37,7 @@ export function ProductCard({
   justAdded,
   onAdd,
   priceMode,
+  overrideName,
   reorderMode = false,
   dragHandleProps,
   colorEditOpen = false,
@@ -94,7 +97,7 @@ export function ProductCard({
       {/* Name — top margin keeps it clear of the absolute Staff badge that
           sits in the top-right corner on internal-price mode. */}
       <div className="line-clamp-2 text-base font-bold leading-tight text-zinc-900 mt-5">
-        {product.name}
+        {overrideName || product.name}
       </div>
 
       {/* Footer: price + (palette) + category */}

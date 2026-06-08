@@ -32,8 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Plus, Edit, Trash2, Package, Loader2, UtensilsCrossed, Store as StoreIcon } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Building2, Plus, Edit, Trash2, Package, Loader2, Store as StoreIcon } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 
@@ -74,9 +73,9 @@ const emptyShopForm = {
   name: "",
   description: "",
   isActive: "active" as "active" | "inactive",
-  shopType: "avg_cost" as "avg_cost" | "fifo",
+  shopType: "fifo" as "avg_cost" | "fifo",
   module: "store" as ShopModule,
-  allowDepartmentCharge: false,
+  allowDepartmentCharge: true,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -101,7 +100,7 @@ const ShopManagement = () => {
   const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null);
   const [shopForm, setShopForm] = useState(emptyShopForm);
   const [editForm, setEditForm] = useState(emptyShopForm);
-  const [activeTab, setActiveTab] = useState<ShopModule>("canteen");
+  const [activeTab, setActiveTab] = useState<ShopModule>("store");
 
   // ── Fetch shops from API ────────────────────────────────────────────────
 
@@ -263,19 +262,19 @@ const ShopManagement = () => {
       <div className="page-shell">
         <div className="page-header flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="page-title">{t("management.title")}</h1>
-            <p className="page-description">{t("management.description")}</p>
+            <h1 className="page-title">{t("management.storeTitle", "Store Management")}</h1>
+            <p className="page-description">{t("management.storeDescription", "Manage Coop / Retail shops and inventory")}</p>
           </div>
           {hasRole("admin") && (
-            <Button onClick={() => openAddForTab("canteen")}>
+            <Button onClick={() => openAddForTab("store")}>
               <Plus className="h-4 w-4 mr-2" />
-              {t("management.addShop")}
+              {t("management.addShopStore", "+ Add Store")}
             </Button>
           )}
         </div>
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Building2 className="h-12 w-12 mb-4" />
-          <p>{t("management.noShops", "No shops found")}</p>
+          <StoreIcon className="h-12 w-12 mb-4" />
+          <p>{t("management.noShopsStore", "No stores found")}</p>
         </div>
         {renderAddDialog()}
       </div>
@@ -439,55 +438,27 @@ const ShopManagement = () => {
       {/* Header */}
       <div className="page-header flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="page-title">{t("management.title")}</h1>
-          <p className="page-description">{t("management.description")}</p>
+          <h1 className="page-title">{t("management.storeTitle", "Store Management")}</h1>
+          <p className="page-description">{t("management.storeDescription", "Manage Coop / Retail shops and inventory")}</p>
         </div>
+        {hasRole("admin") && (
+          <Button onClick={() => openAddForTab("store")}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("management.addShopStore", "+ Add Store")}
+          </Button>
+        )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ShopModule)}>
-        <div className="flex items-center justify-between mb-4">
-          <TabsList>
-            <TabsTrigger value="canteen" className="gap-1.5">
-              <UtensilsCrossed className="h-4 w-4" />
-              {t("management.tabCanteen")} ({canteenShops.length})
-            </TabsTrigger>
-            <TabsTrigger value="store" className="gap-1.5">
-              <StoreIcon className="h-4 w-4" />
-              {t("management.tabStore")} ({storeShops.length})
-            </TabsTrigger>
-          </TabsList>
-          {hasRole("admin") && (
-            <Button onClick={() => openAddForTab(activeTab)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {activeTab === "canteen" ? t("management.addShopCanteen") : t("management.addShopStore")}
-            </Button>
-          )}
+      {storeShops.length === 0 ? (
+        <div className="py-16 text-center text-muted-foreground">
+          <StoreIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+          <p>{t("management.noShopsStore", "No stores found")}</p>
         </div>
-        <TabsContent value="canteen" className="m-0">
-          {canteenShops.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              <UtensilsCrossed className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>{t("management.noShopsCanteen")}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {canteenShops.map(renderShopCard)}
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="store" className="m-0">
-          {storeShops.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              <StoreIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>{t("management.noShopsStore")}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {storeShops.map(renderShopCard)}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {storeShops.map(renderShopCard)}
+        </div>
+      )}
 
       {/* ── Add Shop Dialog ────────────────────────────────────────────────── */}
       {renderAddDialog()}

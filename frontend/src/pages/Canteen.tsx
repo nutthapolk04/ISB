@@ -95,6 +95,7 @@ interface ShopProductApiShape {
   stock: number;
   has_options?: boolean;
   color?: string | null;
+  short_name?: string | null;
 }
 
 
@@ -492,6 +493,8 @@ export default function Canteen() {
   const [activePanelId, setActivePanelId] = useState<number | null>(null); // null = All
   // Cache of included product IDs per panel: panelId → Set<productId>
   const [panelProductIds, setPanelProductIds] = useState<Record<number, Set<number>>>({});
+  // Cache of short-name overrides per panel: panelId → productId → short_name
+  const [panelShortNames, setPanelShortNames] = useState<Record<number, Record<number, string>>>({});
   const [panelTabsLoading, setPanelTabsLoading] = useState(false);
 
   useEffect(() => {
@@ -505,12 +508,15 @@ export default function Canteen() {
       // Pre-fetch all panel product IDs so counts are visible immediately
       await Promise.all(data.map(async (panel) => {
         try {
-          const items = await api.get<{ product_id: number; included: boolean }[]>(
+          const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null }[]>(
             `/shops/${CANTEEN_SHOP_ID}/price-panels/${panel.id}/items`,
           );
           if (!cancelled) {
             const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
             setPanelProductIds((prev) => ({ ...prev, [panel.id]: ids }));
+            const snMap: Record<number, string> = {};
+            items.forEach((i) => { if (i.short_name) snMap[i.product_id] = i.short_name; });
+            setPanelShortNames((prev) => ({ ...prev, [panel.id]: snMap }));
           }
         } catch { /* tolerate */ }
       }));
@@ -525,11 +531,14 @@ export default function Canteen() {
   const fetchPanelProducts = async (panelId: number) => {
     if (panelProductIds[panelId]) return; // already cached
     try {
-      const items = await api.get<{ product_id: number; included: boolean }[]>(
+      const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null }[]>(
         `/shops/${CANTEEN_SHOP_ID}/price-panels/${panelId}/items`,
       );
       const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
       setPanelProductIds((prev) => ({ ...prev, [panelId]: ids }));
+      const snMap: Record<number, string> = {};
+      items.forEach((i) => { if (i.short_name) snMap[i.product_id] = i.short_name; });
+      setPanelShortNames((prev) => ({ ...prev, [panelId]: snMap }));
     } catch {
       // tolerate — panel just shows all if fetch fails
     }
@@ -1155,6 +1164,7 @@ export default function Canteen() {
               onAdd={handleProductTap}
               loading={productsLoading}
               priceMode={cart.priceMode}
+              shortNames={activePanelId != null ? panelShortNames[activePanelId] : undefined}
               colorEditId={colorEditId}
               colorSaving={colorSaving}
               onOpenColorEdit={(id) => setColorEditId(id)}

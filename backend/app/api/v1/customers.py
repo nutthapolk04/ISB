@@ -375,13 +375,16 @@ def bind_card(
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
     if payload.card_uid:
-        existing = (
+        existing_cust = (
             db.query(Customer)
             .filter(Customer.card_uid == payload.card_uid, Customer.id != customer_id)
             .first()
         )
-        if existing:
-            raise HTTPException(status_code=409, detail=f"card_uid already bound to customer id={existing.id}")
+        if existing_cust:
+            raise HTTPException(status_code=409, detail=f"Card already assigned to student {existing_cust.name} ({existing_cust.customer_code})")
+        existing_user = db.query(User).filter(User.card_uid == payload.card_uid).first()
+        if existing_user:
+            raise HTTPException(status_code=409, detail=f"Card already assigned to user {existing_user.full_name or existing_user.username}")
     c.card_uid = payload.card_uid or None
     db.commit()
     db.refresh(c)

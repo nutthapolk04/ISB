@@ -449,6 +449,16 @@ def update_user(
         u.shop_id = new_shop_id
         data.pop("shop_id", None)
 
+    # card_uid uniqueness — check across both User and Customer tables
+    if "card_uid" in data and data["card_uid"]:
+        new_uid = data["card_uid"]
+        dup_user = db.query(User).filter(User.card_uid == new_uid, User.id != u.id).first()
+        if dup_user:
+            raise HTTPException(status_code=409, detail=f"Card already assigned to user {dup_user.full_name or dup_user.username}")
+        dup_cust = db.query(Customer).filter(Customer.card_uid == new_uid).first()
+        if dup_cust:
+            raise HTTPException(status_code=409, detail=f"Card already assigned to student {dup_cust.name} ({dup_cust.customer_code})")
+
     # Apply remaining simple fields
     for field in (
         "full_name", "email", "role", "family_code", "photo_url", "allergies",

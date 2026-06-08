@@ -136,7 +136,9 @@ export default function CardholderList() {
   // filter is active (otherwise selecting "ผู้ปกครอง" zeros out other counts).
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialKind = (searchParams.get("kind") as Cardholder["kind"] | "all") || "all";
+  // ?shop=<shopId> from ShopDetail "Manage shop staff" link — pre-filters by shop_id
+  const shopFilter = searchParams.get("shop") ?? null;
+  const initialKind = (searchParams.get("kind") as Cardholder["kind"] | "all") || (shopFilter ? "staff" : "all");
   const [allItems, setAllItems] = useState<Cardholder[]>([]);
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<Cardholder["kind"] | "all">(initialKind);
@@ -205,8 +207,9 @@ export default function CardholderList() {
       if (school !== "all") rows = rows.filter((c) => c.school_type === school);
       if (grade !== "all") rows = rows.filter((c) => c.grade === grade);
     }
+    if (shopFilter) rows = rows.filter((c) => c.shop_id === shopFilter);
     return rows;
-  }, [allItems, kind, school, grade]);
+  }, [allItems, kind, school, grade, shopFilter]);
   const total = items.length;
 
   // Stats always count the full unfiltered list so chip badges stay correct.

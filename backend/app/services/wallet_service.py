@@ -434,6 +434,8 @@ class WalletService:
             reference_type="admin_adjustment",
             reference_id=None,
             description=description,
+            reason=reason.strip(),
+            reference_ticket=reference_ticket or None,
             created_by=admin_user_id,
         )
         db.add(tx)

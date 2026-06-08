@@ -5,6 +5,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
+    Text,
     Numeric,
     Boolean,
     DateTime,
@@ -85,6 +86,8 @@ class WalletTransaction(Base):
     reference_type = Column(String(50), nullable=True)  # e.g., 'receipt', 'credit_note', 'topup'
     reference_id = Column(Integer, nullable=True)
     description = Column(String(500), nullable=True)
+    reason = Column(Text, nullable=True)
+    reference_ticket = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
