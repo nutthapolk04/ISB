@@ -22,7 +22,8 @@ from app.services.pymt_gateway import PymtGatewayError
 
 
 def _generate_ref_code(db: Session) -> str:
-    """Generate unique ref code: TOP-YYYYMMDD-NNN"""
+    """Generate unique ref code: TOP-YYYYMMDD-NNN-XXXX (NNN=daily seq, XXXX=random hex)."""
+    import secrets
     today_str = date.today().strftime("%Y%m%d")
     prefix = f"TOP-{today_str}-"
     last = (
@@ -34,10 +35,14 @@ def _generate_ref_code(db: Session) -> str:
     seq = 1
     if last:
         try:
-            seq = int(last.ref_code.split("-")[-1]) + 1
-        except ValueError:
+            # Support both old format (TOP-YYYYMMDD-NNN) and new (TOP-YYYYMMDD-NNN-XXXX)
+            parts = last.ref_code.split("-")
+            # parts[2] is always the sequence number regardless of format
+            seq = int(parts[2]) + 1
+        except (ValueError, IndexError):
             seq = 1
-    return f"{prefix}{seq:03d}"
+    suffix = secrets.token_hex(2)  # 4 hex chars e.g. "a3f1" — prevents race-condition collision
+    return f"{prefix}{seq:03d}-{suffix}"
 
 
 def _build_mock_qr_payload(ref_code: str, amount: float) -> str:
