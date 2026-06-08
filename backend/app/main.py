@@ -2,11 +2,15 @@
 FastAPI Application Entry Point
 Bookstore POS System Backend
 """
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+_logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -123,12 +127,26 @@ async def not_found_handler(request, exc):
     )
 
 
-@app.exception_handler(500)
-async def internal_error_handler(request, exc):
-    """Custom 500 handler"""
+@app.exception_handler(Exception)
+async def catch_all_exception_handler(request: Request, exc: Exception):
+    """Global fallback — adds CORS headers so browser can read the error body.
+
+    ServerErrorMiddleware sits outside CORSMiddleware, so unhandled exceptions
+    would otherwise return a 500 with no Access-Control-Allow-Origin header and
+    the browser silently blocks it. We manually attach the origin header here.
+    """
+    _logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    origin = request.headers.get("origin", "")
+    extra_headers: dict = {}
+    if origin:
+        extra_headers["Access-Control-Allow-Origin"] = origin
+        extra_headers["Access-Control-Allow-Credentials"] = "true"
+    # Include the real error in DEBUG mode so Railway logs surface the root cause.
+    detail = f"{type(exc).__name__}: {exc}" if settings.DEBUG else "Internal server error"
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"detail": detail},
+        headers=extra_headers,
     )
 
 
