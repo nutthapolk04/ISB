@@ -35,15 +35,20 @@ import {
 } from "@/components/ui/table";
 import { Minus, Plus, Search, Wallet as WalletIcon } from "lucide-react";
 
-interface Student {
-  id: number;
-  customer_code: string;
-  student_code?: string | null;
+interface Cardholder {
+  key: string;
+  entity_type: "user" | "customer" | "department";
+  entity_id: number;
+  kind: string;
   name: string;
+  identifier: string;
+  photo_url?: string | null;
   grade?: string | null;
+  role?: string | null;
+  department_code?: string | null;
   wallet_id?: number | null;
   wallet_balance?: number | null;
-  card_frozen?: boolean;
+  is_active: boolean;
 }
 
 type Direction = "credit" | "debit";
@@ -51,12 +56,24 @@ type Direction = "credit" | "debit";
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
+function profileHref(c: Cardholder): string {
+  if (c.entity_type === "user") return `/users/${c.entity_id}`;
+  if (c.entity_type === "customer") return `/admin/customer/${c.entity_id}`;
+  return `/users?tab=cardholders`;
+}
+
+function kindLabel(c: Cardholder): string {
+  if (c.entity_type === "user") return c.role ?? c.kind;
+  if (c.entity_type === "department") return "dept";
+  return c.grade ?? c.kind;
+}
+
 export default function WalletAdjust() {
   const { t } = useTranslation();
-  const [students, setStudents] = useState<Student[]>([]);
+  const [cardholders, setCardholders] = useState<Cardholder[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Student | null>(null);
+  const [selected, setSelected] = useState<Cardholder | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [direction, setDirection] = useState<Direction>("credit");
   const [amount, setAmount] = useState("");
@@ -67,8 +84,11 @@ export default function WalletAdjust() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api.get<Student[]>("/customers/");
-      setStudents(data);
+      const data = await api.get<{ items: Cardholder[]; total: number }>(
+        "/admin/cardholders?page_size=500"
+      );
+      // Only show cardholders that have a wallet
+      setCardholders(data.items.filter((c) => c.wallet_id != null));
     } catch (e) {
       toast({
         title: t("admin.walletAdjust.loadError"),
@@ -84,22 +104,22 @@ export default function WalletAdjust() {
     load();
   }, []);
 
-  const filtered = students.filter((s) => {
+  const filtered = cardholders.filter((c) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      s.name.toLowerCase().includes(q) ||
-      s.customer_code.toLowerCase().includes(q) ||
-      (s.student_code || "").toLowerCase().includes(q)
+      c.name.toLowerCase().includes(q) ||
+      c.identifier.toLowerCase().includes(q) ||
+      (c.grade || "").toLowerCase().includes(q)
     );
   });
 
-  const openAdjust = (s: Student) => {
-    if (!s.wallet_id) {
+  const openAdjust = (c: Cardholder) => {
+    if (!c.wallet_id) {
       toast({ title: t("admin.walletAdjust.noWallet"), variant: "destructive" });
       return;
     }
-    setSelected(s);
+    setSelected(c);
     setDirection("credit");
     setAmount("");
     setReason("");
@@ -134,7 +154,7 @@ export default function WalletAdjust() {
             : t("admin.walletAdjust.adjustDebitDesc", { amount: formatTHB(amt), name: selected.name }),
       });
       setDialogOpen(false);
-      load();
+      await load();
     } catch (e) {
       toast({
         title: t("admin.walletAdjust.adjustError"),
@@ -193,26 +213,29 @@ export default function WalletAdjust() {
                     </TableCell>
                   </TableRow>
                 )}
-                {filtered.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">
-                      {s.name}
-                      {s.card_frozen && <Badge variant="destructive" className="ml-2">{t("admin.walletAdjust.cardFrozen")}</Badge>}
+                {filtered.map((c) => (
+                  <TableRow key={c.key}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono text-xs">{c.identifier}</Badge>
                     </TableCell>
                     <TableCell>
-                      {s.student_code && <Badge variant="secondary">{s.student_code}</Badge>}
-                      {!s.student_code && <span className="text-muted-foreground text-sm">{s.customer_code}</span>}
+                      <Badge
+                        variant="outline"
+                        className="text-xs capitalize text-muted-foreground"
+                      >
+                        {kindLabel(c)}
+                      </Badge>
                     </TableCell>
-                    <TableCell>{s.grade || "-"}</TableCell>
-                    <TableCell className={`text-right font-mono ${(s.wallet_balance ?? 0) < 0 ? "text-destructive" : ""}`}>
-                      {formatTHB(s.wallet_balance ?? 0)}
+                    <TableCell className={`text-right font-mono ${(c.wallet_balance ?? 0) < 0 ? "text-destructive" : ""}`}>
+                      {formatTHB(c.wallet_balance ?? 0)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button asChild size="sm" variant="ghost" title={t("admin.walletAdjust.viewProfile")}>
-                          <Link to={`/admin/customer/${s.id}`}>{t("admin.walletAdjust.viewProfile")}</Link>
+                          <Link to={profileHref(c)}>{t("admin.walletAdjust.viewProfile")}</Link>
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => openAdjust(s)}>
+                        <Button size="sm" variant="outline" onClick={() => openAdjust(c)}>
                           {t("admin.walletAdjust.adjustBalance")}
                         </Button>
                       </div>
