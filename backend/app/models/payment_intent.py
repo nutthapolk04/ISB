@@ -24,6 +24,7 @@ class PaymentIntent(Base):
     wallet_id = Column(Integer, ForeignKey("wallets.id", ondelete="CASCADE"), nullable=False, index=True)
     amount = Column(Numeric(10, 2), nullable=False)
     qr_payload = Column(Text, nullable=True)                 # PromptPay QR data string
+    txn_no = Column(String(100), nullable=True, index=True)
     status = Column(SQLEnum(PaymentIntentStatus), default=PaymentIntentStatus.pending, nullable=False)
     payment_method = Column(String(30), nullable=False, default="qr_promptpay")  # qr_promptpay | cash | credit_card
     confirmed_via = Column(String(30), nullable=True)        # admin_manual | parent_self | gateway_webhook

@@ -1,7 +1,7 @@
 """
 Wallet Pydantic Schemas
 """
-from typing import Literal, Optional, List
+from typing import Dict, Literal, Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -91,6 +91,9 @@ class TopupIntentResponse(BaseModel):
     payment_method: str
     confirmed_via: Optional[str] = None
     created_at: datetime
+    payment_page_url: Optional[str] = None
+    payment_form_params: Optional[Dict[str, str]] = None
+    txn_no: Optional[str] = None
 
 
 class CashierTopupRequest(BaseModel):

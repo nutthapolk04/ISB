@@ -19,6 +19,7 @@ from app.api.v1 import (
     family, users, users_admin, sync,
     admin_cardholders, admin_departments, admin_audit, admin_settings, departments, reports,
     uom, bundles, price_panels, canteen, admin_import, customer_display,
+    bay,
 )
 
 # Create database tables (idempotent — won't drop existing data)
@@ -95,6 +96,7 @@ app.include_router(canteen.router, prefix="/api/v1/canteen", tags=["Canteen"])
 app.include_router(admin_import.router, prefix="/api/v1/admin/import", tags=["Admin Import"])
 app.include_router(customer_display.public_router, prefix="/api/v1/customer-display", tags=["Customer Display"])
 app.include_router(customer_display.admin_router, prefix="/api/v1/admin/customer-display", tags=["Customer Display (Admin)"])
+app.include_router(bay.router, prefix="/api/v1/bay", tags=["BAY Payments"])
 
 
 # Exception handlers

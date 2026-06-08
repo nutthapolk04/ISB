@@ -173,9 +173,36 @@ def create_topup(
             payment_method=intent.payment_method,
             confirmed_via=intent.confirmed_via,
             created_at=intent.created_at,
+            txn_no=intent.txn_no,
+            payment_page_url=getattr(intent, '_payment_page_url', None),
+            payment_form_params=getattr(intent, '_payment_form_params', None),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/topup/{ref_code}/status")
+def get_topup_status(
+    ref_code: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("parent", "staff", "admin", "cashier", "manager", "kitchen", "student")
+    ),
+):
+    """Read-only intent status for the success-page poller."""
+    from app.models.payment_intent import PaymentIntent
+    intent = db.query(PaymentIntent).filter(PaymentIntent.ref_code == ref_code).first()
+    if not intent:
+        raise HTTPException(status_code=404, detail="Top-up intent not found")
+    w = WalletService.get_wallet(db, intent.wallet_id)
+    if not w or not WalletService.user_can_access_wallet(db, current_user, w):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return {
+        "ref_code": intent.ref_code,
+        "status": intent.status.value,
+        "amount": float(intent.amount),
+        "payment_method": intent.payment_method,
+    }
 
 
 @router.post("/topup/{ref_code}/parent-confirm", response_model=WalletTransactionResponse)

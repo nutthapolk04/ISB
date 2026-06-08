@@ -16,6 +16,9 @@ from app.models.parent_child_link import ParentChildLink
 from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
 from app.models.user import User
 from app.core.errors import BusinessRuleError
+from app.core.config import settings
+from app.services import pymt_gateway
+from app.services.pymt_gateway import PymtGatewayError
 
 
 def _generate_ref_code(db: Session) -> str:
@@ -293,11 +296,41 @@ class WalletService:
             )
 
         ref = _generate_ref_code(db)
+
+        qr_payload = _build_mock_qr_payload(ref, amount)
+        txn_no = None
+        _payment_page_url = None
+        _payment_form_params = None
+
+        pymt_configured = bool(settings.PYMT_BASE_URL and settings.PYMT_MERCHANT_TOKEN)
+
+        if payment_method == "bay_qr":
+            if pymt_configured:
+                try:
+                    result = pymt_gateway.create_qr_payment(amount, ref, wallet_id)
+                except PymtGatewayError as e:
+                    raise ValueError(f"Payment gateway error: {e}")
+                qr_payload = result.qrcode_content
+                txn_no = result.txn_no
+        elif payment_method == "bay_easypay":
+            if pymt_configured:
+                success_url = f"{settings.FRONTEND_BASE_URL}/payment/bay/success?ref={ref}"
+                fail_url = f"{settings.FRONTEND_BASE_URL}/payment/bay/fail?ref={ref}"
+                cancel_url = f"{settings.FRONTEND_BASE_URL}/payment/bay/cancel?ref={ref}"
+                try:
+                    result = pymt_gateway.create_easypay(amount, ref, success_url, fail_url, cancel_url)
+                except PymtGatewayError as e:
+                    raise ValueError(f"Payment gateway error: {e}")
+                txn_no = result.txn_no
+                _payment_page_url = result.payment_page_url
+                _payment_form_params = result.payment_form_params
+
         intent = PaymentIntent(
             ref_code=ref,
             wallet_id=wallet_id,
             amount=amount,
-            qr_payload=_build_mock_qr_payload(ref, amount),
+            qr_payload=qr_payload,
+            txn_no=txn_no,
             status=PaymentIntentStatus.pending,
             payment_method=payment_method,
             created_by=user_id,
@@ -306,6 +339,8 @@ class WalletService:
         db.add(intent)
         db.commit()
         db.refresh(intent)
+        intent._payment_page_url = _payment_page_url
+        intent._payment_form_params = _payment_form_params
         return intent
 
     @staticmethod

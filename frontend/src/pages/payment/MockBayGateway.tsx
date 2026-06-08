@@ -272,24 +272,51 @@ export function MockBayPaymentSuccess() {
       navigate("/", { replace: true });
       return;
     }
+
     let cancelled = false;
-    (async () => {
-      try {
-        await api.post(`/wallets/topup/${intent.orderRef}/parent-confirm`, {});
+    const MAX_WAIT_MS = 10_000;
+    const POLL_INTERVAL_MS = 1_500;
+    const startTime = Date.now();
+
+    async function pollAndConfirm() {
+      while (Date.now() - startTime < MAX_WAIT_MS) {
         if (cancelled) return;
-        clearBayIntent(intent.orderRef);
+        try {
+          const status = await api.get<{ status: string }>(`/wallets/topup/${orderRef}/status`);
+          if (status.status === "confirmed") {
+            clearBayIntent(intent!.orderRef);
+            setState("done");
+            toast({ title: "Top up successful", description: `Wallet credited ${fmtTHB(intent!.amount)}` });
+            setTimeout(() => navigate(intent!.returnUrl, { replace: true }), 1500);
+            return;
+          }
+          if (status.status === "cancelled") {
+            setError("Payment failed. Please try again.");
+            setState("error");
+            return;
+          }
+        } catch {
+          // ignore poll errors, keep trying
+        }
+        await new Promise<void>((res) => setTimeout(res, POLL_INTERVAL_MS));
+      }
+
+      if (cancelled) return;
+      try {
+        await api.post(`/wallets/topup/${intent!.orderRef}/parent-confirm`, {});
+        if (cancelled) return;
+        clearBayIntent(intent!.orderRef);
         setState("done");
-        toast({
-          title: "Top up successful",
-          description: `Wallet credited ${fmtTHB(intent.amount)}`,
-        });
-        setTimeout(() => navigate(intent.returnUrl, { replace: true }), 1500);
+        toast({ title: "Top up successful", description: `Wallet credited ${fmtTHB(intent!.amount)}` });
+        setTimeout(() => navigate(intent!.returnUrl, { replace: true }), 1500);
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof ApiError ? e.detail : "Could not confirm payment");
         setState("error");
       }
-    })();
+    }
+
+    pollAndConfirm();
     return () => { cancelled = true; };
   }, [orderRef, intent, navigate]);
 

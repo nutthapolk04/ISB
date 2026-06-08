@@ -67,6 +67,9 @@ interface TopupIntent {
   qr_payload: string;
   status: string;
   created_at: string;
+  payment_page_url: string | null;
+  payment_form_params: Record<string, string> | null;
+  txn_no: string | null;
 }
 
 const formatTHB = (n: number) =>
@@ -183,17 +186,32 @@ export default function WalletDetail() {
       try {
         const resp = await api.post<TopupIntent>(
           `/wallets/${profile.wallet_id}/topup`,
-          { amount: amt, payment_method: "credit_card" },
+          { amount: amt, payment_method: "bay_easypay" },
         );
-        const feeAmt = Math.round(amt * CREDIT_FEE_RATE * 100) / 100;
-        storeBayIntent({
-          orderRef: resp.ref_code,
-          walletId: profile.wallet_id,
-          amount: amt,
-          fee: feeAmt,
-          returnUrl: window.location.pathname + window.location.search,
-        });
-        navigate(`/payment/bay/form?ref=${encodeURIComponent(resp.ref_code)}`);
+        if (resp.payment_page_url && resp.payment_form_params) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = resp.payment_page_url;
+          Object.entries(resp.payment_form_params).forEach(([k, v]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = k;
+            input.value = String(v);
+            form.appendChild(input);
+          });
+          document.body.appendChild(form);
+          form.submit();
+        } else {
+          const feeAmt = Math.round(amt * CREDIT_FEE_RATE * 100) / 100;
+          storeBayIntent({
+            orderRef: resp.ref_code,
+            walletId: profile.wallet_id,
+            amount: amt,
+            fee: feeAmt,
+            returnUrl: window.location.pathname + window.location.search,
+          });
+          navigate(`/payment/bay/form?ref=${encodeURIComponent(resp.ref_code)}`);
+        }
       } catch (e) {
         toast({
           title: t("parent.wallet.topupCreateFailed"),

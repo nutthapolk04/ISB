@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     # Cloudinary (profile photos) — set CLOUDINARY_URL=cloudinary://key:secret@cloud
     CLOUDINARY_URL: str = ""
 
+    # BAY / PYMT Gateway
+    PYMT_BASE_URL: str = ""
+    PYMT_MERCHANT_TOKEN: str = ""
+    PYMT_MERCHANT_CODE: str = ""
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
+
     # Pagination
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100

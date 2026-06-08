@@ -246,6 +246,7 @@ const App = () => {
               <Route path="/payment/bay/form" element={<MockBayPaymentForm />} />
               <Route path="/payment/bay/success" element={<MockBayPaymentSuccess />} />
               <Route path="/payment/bay/cancel" element={<MockBayPaymentCancel />} />
+              <Route path="/payment/bay/fail" element={<MockBayPaymentCancel />} />
 
               <Route element={<AppShell />}>
                 {/* Landing — Hub for multi-role users; auto-redirect for single-role */}
