@@ -318,6 +318,10 @@ run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS payment_method VARCHAR
     'payment_intents.payment_method')
 run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS confirmed_via VARCHAR(30)',
     'payment_intents.confirmed_via')
+run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS txn_no VARCHAR(100)',
+    'payment_intents.txn_no')
+run('CREATE INDEX IF NOT EXISTS ix_payment_intents_txn_no ON payment_intents(txn_no)',
+    'payment_intents idx txn_no')
 
 # === Feature 2: audit_logs table ===
 run('''
@@ -708,6 +712,7 @@ required_cols = [
     ('return_requests', 'bundle_id'),
     ('price_panel_items', 'bundle_id'),
     ('customer_display_images', 'data'),
+    ('payment_intents', 'txn_no'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',

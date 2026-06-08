@@ -6,7 +6,6 @@ import { Users, Activity, ListChecks, IdCard, CreditCard, Link2, Loader2 } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { ShopUserManagement } from "@/components/ShopUserManagement";
 import CardholderList from "./CardholderList";
-import UserList from "./UserList";
 import SyncDashboard from "./SyncDashboard";
 import SyncLog from "./SyncLog";
 
@@ -66,9 +65,6 @@ export default function UserManagement() {
           <TabsTrigger value="cardholders" className="gap-2">
             <IdCard className="h-4 w-4" /> Cardholders
           </TabsTrigger>
-          <TabsTrigger value="users" className="gap-2">
-            <Users className="h-4 w-4" /> {t("admin.users.tabUsers")}
-          </TabsTrigger>
           <TabsTrigger value="cards" className="gap-2">
             <CreditCard className="h-4 w-4" /> Card Management
           </TabsTrigger>
@@ -85,9 +81,6 @@ export default function UserManagement() {
 
         <TabsContent value="cardholders" className="space-y-4">
           <CardholderList />
-        </TabsContent>
-        <TabsContent value="users" className="space-y-4">
-          <UserList />
         </TabsContent>
         <TabsContent value="cards">
           <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>

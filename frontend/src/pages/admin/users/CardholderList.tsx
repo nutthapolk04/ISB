@@ -395,6 +395,7 @@ export default function CardholderList() {
                 <TableHead>{t("cardholders.colFamily")}</TableHead>
                 <TableHead>{t("cardholders.colCard")}</TableHead>
                 <TableHead className="text-right">{t("cardholders.colBalance")}</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>{t("cardholders.colLastSync")}</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -402,7 +403,7 @@ export default function CardholderList() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
                     {t("common.loading", "Loading…")}
                   </TableCell>
@@ -410,7 +411,7 @@ export default function CardholderList() {
               )}
               {!loading && items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                     {t("cardholders.noResults")}
                   </TableCell>
                 </TableRow>
@@ -475,6 +476,11 @@ export default function CardholderList() {
                     <TableCell className="text-right tabular-nums">
                       {c.wallet_id ? formatTHB(Number(c.wallet_balance ?? 0)) : "—"}
                     </TableCell>
+                    <TableCell>
+                      {c.is_active
+                        ? <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 bg-emerald-50">Active</Badge>
+                        : <Badge variant="outline" className="text-[10px] text-muted-foreground">Inactive</Badge>}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {relativeTime(c.synced_at)}
                     </TableCell>
@@ -507,7 +513,7 @@ export default function CardholderList() {
 
                 const expandRow = (
                   <TableRow key={`${c.key}-exp`} className="bg-muted/20 hover:bg-muted/20">
-                    <TableCell colSpan={8} className="px-6 pb-4 pt-2">
+                    <TableCell colSpan={9} className="px-6 pb-4 pt-2">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
