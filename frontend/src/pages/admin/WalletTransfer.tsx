@@ -88,6 +88,10 @@ export default function WalletTransfer() {
   // Student family context (when found user is a student)
   const [studentContext, setStudentContext] = useState<StudentFamilyContext | null>(null);
 
+  // When searching by student and clicking a parent, we snapshot the student
+  // so we can build a ChildSummary for them in the transfer panel.
+  const [studentSnapshot, setStudentSnapshot] = useState<ParentInfo | null>(null);
+
   // Transfer panel state
   const [target, setTarget] = useState<TransferTarget | null>(null);
   const [amount, setAmount] = useState("");
@@ -103,6 +107,7 @@ export default function WalletTransfer() {
     setChildren([]);
     setTarget(null);
     setStudentContext(null);
+    setStudentSnapshot(null);
     try {
       const p = await api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(q)}`);
       setParent(p);
@@ -133,6 +138,40 @@ export default function WalletTransfer() {
     } finally {
       setSearching(false);
     }
+  };
+
+  // Called when admin finds a student and clicks one of the linked parents.
+  // Swaps "parent" state to the clicked parent and builds a ChildSummary for
+  // the student so the existing transfer panel works without any other changes.
+  const handleSelectParentFromStudentView = (par: ParentSummary) => {
+    if (!par.wallet_id || !parent) return;
+    setStudentSnapshot(parent); // keep student data for display
+    const studentChild: ChildSummary = {
+      link_id: 0,
+      relation: "student",
+      customer_id: studentContext?.student_customer_id ?? 0,
+      customer_code: parent.username,
+      student_code: parent.username,
+      name: parent.full_name ?? parent.username,
+      photo_url: parent.photo_url,
+      card_frozen: false,
+      wallet_id: parent.wallet_id,
+      wallet_balance: parent.wallet_balance,
+    };
+    setParent({
+      user_id: par.user_id,
+      username: par.username,
+      full_name: par.full_name,
+      role: par.role,
+      photo_url: par.photo_url,
+      wallet_id: par.wallet_id!,
+      wallet_balance: par.wallet_balance ?? 0,
+      is_active: true,
+    });
+    setStudentContext(null);
+    setTarget({ child: studentChild, direction: "parent_to_child" });
+    setAmount("");
+    setNote("");
   };
 
   const handleTransfer = async () => {
@@ -248,6 +287,17 @@ export default function WalletTransfer() {
         </CardContent>
       </Card>
 
+      {/* Student context banner — shown after selecting a parent from student view */}
+      {studentSnapshot && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 flex items-center gap-3 text-sm">
+          <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-muted-foreground">
+            {t("admin.walletTransfer.transferringForStudent", "Transferring for student")}:{" "}
+            <span className="font-medium text-foreground">{studentSnapshot.full_name ?? studentSnapshot.username}</span>
+          </span>
+        </div>
+      )}
+
       {/* Parent info card */}
       {parent && (
         <Card className="border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
@@ -312,7 +362,15 @@ export default function WalletTransfer() {
                 ) : (
                   <div className="space-y-2">
                     {studentContext.parents.map((par) => (
-                      <Card key={par.user_id} className="border-amber-200 bg-amber-50/50">
+                      <Card
+                        key={par.user_id}
+                        className={`border-amber-200 bg-amber-50/50 transition-all ${
+                          par.wallet_id
+                            ? "cursor-pointer hover:ring-2 hover:ring-amber-400 hover:border-amber-400"
+                            : "opacity-60"
+                        }`}
+                        onClick={() => par.wallet_id && handleSelectParentFromStudentView(par)}
+                      >
                         <CardContent className="pt-3 pb-3">
                           <div className="flex items-center gap-3">
                             {par.photo_url ? (
@@ -335,6 +393,11 @@ export default function WalletTransfer() {
                               <p className="font-bold text-sm text-amber-900">
                                 {par.wallet_balance != null ? formatTHB(par.wallet_balance) : "—"}
                               </p>
+                              {par.wallet_id && (
+                                <p className="text-[10px] text-amber-600 mt-0.5">
+                                  {t("admin.walletTransfer.tapToTransfer", "Tap to transfer")}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </CardContent>
