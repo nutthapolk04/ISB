@@ -302,7 +302,7 @@ const ShopManagement = () => {
               <Input
                 value={shopForm.id}
                 onChange={(e) => setShopForm({ ...shopForm, id: e.target.value })}
-                placeholder={isCanteen ? "e.g. canteen_new" : "e.g. new_shop"}
+                placeholder="e.g. new_shop"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {t("management.shopIdHint", "Unique code, lowercase, no spaces")}

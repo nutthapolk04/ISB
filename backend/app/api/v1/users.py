@@ -139,7 +139,7 @@ def get_user_payer_by_username(
     """
     target = (
         db.query(User)
-        .filter(User.username == username)
+        .filter(User.username.ilike(username))
         .first()
     )
     if not target:

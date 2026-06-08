@@ -546,7 +546,7 @@ const Returns = () => {
           setExistingReturns(freshData);
         } catch { /* silent */ }
       } else {
-        toast.error(err?.detail ?? "Failed to create return");
+        toast.error(err?.detail || err?.message || "Failed to create return");
       }
     }
   };

@@ -57,6 +57,8 @@ def create_return(
         return [_rr_to_response(rr) for rr in returns]
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Return creation failed: {type(e).__name__}: {e}")
 
 
 @router.post("/returns/create-without-receipt", response_model=List[ReturnRequestResponse])

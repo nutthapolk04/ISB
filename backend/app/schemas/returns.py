@@ -39,6 +39,7 @@ class ReturnItemPayload(BaseModel):
     quantity: int = Field(ge=1)
     returnQuantity: int = Field(ge=1)
     price: float = Field(ge=0)
+    bundleId: Optional[int] = None
 
 
 class CreateReturnRequest(BaseModel):

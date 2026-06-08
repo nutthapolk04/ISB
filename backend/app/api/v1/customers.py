@@ -192,7 +192,7 @@ def get_customer_by_code(
         db.query(Customer)
         .options(joinedload(Customer.wallet))
         .filter(
-            (Customer.student_code == code) | (Customer.customer_code == code)
+            Customer.student_code.ilike(code) | Customer.customer_code.ilike(code)
         )
         .first()
     )
