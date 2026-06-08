@@ -64,7 +64,7 @@ def create_qr_payment(
         raise PymtGatewayError(f"PYMT QR error {resp.status_code}: {resp.text}", resp.status_code)
 
     data = resp.json()
-    if data.get("status", "").lower() != "success":
+    if data.get("status") == "error":
         raise PymtGatewayError(data.get("message", "PYMT QR failed"))
 
     d = data["data"]
@@ -102,7 +102,7 @@ def create_easypay(
         raise PymtGatewayError(f"PYMT EASYPay error {resp.status_code}: {resp.text}", resp.status_code)
 
     data = resp.json()
-    if data.get("status", "").lower() != "success":
+    if data.get("status") == "error":
         raise PymtGatewayError(data.get("message", "PYMT EASYPay failed"))
 
     d = data["data"]
