@@ -48,7 +48,9 @@ def _build_mock_qr_payload(ref_code: str, amount: float) -> str:
 
 _TOPUP_LABEL_BY_METHOD = {
     "qr_promptpay": "Top-up via PromptPay",
+    "bay_qr": "Top-up via PromptPay (BAY)",
     "credit_card": "Top-up via Credit/Debit Card",
+    "bay_easypay": "Top-up via Credit/Debit Card (BAY)",
     "cash": "Top-up via Cash",
 }
 

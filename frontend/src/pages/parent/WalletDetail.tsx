@@ -92,6 +92,7 @@ export default function WalletDetail() {
   const [confirming, setConfirming] = useState(false);
   const [intent, setIntent] = useState<TopupIntent | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
+  const [qrStatus, setQrStatus] = useState<"waiting" | "confirmed" | "cancelled" | "timeout">("waiting");
   const [gatewayOpen, setGatewayOpen] = useState(false);
   const [pendingAmt, setPendingAmt] = useState(0);
 
@@ -149,6 +150,41 @@ export default function WalletDetail() {
   useEffect(() => {
     loadData();
   }, [effectiveId]);
+
+  useEffect(() => {
+    if (!qrOpen || !intent) return;
+    let cancelled = false;
+    const MAX_WAIT_MS = 10 * 60 * 1000;
+    const POLL_INTERVAL_MS = 2_000;
+    const startTime = Date.now();
+    async function poll() {
+      while (Date.now() - startTime < MAX_WAIT_MS) {
+        if (cancelled) return;
+        await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
+        if (cancelled) return;
+        try {
+          const s = await api.get<{ status: string }>(`/wallets/topup/${intent!.ref_code}/status`);
+          if (s.status === "confirmed") {
+            if (cancelled) return;
+            setQrStatus("confirmed");
+            await loadData();
+            toast({ title: t("parent.wallet.topupSuccess"), description: t("parent.wallet.topupSuccessQrDesc", { amount: formatTHB(intent!.amount) }) });
+            setTimeout(() => { if (!cancelled) { setQrOpen(false); setIntent(null); setQrStatus("waiting"); } }, 1500);
+            return;
+          }
+          if (s.status === "cancelled") {
+            if (cancelled) return;
+            setQrStatus("cancelled");
+            return;
+          }
+        } catch { /* ignore poll errors */ }
+      }
+      if (!cancelled) setQrStatus("timeout");
+    }
+    poll();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qrOpen, intent?.ref_code]);
 
 
   const handleCreateTopup = async () => {
@@ -230,9 +266,10 @@ export default function WalletDetail() {
     try {
       const resp = await api.post<TopupIntent>(
         `/wallets/${profile.wallet_id}/topup`,
-        { amount: amt, payment_method: "qr_promptpay" },
+        { amount: amt, payment_method: "bay_qr" },
       );
       setIntent(resp);
+      setQrStatus("waiting");
       setQrOpen(true);
     } catch (e) {
       toast({
@@ -591,7 +628,9 @@ export default function WalletDetail() {
           onCancel={() => setGatewayOpen(false)}
         />
 
-        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <Dialog open={qrOpen} onOpenChange={(open) => {
+          if (!open) { setQrOpen(false); setIntent(null); setQrStatus("waiting"); }
+        }}>
           <DialogContent className="max-w-sm sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t("parent.wallet.qrTitle")}</DialogTitle>
@@ -616,34 +655,51 @@ export default function WalletDetail() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-amber-700">{t("parent.wallet.qrStatus")}</span>
-                    <Badge className="gap-1 bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-100">
-                      <Clock className="h-3 w-3" /> {t("parent.wallet.qrWaiting")}
-                    </Badge>
+                    {qrStatus === "waiting" && (
+                      <Badge className="gap-1 bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-100">
+                        <Loader2 className="h-3 w-3 animate-spin" /> {t("parent.wallet.qrWaiting")}
+                      </Badge>
+                    )}
+                    {qrStatus === "confirmed" && (
+                      <Badge className="gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-100">
+                        <CheckCircle2 className="h-3 w-3" /> {t("parent.wallet.qrConfirmed", "Confirmed")}
+                      </Badge>
+                    )}
+                    {(qrStatus === "cancelled" || qrStatus === "timeout") && (
+                      <Badge className="gap-1 bg-red-100 text-red-800 border border-red-300 hover:bg-red-100">
+                        <AlertCircle className="h-3 w-3" />
+                        {qrStatus === "timeout" ? t("parent.wallet.qrTimeout", "Timed out") : t("parent.wallet.qrCancelled", "Cancelled")}
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-                  <span>{t("parent.wallet.qrConfirmNote")}</span>
-                </div>
+                {qrStatus === "waiting" && (
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                    <span>{t("parent.wallet.qrConfirmNote")}</span>
+                  </div>
+                )}
               </div>
             )}
 
             <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
               <Button
                 variant="outline"
-                onClick={() => setQrOpen(false)}
+                onClick={() => { setQrOpen(false); setIntent(null); setQrStatus("waiting"); }}
                 className="h-11 sm:h-10 border-amber-200 text-amber-700 hover:bg-amber-50"
               >
                 {t("parent.wallet.close")}
               </Button>
-              <Button
-                onClick={handleConfirmTransfer}
-                disabled={confirming}
-                className="h-11 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold hover:from-orange-600 hover:to-amber-600 border-0 shadow-md"
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                {confirming ? t("parent.wallet.confirming") : t("parent.wallet.confirmTransfer")}
-              </Button>
+              {intent && !intent.txn_no && qrStatus === "waiting" && (
+                <Button
+                  onClick={handleConfirmTransfer}
+                  disabled={confirming}
+                  className="h-11 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold hover:from-orange-600 hover:to-amber-600 border-0 shadow-md"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                  {confirming ? t("parent.wallet.confirming") : t("parent.wallet.confirmTransfer")}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

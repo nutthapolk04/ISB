@@ -60,93 +60,95 @@ export default function BayOrderSummaryPage() {
   return (
     /* Warm brownish page bg — matches real Krungsri gateway */
     <div className="min-h-screen" style={{ backgroundColor: "#b8864e" }}>
+      {/* Constrain to mobile-payment width, centered on desktop */}
+      <div className="mx-auto w-full" style={{ maxWidth: "420px" }}>
 
-      {/* ── Logo box — square dark, floated top-left ── */}
-      <div className="px-5 pt-8 pb-3">
-        <div
-          className="w-[72px] h-[72px] rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: "#3a1f08" }}
-        >
-          <KrungsriBirdLogo className="h-11 w-11" />
-        </div>
-      </div>
-
-      {/* ── Thick amber/gold horizontal line ── */}
-      <div className="h-[4px] bg-amber-400" />
-
-      {/* ── White receipt card ── */}
-      <div className="bg-white mx-5">
-
-        {/* Section: heading */}
-        <div className="px-5 pt-5 pb-4">
-          <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
+        {/* ── Logo box — square dark, top-left ── */}
+        <div className="px-4 pt-5 pb-3">
+          <div
+            className="w-20 h-20 rounded-xl flex items-center justify-center"
+            style={{ backgroundColor: "#2d1600" }}
+          >
+            <KrungsriBirdLogo className="h-12 w-12" />
+          </div>
         </div>
 
-        <hr className="border-gray-200 mx-5" />
+        {/* ── Thick amber/gold horizontal line — full container width ── */}
+        <div className="h-[4px] bg-amber-400" />
 
-        {/* Section: merchant ref */}
-        <div className="px-5 py-4 flex items-start justify-between gap-4">
-          <span className="text-sm text-gray-500 shrink-0">Merchant Ref.</span>
-          <span className="text-sm font-bold text-gray-900 text-right font-mono break-all">
-            {intent.orderRef}
-          </span>
-        </div>
+        {/* ── White receipt card — full container width ── */}
+        <div className="bg-white">
 
-        <hr className="border-gray-200 mx-5" />
+          {/* Section: heading */}
+          <div className="px-5 pt-5 pb-4">
+            <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
+          </div>
 
-        {/* Section: merchant name + product */}
-        <div className="px-5 py-4">
-          <p className="text-sm text-gray-600 mb-1">{merchantName}</p>
-          <p className="text-sm font-bold text-gray-900">{productName}</p>
-        </div>
+          <hr className="border-gray-200 mx-5" />
 
-        <hr className="border-gray-200 mx-5" />
+          {/* Section: merchant ref */}
+          <div className="px-5 py-4 flex items-start justify-between gap-4">
+            <span className="text-sm text-gray-500 shrink-0">Merchant Ref.</span>
+            <span className="text-sm font-bold text-gray-900 text-right font-mono break-all">
+              {intent.orderRef}
+            </span>
+          </div>
 
-        {/* Section: total amount */}
-        <div className="px-5 py-5 text-right">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Total Amount</p>
-          <p className="text-4xl font-extrabold text-gray-900 tabular-nums tracking-tight">
-            {fmtTHB(total)}
-          </p>
-          {intent.fee > 0 && (
-            <p className="text-xs text-gray-400 mt-1 tabular-nums">
-              incl. {fmtTHB(intent.fee)} processing fee
+          <hr className="border-gray-200 mx-5" />
+
+          {/* Section: merchant name + product */}
+          <div className="px-5 py-4">
+            <p className="text-sm text-gray-600 mb-1">{merchantName}</p>
+            <p className="text-sm font-bold text-gray-900">{productName}</p>
+          </div>
+
+          <hr className="border-gray-200 mx-5" />
+
+          {/* Section: total amount */}
+          <div className="px-5 py-5 text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Total Amount</p>
+            <p className="text-4xl font-extrabold text-gray-900 tabular-nums tracking-tight">
+              {fmtTHB(total)}
             </p>
-          )}
+            {intent.fee > 0 && (
+              <p className="text-xs text-gray-400 mt-1 tabular-nums">
+                incl. {fmtTHB(intent.fee)} processing fee
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* ── Zigzag / scalloped receipt bottom — full container width ──
+             Fill color matches page background so bites "cut into" the white card. */}
+        <div
+          className="h-5"
+          style={{
+            background: `
+              radial-gradient(circle at 10px 0px, #b8864e 10px, white 10px) 0px 0px / 20px 20px repeat-x,
+              radial-gradient(circle at 0px  0px, #b8864e 10px, white 10px) 10px 0px / 20px 20px repeat-x
+            `,
+          }}
+        />
+
+        {/* ── Actions ── */}
+        <div className="px-5 mt-5 pb-8 flex flex-col items-center gap-3">
+          <button
+            onClick={handleProceedToCard}
+            className="w-full rounded-xl font-bold py-3.5 text-sm transition-colors"
+            style={{ backgroundColor: "#f5a200", color: "#1a1200" }}
+          >
+            Pay with Card
+          </button>
+          <button
+            onClick={handleCancel}
+            className="text-sm hover:underline underline-offset-2 transition-colors"
+            style={{ color: "#f5a200" }}
+          >
+            Cancel
+          </button>
+        </div>
+
       </div>
-
-      {/* ── Zigzag / scalloped receipt bottom ──
-           Radial gradients create semicircle bites from the top edge.
-           Fill color matches page background so bites "cut into" the white card. */}
-      <div
-        className="h-5 mx-5"
-        style={{
-          background: `
-            radial-gradient(circle at 10px 0px, #b8864e 10px, white 10px) 0px 0px / 20px 20px repeat-x,
-            radial-gradient(circle at 0px  0px, #b8864e 10px, white 10px) 10px 0px / 20px 20px repeat-x
-          `,
-        }}
-      />
-
-      {/* ── Actions ── */}
-      <div className="px-5 mt-5 pb-8 flex flex-col items-center gap-3">
-        <button
-          onClick={handleProceedToCard}
-          className="w-full rounded-xl font-bold py-3.5 text-sm transition-colors"
-          style={{ backgroundColor: "#f5a200", color: "#1a1200" }}
-        >
-          Pay with Card
-        </button>
-        <button
-          onClick={handleCancel}
-          className="text-sm hover:underline underline-offset-2 transition-colors"
-          style={{ color: "#f5a200" }}
-        >
-          Cancel
-        </button>
-      </div>
-
     </div>
   );
 }
