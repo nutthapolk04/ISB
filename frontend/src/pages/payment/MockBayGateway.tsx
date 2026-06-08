@@ -34,6 +34,8 @@ export interface BayPendingIntent {
   fee: number;
   /** Where the customer came from; we land them back there after success. */
   returnUrl: string;
+  merchantName?: string;
+  productName?: string;
 }
 
 const SS_KEY_PREFIX = "bay_intent_";
@@ -42,7 +44,7 @@ export function storeBayIntent(intent: BayPendingIntent) {
   sessionStorage.setItem(SS_KEY_PREFIX + intent.orderRef, JSON.stringify(intent));
 }
 
-function readBayIntent(orderRef: string | null): BayPendingIntent | null {
+export function readBayIntent(orderRef: string | null): BayPendingIntent | null {
   if (!orderRef) return null;
   const raw = sessionStorage.getItem(SS_KEY_PREFIX + orderRef);
   if (!raw) return null;
@@ -53,7 +55,7 @@ function readBayIntent(orderRef: string | null): BayPendingIntent | null {
   }
 }
 
-function clearBayIntent(orderRef: string) {
+export function clearBayIntent(orderRef: string) {
   sessionStorage.removeItem(SS_KEY_PREFIX + orderRef);
 }
 

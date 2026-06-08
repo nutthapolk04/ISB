@@ -209,8 +209,10 @@ export default function WalletDetail() {
             amount: amt,
             fee: feeAmt,
             returnUrl: window.location.pathname + window.location.search,
+            merchantName: "ISB SCHOOL SHOP",
+            productName: "Wallet Top-up",
           });
-          navigate(`/payment/bay/form?ref=${encodeURIComponent(resp.ref_code)}`);
+          navigate(`/payment/bay/order?ref=${encodeURIComponent(resp.ref_code)}`);
         }
       } catch (e) {
         toast({

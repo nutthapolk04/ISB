@@ -36,6 +36,7 @@ import {
   MockBayPaymentSuccess,
   MockBayPaymentCancel,
 } from "./pages/payment/MockBayGateway";
+import BayOrderSummaryPage from "./pages/payment/BayOrderSummaryPage";
 import NotFound from "./pages/NotFound";
 import FamilyDashboard from "./pages/parent/FamilyDashboard";
 import WalletDetail from "./pages/parent/WalletDetail";
@@ -243,6 +244,7 @@ const App = () => {
                    they feel like leaving the merchant site for the bank's
                    hosted gateway. Auth is still required (the success
                    landing calls /wallets/topup/{ref}/parent-confirm). */}
+              <Route path="/payment/bay/order" element={<BayOrderSummaryPage />} />
               <Route path="/payment/bay/form" element={<MockBayPaymentForm />} />
               <Route path="/payment/bay/success" element={<MockBayPaymentSuccess />} />
               <Route path="/payment/bay/cancel" element={<MockBayPaymentCancel />} />
