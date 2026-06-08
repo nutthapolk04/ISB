@@ -105,12 +105,47 @@ def my_children(
     )
     result = []
     for link in links:
-        c = (
-            db.query(Customer)
-            .options(joinedload(Customer.wallet))
-            .filter(Customer.id == link.child_customer_id)
-            .first()
-        )
+        try:
+            c = (
+                db.query(Customer)
+                .options(joinedload(Customer.wallet))
+                .filter(Customer.id == link.child_customer_id)
+                .first()
+            )
+        except Exception as _orm_err:
+            if "is_graduated" not in str(_orm_err):
+                raise
+            from sqlalchemy import text as _text
+            from types import SimpleNamespace as _NS
+            _row = db.execute(
+                _text("""
+                    SELECT id, customer_code, student_code, name, grade, school_type,
+                           customer_kind, photo_url, email, phone, allergies, dietary_notes,
+                           allergy_override_note, card_uid, card_frozen, daily_limit,
+                           negative_credit_limit, external_id, family_code,
+                           is_active, powerschool_sync_at
+                    FROM customers WHERE id = :cid
+                """),
+                {"cid": link.child_customer_id},
+            ).fetchone()
+            if not _row:
+                continue
+            c = _NS(
+                id=_row.id, customer_code=_row.customer_code,
+                student_code=_row.student_code, name=_row.name,
+                grade=_row.grade, school_type=_row.school_type,
+                customer_kind=_row.customer_kind, photo_url=_row.photo_url,
+                email=_row.email, phone=_row.phone,
+                allergies=_row.allergies, dietary_notes=_row.dietary_notes,
+                allergy_override_note=_row.allergy_override_note,
+                card_uid=_row.card_uid, card_frozen=_row.card_frozen,
+                daily_limit=_row.daily_limit,
+                negative_credit_limit=_row.negative_credit_limit,
+                external_id=_row.external_id, family_code=_row.family_code,
+                is_active=_row.is_active,
+                powerschool_sync_at=_row.powerschool_sync_at,
+                is_graduated=False, wallet=None,
+            )
         if not c or not c.is_active:
             continue
         if not c.wallet:

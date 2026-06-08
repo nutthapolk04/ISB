@@ -655,7 +655,44 @@ class POSService:
         if requester_user_id:
             query = query.filter(Receipt.requester_user_id == requester_user_id)
         offset = (page - 1) * page_size
-        return query.offset(offset).limit(page_size).all()
+        try:
+            return query.offset(offset).limit(page_size).all()
+        except Exception as _orm_err:
+            if "is_graduated" not in str(_orm_err):
+                raise
+            # Retry without customer joinedload — _receipt_to_response handles None customer
+            query_no_customer = (
+                db.query(Receipt)
+                .options(
+                    joinedload(Receipt.items).joinedload(ReceiptItem.product_variant),
+                    joinedload(Receipt.payer_user),
+                    joinedload(Receipt.payer_department),
+                    joinedload(Receipt.requester),
+                    joinedload(Receipt.creator),
+                )
+                .order_by(desc(Receipt.created_at))
+            )
+            if q:
+                query_no_customer = query_no_customer.filter(
+                    Receipt.receipt_number.ilike(f"%{q}%")
+                )
+            if shop_id:
+                query_no_customer = query_no_customer.filter(Receipt.shop_id == shop_id)
+            elif shop_ids:
+                ids = [s.strip() for s in shop_ids.split(",") if s.strip()]
+                if ids:
+                    query_no_customer = query_no_customer.filter(
+                        or_(Receipt.shop_id.in_(ids), Receipt.shop_id.is_(None))
+                    )
+            if transaction_mode:
+                query_no_customer = query_no_customer.filter(
+                    Receipt.transaction_mode == TransactionMode(transaction_mode)
+                )
+            if requester_user_id:
+                query_no_customer = query_no_customer.filter(
+                    Receipt.requester_user_id == requester_user_id
+                )
+            return query_no_customer.offset(offset).limit(page_size).all()
 
     # ── Get single receipt ───────────────────────────────────────────────────
 

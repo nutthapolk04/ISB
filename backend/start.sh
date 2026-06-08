@@ -56,6 +56,14 @@ with engine.begin() as conn:
 print('  + users.staff_type, users.ps_department (pre-patch)')
 " 2>/dev/null || echo "  = users.staff_type/ps_department (pre-patch skipped — ok)"
 
+python -c "
+from sqlalchemy import text
+from app.core.database import engine
+with engine.begin() as conn:
+    conn.execute(text('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_graduated BOOLEAN NOT NULL DEFAULT false'))
+print('  + customers.is_graduated (pre-patch)')
+" 2>/dev/null || echo "  = customers.is_graduated (pre-patch skipped — ok)"
+
 echo "=== Applying schema patches ==="
 python -c "
 import sys
