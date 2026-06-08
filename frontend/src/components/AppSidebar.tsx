@@ -109,7 +109,6 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.adminDashboard",    url: "/admin",                icon: LayoutDashboard,   roles: ["admin"] },
       { titleKey: "nav.adminWalletAdjust",      url: "/admin/wallet-adjust",       icon: SlidersHorizontal, roles: ["admin"] },
       { titleKey: "nav.adminWalletTransfer",   url: "/admin/wallet-transfer",     icon: ArrowLeftRight,    roles: ["admin"] },
-      { titleKey: "nav.adminAdjustmentReport", url: "/admin/adjustment-report",   icon: ClipboardList,     roles: ["admin"] },
       { titleKey: "nav.adminDeptAdjust",   url: "/admin/department-adjust", icon: Building2,        roles: ["admin"] },
       { titleKey: "nav.adminAuditLogs",    url: "/admin/audit-logs",     icon: History,           roles: ["admin"] },
       { titleKey: "nav.adminSettings",     url: "/admin/settings",       icon: SettingsIcon,      roles: ["admin"] },

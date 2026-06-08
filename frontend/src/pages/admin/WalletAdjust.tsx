@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { exportToPDF, exportToExcel } from "@/lib/reportExport";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +35,56 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Minus, Plus, Search, Wallet as WalletIcon } from "lucide-react";
+import { Minus, Plus, Search, Wallet as WalletIcon, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, ClipboardList } from "lucide-react";
+
+const PAGE_SIZE = 20;
+
+// ── Adjustment Report helpers ────────────────────────────────────────────────
+
+interface AdjustmentRow {
+  id: number;
+  created_at: string;
+  entity_type: string;
+  entity_name: string;
+  entity_code: string;
+  direction: "credit" | "debit";
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  reason: string | null;
+  reference_ticket: string | null;
+  adjusted_by: string;
+}
+
+const ENTITY_COLORS: Record<string, string> = {
+  student: "bg-blue-100 text-blue-800",
+  parent: "bg-purple-100 text-purple-800",
+  staff: "bg-amber-100 text-amber-800",
+  admin: "bg-red-100 text-red-800",
+  department: "bg-green-100 text-green-800",
+};
+
+const formatDT = (iso: string) => {
+  const d = new Date(iso);
+  return d.toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+};
+
+const RPT_COLUMNS = [
+  { header: "Date / Time",    key: "created_at",       format: "datetime" as const, width: 18 },
+  { header: "Type",           key: "entity_type",      format: "text" as const,     width: 12 },
+  { header: "Name",           key: "entity_name",      format: "text" as const,     width: 24 },
+  { header: "Code",           key: "entity_code",      format: "text" as const,     width: 16 },
+  { header: "Direction",      key: "direction",        format: "text" as const,     width: 10 },
+  { header: "Amount (฿)",     key: "amount",           format: "currency" as const, width: 14, align: "right" as const },
+  { header: "Balance Before", key: "balance_before",   format: "currency" as const, width: 14, align: "right" as const },
+  { header: "Balance After",  key: "balance_after",    format: "currency" as const, width: 14, align: "right" as const },
+  { header: "Reason",         key: "reason",           format: "text" as const,     width: 30 },
+  { header: "Ref / Ticket",   key: "reference_ticket", format: "text" as const,     width: 16 },
+  { header: "Adjusted By",    key: "adjusted_by",      format: "text" as const,     width: 20 },
+];
 
 interface Cardholder {
   key: string;
@@ -70,8 +121,10 @@ function kindLabel(c: Cardholder): string {
 
 export default function WalletAdjust() {
   const { t } = useTranslation();
+  const schoolInfo = useSchoolInfo();
   const [cardholders, setCardholders] = useState<Cardholder[]>([]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Cardholder | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,6 +133,60 @@ export default function WalletAdjust() {
   const [reason, setReason] = useState("");
   const [reference, setReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Adjustment Report state ───────────────────────────────────────────────
+  const today = new Date().toISOString().slice(0, 10);
+  const firstOfMonth = today.slice(0, 7) + "-01";
+  const [rptDateFrom, setRptDateFrom] = useState(firstOfMonth);
+  const [rptDateTo, setRptDateTo] = useState(today);
+  const [rptDirection, setRptDirection] = useState<"all" | "credit" | "debit">("all");
+  const [rptRows, setRptRows] = useState<AdjustmentRow[]>([]);
+  const [rptLoading, setRptLoading] = useState(false);
+  const [rptSearched, setRptSearched] = useState(false);
+
+  const loadReport = async () => {
+    setRptLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (rptDateFrom) params.set("date_from", rptDateFrom);
+      if (rptDateTo) params.set("date_to", rptDateTo);
+      if (rptDirection !== "all") params.set("direction", rptDirection);
+      const data = await api.get<AdjustmentRow[]>(`/wallets/admin/adjustment-report?${params.toString()}`);
+      setRptRows(data);
+      setRptSearched(true);
+    } catch (e) {
+      toast({
+        title: t("adjustmentReport.loadError", "Failed to load report"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setRptLoading(false);
+    }
+  };
+
+  const rptFilterLabel = [
+    rptDateFrom && rptDateTo ? `${rptDateFrom} → ${rptDateTo}` : "All dates",
+    rptDirection !== "all" ? `Direction: ${rptDirection}` : null,
+  ].filter(Boolean).join("  |  ");
+
+  const rptExportRows = rptRows.map((r) => ({ ...r, reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
+  const rptTotals = {
+    entity_name: `${rptRows.length} records`,
+    amount: rptRows.reduce((s, r) => s + (r.direction === "credit" ? r.amount : -r.amount), 0),
+  };
+  const rptCreditTotal = rptRows.filter((r) => r.direction === "credit").reduce((s, r) => s + r.amount, 0);
+  const rptDebitTotal  = rptRows.filter((r) => r.direction === "debit").reduce((s, r) => s + r.amount, 0);
+
+  const handleRptExcel = () => exportToExcel(
+    { meta: { title: "Wallet Adjustment Report", schoolName: schoolInfo?.name ?? "ISB", filters: [rptFilterLabel] }, columns: RPT_COLUMNS, rows: rptExportRows, totals: rptTotals },
+    `WalletAdjustments_${rptDateFrom}_${rptDateTo}`,
+  );
+
+  const handleRptPdf = () => exportToPDF(
+    { meta: { title: "Wallet Adjustment Report", schoolName: schoolInfo?.name ?? "ISB", schoolLogoUrl: schoolInfo?.logoUrl || undefined, filters: [rptFilterLabel] }, columns: RPT_COLUMNS, rows: rptExportRows, totals: rptTotals },
+    `WalletAdjustments_${rptDateFrom}_${rptDateTo}.pdf`,
+  );
 
   const load = async () => {
     setLoading(true);
@@ -113,6 +220,13 @@ export default function WalletAdjust() {
       (c.grade || "").toLowerCase().includes(q)
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Reset to page 1 whenever search changes
+  const handleSearch = (v: string) => { setSearch(v); setPage(1); };
 
   const openAdjust = (c: Cardholder) => {
     if (!c.wallet_id) {
@@ -187,7 +301,7 @@ export default function WalletAdjust() {
             <Input
               placeholder={t("admin.walletAdjust.searchPlaceholder")}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -213,7 +327,7 @@ export default function WalletAdjust() {
                     </TableCell>
                   </TableRow>
                 )}
-                {filtered.map((c) => (
+                {paged.map((c) => (
                   <TableRow key={c.key}>
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>
@@ -245,8 +359,163 @@ export default function WalletAdjust() {
               </TableBody>
             </Table>
           )}
+
+          {!loading && totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                {t("common.showingOf", {
+                  from: (safePage - 1) * PAGE_SIZE + 1,
+                  to: Math.min(safePage * PAGE_SIZE, filtered.length),
+                  total: filtered.length,
+                  defaultValue: `Showing {{from}}–{{to}} of {{total}}`,
+                })}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("common.prev", "Prev")}
+                </Button>
+                <span className="px-3 text-sm">
+                  {safePage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                >
+                  {t("common.next", "Next")}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* ── Adjustment Report Section ─────────────────────────────────────── */}
+      <div className="mt-6 space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <ClipboardList className="h-5 w-5" />
+          {t("adjustmentReport.title", "Adjustment Report")}
+        </h2>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("adjustmentReport.filters", "Filters")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="rpt-date-from">{t("adjustmentReport.dateFrom", "From")}</Label>
+                <Input id="rpt-date-from" type="date" value={rptDateFrom} onChange={(e) => setRptDateFrom(e.target.value)} className="w-40" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="rpt-date-to">{t("adjustmentReport.dateTo", "To")}</Label>
+                <Input id="rpt-date-to" type="date" value={rptDateTo} onChange={(e) => setRptDateTo(e.target.value)} className="w-40" />
+              </div>
+              <div className="space-y-1">
+                <Label>{t("adjustmentReport.direction", "Direction")}</Label>
+                <Select value={rptDirection} onValueChange={(v) => setRptDirection(v as typeof rptDirection)}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="credit">Credit (+)</SelectItem>
+                    <SelectItem value="debit">Debit (−)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={loadReport} disabled={rptLoading} className="gap-2">
+                <Search className="h-4 w-4" />
+                {rptLoading ? t("adjustmentReport.loading", "Loading…") : t("adjustmentReport.search", "Search")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {rptSearched && rptRows.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="text-muted-foreground">{rptRows.length} records</span>
+              <Badge variant="outline" className="text-green-700 border-green-300">+ Credit: {formatTHB(rptCreditTotal)}</Badge>
+              <Badge variant="outline" className="text-destructive border-destructive/30">− Debit: {formatTHB(rptDebitTotal)}</Badge>
+              <Badge variant="secondary">Net: {formatTHB(rptCreditTotal - rptDebitTotal)}</Badge>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleRptExcel} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4 text-green-700" />Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleRptPdf} className="gap-2">
+                <FileText className="h-4 w-4 text-red-600" />PDF
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {rptSearched && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date / Time</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Direction</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Balance Before</TableHead>
+                      <TableHead className="text-right">Balance After</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Ref / Ticket</TableHead>
+                      <TableHead>Adjusted By</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rptRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                          {t("adjustmentReport.noResults", "No adjustments found.")}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rptRows.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="whitespace-nowrap text-xs font-mono">{formatDT(r.created_at)}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entity_type] ?? "bg-gray-100 text-gray-700"}`}>
+                              {r.entity_type}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-medium">{r.entity_name}</TableCell>
+                          <TableCell><Badge variant="secondary" className="font-mono text-xs">{r.entity_code}</Badge></TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={r.direction === "credit" ? "text-green-700 border-green-300" : "text-destructive border-destructive/30"}>
+                              {r.direction === "credit" ? "+ Credit" : "− Debit"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold">{formatTHB(r.amount)}</TableCell>
+                          <TableCell className="text-right font-mono text-muted-foreground text-sm">{formatTHB(r.balance_before)}</TableCell>
+                          <TableCell className={`text-right font-mono font-semibold ${r.balance_after < 0 ? "text-destructive" : ""}`}>{formatTHB(r.balance_after)}</TableCell>
+                          <TableCell className="max-w-[220px] text-sm"><span title={r.reason ?? ""} className="line-clamp-2">{r.reason || <span className="text-muted-foreground italic">—</span>}</span></TableCell>
+                          <TableCell className="text-sm font-mono">{r.reference_ticket || <span className="text-muted-foreground">—</span>}</TableCell>
+                          <TableCell className="text-sm">{r.adjusted_by}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

@@ -528,3 +528,100 @@ def adjustment_report(
             adjusted_by=adjusted_by,
         ))
     return rows
+
+
+# ── Admin: transfer report ────────────────────────────────────────────────────
+
+class TransferReportRow(_BaseModel):
+    id: int
+    created_at: _dt
+    from_name: str
+    from_code: str
+    to_name: str
+    to_code: str
+    amount: float
+    note: Optional[str]
+    transferred_by: str
+
+
+class TransferReportResponse(_BaseModel):
+    items: List[TransferReportRow]
+    total: int
+    page: int
+    pages: int
+
+
+@router.get("/admin/transfer-report", response_model=TransferReportResponse)
+def transfer_report(
+    date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="YYYY-MM-DD inclusive"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """All family wallet transfers for audit/reporting (debit side only, no duplicates)."""
+    q = db.query(WalletTransaction).filter(
+        WalletTransaction.reference_type == "family_transfer",
+        WalletTransaction.description.like("Family transfer →%"),
+    )
+    if date_from:
+        try:
+            q = q.filter(WalletTransaction.created_at >= _dt.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            end = _dt.fromisoformat(date_to) + _td(days=1)
+            q = q.filter(WalletTransaction.created_at < end)
+        except ValueError:
+            pass
+
+    total = q.count()
+    txs = q.order_by(WalletTransaction.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    def _resolve_wallet(w) -> tuple:
+        if not w:
+            return ("—", "—")
+        if w.customer_id:
+            c = db.query(_Customer).filter(_Customer.id == w.customer_id).first()
+            if c:
+                return (c.name, c.student_code or c.customer_code)
+        if w.user_id:
+            u = db.query(User).filter(User.id == w.user_id).first()
+            if u:
+                return (u.full_name or u.username, u.username)
+        if w.department_id:
+            d = db.query(_Department).filter(_Department.id == w.department_id).first()
+            if d:
+                return (d.department_name, d.department_code)
+        return ("—", "—")
+
+    items: List[TransferReportRow] = []
+    for tx in txs:
+        to_wallet = db.query(Wallet).filter(Wallet.id == tx.reference_id).first() if tx.reference_id else None
+        from_name, from_code = _resolve_wallet(tx.wallet)
+        to_name, to_code = _resolve_wallet(to_wallet)
+        note = None
+        if tx.description and " — " in tx.description:
+            note = tx.description.split(" — ", 1)[1].strip() or None
+        creator = db.query(User).filter(User.id == tx.created_by).first() if tx.created_by else None
+        transferred_by = (creator.full_name or creator.username) if creator else "—"
+        items.append(TransferReportRow(
+            id=tx.id,
+            created_at=tx.created_at,
+            from_name=from_name,
+            from_code=from_code,
+            to_name=to_name,
+            to_code=to_code,
+            amount=float(tx.amount),
+            note=note,
+            transferred_by=transferred_by,
+        ))
+
+    return TransferReportResponse(
+        items=items,
+        total=total,
+        page=page,
+        pages=max(1, -(-total // page_size)),
+    )

@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Plus, Edit, Trash2, Package, Loader2, Store as StoreIcon } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Package, Loader2, Store as StoreIcon, ChevronRight, BarChart3 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 
@@ -284,19 +284,16 @@ const ShopManagement = () => {
   // ── Render helpers ──────────────────────────────────────────────────────
 
   function renderAddDialog() {
-    const isCanteen = shopForm.module === "canteen";
     return (
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {isCanteen ? <UtensilsCrossed className="h-4 w-4" /> : <StoreIcon className="h-4 w-4" />}
-              {isCanteen ? t("management.addShopCanteen") : t("management.addShopStore")}
+              <StoreIcon className="h-4 w-4" />
+              {t("management.addShopStore", "+ Add Coop / Retail Shop")}
             </DialogTitle>
             <DialogDescription>
-              {isCanteen
-                ? t("management.addShopCanteenDesc")
-                : t("management.addShopStoreDesc")}
+              {t("management.addShopStoreDesc", "Coop/retail shop — retail POS, supports department charge")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -360,72 +357,87 @@ const ShopManagement = () => {
   const storeShops   = shops.filter((s) => s.module === "store");
 
   const renderShopCard = (shop: Shop) => (
-    <Card key={shop.id} className={`hover:shadow-md transition-shadow ${!shop.isActive ? "opacity-60" : ""}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-              {shop.module === "canteen"
-                ? <UtensilsCrossed className="h-5 w-5 text-primary" />
-                : <Building2 className="h-5 w-5 text-primary" />}
+    <Card
+      key={shop.id}
+      className={`hover:shadow-md transition-shadow cursor-pointer ${!shop.isActive ? "opacity-60" : ""}`}
+      onClick={() => navigate(`/store/management/${shop.id}`)}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+              <StoreIcon className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-base">{shop.name}</CardTitle>
-              <p className="text-xs font-mono text-muted-foreground mt-0.5">ID: {shop.id}</p>
-              {shop.description && (
-                <p className="text-sm text-muted-foreground mt-0.5">{shop.description}</p>
-              )}
+              <p className="text-xs text-muted-foreground font-mono">{shop.id}</p>
             </div>
           </div>
-          <Badge variant={shop.isActive ? "success" : "secondary"} className="shrink-0">
-            {shop.isActive ? t("management.statusActive") : t("management.statusInactive")}
+          <Badge variant={shop.isActive ? "default" : "secondary"} className="text-xs shrink-0">
+            {shop.isActive ? t("common.active") : t("common.inactive")}
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
-          <div className="flex items-center gap-1.5">
-            <Package className="h-4 w-4" />
-            <span>{shop.productCount} {t("management.products")}</span>
-          </div>
-        </div>
-        {(shop.module !== "canteen" || shop.allowDepartmentCharge) && (
-          <div className="mb-4 flex flex-wrap gap-1.5">
-            {shop.module !== "canteen" && (
-              <Badge
-                variant={shop.shopType === "fifo" ? "default" : "secondary"}
-                className={shop.shopType === "fifo" ? "bg-violet-600 hover:bg-violet-600 text-xs" : "text-xs"}
-              >
-                {shop.shopType === "fifo" ? t("management.shopTypeFifo") : t("management.shopTypeAvgCost")}
-              </Badge>
-            )}
-            {shop.allowDepartmentCharge && (
-              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-xs">{t("management.deptCharge")}</Badge>
-            )}
-          </div>
+        {shop.description && (
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{shop.description}</p>
         )}
-        <div className="flex items-center gap-2">
-          <Button
-            className="flex-1"
-            onClick={() => navigate(shop.module === "canteen" ? `/canteen/management/${shop.id}` : `/store/management/${shop.id}`)}
+        <div className="flex items-center flex-wrap gap-1.5 text-sm text-muted-foreground mb-3">
+          <Package className="h-3.5 w-3.5" />
+          <span>{shop.productCount} {t("management.products", "products")}</span>
+          <Badge
+            className={`ml-1 text-xs ${shop.shopType === "fifo" ? "bg-violet-100 text-violet-800 hover:bg-violet-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}`}
           >
-            {t("management.manageShop")}
-          </Button>
-          {hasRole("admin") && (
-            <>
-              <Button variant="outline" size="icon" onClick={() => openEditShop(shop)}>
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setDeleteTarget(shop)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
+            {shop.shopType === "fifo" ? t("management.shopTypeFifo", "FIFO") : t("management.shopTypeAvgCost", "Avg Cost")}
+          </Badge>
+          {shop.allowDepartmentCharge && (
+            <Badge className="text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+              {t("management.deptCharge", "Dept charge")}
+            </Badge>
           )}
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); navigate(`/store/management/${shop.id}`); }}
+            >
+              <Building2 className="h-3.5 w-3.5 mr-1" />
+              {t("management.manageShop", "Manage")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); navigate("/store/reports"); }}
+            >
+              <BarChart3 className="h-3.5 w-3.5 mr-1" />
+              {t("canteenMgmt.reports", "Reports")}
+            </Button>
+          </div>
+          <div className="flex items-center gap-1">
+            {hasRole("admin") && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => { e.stopPropagation(); openEditShop(shop); }}
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); setDeleteTarget(shop); }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -444,7 +456,7 @@ const ShopManagement = () => {
         {hasRole("admin") && (
           <Button onClick={() => openAddForTab("store")}>
             <Plus className="h-4 w-4 mr-2" />
-            {t("management.addShopStore", "+ Add Store")}
+            {t("management.addShopStore", "+ Add Coop / Retail Shop")}
           </Button>
         )}
       </div>
@@ -455,7 +467,7 @@ const ShopManagement = () => {
           <p>{t("management.noShopsStore", "No stores found")}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {storeShops.map(renderShopCard)}
         </div>
       )}
