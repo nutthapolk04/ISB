@@ -9,7 +9,7 @@ from datetime import date, datetime
 from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 
 from app.models.receipt import Receipt, ReceiptItem, TransactionMode, PaymentMethod, ReceiptStatus
 from app.models.shop import ShopProduct, ShopMovement, MovementType, Shop, MenuOption, MenuOptionGroup
@@ -647,7 +647,9 @@ class POSService:
         elif shop_ids:
             ids = [s.strip() for s in shop_ids.split(",") if s.strip()]
             if ids:
-                query = query.filter(Receipt.shop_id.in_(ids))
+                query = query.filter(
+                    or_(Receipt.shop_id.in_(ids), Receipt.shop_id.is_(None))
+                )
         if transaction_mode:
             query = query.filter(Receipt.transaction_mode == TransactionMode(transaction_mode))
         if requester_user_id:

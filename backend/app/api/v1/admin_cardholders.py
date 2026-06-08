@@ -173,7 +173,46 @@ def list_cardholders(
                     Customer.family_code.ilike(pattern),
                 )
             )
-        customers = c_query.all()
+        try:
+            customers = c_query.all()
+        except Exception as _orm_err:
+            if "is_graduated" not in str(_orm_err):
+                raise
+            # Column not yet migrated — fall back to query without the new column
+            from sqlalchemy import text as _text
+            from types import SimpleNamespace as _NS
+            _like = f"%{q.strip()}%" if q and q.strip() else None
+            _sql = _text("""
+                SELECT id, customer_code, student_code, name, grade, school_type,
+                       customer_kind, photo_url, email, phone, allergies, dietary_notes,
+                       allergy_override_note, card_uid, card_frozen, daily_limit,
+                       negative_credit_limit, external_id, family_code,
+                       is_active, powerschool_sync_at
+                FROM customers
+                WHERE customer_kind IN ('student','other')
+                  AND (:kind_filter IS NULL OR customer_kind = :kind_filter)
+                  AND (:q IS NULL OR name ILIKE :q OR customer_code ILIKE :q
+                       OR student_code ILIKE :q OR external_id ILIKE :q
+                       OR family_code ILIKE :q)
+                ORDER BY name
+            """)
+            _kind_filter = kind if kind in ("student", "other") else None
+            _rows = db.execute(_sql, {"q": _like, "kind_filter": _kind_filter}).fetchall()
+            customers = [
+                _NS(
+                    id=r.id, customer_code=r.customer_code, student_code=r.student_code,
+                    name=r.name, grade=r.grade, school_type=r.school_type,
+                    customer_kind=r.customer_kind, photo_url=r.photo_url,
+                    email=r.email, phone=r.phone, allergies=r.allergies,
+                    dietary_notes=r.dietary_notes, allergy_override_note=r.allergy_override_note,
+                    card_uid=r.card_uid, card_frozen=r.card_frozen,
+                    daily_limit=r.daily_limit, negative_credit_limit=r.negative_credit_limit,
+                    external_id=r.external_id, family_code=r.family_code,
+                    is_active=r.is_active, is_graduated=False,
+                    powerschool_sync_at=r.powerschool_sync_at, wallet=None,
+                )
+                for r in _rows
+            ]
 
     # Departments
     departments: List[Department] = []

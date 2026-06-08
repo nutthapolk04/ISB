@@ -453,8 +453,9 @@ const Receipts = () => {
       setLoading(true);
       const data = await api.get<ReceiptApi[]>(`/pos/receipt${queryParams}`);
       setReceipts(data);
-    } catch {
-      // silent — user may not have token yet, or backend may ignore the filter
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to load receipts";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
