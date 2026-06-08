@@ -137,12 +137,17 @@ export default function WalletTransfer() {
   const [txPage, setTxPage] = useState(1);
   const [txPages, setTxPages] = useState(1);
   const [txLoading, setTxLoading] = useState(false);
+  const [txDateFrom, setTxDateFrom] = useState("");
+  const [txDateTo, setTxDateTo] = useState("");
 
   const loadHistory = async (page = 1) => {
     setTxLoading(true);
     try {
+      const params = new URLSearchParams({ page: String(page), page_size: "20" });
+      if (txDateFrom) params.set("date_from", txDateFrom);
+      if (txDateTo) params.set("date_to", txDateTo);
       const data = await api.get<TransferHistoryResponse>(
-        `/wallets/admin/transfer-report?page=${page}&page_size=20`
+        `/wallets/admin/transfer-report?${params.toString()}`
       );
       setTxHistory(data.items);
       setTxTotal(data.total);
@@ -345,7 +350,7 @@ export default function WalletTransfer() {
 
   return (
     <div className="page-shell">
-      <div className="max-w-3xl space-y-6">
+      <div className="space-y-6">
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title flex items-center gap-2">
@@ -792,22 +797,32 @@ export default function WalletTransfer() {
       )}
       {/* ── Transfer History ──────────────────────────────────────────────── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-semibold flex items-center gap-2">
             <History className="h-4 w-4" />
             {t("admin.walletTransfer.historyTitle", "Transfer History")}
             {txTotal > 0 && <span className="text-sm text-muted-foreground font-normal">({txTotal} total)</span>}
           </h2>
-          {txHistory.length > 0 && (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleTxExcel} className="gap-1.5">
-                <FileSpreadsheet className="h-3.5 w-3.5 text-green-700" />Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleTxPdf} className="gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-red-600" />PDF
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="text-sm">{t("adjustmentReport.dateFrom", "From")}</Label>
+            <Input type="date" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)} className="w-36 h-8 text-sm" />
+            <Label className="text-sm">{t("adjustmentReport.dateTo", "To")}</Label>
+            <Input type="date" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)} className="w-36 h-8 text-sm" />
+            <Button size="sm" onClick={() => loadHistory(1)} disabled={txLoading} className="gap-1.5 h-8">
+              <Search className="h-3.5 w-3.5" />
+              {txLoading ? "…" : t("adjustmentReport.search", "Search")}
+            </Button>
+            {txHistory.length > 0 && (
+              <>
+                <Button variant="outline" size="sm" onClick={handleTxExcel} className="gap-1.5 h-8">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-green-700" />Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleTxPdf} className="gap-1.5 h-8">
+                  <FileText className="h-3.5 w-3.5 text-red-600" />PDF
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         <Card>

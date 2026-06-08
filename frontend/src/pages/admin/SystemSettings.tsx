@@ -125,7 +125,7 @@ export default function SystemSettings() {
 
   return (
     <div className="page-shell">
-      <div className="max-w-3xl space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="sm" className="h-10">
           <Link to="/admin">

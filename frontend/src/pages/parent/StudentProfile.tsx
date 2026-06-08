@@ -116,7 +116,7 @@ export default function StudentProfile() {
 
   return (
     <div className="page-shell min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-      <div className="max-w-3xl space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
 
         {/* Back button */}
         <div className="page-header flex items-center gap-2">

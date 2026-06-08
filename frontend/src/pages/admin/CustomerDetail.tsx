@@ -436,7 +436,7 @@ export default function CustomerDetail() {
 
   return (
     <div className="page-shell">
-      <div className="max-w-5xl space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
       <Button asChild variant="ghost" size="sm" className="w-fit">
         <Link to="/admin/wallet-adjust"><ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.customer.back")}</Link>
       </Button>

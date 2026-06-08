@@ -63,7 +63,7 @@ export default function UserManagement() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="cardholders" className="gap-2">
-            <IdCard className="h-4 w-4" /> Cardholders
+            <IdCard className="h-4 w-4" /> Users
           </TabsTrigger>
           <TabsTrigger value="cards" className="gap-2">
             <CreditCard className="h-4 w-4" /> Card Management

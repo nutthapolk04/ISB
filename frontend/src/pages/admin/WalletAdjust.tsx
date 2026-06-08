@@ -291,115 +291,8 @@ export default function WalletAdjust() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">{t("admin.walletAdjust.searchStudent")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={t("admin.walletAdjust.searchPlaceholder")}
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          {loading ? (
-            <p className="text-muted-foreground text-sm">{t("admin.walletAdjust.loading")}</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("admin.walletAdjust.colName")}</TableHead>
-                  <TableHead>{t("admin.walletAdjust.colCode")}</TableHead>
-                  <TableHead>{t("admin.walletAdjust.colClass")}</TableHead>
-                  <TableHead className="text-right">{t("admin.walletAdjust.colBalance")}</TableHead>
-                  <TableHead className="text-right">{t("admin.walletAdjust.colActions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      {t("admin.walletAdjust.noResults")}
-                    </TableCell>
-                  </TableRow>
-                )}
-                {paged.map((c) => (
-                  <TableRow key={c.key}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono text-xs">{c.identifier}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="text-xs capitalize text-muted-foreground"
-                      >
-                        {kindLabel(c)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`text-right font-mono ${(c.wallet_balance ?? 0) < 0 ? "text-destructive" : ""}`}>
-                      {formatTHB(c.wallet_balance ?? 0)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button asChild size="sm" variant="ghost" title={t("admin.walletAdjust.viewProfile")}>
-                          <Link to={profileHref(c)}>{t("admin.walletAdjust.viewProfile")}</Link>
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => openAdjust(c)}>
-                          {t("admin.walletAdjust.adjustBalance")}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-sm text-muted-foreground">
-                {t("common.showingOf", {
-                  from: (safePage - 1) * PAGE_SIZE + 1,
-                  to: Math.min(safePage * PAGE_SIZE, filtered.length),
-                  total: filtered.length,
-                  defaultValue: `Showing {{from}}–{{to}} of {{total}}`,
-                })}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  {t("common.prev", "Prev")}
-                </Button>
-                <span className="px-3 text-sm">
-                  {safePage} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={safePage === totalPages}
-                >
-                  {t("common.next", "Next")}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* ── Adjustment Report Section ─────────────────────────────────────── */}
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <ClipboardList className="h-5 w-5" />
           {t("adjustmentReport.title", "Adjustment Report")}
@@ -516,6 +409,113 @@ export default function WalletAdjust() {
           </Card>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{t("admin.walletAdjust.searchStudent")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t("admin.walletAdjust.searchPlaceholder")}
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {loading ? (
+            <p className="text-muted-foreground text-sm">{t("admin.walletAdjust.loading")}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("admin.walletAdjust.colName")}</TableHead>
+                  <TableHead>{t("admin.walletAdjust.colCode")}</TableHead>
+                  <TableHead>{t("admin.walletAdjust.colClass")}</TableHead>
+                  <TableHead className="text-right">{t("admin.walletAdjust.colBalance")}</TableHead>
+                  <TableHead className="text-right">{t("admin.walletAdjust.colActions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      {t("admin.walletAdjust.noResults")}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {paged.map((c) => (
+                  <TableRow key={c.key}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono text-xs">{c.identifier}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="text-xs capitalize text-muted-foreground"
+                      >
+                        {kindLabel(c)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={`text-right font-mono ${(c.wallet_balance ?? 0) < 0 ? "text-destructive" : ""}`}>
+                      {formatTHB(c.wallet_balance ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button asChild size="sm" variant="ghost" title={t("admin.walletAdjust.viewProfile")}>
+                          <Link to={profileHref(c)}>{t("admin.walletAdjust.viewProfile")}</Link>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openAdjust(c)}>
+                          {t("admin.walletAdjust.adjustBalance")}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {!loading && totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                {t("common.showingOf", {
+                  from: (safePage - 1) * PAGE_SIZE + 1,
+                  to: Math.min(safePage * PAGE_SIZE, filtered.length),
+                  total: filtered.length,
+                  defaultValue: `Showing {{from}}–{{to}} of {{total}}`,
+                })}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("common.prev", "Prev")}
+                </Button>
+                <span className="px-3 text-sm">
+                  {safePage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                >
+                  {t("common.next", "Next")}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

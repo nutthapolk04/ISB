@@ -281,7 +281,7 @@ export default function DepartmentAdjust() {
 
   return (
     <div className="page-shell">
-      <div className="max-w-6xl space-y-4">
+      <div className="space-y-4">
       <div className="page-header">
         <h1 className="page-title flex items-center gap-2">
           <Building2 className="h-6 w-6" /> {t("cardholders.deptAdjust.title")}

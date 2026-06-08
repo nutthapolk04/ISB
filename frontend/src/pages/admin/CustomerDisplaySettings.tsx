@@ -226,7 +226,7 @@ export default function CustomerDisplaySettings() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="page-shell max-w-5xl">
+    <div className="page-shell">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link to="/admin">
