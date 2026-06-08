@@ -116,6 +116,7 @@ class ReturnRequestResponse(BaseModel):
     receiptId: str
     productCode: Optional[str] = None
     productName: str
+    bundleId: Optional[int] = None
     quantity: int
     returnQuantity: int
     reason: str

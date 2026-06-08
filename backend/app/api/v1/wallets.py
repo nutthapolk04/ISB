@@ -263,6 +263,21 @@ def cashier_topup(
     if not w:
         raise HTTPException(status_code=404, detail="Wallet not found")
 
+    # Enforce balance cap for non-department wallets (same limit as QR top-up flow)
+    MAX_WALLET_BALANCE = 50_000
+    if payload.amount > 0 and w.department_id is None:
+        projected = float(w.balance or 0) + payload.amount
+        if projected > MAX_WALLET_BALANCE:
+            available = max(0, MAX_WALLET_BALANCE - float(w.balance or 0))
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Wallet balance cannot exceed ฿{MAX_WALLET_BALANCE:,.0f}. "
+                    f"Current: ฿{float(w.balance or 0):,.2f}. "
+                    f"Max top-up: ฿{available:,.2f}."
+                ),
+            )
+
     # Get customer name for response
     customer_name = "Unknown"
     if w.customer_id:

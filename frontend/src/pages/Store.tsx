@@ -1026,7 +1026,7 @@ const Store = () => {
         // sentinel product_variant_id=0 that backend can't introspect.
         shop_id: user?.shopId ?? undefined,
         cash_received:
-          backendMethod === "cash" && ctx.cashReceived !== undefined
+          backendMethod === "cash" && ctx.cashReceived !== undefined && total > 0
             ? ctx.cashReceived
             : undefined,
         items: cart.map((item) => {

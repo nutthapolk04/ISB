@@ -86,7 +86,20 @@ class ReturnsService:
                 existing_q = existing_q.filter(ReturnRequest.bundle_id == bundle_id_in)
             else:
                 existing_q = existing_q.filter(ReturnRequest.bundle_id.is_(None))
-            existing_returns = existing_q.all()
+            try:
+                existing_returns = existing_q.all()
+            except Exception:
+                # bundle_id column missing on DB (pre-migration) — fall back to
+                # querying without the bundle_id filter so at least basic duplicate
+                # detection still works.
+                existing_returns = (
+                    db.query(ReturnRequest)
+                    .filter(
+                        ReturnRequest.receipt_id == receipt_id,
+                        ReturnRequest.product_code == item["productCode"],
+                        ReturnRequest.status != ReturnStatus.rejected,
+                    )
+                ).all()
             already_returned_qty = sum(r.return_quantity for r in existing_returns)
             remaining_qty = purchased_qty - already_returned_qty
 
@@ -201,13 +214,52 @@ class ReturnsService:
         *,
         q: Optional[str] = None,
     ) -> List[ReturnRequest]:
-        query = db.query(ReturnRequest).order_by(desc(ReturnRequest.created_at))
-        if q:
-            query = query.filter(
-                ReturnRequest.receipt_id.ilike(f"%{q}%")
-                | ReturnRequest.product_name.ilike(f"%{q}%")
-            )
-        return query.all()
+        try:
+            query = db.query(ReturnRequest).order_by(desc(ReturnRequest.created_at))
+            if q:
+                query = query.filter(
+                    ReturnRequest.receipt_id.ilike(f"%{q}%")
+                    | ReturnRequest.product_name.ilike(f"%{q}%")
+                )
+            return query.all()
+        except Exception as orm_err:
+            # Fallback: bundle_id column missing on DB (pre-migration).
+            # Return raw-SQL rows wrapped as SimpleNamespace so _rr_to_response still works.
+            if "bundle_id" not in str(orm_err):
+                raise
+            from sqlalchemy import text as _text
+            from types import SimpleNamespace
+            like_q = f"%{q}%" if q else None
+            sql = _text("""
+                SELECT id, receipt_id, product_code, product_name,
+                       quantity, return_quantity, price, reason, status,
+                       price_type, void_status, return_status, created_at
+                FROM return_requests
+                WHERE (:q IS NULL
+                       OR receipt_id ILIKE :q
+                       OR product_name ILIKE :q)
+                ORDER BY created_at DESC NULLS LAST
+            """)
+            rows = db.execute(sql, {"q": like_q}).fetchall()
+            return [
+                SimpleNamespace(
+                    id=r.id,
+                    receipt_id=r.receipt_id,
+                    product_code=r.product_code,
+                    product_name=r.product_name,
+                    bundle_id=None,
+                    quantity=r.quantity,
+                    return_quantity=r.return_quantity,
+                    price=r.price,
+                    reason=r.reason,
+                    status=r.status,
+                    price_type=r.price_type,
+                    void_status=r.void_status or "active",
+                    return_status=r.return_status or "no-return",
+                    created_at=r.created_at,
+                )
+                for r in rows
+            ]
 
     # ── Get returns by receipt ────────────────────────────────────────────────
 

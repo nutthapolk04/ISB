@@ -224,18 +224,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           shopName: mockMatch?.shopName ?? null,
           shopModule: backendModule ?? mockMatch?.shopModule ?? moduleOf(shopId),
         };
-        // Authoritative: fetch shop metadata to get .module from backend (only if shop_module not in /me response)
-        if (shopId && !backendModule) {
+        // Always fetch shop metadata when user has a shopId to get the real shop name.
+        // Only update shopModule when backend didn't already provide it.
+        if (shopId) {
           try {
             const shopRes = await fetch(`${API_BASE_URL}/shops/${shopId}`, {
               headers: { Authorization: `Bearer ${data.access_token}` },
             });
             if (shopRes.ok) {
               const shop = await shopRes.json();
-              authUser.shopModule = (shop.module as AppModule) ?? authUser.shopModule;
+              if (!backendModule) {
+                authUser.shopModule = (shop.module as AppModule) ?? authUser.shopModule;
+              }
               authUser.shopName = shop.name ?? authUser.shopName;
             }
-          } catch { /* keep inferred module */ }
+          } catch { /* keep inferred values */ }
         }
       } else {
         const mockMatch = MOCK_USERS.find((u) => u.username === username);
