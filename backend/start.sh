@@ -622,6 +622,10 @@ run('ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS reversed_by_id INTEGER 
 #     refund/exchange can restore stock on every sub-SKU, not just the anchor ===
 run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
     'return_requests.bundle_id')
+
+# === Graduated students: distinct from plain inactive so UI can show "Graduated" ===
+run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_graduated BOOLEAN NOT NULL DEFAULT false',
+    'customers.is_graduated')
 run('CREATE INDEX IF NOT EXISTS ix_return_requests_bundle_id ON return_requests(bundle_id)',
     'return_requests idx bundle_id')
 
@@ -716,6 +720,7 @@ required_cols = [
     ('shop_movements', 'reverses_id'),
     ('shop_movements', 'reversed_by_id'),
     ('return_requests', 'bundle_id'),
+    ('customers', 'is_graduated'),
     ('price_panel_items', 'bundle_id'),
     ('customer_display_images', 'data'),
     ('payment_intents', 'txn_no'),

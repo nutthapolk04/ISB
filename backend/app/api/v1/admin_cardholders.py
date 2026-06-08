@@ -91,6 +91,7 @@ def _customer_to_cardholder(c: Customer, wallet: Optional[Wallet]) -> Cardholder
         wallet_id=wallet.id if wallet else None,
         wallet_balance=float(wallet.balance) if wallet else None,
         is_active=bool(c.is_active),
+        is_graduated=bool(getattr(c, "is_graduated", False)),
         grade=c.grade,
         school_type=c.school_type,
         allergies=c.allergies,

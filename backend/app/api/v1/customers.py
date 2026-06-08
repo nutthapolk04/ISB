@@ -575,8 +575,9 @@ def graduate_student(
         else:
             message = f"No siblings found — balance ฿{balance:.2f} left in wallet, needs admin action"
 
-    # Deactivate regardless
+    # Deactivate and mark graduated
     c.is_active = False
+    c.is_graduated = True
     c.card_frozen = True
     c.powerschool_sync_at = datetime.utcnow()
     db.commit()

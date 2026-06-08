@@ -67,6 +67,7 @@ class Customer(Base):
     # Parent/Staff are User entities, not Customer rows. Existing customer_type
     # string stays as a PS-side hint and isn't repurposed.
     customer_kind = Column(String(20), nullable=False, server_default="other", index=True)
+    is_graduated = Column(Boolean, default=False, nullable=False, server_default="false")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

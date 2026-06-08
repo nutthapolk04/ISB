@@ -59,6 +59,7 @@ export interface Cardholder {
   wallet_id?: number | null;
   wallet_balance?: number | null;
   is_active: boolean;
+  is_graduated?: boolean;
   role?: string | null;
   shop_id?: string | null;
   grade?: string | null;
@@ -482,7 +483,9 @@ export default function CardholderList() {
                     <TableCell>
                       {c.is_active
                         ? <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 bg-emerald-50">Active</Badge>
-                        : <Badge variant="outline" className="text-[10px] text-muted-foreground">Inactive</Badge>}
+                        : c.is_graduated
+                          ? <Badge variant="outline" className="text-[10px] text-blue-700 border-blue-300 bg-blue-50">Graduated</Badge>
+                          : <Badge variant="outline" className="text-[10px] text-muted-foreground">Inactive</Badge>}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {relativeTime(c.synced_at)}

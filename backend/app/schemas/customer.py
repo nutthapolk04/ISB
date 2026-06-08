@@ -116,6 +116,7 @@ class CardholderResponse(BaseModel):
     wallet_id: Optional[int] = None
     wallet_balance: Optional[float] = None
     is_active: bool = True
+    is_graduated: bool = False
     role: Optional[str] = None  # for users
     shop_id: Optional[str] = None
     grade: Optional[str] = None
