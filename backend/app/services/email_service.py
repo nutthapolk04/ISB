@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import smtplib
+import socket
 import ssl
 from email.message import EmailMessage
 from typing import Optional
@@ -54,15 +55,27 @@ def send_email(
     msg.set_content(body_text or _html_to_text(body_html))
     msg.add_alternative(body_html, subtype="html")
 
+    # Resolve the SMTP host to an IPv4 address explicitly. Railway containers
+    # often lack working IPv6 egress, and smtplib's default getaddrinfo can
+    # hand back an AAAA record first → ENETUNREACH. Forcing AF_INET keeps the
+    # connection on IPv4 where outbound TCP/587 actually works.
+    try:
+        ipv4 = socket.getaddrinfo(settings.SMTP_HOST, settings.SMTP_PORT, socket.AF_INET, socket.SOCK_STREAM)[0][4][0]
+    except Exception as exc:
+        raise EmailDeliveryError(f"DNS resolution failed for {settings.SMTP_HOST}: {exc}") from exc
+
     try:
         if settings.SMTP_USE_TLS:
             context = ssl.create_default_context()
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+            with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=15) as server:
+                server.ehlo(settings.SMTP_HOST)
                 server.starttls(context=context)
+                server.ehlo(settings.SMTP_HOST)
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 server.send_message(msg)
         else:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+            with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=15) as server:
+                server.ehlo(settings.SMTP_HOST)
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 server.send_message(msg)
     except Exception as exc:  # broad on purpose — SMTP exposes many failure modes
