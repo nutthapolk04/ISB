@@ -30,6 +30,32 @@ from app.api.v1 import (
 # Note: seeding is handled by start.sh before uvicorn is launched.
 Base.metadata.create_all(bind=engine)
 
+
+def _ensure_runtime_schema() -> None:
+    """Defensive ALTER TABLE patches run at import time so a deploy that bypasses
+    start.sh (manual restart, Railway deploy that reused cached image, etc.)
+    still reaches a usable schema. Each statement is idempotent; failures are
+    logged but don't block app boot — verification happens via the routes."""
+    from sqlalchemy import text
+    stmts = [
+        # return_requests: refund/exchange tracking fields persisted by ReturnsService
+        "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)",
+        "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS exchange_product_codes VARCHAR(500)",
+        "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(10,2)",
+        "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS exchange_amount NUMERIC(10,2)",
+        "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER",
+    ]
+    for stmt in stmts:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(stmt))
+        except Exception as exc:
+            _logger.warning("runtime schema patch failed: %s — %s", stmt, exc)
+
+
+_ensure_runtime_schema()
+
 # Initialize FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
