@@ -626,6 +626,8 @@
     "salesSummaryReportDesc": "สรุปยอดขายต่อใบเสร็จ แยกตามวิธีชำระเงิน กรองด้วยวันที่ ลูกค้า รหัสครอบครัว หรือเลขใบเสร็จได้",
     "salesByItemReport": "Sales by Item",
     "salesByItemReportDesc": "สรุปการขายต่อรายการสินค้า แยกตาม SKU พร้อมจำนวนและยอดรวม",
+    "salesByPaymentReport": "รายงานยอดขายแยกตามวิธีชำระเงิน",
+    "salesByPaymentReportDesc": "สรุปยอดขายแยกตามวิธีชำระเงิน (เงินสด, กระเป๋าเงิน, EDC, QR, แผนก) พร้อมจำนวนใบเสร็จและยอดรวม",
     "stockCard": {
       "variantId": "รหัสสินค้า (Variant ID)",
       "load": "โหลดข้อมูล",

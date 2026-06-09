@@ -626,6 +626,8 @@
     "salesSummaryReportDesc": "Per-receipt summary with payment-method breakdown, filterable by date, customer, family, or receipt range",
     "salesByItemReport": "Sales by Item",
     "salesByItemReportDesc": "Per-item sales activity grouped by SKU with quantity and amount totals",
+    "salesByPaymentReport": "Sales by Payment Method",
+    "salesByPaymentReportDesc": "Sales broken down by payment method (cash, wallet, EDC, QR, department) with receipt counts and totals",
     "stockCard": {
       "variantId": "Product Variant ID",
       "load": "Load",
