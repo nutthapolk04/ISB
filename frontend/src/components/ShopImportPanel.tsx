@@ -5,6 +5,7 @@ import { API_BASE_URL } from "@/lib/constants";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { InfoCallout } from "@/components/InfoCallout";
 import {
   Dialog,
   DialogContent,
@@ -156,6 +157,23 @@ export function ShopImportPanel({ shopId }: Props) {
 
   return (
     <>
+      <InfoCallout
+        id="shopImport.twoSheetsExplainer"
+        title={t("shopImport.twoSheetsTitle", "ทำไม template มี 2 sheets")}
+      >
+        <ul className="list-disc pl-4 space-y-1">
+          <li>
+            <strong>Products</strong> — ข้อมูลหลักของสินค้า (ชื่อ ราคา หมวด หน่วย). อัปซ้ำได้ — ระบบจะ update ราคา/ชื่อให้ ไม่ทำให้สต็อกเปลี่ยน
+          </li>
+          <li>
+            <strong>StockReceive</strong> — บันทึก<u>รายครั้ง</u>ที่รับของเข้า (จำนวน + ต้นทุนต่อหน่วย). อัปซ้ำ = สต็อกเพิ่มซ้ำ ใช้เฉพาะตอนของมาส่งจริงเท่านั้น
+          </li>
+        </ul>
+        <p className="mt-2">
+          ไฟล์ template ดาวน์โหลดครั้งเดียวใช้ได้ทั้งคู่ — กรอก sheet ไหนก็เลือก import sheet นั้นจาก dropdown
+        </p>
+      </InfoCallout>
+
       <Card>
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap items-center gap-3">
