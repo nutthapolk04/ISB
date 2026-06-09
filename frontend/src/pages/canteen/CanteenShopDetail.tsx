@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import CanteenProducts from "./CanteenProducts";
 import CanteenCategories from "./CanteenCategories";
 import { PricePanelManager } from "@/components/PricePanelManager";
+import { ShopImportPanel } from "@/components/ShopImportPanel";
 
 interface Shop {
   id: string;
@@ -224,7 +225,8 @@ export default function CanteenShopDetail() {
           <TabsTrigger value="info">{t("canteen.tabInfo")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="menu" className="mt-4">
+        <TabsContent value="menu" className="mt-4 space-y-4">
+          {(hasRole("admin") || hasRole("manager")) && <ShopImportPanel shopId={shopId} />}
           <CanteenProducts shopId={shopId} embedded />
         </TabsContent>
 
