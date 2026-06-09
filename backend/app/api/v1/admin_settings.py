@@ -15,6 +15,7 @@ from app.api.deps import require_role
 from app.models.user import User
 from app.services.settings_service import KNOWN_FLAGS, SettingsService
 from app.services.audit_service import create_audit_log
+from app.services import email_service
 
 router = APIRouter()
 
@@ -104,3 +105,43 @@ def update_setting(
     )
     db.commit()
     return {"key": key, "value": new_value}
+
+
+@router.post("/test-email")
+def test_email(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Send a one-shot test email to the current admin's address.
+
+    Used to validate SMTP credentials end-to-end without triggering a real
+    low-balance alert. Returns the SMTP error message verbatim on failure so
+    operators can debug their provider config.
+    """
+    recipient = (current_user.email or "").strip()
+    if not recipient:
+        raise HTTPException(status_code=400, detail="Current user has no email on file")
+    if not email_service.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="SMTP not configured — set SMTP_HOST / SMTP_USERNAME / SMTP_PASSWORD env vars",
+        )
+
+    subject = "✅ [ISB] Test email — SMTP configuration works"
+    html = (
+        "<div style='font-family:system-ui,sans-serif;padding:24px;max-width:480px;'>"
+        f"<h2 style='color:#1f2937;margin:0 0 12px;'>SMTP test successful</h2>"
+        f"<p style='color:#374151;line-height:1.6;'>Hello "
+        f"<strong>{current_user.full_name or current_user.username}</strong>,</p>"
+        "<p style='color:#374151;line-height:1.6;'>"
+        "This is a test message sent from the ISB POS system to confirm that "
+        "your SMTP settings are configured correctly. You can now receive "
+        "low-balance alerts and other transactional emails."
+        "</p>"
+        "</div>"
+    )
+    try:
+        email_service.send_email(to=recipient, subject=subject, body_html=html)
+        return {"sent": True, "to": recipient}
+    except email_service.EmailDeliveryError as exc:
+        raise HTTPException(status_code=502, detail=f"SMTP delivery failed: {exc}")
