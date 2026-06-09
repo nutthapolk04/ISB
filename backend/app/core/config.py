@@ -58,10 +58,17 @@ class Settings(BaseSettings):
     REPORTS_DIR: str = "./reports"
     REPORTS_RETENTION_DAYS: int = 90
 
-    # SMTP — used for low-balance and other notification emails. Configure
-    # SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD in Railway env.
-    # For Gmail use smtp.gmail.com:587 + an App Password (not your login pw).
-    # Leaving SMTP_HOST blank disables email delivery — alerts log as failed.
+    # Email delivery — two transports supported, picked in this order:
+    #   1) RESEND_API_KEY set → HTTP API to api.resend.com (recommended on
+    #      Railway; PaaS providers usually block outbound SMTP entirely).
+    #   2) SMTP_HOST set       → classic SMTP via smtplib (Gmail App Password,
+    #      Office 365, etc.). Works on self-hosted / VPS where 587/465 egress
+    #      isn't filtered.
+    # Leave both blank to disable email — alerts then log as failed.
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = ""  # used by both transports; e.g. "ISB Notifications <noreply@yourschool.com>"
+    EMAIL_FROM_FALLBACK_NAME: str = "ISB Notifications"
+
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""

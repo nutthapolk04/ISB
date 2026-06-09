@@ -1,16 +1,24 @@
 """
-Email delivery service — thin SMTP wrapper used for transactional notifications.
+Email delivery service — dispatches transactional mail via Resend HTTP API
+or classic SMTP. Picks the transport at call time so deployments can swap
+providers via env vars alone:
 
-The system supports any SMTP server (Gmail App Password, AWS SES SMTP relay,
-Office 365 SMTP, etc.) so deployments can swap providers without touching code.
-Set the SMTP_* env vars in Railway to enable delivery.
+    1. RESEND_API_KEY set → HTTPS POST to api.resend.com/emails
+    2. SMTP_HOST set      → smtplib (STARTTLS or implicit SSL by port)
+    3. neither set        → EmailDeliveryError ('not configured')
+
+Resend is the recommended path on Railway and other PaaS providers that
+block outbound SMTP ports; SMTP stays available for self-hosted setups.
 """
 from __future__ import annotations
 
+import json
 import logging
 import smtplib
 import socket
 import ssl
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
 from typing import Optional
 
@@ -18,14 +26,31 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+RESEND_ENDPOINT = "https://api.resend.com/emails"
+
 
 class EmailDeliveryError(Exception):
     """Raised when an email could not be sent — caller decides whether to retry."""
 
 
 def is_configured() -> bool:
-    """True when enough SMTP settings exist to attempt delivery."""
-    return bool(settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD)
+    """True when any supported transport has the minimum settings."""
+    if settings.RESEND_API_KEY:
+        return True
+    if settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+        return True
+    return False
+
+
+def _resolved_from() -> str:
+    """Return the From header value, preferring EMAIL_FROM if set."""
+    if settings.EMAIL_FROM:
+        return settings.EMAIL_FROM
+    addr = settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
+    name = settings.SMTP_FROM_NAME or settings.EMAIL_FROM_FALLBACK_NAME
+    if name and addr:
+        return f"{name} <{addr}>"
+    return addr
 
 
 def send_email(
@@ -35,22 +60,75 @@ def send_email(
     body_html: str,
     body_text: Optional[str] = None,
 ) -> None:
-    """Send a single email via configured SMTP server.
+    """Send a single email via Resend (preferred) or SMTP (fallback).
 
     Raises EmailDeliveryError on any failure so the caller can log and decide
     whether to retry. Caller is responsible for persisting an audit record —
     this function intentionally has no side effects beyond network I/O.
     """
-    if not is_configured():
-        raise EmailDeliveryError("SMTP not configured — set SMTP_HOST / SMTP_USERNAME / SMTP_PASSWORD")
+    if settings.RESEND_API_KEY:
+        _send_via_resend(to=to, subject=subject, body_html=body_html, body_text=body_text)
+        return
+    if not (settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD):
+        raise EmailDeliveryError(
+            "Email transport not configured — set RESEND_API_KEY or SMTP_HOST / SMTP_USERNAME / SMTP_PASSWORD"
+        )
+    _send_via_smtp(to=to, subject=subject, body_html=body_html, body_text=body_text)
+
+
+def _send_via_resend(
+    *,
+    to: str,
+    subject: str,
+    body_html: str,
+    body_text: Optional[str],
+) -> None:
+    from_addr = _resolved_from()
+    if not from_addr:
+        raise EmailDeliveryError("EMAIL_FROM not set — Resend requires a verified sender address")
+
+    payload = {
+        "from": from_addr,
+        "to": [to],
+        "subject": subject,
+        "html": body_html,
+    }
+    if body_text:
+        payload["text"] = body_text
+
+    req = urllib.request.Request(
+        RESEND_ENDPOINT,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            # Drain body so the audit log can include the resend id if needed.
+            _ = resp.read()
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:500]
+        logger.warning("Resend %s for to=%s subject=%r body=%s", exc.code, to, subject, body)
+        raise EmailDeliveryError(f"Resend HTTP {exc.code}: {body}") from exc
+    except Exception as exc:
+        logger.warning("Resend request failed to=%s subject=%r: %s", to, subject, exc)
+        raise EmailDeliveryError(f"Resend request failed: {exc}") from exc
+
+
+def _send_via_smtp(
+    *,
+    to: str,
+    subject: str,
+    body_html: str,
+    body_text: Optional[str],
+) -> None:
 
     msg = EmailMessage()
     msg["Subject"] = subject
-    from_addr = settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
-    if settings.SMTP_FROM_NAME:
-        msg["From"] = f"{settings.SMTP_FROM_NAME} <{from_addr}>"
-    else:
-        msg["From"] = from_addr
+    msg["From"] = _resolved_from()
     msg["To"] = to
     msg.set_content(body_text or _html_to_text(body_html))
     msg.add_alternative(body_html, subtype="html")
