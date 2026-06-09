@@ -80,7 +80,12 @@
     "title": "Store",
     "searchPlaceholder": "Search products or scan product code...",
     "searchPrompt": "Please search for products by typing code or product name",
-    "cart": "Shopping Cart",
+    "cart": {
+      "selectDiscountAria": "Select discount %",
+      "discountHeader": "Discount",
+      "useBaht": "Use ฿",
+      "usePercent": "Use %"
+    },
     "emptyCart": "No items in cart",
     "total": "Total",
     "priceMode": "Price Mode",
@@ -194,7 +199,8 @@
       "auditReceipt": "Receipt No.",
       "auditVoidedAt": "Voided At",
       "auditReason": "Reason",
-      "auditTotal": "Voided Amount"
+      "auditTotal": "Voided Amount",
+      "printSlip": "Print Void Slip"
     },
     "searchHintToAdd": "to add",
     "searchHintToNavigate": "to navigate",
@@ -244,12 +250,11 @@
     "reorder": {
       "enter": "Reorder"
     },
-    "cart": {
-      "selectDiscountAria": "Select discount %",
-      "discountHeader": "Discount",
-      "useBaht": "Use ฿",
-      "usePercent": "Use %"
-    }
+    "addDiscount": "Add Discount",
+    "charge": "Charge",
+    "order": "Order",
+    "receiptNote": "Add a note to this receipt (optional)",
+    "receiptNoteLabel": "Note"
   },
   "returns": {
     "title": "Product Returns",
@@ -294,7 +299,7 @@
     "verifying": "Verifying…",
     "refundSuccessTitle": "Refund successful",
     "originalReceipt": "Original receipt",
-    "refundAmount": "Refund amount",
+    "refundAmount": "Refund Amount",
     "returnedItemsLabel": "Returned items",
     "buyer": "Buyer",
     "returnDate": "Return date",
@@ -331,7 +336,6 @@
     "refundByCard": "Card Refund",
     "confirmCashRefund": "Confirm Cash Refund",
     "confirmCashRefundDesc": "Please verify the refund amount for the customer",
-    "refundAmount": "Refund Amount",
     "confirmRefund": "Confirm Refund",
     "tapCard": "Please Tap Card",
     "tapCardDesc": "Please tap student card or member card",
@@ -349,7 +353,6 @@
     "paymentChannel": "Payment Channel",
     "total": "Total",
     "price": "Price",
-    "code": "Code",
     "saveReturnRequest": "Save Return Request",
     "searchReceiptOrProduct": "Search receipt ID or product...",
     "manage": "Manage",
@@ -397,7 +400,6 @@
     "noSalesToday": "No sales today",
     "noResults": "No results found",
     "dateTime": "Date / Time",
-    "buyer": "Buyer",
     "status": "Status",
     "doReturn": "Return",
     "withReceipt": "With Receipt",
@@ -413,7 +415,6 @@
     "remove": "Remove",
     "customerName": "Customer Name",
     "customerNamePlaceholder": "Customer name (optional)",
-    "notes": "Notes",
     "notesPlaceholder": "Notes (optional)",
     "reasonPlaceholder": "Reason for return",
     "submitReturn": "Submit Return Request",
@@ -443,7 +444,11 @@
     "duplicateReturnTitle": "Cannot return duplicate items",
     "duplicateReturnDescription": "The following items already have a return request and cannot be returned again:",
     "understood": "Understood",
-    "itemAlreadyAdded": "Item already added"
+    "itemAlreadyAdded": "Item already added",
+    "confirmRefundDesc": "The refund will be returned to the same payment source used on the original receipt.",
+    "refundSuccessEdc": "Refund of {{amount}} recorded — process on EDC terminal for card {{card}}",
+    "refundSuccessToWallet": "Refunded {{amount}} to {{dest}} (new balance ฿{{balance}})",
+    "searchResultsCount": "{{count}} receipts found — click to select"
   },
   "receipts": {
     "title": "Receipts",
@@ -550,7 +555,17 @@
     "subtotal": "Subtotal",
     "billDiscount": "Bill Discount",
     "tax": "Tax",
-    "itemDiscount": "Item Discount"
+    "itemDiscount": "Item Discount",
+    "afterPayment": "After payment",
+    "balance": "Balance",
+    "code": "Code",
+    "departmentLabel": "Department",
+    "gradeLabel": "Grade",
+    "next": "Next ›",
+    "notes": "Notes",
+    "paginationRange": "Showing {{start}}–{{end}} of {{total}} items",
+    "prev": "‹ Prev",
+    "voidReason": "Void reason"
   },
   "void": {
     "title": "Void Transaction",
@@ -643,7 +658,8 @@
     },
     "colPaymentMethod": "Payment Method",
     "colReceiptCount": "Receipt Count",
-    "totalReceipts": "Total Receipts"
+    "totalReceipts": "Total Receipts",
+    "selectShopPlaceholder": "Select shop"
   },
   "inventory": {
     "defaultCategory": "General",
@@ -909,7 +925,9 @@
     "addError": "Failed to add shop",
     "updateError": "Failed to update shop",
     "deleteError": "Failed to delete shop",
-    "noShops": "No shops found"
+    "noShops": "No shops found",
+    "storeDescription": "Manage Coop / Retail shops and inventory",
+    "storeTitle": "Store Management"
   },
   "shop": {
     "tooltip": {
@@ -1171,7 +1189,11 @@
       "studentParents": "Parents",
       "noParents": "No parents linked to this account",
       "studentSiblings": "Siblings",
-      "noSiblings": "No siblings linked to this family"
+      "noSiblings": "No siblings linked to this family",
+      "historyTitle": "Transfer History",
+      "noHistory": "No transfers yet.",
+      "tapToTransfer": "Tap to transfer",
+      "transferringForStudent": "Transferring for student"
     },
     "cards": {
       "title": "Card Management (UID Mapping)",
@@ -1325,7 +1347,19 @@
       "photoUploaded": "Photo uploaded",
       "photoUploadFailed": "Upload failed",
       "cardFrozen": "Card frozen",
-      "cardUnfrozen": "Card unfrozen"
+      "cardUnfrozen": "Card unfrozen",
+      "linkParent": "Link Parent",
+      "linkParentConfirm": "Link",
+      "linkParentDesc": "Search for a parent account and link them to this student.",
+      "linkParentTitle": "Link Parent",
+      "parentLinked": "Parent linked successfully",
+      "parentNotFound": "No matching parent accounts",
+      "parentSearch": "Parent account",
+      "parentSearchPlaceholder": "Search by name or username…",
+      "parentUnlinked": "Parent unlinked",
+      "relation": "Relation",
+      "unlinkConfirm": "Remove this parent link?",
+      "unlinkParent": "Unlink parent"
     },
     "users": {
       "extIdReasonPlaceholder": "e.g. PowerSchool renumbered during annual rollover",
@@ -1437,7 +1471,18 @@
       "fieldPassword": "Password",
       "fieldRole": "Role",
       "fieldShop": "Shop ID (optional)",
-      "selectRole": "Select role…"
+      "selectRole": "Select role…",
+      "addRoleBtn": "Add role",
+      "extraRolesHint": "Add more roles on top of the primary role above. Lets a single account act as e.g. manager + cashier.",
+      "extraRolesTitle": "Additional roles",
+      "noExtraRoles": "No additional roles yet",
+      "primaryRole": "primary",
+      "removeRole": "Remove role",
+      "roleAddFailed": "Could not add role",
+      "roleAdded": "Role added",
+      "roleRemoveFailed": "Could not remove role",
+      "roleRemoved": "Role removed",
+      "selectRoleToAdd": "Choose role to add"
     }
   },
   "canteen": {
@@ -1685,7 +1730,9 @@
       "saved": "Order saved",
       "conflict": "Order was changed by someone else — please refresh and try again",
       "saveFailed": "Failed to save order"
-    }
+    },
+    "tabAll": "All",
+    "tabPanels": "Price Panels"
   },
   "common": {
     "cancel": "Cancel",
@@ -1721,7 +1768,10 @@
     "selectDate": "Select date",
     "selectDateRange": "Select date range",
     "unknownError": "Unknown error",
-    "select": "Select"
+    "select": "Select",
+    "next": "Next",
+    "prev": "Prev",
+    "showingOf": "Showing {{from}}–{{to}} of {{total}}"
   },
   "errorBoundary": {
     "title": "Something went wrong while loading this page",
@@ -1741,7 +1791,29 @@
     "errorRow": "Row {{row}}: {{reason}}",
     "errorsHeader": "{{count}} error(s)",
     "productsFailed": "Product import failed",
-    "stockFailed": "Stock import failed"
+    "stockFailed": "Stock import failed",
+    "cancel": "Cancel",
+    "checking": "Checking…",
+    "commitFailed": "Import failed",
+    "confirmImport": "Confirm import",
+    "downloadTemplate": "Download import template (Products + Stock sheets)",
+    "errorsTruncated": "… and {{rest}} more",
+    "importData": "Import data",
+    "importMenu": "Import menu items",
+    "menuProducts": "Import products (sheet: Products)",
+    "menuStock": "Import stock receipt (sheet: StockReceive)",
+    "noErrors": "No errors detected — safe to import.",
+    "previewFile": "File",
+    "previewNote": "This is a preview — no data has been saved yet.",
+    "previewProductsTitle": "Preview products import",
+    "previewStockTitle": "Preview stock receipt",
+    "statCreated": "Would create",
+    "statErrors": "Errors",
+    "statImported": "Would receive",
+    "statUpdated": "Would update",
+    "template": "Download template",
+    "templateFailed": "Could not download template",
+    "twoSheetsTitle": "Why does the template have 2 sheets?"
   },
   "shopDetail": {
     "panelNamePlaceholder": "e.g. Standard price"
@@ -1782,7 +1854,7 @@
   "sync": {
     "startFailed": "Failed to start sync",
     "loadAuditFailed": "Failed to load audit",
-    "description": "Pull Staff / Parent / Student data from PowerSchool — runs in the background and records an audit row for every record",
+    "description": "Select sync type and roles to update",
     "idleHint": "Press Run sync to start pulling data. You can close this dialog while the sync runs — the job keeps going.",
     "starting": "Starting…",
     "runFull": "Run sync (full)",
@@ -1793,7 +1865,6 @@
     "failed": "Sync failed",
     "loading": "Loading…",
     "noHistory": "No syncs yet — click Sync Now to start",
-    "description": "Select sync type and roles to update",
     "syncing": "Syncing…",
     "startSync": "Start Sync"
   },
@@ -1831,7 +1902,8 @@
     "tileAdmin": "Admin",
     "tileAdminStatus": "System dashboard",
     "tileStudent": "My Account",
-    "tileStudentStatus": "View wallet & history"
+    "tileStudentStatus": "View wallet & history",
+    "noShopAssigned": "Your account has not been assigned to a shop yet. Please contact your administrator."
   },
   "shopPicker": {
     "selectShop": "Select shop…",
@@ -1989,7 +2061,9 @@
     "errorGeneric": "Unknown error",
     "manageStaffLink": "Manage shop staff",
     "createTitle": "Create {{role}} for {{shopName}}",
-    "noShopAssigned": "Manager has no shop assignment"
+    "noShopAssigned": "Manager has no shop assignment",
+    "fieldFamilyCode": "Family code",
+    "fieldFamilyCodeHint": "Optional. Links this user to other family members (parents, children) sharing the same code."
   },
   "cardholders": {
     "fields": {
@@ -2078,8 +2152,39 @@
       "quickClear": "Clear monthly bill",
       "quickTopup": "Monthly top-up",
       "quickFix": "Fix incorrect amount",
-      "quickReturn": "Special credit return"
-    }
+      "quickReturn": "Special credit return",
+      "cancel": "Cancel",
+      "exportFailed": "Export failed",
+      "reportBalance": "Current balance",
+      "reportDept": "Department",
+      "reportPeriod": "Period",
+      "reportTitle": "Department wallet transactions",
+      "shortcutAdd": "Add custom shortcut",
+      "shortcutDialogHint": "Saved to system settings — shared across all admins.",
+      "shortcutDialogLabel": "Reason text",
+      "shortcutDialogPlaceholder": "e.g. คืนเครดิตงานวิ่งการกุศล",
+      "shortcutDialogSave": "Save",
+      "shortcutDialogTitle": "Add custom shortcut",
+      "shortcutRemove": "Remove",
+      "shortcutSaveFailed": "Could not save shortcut"
+    },
+    "collapseFamily": "Collapse",
+    "expandFamily": "Show linked students",
+    "linkConfirm": "Link",
+    "linkFailed": "Link failed",
+    "linkStudent": "Link Student",
+    "linkStudentDesc": "Select a student to link to",
+    "linkStudentTitle": "Link Student",
+    "linkedStudents": "Linked Students",
+    "noLinkedStudents": "No linked students",
+    "relation": "Relation",
+    "studentLabel": "Student",
+    "studentLinked": "Student linked",
+    "studentNotFound": "No matching students",
+    "studentSearchPlaceholder": "Search by name or student code…",
+    "studentUnlinked": "Family link removed",
+    "unlinkConfirm": "Remove this family link?",
+    "unlinkStudent": "Unlink"
   },
   "audit": {
     "title": "Audit Log",
@@ -2271,7 +2376,12 @@
       "confirmFailed": "Confirmation failed",
       "walletNotCreated": "Your wallet has not been set up yet",
       "walletLoadFailed": "Unable to load wallet",
-      "walletRetry": "Try again"
+      "walletRetry": "Try again",
+      "balanceCapDesc": "Maximum wallet balance is {{max}}. Current balance: {{current}}. You can top up at most {{available}}.",
+      "balanceCapTitle": "Balance limit exceeded",
+      "qrCancelled": "Cancelled",
+      "qrConfirmed": "Confirmed",
+      "qrTimeout": "Timed out"
     },
     "transfer": {
       "title": "Family Transfer",
@@ -2326,7 +2436,8 @@
       "itemTotal": "Total",
       "totalAmount": "Total charged",
       "paymentMethod": "Payment",
-      "receiptDate": "Date"
+      "receiptDate": "Date",
+      "shopAdmin": "Admin"
     },
     "studentProfile": {
       "cardFrozen": "Card frozen",
@@ -2354,6 +2465,18 @@
       "actionFailed": "Action failed",
       "invalidLimit": "Please enter a valid amount",
       "limitSaved": "Daily limit saved"
+    },
+    "lowBalanceAlert": {
+      "cooldownNote": "Repeat alerts are sent at most every 4 hours to avoid spam.",
+      "invalidThreshold": "Enter a balance threshold to alert on",
+      "lastSent": "Last alert sent",
+      "neverSent": "Never sent yet",
+      "saveFailed": "Failed to save",
+      "saved": "Notification settings saved",
+      "sendTo": "Send to",
+      "thresholdLabel": "Alert when balance is below (THB)",
+      "title": "Low-balance email alerts",
+      "toggleLabel": "Email me when the balance drops below the threshold"
     }
   },
   "canteenMgmt": {
@@ -2361,7 +2484,8 @@
     "description": "Manage all canteen stalls — menus, categories, and settings",
     "noStalls": "No canteen stalls found",
     "menu": "Menu",
-    "reports": "Reports"
+    "reports": "Reports",
+    "addStall": "+ Add Canteen Stall"
   },
   "guide": {
     "title": "User Guide",
@@ -2577,7 +2701,9 @@
     "errorCodeRequired": "Bundle code is required",
     "errorNameRequired": "Bundle name is required",
     "errorItemsRequired": "At least one item is required",
-    "errorPriceInvalid": "Invalid price"
+    "errorPriceInvalid": "Invalid price",
+    "printBarcode": "Print Barcode",
+    "printBarcodes": "Print Barcodes"
   },
   "returnHistory": {
     "title": "Return History",
@@ -2677,5 +2803,26 @@
     "balanceCurrent": "Current Balance",
     "balanceCharged": "Amount Charged",
     "balanceAfter": "Balance After"
+  },
+  "adjustmentReport": {
+    "dateFrom": "From",
+    "dateTo": "To",
+    "description": "Audit trail for all manual wallet credit/debit adjustments.",
+    "direction": "Direction",
+    "filters": "Filters",
+    "loadError": "Failed to load report",
+    "loading": "Loading…",
+    "noResults": "No adjustments found for the selected filters.",
+    "search": "Search",
+    "title": "Wallet Adjustment Report"
+  },
+  "relation": {
+    "grandparent": "Grandparent",
+    "guardian": "Guardian",
+    "other": "Other",
+    "parent": "Parent"
+  },
+  "shopDashboard": {
+    "noShop": "No shop assigned"
   }
 }

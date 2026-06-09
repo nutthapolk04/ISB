@@ -80,7 +80,12 @@
     "title": "หน้าร้าน",
     "searchPlaceholder": "ค้นหาสินค้า หรือสแกนรหัสสินค้า...",
     "searchPrompt": "กรุณาค้นหาสินค้าโดยพิมพ์รหัสหรือชื่อสินค้า",
-    "cart": "ตะกร้าสินค้า",
+    "cart": {
+      "selectDiscountAria": "เลือกส่วนลด %",
+      "discountHeader": "ส่วนลด",
+      "useBaht": "ใช้ ฿",
+      "usePercent": "ใช้ %"
+    },
     "emptyCart": "ไม่มีสินค้าในตะกร้า",
     "total": "ยอดรวม",
     "priceMode": "รูปแบบราคา",
@@ -194,7 +199,8 @@
       "auditReceipt": "เลขใบเสร็จ",
       "auditVoidedAt": "เวลายกเลิก",
       "auditReason": "เหตุผล",
-      "auditTotal": "ยอดยกเลิก"
+      "auditTotal": "ยอดยกเลิก",
+      "printSlip": "พิมพ์ใบยกเลิก"
     },
     "searchHintToAdd": "เพื่อเพิ่ม",
     "searchHintToNavigate": "เพื่อเลื่อน",
@@ -244,12 +250,11 @@
     "reorder": {
       "enter": "จัดลำดับ"
     },
-    "cart": {
-      "selectDiscountAria": "เลือกส่วนลด %",
-      "discountHeader": "ส่วนลด",
-      "useBaht": "ใช้ ฿",
-      "usePercent": "ใช้ %"
-    }
+    "addDiscount": "เพิ่มส่วนลด",
+    "charge": "ชำระเงิน",
+    "order": "รายการสั่งซื้อ",
+    "receiptNote": "เพิ่มหมายเหตุในใบเสร็จ (ไม่บังคับ)",
+    "receiptNoteLabel": "หมายเหตุ"
   },
   "returns": {
     "title": "เปลี่ยนสินค้า",
@@ -294,7 +299,7 @@
     "verifying": "กำลังตรวจสอบ…",
     "refundSuccessTitle": "คืนเงินสำเร็จ",
     "originalReceipt": "ใบเสร็จเดิม",
-    "refundAmount": "ยอดคืนเงิน",
+    "refundAmount": "ยอดเงินที่คืน",
     "returnedItemsLabel": "รายการสินค้าที่คืน",
     "buyer": "ผู้ซื้อ",
     "returnDate": "วันที่คืน",
@@ -331,7 +336,6 @@
     "refundByCard": "คืนผ่านบัตร",
     "confirmCashRefund": "ยืนยันการคืนเงินสด",
     "confirmCashRefundDesc": "กรุณาตรวจสอบยอดเงินที่จะคืนให้ลูกค้า",
-    "refundAmount": "ยอดเงินที่คืน",
     "confirmRefund": "ยืนยันคืนเงิน",
     "tapCard": "กรุณาแตะบัตร",
     "tapCardDesc": "โปรดแตะบัตรนักเรียนหรือบัตรสมาชิก",
@@ -349,7 +353,6 @@
     "paymentChannel": "ช่องทางชำระเงิน",
     "total": "ยอดรวม",
     "price": "ราคา",
-    "code": "รหัส",
     "saveReturnRequest": "บันทึกคำขอคืนสินค้า",
     "searchReceiptOrProduct": "ค้นหาเลขที่ใบเสร็จหรือสินค้า...",
     "manage": "จัดการ",
@@ -397,7 +400,6 @@
     "noSalesToday": "ยังไม่มีรายการขายวันนี้",
     "noResults": "ไม่พบรายการ",
     "dateTime": "วันที่/เวลา",
-    "buyer": "ผู้ซื้อ",
     "status": "สถานะ",
     "doReturn": "คืนสินค้า",
     "withReceipt": "มีใบเสร็จ",
@@ -413,7 +415,6 @@
     "remove": "ลบออก",
     "customerName": "ชื่อลูกค้า",
     "customerNamePlaceholder": "ชื่อลูกค้า (ไม่บังคับ)",
-    "notes": "หมายเหตุ",
     "notesPlaceholder": "หมายเหตุ (ไม่บังคับ)",
     "reasonPlaceholder": "เหตุผลในการคืนสินค้า",
     "submitReturn": "ส่งคำขอคืนสินค้า",
@@ -443,7 +444,11 @@
     "duplicateReturnTitle": "ไม่สามารถคืนสินค้าซ้ำได้",
     "duplicateReturnDescription": "สินค้าต่อไปนี้มีคำขอคืนสินค้าอยู่แล้ว ไม่สามารถคืนซ้ำได้:",
     "understood": "รับทราบ",
-    "itemAlreadyAdded": "เพิ่มสินค้านี้ไปแล้ว"
+    "itemAlreadyAdded": "เพิ่มสินค้านี้ไปแล้ว",
+    "confirmRefundDesc": "ระบบจะคืนเงินไปยังช่องทางชำระเดิมที่ใช้ในใบเสร็จต้นทาง",
+    "refundSuccessEdc": "บันทึกคืนเงิน {{amount}} แล้ว — กรุณาดำเนินการที่เครื่อง EDC สำหรับบัตร {{card}}",
+    "refundSuccessToWallet": "คืนเงิน {{amount}} ไปยัง {{dest}} (ยอดใหม่ ฿{{balance}})",
+    "searchResultsCount": "พบใบเสร็จ {{count}} รายการ — คลิกเพื่อเลือก"
   },
   "receipts": {
     "title": "ใบเสร็จ",
@@ -550,7 +555,17 @@
     "subtotal": "ยอดรวม",
     "billDiscount": "ส่วนลดท้ายบิล",
     "tax": "ภาษี",
-    "itemDiscount": "ส่วนลด"
+    "itemDiscount": "ส่วนลด",
+    "afterPayment": "หลังชำระเงิน",
+    "balance": "ยอดคงเหลือ",
+    "code": "รหัส",
+    "departmentLabel": "แผนก",
+    "gradeLabel": "ชั้น",
+    "next": "ถัดไป ›",
+    "notes": "หมายเหตุ",
+    "paginationRange": "แสดง {{start}}–{{end}} จาก {{total}} รายการ",
+    "prev": "‹ ก่อนหน้า",
+    "voidReason": "เหตุผลการยกเลิก"
   },
   "void": {
     "title": "ยกเลิกรายการ",
@@ -643,7 +658,8 @@
     },
     "colPaymentMethod": "วิธีชำระเงิน",
     "colReceiptCount": "จำนวนใบเสร็จ",
-    "totalReceipts": "ใบเสร็จทั้งหมด"
+    "totalReceipts": "ใบเสร็จทั้งหมด",
+    "selectShopPlaceholder": "เลือกร้านค้า"
   },
   "inventory": {
     "defaultCategory": "ทั่วไป",
@@ -909,7 +925,9 @@
     "addError": "เพิ่มร้านค้าไม่สำเร็จ",
     "updateError": "อัพเดทร้านค้าไม่สำเร็จ",
     "deleteError": "ลบร้านค้าไม่สำเร็จ",
-    "noShops": "ไม่พบร้านค้า"
+    "noShops": "ไม่พบร้านค้า",
+    "storeDescription": "จัดการร้านสหกรณ์/ร้านค้าและสต็อก",
+    "storeTitle": "จัดการร้านค้า"
   },
   "shop": {
     "tooltip": {
@@ -1171,7 +1189,11 @@
       "studentParents": "ผู้ปกครอง",
       "noParents": "ไม่มีผู้ปกครองที่เชื่อมกับบัญชีนี้",
       "studentSiblings": "พี่น้อง",
-      "noSiblings": "ไม่มีพี่น้องที่เชื่อมกับครอบครัวนี้"
+      "noSiblings": "ไม่มีพี่น้องที่เชื่อมกับครอบครัวนี้",
+      "historyTitle": "ประวัติการโอน",
+      "noHistory": "ยังไม่มีการโอน",
+      "tapToTransfer": "แตะเพื่อโอน",
+      "transferringForStudent": "โอนสำหรับนักเรียน"
     },
     "cards": {
       "title": "จัดการบัตร (UID Mapping)",
@@ -1325,7 +1347,19 @@
       "photoUploaded": "อัพโหลดรูปสำเร็จ",
       "photoUploadFailed": "อัพโหลดไม่สำเร็จ",
       "cardFrozen": "ระงับบัตรแล้ว",
-      "cardUnfrozen": "ปลดระงับบัตรแล้ว"
+      "cardUnfrozen": "ปลดระงับบัตรแล้ว",
+      "linkParent": "เชื่อมต่อผู้ปกครอง",
+      "linkParentConfirm": "เชื่อมต่อ",
+      "linkParentDesc": "ค้นหาบัญชีผู้ปกครองและเชื่อมต่อกับนักเรียนคนนี้",
+      "linkParentTitle": "เชื่อมต่อผู้ปกครอง",
+      "parentLinked": "เชื่อมต่อผู้ปกครองสำเร็จ",
+      "parentNotFound": "ไม่พบบัญชีผู้ปกครองที่ตรงกัน",
+      "parentSearch": "บัญชีผู้ปกครอง",
+      "parentSearchPlaceholder": "ค้นหาด้วยชื่อหรือ username…",
+      "parentUnlinked": "ยกเลิกการเชื่อมต่อผู้ปกครองแล้ว",
+      "relation": "ความสัมพันธ์",
+      "unlinkConfirm": "ลบการเชื่อมต่อผู้ปกครองนี้?",
+      "unlinkParent": "ยกเลิกการเชื่อมต่อผู้ปกครอง"
     },
     "users": {
       "extIdReasonPlaceholder": "เช่น: PowerSchool renumbered during annual rollover",
@@ -1437,7 +1471,18 @@
       "fieldPassword": "Password",
       "fieldRole": "Role",
       "fieldShop": "Shop ID (ไม่บังคับ)",
-      "selectRole": "เลือก role…"
+      "selectRole": "เลือก role…",
+      "addRoleBtn": "เพิ่มสิทธิ์",
+      "extraRolesHint": "เพิ่มสิทธิ์อื่นนอกเหนือจากสิทธิ์หลัก เช่น ให้บัญชีเดียวเป็นได้ทั้ง manager และ cashier",
+      "extraRolesTitle": "สิทธิ์เพิ่มเติม",
+      "noExtraRoles": "ยังไม่มีสิทธิ์เพิ่มเติม",
+      "primaryRole": "สิทธิ์หลัก",
+      "removeRole": "ลบสิทธิ์",
+      "roleAddFailed": "เพิ่มสิทธิ์ไม่สำเร็จ",
+      "roleAdded": "เพิ่มสิทธิ์แล้ว",
+      "roleRemoveFailed": "ลบสิทธิ์ไม่สำเร็จ",
+      "roleRemoved": "ลบสิทธิ์แล้ว",
+      "selectRoleToAdd": "เลือกสิทธิ์ที่จะเพิ่ม"
     }
   },
   "canteen": {
@@ -1685,7 +1730,9 @@
       "saved": "จัดลำดับแล้ว",
       "conflict": "คนอื่นเปลี่ยนลำดับก่อนแล้ว — กรุณารีเฟรชแล้วลองใหม่",
       "saveFailed": "บันทึกลำดับไม่สำเร็จ"
-    }
+    },
+    "tabAll": "ทั้งหมด",
+    "tabPanels": "ตารางราคา"
   },
   "common": {
     "cancel": "ยกเลิก",
@@ -1721,7 +1768,10 @@
     "selectDate": "เลือกวันที่",
     "selectDateRange": "เลือกช่วงวันที่",
     "unknownError": "ข้อผิดพลาดไม่ทราบสาเหตุ",
-    "select": "เลือก"
+    "select": "เลือก",
+    "next": "ถัดไป",
+    "prev": "ก่อนหน้า",
+    "showingOf": "แสดง {{from}}–{{to}} จาก {{total}} รายการ"
   },
   "errorBoundary": {
     "title": "เกิดข้อผิดพลาดในการแสดงหน้านี้",
@@ -1741,7 +1791,29 @@
     "errorRow": "แถว {{row}}: {{reason}}",
     "errorsHeader": "ข้อผิดพลาด {{count}} แถว",
     "productsFailed": "นำเข้าสินค้าไม่สำเร็จ",
-    "stockFailed": "นำเข้ารับสินค้าไม่สำเร็จ"
+    "stockFailed": "นำเข้ารับสินค้าไม่สำเร็จ",
+    "cancel": "ยกเลิก",
+    "checking": "กำลังตรวจสอบ…",
+    "commitFailed": "นำเข้าไม่สำเร็จ",
+    "confirmImport": "ยืนยันการนำเข้า",
+    "downloadTemplate": "ดาวน์โหลดเทมเพลตนำเข้า (Products + Stock)",
+    "errorsTruncated": "… และอีก {{rest}} รายการ",
+    "importData": "นำเข้าข้อมูล",
+    "importMenu": "นำเข้าเมนู",
+    "menuProducts": "นำเข้าสินค้า (sheet: Products)",
+    "menuStock": "นำเข้าการรับสต็อก (sheet: StockReceive)",
+    "noErrors": "ไม่พบข้อผิดพลาด — นำเข้าได้",
+    "previewFile": "ไฟล์",
+    "previewNote": "นี่คือตัวอย่าง — ยังไม่มีการบันทึกข้อมูล",
+    "previewProductsTitle": "ตัวอย่างการนำเข้าสินค้า",
+    "previewStockTitle": "ตัวอย่างการรับสต็อก",
+    "statCreated": "จะสร้าง",
+    "statErrors": "ข้อผิดพลาด",
+    "statImported": "จะรับเข้า",
+    "statUpdated": "จะอัปเดต",
+    "template": "ดาวน์โหลดเทมเพลต",
+    "templateFailed": "ดาวน์โหลดเทมเพลตไม่สำเร็จ",
+    "twoSheetsTitle": "ทำไม template มี 2 sheets"
   },
   "shopDetail": {
     "panelNamePlaceholder": "เช่น ราคาทั่วไป"
@@ -1782,7 +1854,7 @@
   "sync": {
     "startFailed": "เริ่ม sync ไม่สำเร็จ",
     "loadAuditFailed": "โหลด audit ไม่สำเร็จ",
-    "description": "ดึงข้อมูล Staff / Parent / Student จาก PowerSchool — ทำงานในเบื้องหลังและบันทึก audit ทุก record",
+    "description": "เลือกประเภทการ sync และ roles ที่ต้องการอัปเดต",
     "idleHint": "กด Run sync เพื่อเริ่มดึงข้อมูล. คุณสามารถปิด dialog ได้ระหว่าง sync รัน — งานยังเดินต่อ",
     "starting": "กำลังเริ่ม…",
     "runFull": "Run sync (full)",
@@ -1793,7 +1865,6 @@
     "failed": "Sync ไม่สำเร็จ",
     "loading": "กำลังโหลด…",
     "noHistory": "ยังไม่มีการ sync — กดปุ่ม Sync Now เพื่อเริ่มต้น",
-    "description": "เลือกประเภทการ sync และ roles ที่ต้องการอัปเดต",
     "syncing": "กำลัง sync…",
     "startSync": "เริ่ม Sync"
   },
@@ -1829,7 +1900,8 @@
     "tileAdmin": "ผู้ดูแลระบบ",
     "tileAdminStatus": "แดชบอร์ดระบบ",
     "tileStudent": "บัญชีของฉัน",
-    "tileStudentStatus": "ดู wallet และประวัติ"
+    "tileStudentStatus": "ดู wallet และประวัติ",
+    "noShopAssigned": "บัญชีของคุณยังไม่ได้กำหนดร้านค้า กรุณาติดต่อผู้ดูแลระบบ"
   },
   "shopPicker": {
     "selectShop": "เลือกร้าน…",
@@ -1987,7 +2059,9 @@
     "errorGeneric": "เกิดข้อผิดพลาด",
     "manageStaffLink": "จัดการพนักงานร้านนี้",
     "createTitle": "สร้าง {{role}} สำหรับ {{shopName}}",
-    "noShopAssigned": "ผู้จัดการยังไม่มีการกำหนดร้านค้า"
+    "noShopAssigned": "ผู้จัดการยังไม่มีการกำหนดร้านค้า",
+    "fieldFamilyCode": "รหัสครอบครัว",
+    "fieldFamilyCodeHint": "ไม่บังคับ — เชื่อมต่อบัญชีนี้กับสมาชิกครอบครัวอื่น (ผู้ปกครอง ลูก) ที่ใช้รหัสเดียวกัน"
   },
   "cardholders": {
     "fields": {
@@ -2076,8 +2150,39 @@
       "quickClear": "เคลียร์บิลรายเดือน",
       "quickTopup": "เติมเครดิตประจำเดือน",
       "quickFix": "ปรับยอดผิดพลาด",
-      "quickReturn": "คืนเครดิตพิเศษ"
-    }
+      "quickReturn": "คืนเครดิตพิเศษ",
+      "cancel": "ยกเลิก",
+      "exportFailed": "ส่งออกไม่สำเร็จ",
+      "reportBalance": "ยอดคงเหลือปัจจุบัน",
+      "reportDept": "แผนก",
+      "reportPeriod": "ช่วงเวลา",
+      "reportTitle": "รายการกระเป๋าเงินของแผนก",
+      "shortcutAdd": "เพิ่มเหตุผลย่อ",
+      "shortcutDialogHint": "บันทึกไว้ในการตั้งค่าระบบ — ใช้ร่วมกันทุก admin",
+      "shortcutDialogLabel": "ข้อความเหตุผล",
+      "shortcutDialogPlaceholder": "เช่น คืนเครดิตงานวิ่งการกุศล",
+      "shortcutDialogSave": "บันทึก",
+      "shortcutDialogTitle": "เพิ่มเหตุผลย่อ",
+      "shortcutRemove": "ลบ",
+      "shortcutSaveFailed": "บันทึกเหตุผลย่อไม่สำเร็จ"
+    },
+    "collapseFamily": "ย่อ",
+    "expandFamily": "แสดงนักเรียนที่เชื่อมต่อ",
+    "linkConfirm": "เชื่อมต่อ",
+    "linkFailed": "เชื่อมต่อไม่สำเร็จ",
+    "linkStudent": "เชื่อมต่อนักเรียน",
+    "linkStudentDesc": "เลือกนักเรียนที่จะเชื่อมต่อ",
+    "linkStudentTitle": "เชื่อมต่อนักเรียน",
+    "linkedStudents": "นักเรียนที่เชื่อมต่อ",
+    "noLinkedStudents": "ไม่มีนักเรียนที่เชื่อมต่อ",
+    "relation": "ความสัมพันธ์",
+    "studentLabel": "นักเรียน",
+    "studentLinked": "เชื่อมต่อนักเรียนแล้ว",
+    "studentNotFound": "ไม่พบนักเรียนที่ตรงกัน",
+    "studentSearchPlaceholder": "ค้นหาด้วยชื่อหรือรหัสนักเรียน…",
+    "studentUnlinked": "ลบการเชื่อมต่อครอบครัวแล้ว",
+    "unlinkConfirm": "ลบการเชื่อมต่อครอบครัวนี้?",
+    "unlinkStudent": "ยกเลิกการเชื่อมต่อ"
   },
   "audit": {
     "title": "Audit Log",
@@ -2269,7 +2374,12 @@
       "confirmFailed": "ยืนยันไม่สำเร็จ",
       "walletNotCreated": "กระเป๋าของคุณยังไม่ได้ถูกสร้าง",
       "walletLoadFailed": "ไม่สามารถโหลดข้อมูลกระเป๋าเงินได้",
-      "walletRetry": "ลองอีกครั้ง"
+      "walletRetry": "ลองอีกครั้ง",
+      "balanceCapDesc": "ยอดเงินสูงสุดในกระเป๋าคือ {{max}} ยอดปัจจุบัน {{current}} คุณเติมได้สูงสุด {{available}}",
+      "balanceCapTitle": "เกินขีดจำกัดยอดเงิน",
+      "qrCancelled": "ยกเลิกแล้ว",
+      "qrConfirmed": "ยืนยันแล้ว",
+      "qrTimeout": "หมดเวลา"
     },
     "transfer": {
       "title": "โอนเงินในครอบครัว",
@@ -2324,7 +2434,8 @@
       "itemTotal": "รวม",
       "totalAmount": "ยอดรวม",
       "paymentMethod": "ชำระโดย",
-      "receiptDate": "วันที่"
+      "receiptDate": "วันที่",
+      "shopAdmin": "ผู้ดูแลระบบ"
     },
     "studentProfile": {
       "cardFrozen": "ระงับการใช้งาน",
@@ -2352,6 +2463,18 @@
       "actionFailed": "ดำเนินการไม่สำเร็จ",
       "invalidLimit": "กรุณาระบุจำนวนเงินที่ถูกต้อง",
       "limitSaved": "บันทึกวงเงินรายวันแล้ว"
+    },
+    "lowBalanceAlert": {
+      "cooldownNote": "ระบบจะแจ้งเตือนซ้ำได้หลังผ่านไปอย่างน้อย 4 ชั่วโมง เพื่อป้องกันการรบกวนเกินจำเป็น",
+      "invalidThreshold": "ระบุยอดเงินที่ต้องการแจ้งเตือน",
+      "lastSent": "ครั้งสุดท้ายที่แจ้งเตือน",
+      "neverSent": "ยังไม่เคยส่ง",
+      "saveFailed": "บันทึกไม่สำเร็จ",
+      "saved": "บันทึกการแจ้งเตือนแล้ว",
+      "sendTo": "ส่งไปที่",
+      "thresholdLabel": "เตือนเมื่อยอดต่ำกว่า (บาท)",
+      "title": "แจ้งเตือนยอดเงินต่ำทางอีเมล",
+      "toggleLabel": "ส่งอีเมลแจ้งเตือนเมื่อยอดเงินต่ำกว่าค่าที่กำหนด"
     }
   },
   "canteenMgmt": {
@@ -2359,7 +2482,8 @@
     "description": "จัดการจุดขายทั้งหมดในโรงอาหาร — เมนู หมวดหมู่ และตั้งค่าต่างๆ",
     "noStalls": "ไม่พบจุดขายในโรงอาหาร",
     "menu": "เมนู",
-    "reports": "รายงาน"
+    "reports": "รายงาน",
+    "addStall": "+ เพิ่มร้านโรงอาหาร"
   },
   "guide": {
     "title": "คู่มือการใช้งาน",
@@ -2575,7 +2699,9 @@
     "errorCodeRequired": "กรุณากรอกรหัสชุดสินค้า",
     "errorNameRequired": "กรุณากรอกชื่อชุดสินค้า",
     "errorItemsRequired": "กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ",
-    "errorPriceInvalid": "ราคาไม่ถูกต้อง"
+    "errorPriceInvalid": "ราคาไม่ถูกต้อง",
+    "printBarcode": "พิมพ์บาร์โค้ด",
+    "printBarcodes": "พิมพ์บาร์โค้ดหลายรายการ"
   },
   "returnHistory": {
     "title": "ประวัติการเปลี่ยนสินค้า",
@@ -2675,5 +2801,26 @@
     "balanceCurrent": "Current Balance",
     "balanceCharged": "Amount Charged",
     "balanceAfter": "Balance After"
+  },
+  "adjustmentReport": {
+    "dateFrom": "ตั้งแต่",
+    "dateTo": "ถึง",
+    "description": "บันทึกการตรวจสอบสำหรับการปรับเครดิต/หักลบกระเป๋าเงินทุกครั้ง",
+    "direction": "ทิศทาง",
+    "filters": "ตัวกรอง",
+    "loadError": "โหลดรายงานไม่สำเร็จ",
+    "loading": "กำลังโหลด…",
+    "noResults": "ไม่พบรายการปรับยอดตามเงื่อนไขที่เลือก",
+    "search": "ค้นหา",
+    "title": "รายงานการปรับยอดกระเป๋าเงิน"
+  },
+  "relation": {
+    "grandparent": "ปู่/ย่า/ตา/ยาย",
+    "guardian": "ผู้ปกครอง",
+    "other": "อื่นๆ",
+    "parent": "พ่อ/แม่"
+  },
+  "shopDashboard": {
+    "noShop": "ยังไม่ได้กำหนดร้านค้า"
   }
 }
