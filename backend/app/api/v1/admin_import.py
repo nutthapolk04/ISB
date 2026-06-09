@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_role
 from app.core.database import get_db
-from app.models.shop import MovementType, Shop, ShopMovement, ShopProduct
+from app.models.shop import MovementType, Shop, ShopCategory, ShopMovement, ShopProduct
 from app.models.unit_of_measure import UnitOfMeasure
 from app.models.user import User
 from app.services.inventory_service import InventoryService
@@ -204,6 +204,22 @@ async def import_products(
 
         # ── Optional fields ──
         category = _str(row.get("category")) or "ทั่วไป"
+        # Auto-create the per-shop category record so the new category shows up
+        # in the POS filter dropdown and category management UI without forcing
+        # operators to pre-seed it. Idempotent — looks up first by (shop, name).
+        if category:
+            existing_cat = (
+                db.query(ShopCategory)
+                .filter(
+                    ShopCategory.shop_id == row_shop_id,
+                    ShopCategory.name == category,
+                )
+                .first()
+            )
+            if not existing_cat:
+                db.add(ShopCategory(shop_id=row_shop_id, name=category))
+                db.flush()
+
         uom_name = _str(row.get("uom"))
         uom_id: Optional[int] = None
         if uom_name:

@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2, UserPlus } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2, UserPlus, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AdminUser {
   id: number;
@@ -102,6 +106,37 @@ export default function UserList() {
   const canCreate = authUser?.activeRole === "admin" || authUser?.activeRole === "manager";
   const isManager = authUser?.activeRole === "manager";
   const availableRoles = isManager ? MANAGER_ROLES : ALL_ROLES;
+  // Only admins may delete users — managers can create staff but cannot
+  // remove accounts, since deletion cascades to wallets and audit data.
+  const canDelete = authUser?.activeRole === "admin";
+
+  const [deleting, setDeleting] = useState<AdminUser | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await api.delete(`/users/${deleting.id}`);
+      toast({
+        title: t("admin.users.deleteSuccess", "ลบผู้ใช้แล้ว"),
+        description: deleting.full_name || deleting.username,
+      });
+      setDeleting(null);
+      // Refresh by remounting the row data — simplest is to re-trigger the
+      // existing effect via search update; instead just hide locally.
+      // Caller's useEffect on `query` will re-fetch on next interaction.
+      window.location.reload();
+    } catch (e) {
+      toast({
+        title: t("admin.users.deleteFailed", "ลบผู้ใช้ไม่สำเร็จ"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   const resetForm = () => {
     setCreateForm({
@@ -322,9 +357,22 @@ export default function UserList() {
               </span>
             </TableCell>
             <TableCell className="text-right">
-              <Button asChild size="sm" variant="outline">
-                <Link to={`/users/${u.id}`}>{t("admin.users.detail", "Detail")}</Link>
-              </Button>
+              <div className="flex items-center justify-end gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link to={`/users/${u.id}`}>{t("admin.users.detail", "Detail")}</Link>
+                </Button>
+                {canDelete && u.id !== authUser?.id && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 h-8 w-8 p-0"
+                    onClick={() => setDeleting(u)}
+                    title={t("admin.users.deleteTitle", "ลบผู้ใช้")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </TableCell>
           </TableRow>
         ))}
@@ -423,6 +471,38 @@ export default function UserList() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(open) => !open && !deleteBusy && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("admin.users.deleteConfirmTitle", "ยืนยันการลบผู้ใช้")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "admin.users.deleteConfirmDesc",
+                "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
+              )}
+              <div className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm font-medium">
+                {deleting?.full_name} <span className="text-muted-foreground">@{deleting?.username}</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>
+              {t("common.cancel", "ยกเลิก")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteBusy}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              {deleteBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("admin.users.deleteConfirm", "ลบผู้ใช้")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="p-4"><div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.statsTotal", "Total users")}</div><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>

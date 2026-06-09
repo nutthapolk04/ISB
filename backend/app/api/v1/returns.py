@@ -36,6 +36,15 @@ from app.services.returns_service import ReturnsService
 router = APIRouter()
 
 
+def _user_shop_scope(user: User) -> Optional[str]:
+    """Return the shop_id to scope queries by, or None when the caller should
+    see every shop. Admins are scope-less; everyone else only sees returns and
+    receipts at their own assigned shop."""
+    if user.role == "admin" or user.is_superuser:
+        return None
+    return user.shop_id or None
+
+
 # ── Return CRUD ──────────────────────────────────────────────────────────────
 
 @router.post("/returns/create", response_model=List[ReturnRequestResponse])
@@ -93,8 +102,8 @@ def list_returns(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
-    """List all return requests."""
-    returns = ReturnsService.list_returns(db, q=filter)
+    """List all return requests visible to the current user (scoped by shop)."""
+    returns = ReturnsService.list_returns(db, q=filter, shop_id=_user_shop_scope(current_user))
     return [_rr_to_response(rr) for rr in returns]
 
 
@@ -105,7 +114,9 @@ def get_returns_by_receipt(
     current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
     """Get all active (non-rejected) return requests for a specific receipt."""
-    returns = ReturnsService.get_returns_by_receipt_id(db, receiptId)
+    returns = ReturnsService.get_returns_by_receipt_id(
+        db, receiptId, shop_id=_user_shop_scope(current_user),
+    )
     return [_rr_to_response(rr) for rr in returns]
 
 
@@ -209,7 +220,9 @@ def get_return_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
-    return ReturnsService.get_return_history(db, q=filter)
+    return ReturnsService.get_return_history(
+        db, q=filter, shop_id=_user_shop_scope(current_user),
+    )
 
 
 # ── Receipt Search (for return page) ────────────────────────────────────────
@@ -241,6 +254,7 @@ def search_receipts(
         date_from=dateFrom,
         date_to=dateTo,
         payment_method=paymentMethod,
+        shop_id=_user_shop_scope(current_user),
     )
     if not results:
         raise HTTPException(status_code=404, detail="Receipt not found")

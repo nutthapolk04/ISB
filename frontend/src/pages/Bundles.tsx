@@ -148,6 +148,20 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
   }, [bundles, search]);
 
   // ── Form handlers ──────────────────────────────────────────────────────────
+  // Reset form state whenever the dialog transitions to closed so a stale
+  // create attempt (e.g. blocked by the 'fill required fields' alert) doesn't
+  // leak partially-typed data into the next open. Deferred so the close
+  // animation finishes before fields visibly clear.
+  useEffect(() => {
+    if (dialogOpen) return;
+    const id = setTimeout(() => {
+      setFormData(emptyForm);
+      setEditingId(null);
+      setProductSearch("");
+    }, 200);
+    return () => clearTimeout(id);
+  }, [dialogOpen]);
+
   const openCreateDialog = () => {
     setFormData(emptyForm);
     setIsEditing(false);

@@ -213,9 +213,18 @@ class ReturnsService:
         db: Session,
         *,
         q: Optional[str] = None,
+        shop_id: Optional[str] = None,
     ) -> List[ReturnRequest]:
         try:
             query = db.query(ReturnRequest).order_by(desc(ReturnRequest.created_at))
+            # Scope by shop when caller provides one (cashier / manager). Admins
+            # pass None to see every shop's returns. Join Receipt by
+            # receipt_number to derive the shop_id, since ReturnRequest stores
+            # receipt_id as the printable receipt code string.
+            if shop_id:
+                query = query.join(
+                    Receipt, Receipt.receipt_number == ReturnRequest.receipt_id,
+                ).filter(Receipt.shop_id == shop_id)
             if q:
                 query = query.filter(
                     ReturnRequest.receipt_id.ilike(f"%{q}%")
@@ -267,17 +276,21 @@ class ReturnsService:
     def get_returns_by_receipt_id(
         db: Session,
         receipt_id: str,
+        shop_id: Optional[str] = None,
     ) -> List[ReturnRequest]:
         """Get all active (non-rejected) return requests for a specific receipt."""
-        return (
+        query = (
             db.query(ReturnRequest)
             .filter(
                 ReturnRequest.receipt_id == receipt_id,
                 ReturnRequest.status != ReturnStatus.rejected,
             )
-            .order_by(desc(ReturnRequest.created_at))
-            .all()
         )
+        if shop_id:
+            query = query.join(
+                Receipt, Receipt.receipt_number == ReturnRequest.receipt_id,
+            ).filter(Receipt.shop_id == shop_id)
+        return query.order_by(desc(ReturnRequest.created_at)).all()
 
     # ── Get single return ────────────────────────────────────────────────────
 
@@ -556,6 +569,7 @@ class ReturnsService:
     def get_return_history(
         db: Session,
         q: Optional[str] = None,
+        shop_id: Optional[str] = None,
     ) -> List[dict]:
         try:
             query = (
@@ -563,6 +577,12 @@ class ReturnsService:
                 .filter(ReturnRequest.status != ReturnStatus.pending)
                 .order_by(desc(ReturnRequest.processed_at))
             )
+            # Scope by shop when caller provides one — same join pattern as
+            # list_returns. Admins pass None to see every shop.
+            if shop_id:
+                query = query.join(
+                    Receipt, Receipt.receipt_number == ReturnRequest.receipt_id,
+                ).filter(Receipt.shop_id == shop_id)
             if q:
                 query = query.filter(
                     ReturnRequest.receipt_id.ilike(f"%{q}%")
@@ -707,9 +727,14 @@ class ReturnsService:
         date_to: Optional[date] = None,
         payment_method: Optional[str] = None,
         limit: int = 100,
+        shop_id: Optional[str] = None,
     ) -> List[dict]:
         """Search receipts by any combination of filters. Returns list of receipt dicts."""
         query = db.query(Receipt)
+        # Scope by shop when caller provides one — keeps cashiers from finding
+        # receipts at other shops that they have no business returning items for.
+        if shop_id:
+            query = query.filter(Receipt.shop_id == shop_id)
 
         if receipt_id:
             query = query.filter(Receipt.receipt_number.ilike(f"%{receipt_id}%"))
