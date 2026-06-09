@@ -49,17 +49,25 @@ class StockImportResult(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _parse_file(filename: str, content: bytes) -> list[dict]:
+def _parse_file(filename: str, content: bytes, preferred_sheet: Optional[str] = None) -> list[dict]:
     """
     Parse uploaded file to list of row dicts.
     Supports .xlsx (via openpyxl) and .csv (via stdlib csv).
+
+    When `preferred_sheet` is provided and the workbook contains a sheet by
+    that name, that sheet is used. Otherwise falls back to the active sheet.
+    Lets one xlsx ship two import targets (Products + StockReceive) without
+    forcing the operator to delete or reorder sheets before upload.
     """
     ext = (filename or "").rsplit(".", 1)[-1].lower()
 
     if ext == "xlsx":
         import openpyxl  # already in requirements.txt
         wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
-        ws = wb.active
+        if preferred_sheet and preferred_sheet in wb.sheetnames:
+            ws = wb[preferred_sheet]
+        else:
+            ws = wb.active
         rows = list(ws.iter_rows(values_only=True))
         if not rows:
             return []
@@ -286,7 +294,7 @@ async def import_stock_receive(
     filename = file.filename or ""
 
     try:
-        rows = _parse_file(filename, content)
+        rows = _parse_file(filename, content, preferred_sheet="StockReceive")
     except HTTPException:
         raise
     except Exception as exc:
