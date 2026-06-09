@@ -40,8 +40,13 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import CreateCardholderDialog from "./CreateCardholderDialog";
 import SyncRunDialog from "./SyncRunDialog";
 
@@ -156,6 +161,43 @@ export default function CardholderList() {
   const [linkStudentRelation, setLinkStudentRelation] = useState("parent");
   const [linkingStudent, setLinkingStudent] = useState(false);
   const [unlinkingFamilyId, setUnlinkingFamilyId] = useState<number | null>(null);
+
+  // Delete cardholder (admin only). Customers go through /customers DELETE,
+  // user accounts go through /users DELETE. Department cardholders are
+  // managed elsewhere and are not shown a delete button here.
+  const { user: authUser } = useAuth();
+  const canDelete = authUser?.activeRole === "admin";
+  const [deleting, setDeleting] = useState<Cardholder | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const handleDeleteCardholder = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      const path =
+        deleting.entity_type === "user"
+          ? `/users/${deleting.entity_id}`
+          : deleting.entity_type === "customer"
+            ? `/customers/${deleting.entity_id}`
+            : null;
+      if (!path) throw new Error("Unsupported entity type");
+      await api.delete(path);
+      toast({
+        title: t("cardholders.deleteSuccess", "ลบผู้ใช้แล้ว"),
+        description: deleting.name,
+      });
+      setAllItems((items) => items.filter((c) => c.key !== deleting.key));
+      setDeleting(null);
+    } catch (e) {
+      toast({
+        title: t("cardholders.deleteFailed", "ลบผู้ใช้ไม่สำเร็จ"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   // Keep URL in sync when chip changes (so /users?kind=student is shareable).
   const setKindAndUrl = (k: Cardholder["kind"] | "all") => {
@@ -497,6 +539,17 @@ export default function CardholderList() {
                             <Link to={rowDetailHref(c)}>{t("cardholders.view")}</Link>
                           </Button>
                         ) : null}
+                        {canDelete && c.entity_type !== "department" && c.entity_id !== authUser?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            onClick={() => setDeleting(c)}
+                            title={t("cardholders.delete", "ลบ")}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         {isExpandable && (
                           <Button
                             variant="ghost"
@@ -693,6 +746,41 @@ export default function CardholderList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(open) => !open && !deleteBusy && setDeleting(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("cardholders.deleteTitle", "ยืนยันการลบ")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "cardholders.deleteDesc",
+                "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
+              )}
+              <div className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm font-medium">
+                {deleting?.name} <span className="text-muted-foreground">· {deleting?.identifier}</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>
+              {t("common.cancel", "ยกเลิก")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCardholder}
+              disabled={deleteBusy}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              {deleteBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("cardholders.deleteConfirm", "ลบ")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

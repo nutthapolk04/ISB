@@ -140,6 +140,10 @@ export default function WalletAdjust() {
   const [rptDateFrom, setRptDateFrom] = useState(firstOfMonth);
   const [rptDateTo, setRptDateTo] = useState(today);
   const [rptDirection, setRptDirection] = useState<"all" | "credit" | "debit">("all");
+  // Type filter sent to /wallets/admin/adjustment-report?type=...; 'student'
+  // and 'department' map directly to entity_type, 'staff' bundles user-owned
+  // wallets (cashier/manager/teacher/etc.).
+  const [rptType, setRptType] = useState<"all" | "student" | "staff" | "department" | "other">("all");
   const [rptRows, setRptRows] = useState<AdjustmentRow[]>([]);
   const [rptLoading, setRptLoading] = useState(false);
   const [rptSearched, setRptSearched] = useState(false);
@@ -151,6 +155,7 @@ export default function WalletAdjust() {
       if (rptDateFrom) params.set("date_from", rptDateFrom);
       if (rptDateTo) params.set("date_to", rptDateTo);
       if (rptDirection !== "all") params.set("direction", rptDirection);
+      if (rptType !== "all") params.set("type", rptType);
       const data = await api.get<AdjustmentRow[]>(`/wallets/admin/adjustment-report?${params.toString()}`);
       setRptRows(data);
       setRptSearched(true);
@@ -168,6 +173,7 @@ export default function WalletAdjust() {
   const rptFilterLabel = [
     rptDateFrom && rptDateTo ? `${rptDateFrom} → ${rptDateTo}` : "All dates",
     rptDirection !== "all" ? `Direction: ${rptDirection}` : null,
+    rptType !== "all" ? `Type: ${rptType}` : null,
   ].filter(Boolean).join("  |  ");
 
   const rptExportRows = rptRows.map((r) => ({ ...r, reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
@@ -324,6 +330,19 @@ export default function WalletAdjust() {
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="credit">Credit (+)</SelectItem>
                     <SelectItem value="debit">Debit (−)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("adjustmentReport.type", "Type")}</Label>
+                <Select value={rptType} onValueChange={(v) => setRptType(v as typeof rptType)}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("adjustmentReport.typeAll", "All")}</SelectItem>
+                    <SelectItem value="student">{t("adjustmentReport.typeStudent", "นักเรียน")}</SelectItem>
+                    <SelectItem value="staff">{t("adjustmentReport.typeStaff", "พนักงาน")}</SelectItem>
+                    <SelectItem value="department">{t("adjustmentReport.typeDepartment", "แผนก")}</SelectItem>
+                    <SelectItem value="other">{t("adjustmentReport.typeOther", "อื่นๆ")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

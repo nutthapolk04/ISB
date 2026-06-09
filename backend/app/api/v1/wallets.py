@@ -467,6 +467,11 @@ def adjustment_report(
     date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
     date_to: Optional[str] = Query(None, description="YYYY-MM-DD inclusive"),
     direction: Optional[str] = Query(None, description="credit | debit"),
+    type_filter: Optional[str] = Query(
+        None,
+        alias="type",
+        description="student | staff | department | other — filter rows by wallet owner type",
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
@@ -527,6 +532,21 @@ def adjustment_report(
             reason = parsed_reason or None
             if not ref_ticket:
                 ref_ticket = parsed_ref
+
+        # Type filter: 'student' / 'department' map directly; 'staff' covers
+        # every user-wallet role (cashier, manager, teacher, etc.); 'other' is
+        # the unmapped fallback. Compare with the resolved entity_type local
+        # — the API caller's choice is `type_filter` (?type= query param).
+        if type_filter:
+            wanted = type_filter.strip().lower()
+            actual_bucket = (
+                "student" if entity_type == "student"
+                else "department" if entity_type == "department"
+                else "other" if entity_type == "unknown"
+                else "staff"
+            )
+            if wanted != actual_bucket:
+                continue
 
         rows.append(AdjustmentReportRow(
             id=tx.id,
