@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, AlertCircle, IdCard, Lock, Save, Unlock } from "lucide-react";
+import { ArrowLeft, AlertCircle, Bell, IdCard, Lock, Save, Unlock } from "lucide-react";
 
 interface StudentProfile {
   id: number;
@@ -43,6 +43,13 @@ export default function StudentProfile() {
   const [savingLimit, setSavingLimit] = useState(false);
   const [limitInput, setLimitInput] = useState<string>("");
 
+  // Low-balance email alert settings (parent-only)
+  const [alertEnabled, setAlertEnabled] = useState(false);
+  const [alertThreshold, setAlertThreshold] = useState<string>("");
+  const [alertLastSent, setAlertLastSent] = useState<string | null>(null);
+  const [alertLoading, setAlertLoading] = useState(false);
+  const [savingAlert, setSavingAlert] = useState(false);
+
   const load = async () => {
     if (!customerId) return;
     try {
@@ -63,6 +70,71 @@ export default function StudentProfile() {
   useEffect(() => {
     load();
   }, [customerId]);
+
+  // Load low-balance alert settings — parents only (students/admins skip).
+  useEffect(() => {
+    if (!customerId || isStudent) return;
+    setAlertLoading(true);
+    api
+      .get<{ enabled: boolean; threshold: number | null; last_alert_at: string | null }>(
+        `/family/me/children/${customerId}/low-balance-alert`,
+      )
+      .then((s) => {
+        setAlertEnabled(s.enabled);
+        setAlertThreshold(s.threshold != null ? String(s.threshold) : "");
+        setAlertLastSent(s.last_alert_at);
+      })
+      .catch(() => {
+        // Likely 404 (not linked) — leave defaults so the card stays usable.
+      })
+      .finally(() => setAlertLoading(false));
+  }, [customerId, isStudent]);
+
+  const saveAlertSettings = async () => {
+    if (!customerId) return;
+    const thresholdNum = alertThreshold.trim() ? parseFloat(alertThreshold) : null;
+    if (alertEnabled && (thresholdNum === null || thresholdNum <= 0 || Number.isNaN(thresholdNum))) {
+      toast({
+        title: t("parent.lowBalanceAlert.invalidThreshold", "ระบุยอดเงินที่ต้องการแจ้งเตือน"),
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingAlert(true);
+    try {
+      const updated = await api.put<{
+        enabled: boolean;
+        threshold: number | null;
+        last_alert_at: string | null;
+      }>(`/family/me/children/${customerId}/low-balance-alert`, {
+        enabled: alertEnabled,
+        threshold: thresholdNum,
+      });
+      setAlertEnabled(updated.enabled);
+      setAlertThreshold(updated.threshold != null ? String(updated.threshold) : "");
+      setAlertLastSent(updated.last_alert_at);
+      toast({
+        title: t("parent.lowBalanceAlert.saved", "บันทึกการแจ้งเตือนแล้ว"),
+      });
+    } catch (e) {
+      toast({
+        title: t("parent.lowBalanceAlert.saveFailed", "บันทึกไม่สำเร็จ"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingAlert(false);
+    }
+  };
+
+  const formatLastAlert = (iso: string | null): string => {
+    if (!iso) return t("parent.lowBalanceAlert.neverSent", "ยังไม่เคยส่ง");
+    try {
+      return new Date(iso).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+    } catch {
+      return iso;
+    }
+  };
 
   const toggleFreeze = async (frozen: boolean) => {
     if (!profile) return;
@@ -295,6 +367,80 @@ export default function StudentProfile() {
                     {t("parent.studentProfile.currentLimit", { amount: formatTHB(profile.daily_limit) })}
                   </p>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Low-balance email alert — parent-only */}
+        {!isStudent && (
+          <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-amber-900">
+                <Bell className="h-4 w-4" />
+                {t("parent.lowBalanceAlert.title", "แจ้งเตือนยอดเงินต่ำทางอีเมล")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-amber-900">
+                  {t(
+                    "parent.lowBalanceAlert.toggleLabel",
+                    "ส่งอีเมลแจ้งเตือนเมื่อยอดเงินต่ำกว่าค่าที่กำหนด",
+                  )}
+                </div>
+                <Switch
+                  checked={alertEnabled}
+                  onCheckedChange={setAlertEnabled}
+                  disabled={alertLoading || savingAlert}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="threshold-input" className="text-amber-900">
+                  {t("parent.lowBalanceAlert.thresholdLabel", "เตือนเมื่อยอดต่ำกว่า (บาท)")}
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="threshold-input"
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    step="0.01"
+                    value={alertThreshold}
+                    onChange={(e) => setAlertThreshold(e.target.value)}
+                    placeholder="200"
+                    disabled={!alertEnabled || alertLoading || savingAlert}
+                    className="border-amber-300 focus:ring-amber-400 focus:border-amber-400"
+                  />
+                  <Button
+                    onClick={saveAlertSettings}
+                    disabled={alertLoading || savingAlert}
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-sm border-0 shrink-0"
+                  >
+                    <Save className="h-4 w-4 mr-1" />
+                    {savingAlert
+                      ? t("parent.studentProfile.saving")
+                      : t("parent.studentProfile.save")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="text-xs text-amber-700/80 space-y-1">
+                <p>
+                  {t("parent.lowBalanceAlert.sendTo", "ส่งไปที่")}:{" "}
+                  <span className="font-medium">{user?.email ?? "—"}</span>
+                </p>
+                <p>
+                  {t("parent.lowBalanceAlert.lastSent", "ครั้งสุดท้ายที่แจ้งเตือน")}:{" "}
+                  <span className="font-medium">{formatLastAlert(alertLastSent)}</span>
+                </p>
+                <p className="pt-1 text-amber-600/70">
+                  {t(
+                    "parent.lowBalanceAlert.cooldownNote",
+                    "ระบบจะแจ้งเตือนซ้ำได้หลังผ่านไปอย่างน้อย 4 ชั่วโมง เพื่อป้องกันการรบกวนเกินจำเป็น",
+                  )}
+                </p>
               </div>
             </CardContent>
           </Card>

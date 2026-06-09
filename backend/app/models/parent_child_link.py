@@ -1,7 +1,7 @@
 """
 ParentChildLink Model — links parent User to child Customer (student).
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -21,6 +21,14 @@ class ParentChildLink(Base):
     relation = Column(String(20), nullable=False, default="guardian")  # father | mother | guardian
     parent_rank = Column(String(10), nullable=True)  # "main" | "secondary" | null (PS hierarchy; null for manual links)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Low-balance email alert preferences — per parent/child pair so a mum and
+    # dad can each set their own threshold. last_low_balance_alert_at gives us
+    # the hysteresis anchor: only re-fire after the balance has climbed back
+    # above the threshold and crossed downward again.
+    low_balance_threshold = Column(Numeric(10, 2), nullable=True)
+    low_balance_alert_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    last_low_balance_alert_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     parent = relationship("User", foreign_keys=[parent_user_id])

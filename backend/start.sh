@@ -646,6 +646,14 @@ run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS exchange_amount NUMERI
 run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP WITH TIME ZONE',
     'return_requests.processed_at')
 
+# === Low-balance email alert: per-parent settings + audit log ===
+run('ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_threshold NUMERIC(10,2)',
+    'parent_child_links.low_balance_threshold')
+run('ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_alert_enabled BOOLEAN NOT NULL DEFAULT false',
+    'parent_child_links.low_balance_alert_enabled')
+run('ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS last_low_balance_alert_at TIMESTAMP WITH TIME ZONE',
+    'parent_child_links.last_low_balance_alert_at')
+
 # === Graduated students: distinct from plain inactive so UI can show "Graduated" ===
 run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_graduated BOOLEAN NOT NULL DEFAULT false',
     'customers.is_graduated')
@@ -748,6 +756,9 @@ required_cols = [
     ('return_requests', 'refund_amount'),
     ('return_requests', 'exchange_amount'),
     ('return_requests', 'processed_at'),
+    ('parent_child_links', 'low_balance_threshold'),
+    ('parent_child_links', 'low_balance_alert_enabled'),
+    ('parent_child_links', 'last_low_balance_alert_at'),
     ('customers', 'is_graduated'),
     ('price_panel_items', 'bundle_id'),
     ('customer_display_images', 'data'),
@@ -757,6 +768,7 @@ required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',
     'family_profiles', 'menu_option_groups', 'menu_options', 'audit_logs',
     'product_order_history', 'sync_audit_logs',
+    'email_alerts_log',
 ]
 
 missing = []

@@ -58,6 +58,22 @@ class Settings(BaseSettings):
     REPORTS_DIR: str = "./reports"
     REPORTS_RETENTION_DAYS: int = 90
 
+    # SMTP — used for low-balance and other notification emails. Configure
+    # SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD in Railway env.
+    # For Gmail use smtp.gmail.com:587 + an App Password (not your login pw).
+    # Leaving SMTP_HOST blank disables email delivery — alerts log as failed.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "ISB Notifications"
+
+    # Cooldown between repeated low-balance alerts for the same parent/child
+    # pair — prevents spam when a student's balance lingers near the threshold.
+    LOW_BALANCE_ALERT_COOLDOWN_HOURS: int = 4
+
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -28,6 +28,7 @@ from app.models.system_setting import SystemSetting
 from app.models.unit_of_measure import UnitOfMeasure
 from app.models.bundle import ProductBundle, BundleItem
 from app.models.customer_display import CustomerDisplayImage
+from app.models.email_alert_log import EmailAlertLog
 
 __all__ = [
     "User", "Role", "Permission",
@@ -55,4 +56,5 @@ __all__ = [
     "ProductBundle",
     "BundleItem",
     "CustomerDisplayImage",
+    "EmailAlertLog",
 ]

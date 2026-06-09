@@ -45,6 +45,10 @@ def _ensure_runtime_schema() -> None:
         "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS exchange_amount NUMERIC(10,2)",
         "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP WITH TIME ZONE",
         "ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER",
+        # parent_child_links: per-parent low-balance alert preferences
+        "ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_threshold NUMERIC(10,2)",
+        "ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_alert_enabled BOOLEAN NOT NULL DEFAULT false",
+        "ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS last_low_balance_alert_at TIMESTAMP WITH TIME ZONE",
     ]
     for stmt in stmts:
         try:

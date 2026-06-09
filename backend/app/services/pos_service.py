@@ -19,11 +19,13 @@ from app.models.wallet import Wallet, WalletTransaction, WalletTransactionType
 from app.models.bundle import ProductBundle, BundleItem
 from app.services.wallet_service import WalletService
 from app.services.settings_service import SettingsService
+from app.services import notification_service
 import logging
 from app.services.audit_service import create_audit_log
 from app.core.errors import BusinessRuleError
 
 _audit_logger = logging.getLogger("audit")
+logger = logging.getLogger(__name__)
 from decimal import Decimal
 from app.services.inventory_service import (
     calc_new_avg_cost,
@@ -511,6 +513,19 @@ class POSService:
                 "balance_after": wallet.balance,
                 "amount": amount_dec,
             }
+
+            # Fire low-balance alert to any parent whose threshold this drop
+            # just crossed. Failures are swallowed inside the service so a
+            # broken SMTP server never blocks a sale.
+            try:
+                notification_service.maybe_send_low_balance_alert(
+                    db,
+                    customer=customer,
+                    old_balance=balance_before,
+                    new_balance=projected_balance,
+                )
+            except Exception:  # pragma: no cover — pure defense in depth
+                logger.exception("low-balance alert dispatch failed (non-fatal)")
 
         # Derive shop_id from first item if not explicitly passed. Bundle line
         # items use product_variant_id=0 as a sentinel, so we route those

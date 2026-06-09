@@ -156,6 +156,94 @@ def my_children(
     return result
 
 
+# ── Parent-facing: low-balance alert settings ────────────────────────────────
+
+class LowBalanceAlertSettings(BaseModel):
+    child_customer_id: int
+    enabled: bool
+    threshold: Optional[float] = None
+    last_alert_at: Optional[str] = None
+
+
+class UpdateLowBalanceAlertRequest(BaseModel):
+    enabled: bool
+    threshold: Optional[float] = None
+
+
+@router.get("/me/children/{child_id}/low-balance-alert", response_model=LowBalanceAlertSettings)
+def get_low_balance_alert(
+    child_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("parent", "staff", "cashier", "manager", "kitchen", "admin")
+    ),
+):
+    """Return the parent's low-balance alert settings for a specific child."""
+    link = (
+        db.query(ParentChildLink)
+        .filter(
+            ParentChildLink.parent_user_id == current_user.id,
+            ParentChildLink.child_customer_id == child_id,
+        )
+        .first()
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Child not linked to current user")
+
+    return LowBalanceAlertSettings(
+        child_customer_id=child_id,
+        enabled=bool(link.low_balance_alert_enabled),
+        threshold=float(link.low_balance_threshold) if link.low_balance_threshold is not None else None,
+        last_alert_at=link.last_low_balance_alert_at.isoformat() if link.last_low_balance_alert_at else None,
+    )
+
+
+@router.put("/me/children/{child_id}/low-balance-alert", response_model=LowBalanceAlertSettings)
+def update_low_balance_alert(
+    child_id: int,
+    payload: UpdateLowBalanceAlertRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("parent", "staff", "cashier", "manager", "kitchen", "admin")
+    ),
+):
+    """Toggle and configure the low-balance alert for one child.
+
+    Enforces a positive threshold when enabling. Setting enabled=false leaves
+    the threshold value intact so flipping it back on doesn't require re-entry.
+    """
+    link = (
+        db.query(ParentChildLink)
+        .filter(
+            ParentChildLink.parent_user_id == current_user.id,
+            ParentChildLink.child_customer_id == child_id,
+        )
+        .first()
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Child not linked to current user")
+
+    if payload.enabled:
+        if payload.threshold is None or payload.threshold <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Threshold must be a positive number when alerts are enabled",
+            )
+
+    link.low_balance_alert_enabled = payload.enabled
+    if payload.threshold is not None:
+        link.low_balance_threshold = payload.threshold
+    db.commit()
+    db.refresh(link)
+
+    return LowBalanceAlertSettings(
+        child_customer_id=child_id,
+        enabled=bool(link.low_balance_alert_enabled),
+        threshold=float(link.low_balance_threshold) if link.low_balance_threshold is not None else None,
+        last_alert_at=link.last_low_balance_alert_at.isoformat() if link.last_low_balance_alert_at else None,
+    )
+
+
 # ── Admin: family context of a student ──────────────────────────────────────
 
 class ParentSummary(BaseModel):
