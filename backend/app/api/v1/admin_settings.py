@@ -107,20 +107,29 @@ def update_setting(
     return {"key": key, "value": new_value}
 
 
+class TestEmailRequest(BaseModel):
+    to: str | None = None
+
+
 @router.post("/test-email")
 def test_email(
+    body: TestEmailRequest | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin", "manager")),
 ):
-    """Send a one-shot test email to the current admin's address.
+    """Send a one-shot test email to validate SMTP credentials.
 
-    Used to validate SMTP credentials end-to-end without triggering a real
-    low-balance alert. Returns the SMTP error message verbatim on failure so
-    operators can debug their provider config.
+    Defaults to the current user's email on file but accepts a `to` override
+    in the body so operators can target an inbox they actually monitor.
+    Returns the SMTP error verbatim on failure so provider config can be
+    debugged from the API.
     """
-    recipient = (current_user.email or "").strip()
-    if not recipient:
-        raise HTTPException(status_code=400, detail="Current user has no email on file")
+    recipient = ((body and body.to) or current_user.email or "").strip()
+    if not recipient or "@" not in recipient:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid recipient — pass {'to': 'name@domain.com'} in body or set the user's email",
+        )
     if not email_service.is_configured():
         raise HTTPException(
             status_code=503,
