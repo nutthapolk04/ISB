@@ -202,7 +202,8 @@ const ShopDetail = () => {
   const downloadTemplate = async () => {
     const token = localStorage.getItem("access_token");
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/import/template`, {
+      const qs = shopId ? `?shop_id=${encodeURIComponent(shopId)}` : "";
+      const res = await fetch(`${API_BASE_URL}/admin/import/template${qs}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

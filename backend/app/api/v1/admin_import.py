@@ -401,17 +401,50 @@ def _write_template_sheet(ws, headers: list[str], sample_rows: list[list]) -> No
 
 @router.get("/template")
 def download_import_template(
+    shop_id: str = "",
     current_user: User = Depends(require_role("admin", "manager")),
+    db: Session = Depends(get_db),
 ):
     """Download a single workbook containing both import templates.
 
     Sheet 1 ("Products")       — columns expected by POST /admin/import/products
     Sheet 2 ("StockReceive")   — columns expected by POST /admin/import/stock-receive
 
-    Bundling the two into one file means staff only need one download to
-    prepare both a product master and a receiving batch.
+    When a shop_id query param is supplied the sample rows are tailored to the
+    shop's module (canteen → food samples, store → book/stationery samples) so
+    operators get a relevant starting point instead of having to translate
+    bookstore examples to their own domain.
     """
     import openpyxl
+
+    # Resolve shop → module so we can pick relevant sample rows. Fall back to
+    # bookstore samples when no shop_id is provided or the shop isn't found.
+    module = "store"
+    sample_shop_id = "bookstore"
+    if shop_id:
+        shop = db.query(Shop).filter(Shop.id == shop_id).first()
+        if shop:
+            module = (shop.module or "store").lower()
+            sample_shop_id = shop.id
+
+    if module == "canteen":
+        products_samples = [
+            ["ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sample_shop_id],
+            ["น้ำส้มคั้น", "CT001002", 20, 10, "เครื่องดื่ม", "แก้ว", sample_shop_id],
+        ]
+        stock_samples = [
+            [sample_shop_id, "CT001001", 50, 28, "รับเข้าจากครัวกลาง", "KIT-2026-001"],
+            [sample_shop_id, "CT001002", 100, 10, "รับเข้าประจำวัน", "KIT-2026-002"],
+        ]
+    else:
+        products_samples = [
+            ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sample_shop_id],
+            ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", sample_shop_id],
+        ]
+        stock_samples = [
+            [sample_shop_id, "BK001001", 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
+            [sample_shop_id, "BK001002", 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
+        ]
 
     wb = openpyxl.Workbook()
 
@@ -420,20 +453,14 @@ def download_import_template(
     _write_template_sheet(
         products_sheet,
         ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
-        [
-            ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", "bookstore"],
-            ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", "bookstore"],
-        ],
+        products_samples,
     )
 
     stock_sheet = wb.create_sheet(title="StockReceive")
     _write_template_sheet(
         stock_sheet,
         ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"],
-        [
-            ["bookstore", "BK001001", 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
-            ["bookstore", "BK001002", 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
-        ],
+        stock_samples,
     )
 
     buf = io.BytesIO()
