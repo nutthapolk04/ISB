@@ -226,7 +226,9 @@ export default function CanteenShopDetail() {
         </TabsList>
 
         <TabsContent value="menu" className="mt-4 space-y-4">
-          {(hasRole("admin") || hasRole("manager")) && <ShopImportPanel shopId={shopId} />}
+          {(hasRole("admin") || hasRole("manager")) && (
+            <ShopImportPanel shopId={shopId} showStockReceive={false} />
+          )}
           <CanteenProducts shopId={shopId} embedded />
         </TabsContent>
 

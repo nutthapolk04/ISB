@@ -46,9 +46,15 @@ interface PreviewState {
 
 interface Props {
   shopId: string | undefined;
+  /**
+   * Whether the StockReceive flow is exposed. Canteen shops don't track
+   * per-SKU stock so the option is irrelevant there — hide it to keep the UI
+   * focused on the menu/Products import.
+   */
+  showStockReceive?: boolean;
 }
 
-export function ShopImportPanel({ shopId }: Props) {
+export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
   const { t } = useTranslation();
   const [importingProducts, setImportingProducts] = useState(false);
   const [importingStock, setImportingStock] = useState(false);
@@ -157,22 +163,24 @@ export function ShopImportPanel({ shopId }: Props) {
 
   return (
     <>
-      <InfoCallout
-        id="shopImport.twoSheetsExplainer"
-        title={t("shopImport.twoSheetsTitle", "ทำไม template มี 2 sheets")}
-      >
-        <ul className="list-disc pl-4 space-y-1">
-          <li>
-            <strong>Products</strong> — ข้อมูลหลักของสินค้า (ชื่อ ราคา หมวด หน่วย). อัปซ้ำได้ — ระบบจะ update ราคา/ชื่อให้ ไม่ทำให้สต็อกเปลี่ยน
-          </li>
-          <li>
-            <strong>StockReceive</strong> — บันทึก<u>รายครั้ง</u>ที่รับของเข้า (จำนวน + ต้นทุนต่อหน่วย). อัปซ้ำ = สต็อกเพิ่มซ้ำ ใช้เฉพาะตอนของมาส่งจริงเท่านั้น
-          </li>
-        </ul>
-        <p className="mt-2">
-          ไฟล์ template ดาวน์โหลดครั้งเดียวใช้ได้ทั้งคู่ — กรอก sheet ไหนก็เลือก import sheet นั้นจาก dropdown
-        </p>
-      </InfoCallout>
+      {showStockReceive && (
+        <InfoCallout
+          id="shopImport.twoSheetsExplainer"
+          title={t("shopImport.twoSheetsTitle", "ทำไม template มี 2 sheets")}
+        >
+          <ul className="list-disc pl-4 space-y-1">
+            <li>
+              <strong>Products</strong> — ข้อมูลหลักของสินค้า (ชื่อ ราคา หมวด หน่วย). อัปซ้ำได้ — ระบบจะ update ราคา/ชื่อให้ ไม่ทำให้สต็อกเปลี่ยน
+            </li>
+            <li>
+              <strong>StockReceive</strong> — บันทึก<u>รายครั้ง</u>ที่รับของเข้า (จำนวน + ต้นทุนต่อหน่วย). อัปซ้ำ = สต็อกเพิ่มซ้ำ ใช้เฉพาะตอนของมาส่งจริงเท่านั้น
+            </li>
+          </ul>
+          <p className="mt-2">
+            ไฟล์ template ดาวน์โหลดครั้งเดียวใช้ได้ทั้งคู่ — กรอก sheet ไหนก็เลือก import sheet นั้นจาก dropdown
+          </p>
+        </InfoCallout>
+      )}
 
       <Card>
         <CardContent className="pt-4 pb-4">
@@ -194,32 +202,53 @@ export function ShopImportPanel({ shopId }: Props) {
 
             <div className="h-5 w-px bg-border" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={importingProducts || importingStock}>
-                  {importingProducts || importingStock ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      {t("shopImport.checking", "Checking…")}
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-3.5 w-3.5 mr-1.5" />
-                      {t("shopImport.importData", "Import data")}
-                      <ChevronDown className="h-3.5 w-3.5 ml-1.5 opacity-70" />
-                    </>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={() => productsFileRef.current?.click()}>
-                  {t("shopImport.menuProducts", "Import products (sheet: Products)")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => stockFileRef.current?.click()}>
-                  {t("shopImport.menuStock", "Import stock receipt (sheet: StockReceive)")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {showStockReceive ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={importingProducts || importingStock}>
+                    {importingProducts || importingStock ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        {t("shopImport.checking", "Checking…")}
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-3.5 w-3.5 mr-1.5" />
+                        {t("shopImport.importData", "Import data")}
+                        <ChevronDown className="h-3.5 w-3.5 ml-1.5 opacity-70" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onSelect={() => productsFileRef.current?.click()}>
+                    {t("shopImport.menuProducts", "Import products (sheet: Products)")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => stockFileRef.current?.click()}>
+                    {t("shopImport.menuStock", "Import stock receipt (sheet: StockReceive)")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={importingProducts}
+                onClick={() => productsFileRef.current?.click()}
+              >
+                {importingProducts ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    {t("shopImport.checking", "Checking…")}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    {t("shopImport.importMenu", "Import menu items")}
+                  </>
+                )}
+              </Button>
+            )}
 
             <input
               ref={productsFileRef}
@@ -240,8 +269,12 @@ export function ShopImportPanel({ shopId }: Props) {
 
             <span className="text-xs text-muted-foreground ml-auto">
               {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">name, barcode, price, cost_price, category, uom, shop_id</code>
-              {" · "}
-              {t("shopImport.stockColumns", "Stock receive columns")}: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, quantity, cost_per_unit, notes</code>
+              {showStockReceive && (
+                <>
+                  {" · "}
+                  {t("shopImport.stockColumns", "Stock receive columns")}: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, quantity, cost_per_unit, notes</code>
+                </>
+              )}
             </span>
           </div>
         </CardContent>

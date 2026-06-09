@@ -464,12 +464,15 @@ def download_import_template(
         products_samples,
     )
 
-    stock_sheet = wb.create_sheet(title="StockReceive")
-    _write_template_sheet(
-        stock_sheet,
-        ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"],
-        stock_samples,
-    )
+    # Canteen shops don't track per-SKU stock — skip the StockReceive sheet
+    # entirely so canteen managers don't see an irrelevant import option.
+    if module != "canteen":
+        stock_sheet = wb.create_sheet(title="StockReceive")
+        _write_template_sheet(
+            stock_sheet,
+            ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"],
+            stock_samples,
+        )
 
     buf = io.BytesIO()
     wb.save(buf)
