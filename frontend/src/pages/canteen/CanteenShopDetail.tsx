@@ -181,7 +181,7 @@ export default function CanteenShopDetail() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/store/management")}
+          onClick={() => navigate("/canteen/management")}
           className="-ml-2 shrink-0"
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
