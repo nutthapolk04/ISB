@@ -64,8 +64,20 @@ def send_email(
     except Exception as exc:
         raise EmailDeliveryError(f"DNS resolution failed for {settings.SMTP_HOST}: {exc}") from exc
 
+    # Port 465 → implicit SSL (SMTPS). Port 587/25 → STARTTLS upgrade. We
+    # pick by port rather than the explicit SMTP_USE_TLS flag so operators
+    # can switch to port 465 by env change alone — useful when a hosting
+    # provider blocks 587 but allows 465.
+    use_implicit_ssl = settings.SMTP_PORT == 465
+
     try:
-        if settings.SMTP_USE_TLS:
+        if use_implicit_ssl:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(ipv4, settings.SMTP_PORT, timeout=15, context=context) as server:
+                server.ehlo(settings.SMTP_HOST)
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+        elif settings.SMTP_USE_TLS:
             context = ssl.create_default_context()
             with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=15) as server:
                 server.ehlo(settings.SMTP_HOST)
