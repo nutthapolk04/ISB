@@ -631,6 +631,21 @@ run('ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS reversed_by_id INTEGER 
 run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
     'return_requests.bundle_id')
 
+# === Refund / Exchange processing fields added when the ReturnsService began
+#     persisting how each request was resolved (cash vs card refund, the SKUs
+#     swapped in, the cash deltas, and the processing timestamp). Missing
+#     columns cause every Returns page load to 500 with an UndefinedColumn. ===
+run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)',
+    'return_requests.refund_method')
+run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS exchange_product_codes VARCHAR(500)',
+    'return_requests.exchange_product_codes')
+run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(10,2)',
+    'return_requests.refund_amount')
+run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS exchange_amount NUMERIC(10,2)',
+    'return_requests.exchange_amount')
+run('ALTER TABLE return_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP WITH TIME ZONE',
+    'return_requests.processed_at')
+
 # === Graduated students: distinct from plain inactive so UI can show "Graduated" ===
 run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_graduated BOOLEAN NOT NULL DEFAULT false',
     'customers.is_graduated')
@@ -728,6 +743,11 @@ required_cols = [
     ('shop_movements', 'reverses_id'),
     ('shop_movements', 'reversed_by_id'),
     ('return_requests', 'bundle_id'),
+    ('return_requests', 'refund_method'),
+    ('return_requests', 'exchange_product_codes'),
+    ('return_requests', 'refund_amount'),
+    ('return_requests', 'exchange_amount'),
+    ('return_requests', 'processed_at'),
     ('customers', 'is_graduated'),
     ('price_panel_items', 'bundle_id'),
     ('customer_display_images', 'data'),
