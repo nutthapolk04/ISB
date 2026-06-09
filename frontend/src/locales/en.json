@@ -1482,7 +1482,13 @@
       "roleAdded": "Role added",
       "roleRemoveFailed": "Could not remove role",
       "roleRemoved": "Role removed",
-      "selectRoleToAdd": "Choose role to add"
+      "selectRoleToAdd": "Choose role to add",
+      "deleteSuccess": "User deleted",
+      "deleteFailed": "Failed to delete user",
+      "deleteTitle": "Delete user",
+      "deleteConfirmTitle": "Confirm user deletion",
+      "deleteConfirmDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
+      "deleteConfirm": "Delete user"
     }
   },
   "canteen": {
@@ -1813,7 +1819,10 @@
     "statUpdated": "Would update",
     "template": "Download template",
     "templateFailed": "Could not download template",
-    "twoSheetsTitle": "Why does the template have 2 sheets?"
+    "twoSheetsTitle": "Why does the template have 2 sheets?",
+    "explainerProducts": "<b>Products</b> — product master data (name, price, category, UoM). Idempotent — re-importing updates names/prices without affecting stock.",
+    "explainerStock": "<b>StockReceive</b> — logs <u>each</u> receiving event (quantity + cost per unit). Not idempotent — re-importing the same file will double-count stock. Use only when goods physically arrive.",
+    "explainerNote": "One template covers both — fill in whichever sheet applies and pick the matching import option from the dropdown."
   },
   "shopDetail": {
     "panelNamePlaceholder": "e.g. Standard price"
@@ -2184,7 +2193,13 @@
     "studentSearchPlaceholder": "Search by name or student code…",
     "studentUnlinked": "Family link removed",
     "unlinkConfirm": "Remove this family link?",
-    "unlinkStudent": "Unlink"
+    "unlinkStudent": "Unlink",
+    "deleteSuccess": "User deleted",
+    "deleteFailed": "Failed to delete user",
+    "delete": "Delete",
+    "deleteTitle": "Confirm deletion",
+    "deleteDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
+    "deleteConfirm": "Delete"
   },
   "audit": {
     "title": "Audit Log",
@@ -2814,7 +2829,13 @@
     "loading": "Loading…",
     "noResults": "No adjustments found for the selected filters.",
     "search": "Search",
-    "title": "Wallet Adjustment Report"
+    "title": "Wallet Adjustment Report",
+    "type": "Type",
+    "typeAll": "All",
+    "typeStudent": "Student",
+    "typeStaff": "Staff",
+    "typeDepartment": "Department",
+    "typeOther": "Other"
   },
   "relation": {
     "grandparent": "Grandparent",

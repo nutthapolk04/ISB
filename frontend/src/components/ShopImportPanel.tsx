@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { api } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { toast } from "@/components/ui/sonner";
@@ -166,18 +166,29 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
       {showStockReceive && (
         <InfoCallout
           id="shopImport.twoSheetsExplainer"
-          title={t("shopImport.twoSheetsTitle", "ทำไม template มี 2 sheets")}
+          title={t("shopImport.twoSheetsTitle", "Why does the template have 2 sheets?")}
         >
           <ul className="list-disc pl-4 space-y-1">
             <li>
-              <strong>Products</strong> — ข้อมูลหลักของสินค้า (ชื่อ ราคา หมวด หน่วย). อัปซ้ำได้ — ระบบจะ update ราคา/ชื่อให้ ไม่ทำให้สต็อกเปลี่ยน
+              <Trans
+                i18nKey="shopImport.explainerProducts"
+                defaults="<b>Products</b> — product master data (name, price, category, UoM). Idempotent — re-importing updates names/prices without affecting stock."
+                components={{ b: <strong /> }}
+              />
             </li>
             <li>
-              <strong>StockReceive</strong> — บันทึก<u>รายครั้ง</u>ที่รับของเข้า (จำนวน + ต้นทุนต่อหน่วย). อัปซ้ำ = สต็อกเพิ่มซ้ำ ใช้เฉพาะตอนของมาส่งจริงเท่านั้น
+              <Trans
+                i18nKey="shopImport.explainerStock"
+                defaults="<b>StockReceive</b> — logs <u>each</u> receiving event (quantity + cost per unit). Not idempotent — re-importing the same file will double-count stock. Use only when goods physically arrive."
+                components={{ b: <strong />, u: <u /> }}
+              />
             </li>
           </ul>
           <p className="mt-2">
-            ไฟล์ template ดาวน์โหลดครั้งเดียวใช้ได้ทั้งคู่ — กรอก sheet ไหนก็เลือก import sheet นั้นจาก dropdown
+            {t(
+              "shopImport.explainerNote",
+              "One template covers both — fill in whichever sheet applies and pick the matching import option from the dropdown.",
+            )}
           </p>
         </InfoCallout>
       )}

@@ -45,16 +45,27 @@ def list_audit_logs(
     entity_type: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
     user_id: Optional[int] = Query(None),
+    shop_id: Optional[str] = Query(None, description="Filter by shop_id; admins may pick any, managers/cashiers always pinned to their own"),
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
-    _: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin", "manager", "cashier")),
 ):
-    """List audit logs with filters. Admin only."""
+    """List audit logs with filters. Admin sees every shop; manager and
+    cashier are scoped to their own shop regardless of the query param."""
     conditions = ["1=1"]
     params: dict = {}
+
+    # Enforce shop scope for non-admins. Cashiers/managers cannot peek at
+    # other shops by sending shop_id=otherShop — overwrite to their own.
+    is_admin = current_user.role == "admin" or current_user.is_superuser
+    if not is_admin:
+        shop_id = current_user.shop_id or "__none__"  # __none__ matches nothing
+    if shop_id:
+        conditions.append("al.shop_id = :shop_id")
+        params["shop_id"] = shop_id
 
     if entity_type:
         conditions.append("al.entity_type = :entity_type")

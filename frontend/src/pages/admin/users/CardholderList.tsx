@@ -183,14 +183,14 @@ export default function CardholderList() {
       if (!path) throw new Error("Unsupported entity type");
       await api.delete(path);
       toast({
-        title: t("cardholders.deleteSuccess", "ลบผู้ใช้แล้ว"),
+        title: t("cardholders.deleteSuccess", "User deleted"),
         description: deleting.name,
       });
       setAllItems((items) => items.filter((c) => c.key !== deleting.key));
       setDeleting(null);
     } catch (e) {
       toast({
-        title: t("cardholders.deleteFailed", "ลบผู้ใช้ไม่สำเร็จ"),
+        title: t("cardholders.deleteFailed", "Failed to delete user"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -545,7 +545,7 @@ export default function CardholderList() {
                             size="icon"
                             className="h-7 w-7 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                             onClick={() => setDeleting(c)}
-                            title={t("cardholders.delete", "ลบ")}
+                            title={t("cardholders.delete", "Delete")}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -754,12 +754,12 @@ export default function CardholderList() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("cardholders.deleteTitle", "ยืนยันการลบ")}
+              {t("cardholders.deleteTitle", "Confirm deletion")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(
                 "cardholders.deleteDesc",
-                "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
+                "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
               )}
               <div className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm font-medium">
                 {deleting?.name} <span className="text-muted-foreground">· {deleting?.identifier}</span>
@@ -768,7 +768,7 @@ export default function CardholderList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteBusy}>
-              {t("common.cancel", "ยกเลิก")}
+              {t("common.cancel", "Cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteCardholder}
@@ -776,7 +776,7 @@ export default function CardholderList() {
               className="bg-rose-600 hover:bg-rose-700"
             >
               {deleteBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("cardholders.deleteConfirm", "ลบ")}
+              {t("cardholders.deleteConfirm", "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

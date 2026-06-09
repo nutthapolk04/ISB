@@ -1482,7 +1482,13 @@
       "roleAdded": "เพิ่มสิทธิ์แล้ว",
       "roleRemoveFailed": "ลบสิทธิ์ไม่สำเร็จ",
       "roleRemoved": "ลบสิทธิ์แล้ว",
-      "selectRoleToAdd": "เลือกสิทธิ์ที่จะเพิ่ม"
+      "selectRoleToAdd": "เลือกสิทธิ์ที่จะเพิ่ม",
+      "deleteSuccess": "ลบผู้ใช้แล้ว",
+      "deleteFailed": "ลบผู้ใช้ไม่สำเร็จ",
+      "deleteTitle": "ลบผู้ใช้",
+      "deleteConfirmTitle": "ยืนยันการลบผู้ใช้",
+      "deleteConfirmDesc": "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
+      "deleteConfirm": "ลบผู้ใช้"
     }
   },
   "canteen": {
@@ -1813,7 +1819,10 @@
     "statUpdated": "จะอัปเดต",
     "template": "ดาวน์โหลดเทมเพลต",
     "templateFailed": "ดาวน์โหลดเทมเพลตไม่สำเร็จ",
-    "twoSheetsTitle": "ทำไม template มี 2 sheets"
+    "twoSheetsTitle": "ทำไม template มี 2 sheets",
+    "explainerProducts": "<b>Products</b> — ข้อมูลหลักของสินค้า (ชื่อ ราคา หมวด หน่วย) อัปซ้ำได้ — ระบบจะ update ราคา/ชื่อให้ ไม่ทำให้สต็อกเปลี่ยน",
+    "explainerStock": "<b>StockReceive</b> — บันทึก<u>รายครั้ง</u>ที่รับของเข้า (จำนวน + ต้นทุนต่อหน่วย) อัปซ้ำ = สต็อกเพิ่มซ้ำ ใช้เฉพาะตอนของมาส่งจริงเท่านั้น",
+    "explainerNote": "ไฟล์ template ดาวน์โหลดครั้งเดียวใช้ได้ทั้งคู่ — กรอก sheet ไหนก็เลือก import sheet นั้นจาก dropdown"
   },
   "shopDetail": {
     "panelNamePlaceholder": "เช่น ราคาทั่วไป"
@@ -2182,7 +2191,13 @@
     "studentSearchPlaceholder": "ค้นหาด้วยชื่อหรือรหัสนักเรียน…",
     "studentUnlinked": "ลบการเชื่อมต่อครอบครัวแล้ว",
     "unlinkConfirm": "ลบการเชื่อมต่อครอบครัวนี้?",
-    "unlinkStudent": "ยกเลิกการเชื่อมต่อ"
+    "unlinkStudent": "ยกเลิกการเชื่อมต่อ",
+    "deleteSuccess": "ลบผู้ใช้แล้ว",
+    "deleteFailed": "ลบผู้ใช้ไม่สำเร็จ",
+    "delete": "ลบ",
+    "deleteTitle": "ยืนยันการลบ",
+    "deleteDesc": "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
+    "deleteConfirm": "ลบ"
   },
   "audit": {
     "title": "Audit Log",
@@ -2812,7 +2827,13 @@
     "loading": "กำลังโหลด…",
     "noResults": "ไม่พบรายการปรับยอดตามเงื่อนไขที่เลือก",
     "search": "ค้นหา",
-    "title": "รายงานการปรับยอดกระเป๋าเงิน"
+    "title": "รายงานการปรับยอดกระเป๋าเงิน",
+    "type": "ประเภท",
+    "typeAll": "ทั้งหมด",
+    "typeStudent": "นักเรียน",
+    "typeStaff": "พนักงาน",
+    "typeDepartment": "แผนก",
+    "typeOther": "อื่นๆ"
   },
   "relation": {
     "grandparent": "ปู่/ย่า/ตา/ยาย",

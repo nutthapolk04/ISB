@@ -21,6 +21,29 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_role
 from app.core.database import get_db
 from app.models.shop import MovementType, Shop, ShopCategory, ShopMovement, ShopProduct
+from app.services.audit_service import create_audit_log
+from sqlalchemy.exc import IntegrityError, DataError, SQLAlchemyError
+
+
+def _friendly_db_error(exc: Exception) -> str:
+    """Translate raw DB/ORM errors into a short Thai-friendly message so the
+    import preview surfaces something an operator can act on, instead of a
+    stack-trace fragment."""
+    msg = str(exc)
+    low = msg.lower()
+    if isinstance(exc, IntegrityError) or "unique" in low or "duplicate" in low:
+        if "barcode" in low:
+            return "Barcode นี้มีในระบบแล้ว (ระบุ barcode ซ้ำกับสินค้าอื่น)"
+        if "product_code" in low:
+            return "รหัสสินค้านี้มีในระบบแล้ว"
+        return "ข้อมูลซ้ำกับรายการที่มีอยู่ในระบบ"
+    if isinstance(exc, DataError) or "out of range" in low or "value too long" in low:
+        return "รูปแบบข้อมูลไม่ถูกต้อง (เช่น ตัวเลขเกินช่วง หรือข้อความยาวเกินไป)"
+    if "not-null" in low or "null value" in low:
+        return "พบช่องที่จำเป็นแต่ปล่อยว่าง"
+    if isinstance(exc, SQLAlchemyError):
+        return f"บันทึกไม่สำเร็จ: {msg[:200]}"
+    return msg[:200]
 from app.models.unit_of_measure import UnitOfMeasure
 from app.models.user import User
 from app.services.inventory_service import InventoryService
@@ -170,87 +193,128 @@ async def import_products(
     errors: List[ImportError] = []
 
     for idx, row in enumerate(rows, start=2):  # row 1 = header
-        # ── Resolve shop_id ──
-        row_shop_id = _str(row.get("shop_id")) or shop_id
-        if not row_shop_id:
-            errors.append(ImportError(row=idx, reason="shop_id is required (pass as query param or column)"))
-            continue
-
-        # Managers cannot cross-shop import via the file column either.
-        if is_manager and row_shop_id != current_user.shop_id:
-            errors.append(ImportError(row=idx, reason="Manager can only import into their own shop"))
-            continue
-
-        shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
-        if not shop:
-            errors.append(ImportError(row=idx, reason=f"shop '{row_shop_id}' not found"))
-            continue
-
-        # ── Required fields ──
-        name = _str(row.get("name"))
-        barcode = _str(row.get("barcode"))
-        price_val = _float_or_none(row.get("price"))
-        cost_val = _float_or_none(row.get("cost_price"))
-
-        if not name:
-            errors.append(ImportError(row=idx, reason="'name' is required"))
-            continue
-        if price_val is None:
-            errors.append(ImportError(row=idx, reason="'price' must be a valid number"))
-            continue
-        if cost_val is None:
-            errors.append(ImportError(row=idx, reason="'cost_price' must be a valid number"))
-            continue
-
-        # ── Optional fields ──
-        category = _str(row.get("category")) or "ทั่วไป"
-        # Auto-create the per-shop category record so the new category shows up
-        # in the POS filter dropdown and category management UI without forcing
-        # operators to pre-seed it. Idempotent — looks up first by (shop, name).
-        if category:
-            existing_cat = (
-                db.query(ShopCategory)
-                .filter(
-                    ShopCategory.shop_id == row_shop_id,
-                    ShopCategory.name == category,
-                )
-                .first()
-            )
-            if not existing_cat:
-                db.add(ShopCategory(shop_id=row_shop_id, name=category))
-                db.flush()
-
-        uom_name = _str(row.get("uom"))
-        uom_id: Optional[int] = None
-        if uom_name:
-            uom = db.query(UnitOfMeasure).filter(
-                UnitOfMeasure.name == uom_name,
-                UnitOfMeasure.is_active == True,
-            ).first()
-            if uom:
-                uom_id = uom.id
-
+        # Wrap the whole row in a savepoint so a constraint violation on one
+        # row does not poison the session for subsequent rows. Without this,
+        # any IntegrityError after .flush() leaves the session aborted and
+        # every remaining row gets 'current transaction is aborted' errors —
+        # which surfaces to operators as a 500 Internal Server Error.
+        sp = db.begin_nested()
         try:
+            # ── Resolve shop_id ──
+            row_shop_id = _str(row.get("shop_id")) or shop_id
+            if not row_shop_id:
+                errors.append(ImportError(row=idx, reason="ต้องระบุ shop_id (ทั้งเป็น query param หรือคอลัมน์ในไฟล์)"))
+                sp.rollback()
+                continue
+
+            # Managers cannot cross-shop import via the file column either.
+            if is_manager and row_shop_id != current_user.shop_id:
+                errors.append(ImportError(row=idx, reason="Manager นำเข้าได้เฉพาะร้านของตัวเองเท่านั้น"))
+                sp.rollback()
+                continue
+
+            shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
+            if not shop:
+                errors.append(ImportError(row=idx, reason=f"ไม่พบร้าน '{row_shop_id}' ในระบบ"))
+                sp.rollback()
+                continue
+
+            # ── Required fields ──
+            name = _str(row.get("name"))
+            barcode = _str(row.get("barcode"))
+            price_val = _float_or_none(row.get("price"))
+            cost_val = _float_or_none(row.get("cost_price"))
+
+            if not name:
+                errors.append(ImportError(row=idx, reason="ต้องระบุ 'name' (ชื่อสินค้า)"))
+                sp.rollback()
+                continue
+            if price_val is None:
+                errors.append(ImportError(row=idx, reason="'price' (ราคาขาย) ต้องเป็นตัวเลข"))
+                sp.rollback()
+                continue
+            if cost_val is None:
+                errors.append(ImportError(row=idx, reason="'cost_price' (ต้นทุน) ต้องเป็นตัวเลข"))
+                sp.rollback()
+                continue
+
+            # ── Optional fields ──
+            category = _str(row.get("category")) or "ทั่วไป"
+            if category:
+                existing_cat = (
+                    db.query(ShopCategory)
+                    .filter(
+                        ShopCategory.shop_id == row_shop_id,
+                        ShopCategory.name == category,
+                    )
+                    .first()
+                )
+                if not existing_cat:
+                    db.add(ShopCategory(shop_id=row_shop_id, name=category))
+                    db.flush()
+
+            uom_name = _str(row.get("uom"))
+            uom_id: Optional[int] = None
+            if uom_name:
+                uom = db.query(UnitOfMeasure).filter(
+                    UnitOfMeasure.name == uom_name,
+                    UnitOfMeasure.is_active == True,
+                ).first()
+                if uom:
+                    uom_id = uom.id
+
             if barcode:
                 existing = db.query(ShopProduct).filter(
                     ShopProduct.shop_id == row_shop_id,
                     ShopProduct.barcode == barcode,
                 ).first()
             else:
-                existing = None
+                # Fallback: also check by name within the same shop so re-imports
+                # without a barcode don't keep creating duplicate rows.
+                existing = db.query(ShopProduct).filter(
+                    ShopProduct.shop_id == row_shop_id,
+                    ShopProduct.name == name,
+                ).first()
 
             if existing:
+                old_snapshot = {
+                    "name": existing.name,
+                    "external_price": float(existing.external_price),
+                    "internal_price": float(existing.internal_price),
+                    "category": existing.category,
+                }
                 existing.name = name
                 existing.external_price = price_val
                 existing.internal_price = cost_val
                 existing.category = category
                 if uom_id is not None:
                     existing.uom_id = uom_id
+                db.flush()
+                if not dry_run:
+                    create_audit_log(
+                        db,
+                        entity_type="shop_product",
+                        entity_id=existing.id,
+                        entity_name=existing.name,
+                        shop_id=row_shop_id,
+                        action="UPDATE_PRODUCT",
+                        changes={
+                            "source": "import",
+                            "old": old_snapshot,
+                            "new": {
+                                "name": name, "external_price": price_val,
+                                "internal_price": cost_val, "category": category,
+                            },
+                        },
+                        user_id=current_user.id,
+                    )
                 updated += 1
             else:
-                # Auto-generate product_code
+                # Auto-generate product_code with a small random suffix so two
+                # rows hitting the same millisecond don't collide.
+                import secrets as _secrets
                 ts_suffix = int(time.time() * 1000) % 100_000_000
-                product_code = f"IMP-{ts_suffix:08d}"
+                product_code = f"IMP-{ts_suffix:08d}{_secrets.token_hex(1)}"
                 product = ShopProduct(
                     shop_id=row_shop_id,
                     product_code=product_code,
@@ -263,14 +327,33 @@ async def import_products(
                     stock=0,
                 )
                 db.add(product)
+                db.flush()
+                if not dry_run:
+                    create_audit_log(
+                        db,
+                        entity_type="shop_product",
+                        entity_id=product.id,
+                        entity_name=name,
+                        shop_id=row_shop_id,
+                        action="create",
+                        changes={
+                            "source": "import",
+                            "new": {
+                                "name": name, "barcode": barcode or None,
+                                "external_price": price_val,
+                                "internal_price": cost_val, "category": category,
+                            },
+                        },
+                        user_id=current_user.id,
+                    )
                 created += 1
 
-            db.flush()
+            sp.commit()
 
         except Exception as exc:
-            db.rollback()
+            sp.rollback()
             logger.warning("import_products row %d error: %s", idx, exc)
-            errors.append(ImportError(row=idx, reason=str(exc)))
+            errors.append(ImportError(row=idx, reason=_friendly_db_error(exc)))
 
     if dry_run:
         db.rollback()
@@ -320,55 +403,61 @@ async def import_stock_receive(
     errors: List[ImportError] = []
 
     for idx, row in enumerate(rows, start=2):
-        # ── shop_id ──
-        row_shop_id = _str(row.get("shop_id"))
-        if not row_shop_id:
-            errors.append(ImportError(row=idx, reason="'shop_id' is required"))
-            continue
+        sp = db.begin_nested()
+        try:
+            # ── shop_id ──
+            row_shop_id = _str(row.get("shop_id"))
+            if not row_shop_id:
+                errors.append(ImportError(row=idx, reason="ต้องระบุ 'shop_id'"))
+                sp.rollback()
+                continue
 
-        if is_manager and row_shop_id != current_user.shop_id:
-            errors.append(ImportError(row=idx, reason="Manager can only receive stock for their own shop"))
-            continue
+            if is_manager and row_shop_id != current_user.shop_id:
+                errors.append(ImportError(row=idx, reason="Manager รับสต็อกได้เฉพาะร้านของตัวเองเท่านั้น"))
+                sp.rollback()
+                continue
 
-        shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
-        if not shop:
-            errors.append(ImportError(row=idx, reason=f"shop '{row_shop_id}' not found"))
-            continue
+            shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
+            if not shop:
+                errors.append(ImportError(row=idx, reason=f"ไม่พบร้าน '{row_shop_id}' ในระบบ"))
+                sp.rollback()
+                continue
 
-        # ── quantity ──
-        qty = _int_or_none(row.get("quantity"))
-        if qty is None or qty <= 0:
-            errors.append(ImportError(row=idx, reason="'quantity' must be a positive integer"))
-            continue
+            # ── quantity ──
+            qty = _int_or_none(row.get("quantity"))
+            if qty is None or qty <= 0:
+                errors.append(ImportError(row=idx, reason="'quantity' ต้องเป็นจำนวนเต็มที่มากกว่า 0"))
+                sp.rollback()
+                continue
 
-        # ── lookup product ──
-        product: Optional[ShopProduct] = None
-        pid_raw = _str(row.get("product_id"))
-        barcode_raw = _str(row.get("barcode"))
+            # ── lookup product ──
+            product: Optional[ShopProduct] = None
+            pid_raw = _str(row.get("product_id"))
+            barcode_raw = _str(row.get("barcode"))
 
-        if pid_raw:
-            pid = _int_or_none(pid_raw)
-            if pid is not None:
+            if pid_raw:
+                pid = _int_or_none(pid_raw)
+                if pid is not None:
+                    product = db.query(ShopProduct).filter(
+                        ShopProduct.id == pid,
+                        ShopProduct.shop_id == row_shop_id,
+                    ).first()
+            if product is None and barcode_raw:
                 product = db.query(ShopProduct).filter(
-                    ShopProduct.id == pid,
+                    ShopProduct.barcode == barcode_raw,
                     ShopProduct.shop_id == row_shop_id,
                 ).first()
-        if product is None and barcode_raw:
-            product = db.query(ShopProduct).filter(
-                ShopProduct.barcode == barcode_raw,
-                ShopProduct.shop_id == row_shop_id,
-            ).first()
 
-        if product is None:
-            errors.append(ImportError(row=idx, reason="product not found — supply valid product_id or barcode"))
-            continue
+            if product is None:
+                errors.append(ImportError(row=idx, reason="ไม่พบสินค้า — กรุณาระบุ product_id หรือ barcode ที่ถูกต้อง"))
+                sp.rollback()
+                continue
 
-        # ── optional fields ──
-        cost_per_unit = _float_or_none(row.get("cost_per_unit")) or float(product.internal_price or 0)
-        notes = _str(row.get("notes")) or None
-        reference = _str(row.get("reference")) or None
+            # ── optional fields ──
+            cost_per_unit = _float_or_none(row.get("cost_per_unit")) or float(product.internal_price or 0)
+            notes = _str(row.get("notes")) or None
+            reference = _str(row.get("reference")) or None
 
-        try:
             InventoryService.receive_stock(
                 db=db,
                 shop=shop,
@@ -380,12 +469,30 @@ async def import_stock_receive(
                 user_id=current_user.id,
             )
             db.flush()
+            if not dry_run:
+                create_audit_log(
+                    db,
+                    entity_type="shop_product",
+                    entity_id=product.id,
+                    entity_name=product.name,
+                    shop_id=row_shop_id,
+                    action="update",
+                    changes={
+                        "source": "stock_receive_import",
+                        "qty_received": qty,
+                        "cost_per_unit": cost_per_unit,
+                        "reference": reference,
+                        "notes": notes,
+                    },
+                    user_id=current_user.id,
+                )
             imported += 1
+            sp.commit()
 
         except Exception as exc:
-            db.rollback()
+            sp.rollback()
             logger.warning("import_stock_receive row %d error: %s", idx, exc)
-            errors.append(ImportError(row=idx, reason=str(exc)))
+            errors.append(ImportError(row=idx, reason=_friendly_db_error(exc)))
 
     if dry_run:
         db.rollback()

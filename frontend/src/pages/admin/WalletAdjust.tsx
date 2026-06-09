@@ -339,10 +339,10 @@ export default function WalletAdjust() {
                   <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("adjustmentReport.typeAll", "All")}</SelectItem>
-                    <SelectItem value="student">{t("adjustmentReport.typeStudent", "นักเรียน")}</SelectItem>
-                    <SelectItem value="staff">{t("adjustmentReport.typeStaff", "พนักงาน")}</SelectItem>
-                    <SelectItem value="department">{t("adjustmentReport.typeDepartment", "แผนก")}</SelectItem>
-                    <SelectItem value="other">{t("adjustmentReport.typeOther", "อื่นๆ")}</SelectItem>
+                    <SelectItem value="student">{t("adjustmentReport.typeStudent", "Student")}</SelectItem>
+                    <SelectItem value="staff">{t("adjustmentReport.typeStaff", "Staff")}</SelectItem>
+                    <SelectItem value="department">{t("adjustmentReport.typeDepartment", "Department")}</SelectItem>
+                    <SelectItem value="other">{t("adjustmentReport.typeOther", "Other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

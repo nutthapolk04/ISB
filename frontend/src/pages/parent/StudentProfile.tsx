@@ -95,7 +95,7 @@ export default function StudentProfile() {
     const thresholdNum = alertThreshold.trim() ? parseFloat(alertThreshold) : null;
     if (alertEnabled && (thresholdNum === null || thresholdNum <= 0 || Number.isNaN(thresholdNum))) {
       toast({
-        title: t("parent.lowBalanceAlert.invalidThreshold", "ระบุยอดเงินที่ต้องการแจ้งเตือน"),
+        title: t("parent.lowBalanceAlert.invalidThreshold", "Enter a balance threshold to alert on"),
         variant: "destructive",
       });
       return;
@@ -114,11 +114,11 @@ export default function StudentProfile() {
       setAlertThreshold(updated.threshold != null ? String(updated.threshold) : "");
       setAlertLastSent(updated.last_alert_at);
       toast({
-        title: t("parent.lowBalanceAlert.saved", "บันทึกการแจ้งเตือนแล้ว"),
+        title: t("parent.lowBalanceAlert.saved", "Notification settings saved"),
       });
     } catch (e) {
       toast({
-        title: t("parent.lowBalanceAlert.saveFailed", "บันทึกไม่สำเร็จ"),
+        title: t("parent.lowBalanceAlert.saveFailed", "Failed to save"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -128,7 +128,7 @@ export default function StudentProfile() {
   };
 
   const formatLastAlert = (iso: string | null): string => {
-    if (!iso) return t("parent.lowBalanceAlert.neverSent", "ยังไม่เคยส่ง");
+    if (!iso) return t("parent.lowBalanceAlert.neverSent", "Never sent yet");
     try {
       return new Date(iso).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
     } catch {
@@ -378,7 +378,7 @@ export default function StudentProfile() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2 text-amber-900">
                 <Bell className="h-4 w-4" />
-                {t("parent.lowBalanceAlert.title", "แจ้งเตือนยอดเงินต่ำทางอีเมล")}
+                {t("parent.lowBalanceAlert.title", "Low-balance email alerts")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -386,7 +386,7 @@ export default function StudentProfile() {
                 <div className="text-sm text-amber-900">
                   {t(
                     "parent.lowBalanceAlert.toggleLabel",
-                    "ส่งอีเมลแจ้งเตือนเมื่อยอดเงินต่ำกว่าค่าที่กำหนด",
+                    "Email me when the balance drops below the threshold",
                   )}
                 </div>
                 <Switch
@@ -398,7 +398,7 @@ export default function StudentProfile() {
 
               <div className="space-y-2">
                 <Label htmlFor="threshold-input" className="text-amber-900">
-                  {t("parent.lowBalanceAlert.thresholdLabel", "เตือนเมื่อยอดต่ำกว่า (บาท)")}
+                  {t("parent.lowBalanceAlert.thresholdLabel", "Alert when balance is below (THB)")}
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -428,17 +428,17 @@ export default function StudentProfile() {
 
               <div className="text-xs text-amber-700/80 space-y-1">
                 <p>
-                  {t("parent.lowBalanceAlert.sendTo", "ส่งไปที่")}:{" "}
+                  {t("parent.lowBalanceAlert.sendTo", "Send to")}:{" "}
                   <span className="font-medium">{user?.email ?? "—"}</span>
                 </p>
                 <p>
-                  {t("parent.lowBalanceAlert.lastSent", "ครั้งสุดท้ายที่แจ้งเตือน")}:{" "}
+                  {t("parent.lowBalanceAlert.lastSent", "Last alert sent")}:{" "}
                   <span className="font-medium">{formatLastAlert(alertLastSent)}</span>
                 </p>
                 <p className="pt-1 text-amber-600/70">
                   {t(
                     "parent.lowBalanceAlert.cooldownNote",
-                    "ระบบจะแจ้งเตือนซ้ำได้หลังผ่านไปอย่างน้อย 4 ชั่วโมง เพื่อป้องกันการรบกวนเกินจำเป็น",
+                    "Repeat alerts are sent at most every 4 hours to avoid spam.",
                   )}
                 </p>
               </div>

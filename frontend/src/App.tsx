@@ -270,6 +270,7 @@ const App = () => {
                     <Route path="/canteen/management" element={<CanteenManagementOverview />} />
                     <Route path="/canteen/management/:shopId" element={<CanteenShopDetail />} />
                     <Route path="/canteen/reports" element={<Reports />} />
+                    <Route path="/canteen/audit-logs" element={<AuditLogList />} />
                   </Route>
                 </Route>
 
@@ -293,6 +294,7 @@ const App = () => {
                   <Route path="/store/users" element={<Navigate to="/users" replace />} />
                   <Route element={<RequireRole roles={["admin", "manager", "cashier"]} />}>
                     <Route path="/store/reports" element={<Reports />} />
+                    <Route path="/store/audit-logs" element={<AuditLogList />} />
                   </Route>
                 </Route>
 

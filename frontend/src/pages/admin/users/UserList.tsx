@@ -119,7 +119,7 @@ export default function UserList() {
     try {
       await api.delete(`/users/${deleting.id}`);
       toast({
-        title: t("admin.users.deleteSuccess", "ลบผู้ใช้แล้ว"),
+        title: t("admin.users.deleteSuccess", "User deleted"),
         description: deleting.full_name || deleting.username,
       });
       setDeleting(null);
@@ -129,7 +129,7 @@ export default function UserList() {
       window.location.reload();
     } catch (e) {
       toast({
-        title: t("admin.users.deleteFailed", "ลบผู้ใช้ไม่สำเร็จ"),
+        title: t("admin.users.deleteFailed", "Failed to delete user"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -163,7 +163,7 @@ export default function UserList() {
       }
       await api.post("/users", body);
       toast({
-        title: t("admin.users.createSuccess", "สร้างผู้ใช้สำเร็จ"),
+        title: t("admin.users.createSuccess", "User created"),
         description: createForm.username,
       });
       setCreateOpen(false);
@@ -171,7 +171,7 @@ export default function UserList() {
       void load();
     } catch (e) {
       toast({
-        title: t("admin.users.createError", "สร้างผู้ใช้ไม่สำเร็จ"),
+        title: t("admin.users.createError", "Failed to create user"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -191,7 +191,7 @@ export default function UserList() {
       setUsers(data);
     } catch (e) {
       toast({
-        title: t("admin.users.loadError", "โหลดข้อมูลไม่สำเร็จ"),
+        title: t("admin.users.loadError", "Failed to load users"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -367,7 +367,7 @@ export default function UserList() {
                     variant="ghost"
                     className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 h-8 w-8 p-0"
                     onClick={() => setDeleting(u)}
-                    title={t("admin.users.deleteTitle", "ลบผู้ใช้")}
+                    title={t("admin.users.deleteTitle", "Delete user")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -476,12 +476,12 @@ export default function UserList() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("admin.users.deleteConfirmTitle", "ยืนยันการลบผู้ใช้")}
+              {t("admin.users.deleteConfirmTitle", "Confirm user deletion")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(
                 "admin.users.deleteConfirmDesc",
-                "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
+                "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
               )}
               <div className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm font-medium">
                 {deleting?.full_name} <span className="text-muted-foreground">@{deleting?.username}</span>
@@ -490,7 +490,7 @@ export default function UserList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteBusy}>
-              {t("common.cancel", "ยกเลิก")}
+              {t("common.cancel", "Cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
@@ -498,7 +498,7 @@ export default function UserList() {
               className="bg-rose-600 hover:bg-rose-700"
             >
               {deleteBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("admin.users.deleteConfirm", "ลบผู้ใช้")}
+              {t("admin.users.deleteConfirm", "Delete user")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -517,7 +517,7 @@ export default function UserList() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={t("admin.users.searchPlaceholder", "ค้นหา UID / ชื่อ / username / email / external_id")}
+                placeholder={t("admin.users.searchPlaceholder", "Search UID / name / username / email / external_id")}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 className="pl-9"
