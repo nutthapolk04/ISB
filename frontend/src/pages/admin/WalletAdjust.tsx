@@ -194,8 +194,12 @@ export default function WalletAdjust() {
       const data = await api.get<{ items: Cardholder[]; total: number }>(
         "/admin/cardholders?page_size=500"
       );
-      // Only show cardholders that have a wallet
-      setCardholders(data.items.filter((c) => c.wallet_id != null));
+      // Only cardholders with a wallet, and exclude departments — those are
+      // adjusted via the dedicated Dept Wallet Adjust page so the two screens
+      // don't overlap and confuse operators.
+      setCardholders(
+        data.items.filter((c) => c.wallet_id != null && c.entity_type !== "department"),
+      );
     } catch (e) {
       toast({
         title: t("admin.walletAdjust.loadError"),
