@@ -38,6 +38,11 @@ export default function StudentProfile() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isStudent = user?.role === "student";
+  // Allergy / dietary panel is for staff (canteen / nurse) only — parents
+  // were asked not to see it on this page. Hide when the active role is
+  // parent or student; keep visible for admin / manager / teacher.
+  const isParent = user?.activeRole === "parent";
+  const showAllergyPanel = !isParent && !isStudent;
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingLimit, setSavingLimit] = useState(false);
@@ -187,31 +192,47 @@ export default function StudentProfile() {
   if (!profile) return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
 
   return (
-    <div className="page-shell min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+    <div className="page-shell min-h-screen bg-slate-50">
       <div className="space-y-4 sm:space-y-6">
 
         {/* Back button */}
         <div className="page-header flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="h-10 text-orange-700 hover:text-orange-900 hover:bg-orange-100">
+          <Button asChild variant="ghost" size="sm" className="h-10 text-slate-700 hover:text-slate-900 hover:bg-slate-200">
             <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}</Link>
           </Button>
         </div>
 
-        {/* Profile Hero Card */}
-        <div className="rounded-2xl overflow-hidden shadow-lg">
-          {/* Header Banner */}
-          <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 px-6 pt-6 pb-10 relative">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div className="min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white break-words drop-shadow">{profile.name}</h1>
-                <div className="flex flex-wrap gap-2 mt-3">
+        {/* Profile Hero Card — softer warm gradient, avatar + identity laid out
+            side-by-side so nothing floats half-in/half-out of the banner. */}
+        <div className="rounded-2xl overflow-hidden shadow-md bg-white">
+          <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              {/* Avatar — now inline with the name, no overlap math */}
+              <div className="shrink-0">
+                {profile.photo_url ? (
+                  <img
+                    src={profile.photo_url}
+                    alt={profile.name}
+                    className="h-20 w-20 rounded-full object-cover border-2 border-white/70 shadow-lg"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-white/15 border-2 border-white/70 shadow-lg flex items-center justify-center text-white text-2xl font-bold">
+                    {profile.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              {/* Identity */}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-white break-words">{profile.name}</h1>
+                <div className="flex flex-wrap gap-2 mt-2">
                   {profile.student_code && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/25 text-white border border-white/40">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/30">
                       {profile.student_code}
                     </span>
                   )}
                   {profile.grade && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/40">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/30">
                       {profile.grade}
                     </span>
                   )}
@@ -222,30 +243,14 @@ export default function StudentProfile() {
                   )}
                 </div>
               </div>
+
               {/* Balance */}
-              <div className="sm:text-right bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30 self-start">
-                <p className="text-xs text-white/80 font-medium">{t("parent.studentProfile.balance")}</p>
-                <p className="text-2xl font-bold text-white tabular-nums drop-shadow">
+              <div className="sm:text-right bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/25 self-start sm:self-center">
+                <p className="text-xs text-white/85 font-medium">{t("parent.studentProfile.balance")}</p>
+                <p className="text-2xl font-bold text-white tabular-nums">
                   {formatTHB(profile.wallet_balance ?? 0)}
                 </p>
               </div>
-            </div>
-          </div>
-
-          {/* Avatar overlapping banner */}
-          <div className="bg-white px-6 pt-0 pb-5">
-            <div className="-mt-8 mb-4 flex justify-center sm:justify-start">
-              {profile.photo_url ? (
-                <img
-                  src={profile.photo_url}
-                  alt={profile.name}
-                  className="h-24 w-24 rounded-full object-cover border-4 border-amber-400 shadow-xl"
-                />
-              ) : (
-                <div className="h-24 w-24 rounded-full bg-gradient-to-br from-amber-300 to-orange-400 border-4 border-amber-400 shadow-xl flex items-center justify-center text-white text-3xl font-bold">
-                  {profile.name.charAt(0).toUpperCase()}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -281,33 +286,36 @@ export default function StudentProfile() {
           </CardContent>
         </Card>
 
-        {/* Allergies — red accent when has allergy, green when none */}
-        <Card className={`border-0 shadow-md overflow-hidden ${profile.allergies ? "ring-2 ring-red-400" : ""}`}>
-          <div className={`h-1 ${profile.allergies ? "bg-gradient-to-r from-red-500 to-red-400" : "bg-gradient-to-r from-green-400 to-emerald-400"}`} />
-          <CardHeader className={`border-b pb-3 ${profile.allergies ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100"}`}>
-            <CardTitle className={`text-base font-semibold flex items-center gap-2 ${profile.allergies ? "text-red-800" : "text-green-800"}`}>
-              <AlertCircle className={`h-5 w-5 ${profile.allergies ? "text-red-600" : "text-green-600"}`} />
-              {t("parent.studentProfile.allergyTitle")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm pt-4">
-            <div>
-              <p className="text-xs font-medium text-red-600 uppercase tracking-wide mb-1.5">{t("parent.studentProfile.allergiesLabel")}</p>
-              <div className={`rounded-lg border p-3 ${profile.allergies ? "bg-red-50 border-red-200 text-red-900 font-semibold" : "bg-gray-50 border-gray-200"}`}>
-                {profile.allergies || <span className="text-gray-400 font-normal">{t("parent.studentProfile.noData")}</span>}
+        {/* Allergies — staff-only panel (canteen / nurse). Hidden from
+            parents and students per stakeholder request. */}
+        {showAllergyPanel && (
+          <Card className={`border-0 shadow-md overflow-hidden ${profile.allergies ? "ring-2 ring-red-400" : ""}`}>
+            <div className={`h-1 ${profile.allergies ? "bg-gradient-to-r from-red-500 to-red-400" : "bg-gradient-to-r from-green-400 to-emerald-400"}`} />
+            <CardHeader className={`border-b pb-3 ${profile.allergies ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100"}`}>
+              <CardTitle className={`text-base font-semibold flex items-center gap-2 ${profile.allergies ? "text-red-800" : "text-green-800"}`}>
+                <AlertCircle className={`h-5 w-5 ${profile.allergies ? "text-red-600" : "text-green-600"}`} />
+                {t("parent.studentProfile.allergyTitle")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm pt-4">
+              <div>
+                <p className="text-xs font-medium text-red-600 uppercase tracking-wide mb-1.5">{t("parent.studentProfile.allergiesLabel")}</p>
+                <div className={`rounded-lg border p-3 ${profile.allergies ? "bg-red-50 border-red-200 text-red-900 font-semibold" : "bg-gray-50 border-gray-200"}`}>
+                  {profile.allergies || <span className="text-gray-400 font-normal">{t("parent.studentProfile.noData")}</span>}
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-orange-600 uppercase tracking-wide mb-1.5">{t("parent.studentProfile.dietaryLabel")}</p>
-              <div className="rounded-lg border bg-orange-50 border-orange-200 p-3 text-orange-900">
-                {profile.dietary_notes || <span className="text-gray-400">{t("parent.studentProfile.noData")}</span>}
+              <div>
+                <p className="text-xs font-medium text-orange-600 uppercase tracking-wide mb-1.5">{t("parent.studentProfile.dietaryLabel")}</p>
+                <div className="rounded-lg border bg-orange-50 border-orange-200 p-3 text-orange-900">
+                  {profile.dietary_notes || <span className="text-gray-400">{t("parent.studentProfile.noData")}</span>}
+                </div>
               </div>
-            </div>
-            <p className="text-xs text-gray-500 italic">
-              {t("parent.studentProfile.allergyNote")}
-            </p>
-          </CardContent>
-        </Card>
+              <p className="text-xs text-gray-500 italic">
+                {t("parent.studentProfile.allergyNote")}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Card Controls — hidden for students */}
         {!isStudent && (
