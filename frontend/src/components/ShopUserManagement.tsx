@@ -33,6 +33,8 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { isPasswordValid } from "@/lib/passwordRules";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -791,7 +793,7 @@ function CreateUserTab({
   });
 
   const usernameValid = username.trim().length >= 3;
-  const passwordValid = password.length >= 6;
+  const passwordValid = isPasswordValid(password);
   const fullNameValid = fullName.trim().length >= 1;
   const canSubmit =
     usernameValid && passwordValid && fullNameValid && !createMutation.isPending;
@@ -842,18 +844,13 @@ function CreateUserTab({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="new-password">{t("shopUsers.fieldPassword")}</Label>
-              <Input
+              <PasswordInput
                 id="new-password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
+                showRequirements
               />
-              {password.length > 0 && !passwordValid && (
-                <p className="text-xs text-destructive">
-                  {t("shopUsers.fieldPasswordMin")}
-                </p>
-              )}
             </div>
           </div>
           <div className="space-y-1.5">

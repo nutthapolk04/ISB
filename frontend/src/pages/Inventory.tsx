@@ -984,6 +984,21 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
     </Button>
   );
 
+  // Export Barcodes — opens the Print Barcode dialog with the full shop
+  // product list. Cashiers can then search, select individual items (or
+  // Select All) and print labels. Replaces the standalone "Import CSV"
+  // button in the embedded Products toolbar (shop-level imports remain
+  // available via the ShopImportPanel at the top of the page).
+  const exportBarcodesButton = (
+    <Button variant="outline" onClick={() => {
+      setSelectedProductForBarcode(null);
+      setIsPrintBarcodeOpen(true);
+    }}>
+      <Printer className="h-4 w-4 mr-2" />
+      {t("inventory.exportBarcodes", "Export Barcodes")}
+    </Button>
+  );
+
   return (
     <div className={embedded ? "space-y-4" : "page-shell"}>
       {/* Page header — hidden when embedded (ShopDetail provides its own header) */}
@@ -1168,7 +1183,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
                     </SelectContent>
                   </Select>
                 )}
-                {embedded && <div className="ml-auto flex gap-2">{importButton}{addProductButton}</div>}
+                {embedded && <div className="ml-auto flex gap-2">{exportBarcodesButton}{addProductButton}</div>}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -1986,7 +2001,20 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
       </Dialog>
 
       {/* ── Add Product Dialog ──────────────────────────────────────────────── */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+      <Dialog
+        open={isAddOpen}
+        onOpenChange={(open) => {
+          setIsAddOpen(open);
+          // Reset form state whenever the dialog closes (Cancel, ESC, click
+          // outside, success). Without this the next opening still shows the
+          // previously typed values, which confused cashiers who hit the
+          // required-field guard, dismissed the toast, then re-opened the
+          // dialog expecting a blank form.
+          if (!open) {
+            setNewProduct({ ...emptyForm, subMerchantId: lockedShopId ?? emptyForm.subMerchantId });
+          }
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("inventory.addProductTitle")}</DialogTitle>

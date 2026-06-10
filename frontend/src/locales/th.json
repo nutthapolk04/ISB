@@ -848,6 +848,7 @@
     "colStock": "คงเหลือ",
     "colMinStock": "ขั้นต่ำ",
     "printBarcode": "พิมพ์บาร์โค้ด",
+    "exportBarcodes": "ส่งออกบาร์โค้ด",
     "uom": "หน่วยนับ",
     "selectUom": "เลือกหน่วย"
   },
@@ -2669,6 +2670,9 @@
     "noResults": "ไม่พบชุดสินค้าที่ค้นหา",
     "noShopSelected": "ไม่ได้เลือกร้านค้า",
     "bundleCode": "รหัสชุดสินค้า",
+    "barcode": "บาร์โค้ด",
+    "barcodePlaceholder": "สแกนหรือพิมพ์บาร์โค้ด (ถ้าต้องการ)",
+    "barcodeHint": "เว้นว่างไว้ ระบบจะใช้รหัสชุดสินค้าเป็นค่าสแกนแทน",
     "bundleName": "ชื่อชุดสินค้า",
     "bundleDescription": "รายละเอียด",
     "namePlaceholder": "เช่น ชุดอุปกรณ์ ป.1",
@@ -2763,7 +2767,11 @@
     "printStarted": "เปิดหน้าต่างพิมพ์แล้ว",
     "noBarcode": "สินค้านี้ไม่มีบาร์โค้ด",
     "noItems": "ไม่มีสินค้าที่เลือก",
-    "popupBlocked": "บราวเซอร์บล็อก Popup กรุณาอนุญาต"
+    "popupBlocked": "บราวเซอร์บล็อก Popup กรุณาอนุญาต",
+    "addAll": "เลือกทั้งหมด ({{count}})",
+    "clearAll": "ล้างทั้งหมด",
+    "addedCount": "เพิ่ม {{count}} รายการ",
+    "allAlreadyAdded": "เลือกครบทุกสินค้าแล้ว"
   },
   "topup": {
     "title": "เติมเงินสด",
@@ -2843,5 +2851,17 @@
   },
   "shopDashboard": {
     "noShop": "ยังไม่ได้กำหนดร้านค้า"
+  },
+  "password": {
+    "show": "แสดงรหัสผ่าน",
+    "hide": "ซ่อนรหัสผ่าน",
+    "requirementsTitle": "รหัสผ่านต้องมี:",
+    "doesNotMeetPolicy": "รหัสผ่านไม่ตรงตามเงื่อนไข"
+  },
+  "passwordRules": {
+    "minLength": "อย่างน้อย 8 ตัวอักษร",
+    "upperAndLower": "ตัวพิมพ์ใหญ่และพิมพ์เล็ก",
+    "digit": "ตัวเลขอย่างน้อย 1 ตัว",
+    "special": "อักขระพิเศษอย่างน้อย 1 ตัว (!@#$%^&*…)"
   }
 }

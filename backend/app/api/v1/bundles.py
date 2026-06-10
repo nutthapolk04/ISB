@@ -37,6 +37,7 @@ class BundleItemResponse(BaseModel):
 
 class BundleCreate(BaseModel):
     bundle_code: str = Field(..., min_length=1, max_length=50)
+    barcode: Optional[str] = Field(None, max_length=100)
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     external_price: float = Field(..., ge=0)
@@ -47,6 +48,7 @@ class BundleCreate(BaseModel):
 
 class BundleUpdate(BaseModel):
     bundle_code: Optional[str] = Field(None, min_length=1, max_length=50)
+    barcode: Optional[str] = Field(None, max_length=100)
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     external_price: Optional[float] = Field(None, ge=0)
@@ -61,6 +63,7 @@ class BundleResponse(BaseModel):
     id: int
     shop_id: str
     bundle_code: str
+    barcode: Optional[str] = None
     name: str
     description: Optional[str] = None
     external_price: float
@@ -111,6 +114,7 @@ def _bundle_to_response(bundle: ProductBundle) -> BundleResponse:
         id=bundle.id,
         shop_id=bundle.shop_id,
         bundle_code=bundle.bundle_code,
+        barcode=bundle.barcode,
         name=bundle.name,
         description=bundle.description,
         external_price=external_price,
@@ -207,6 +211,7 @@ def create_bundle(
     bundle = ProductBundle(
         shop_id=shop_id,
         bundle_code=payload.bundle_code,
+        barcode=payload.barcode,
         name=payload.name,
         description=payload.description,
         external_price=payload.external_price,
@@ -272,6 +277,10 @@ def update_bundle(
     # Update fields
     if payload.bundle_code is not None:
         bundle.bundle_code = payload.bundle_code
+    if payload.barcode is not None:
+        # Empty string clears the barcode so cashier can remove it through
+        # the same input rather than needing a separate delete action.
+        bundle.barcode = payload.barcode.strip() or None
     if payload.name is not None:
         bundle.name = payload.name
     if payload.description is not None:

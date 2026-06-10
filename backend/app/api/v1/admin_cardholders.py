@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_role
 from app.core.database import SessionLocal, get_db
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, validate_password_policy
 from app.models.customer import Customer, CustomerType, CustomerTypeEnum
 from app.models.department import Department
 from app.models.shop import Shop
@@ -339,6 +339,7 @@ def create_cardholder(
             shop = db.query(Shop).filter(Shop.id == payload.shop_id).first()
             if not shop:
                 raise HTTPException(400, f"Shop {payload.shop_id} not found")
+        validate_password_policy(payload.password)
         u = User(
             username=payload.username,
             email=payload.email or f"{payload.username}@isb-coop.local",

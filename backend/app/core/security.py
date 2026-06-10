@@ -30,6 +30,34 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+# Password policy — must match frontend/src/lib/passwordRules.ts so the
+# checklist that the user sees while typing matches what the server accepts.
+_PASSWORD_RULES = (
+    ("at least 8 characters", lambda pw: len(pw) >= 8),
+    ("an upper-case letter", lambda pw: any(c.isupper() for c in pw)),
+    ("a lower-case letter", lambda pw: any(c.islower() for c in pw)),
+    ("a number", lambda pw: any(c.isdigit() for c in pw)),
+    ("a special character", lambda pw: any(not c.isalnum() for c in pw)),
+)
+
+
+def validate_password_policy(password: str) -> None:
+    """Raise HTTPException(400) when `password` doesn't satisfy the policy.
+
+    Call before hashing in every create/change-password code path. Frontend
+    enforces the same rules in the UI, but never trust the client — a manager
+    hand-rolling a curl request must hit the same wall.
+    """
+    from fastapi import HTTPException
+
+    failed = [label for label, check in _PASSWORD_RULES if not check(password)]
+    if failed:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain " + ", ".join(failed),
+        )
+
+
 def generate_session_token() -> str:
     """Generate a cryptographically secure session token (64 hex chars)."""
     return secrets.token_hex(32)

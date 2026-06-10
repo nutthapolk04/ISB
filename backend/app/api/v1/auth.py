@@ -15,7 +15,7 @@ from app.models.user import User, Role
 import httpx
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, MeResponse, UserResponse, RoleResponse, CreateUserRequest, MockSSORequest, GoogleSSORequest
 from app.services.auth_service import AuthService
-from app.core.security import get_password_hash, verify_password, decode_token, create_access_token
+from app.core.security import get_password_hash, verify_password, decode_token, create_access_token, validate_password_policy
 from app.core.config import settings
 from datetime import timedelta
 
@@ -164,6 +164,7 @@ def register_user(
     existing = db.query(User).filter(User.username == payload.username).first()
     if existing:
         raise HTTPException(status_code=409, detail=f"Username '{payload.username}' already exists")
+    validate_password_policy(payload.password)
     email = payload.email or f"{payload.username}@isb-coop.local"
     user = User(
         username=payload.username,
@@ -360,10 +361,9 @@ def change_password(
     """Self-service password change. Verifies current password first."""
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(payload.new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
     if payload.new_password == payload.current_password:
         raise HTTPException(status_code=400, detail="New password must differ from current password")
+    validate_password_policy(payload.new_password)
     current_user.hashed_password = get_password_hash(payload.new_password)
     db.commit()
     return

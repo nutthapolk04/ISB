@@ -470,14 +470,24 @@ def adjustment_report(
     type_filter: Optional[str] = Query(
         None,
         alias="type",
-        description="student | staff | department | other — filter rows by wallet owner type",
+        description="student | staff | other — filter rows by wallet owner type. Department adjustments are excluded from this report (see /admin/department-adjust).",
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    """All manual wallet adjustments for audit/reporting."""
-    q = db.query(WalletTransaction).filter(
-        WalletTransaction.transaction_type == _WTT.ADJUSTMENT
+    """All manual wallet adjustments for audit/reporting.
+
+    Department-wallet adjustments are filtered out here — they have a dedicated
+    report at /admin/department-adjust so the two screens don't overlap.
+    """
+    from app.models.wallet import Wallet as _Wallet
+    q = (
+        db.query(WalletTransaction)
+        .join(_Wallet, WalletTransaction.wallet_id == _Wallet.id)
+        .filter(
+            WalletTransaction.transaction_type == _WTT.ADJUSTMENT,
+            _Wallet.department_id.is_(None),
+        )
     )
     if date_from:
         try:

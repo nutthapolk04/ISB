@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { isPasswordValid } from "@/lib/passwordRules";
 import {
   Select,
   SelectContent,
@@ -138,13 +140,6 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   const shopRequired = kind === "staff" && SHOP_REQUIRED_ROLES.has(staffRole);
   const shopMissing = shopRequired && !shopId;
 
-  const validatePassword = (pw: string): string | null => {
-    if (pw.length < 8) return "Password must be at least 8 characters";
-    if (!/[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pw))
-      return "Password must contain at least one number or special character";
-    return null;
-  };
-
   const submit = async () => {
     if (shopMissing) {
       toast({
@@ -155,9 +150,12 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
       return;
     }
     if ((kind === "parent" || kind === "staff")) {
-      const pwErr = validatePassword(password);
-      if (pwErr) {
-        toast({ title: "Invalid password", description: pwErr, variant: "destructive" });
+      if (!isPasswordValid(password)) {
+        toast({
+          title: "Invalid password",
+          description: t("password.doesNotMeetPolicy", "Password does not meet all requirements"),
+          variant: "destructive",
+        });
         return;
       }
     }
@@ -280,10 +278,12 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 <Field label="Username *"><Input value={username} onChange={e => setUsername(e.target.value)} /></Field>
                 <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
                 <Field label="Password *">
-                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                  {password && validatePassword(password) && (
-                    <p className="text-xs text-destructive mt-1">{validatePassword(password)}</p>
-                  )}
+                  <PasswordInput
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    showRequirements
+                  />
                 </Field>
                 {kind === "staff" && (
                   <>

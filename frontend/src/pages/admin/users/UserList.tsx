@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -423,12 +424,13 @@ export default function UserList() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="create-password">{t("admin.users.fieldPassword", "Password")}</Label>
-              <Input
+              <PasswordInput
                 id="create-password"
-                type="password"
                 value={createForm.password}
                 onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                autoComplete="new-password"
                 required
+                showRequirements
               />
             </div>
             <div className="space-y-1.5">

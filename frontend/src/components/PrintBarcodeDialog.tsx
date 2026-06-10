@@ -137,6 +137,32 @@ export function PrintBarcodeDialog({
     for (const opt of opts) addBarcode(product, opt.value, opt.label);
   };
 
+  /** Add every product (and every barcode they own) to the print list.
+   *  Skips items already added so quantities don't double when the user
+   *  clicks the button twice. Used by the Export Barcodes flow when a
+   *  manager wants to reprint the whole shop catalog. */
+  const addAllProducts = () => {
+    const existing = new Set(printItems.map((i) => i.key));
+    const additions: PrintItem[] = [];
+    for (const p of products) {
+      const opts = getBarcodeOptions(p);
+      for (const opt of opts) {
+        const key = `${p.id}-${opt.value}`;
+        if (existing.has(key)) continue;
+        existing.add(key);
+        additions.push({ key, product: p, barcodeValue: opt.value, barcodeLabel: opt.label, quantity: 1 });
+      }
+    }
+    if (additions.length === 0) {
+      toast.error(t("barcode.allAlreadyAdded") || "All products are already in the list");
+      return;
+    }
+    setPrintItems([...printItems, ...additions]);
+    toast.success(
+      t("barcode.addedCount", { count: additions.length, defaultValue: "Added {{count}} barcode(s)" }),
+    );
+  };
+
   const updateQuantity = (key: string, delta: number) => {
     setPrintItems(
       printItems
@@ -292,6 +318,22 @@ export function PrintBarcodeDialog({
                   );
                 })}
               </div>
+            )}
+          </div>
+
+          {/* Bulk actions — add every product in the catalog, or clear the
+              current selection. Keeps the existing one-at-a-time search flow
+              intact so cashiers can still pick a single item. */}
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="outline" size="sm" onClick={addAllProducts} disabled={products.length === 0}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              {t("barcode.addAll", { count: products.length, defaultValue: "Add all ({{count}})" })}
+            </Button>
+            {printItems.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setPrintItems([])}>
+                <X className="h-3.5 w-3.5 mr-1.5" />
+                {t("barcode.clearAll", "Clear all")}
+              </Button>
             )}
           </div>
 

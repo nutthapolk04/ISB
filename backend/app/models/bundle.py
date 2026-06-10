@@ -20,6 +20,10 @@ class ProductBundle(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     shop_id = Column(String(50), ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True)
     bundle_code = Column(String(50), nullable=False, index=True)  # e.g., "GRADE1-SET"
+    # Optional scannable barcode for the bundle (printed on the receipt /
+    # POS card). Distinct from bundle_code, which is the human-readable
+    # SKU; barcode is what a scanner sees at checkout.
+    barcode = Column(String(100), nullable=True, index=True)
     name = Column(String(255), nullable=False)  # e.g., "ชุดอุปกรณ์การเรียน Grade 1"
     description = Column(Text, nullable=True)
 

@@ -285,6 +285,30 @@ def update_customer_basic(
     return _to_profile(c)
 
 
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Admin: hard-delete a customer (student / cardholder).
+
+    Wallet + parent_child_link rows cascade via FK ondelete=CASCADE. Past
+    receipts are orphaned (customer_id → NULL) so the sales audit trail
+    survives — they only lose the link back to the deleted profile.
+    """
+    cust = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not cust:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    from app.models.receipt import Receipt
+    db.query(Receipt).filter(Receipt.customer_id == customer_id).update(
+        {"customer_id": None}, synchronize_session=False
+    )
+    db.delete(cust)
+    db.commit()
+    return None
+
+
 # ── Card management (parent or admin) ────────────────────────────────────────
 
 @router.post("/{customer_id}/freeze", response_model=StudentProfileResponse)

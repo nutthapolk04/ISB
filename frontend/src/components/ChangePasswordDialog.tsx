@@ -4,7 +4,9 @@ import { api, ApiError } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { isPasswordValid } from "@/lib/passwordRules";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +40,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
     onOpenChange(isOpen);
   };
 
-  const newValid = next.length >= 6;
+  const newValid = isPasswordValid(next);
   const matchValid = next === confirm;
   const canSubmit = current.length > 0 && newValid && matchValid && !submitting;
 
@@ -79,9 +81,8 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="cp-current">{t("account.currentPassword")}</Label>
-            <Input
+            <PasswordInput
               id="cp-current"
-              type="password"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               autoComplete="current-password"
@@ -90,22 +91,18 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cp-new">{t("account.newPassword")}</Label>
-            <Input
+            <PasswordInput
               id="cp-new"
-              type="password"
               value={next}
               onChange={(e) => setNext(e.target.value)}
               autoComplete="new-password"
+              showRequirements
             />
-            {next.length > 0 && !newValid && (
-              <p className="text-xs text-destructive">{t("account.passwordMin")}</p>
-            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cp-confirm">{t("account.confirmPassword")}</Label>
-            <Input
+            <PasswordInput
               id="cp-confirm"
-              type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"

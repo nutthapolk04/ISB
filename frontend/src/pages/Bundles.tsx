@@ -45,6 +45,7 @@ interface BundlesProps {
 
 interface BundleFormData {
   bundle_code: string;
+  barcode: string;
   name: string;
   description: string;
   external_price: string;
@@ -55,6 +56,7 @@ interface BundleFormData {
 
 const emptyForm: BundleFormData = {
   bundle_code: "",
+  barcode: "",
   name: "",
   description: "",
   external_price: "",
@@ -172,6 +174,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
   const openEditDialog = (bundle: Bundle) => {
     setFormData({
       bundle_code: bundle.bundle_code,
+      barcode: bundle.barcode || "",
       name: bundle.name,
       description: bundle.description || "",
       external_price: bundle.external_price.toString(),
@@ -262,6 +265,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
       if (isEditing && editingId) {
         const updateData: BundleUpdate = {
           bundle_code: formData.bundle_code.trim(),
+          barcode: formData.barcode.trim() || null,
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           external_price: externalPrice,
@@ -274,6 +278,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
       } else {
         const createData: BundleCreate = {
           bundle_code: formData.bundle_code.trim(),
+          barcode: formData.barcode.trim() || null,
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           external_price: externalPrice,
@@ -457,7 +462,10 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                             setSelectedBundleForBarcode({
                               id: bundle.id,
                               productCode: bundle.bundle_code,
-                              barcode: bundle.bundle_code,
+                              // Prefer the explicit barcode column when set;
+                              // fall back to bundle_code so legacy bundles
+                              // without a saved barcode still print.
+                              barcode: bundle.barcode || bundle.bundle_code,
                               name: bundle.name,
                               externalPrice: bundle.external_price,
                             });
@@ -539,6 +547,18 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                 placeholder={t("bundles.descriptionPlaceholder") || "Optional description..."}
                 rows={2}
               />
+            </div>
+
+            <div>
+              <Label>{t("bundles.barcode") || "Barcode"}</Label>
+              <Input
+                value={formData.barcode}
+                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                placeholder={t("bundles.barcodePlaceholder") || "Scan or type a barcode (optional)"}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("bundles.barcodeHint") || "Leave blank to use the Bundle Code as the scannable value."}
+              </p>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -788,14 +808,15 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Print Barcode Dialog — bundles use bundle_code as the barcode value */}
+      {/* Print Barcode Dialog — prefer the explicit barcode column when set,
+          otherwise fall back to bundle_code so legacy bundles still print. */}
       <PrintBarcodeDialog
         open={printBarcodeOpen}
         onOpenChange={setPrintBarcodeOpen}
         products={(bundles ?? []).map((b) => ({
           id: b.id,
           productCode: b.bundle_code,
-          barcode: b.bundle_code,
+          barcode: b.barcode || b.bundle_code,
           name: b.name,
           externalPrice: b.external_price,
         }))}

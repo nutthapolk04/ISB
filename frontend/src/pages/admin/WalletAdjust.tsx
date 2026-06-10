@@ -141,9 +141,10 @@ export default function WalletAdjust() {
   const [rptDateTo, setRptDateTo] = useState(today);
   const [rptDirection, setRptDirection] = useState<"all" | "credit" | "debit">("all");
   // Type filter sent to /wallets/admin/adjustment-report?type=...; 'student'
-  // and 'department' map directly to entity_type, 'staff' bundles user-owned
-  // wallets (cashier/manager/teacher/etc.).
-  const [rptType, setRptType] = useState<"all" | "student" | "staff" | "department" | "other">("all");
+  // maps directly to entity_type, 'staff' bundles user-owned wallets
+  // (cashier/manager/teacher/etc.). Department adjustments live on a separate
+  // page (/admin/department-adjust) and are excluded from this report.
+  const [rptType, setRptType] = useState<"all" | "student" | "staff" | "other">("all");
   const [rptRows, setRptRows] = useState<AdjustmentRow[]>([]);
   const [rptLoading, setRptLoading] = useState(false);
   const [rptSearched, setRptSearched] = useState(false);
@@ -341,7 +342,6 @@ export default function WalletAdjust() {
                     <SelectItem value="all">{t("adjustmentReport.typeAll", "All")}</SelectItem>
                     <SelectItem value="student">{t("adjustmentReport.typeStudent", "Student")}</SelectItem>
                     <SelectItem value="staff">{t("adjustmentReport.typeStaff", "Staff")}</SelectItem>
-                    <SelectItem value="department">{t("adjustmentReport.typeDepartment", "Department")}</SelectItem>
                     <SelectItem value="other">{t("adjustmentReport.typeOther", "Other")}</SelectItem>
                   </SelectContent>
                 </Select>

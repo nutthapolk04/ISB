@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -451,8 +452,7 @@ export function VoidDialog({
       {/* PIN */}
       <div className="space-y-1.5">
         <Label className="text-sm font-semibold">{t("store.void.pinLabel")}</Label>
-        <Input
-          type="password"
+        <PasswordInput
           inputMode="numeric"
           maxLength={4}
           placeholder={t("store.void.pinPlaceholder")}

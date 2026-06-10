@@ -848,6 +848,7 @@
     "colStock": "Stock",
     "colMinStock": "Min Stock",
     "printBarcode": "Print Barcode",
+    "exportBarcodes": "Export Barcodes",
     "uom": "Unit of Measure",
     "selectUom": "Select unit"
   },
@@ -2672,6 +2673,9 @@
     "noResults": "No bundles match your search",
     "noShopSelected": "No shop selected",
     "bundleCode": "Bundle Code",
+    "barcode": "Barcode",
+    "barcodePlaceholder": "Scan or type a barcode (optional)",
+    "barcodeHint": "Leave blank to use the Bundle Code as the scannable value.",
     "bundleName": "Name",
     "bundleDescription": "Description",
     "namePlaceholder": "e.g. Grade 1 Supply Set",
@@ -2765,7 +2769,11 @@
     "printStarted": "Print dialog opened",
     "noBarcode": "Product has no barcode",
     "noItems": "No items to print",
-    "popupBlocked": "Popup blocked. Please allow popups."
+    "popupBlocked": "Popup blocked. Please allow popups.",
+    "addAll": "Add all ({{count}})",
+    "clearAll": "Clear all",
+    "addedCount": "Added {{count}} barcode(s)",
+    "allAlreadyAdded": "All products are already in the list"
   },
   "topup": {
     "title": "Cash Top-up",
@@ -2845,5 +2853,17 @@
   },
   "shopDashboard": {
     "noShop": "No shop assigned"
+  },
+  "password": {
+    "show": "Show password",
+    "hide": "Hide password",
+    "requirementsTitle": "Password must include:",
+    "doesNotMeetPolicy": "Password does not meet all requirements"
+  },
+  "passwordRules": {
+    "minLength": "At least 8 characters",
+    "upperAndLower": "Upper- and lower-case letters",
+    "digit": "At least one number",
+    "special": "At least one special character (!@#$%^&*…)"
   }
 }

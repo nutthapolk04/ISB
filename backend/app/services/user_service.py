@@ -11,7 +11,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, validate_password_policy
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
@@ -98,6 +98,8 @@ class UserService:
             shop = db.query(Shop).filter(Shop.id == payload.shop_id).first()
             if not shop:
                 raise ValueError(f"Shop '{payload.shop_id}' not found")
+
+        validate_password_policy(payload.password)
 
         user = User(
             username=payload.username,

@@ -436,6 +436,11 @@ run('''
 run('CREATE INDEX IF NOT EXISTS ix_product_bundles_shop ON product_bundles(shop_id)', 'product_bundles idx shop')
 run('CREATE INDEX IF NOT EXISTS ix_product_bundles_code ON product_bundles(bundle_code)', 'product_bundles idx code')
 
+# Bundles got their own scannable barcode in 2026-06; older deploys had a
+# bundle_code-only schema, so add the column idempotently on every boot.
+run('ALTER TABLE product_bundles ADD COLUMN IF NOT EXISTS barcode VARCHAR(100)', 'product_bundles.barcode')
+run('CREATE INDEX IF NOT EXISTS ix_product_bundles_barcode ON product_bundles(barcode)', 'product_bundles idx barcode')
+
 run('''
     CREATE TABLE IF NOT EXISTS bundle_items (
         id SERIAL PRIMARY KEY,

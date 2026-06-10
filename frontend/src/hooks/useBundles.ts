@@ -15,6 +15,7 @@ export interface Bundle {
   id: number;
   shop_id: string;
   bundle_code: string;
+  barcode: string | null;
   name: string;
   description: string | null;
   external_price: number;
@@ -35,6 +36,7 @@ export interface BundleItemCreate {
 
 export interface BundleCreate {
   bundle_code: string;
+  barcode?: string | null;
   name: string;
   description?: string | null;
   external_price: number;
@@ -45,6 +47,7 @@ export interface BundleCreate {
 
 export interface BundleUpdate {
   bundle_code?: string;
+  barcode?: string | null;
   name?: string;
   description?: string | null;
   external_price?: number;
