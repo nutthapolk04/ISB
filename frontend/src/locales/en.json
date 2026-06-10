@@ -1495,6 +1495,8 @@
   "canteen": {
     "menuTitle": "Canteen Menu",
     "menuDescription": "Manage menu items, pricing, and availability.",
+    "receiptNote": "Add a note to this receipt (optional)",
+    "receiptNoteLabel": "Note",
     "tooltip": {
       "removeItem": "Remove from cart",
       "qtyInc": "Increase quantity",

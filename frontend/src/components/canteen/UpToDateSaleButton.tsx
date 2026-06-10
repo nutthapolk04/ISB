@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { CalendarCheck, Download, Printer } from "lucide-react";
+import { CalendarCheck, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -66,29 +66,6 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
     },
   });
 
-  function exportCsv(s: CloseDaySummary) {
-    const rows = [
-      ["Date", s.date],
-      ["Total Orders", String(s.total_orders)],
-      ["Total Revenue (THB)", s.total_revenue.toFixed(2)],
-      ["Items Sold", String(s.item_count)],
-      [""],
-      ["Payment Method", "Amount (THB)"],
-      ...Object.entries(s.payment_breakdown).map(([method, amount]) => [
-        method.charAt(0).toUpperCase() + method.slice(1),
-        (amount ?? 0).toFixed(2),
-      ]),
-    ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `close-day-${s.shop_id}-${s.date}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function printSlip(s: CloseDaySummary) {
     const paymentRows = Object.entries(s.payment_breakdown)
       .map(([method, amount]) => {
@@ -100,14 +77,25 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
     const logoHtml = schoolInfo?.logoUrl
       ? `<img src="${schoolInfo.logoUrl}" width="56" height="56" style="object-fit:contain;display:block;margin:0 auto 4px" />`
       : "";
-    const schoolName = schoolInfo?.name ?? shopName ?? s.shop_id;
+    const schoolName = schoolInfo?.name ?? "International School Bangkok";
     const schoolAddr = schoolInfo?.address ? `<p style="margin:0;font-size:.75rem;color:#555">${schoolInfo.address}</p>` : "";
     const schoolTax  = schoolInfo?.taxId   ? `<p style="margin:0;font-size:.75rem;color:#555">Tax ID: ${schoolInfo.taxId}</p>` : "";
     const schoolTel  = schoolInfo?.phone   ? `<p style="margin:0;font-size:.75rem;color:#555">Tel: ${schoolInfo.phone}</p>` : "";
 
+    // Shop name on the slip — auditors asked for an explicit "which shop
+    // closed?" line so a stack of slips can be sorted without guessing.
+    const shopLine = shopName
+      ? `<p style="margin:2px 0 0;font-size:.85rem;color:#111;font-weight:600">${shopName}</p>`
+      : `<p style="margin:2px 0 0;font-size:.75rem;color:#555">Shop: ${s.shop_id}</p>`;
+
+    // Set the window title to "Up-to-date Sale — DATE" (not "Close Day
+    // Slip"), and zero out @page margins so Chrome stops printing the
+    // browser-injected header (date | title) in the corners.
     const html = `
-      <html><head><title>Close Day Slip — ${s.date}</title>
-      <style>body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px}
+      <html><head><title>${t("canteen.upToDateSale", "Up-to-date Sale")} — ${s.date}</title>
+      <style>
+      @page { margin: 0; size: auto; }
+      body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px}
       h2{text-align:center;font-size:1rem;margin-bottom:2px}
       p{text-align:center;color:#666;font-size:.8rem;margin:0 0 4px}
       table{width:100%;border-collapse:collapse}
@@ -117,8 +105,9 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
       <body>
         ${logoHtml}
         <h2>${schoolName}</h2>
+        ${shopLine}
         ${schoolAddr}${schoolTax}${schoolTel}
-        <p style="margin-top:6px">${t("canteen.closeDayConfirm", { date: s.date })}</p>
+        <p style="margin-top:6px">${t("canteen.upToDateSale", "Up-to-date Sale")} — ${s.date}</p>
         <hr/>
         <table>
           <tr><td style="padding:4px 8px">${t("canteen.totalOrders")}</td><td style="padding:4px 8px;text-align:right">${s.total_orders}</td></tr>
@@ -212,12 +201,8 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
                 </Table>
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => exportCsv(summary)}>
-                  <Download className="h-4 w-4 mr-1.5" />
-                  {t("canteen.exportCsv")}
-                </Button>
-                <Button variant="outline" className="flex-1" onClick={() => printSlip(summary)}>
+              <div className="flex">
+                <Button className="w-full" onClick={() => printSlip(summary)}>
                   <Printer className="h-4 w-4 mr-1.5" />
                   {t("canteen.printSlip")}
                 </Button>

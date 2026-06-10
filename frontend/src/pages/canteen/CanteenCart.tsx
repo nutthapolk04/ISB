@@ -137,6 +137,11 @@ interface CanteenCartProps {
   onClearDiscount: () => void;
   onClearCart: () => void;
   onCharge: () => void;
+  /** Optional cashier note attached to the receipt — mirrors the Store cart
+   *  so canteen cashiers can flag a memo (e.g. "free meal", "guest order")
+   *  without leaving the cart. */
+  note?: string;
+  onNoteChange?: (value: string) => void;
   /** When rendered inside a mobile Sheet, suppress the aside-style panel chrome. */
   asSheet?: boolean;
   /** Pre-selected member for payment */
@@ -165,6 +170,8 @@ export function CanteenCart({
   onClearDiscount,
   onClearCart,
   onCharge,
+  note = "",
+  onNoteChange,
   asSheet = false,
   selectedMember,
   onClearMember,
@@ -461,6 +468,23 @@ export function CanteenCart({
         >
           {discountLabel ? `Add Discount: ${discountLabel}` : "Add Discount"}
         </Button>
+
+        {/* Receipt note — mirrors the Store cart pattern (one optional
+            memo that gets attached to receipt.notes server-side). */}
+        {onNoteChange && (
+          <div className="pt-1">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              {t("canteen.receiptNoteLabel", "Note")}
+            </p>
+            <Input
+              placeholder={t("canteen.receiptNote", "Add a note to this receipt (optional)")}
+              value={note}
+              onChange={(e) => onNoteChange(e.target.value)}
+              className="h-10 text-sm"
+              maxLength={200}
+            />
+          </div>
+        )}
 
         <div className="flex justify-between items-baseline pt-2">
           <span className="text-lg font-bold">Total</span>

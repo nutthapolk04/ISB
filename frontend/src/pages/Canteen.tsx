@@ -302,6 +302,11 @@ export default function Canteen() {
   // Mobile cart sheet (shown below lg breakpoint).
   const [cartOpen, setCartOpen] = useState(false);
 
+  // Receipt note (optional cashier memo). Mirrors the Store POS pattern —
+  // gets attached to the checkout payload's `notes` field and cleared on
+  // success so it doesn't carry over to the next order.
+  const [receiptNote, setReceiptNote] = useState<string>("");
+
   // ── RFID centered notification ────────────────────────────────────────────
   const [rfidNotif, setRfidNotif] = useState<{
     key: number;
@@ -628,6 +633,7 @@ export default function Canteen() {
           ),
         })),
         discount: cart.billDiscountAmount,
+        notes: receiptNote.trim() || undefined,
       };
       const res = await api.post<CheckoutResponse>("/pos/checkout", payload);
       return res;
@@ -672,6 +678,7 @@ export default function Canteen() {
       }),
     );
     cart.clearCart();
+    setReceiptNote("");
     // Close payment modals
     setRfidOpen(false);
     setCashOpen(false);
@@ -1198,6 +1205,8 @@ export default function Canteen() {
         onClearDiscount={cart.clearDiscount}
         onClearCart={cart.clearCart}
         onCharge={handleCharge}
+        note={receiptNote}
+        onNoteChange={setReceiptNote}
         selectedMember={preSelectedMember}
         onClearMember={() => setPreSelectedMember(null)}
       />
@@ -1242,6 +1251,8 @@ export default function Canteen() {
               setCartOpen(false);
               handleCharge();
             }}
+            note={receiptNote}
+            onNoteChange={setReceiptNote}
             selectedMember={preSelectedMember}
             onClearMember={() => setPreSelectedMember(null)}
           />

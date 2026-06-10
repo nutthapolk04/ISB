@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Receipt, Download, Loader2 } from "lucide-react";
+import { Receipt, Download, Loader2, Printer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -274,6 +274,18 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
 </body></html>`;
 }
 
+/** Open a popup, render the receipt HTML, fire window.print().
+ *
+ *  Behavior depends on how Chrome was launched on the cashier station:
+ *    - With `--kiosk-printing`: prints silently to the default OS printer
+ *      (no dialog) — used at POS stations wired to a receipt printer.
+ *    - Without the flag (admin laptops, parent devices): browser opens the
+ *      regular Print dialog so the user can Save as PDF or pick another
+ *      printer. This is the "download" affordance too.
+ *
+ *  We expose two buttons (Print / Download) that both call this — the
+ *  semantic difference is intent, not behavior. Same function keeps the
+ *  receipt rendering in one place. */
 function printReceipt(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "en"): void {
   const win = window.open("", "_blank", "width=400,height=640");
   if (!win) return;
@@ -545,14 +557,23 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               </div>
             )}
 
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {t("receipts.download", "Print / Save PDF")}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="default"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                {t("receipts.print", "Print")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {t("receipts.download", "Save PDF")}
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>

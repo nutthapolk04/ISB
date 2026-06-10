@@ -1495,6 +1495,8 @@
   "canteen": {
     "menuTitle": "เมนูโรงอาหาร",
     "menuDescription": "จัดการเมนูอาหาร ราคา และสถานะการขาย",
+    "receiptNote": "เพิ่มหมายเหตุในใบเสร็จ (ไม่บังคับ)",
+    "receiptNoteLabel": "หมายเหตุ",
     "tooltip": {
       "removeItem": "ลบออกจากตะกร้า",
       "qtyInc": "เพิ่มจำนวน",
