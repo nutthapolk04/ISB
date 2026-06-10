@@ -2854,6 +2854,24 @@
   "shopDashboard": {
     "noShop": "No shop assigned"
   },
+  "syncLog": {
+    "title": "Sync log",
+    "subtitle": "Last 100 sync runs",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "empty": "No sync runs recorded yet",
+    "loadFailed": "Failed to load sync log",
+    "errorLog": "Error log",
+    "noErrors": "No errors recorded",
+    "colStarted": "Started",
+    "colType": "Type",
+    "colRoles": "Roles",
+    "colBy": "By",
+    "colDuration": "Duration",
+    "colRecords": "Records",
+    "colStatus": "Status",
+    "colActions": "Actions"
+  },
   "password": {
     "show": "Show password",
     "hide": "Hide password",

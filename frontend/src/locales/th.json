@@ -2852,6 +2852,24 @@
   "shopDashboard": {
     "noShop": "ยังไม่ได้กำหนดร้านค้า"
   },
+  "syncLog": {
+    "title": "บันทึกการ sync",
+    "subtitle": "ประวัติการ sync ย้อนหลัง 100 ครั้งล่าสุด",
+    "refresh": "รีเฟรช",
+    "loading": "กำลังโหลด...",
+    "empty": "ยังไม่มีบันทึกการ sync",
+    "loadFailed": "โหลด log ไม่สำเร็จ",
+    "errorLog": "บันทึก error",
+    "noErrors": "ไม่มี error ที่บันทึก",
+    "colStarted": "เริ่ม",
+    "colType": "ประเภท",
+    "colRoles": "บทบาท",
+    "colBy": "ผู้สั่ง",
+    "colDuration": "ระยะเวลา",
+    "colRecords": "รายการ",
+    "colStatus": "สถานะ",
+    "colActions": "การจัดการ"
+  },
   "password": {
     "show": "แสดงรหัสผ่าน",
     "hide": "ซ่อนรหัสผ่าน",

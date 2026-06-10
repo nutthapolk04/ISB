@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const statusVariant = (s: string): "default" | "secondary" | "destructive" | "ou
 };
 
 export default function SyncLog() {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<LogItem | null>(null);
@@ -54,7 +56,7 @@ export default function SyncLog() {
       setLogs(data);
     } catch (e) {
       toast({
-        title: "โหลด log ไม่สำเร็จ",
+        title: t("syncLog.loadFailed", "Failed to load sync log"),
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
@@ -78,36 +80,36 @@ export default function SyncLog() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div>
-          <CardTitle className="text-lg">Sync log</CardTitle>
-          <p className="text-sm text-muted-foreground">ประวัติการ sync ย้อนหลัง 100 ครั้งล่าสุด</p>
+          <CardTitle className="text-lg">{t("syncLog.title", "Sync log")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("syncLog.subtitle", "Last 100 sync runs")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> {t("syncLog.refresh", "Refresh")}
         </Button>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-muted-foreground text-sm py-8 text-center">กำลังโหลด...</p>
+          <p className="text-muted-foreground text-sm py-8 text-center">{t("syncLog.loading", "Loading…")}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
-                <TableHead>Started</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Roles</TableHead>
-                <TableHead>By</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead className="text-right">Records</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("syncLog.colStarted", "Started")}</TableHead>
+                <TableHead>{t("syncLog.colType", "Type")}</TableHead>
+                <TableHead>{t("syncLog.colRoles", "Roles")}</TableHead>
+                <TableHead>{t("syncLog.colBy", "By")}</TableHead>
+                <TableHead>{t("syncLog.colDuration", "Duration")}</TableHead>
+                <TableHead className="text-right">{t("syncLog.colRecords", "Records")}</TableHead>
+                <TableHead>{t("syncLog.colStatus", "Status")}</TableHead>
+                <TableHead className="text-right">{t("syncLog.colActions", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {logs.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                    ยังไม่มีบันทึกการ sync
+                    {t("syncLog.empty", "No sync runs recorded yet")}
                   </TableCell>
                 </TableRow>
               )}
@@ -171,13 +173,13 @@ export default function SyncLog() {
             </div>
             {selected?.error_log ? (
               <div>
-                <div className="text-xs text-muted-foreground mb-1">Error log</div>
+                <div className="text-xs text-muted-foreground mb-1">{t("syncLog.errorLog", "Error log")}</div>
                 <pre className="bg-muted rounded-md p-3 text-xs overflow-auto max-h-80 whitespace-pre-wrap">
                   {selected.error_log}
                 </pre>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">ไม่มี error ที่บันทึก</p>
+              <p className="text-sm text-muted-foreground">{t("syncLog.noErrors", "No errors recorded")}</p>
             )}
           </div>
         </DialogContent>

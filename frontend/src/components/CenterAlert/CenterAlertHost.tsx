@@ -57,6 +57,13 @@ function AlertCard({ item }: { item: AlertItem }) {
     <div
       role={item.variant === "error" || item.variant === "warning" ? "alertdialog" : "alert"}
       aria-modal="true"
+      // Stop pointer events from bubbling past the card. Without this the
+      // OK click would unmount this alert and the same pointerup would land
+      // on whatever Radix Dialog overlay sits underneath — closing the
+      // parent dialog by accident (e.g. Export Barcodes → Add all → OK).
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       className={cn(
         "pointer-events-auto relative w-full min-w-[300px] max-w-md",
         "rounded-3xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl",
@@ -154,7 +161,12 @@ export function CenterAlertHost() {
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-md pointer-events-auto animate-in fade-in duration-200"
-        onClick={() => {
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          // Swallow the click so a Radix Dialog beneath the backdrop can't
+          // interpret it as an outside-click and close.
+          e.stopPropagation();
           // Only allow backdrop dismiss for auto-close variants (non-blocking).
           if (active.autoCloseMs) alertStore.dismiss(active.id);
         }}

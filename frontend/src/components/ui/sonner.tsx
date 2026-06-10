@@ -10,6 +10,16 @@ type ToastOptions = {
   action?: { label: string; onClick?: () => void };
 };
 
+// Default auto-dismiss timings — success/info are non-blocking confirmations
+// (matches sonner's original behavior of a transient toast), error/warning
+// stay open until the user acknowledges so a failure can't be missed.
+const DEFAULT_AUTO_CLOSE: Record<"success" | "error" | "warning" | "info", number | undefined> = {
+  success: 2500,
+  info: 2500,
+  warning: undefined,
+  error: undefined,
+};
+
 const adapt =
   (variant: "success" | "error" | "warning" | "info") =>
   (title: unknown, opts: ToastOptions = {}) => {
@@ -18,7 +28,7 @@ const adapt =
       typeof opts.description === "string" ? opts.description : undefined;
     return alert[variant](text, {
       description,
-      autoCloseMs: opts.duration,
+      autoCloseMs: opts.duration ?? DEFAULT_AUTO_CLOSE[variant],
       id: opts.id,
       actions: opts.action
         ? [{ label: opts.action.label, onClick: opts.action.onClick }]
