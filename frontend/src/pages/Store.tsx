@@ -58,7 +58,7 @@ import {
   payerForUser,
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
-import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
+import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
 import {
   AlertDialog,
@@ -281,7 +281,9 @@ const Store = () => {
       window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
     if (isMobile) return;
     displayOpenedRef.current = true;
-    void openCustomerDisplayWindow();
+    // Guarded auto-open: only fires on stations with ≥2 monitors so single-
+    // screen PCs / notebooks don't get a stray customer display window.
+    void autoOpenCustomerDisplayWindow();
   }, []);
 
   // ── Products + shop metadata ────────────────────────────────────────────

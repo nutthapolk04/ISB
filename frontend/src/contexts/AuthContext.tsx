@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { API_BASE_URL } from "@/lib/constants";
-import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
+import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
 export type UserRole =
   | "admin"
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (runsPos && isSingleRole && !isMobile && !autoOpenedRef.current) {
       autoOpenedRef.current = true;
-      void openCustomerDisplayWindow();
+      void autoOpenCustomerDisplayWindow();
     }
   }, [user]);
 

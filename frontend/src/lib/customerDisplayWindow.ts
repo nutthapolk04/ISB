@@ -9,10 +9,35 @@
  * 1. Try Window Management API (Chrome 100+) to place window on the second
  *    monitor automatically — requires a one-time browser permission grant.
  * 2. Fall back to a sensible default position on the primary screen.
+ *
+ * For automatic popping on POS entry / login, use `autoOpenCustomerDisplayWindow`
+ * which adds a multi-monitor guard so single-screen PCs / notebooks don't
+ * get a stray window every time the cashier opens the app.
  */
 const WINDOW_NAME = "isb-customer-display";
 const FALLBACK_FEATURES = "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
 
+/** Probe whether the host station has ≥2 monitors available. Returns false
+ *  on Safari / Firefox (no API), when the permission is denied, or when
+ *  only the primary screen is connected. */
+async function hasSecondaryMonitor(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!("getScreenDetails" in window)) return false;
+  try {
+    const screenDetails = await (window as any).getScreenDetails();
+    const screens: any[] = screenDetails.screens ?? [];
+    return screens.length >= 2;
+  } catch {
+    // Permission denied or API failure → treat as single screen (safe default).
+    return false;
+  }
+}
+
+/**
+ * Manual entry point — pop the customer display window unconditionally.
+ * Use from explicit user gestures (header button, settings page) where the
+ * user has decided they want the window to appear right now.
+ */
 export async function openCustomerDisplayWindow(): Promise<boolean> {
   if (typeof window === "undefined") return false;
 
@@ -55,4 +80,22 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Automatic entry point — pop only when the host actually has ≥2 monitors.
+ *
+ * Used by the POS pages (Canteen, Store) and the post-login hook so that
+ * managers / admins on a single-screen laptop don't get a stray customer
+ * display window every time they navigate into the app. The cashier station
+ * still pops automatically because it has a second monitor wired up.
+ *
+ * Returns false (without opening anything) when the Screen Management API
+ * isn't available, when permission is denied, or when only one screen is
+ * connected. Returns the underlying `openCustomerDisplayWindow` result
+ * otherwise.
+ */
+export async function autoOpenCustomerDisplayWindow(): Promise<boolean> {
+  if (!(await hasSecondaryMonitor())) return false;
+  return openCustomerDisplayWindow();
 }
