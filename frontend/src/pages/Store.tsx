@@ -85,6 +85,7 @@ import { DepartmentPaymentModal, type DepartmentOption } from "./store/Departmen
 import { EdcPaymentModal } from "./store/EdcPaymentModal";
 import UserPicker from "@/components/UserPicker";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
+import { UpToDateSaleButton } from "@/components/canteen/UpToDateSaleButton";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
 import { Switch } from "@/components/ui/switch";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
@@ -266,7 +267,7 @@ function SortableCard({
 
 const Store = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`store:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
 
@@ -1647,6 +1648,16 @@ const Store = () => {
               <UserSearch className="h-4 w-4" />
               <span className="hidden sm:inline">{t("store.searchMember", "ค้นหาสมาชิก")}</span>
             </Button>
+            {/* Up-to-date Sale (end-of-day summary) — same affordance as the
+                canteen POS so cashiers / managers can run EOD without leaving
+                the store till. */}
+            {hasRole("cashier", "manager", "admin") && user?.shopId && (
+              <UpToDateSaleButton
+                shopId={user.shopId}
+                shopName={user?.shopName}
+                schoolInfo={schoolInfo}
+              />
+            )}
             {canManageOrder && user?.shopId && (
               reorderMode ? (
                 <div className="flex items-center gap-1.5">

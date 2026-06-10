@@ -280,6 +280,212 @@ def _run_products_rows(
     return ProductImportResult(created=created, updated=updated, errors=errors)
 
 
+def _run_combined_rows(
+    rows: list,
+    shop_id: str,
+    is_manager: bool,
+    current_user: User,
+    db: Session,
+    dry_run: bool,
+) -> tuple[ProductImportResult, StockImportResult]:
+    """Process rows that mix product columns + stock-receive columns in one sheet.
+
+    For each row:
+      1. Upsert the product (same rules as `_run_products_rows`)
+      2. If the row also carries a positive `quantity`, receive that stock
+         straight into the product we just upserted — no barcode lookup race
+         because we already hold the ORM object.
+
+    A single row therefore covers the common "new product + opening stock"
+    case in one step. Rows that omit `quantity` still upsert the product
+    (useful for catalog-only imports). Rows that omit product columns but
+    carry `barcode` + `quantity` still do a barcode lookup so a pure
+    stock-only sheet still works.
+
+    Errors from the product step short-circuit the stock step for that row
+    (no point receiving stock into a product that failed to create).
+    """
+    import secrets as _secrets
+
+    p_created = 0
+    p_updated = 0
+    p_errors: List[ImportError] = []
+    s_imported = 0
+    s_errors: List[ImportError] = []
+
+    for idx, row in enumerate(rows, start=2):
+        sp = db.begin_nested()
+        try:
+            row_shop_id = _str(row.get("shop_id")) or shop_id
+            if not row_shop_id:
+                p_errors.append(ImportError(row=idx, reason="ต้องระบุ shop_id (ทั้งเป็น query param หรือคอลัมน์ในไฟล์)"))
+                sp.rollback()
+                continue
+            if is_manager and row_shop_id != current_user.shop_id:
+                p_errors.append(ImportError(row=idx, reason="Manager นำเข้าได้เฉพาะร้านของตัวเองเท่านั้น"))
+                sp.rollback()
+                continue
+
+            shop = db.query(Shop).filter(Shop.id == row_shop_id).first()
+            if not shop:
+                p_errors.append(ImportError(row=idx, reason=f"ไม่พบร้าน '{row_shop_id}' ในระบบ"))
+                sp.rollback()
+                continue
+
+            name = _str(row.get("name"))
+            barcode = _str(row.get("barcode"))
+            price_val = _float_or_none(row.get("price"))
+            cost_val = _float_or_none(row.get("cost_price"))
+            qty_val = _int_or_none(row.get("quantity"))
+
+            # Decide whether this is a product-upsert row, stock-only row, or both.
+            has_product_data = bool(name) and price_val is not None and cost_val is not None
+            has_stock_data = qty_val is not None and qty_val > 0
+
+            product: Optional[ShopProduct] = None
+
+            if has_product_data:
+                # ── Product upsert (mirrors _run_products_rows) ────────────
+                category = _str(row.get("category")) or "ทั่วไป"
+                if category:
+                    existing_cat = (
+                        db.query(ShopCategory)
+                        .filter(ShopCategory.shop_id == row_shop_id, ShopCategory.name == category)
+                        .first()
+                    )
+                    if not existing_cat:
+                        db.add(ShopCategory(shop_id=row_shop_id, name=category))
+                        db.flush()
+
+                uom_name = _str(row.get("uom"))
+                uom_id: Optional[int] = None
+                if uom_name:
+                    uom = db.query(UnitOfMeasure).filter(
+                        UnitOfMeasure.name == uom_name, UnitOfMeasure.is_active == True
+                    ).first()
+                    if uom:
+                        uom_id = uom.id
+
+                if barcode:
+                    existing = db.query(ShopProduct).filter(
+                        ShopProduct.shop_id == row_shop_id, ShopProduct.barcode == barcode
+                    ).first()
+                else:
+                    existing = db.query(ShopProduct).filter(
+                        ShopProduct.shop_id == row_shop_id, ShopProduct.name == name
+                    ).first()
+
+                if existing:
+                    old_snapshot = {
+                        "name": existing.name,
+                        "external_price": float(existing.external_price),
+                        "internal_price": float(existing.internal_price),
+                        "category": existing.category,
+                    }
+                    existing.name = name
+                    existing.external_price = price_val
+                    existing.internal_price = cost_val
+                    existing.category = category
+                    if uom_id is not None:
+                        existing.uom_id = uom_id
+                    db.flush()
+                    if not dry_run:
+                        create_audit_log(
+                            db, entity_type="shop_product", entity_id=existing.id,
+                            entity_name=existing.name, shop_id=row_shop_id,
+                            action="UPDATE_PRODUCT",
+                            changes={"source": "import", "old": old_snapshot,
+                                     "new": {"name": name, "external_price": price_val,
+                                             "internal_price": cost_val, "category": category}},
+                            user_id=current_user.id,
+                        )
+                    p_updated += 1
+                    product = existing
+                else:
+                    ts_suffix = int(time.time() * 1000) % 100_000_000
+                    product_code = f"IMP-{ts_suffix:08d}{_secrets.token_hex(1)}"
+                    new_product = ShopProduct(
+                        shop_id=row_shop_id, product_code=product_code,
+                        barcode=barcode or None, name=name, category=category,
+                        external_price=price_val, internal_price=cost_val,
+                        uom_id=uom_id, stock=0,
+                    )
+                    db.add(new_product)
+                    db.flush()
+                    if not dry_run:
+                        create_audit_log(
+                            db, entity_type="shop_product", entity_id=new_product.id,
+                            entity_name=name, shop_id=row_shop_id, action="create",
+                            changes={"source": "import",
+                                     "new": {"name": name, "barcode": barcode or None,
+                                             "external_price": price_val,
+                                             "internal_price": cost_val, "category": category}},
+                            user_id=current_user.id,
+                        )
+                    p_created += 1
+                    product = new_product
+            elif not (name or price_val is not None or cost_val is not None):
+                # Pure stock-receive row (no product columns at all) — fall
+                # through to the stock step, which will resolve the product
+                # via barcode lookup below.
+                pass
+            else:
+                # Partial product columns — that's a validation error, not a
+                # silent skip. Tell the operator which field is missing.
+                if not name:
+                    p_errors.append(ImportError(row=idx, reason="ต้องระบุ 'name' (ชื่อสินค้า)"))
+                elif price_val is None:
+                    p_errors.append(ImportError(row=idx, reason="'price' (ราคาขาย) ต้องเป็นตัวเลข"))
+                else:
+                    p_errors.append(ImportError(row=idx, reason="'cost_price' (ต้นทุน) ต้องเป็นตัวเลข"))
+                sp.rollback()
+                continue
+
+            # ── Stock receive (mirrors _run_stock_rows) ────────────────────
+            if has_stock_data:
+                if product is None and barcode:
+                    product = db.query(ShopProduct).filter(
+                        ShopProduct.barcode == barcode, ShopProduct.shop_id == row_shop_id
+                    ).first()
+                if product is None:
+                    s_errors.append(ImportError(row=idx, reason="ไม่พบสินค้าสำหรับรับสต็อก — ต้องระบุ name/price/cost_price หรือ barcode ที่มีอยู่"))
+                else:
+                    cost_per_unit = _float_or_none(row.get("cost_per_unit")) or float(product.internal_price or 0)
+                    notes = _str(row.get("notes")) or None
+                    reference = _str(row.get("reference")) or None
+
+                    InventoryService.receive_stock(
+                        db=db, shop=shop, product=product, qty=qty_val,
+                        cost_per_unit=cost_per_unit, reference=reference,
+                        note=notes, user_id=current_user.id,
+                    )
+                    db.flush()
+                    if not dry_run:
+                        create_audit_log(
+                            db, entity_type="shop_product", entity_id=product.id,
+                            entity_name=product.name, shop_id=row_shop_id, action="update",
+                            changes={"source": "stock_receive_import", "qty_received": qty_val,
+                                     "cost_per_unit": cost_per_unit, "reference": reference, "notes": notes},
+                            user_id=current_user.id,
+                        )
+                    s_imported += 1
+
+            sp.commit()
+
+        except Exception as exc:
+            sp.rollback()
+            logger.warning("import_combined row %d error: %s", idx, exc)
+            # Attribute the failure to whichever step is more useful — if the
+            # row had stock data, the stock bucket; otherwise products.
+            target = s_errors if _int_or_none(row.get("quantity")) else p_errors
+            target.append(ImportError(row=idx, reason=_friendly_db_error(exc)))
+
+    return (
+        ProductImportResult(created=p_created, updated=p_updated, errors=p_errors),
+        StockImportResult(imported=s_imported, errors=s_errors),
+    )
+
+
 def _run_stock_rows(
     rows: list,
     is_manager: bool,
@@ -441,7 +647,19 @@ async def import_store(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "manager")),
 ):
-    """Import both Products and StockReceive sheets from a single xlsx file."""
+    """Import a unified single-sheet xlsx where each row carries both product
+    fields and an optional stock-receive (`quantity`, `cost_per_unit`, …).
+
+    Operators told us they didn't want to flip between two sheets to onboard
+    a shop — one row, one product, one opening stock entry. The combined
+    handler upserts the product first, then receives stock straight into it
+    when `quantity > 0`. Catalog-only rows (no quantity) and stock-only rows
+    (no product columns, just barcode + quantity) both still work.
+
+    Falls back to legacy two-sheet workbooks (Products + StockReceive) so
+    existing files keep working — picked up automatically when the sheet
+    detection finds those tab names.
+    """
     is_manager = current_user.role == "manager" and not current_user.is_superuser
     if is_manager:
         if not current_user.shop_id:
@@ -453,20 +671,35 @@ async def import_store(
     content = await file.read()
     filename = file.filename or ""
 
+    # Legacy detection: if both Products + StockReceive sheets are present,
+    # fall back to the original split-sheet flow so old template files keep
+    # working without forcing operators to migrate.
+    legacy_products: list = []
+    legacy_stock: list = []
     try:
-        product_rows = _parse_file(filename, content, preferred_sheet="Products")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Could not parse Products sheet: {exc}") from exc
-
-    try:
-        stock_rows = _parse_file(filename, content, preferred_sheet="StockReceive")
+        legacy_products = _parse_file(filename, content, preferred_sheet="Products")
     except Exception:
-        stock_rows = []
+        legacy_products = []
+    try:
+        legacy_stock = _parse_file(filename, content, preferred_sheet="StockReceive")
+    except Exception:
+        legacy_stock = []
 
-    products_result = _run_products_rows(product_rows, shop_id, is_manager, current_user, db, dry_run)
-    stock_result = _run_stock_rows(stock_rows, is_manager, current_user, db, dry_run)
+    if legacy_products and legacy_stock:
+        products_result = _run_products_rows(legacy_products, shop_id, is_manager, current_user, db, dry_run)
+        stock_result = _run_stock_rows(legacy_stock, is_manager, current_user, db, dry_run)
+    else:
+        # Unified single-sheet path — read the active/first sheet (preferred=None).
+        try:
+            rows = _parse_file(filename, content, preferred_sheet=None)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}") from exc
+
+        products_result, stock_result = _run_combined_rows(
+            rows, shop_id, is_manager, current_user, db, dry_run
+        )
 
     if dry_run:
         db.rollback()
@@ -510,15 +743,24 @@ def download_import_template(
     current_user: User = Depends(require_role("admin", "manager")),
     db: Session = Depends(get_db),
 ):
-    """Download a single workbook containing both import templates.
+    """Download the unified single-sheet import template.
 
-    Sheet 1 ("Products")       — columns expected by POST /admin/import/products
-    Sheet 2 ("StockReceive")   — columns expected by POST /admin/import/stock-receive
+    One row = one product + (optional) its opening stock. Operators kept
+    asking why they had to flip between Products and StockReceive tabs —
+    this template lets them onboard a shop in one place.
 
-    When a shop_id query param is supplied the sample rows are tailored to the
-    shop's module (canteen → food samples, store → book/stationery samples) so
-    operators get a relevant starting point instead of having to translate
-    bookstore examples to their own domain.
+    Columns:
+      name, barcode, price, cost_price, category, uom, shop_id,
+      quantity, cost_per_unit, notes, reference
+
+    Leave `quantity` blank to import the product without receiving any
+    stock yet. Leave the product columns blank and fill `barcode` +
+    `quantity` to receive stock into an existing product.
+
+    For canteen shops we only emit the catalog columns (no quantity /
+    cost_per_unit / notes / reference) because canteens don't track
+    per-SKU stock — having those columns in their template would just
+    invite confused data entry.
     """
     import openpyxl
 
@@ -532,43 +774,39 @@ def download_import_template(
             module = (shop.module or "store").lower()
             sample_shop_id = shop.id
 
-    if module == "canteen":
-        products_samples = [
-            ["ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sample_shop_id],
-            ["น้ำส้มคั้น", "CT001002", 20, 10, "เครื่องดื่ม", "แก้ว", sample_shop_id],
-        ]
-        stock_samples = [
-            [sample_shop_id, "CT001001", 50, 28, "รับเข้าจากครัวกลาง", "KIT-2026-001"],
-            [sample_shop_id, "CT001002", 100, 10, "รับเข้าประจำวัน", "KIT-2026-002"],
-        ]
-    else:
-        products_samples = [
-            ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sample_shop_id],
-            ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", sample_shop_id],
-        ]
-        stock_samples = [
-            [sample_shop_id, "BK001001", 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
-            [sample_shop_id, "BK001002", 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
-        ]
-
     wb = openpyxl.Workbook()
+    sheet = wb.active
 
-    products_sheet = wb.active
-    products_sheet.title = "Products"
-    _write_template_sheet(
-        products_sheet,
-        ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
-        products_samples,
-    )
-
-    # Canteen shops don't track per-SKU stock — skip the StockReceive sheet
-    # entirely so canteen managers don't see an irrelevant import option.
-    if module != "canteen":
-        stock_sheet = wb.create_sheet(title="StockReceive")
+    if module == "canteen":
+        # Catalog-only for canteens — quantity columns omitted entirely.
+        sheet.title = "Menu"
         _write_template_sheet(
-            stock_sheet,
-            ["shop_id", "barcode", "quantity", "cost_per_unit", "notes", "reference"],
-            stock_samples,
+            sheet,
+            ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
+            [
+                ["ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sample_shop_id],
+                ["น้ำส้มคั้น", "CT001002", 20, 10, "เครื่องดื่ม", "แก้ว", sample_shop_id],
+            ],
+        )
+    else:
+        sheet.title = "Store"
+        _write_template_sheet(
+            sheet,
+            [
+                "name", "barcode", "price", "cost_price", "category", "uom", "shop_id",
+                "quantity", "cost_per_unit", "notes", "reference",
+            ],
+            [
+                # Row 1: new product + opening stock in one go.
+                ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sample_shop_id,
+                 50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
+                # Row 2: another combined entry — different category.
+                ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", sample_shop_id,
+                 100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
+                # Row 3: catalog-only — no stock receive this time.
+                ["ดินสอ HB กล่อง 12 แท่ง", "BK001003", 60, 35, "เครื่องเขียน", "กล่อง", sample_shop_id,
+                 None, None, None, None],
+            ],
         )
 
     buf = io.BytesIO()

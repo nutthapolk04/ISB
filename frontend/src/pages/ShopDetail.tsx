@@ -399,7 +399,7 @@ const ShopDetail = () => {
                   />
 
                   <span className="text-xs text-muted-foreground ml-auto">
-                    {t("shopImport.hint", "Use template: sheet \"Products\" + sheet \"StockReceive\"")}
+                    {t("shopImport.hint", "One row per product — fill quantity to receive stock at the same time")}
                   </span>
                 </div>
               </CardContent>
@@ -420,7 +420,7 @@ const ShopDetail = () => {
 
                   {/* Products section */}
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">{t("shopImport.sectionProducts", "Products (sheet: Products)")}</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">{t("shopImport.sectionProducts", "Products")}</p>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="rounded-md border border-green-200 bg-green-50 p-3">
                         <div className="text-xs text-green-700">{t("shopImport.statCreated", "Would create")}</div>
@@ -439,7 +439,7 @@ const ShopDetail = () => {
 
                   {/* Stock section */}
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">{t("shopImport.sectionStock", "Stock receive (sheet: StockReceive)")}</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">{t("shopImport.sectionStock", "Stock receive")}</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-md border border-green-200 bg-green-50 p-3">
                         <div className="text-xs text-green-700">{t("shopImport.statImported", "Would receive")}</div>
@@ -461,13 +461,13 @@ const ShopDetail = () => {
                       </div>
                       <ul className="space-y-1 text-xs">
                         {preview.result.products.errors.length > 0 && (
-                          <li className="font-semibold text-red-700 mt-1">Products sheet:</li>
+                          <li className="font-semibold text-red-700 mt-1">{t("shopImport.errorsProduct", "Product errors")}</li>
                         )}
                         {preview.result.products.errors.slice(0, 25).map((e, i) => (
                           <li key={`p${i}`} className="text-red-700"><span className="font-mono mr-1.5">Row {e.row}:</span>{e.reason}</li>
                         ))}
                         {preview.result.stock.errors.length > 0 && (
-                          <li className="font-semibold text-red-700 mt-1">StockReceive sheet:</li>
+                          <li className="font-semibold text-red-700 mt-1">{t("shopImport.errorsStock", "Stock receive errors")}</li>
                         )}
                         {preview.result.stock.errors.slice(0, 25).map((e, i) => (
                           <li key={`s${i}`} className="text-red-700"><span className="font-mono mr-1.5">Row {e.row}:</span>{e.reason}</li>
