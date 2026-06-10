@@ -70,6 +70,11 @@ class StockImportResult(BaseModel):
     errors: List[ImportError]
 
 
+class StoreImportResult(BaseModel):
+    products: ProductImportResult
+    stock: StockImportResult
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _parse_file(filename: str, content: bytes, preferred_sheet: Optional[str] = None) -> list[dict]:
@@ -134,78 +139,31 @@ def _int_or_none(val) -> Optional[int]:
     return int(f) if f is not None else None
 
 
-# ── POST /admin/import/products ───────────────────────────────────────────────
+# ── Row-processing helpers (shared by individual and combined endpoints) ─────
 
-@router.post("/products", response_model=ProductImportResult)
-async def import_products(
-    file: UploadFile = File(...),
-    shop_id: str = "",
-    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
-):
-    """
-    Bulk upsert ShopProduct rows from an Excel or CSV file.
-
-    Required columns : name, barcode, price (retail / external_price),
-                       cost_price (internal_price)
-    Optional columns : category, uom, shop_id (ignored when shop_id query param
-                       is provided)
-
-    Logic: find existing ShopProduct by barcode + shop_id → update;
-           not found → create (product_code auto-generated).
-
-    shop_id must be supplied either as a query parameter or as a column in the
-    file. Rows missing shop_id are skipped with an error.
-
-    Managers may only import into their own shop_id. Admins may import into
-    any shop.
-
-    When dry_run=true the transaction is rolled back at the end so callers
-    can preview the create/update/error counts without persisting changes.
-    """
-    is_manager = current_user.role == "manager" and not current_user.is_superuser
-    if is_manager:
-        if not current_user.shop_id:
-            raise HTTPException(status_code=403, detail="Manager has no shop assignment")
-        # Pin shop_id to the manager's own shop regardless of what was passed.
-        if shop_id and shop_id != current_user.shop_id:
-            raise HTTPException(
-                status_code=403,
-                detail="Manager can only import into their own shop",
-            )
-        shop_id = current_user.shop_id
-
-    content = await file.read()
-    filename = file.filename or ""
-
-    try:
-        rows = _parse_file(filename, content)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}") from exc
+def _run_products_rows(
+    rows: list,
+    shop_id: str,
+    is_manager: bool,
+    current_user: User,
+    db: Session,
+    dry_run: bool,
+) -> ProductImportResult:
+    """Process parsed product rows. Caller must commit or rollback after."""
+    import secrets as _secrets
 
     created = 0
     updated = 0
     errors: List[ImportError] = []
 
-    for idx, row in enumerate(rows, start=2):  # row 1 = header
-        # Wrap the whole row in a savepoint so a constraint violation on one
-        # row does not poison the session for subsequent rows. Without this,
-        # any IntegrityError after .flush() leaves the session aborted and
-        # every remaining row gets 'current transaction is aborted' errors —
-        # which surfaces to operators as a 500 Internal Server Error.
+    for idx, row in enumerate(rows, start=2):
         sp = db.begin_nested()
         try:
-            # ── Resolve shop_id ──
             row_shop_id = _str(row.get("shop_id")) or shop_id
             if not row_shop_id:
                 errors.append(ImportError(row=idx, reason="ต้องระบุ shop_id (ทั้งเป็น query param หรือคอลัมน์ในไฟล์)"))
                 sp.rollback()
                 continue
-
-            # Managers cannot cross-shop import via the file column either.
             if is_manager and row_shop_id != current_user.shop_id:
                 errors.append(ImportError(row=idx, reason="Manager นำเข้าได้เฉพาะร้านของตัวเองเท่านั้น"))
                 sp.rollback()
@@ -217,7 +175,6 @@ async def import_products(
                 sp.rollback()
                 continue
 
-            # ── Required fields ──
             name = _str(row.get("name"))
             barcode = _str(row.get("barcode"))
             price_val = _float_or_none(row.get("price"))
@@ -236,15 +193,11 @@ async def import_products(
                 sp.rollback()
                 continue
 
-            # ── Optional fields ──
             category = _str(row.get("category")) or "ทั่วไป"
             if category:
                 existing_cat = (
                     db.query(ShopCategory)
-                    .filter(
-                        ShopCategory.shop_id == row_shop_id,
-                        ShopCategory.name == category,
-                    )
+                    .filter(ShopCategory.shop_id == row_shop_id, ShopCategory.name == category)
                     .first()
                 )
                 if not existing_cat:
@@ -255,23 +208,18 @@ async def import_products(
             uom_id: Optional[int] = None
             if uom_name:
                 uom = db.query(UnitOfMeasure).filter(
-                    UnitOfMeasure.name == uom_name,
-                    UnitOfMeasure.is_active == True,
+                    UnitOfMeasure.name == uom_name, UnitOfMeasure.is_active == True
                 ).first()
                 if uom:
                     uom_id = uom.id
 
             if barcode:
                 existing = db.query(ShopProduct).filter(
-                    ShopProduct.shop_id == row_shop_id,
-                    ShopProduct.barcode == barcode,
+                    ShopProduct.shop_id == row_shop_id, ShopProduct.barcode == barcode
                 ).first()
             else:
-                # Fallback: also check by name within the same shop so re-imports
-                # without a barcode don't keep creating duplicate rows.
                 existing = db.query(ShopProduct).filter(
-                    ShopProduct.shop_id == row_shop_id,
-                    ShopProduct.name == name,
+                    ShopProduct.shop_id == row_shop_id, ShopProduct.name == name
                 ).first()
 
             if existing:
@@ -290,58 +238,34 @@ async def import_products(
                 db.flush()
                 if not dry_run:
                     create_audit_log(
-                        db,
-                        entity_type="shop_product",
-                        entity_id=existing.id,
-                        entity_name=existing.name,
-                        shop_id=row_shop_id,
+                        db, entity_type="shop_product", entity_id=existing.id,
+                        entity_name=existing.name, shop_id=row_shop_id,
                         action="UPDATE_PRODUCT",
-                        changes={
-                            "source": "import",
-                            "old": old_snapshot,
-                            "new": {
-                                "name": name, "external_price": price_val,
-                                "internal_price": cost_val, "category": category,
-                            },
-                        },
+                        changes={"source": "import", "old": old_snapshot,
+                                 "new": {"name": name, "external_price": price_val,
+                                         "internal_price": cost_val, "category": category}},
                         user_id=current_user.id,
                     )
                 updated += 1
             else:
-                # Auto-generate product_code with a small random suffix so two
-                # rows hitting the same millisecond don't collide.
-                import secrets as _secrets
                 ts_suffix = int(time.time() * 1000) % 100_000_000
                 product_code = f"IMP-{ts_suffix:08d}{_secrets.token_hex(1)}"
                 product = ShopProduct(
-                    shop_id=row_shop_id,
-                    product_code=product_code,
-                    barcode=barcode or None,
-                    name=name,
-                    category=category,
-                    external_price=price_val,
-                    internal_price=cost_val,
-                    uom_id=uom_id,
-                    stock=0,
+                    shop_id=row_shop_id, product_code=product_code,
+                    barcode=barcode or None, name=name, category=category,
+                    external_price=price_val, internal_price=cost_val,
+                    uom_id=uom_id, stock=0,
                 )
                 db.add(product)
                 db.flush()
                 if not dry_run:
                     create_audit_log(
-                        db,
-                        entity_type="shop_product",
-                        entity_id=product.id,
-                        entity_name=name,
-                        shop_id=row_shop_id,
-                        action="create",
-                        changes={
-                            "source": "import",
-                            "new": {
-                                "name": name, "barcode": barcode or None,
-                                "external_price": price_val,
-                                "internal_price": cost_val, "category": category,
-                            },
-                        },
+                        db, entity_type="shop_product", entity_id=product.id,
+                        entity_name=name, shop_id=row_shop_id, action="create",
+                        changes={"source": "import",
+                                 "new": {"name": name, "barcode": barcode or None,
+                                         "external_price": price_val,
+                                         "internal_price": cost_val, "category": category}},
                         user_id=current_user.id,
                     )
                 created += 1
@@ -353,61 +277,28 @@ async def import_products(
             logger.warning("import_products row %d error: %s", idx, exc)
             errors.append(ImportError(row=idx, reason=_friendly_db_error(exc)))
 
-    if dry_run:
-        db.rollback()
-    else:
-        db.commit()
     return ProductImportResult(created=created, updated=updated, errors=errors)
 
 
-# ── POST /admin/import/stock-receive ─────────────────────────────────────────
-
-@router.post("/stock-receive", response_model=StockImportResult)
-async def import_stock_receive(
-    file: UploadFile = File(...),
-    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "manager")),
-):
-    """
-    Bulk stock receive from an Excel or CSV file.
-
-    Required columns : shop_id, quantity
-                       product_id  (ShopProduct.id)  OR  barcode
-    Optional columns : cost_per_unit, notes, reference
-
-    For each row: lookup ShopProduct → call InventoryService.receive_stock.
-
-    When dry_run=true the transaction is rolled back at the end so callers
-    can preview the import without writing any stock movements.
-    """
-    is_manager = current_user.role == "manager" and not current_user.is_superuser
-    if is_manager and not current_user.shop_id:
-        raise HTTPException(status_code=403, detail="Manager has no shop assignment")
-
-    content = await file.read()
-    filename = file.filename or ""
-
-    try:
-        rows = _parse_file(filename, content, preferred_sheet="StockReceive")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}") from exc
-
+def _run_stock_rows(
+    rows: list,
+    is_manager: bool,
+    current_user: User,
+    db: Session,
+    dry_run: bool,
+) -> StockImportResult:
+    """Process parsed stock-receive rows. Caller must commit or rollback after."""
     imported = 0
     errors: List[ImportError] = []
 
     for idx, row in enumerate(rows, start=2):
         sp = db.begin_nested()
         try:
-            # ── shop_id ──
             row_shop_id = _str(row.get("shop_id"))
             if not row_shop_id:
                 errors.append(ImportError(row=idx, reason="ต้องระบุ 'shop_id'"))
                 sp.rollback()
                 continue
-
             if is_manager and row_shop_id != current_user.shop_id:
                 errors.append(ImportError(row=idx, reason="Manager รับสต็อกได้เฉพาะร้านของตัวเองเท่านั้น"))
                 sp.rollback()
@@ -419,29 +310,24 @@ async def import_stock_receive(
                 sp.rollback()
                 continue
 
-            # ── quantity ──
             qty = _int_or_none(row.get("quantity"))
             if qty is None or qty <= 0:
                 errors.append(ImportError(row=idx, reason="'quantity' ต้องเป็นจำนวนเต็มที่มากกว่า 0"))
                 sp.rollback()
                 continue
 
-            # ── lookup product ──
             product: Optional[ShopProduct] = None
             pid_raw = _str(row.get("product_id"))
             barcode_raw = _str(row.get("barcode"))
-
             if pid_raw:
                 pid = _int_or_none(pid_raw)
                 if pid is not None:
                     product = db.query(ShopProduct).filter(
-                        ShopProduct.id == pid,
-                        ShopProduct.shop_id == row_shop_id,
+                        ShopProduct.id == pid, ShopProduct.shop_id == row_shop_id
                     ).first()
             if product is None and barcode_raw:
                 product = db.query(ShopProduct).filter(
-                    ShopProduct.barcode == barcode_raw,
-                    ShopProduct.shop_id == row_shop_id,
+                    ShopProduct.barcode == barcode_raw, ShopProduct.shop_id == row_shop_id
                 ).first()
 
             if product is None:
@@ -449,37 +335,22 @@ async def import_stock_receive(
                 sp.rollback()
                 continue
 
-            # ── optional fields ──
             cost_per_unit = _float_or_none(row.get("cost_per_unit")) or float(product.internal_price or 0)
             notes = _str(row.get("notes")) or None
             reference = _str(row.get("reference")) or None
 
             InventoryService.receive_stock(
-                db=db,
-                shop=shop,
-                product=product,
-                qty=qty,
-                cost_per_unit=cost_per_unit,
-                reference=reference,
-                note=notes,
-                user_id=current_user.id,
+                db=db, shop=shop, product=product, qty=qty,
+                cost_per_unit=cost_per_unit, reference=reference,
+                note=notes, user_id=current_user.id,
             )
             db.flush()
             if not dry_run:
                 create_audit_log(
-                    db,
-                    entity_type="shop_product",
-                    entity_id=product.id,
-                    entity_name=product.name,
-                    shop_id=row_shop_id,
-                    action="update",
-                    changes={
-                        "source": "stock_receive_import",
-                        "qty_received": qty,
-                        "cost_per_unit": cost_per_unit,
-                        "reference": reference,
-                        "notes": notes,
-                    },
+                    db, entity_type="shop_product", entity_id=product.id,
+                    entity_name=product.name, shop_id=row_shop_id, action="update",
+                    changes={"source": "stock_receive_import", "qty_received": qty,
+                             "cost_per_unit": cost_per_unit, "reference": reference, "notes": notes},
                     user_id=current_user.id,
                 )
             imported += 1
@@ -490,11 +361,118 @@ async def import_stock_receive(
             logger.warning("import_stock_receive row %d error: %s", idx, exc)
             errors.append(ImportError(row=idx, reason=_friendly_db_error(exc)))
 
+    return StockImportResult(imported=imported, errors=errors)
+
+
+# ── POST /admin/import/products ───────────────────────────────────────────────
+
+@router.post("/products", response_model=ProductImportResult)
+async def import_products(
+    file: UploadFile = File(...),
+    shop_id: str = "",
+    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager")),
+):
+    """Bulk upsert ShopProduct rows from an Excel or CSV file."""
+    is_manager = current_user.role == "manager" and not current_user.is_superuser
+    if is_manager:
+        if not current_user.shop_id:
+            raise HTTPException(status_code=403, detail="Manager has no shop assignment")
+        if shop_id and shop_id != current_user.shop_id:
+            raise HTTPException(status_code=403, detail="Manager can only import into their own shop")
+        shop_id = current_user.shop_id
+
+    content = await file.read()
+    filename = file.filename or ""
+    try:
+        rows = _parse_file(filename, content)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}") from exc
+
+    result = _run_products_rows(rows, shop_id, is_manager, current_user, db, dry_run)
     if dry_run:
         db.rollback()
     else:
         db.commit()
-    return StockImportResult(imported=imported, errors=errors)
+    return result
+
+
+# ── POST /admin/import/stock-receive ─────────────────────────────────────────
+
+@router.post("/stock-receive", response_model=StockImportResult)
+async def import_stock_receive(
+    file: UploadFile = File(...),
+    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager")),
+):
+    """Bulk stock receive from an Excel or CSV file."""
+    is_manager = current_user.role == "manager" and not current_user.is_superuser
+    if is_manager and not current_user.shop_id:
+        raise HTTPException(status_code=403, detail="Manager has no shop assignment")
+
+    content = await file.read()
+    filename = file.filename or ""
+    try:
+        rows = _parse_file(filename, content, preferred_sheet="StockReceive")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}") from exc
+
+    result = _run_stock_rows(rows, is_manager, current_user, db, dry_run)
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
+    return result
+
+
+# ── POST /admin/import/store (combined: Products + StockReceive sheets) ───────
+
+@router.post("/store", response_model=StoreImportResult)
+async def import_store(
+    file: UploadFile = File(...),
+    shop_id: str = "",
+    dry_run: bool = Query(False, description="Validate only — roll back instead of committing."),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager")),
+):
+    """Import both Products and StockReceive sheets from a single xlsx file."""
+    is_manager = current_user.role == "manager" and not current_user.is_superuser
+    if is_manager:
+        if not current_user.shop_id:
+            raise HTTPException(status_code=403, detail="Manager has no shop assignment")
+        if shop_id and shop_id != current_user.shop_id:
+            raise HTTPException(status_code=403, detail="Manager can only import into their own shop")
+        shop_id = current_user.shop_id
+
+    content = await file.read()
+    filename = file.filename or ""
+
+    try:
+        product_rows = _parse_file(filename, content, preferred_sheet="Products")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not parse Products sheet: {exc}") from exc
+
+    try:
+        stock_rows = _parse_file(filename, content, preferred_sheet="StockReceive")
+    except Exception:
+        stock_rows = []
+
+    products_result = _run_products_rows(product_rows, shop_id, is_manager, current_user, db, dry_run)
+    stock_result = _run_stock_rows(stock_rows, is_manager, current_user, db, dry_run)
+
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
+    return StoreImportResult(products=products_result, stock=stock_result)
 
 
 # ── Template download ────────────────────────────────────────────────────────
