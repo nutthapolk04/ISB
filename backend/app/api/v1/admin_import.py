@@ -164,9 +164,7 @@ async def import_products(
     When dry_run=true the transaction is rolled back at the end so callers
     can preview the create/update/error counts without persisting changes.
     """
-    is_manager = any(r.name == "manager" for r in current_user.roles) and not any(
-        r.name == "admin" for r in current_user.roles
-    )
+    is_manager = current_user.role == "manager" and not current_user.is_superuser
     if is_manager:
         if not current_user.shop_id:
             raise HTTPException(status_code=403, detail="Manager has no shop assignment")
@@ -383,9 +381,7 @@ async def import_stock_receive(
     When dry_run=true the transaction is rolled back at the end so callers
     can preview the import without writing any stock movements.
     """
-    is_manager = any(r.name == "manager" for r in current_user.roles) and not any(
-        r.name == "admin" for r in current_user.roles
-    )
+    is_manager = current_user.role == "manager" and not current_user.is_superuser
     if is_manager and not current_user.shop_id:
         raise HTTPException(status_code=403, detail="Manager has no shop assignment")
 

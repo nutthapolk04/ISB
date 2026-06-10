@@ -23,6 +23,7 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from pydantic import BaseModel
@@ -445,4 +446,9 @@ def delete_user(
         UserService.delete_user(db, user_id)
     except LookupError:
         raise HTTPException(status_code=404, detail="User not found")
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete user with existing records (transactions, approvals, etc.). Deactivate instead.",
+        )
     return None
