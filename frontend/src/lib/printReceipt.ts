@@ -311,7 +311,7 @@ export function buildReceiptHtml(
   <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
   ${notesSection}
   <hr/>
-  <p class="center sub">${lbl.thanks}</p>
+  <p class="center sub">${school.receiptFooter || lbl.thanks}</p>
 </body>
 </html>`;
 }

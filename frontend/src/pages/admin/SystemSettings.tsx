@@ -31,6 +31,9 @@ export default function SystemSettings() {
   const [schoolPhone, setSchoolPhone] = useState("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState("");
   const [schoolCoverUrl, setSchoolCoverUrl] = useState("");
+  // Free-form footer line printed at the bottom of every receipt. Empty
+  // string means the localized "Thank you" fallback in the template wins.
+  const [schoolReceiptFooter, setSchoolReceiptFooter] = useState("");
   const [schoolSaving, setSchoolSaving] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +47,7 @@ export default function SystemSettings() {
       setSchoolPhone(data.school_phone ?? "");
       setSchoolLogoUrl(data.school_logo_url ?? "");
       setSchoolCoverUrl(data.school_cover_url ?? "");
+      setSchoolReceiptFooter(data.school_receipt_footer ?? "");
     } catch { /* silent */ }
   };
 
@@ -114,6 +118,7 @@ export default function SystemSettings() {
         school_phone: schoolPhone,
         school_logo_url: schoolLogoUrl,
         school_cover_url: schoolCoverUrl,
+        school_receipt_footer: schoolReceiptFooter,
       });
       toast({ title: t("admin.settings.schoolSaved") });
     } catch (e) {
@@ -187,6 +192,20 @@ export default function SystemSettings() {
               onChange={(e) => setSchoolPhone(e.target.value)}
               placeholder="02-000-0000"
             />
+          </div>
+          {/* Receipt footer */}
+          <div className="space-y-2">
+            <Label htmlFor="school-receipt-footer">{t("admin.settings.receiptFooter", "Receipt footer")}</Label>
+            <Input
+              id="school-receipt-footer"
+              value={schoolReceiptFooter}
+              onChange={(e) => setSchoolReceiptFooter(e.target.value)}
+              placeholder={t("admin.settings.receiptFooterPlaceholder", "e.g. Thank you for shopping with us")}
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("admin.settings.receiptFooterHint", "Printed at the bottom of every receipt. Leave blank to use the default \"Thank you\" message.")}
+            </p>
           </div>
           {/* Logo */}
           <div className="space-y-2">

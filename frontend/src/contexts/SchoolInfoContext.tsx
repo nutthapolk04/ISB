@@ -12,6 +12,10 @@ export interface SchoolInfo {
   phone: string;
   logoUrl: string;
   coverUrl: string;
+  /** Optional footer line printed at the bottom of every receipt. Admin
+   *  configures via System Settings; empty string means fall back to the
+   *  localized "Thank you" default in the receipt template. */
+  receiptFooter: string;
 }
 
 const DEFAULT: SchoolInfo = {
@@ -21,6 +25,7 @@ const DEFAULT: SchoolInfo = {
   phone: "",
   logoUrl: "",
   coverUrl: "",
+  receiptFooter: "",
 };
 
 const SchoolInfoContext = createContext<SchoolInfo>(DEFAULT);
@@ -36,12 +41,13 @@ export function SchoolInfoProvider({ children }: { children: ReactNode }) {
       .catch(() => api.get<Record<string, string>>("/admin/settings/public"))
       .then((d) => {
         setInfo({
-          name:     d.school_name     || DEFAULT.name,
-          address:  d.school_address  || "",
-          taxId:    d.school_tax_id   || "",
-          phone:    d.school_phone    || "",
-          logoUrl:  d.school_logo_url  || "",
-          coverUrl: d.school_cover_url || "",
+          name:          d.school_name           || DEFAULT.name,
+          address:       d.school_address        || "",
+          taxId:         d.school_tax_id         || "",
+          phone:         d.school_phone          || "",
+          logoUrl:       d.school_logo_url       || "",
+          coverUrl:      d.school_cover_url      || "",
+          receiptFooter: d.school_receipt_footer || "",
         });
       })
       .catch(() => {}); // silent — fall back to defaults

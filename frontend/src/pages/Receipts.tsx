@@ -14,7 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Search, Eye, Download, Loader2, Ban } from "lucide-react";
+import { Receipt, Search, Eye, Download, Loader2, Ban, Printer } from "lucide-react";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -140,7 +140,8 @@ const RECEIPT_LABELS = {
     subtitle: "ใบเสร็จรับเงิน / Receipt",
     receiptNo: "เลขที่",
     date: "วันที่",
-    payer: "ผู้ชำระ",
+    payer: "ผู้ซื้อ",
+    cashier: "ผู้ขาย",
     payment: "ชำระด้วย",
     itemDiscount: "ส่วนลด",
     billDiscount: "ส่วนลดท้ายบิล",
@@ -164,6 +165,7 @@ const RECEIPT_LABELS = {
     receiptNo: "Receipt #",
     date: "Date",
     payer: "Payer",
+    cashier: "Cashier",
     payment: "Payment",
     itemDiscount: "Discount",
     billDiscount: "Bill Discount",
@@ -250,6 +252,11 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   const payerSection = r.payer_label
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
+  // Cashier (ผู้ขาย) — comes from receipts.created_by_name (the user who
+  // closed the sale). Useful for audits where "who took the cash?" matters.
+  const cashierSection = r.created_by_name
+    ? `<div class="row small"><span>${lbl.cashier}</span><span>${r.created_by_name}</span></div>`
+    : "";
   const voidedSection = r.status !== "active"
     ? `<div class="voided">${lbl.voided}</div>`
     : "";
@@ -320,6 +327,7 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
   <div class="row small"><span>${lbl.date}</span><span>${fmtDate(r.transaction_date, lbl.locale)}</span></div>
   ${payerSection}
+  ${cashierSection}
   <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
   <hr/>
   ${itemRows}
@@ -332,7 +340,7 @@ function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string |
   ${balanceAfterSection}
   ${cashSection ? `<hr/>${cashSection}` : ""}
   <hr/>
-  <p class="center sub">${lbl.thanks}</p>
+  <p class="center sub">${school.receiptFooter || lbl.thanks}</p>
 </body>
 </html>`;
 }
@@ -1163,10 +1171,27 @@ const Receipts = () => {
                   </div>
                 </div>
               )}
-              <Button className="w-full" variant="outline" onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName, i18n.language)}>
-                <Download className="h-4 w-4 mr-2" />
-                {t("receipts.download")}
-              </Button>
+              {/* Two-button grid mirrors ReceiptDetailDialog: a prominent
+                  "Print" (silent on POS stations launched with --kiosk-printing,
+                  print dialog elsewhere) and a quieter "Save PDF" for the
+                  admin laptop / parent flow. Both go through printReceipt() so
+                  the rendering stays single-source. */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                  onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName, i18n.language)}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  {t("receipts.print", "Print")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName, i18n.language)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t("receipts.download", "Save PDF")}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

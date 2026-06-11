@@ -19,7 +19,7 @@ from app.services import email_service
 
 router = APIRouter()
 
-SCHOOL_KEYS = {"school_name", "school_address", "school_tax_id", "school_phone", "school_logo_url", "school_cover_url"}
+SCHOOL_KEYS = {"school_name", "school_address", "school_tax_id", "school_phone", "school_logo_url", "school_cover_url", "school_receipt_footer"}
 
 
 class SettingUpdate(BaseModel):
@@ -33,12 +33,19 @@ class SchoolSettingsUpdate(BaseModel):
     school_phone: str = ""
     school_logo_url: str = ""
     school_cover_url: str = ""
+    school_receipt_footer: str = ""
 
 
 @router.get("/public", response_model=Dict[str, Any])
 def get_public_settings(db: Session = Depends(get_db)):
     """Public endpoint — no auth required. Returns only safe display fields."""
-    public_keys = ("school_name", "school_cover_url", "school_logo_url")
+    # Receipt fields (address, tax id, phone, footer) are included so the
+    # SchoolInfo context can hydrate receipt rendering for non-admin roles
+    # (cashier/manager/parent) without needing the admin /school endpoint.
+    public_keys = (
+        "school_name", "school_cover_url", "school_logo_url",
+        "school_address", "school_tax_id", "school_phone", "school_receipt_footer",
+    )
     result = {}
     for key in public_keys:
         val = SettingsService.get_raw(db, key)
