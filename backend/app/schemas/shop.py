@@ -33,6 +33,7 @@ class ShopBase(BaseModel):
     allow_department_charge: bool = False
     module: ShopModule = "store"
     uses_dual_pricing: bool = True
+    spending_group_id: Optional[int] = None
 
 
 class ShopCreate(ShopBase):
@@ -46,6 +47,7 @@ class ShopUpdate(BaseModel):
     allow_department_charge: Optional[bool] = None
     module: Optional[ShopModule] = None
     uses_dual_pricing: Optional[bool] = None
+    spending_group_id: Optional[int] = None
 
 
 class ShopResponse(ShopBase):
@@ -53,6 +55,7 @@ class ShopResponse(ShopBase):
     is_active: bool
     created_at: datetime
     products_order_version: int = 1
+    spending_group_id: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

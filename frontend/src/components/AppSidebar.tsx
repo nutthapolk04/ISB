@@ -21,6 +21,7 @@ import {
   BookOpen,
   Monitor,
   ClipboardList,
+  Layers,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -90,7 +91,11 @@ const menuGroups: MenuGroup[] = [
   },
   {
     labelKey: "nav.groupShopManagement",
-    module: "store",
+    // module: null so canteen managers see this group too — ShopManagement.tsx
+    // auto-redirects non-admins to their own shop's detail page, so opening
+    // /store/management from a canteen role lands on the canteen shop (not
+    // a store-only screen). Admins still see the full list.
+    module: null,
     items: [
       { titleKey: "nav.storeManagement",  url: "/store/management",     icon: Building2,   roles: ["manager", "admin"], matchPrefix: true },
     ],
@@ -99,7 +104,10 @@ const menuGroups: MenuGroup[] = [
     labelKey: "nav.groupUsers",
     module: null,
     items: [
-      { titleKey: "nav.users",            url: "/users",                icon: UserCog,     roles: ["admin"], matchPrefix: true },
+      // Managers see this link too — the Users page renders a shop-scoped
+      // ShopUserManagement view for non-admins (see UserManagement.tsx),
+      // so a canteen manager can create cashiers in their own shop only.
+      { titleKey: "nav.users",            url: "/users",                icon: UserCog,     roles: ["admin", "manager"], matchPrefix: true },
     ],
   },
   {
@@ -113,6 +121,7 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.adminAuditLogs",    url: "/admin/audit-logs",     icon: History,           roles: ["admin"] },
       { titleKey: "nav.adminSettings",     url: "/admin/settings",       icon: SettingsIcon,      roles: ["admin"] },
       { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display", icon: Monitor,        roles: ["admin"] },
+      { titleKey: "nav.adminSpendingGroups", url: "/admin/spending-groups", icon: Layers,            roles: ["admin"] },
     ],
   },
   {

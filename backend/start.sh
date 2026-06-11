@@ -708,6 +708,74 @@ run('ALTER TABLE price_panel_items ALTER COLUMN product_id DROP NOT NULL',
 run('CREATE INDEX IF NOT EXISTS ix_price_panel_items_bundle_id ON price_panel_items(bundle_id)',
     'price_panel_items idx bundle_id')
 
+# === Phase 6: Spending Groups (Daily Spending Limit feature) ===
+run('''
+    CREATE TABLE IF NOT EXISTS spending_groups (
+        id           SERIAL PRIMARY KEY,
+        code         VARCHAR(40) UNIQUE NOT NULL,
+        name_en      VARCHAR(100) NOT NULL,
+        name_th      VARCHAR(100) NOT NULL,
+        daily_limit  NUMERIC(10,2) NOT NULL,
+        is_active    BOOLEAN NOT NULL DEFAULT true,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT chk_spending_groups_limit_positive CHECK (daily_limit > 0)
+    )
+''', 'spending_groups table')
+
+run('CREATE INDEX IF NOT EXISTS ix_spending_groups_active ON spending_groups(is_active)',
+    'spending_groups idx active')
+
+# Seed two default groups (idempotent)
+run("""INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
+       ('canteen','Canteen','โรงอาหาร', 500)
+       ON CONFLICT (code) DO NOTHING""", 'spending_groups seed canteen', ok_if_exists=False)
+run("""INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
+       ('store','Store','ร้านค้า', 25000)
+       ON CONFLICT (code) DO NOTHING""", 'spending_groups seed store', ok_if_exists=False)
+
+# shops.spending_group_id — split column-add and FK
+run('ALTER TABLE shops ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
+    'shops.spending_group_id (column only)')
+run(
+    "DO $$ BEGIN "
+    "  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='shops_spending_group_id_fkey') THEN "
+    "    ALTER TABLE shops ADD CONSTRAINT shops_spending_group_id_fkey "
+    "      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; "
+    "  END IF; "
+    "END $$;",
+    'shops.spending_group_id (FK)',
+)
+run('CREATE INDEX IF NOT EXISTS ix_shops_spending_group ON shops(spending_group_id)',
+    'shops idx spending_group')
+
+# Backfill by module
+run("UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE code='canteen') "
+    "WHERE module='canteen' AND spending_group_id IS NULL",
+    'shops.spending_group_id backfill canteen', ok_if_exists=False)
+run("UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE code='store') "
+    "WHERE module='store' AND spending_group_id IS NULL",
+    'shops.spending_group_id backfill store', ok_if_exists=False)
+
+# receipts.spending_group_id snapshot column
+run('ALTER TABLE receipts ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
+    'receipts.spending_group_id (column only)')
+run(
+    "DO $$ BEGIN "
+    "  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='receipts_spending_group_id_fkey') THEN "
+    "    ALTER TABLE receipts ADD CONSTRAINT receipts_spending_group_id_fkey "
+    "      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; "
+    "  END IF; "
+    "END $$;",
+    'receipts.spending_group_id (FK)',
+)
+
+# Hot-path index for spent-today aggregation
+run("CREATE INDEX IF NOT EXISTS ix_receipts_payer_shop_date "
+    "ON receipts (payer_user_id, customer_id, payer_department_id, spending_group_id, transaction_date) "
+    "WHERE status = 'ACTIVE'",
+    'receipts idx payer+group+date')
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),
@@ -768,12 +836,15 @@ required_cols = [
     ('price_panel_items', 'bundle_id'),
     ('customer_display_images', 'data'),
     ('payment_intents', 'txn_no'),
+    ('shops', 'spending_group_id'),
+    ('receipts', 'spending_group_id'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',
     'family_profiles', 'menu_option_groups', 'menu_options', 'audit_logs',
     'product_order_history', 'sync_audit_logs',
     'email_alerts_log',
+    'spending_groups',
 ]
 
 missing = []

@@ -80,6 +80,7 @@ import { CashierTopupModal } from "@/components/CashierTopupModal";
 import { UpToDateSaleButton } from "@/components/canteen/UpToDateSaleButton";
 import { Switch } from "@/components/ui/switch";
 import { Printer } from "lucide-react";
+import { SpendingLimitChip } from "@/components/SpendingLimitChip";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
@@ -258,6 +259,8 @@ export default function Canteen() {
   const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
   // Pre-selected member from search (for "ready to pay" flow)
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
+  // Increment to trigger spending chip refresh after successful checkout
+  const [chipRefreshKey, setChipRefreshKey] = useState(0);
 
   // ── Departments (for department payment option) ──────────────────────────
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
@@ -657,6 +660,8 @@ export default function Canteen() {
       studentPhotoUrl: student?.photo_url ?? null,
       studentGrade: student?.grade ?? null,
     });
+    // Refresh spending limit chip after each successful checkout
+    setChipRefreshKey((k) => k + 1);
     // Auto-print receipt — fires once per completed sale. Silent printing
     // requires Chromium launched with --kiosk-printing on the cashier station.
     // Skipped entirely when the per-station auto-print toggle is off.
@@ -1151,6 +1156,21 @@ export default function Canteen() {
           </div>
         )}
 
+        {/* Today's spending limit — shown when member is scanned */}
+        {preSelectedMember && (
+          <div className="px-1 lg:hidden">
+            <SpendingLimitChip
+              shopId={CANTEEN_SHOP_ID}
+              payerId={
+                preSelectedMember.user_id != null
+                  ? { kind: "user", id: preSelectedMember.user_id }
+                  : { kind: "customer", id: preSelectedMember.id }
+              }
+              refreshKey={chipRefreshKey}
+            />
+          </div>
+        )}
+
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-1 pb-24 lg:pb-2">
           {reorderMode ? (
@@ -1186,6 +1206,19 @@ export default function Canteen() {
 
       {/* Desktop cart panel — visible ≥lg, hidden below */}
       <CanteenCart
+        headerSlot={
+          <SpendingLimitChip
+            shopId={CANTEEN_SHOP_ID}
+            payerId={
+              preSelectedMember
+                ? preSelectedMember.user_id != null
+                  ? { kind: "user", id: preSelectedMember.user_id }
+                  : { kind: "customer", id: preSelectedMember.id }
+                : null
+            }
+            refreshKey={chipRefreshKey}
+          />
+        }
         items={cart.items}
         subtotal={cart.subtotal}
         billDiscountMode={cart.billDiscountMode}

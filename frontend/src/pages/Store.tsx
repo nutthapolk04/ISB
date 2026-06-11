@@ -89,6 +89,7 @@ import { UpToDateSaleButton } from "@/components/canteen/UpToDateSaleButton";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
 import { Switch } from "@/components/ui/switch";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
+import { SpendingLimitChip } from "@/components/SpendingLimitChip";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -597,6 +598,8 @@ const Store = () => {
   const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
   // Pre-selected member from search (for direct wallet charge)
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
+  // Increment after each successful checkout to refresh the SpendingLimitChip
+  const [chipRefreshKey, setChipRefreshKey] = useState(0);
 
   // ── RFID centered notification ────────────────────────────────────────────
   const [rfidNotif, setRfidNotif] = useState<{
@@ -1143,6 +1146,7 @@ const Store = () => {
       setDeptOpen(false);
       setEdcOpen(false);
       setSuccessOpen(true);
+      setChipRefreshKey((k) => k + 1);
 
       // Customer display: payment landed. The display window auto-returns
       // to Standby 5 s after this success message.
@@ -1594,6 +1598,19 @@ const Store = () => {
               maxLength={200}
             />
           </div>
+
+          {/* Spending limit chip — shown when a member is pre-selected */}
+          {user?.shopId && preSelectedMember && (
+            <SpendingLimitChip
+              shopId={user.shopId}
+              payerId={
+                preSelectedMember.user_id != null
+                  ? { kind: "user", id: preSelectedMember.user_id }
+                  : { kind: "customer", id: preSelectedMember.id }
+              }
+              refreshKey={chipRefreshKey}
+            />
+          )}
 
           {/* Total */}
           <div className="flex justify-between items-baseline pt-2">

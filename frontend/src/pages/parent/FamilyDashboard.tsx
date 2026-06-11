@@ -7,7 +7,80 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { AlertCircle, GraduationCap, Lock, UserRound, Wallet as WalletIcon, Receipt, History } from "lucide-react";
+
+interface GroupUsage {
+  spending_group_id: number;
+  code: string;
+  name_en: string;
+  name_th: string;
+  daily_limit: number;
+  spent_today: number;
+  remaining: number;
+}
+
+function ChildTodayActivity({ customerId }: { customerId: number }) {
+  const { t, i18n } = useTranslation();
+  const [groups, setGroups] = useState<GroupUsage[] | null>(null);
+
+  useEffect(() => {
+    api
+      .get<GroupUsage[]>(`/spending-groups/usage-today/by-child?customer_id=${customerId}`)
+      .then((data) => setGroups(data))
+      .catch(() => setGroups([]));
+  }, [customerId]);
+
+  // Don't render while loading or if no active groups
+  if (groups === null || groups.length === 0) return null;
+  // Hide if all groups show zero spent
+  if (groups.every((g) => g.spent_today === 0)) return null;
+
+  const formatTHB = (n: number) =>
+    "฿" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  return (
+    <div className="rounded-md border bg-background/60 p-2.5 space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground">{t("parent.dashboard.todayActivity")}</p>
+      {groups.map((g) => {
+        const pct = g.daily_limit > 0 ? (g.spent_today / g.daily_limit) * 100 : 0;
+        const atLimit = pct >= 100;
+        const nearLimit = pct >= 80 && !atLimit;
+        const name = i18n.language === "th" ? g.name_th : g.name_en;
+        return (
+          <div key={g.spending_group_id} className="space-y-0.5">
+            <div className="flex items-center justify-between text-[0.7rem]">
+              <span className="font-medium truncate">{name}</span>
+              <span
+                className={cn(
+                  "font-mono tabular-nums shrink-0 ml-2",
+                  atLimit ? "text-red-700 font-bold" : nearLimit ? "text-amber-700" : "text-muted-foreground",
+                )}
+              >
+                {t("parent.dashboard.todaySpentVsLimit", {
+                  spent: formatTHB(g.spent_today),
+                  limit: formatTHB(g.daily_limit),
+                })}
+              </span>
+            </div>
+            <Progress
+              value={Math.min(pct, 100)}
+              className={cn(
+                "h-1.5",
+                atLimit
+                  ? "[&>div]:bg-red-500"
+                  : nearLimit
+                  ? "[&>div]:bg-amber-500"
+                  : "[&>div]:bg-primary",
+              )}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface ChildSummary {
   link_id: number;
@@ -321,6 +394,8 @@ export default function FamilyDashboard() {
                       : "-"}
                   </p>
                 </div>
+
+                <ChildTodayActivity customerId={child.customer_id} />
 
                 {child.allergies && (
                   <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">

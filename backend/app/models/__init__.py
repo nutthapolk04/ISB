@@ -29,6 +29,7 @@ from app.models.unit_of_measure import UnitOfMeasure
 from app.models.bundle import ProductBundle, BundleItem
 from app.models.customer_display import CustomerDisplayImage
 from app.models.email_alert_log import EmailAlertLog
+from app.models.spending_group import SpendingGroup
 
 __all__ = [
     "User", "Role", "Permission",
@@ -57,4 +58,5 @@ __all__ = [
     "BundleItem",
     "CustomerDisplayImage",
     "EmailAlertLog",
+    "SpendingGroup",
 ]

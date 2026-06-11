@@ -60,6 +60,7 @@ import CustomerDisplay from "./pages/CustomerDisplay";
 import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 import GuidePage from "./pages/GuidePage";
 import ShopDashboard from "./pages/ShopDashboard";
+import SpendingGroups from "./pages/admin/SpendingGroups";
 
 const queryClient = new QueryClient();
 
@@ -317,6 +318,7 @@ const App = () => {
                   <Route path="/admin/audit-logs" element={<AuditLogList />} />
                   <Route path="/admin/settings" element={<SystemSettings />} />
                   <Route path="/admin/customer-display" element={<CustomerDisplaySettings />} />
+                  <Route path="/admin/spending-groups" element={<SpendingGroups />} />
                   <Route path="/admin/cards" element={<Navigate to="/users?tab=cards" replace />} />
                   <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                   <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />

@@ -13,6 +13,7 @@
     "adminAuditLogs": "Audit Log",
     "adminSettings": "Settings",
     "adminCustomerDisplay": "Customer Display",
+    "adminSpendingGroups": "Spending Groups",
     "systemTitle": "ISB",
     "home": "Home",
     "shopDashboard": "Shop Dashboard",
@@ -1847,7 +1848,11 @@
   },
   "pos": {
     "autoPrint": "Auto-print",
-    "autoPrintTooltip": "Auto-print receipt after each sale"
+    "autoPrintTooltip": "Auto-print receipt after each sale",
+    "todayRemaining": "Today's remaining",
+    "todayUsedOf": "{{spent}} / {{limit}}",
+    "dailyLimitReached": "Daily spending limit reached",
+    "shopMissingGroup": "This shop has no spending group assigned"
   },
   "checkout": {
     "failed": "Checkout failed",
@@ -1897,7 +1902,9 @@
     "INSUFFICIENT_USER_WALLET": "Wallet balance is insufficient. Current: ฿{{balance}}, charge: ฿{{amount}}",
     "INSUFFICIENT_USER_WALLET_TRANSFER": "Source wallet balance is insufficient. Current: ฿{{balance}}, transfer: ฿{{amount}}",
     "EXCEEDS_NEGATIVE_CREDIT_LIMIT": "Wallet would exceed the negative-credit limit. Current: ฿{{balance}}, charge: ฿{{amount}}, allowed overdraft: ฿{{maxOverdraft}}",
-    "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "Wallet would exceed the negative-credit limit. Current: ฿{{balance}}, transfer: ฿{{amount}}, allowed overdraft: ฿{{maxOverdraft}}"
+    "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "Wallet would exceed the negative-credit limit. Current: ฿{{balance}}, transfer: ฿{{amount}}, allowed overdraft: ฿{{maxOverdraft}}",
+    "DAILY_LIMIT_EXCEEDED": "Daily spending limit reached. Spent: ฿{{spent}}, limit: ฿{{limit}}",
+    "SHOP_NOT_ASSIGNED_SPENDING_GROUP": "This shop has no spending group assigned"
   },
   "home": {
     "greeting": "Hi, {{name}}",
@@ -2351,7 +2358,9 @@
       "history": "History",
       "profile": "Profile",
       "cardFrozen": "Card frozen",
-      "allergies": "Allergies: {{items}}"
+      "allergies": "Allergies: {{items}}",
+      "todayActivity": "Today's Activity",
+      "todaySpentVsLimit": "{{spent}} of {{limit}} spent today"
     },
     "wallet": {
       "myWalletLabel": "My Wallet — {{name}}",
@@ -2885,5 +2894,27 @@
     "upperAndLower": "Upper- and lower-case letters",
     "digit": "At least one number",
     "special": "At least one special character (!@#$%^&*…)"
+  },
+  "spendingGroup": {
+    "title": "Spending Groups",
+    "subtitle": "Bundle shops under a shared daily per-payer spending limit",
+    "create": "Add group",
+    "edit": "Edit group",
+    "delete": "Delete group",
+    "deleteConfirm": "Delete this spending group? This cannot be undone.",
+    "deleteBlockedByShops": "Cannot delete — still linked to {{count}} shop(s). Unlink them first.",
+    "duplicateCode": "A group with that code already exists",
+    "code": "Code",
+    "codeHint": "Lowercase letters, digits, underscores. Cannot be changed after creation.",
+    "nameEn": "Name (English)",
+    "nameTh": "Name (Thai)",
+    "dailyLimit": "Daily Limit (฿)",
+    "dailyLimitHint": "Maximum amount a payer can spend per day across all shops in this group.",
+    "enforce": "Enforce limit",
+    "dontEnforce": "Not enforced",
+    "linkedShops": "Linked Shops",
+    "changeWarning": "Spending group changed — receipts already issued keep their original group for reporting",
+    "shopLabel": "Spending Group",
+    "shopNone": "— None —"
   }
 }

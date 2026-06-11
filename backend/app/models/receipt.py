@@ -73,10 +73,16 @@ class Receipt(Base):
     voided_at = Column(DateTime(timezone=True), nullable=True)
     voided_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     voided_reason = Column(String(500), nullable=True)
+    # Snapshot of the shop's spending_group_id at checkout time.
+    # Frozen so that re-grouping a shop mid-day doesn't re-attribute old receipts.
+    spending_group_id = Column(
+        Integer, ForeignKey("spending_groups.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
 
     # Relationships
     customer = relationship("Customer", back_populates="receipts")
     shop = relationship("Shop", foreign_keys=[shop_id])
+    spending_group = relationship("SpendingGroup")
     creator = relationship("User", foreign_keys=[created_by])
     voider = relationship("User", foreign_keys=[voided_by])
     payer_user = relationship("User", foreign_keys=[payer_user_id])

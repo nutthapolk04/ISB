@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -148,6 +148,8 @@ interface CanteenCartProps {
   selectedMember?: StudentLookupResult | null;
   /** Clear the selected member */
   onClearMember?: () => void;
+  /** Optional slot rendered above the cart header (e.g. spending limit chip) */
+  headerSlot?: ReactNode;
 }
 
 export function CanteenCart({
@@ -175,6 +177,7 @@ export function CanteenCart({
   asSheet = false,
   selectedMember,
   onClearMember,
+  headerSlot,
 }: CanteenCartProps) {
   const { t } = useTranslation();
   const isEmpty = items.length === 0;
@@ -187,6 +190,9 @@ export function CanteenCart({
 
   return (
     <aside className={asSheet ? "canteen-cart-sheet" : "canteen-cart-panel"}>
+      {/* Spending limit chip slot (injected by Canteen.tsx) */}
+      {headerSlot && <div className="px-3 pt-3">{headerSlot}</div>}
+
       {/* Header */}
       <div className="px-5 pt-5 pb-3 flex items-start justify-between">
         <div>

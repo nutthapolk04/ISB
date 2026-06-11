@@ -13,6 +13,7 @@
     "adminAuditLogs": "Audit Log",
     "adminSettings": "ตั้งค่าระบบ",
     "adminCustomerDisplay": "Customer Display",
+    "adminSpendingGroups": "กลุ่มวงเงินใช้จ่าย",
     "systemTitle": "ISB",
     "home": "หน้าหลัก",
     "shopDashboard": "Dashboard ร้านค้า",
@@ -1847,7 +1848,11 @@
   },
   "pos": {
     "autoPrint": "พิมพ์อัตโนมัติ",
-    "autoPrintTooltip": "พิมพ์ใบเสร็จอัตโนมัติหลังขายเสร็จทุกครั้ง"
+    "autoPrintTooltip": "พิมพ์ใบเสร็จอัตโนมัติหลังขายเสร็จทุกครั้ง",
+    "todayRemaining": "วงเงินคงเหลือวันนี้",
+    "todayUsedOf": "{{spent}} / {{limit}}",
+    "dailyLimitReached": "ใช้วงเงินวันนี้ครบแล้ว",
+    "shopMissingGroup": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน"
   },
   "checkout": {
     "failed": "ชำระเงินไม่สำเร็จ",
@@ -1897,7 +1902,9 @@
     "INSUFFICIENT_USER_WALLET": "ยอดเงินใน wallet ไม่พอ. คงเหลือ ฿{{balance}}, ต้องชำระ ฿{{amount}}",
     "INSUFFICIENT_USER_WALLET_TRANSFER": "ยอดเงินใน wallet ผู้โอนไม่พอ. คงเหลือ ฿{{balance}}, จะโอน ฿{{amount}}",
     "EXCEEDS_NEGATIVE_CREDIT_LIMIT": "ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿{{balance}}, ต้องชำระ ฿{{amount}}, overdraft ที่อนุญาต ฿{{maxOverdraft}}",
-    "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿{{balance}}, จะโอน ฿{{amount}}, overdraft ที่อนุญาต ฿{{maxOverdraft}}"
+    "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿{{balance}}, จะโอน ฿{{amount}}, overdraft ที่อนุญาต ฿{{maxOverdraft}}",
+    "DAILY_LIMIT_EXCEEDED": "ใช้วงเงินวันนี้ครบแล้ว ใช้ไปแล้ว ฿{{spent}} จากวงเงิน ฿{{limit}}",
+    "SHOP_NOT_ASSIGNED_SPENDING_GROUP": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน"
   },
   "home": {
     "greeting": "สวัสดี, {{name}}",
@@ -2349,7 +2356,9 @@
       "history": "ประวัติ",
       "profile": "โปรไฟล์",
       "cardFrozen": "ระงับการใช้งาน",
-      "allergies": "แพ้: {{items}}"
+      "allergies": "แพ้: {{items}}",
+      "todayActivity": "การใช้จ่ายวันนี้",
+      "todaySpentVsLimit": "ใช้ไปแล้ว {{spent}} จาก {{limit}} วันนี้"
     },
     "wallet": {
       "myWalletLabel": "กระเป๋าของฉัน — {{name}}",
@@ -2883,5 +2892,27 @@
     "upperAndLower": "ตัวพิมพ์ใหญ่และพิมพ์เล็ก",
     "digit": "ตัวเลขอย่างน้อย 1 ตัว",
     "special": "อักขระพิเศษอย่างน้อย 1 ตัว (!@#$%^&*…)"
+  },
+  "spendingGroup": {
+    "title": "กลุ่มวงเงินใช้จ่าย",
+    "subtitle": "กำหนดร้านค้าให้อยู่ภายใต้วงเงินใช้จ่ายรายวันต่อผู้จ่ายร่วมกัน",
+    "create": "เพิ่มกลุ่ม",
+    "edit": "แก้ไขกลุ่ม",
+    "delete": "ลบกลุ่ม",
+    "deleteConfirm": "ยืนยันลบกลุ่มวงเงินนี้? ไม่สามารถกู้คืนได้",
+    "deleteBlockedByShops": "ไม่สามารถลบได้ — ยังมี {{count}} ร้านค้าที่ผูกอยู่ ต้องถอดออกก่อน",
+    "duplicateCode": "มีกลุ่มที่ใช้รหัสนี้แล้ว",
+    "code": "รหัส",
+    "codeHint": "ตัวอักษรพิมพ์เล็ก ตัวเลข ขีดล่าง ไม่สามารถเปลี่ยนได้หลังสร้าง",
+    "nameEn": "ชื่อภาษาอังกฤษ",
+    "nameTh": "ชื่อภาษาไทย",
+    "dailyLimit": "วงเงินรายวัน (฿)",
+    "dailyLimitHint": "จำนวนสูงสุดที่ผู้จ่ายสามารถใช้จ่ายได้ต่อวัน รวมทุกร้านค้าในกลุ่มนี้",
+    "enforce": "บังคับใช้วงเงิน",
+    "dontEnforce": "ไม่บังคับ",
+    "linkedShops": "ร้านค้าในกลุ่ม",
+    "changeWarning": "เปลี่ยนกลุ่มวงเงินแล้ว — ใบเสร็จที่ออกไปแล้วยังคงกลุ่มเดิมสำหรับรายงาน",
+    "shopLabel": "กลุ่มวงเงิน",
+    "shopNone": "— ไม่ระบุ —"
   }
 }

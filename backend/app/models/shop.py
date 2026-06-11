@@ -11,6 +11,9 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 
+# SpendingGroup is imported lazily via string in relationship() to avoid
+# circular imports — the ORM resolves it at mapper configuration time.
+
 
 # ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -70,6 +73,11 @@ class Shop(Base):
     products_order_version = Column(
         Integer, nullable=False, default=1, server_default="1"
     )
+    # FK to spending_groups — NULLable so existing rows survive deploy before backfill.
+    # POS rejects sales at runtime when this is NULL (SHOP_NOT_ASSIGNED_SPENDING_GROUP).
+    spending_group_id = Column(
+        Integer, ForeignKey("spending_groups.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -78,6 +86,7 @@ class Shop(Base):
     categories = relationship("ShopCategory", back_populates="shop", cascade="all, delete-orphan")
     movements = relationship("ShopMovement", back_populates="shop")
     fifo_lots = relationship("FifoLot", back_populates="shop")
+    spending_group = relationship("SpendingGroup", back_populates="shops")
 
     def __repr__(self):
         return f"<Shop(id='{self.id}', name='{self.name}', type={self.shop_type})>"

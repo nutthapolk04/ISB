@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast as sonnerToast } from "@/components/ui/sonner";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,13 @@ import { api } from "@/lib/api";
 
 type ShopModule = "canteen" | "store";
 
+interface SpendingGroupOption {
+  id: number;
+  code: string;
+  name_en: string;
+  name_th: string;
+}
+
 interface ShopApiResponse {
   id: string;
   name: string;
@@ -49,6 +57,7 @@ interface ShopApiResponse {
   created_at: string;
   module: ShopModule;
   allow_department_charge: boolean;
+  spending_group_id: number | null;
 }
 
 interface ShopStats {
@@ -66,6 +75,7 @@ interface Shop {
   shopType: "avg_cost" | "fifo";
   module: ShopModule;
   allowDepartmentCharge: boolean;
+  spendingGroupId: number | null;
 }
 
 const emptyShopForm = {
@@ -76,6 +86,7 @@ const emptyShopForm = {
   shopType: "fifo" as "avg_cost" | "fifo",
   module: "store" as ShopModule,
   allowDepartmentCharge: true,
+  spendingGroupId: "" as string,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -93,6 +104,7 @@ const ShopManagement = () => {
   }, [hasRole, user, navigate]);
 
   const [shops, setShops] = useState<Shop[]>([]);
+  const [spendingGroups, setSpendingGroups] = useState<SpendingGroupOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -107,7 +119,11 @@ const ShopManagement = () => {
   const fetchShops = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await api.get<ShopApiResponse[]>("/shops/?active_only=false");
+      const [data, groups] = await Promise.all([
+        api.get<ShopApiResponse[]>("/shops/?active_only=false"),
+        api.get<SpendingGroupOption[]>("/spending-groups/").catch(() => [] as SpendingGroupOption[]),
+      ]);
+      setSpendingGroups(groups);
       const mapped: Shop[] = await Promise.all(
         data.map(async (s) => {
           let stats: ShopStats = { total_products: 0, low_stock_count: 0, total_value: 0 };
@@ -125,6 +141,7 @@ const ShopManagement = () => {
             shopType: s.shop_type,
             module: s.module ?? "store",
             allowDepartmentCharge: s.allow_department_charge ?? false,
+            spendingGroupId: s.spending_group_id ?? null,
           };
         }),
       );
@@ -156,6 +173,7 @@ const ShopManagement = () => {
         shop_type: shopForm.shopType,
         module: shopForm.module,
         allow_department_charge: shopForm.allowDepartmentCharge,
+        spending_group_id: shopForm.spendingGroupId ? parseInt(shopForm.spendingGroupId) : null,
       });
       toast.success(t("management.shopAdded"));
       setIsAddOpen(false);
@@ -180,6 +198,7 @@ const ShopManagement = () => {
       shopType: shop.shopType,
       module: shop.module,
       allowDepartmentCharge: shop.allowDepartmentCharge,
+      spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
     });
   };
 
@@ -188,13 +207,20 @@ const ShopManagement = () => {
       toast.error(t("management.fillAllRequired"));
       return;
     }
+    const newGroupId = editForm.spendingGroupId ? parseInt(editForm.spendingGroupId) : null;
+    const groupChanged = newGroupId !== editTarget.spendingGroupId;
     try {
       setSaving(true);
       await api.patch(`/shops/${editTarget.id}`, {
         name: editForm.name.trim(),
         description: editForm.description.trim() || null,
         is_active: editForm.isActive === "active",
+        spending_group_id: newGroupId,
       });
+      // Warn when spending group changes
+      if (groupChanged && editTarget.spendingGroupId !== null) {
+        sonnerToast(t("spendingGroup.changeWarning"), { duration: 6000 });
+      }
       toast.success(t("management.shopUpdated"));
       setEditTarget(null);
       await fetchShops();
@@ -339,6 +365,25 @@ const ShopManagement = () => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">{t("management.shopTypeHint")}</p>
+            </div>
+            <div>
+              <Label>{t("spendingGroup.title")}</Label>
+              <Select
+                value={shopForm.spendingGroupId || "__none__"}
+                onValueChange={(v) => setShopForm({ ...shopForm, spendingGroupId: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("spendingGroup.title")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {spendingGroups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.name_en} ({g.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -508,6 +553,25 @@ const ShopManagement = () => {
                 <SelectContent>
                   <SelectItem value="active">{t("management.statusActive")}</SelectItem>
                   <SelectItem value="inactive">{t("management.statusInactive")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("spendingGroup.title")}</Label>
+              <Select
+                value={editForm.spendingGroupId || "__none__"}
+                onValueChange={(v) => setEditForm({ ...editForm, spendingGroupId: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("spendingGroup.title")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {spendingGroups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.name_en} ({g.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

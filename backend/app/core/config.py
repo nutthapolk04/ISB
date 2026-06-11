@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     # pair — prevents spam when a student's balance lingers near the threshold.
     LOW_BALANCE_ALERT_COOLDOWN_HOURS: int = 4
 
+    # Kill-switch for the Daily Spending Limit by Spending Group feature.
+    # Set to False in Railway env to disable limit enforcement globally without
+    # a code deploy (useful during first schema-only rollout phase).
+    SPENDING_LIMIT_ENABLED: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -399,6 +399,45 @@ class POSService:
         bill_discount_amt = max(0.0, min(float(bill_discount), subtotal))
         total = round(subtotal - bill_discount_amt, 2)
 
+        # ── Spending Group limit check ────────────────────────────────────────
+        # Runs AFTER total is finalised, BEFORE wallet balance is mutated.
+        # Skipped entirely when SPENDING_LIMIT_ENABLED is False (kill-switch).
+        from app.services.spending_limit_service import enforce_spending_limit
+        if SettingsService.get_bool(db, "SPENDING_LIMIT_ENABLED", default=True):
+            # Resolve the shop for this transaction (same logic as the
+            # effective_shop_id block below, but read-only).
+            check_shop_id = shop_id
+            if check_shop_id is None and items:
+                first = items[0]
+                if first.get("is_bundle") and first.get("bundle_id"):
+                    bundle_row = (
+                        db.query(ProductBundle)
+                        .filter(ProductBundle.id == first["bundle_id"])
+                        .first()
+                    )
+                    if bundle_row:
+                        check_shop_id = bundle_row.shop_id
+                else:
+                    first_product = (
+                        db.query(ShopProduct)
+                        .filter(ShopProduct.id == first["product_variant_id"])
+                        .first()
+                    )
+                    if first_product:
+                        check_shop_id = first_product.shop_id
+
+            if check_shop_id:
+                check_shop = db.query(Shop).filter(Shop.id == check_shop_id).first()
+                if check_shop:
+                    enforce_spending_limit(
+                        db,
+                        shop=check_shop,
+                        total=total,
+                        payer_customer_id=customer_id if payer_kind == "customer" else None,
+                        payer_user_id=payer_user_id if payer_kind == "user" else None,
+                        payer_department_id=payer_department_id if payment_method == "department" else None,
+                    )
+
         # ── Wallet + card checks ─────────────────────────────────────────────
         # "card_tap" (MIFARE) is a wallet payment initiated by tapping the card;
         # the cashier UI resolves card_uid → customer_id before calling checkout.
@@ -557,6 +596,14 @@ class POSService:
         receipt_payer_user_id = payer_user_id if payer_kind == "user" else None
         receipt_payer_department_id = payer_department_id if is_department_payment else None
 
+        # Snapshot spending_group_id from the shop at insert time.
+        # This freezes historical attribution even if the shop is later re-grouped.
+        receipt_spending_group_id: Optional[int] = None
+        if effective_shop_id:
+            _snap_shop = db.query(Shop).filter(Shop.id == effective_shop_id).first()
+            if _snap_shop:
+                receipt_spending_group_id = _snap_shop.spending_group_id
+
         receipt = Receipt(
             receipt_number=receipt_number,
             transaction_mode=TransactionMode(transaction_mode),
@@ -577,6 +624,7 @@ class POSService:
             edc_approval_code=(edc_approval_code or None),
             edc_masked_card=(edc_masked_card or None),
             cash_received=(cash_received if payment_method == "cash" else None),
+            spending_group_id=receipt_spending_group_id,
         )
         db.add(receipt)
         db.flush()
