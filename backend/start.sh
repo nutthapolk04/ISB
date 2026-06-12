@@ -727,12 +727,12 @@ run('CREATE INDEX IF NOT EXISTS ix_spending_groups_active ON spending_groups(is_
     'spending_groups idx active')
 
 # Seed two default groups (idempotent)
-run("""INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
+run('''INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
        ('canteen','Canteen','โรงอาหาร', 500)
-       ON CONFLICT (code) DO NOTHING""", 'spending_groups seed canteen', ok_if_exists=False)
-run("""INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
+       ON CONFLICT (code) DO NOTHING''', 'spending_groups seed canteen', ok_if_exists=False)
+run('''INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
        ('store','Store','ร้านค้า', 25000)
-       ON CONFLICT (code) DO NOTHING""", 'spending_groups seed store', ok_if_exists=False)
+       ON CONFLICT (code) DO NOTHING''', 'spending_groups seed store', ok_if_exists=False)
 
 # shops.spending_group_id — split column-add and FK
 run('ALTER TABLE shops ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
