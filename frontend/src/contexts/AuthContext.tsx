@@ -11,7 +11,8 @@ export type UserRole =
   | "staff"
   | "teacher"
   | "kitchen"
-  | "canteen_owner";
+  | "canteen_owner"
+  | "refund_officer";
 /** Shop id is a free-form string now — canteens can have many sub-shops (e.g. canteen_thai) */
 export type ShopId = string;
 /** Functional module drives which POS/UI a user sees. */
@@ -62,6 +63,8 @@ const MOCK_USERS: (AuthUser & { password: string })[] = [
   { id: 13, username: "cashier_canteen_thai",    password: "cashier",   fullName: "Cashier (Thai Kitchen)",        role: "cashier", allRoles: ["cashier"],           activeRole: "cashier", shopId: "canteen_thai",   shopName: "Thai Kitchen",      shopModule: "canteen" },
   { id: 14, username: "manager_canteen_drinks",  password: "manager",   fullName: "Manager (Drinks & Snacks)",     role: "manager", allRoles: ["manager"],           activeRole: "manager", shopId: "canteen_drinks", shopName: "Drinks & Snacks",   shopModule: "canteen" },
   { id: 15, username: "cashier_canteen_drinks",  password: "cashier",   fullName: "Cashier (Drinks & Snacks)",     role: "cashier", allRoles: ["cashier"],           activeRole: "cashier", shopId: "canteen_drinks", shopName: "Drinks & Snacks",   shopModule: "canteen" },
+  // Refund officer (handles refund requests across shops)
+  { id: 17, username: "refund_officer",          password: "refund",    fullName: "Refund Officer",                role: "refund_officer", allRoles: ["refund_officer"], activeRole: "refund_officer", shopId: null, shopName: null, shopModule: null },
   // PowerSchool staff (has_children=true — demo: staff + parent dual-role)
   { id: 202301, username: "somchair",  password: "parent", fullName: "Somchai RAKDEE",           role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
   { id: 202303, username: "prasitj",   password: "parent", fullName: "Prasit JAIDEE",            role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },

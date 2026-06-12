@@ -88,6 +88,7 @@ class WalletTransaction(Base):
     description = Column(String(500), nullable=True)
     reason = Column(Text, nullable=True)
     reference_ticket = Column(String(100), nullable=True)
+    refund_method = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 

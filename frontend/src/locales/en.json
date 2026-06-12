@@ -42,7 +42,8 @@
     "adminStudents": "Students",
     "groupCanteenManagement": "Canteen Management",
     "canteenManagement": "Canteen Stalls",
-    "guide": "User Guide"
+    "guide": "User Guide",
+    "refund": "Refund"
   },
   "serverStatus": {
     "label": "Server",
@@ -2916,5 +2917,60 @@
     "changeWarning": "Spending group changed — receipts already issued keep their original group for reporting",
     "shopLabel": "Spending Group",
     "shopNone": "— None —"
+  },
+  "refund": {
+    "pageTitle": "Graduation Wallet Refund",
+    "pageDescription": "Process wallet refunds for graduated or withdrawn students",
+    "tableEmpty": "No eligible customers found",
+    "col": {
+      "name": "Name",
+      "studentCode": "Student Code",
+      "familyCode": "Family Code",
+      "graduated": "Graduated",
+      "balance": "Wallet Balance",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "graduated": "Graduated",
+      "active": "Active"
+    },
+    "action": {
+      "refund": "Refund"
+    },
+    "refundForCustomer": "Refund for {{name}}",
+    "dialog": {
+      "title": "Issue Refund",
+      "customerLabel": "Customer",
+      "balanceLabel": "Current Balance",
+      "amount": "Amount (THB)",
+      "amountHelp": "Maximum: current wallet balance",
+      "methodLabel": "Refund Method",
+      "methodPlaceholder": "Select payout method",
+      "method": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank Transfer",
+        "CHEQUE": "Cheque"
+      },
+      "notes": "Notes",
+      "notesPlaceholder": "Optional notes (e.g., bank account, cheque number)",
+      "confirm": "Confirm Refund",
+      "cancel": "Cancel",
+      "processing": "Processing..."
+    },
+    "toast": {
+      "success": "Refund issued successfully",
+      "error": "Refund failed"
+    },
+    "error": {
+      "insufficient": "Insufficient wallet balance",
+      "invalidAmount": "Amount must be greater than 0",
+      "invalidMethod": "Invalid refund method",
+      "notFound": "Customer or wallet not found"
+    },
+    "confirm": {
+      "title": "Confirm refund",
+      "message": "This will deduct {amount} THB from {name}'s wallet. This action cannot be undone."
+    }
   }
 }

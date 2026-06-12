@@ -1,7 +1,7 @@
 """
 Customer and CustomerType Models
 """
-from sqlalchemy import Column, Integer, String, Text, Boolean, Numeric, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Text, Boolean, Numeric, Date, DateTime, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -68,6 +68,8 @@ class Customer(Base):
     # string stays as a PS-side hint and isn't repurposed.
     customer_kind = Column(String(20), nullable=False, server_default="other", index=True)
     is_graduated = Column(Boolean, default=False, nullable=False, server_default="false")
+    enroll_date = Column(Date, nullable=True)
+    withdraw_date = Column(Date, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

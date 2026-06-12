@@ -116,7 +116,7 @@ def require_role(*allowed_roles: str):
         def void_receipt(current_user: User = Depends(require_role("admin", "manager"))):
             ...
 
-    Roles: "admin", "manager", "cashier", "parent"
+    Roles: "admin", "manager", "cashier", "parent", "refund_officer"
     - is_superuser=True always treated as "admin".
     - Supports users with multiple roles via User.roles many-to-many (Staff-Parent hybrid).
     """

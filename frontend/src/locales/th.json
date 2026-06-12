@@ -42,7 +42,8 @@
     "adminStudents": "รายชื่อนักเรียน",
     "groupCanteenManagement": "จัดการโรงอาหาร",
     "canteenManagement": "จุดขายทั้งหมด",
-    "guide": "คู่มือการใช้งาน"
+    "guide": "คู่มือการใช้งาน",
+    "refund": "คืนเงิน"
   },
   "serverStatus": {
     "label": "เซิร์ฟเวอร์",
@@ -2914,5 +2915,60 @@
     "changeWarning": "เปลี่ยนกลุ่มวงเงินแล้ว — ใบเสร็จที่ออกไปแล้วยังคงกลุ่มเดิมสำหรับรายงาน",
     "shopLabel": "กลุ่มวงเงิน",
     "shopNone": "— ไม่ระบุ —"
+  },
+  "refund": {
+    "pageTitle": "คืนเงินใน Wallet สำหรับนักเรียนจบการศึกษา",
+    "pageDescription": "ดำเนินการคืนเงินใน Wallet สำหรับนักเรียนที่จบการศึกษาหรือลาออกแล้ว",
+    "tableEmpty": "ไม่พบนักเรียนที่ตรงเงื่อนไข",
+    "col": {
+      "name": "ชื่อ",
+      "studentCode": "รหัสนักเรียน",
+      "familyCode": "รหัสครอบครัว",
+      "graduated": "จบการศึกษา",
+      "balance": "ยอดคงเหลือ",
+      "status": "สถานะ",
+      "actions": "การดำเนินการ"
+    },
+    "status": {
+      "graduated": "จบการศึกษา",
+      "active": "กำลังศึกษา"
+    },
+    "action": {
+      "refund": "คืนเงิน"
+    },
+    "refundForCustomer": "คืนเงินให้ {{name}}",
+    "dialog": {
+      "title": "คืนเงิน",
+      "customerLabel": "นักเรียน",
+      "balanceLabel": "ยอดคงเหลือปัจจุบัน",
+      "amount": "จำนวนเงิน (บาท)",
+      "amountHelp": "ไม่เกินยอดคงเหลือใน Wallet",
+      "methodLabel": "วิธีการคืนเงิน",
+      "methodPlaceholder": "เลือกวิธีการคืนเงิน",
+      "method": {
+        "CASH": "เงินสด",
+        "BANK_TRANSFER": "โอนผ่านธนาคาร",
+        "CHEQUE": "เช็ค"
+      },
+      "notes": "หมายเหตุ",
+      "notesPlaceholder": "หมายเหตุเพิ่มเติม (เช่น เลขบัญชี, เลขเช็ค)",
+      "confirm": "ยืนยันการคืนเงิน",
+      "cancel": "ยกเลิก",
+      "processing": "กำลังดำเนินการ..."
+    },
+    "toast": {
+      "success": "คืนเงินสำเร็จ",
+      "error": "คืนเงินไม่สำเร็จ"
+    },
+    "error": {
+      "insufficient": "ยอดเงินใน Wallet ไม่เพียงพอ",
+      "invalidAmount": "จำนวนเงินต้องมากกว่า 0",
+      "invalidMethod": "วิธีการคืนเงินไม่ถูกต้อง",
+      "notFound": "ไม่พบนักเรียนหรือ Wallet"
+    },
+    "confirm": {
+      "title": "ยืนยันการคืนเงิน",
+      "message": "ระบบจะหักเงินจำนวน {amount} บาท จาก Wallet ของ {name}. การดำเนินการนี้ไม่สามารถยกเลิกได้"
+    }
   }
 }

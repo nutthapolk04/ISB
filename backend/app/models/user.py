@@ -36,7 +36,7 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_superuser = Column(Boolean, default=False, nullable=False)
     role = Column(String(20), nullable=True, default="cashier", server_default="cashier")
-    # admin | manager | cashier | parent | staff | student | teacher | canteen_owner | visitor
+    # admin | manager | cashier | parent | staff | student | teacher | canteen_owner | visitor | refund_officer
     terminal_id = Column(String(50), nullable=True)  # Assigned POS terminal
     # Phase 3.5 — PowerSchool integration
     external_id = Column(String(50), nullable=True, index=True)   # PowerSchool ID (mutable)

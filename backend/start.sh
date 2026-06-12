@@ -776,6 +776,14 @@ run('CREATE INDEX IF NOT EXISTS ix_receipts_payer_shop_date '
     \"WHERE status = 'ACTIVE'\",
     'receipts idx payer+group+date')
 
+# === Graduation Refund feature — extra fields ===
+run('ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)',
+    'wallet_transactions.refund_method')
+run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS enroll_date DATE',
+    'customers.enroll_date')
+run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE',
+    'customers.withdraw_date')
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),
@@ -838,6 +846,9 @@ required_cols = [
     ('payment_intents', 'txn_no'),
     ('shops', 'spending_group_id'),
     ('receipts', 'spending_group_id'),
+    ('wallet_transactions', 'refund_method'),
+    ('customers', 'enroll_date'),
+    ('customers', 'withdraw_date'),
 ]
 required_tables = [
     'parent_child_links', 'payment_intents', 'identity_mappings', 'sync_logs',

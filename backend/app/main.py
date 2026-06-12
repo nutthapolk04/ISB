@@ -23,7 +23,7 @@ from app.api.v1 import (
     family, users, users_admin, sync,
     admin_cardholders, admin_departments, admin_audit, admin_settings, departments, reports,
     uom, bundles, price_panels, canteen, admin_import, customer_display,
-    bay, spending_groups,
+    bay, spending_groups, refund,
 )
 
 # Create database tables (idempotent — won't drop existing data)
@@ -49,6 +49,10 @@ def _ensure_runtime_schema() -> None:
         "ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_threshold NUMERIC(10,2)",
         "ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_alert_enabled BOOLEAN NOT NULL DEFAULT false",
         "ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS last_low_balance_alert_at TIMESTAMP WITH TIME ZONE",
+        # Graduation Refund feature — extra fields
+        "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)",
+        "ALTER TABLE customers ADD COLUMN IF NOT EXISTS enroll_date DATE",
+        "ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE",
     ]
     for stmt in stmts:
         try:
@@ -132,6 +136,7 @@ app.include_router(customer_display.public_router, prefix="/api/v1/customer-disp
 app.include_router(customer_display.admin_router, prefix="/api/v1/admin/customer-display", tags=["Customer Display (Admin)"])
 app.include_router(bay.router, prefix="/api/v1/bay", tags=["BAY Payments"])
 app.include_router(spending_groups.router, prefix="/api/v1/spending-groups", tags=["Spending Groups"])
+app.include_router(refund.router, prefix="/api/v1/refund", tags=["Graduation Refund"])
 
 
 # Exception handlers

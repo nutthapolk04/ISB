@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # Allowed role values for create/update payloads. Admins bypass restrictions
 # at the API layer, so this literal simply enforces the vocabulary.
-UserRole = Literal["cashier", "manager", "admin", "parent", "student"]
+UserRole = Literal["cashier", "manager", "admin", "parent", "student", "refund_officer"]
 
 
 class UserResponse(BaseModel):

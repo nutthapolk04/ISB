@@ -22,6 +22,7 @@ import {
   Monitor,
   ClipboardList,
   Layers,
+  HandCoins,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -122,6 +123,7 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.adminSettings",     url: "/admin/settings",       icon: SettingsIcon,      roles: ["admin"] },
       { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display", icon: Monitor,        roles: ["admin"] },
       { titleKey: "nav.adminSpendingGroups", url: "/admin/spending-groups", icon: Layers,            roles: ["admin"] },
+      { titleKey: "nav.refund",            url: "/refund",               icon: HandCoins,         roles: ["admin"] },
     ],
   },
   {
@@ -144,6 +146,12 @@ export function AppSidebar() {
     item.matchPrefix
       ? location.pathname.startsWith(item.url)
       : location.pathname === item.url;
+
+  /** Refund-only mode: when a single-role refund_officer is signed in, show
+   *  ONLY the Refund menu item — hide POS, Store, Canteen, Admin, etc. */
+  const activeRole = user?.activeRole ?? user?.role;
+  const allRoles = user?.allRoles ?? (user ? [user.role] : []);
+  const isRefundOnlyMode = activeRole === "refund_officer" && allRoles.length === 1;
 
   /** Group visibility: admin sees everything non-parent; otherwise filter by module */
   const groupVisible = (g: MenuGroup): boolean => {
@@ -184,8 +192,31 @@ export function AppSidebar() {
           </SidebarGroupLabel>
         </SidebarGroup>
 
+        {/* Refund-only mode: single-role refund_officer sees only the Refund menu */}
+        {isRefundOnlyMode && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={t("nav.refund")}
+                    isActive={location.pathname === "/refund"}
+                    className="text-base p-3 h-auto"
+                  >
+                    <NavLink to="/refund" className="h-auto min-h-fit">
+                      <HandCoins className="h-5 w-5" />
+                      <span>{t("nav.refund")}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Home Hub — visible for multi-role users OR staff with a shop assignment */}
-        {user && ((user.allRoles?.length ?? 1) > 1 || (user.role === "staff" && !!user.shopId)) && (
+        {!isRefundOnlyMode && user && ((user.allRoles?.length ?? 1) > 1 || (user.role === "staff" && !!user.shopId)) && (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0">
@@ -208,7 +239,7 @@ export function AppSidebar() {
         )}
 
         {/* Nav groups */}
-        {menuGroups.map((group) => {
+        {!isRefundOnlyMode && menuGroups.map((group) => {
           if (!groupVisible(group)) return null;
 
           // staff with a shop_id can access POS + receipts (cashier/manager-level items only)

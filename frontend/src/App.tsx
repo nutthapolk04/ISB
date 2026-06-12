@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import Store from "./pages/Store";
 import Canteen from "./pages/Canteen";
 import Returns from "./pages/Returns";
+import RefundList from "./pages/refund/RefundList";
 import ReturnHistory from "./pages/ReturnHistory";
 import Receipts from "./pages/Receipts";
 import Reports from "./pages/Reports";
@@ -303,6 +304,11 @@ const App = () => {
                 <Route element={<RequireRole roles={["admin", "manager"]} />}>
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/users/:userId" element={<UserDetail />} />
+                </Route>
+
+                {/* Graduation Refund — admin + refund_officer only */}
+                <Route element={<RequireRole roles={["admin", "refund_officer"]} />}>
+                  <Route path="/refund" element={<RefundList />} />
                 </Route>
                 {/* Legacy redirects */}
                 <Route path="/admin/users" element={<Navigate to="/users" replace />} />

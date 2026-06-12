@@ -712,6 +712,22 @@ def seed():
             print(f"  ⚙ Reset stock fields on {n} canteen product(s)")
         db.commit()
 
+    # ── Roles (RBAC vocabulary table) ──────────────────────────────────────
+    # Most roles get auto-created by /api/v1/auth/users/{id}/roles when
+    # assigned, but we explicitly pre-seed `refund_officer` so it exists in
+    # the `roles` table from day one (used by the refund-approval workflow).
+    # Idempotent: only insert if a row with that name doesn't already exist.
+    print("\nSeeding roles...")
+    from app.models.user import Role as _Role
+    ROLE_ROWS = [
+        ("refund_officer", "Approves and processes refund / return requests"),
+    ]
+    for _rname, _rdesc in ROLE_ROWS:
+        if not db.query(_Role).filter(_Role.name == _rname).first():
+            db.add(_Role(name=_rname, description=_rdesc, is_active=True))
+            print(f"  + Role: {_rname}")
+    db.commit()
+
     # ── Users (10 accounts — match frontend AuthContext) ───────────────────
     # Personal wallet starter balances — pre-loaded so demo viewers can show
     # POS spending / topup / family transfer flows without first manually
@@ -770,6 +786,11 @@ def seed():
     upsert_user("kitchen_canteen_thai", "kitchen", "Kitchen (Thai Kitchen)",
                 "kitchen.thai@isb-coop.local", role="kitchen", external_id="PSKI-00301",
                 shop_id="canteen_thai", wallet_balance=300)
+    # Refund officer demo — local staff role for the refund/return approval flow.
+    # upsert_user is idempotent (filters by username) so re-runs won't duplicate.
+    upsert_user("refund_officer_demo", "refund_officer", "Refund Officer (Demo)",
+                "refund.officer@isb-coop.local", role="refund_officer",
+                external_id="PSRO-00401")
 
     db.commit()
 
