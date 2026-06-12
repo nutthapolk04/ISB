@@ -695,12 +695,12 @@ run('CREATE INDEX IF NOT EXISTS ix_customer_display_images_sort ON customer_disp
 run('ALTER TABLE price_panel_items ADD COLUMN IF NOT EXISTS bundle_id INTEGER',
     'price_panel_items.bundle_id (column only)')
 run(
-    \"DO $$ BEGIN \"
+    \"DO \$\$ BEGIN \"
     \"  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'price_panel_items_bundle_id_fkey') THEN \"
     \"    ALTER TABLE price_panel_items ADD CONSTRAINT price_panel_items_bundle_id_fkey \"
     \"      FOREIGN KEY (bundle_id) REFERENCES product_bundles(id) ON DELETE CASCADE; \"
     \"  END IF; \"
-    \"END $$;\",
+    \"END \$\$;\",
     'price_panel_items.bundle_id (FK)',
 )
 run('ALTER TABLE price_panel_items ALTER COLUMN product_id DROP NOT NULL',
