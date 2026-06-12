@@ -738,12 +738,12 @@ run('''INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
 run('ALTER TABLE shops ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
     'shops.spending_group_id (column only)')
 run(
-    'DO $$ BEGIN '
+    'DO \$\$ BEGIN '
     \"  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='shops_spending_group_id_fkey') THEN \"
     '    ALTER TABLE shops ADD CONSTRAINT shops_spending_group_id_fkey '
     '      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; '
     '  END IF; '
-    'END $$;',
+    'END \$\$;',
     'shops.spending_group_id (FK)',
 )
 run('CREATE INDEX IF NOT EXISTS ix_shops_spending_group ON shops(spending_group_id)',
@@ -761,12 +761,12 @@ run(\"UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE
 run('ALTER TABLE receipts ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
     'receipts.spending_group_id (column only)')
 run(
-    'DO $$ BEGIN '
+    'DO \$\$ BEGIN '
     \"  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='receipts_spending_group_id_fkey') THEN \"
     '    ALTER TABLE receipts ADD CONSTRAINT receipts_spending_group_id_fkey '
     '      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; '
     '  END IF; '
-    'END $$;',
+    'END \$\$;',
     'receipts.spending_group_id (FK)',
 )
 
