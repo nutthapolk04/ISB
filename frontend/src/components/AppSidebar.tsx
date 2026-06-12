@@ -60,6 +60,34 @@ interface MenuGroup {
 
 const menuGroups: MenuGroup[] = [
   {
+    labelKey: "nav.groupAdmin",
+    module: null,
+    items: [
+      { titleKey: "nav.adminDashboard",    url: "/admin",            icon: LayoutDashboard, roles: ["admin"] },
+      { titleKey: "nav.adminAuditLogs",    url: "/admin/audit-logs", icon: History,         roles: ["admin"] },
+    ],
+  },
+  {
+    labelKey: "nav.groupUsers",
+    module: null,
+    items: [
+      // Managers see this link too — the Users page renders a shop-scoped
+      // ShopUserManagement view for non-admins (see UserManagement.tsx),
+      // so a canteen manager can create cashiers in their own shop only.
+      { titleKey: "nav.users",            url: "/users",                icon: UserCog,     roles: ["admin", "manager"], matchPrefix: true },
+    ],
+  },
+  {
+    labelKey: "nav.groupWalletOps",
+    module: null,
+    items: [
+      { titleKey: "nav.adminWalletAdjust",    url: "/admin/wallet-adjust",     icon: SlidersHorizontal, roles: ["admin"] },
+      { titleKey: "nav.adminWalletTransfer",  url: "/admin/wallet-transfer",   icon: ArrowLeftRight,    roles: ["admin"] },
+      { titleKey: "nav.adminDeptAdjust",      url: "/admin/department-adjust", icon: Building2,         roles: ["admin"] },
+      { titleKey: "nav.refund",               url: "/refund",                  icon: HandCoins,         roles: ["admin"] },
+    ],
+  },
+  {
     labelKey: "nav.groupCanteen",
     module: "canteen",
     items: [
@@ -92,38 +120,18 @@ const menuGroups: MenuGroup[] = [
   },
   {
     labelKey: "nav.groupShopManagement",
-    // module: null so canteen managers see this group too — ShopManagement.tsx
-    // auto-redirects non-admins to their own shop's detail page, so opening
-    // /store/management from a canteen role lands on the canteen shop (not
-    // a store-only screen). Admins still see the full list.
-    module: null,
+    module: "store",
     items: [
       { titleKey: "nav.storeManagement",  url: "/store/management",     icon: Building2,   roles: ["manager", "admin"], matchPrefix: true },
     ],
   },
   {
-    labelKey: "nav.groupUsers",
+    labelKey: "nav.groupSystem",
     module: null,
     items: [
-      // Managers see this link too — the Users page renders a shop-scoped
-      // ShopUserManagement view for non-admins (see UserManagement.tsx),
-      // so a canteen manager can create cashiers in their own shop only.
-      { titleKey: "nav.users",            url: "/users",                icon: UserCog,     roles: ["admin", "manager"], matchPrefix: true },
-    ],
-  },
-  {
-    labelKey: "nav.groupAdmin",
-    module: null,
-    items: [
-      { titleKey: "nav.adminDashboard",    url: "/admin",                icon: LayoutDashboard,   roles: ["admin"] },
-      { titleKey: "nav.adminWalletAdjust",      url: "/admin/wallet-adjust",       icon: SlidersHorizontal, roles: ["admin"] },
-      { titleKey: "nav.adminWalletTransfer",   url: "/admin/wallet-transfer",     icon: ArrowLeftRight,    roles: ["admin"] },
-      { titleKey: "nav.adminDeptAdjust",   url: "/admin/department-adjust", icon: Building2,        roles: ["admin"] },
-      { titleKey: "nav.adminAuditLogs",    url: "/admin/audit-logs",     icon: History,           roles: ["admin"] },
-      { titleKey: "nav.adminSettings",     url: "/admin/settings",       icon: SettingsIcon,      roles: ["admin"] },
-      { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display", icon: Monitor,        roles: ["admin"] },
-      { titleKey: "nav.adminSpendingGroups", url: "/admin/spending-groups", icon: Layers,            roles: ["admin"] },
-      { titleKey: "nav.refund",            url: "/refund",               icon: HandCoins,         roles: ["admin"] },
+      { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display", icon: Monitor,      roles: ["admin"] },
+      { titleKey: "nav.adminSpendingGroups",  url: "/admin/spending-groups",  icon: Layers,       roles: ["admin"] },
+      { titleKey: "nav.adminSettings",        url: "/admin/settings",         icon: SettingsIcon, roles: ["admin"] },
     ],
   },
   {
