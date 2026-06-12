@@ -594,7 +594,7 @@ run('ALTER TABLE system_settings ALTER COLUMN value TYPE TEXT', 'system_settings
 
 # === PowerSchool sync — per-record audit log ===
 # SyncLog only stores aggregate counts; this complements it with field-level
-# diffs so admin can answer "what did this sync change?".
+# diffs so admin can answer what did this sync change.
 run('''
     CREATE TABLE IF NOT EXISTS sync_audit_logs (
         id SERIAL PRIMARY KEY,
@@ -659,7 +659,7 @@ run('ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS low_balance_alert_e
 run('ALTER TABLE parent_child_links ADD COLUMN IF NOT EXISTS last_low_balance_alert_at TIMESTAMP WITH TIME ZONE',
     'parent_child_links.last_low_balance_alert_at')
 
-# === Graduated students: distinct from plain inactive so UI can show "Graduated" ===
+# === Graduated students: distinct from plain inactive so UI can show Graduated status ===
 run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_graduated BOOLEAN NOT NULL DEFAULT false',
     'customers.is_graduated')
 run('CREATE INDEX IF NOT EXISTS ix_return_requests_bundle_id ON return_requests(bundle_id)',
