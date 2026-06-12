@@ -199,11 +199,13 @@ export function buildReceiptHtml(
     const discountLine = item.discount > 0
       ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
       : "";
+    const unitPriceLine = `<div class="item-sub">${isEn ? "Unit price" : "ราคา/ชิ้น"}: ฿${item.unit_price.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })} &nbsp;·&nbsp; ${isEn ? "Total" : "รวม"}: ฿${item.line_total.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</div>`;
     return `
       <div class="row">
         <span>${name} ×${item.quantity}</span>
         <span>฿${item.line_total.toLocaleString()}</span>
       </div>
+      ${unitPriceLine}
       ${optionLines}
       ${discountLine}`;
   }).join("");
@@ -216,6 +218,9 @@ export function buildReceiptHtml(
     : "";
   const payerSection = r.payer_label
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
+    : "";
+  const cashierSection = r.created_by_name
+    ? `<div class="row small"><span>${isEn ? "Cashier" : "ผู้ขาย"}</span><span>${r.created_by_name}</span></div>`
     : "";
   const notesSection = r.notes?.trim()
     ? `<hr/><div class="notes-block"><span class="notes-label">${isEn ? "Note" : "หมายเหตุ"}</span><span class="notes-text">${r.notes.trim()}</span></div>`
@@ -269,6 +274,7 @@ export function buildReceiptHtml(
   .row span:first-child { font-weight: 600; }
   .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; }
   .opt { padding-left: 14px; font-size: 14px; color: #333; }
+  .item-sub { padding-left: 14px; font-size: 13px; color: #555; margin-top: -2px; margin-bottom: 3px; }
   .disc { color: #a00; font-size: 15px; font-weight: 600; }
   .small { font-size: 14px; color: #222; }
   .small span:last-child { font-weight: 700; }
@@ -295,6 +301,7 @@ export function buildReceiptHtml(
   <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
   <div class="row small"><span>${lbl.date}</span><span>${dateStr}</span></div>
   ${payerSection}
+  ${cashierSection}
   <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
   <hr/>
   ${itemRows}

@@ -8,9 +8,8 @@ const STORAGE_PREFIX = "isb.autoPrint.";
 function readStored(key: string): boolean {
   if (typeof window === "undefined") return true;
   const raw = window.localStorage.getItem(STORAGE_PREFIX + key);
-  // Default ON when no preference saved yet so behaviour matches the
-  // pre-toggle world.
-  if (raw === null) return true;
+  // Default OFF — station must explicitly enable auto-print.
+  if (raw === null) return false;
   return raw === "1";
 }
 

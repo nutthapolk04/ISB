@@ -223,6 +223,9 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
   const payerSection = r.payer_label
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
+  const cashierSection = r.created_by_name
+    ? `<div class="row small"><span>${isEn ? "Cashier" : "ผู้ขาย"}</span><span>${r.created_by_name}</span></div>`
+    : "";
   const voidedSection =
     r.status !== "active" ? `<div class="voided">${lbl.voided}</div>` : "";
   const shopLine = shopName ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>` : "";
@@ -261,7 +264,9 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
   <hr/>
   <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
   <div class="row small"><span>${lbl.date}</span><span>${dateStr}</span></div>
-  ${payerSection}<div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
+  ${payerSection}
+  ${cashierSection}
+  <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
   <hr/>${itemRows}<hr/>
   <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}${taxSection}

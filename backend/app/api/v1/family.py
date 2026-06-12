@@ -198,6 +198,60 @@ def get_low_balance_alert(
     )
 
 
+class CoParentSummary(BaseModel):
+    user_id: int
+    full_name: str
+    relation: Optional[str] = None
+    parent_rank: Optional[str] = None
+    wallet_id: Optional[int] = None
+    wallet_balance: Optional[float] = None
+    photo_url: Optional[str] = None
+    username: Optional[str] = None
+
+
+@router.get("/me/coparents", response_model=List[CoParentSummary])
+def my_coparents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("parent", "staff", "cashier", "manager", "kitchen", "admin")
+    ),
+):
+    """Return other users in the same family_code group (co-parents/guardians)."""
+    if not current_user.family_code:
+        return []
+    from app.models.wallet import Wallet
+    co_users = (
+        db.query(User)
+        .filter(
+            User.family_code == current_user.family_code,
+            User.id != current_user.id,
+            User.is_active == True,
+        )
+        .all()
+    )
+    result = []
+    for u in co_users:
+        link = (
+            db.query(ParentChildLink)
+            .filter(ParentChildLink.parent_user_id == u.id)
+            .first()
+        )
+        wallet = db.query(Wallet).filter(Wallet.user_id == u.id).first()
+        result.append(
+            CoParentSummary(
+                user_id=u.id,
+                full_name=u.full_name or u.username or "",
+                relation=link.relation if link else None,
+                parent_rank=link.parent_rank if link else None,
+                wallet_id=wallet.id if wallet else None,
+                wallet_balance=float(wallet.balance) if wallet else None,
+                photo_url=u.photo_url if hasattr(u, "photo_url") else None,
+                username=u.username,
+            )
+        )
+    return result
+
+
 @router.put("/me/children/{child_id}/low-balance-alert", response_model=LowBalanceAlertSettings)
 def update_low_balance_alert(
     child_id: int,

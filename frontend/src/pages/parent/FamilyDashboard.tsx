@@ -109,6 +109,17 @@ interface OwnWallet {
   photo_url: string | null;
 }
 
+interface CoParentSummary {
+  user_id: number;
+  full_name: string;
+  relation?: string | null;
+  parent_rank?: string | null;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
+  photo_url?: string | null;
+  username?: string | null;
+}
+
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
@@ -119,6 +130,7 @@ export default function FamilyDashboard() {
   const [children, setChildren] = useState<ChildSummary[]>([]);
   const [ownWallet, setOwnWallet] = useState<OwnWallet | null>(null);
   const [studentWallet, setStudentWallet] = useState<OwnWallet | null>(null);
+  const [coParents, setCoParents] = useState<CoParentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,12 +141,14 @@ export default function FamilyDashboard() {
           const mine = await api.get<OwnWallet | null>("/wallets/me").catch(() => null);
           if (mine) setStudentWallet(mine);
         } else {
-          const [data, mine] = await Promise.all([
+          const [data, mine, coParentData] = await Promise.all([
             api.get<ChildSummary[]>("/family/me"),
             api.get<OwnWallet | null>("/wallets/me").catch(() => null),
+            api.get<CoParentSummary[]>("/family/me/coparents").catch(() => []),
           ]);
           setChildren(data);
           if (mine && mine.owner_type === "user") setOwnWallet(mine);
+          setCoParents(coParentData);
         }
       } catch (e) {
         setError(e instanceof ApiError ? e.detail : "Failed to load family");
@@ -344,6 +358,89 @@ export default function FamilyDashboard() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {!loading && coParents.length > 0 && (
+        <>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-2">
+            {t("parent.dashboard.familyMembers", "Family Members")} / สมาชิกครอบครัว
+          </p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {coParents.map((coParent) => {
+              const initial = coParent.full_name?.charAt(0)?.toUpperCase() ?? "?";
+              return (
+                <Card
+                  key={coParent.user_id}
+                  className="overflow-hidden bg-gradient-to-br from-slate-50 to-stone-50 border-slate-200 shadow-md"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-3">
+                      {coParent.photo_url ? (
+                        <img
+                          src={coParent.photo_url}
+                          alt={coParent.full_name}
+                          className="h-12 w-12 shrink-0 rounded-full object-cover border-2 border-slate-200"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-lg font-bold border-2 border-slate-200">
+                          {initial}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg truncate">{coParent.full_name}</CardTitle>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            {t("parent.dashboard.guardian", "ผู้ปกครอง")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="rounded-md bg-slate-100/60 p-3 border border-slate-200">
+                      <p className="text-xs text-slate-500">{t("parent.dashboard.balance")}</p>
+                      <p className="text-3xl font-extrabold tracking-tight text-slate-900">
+                        {coParent.wallet_balance !== null && coParent.wallet_balance !== undefined
+                          ? formatTHB(coParent.wallet_balance)
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        asChild
+                        variant="outline"
+                        disabled={!coParent.wallet_id}
+                        className="h-11 px-2 text-xs sm:text-sm border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+                      >
+                        <Link to={`/parent/wallet/wallet-${coParent.wallet_id}`}>
+                          <WalletIcon className="h-4 w-4 mr-1" />
+                          {t("parent.dashboard.topUp")}
+                        </Link>
+                      </Button>
+                      <Button
+                        asChild
+                        variant="outline"
+                        disabled={!coParent.wallet_id}
+                        className="h-11 px-2 text-xs sm:text-sm border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+                      >
+                        <Link to={`/parent/wallet/wallet-${coParent.wallet_id}?tab=history`}>
+                          <History className="h-4 w-4 mr-1" />
+                          {t("parent.dashboard.history")}
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {!loading && children.length > 0 && (
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-2">
+          {t("parent.dashboard.children", "Children")} / บุตรหลาน
+        </p>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

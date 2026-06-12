@@ -133,6 +133,25 @@ export default function WalletDetail() {
         setTransactions(txs.slice(0, 10));
         return;
       }
+      if (effectiveId.startsWith("wallet-")) {
+        const walletId = parseInt(effectiveId.slice(7), 10);
+        const w = await api.get<OwnWalletResponse>(`/wallets/${walletId}`);
+        const p: StudentProfile = {
+          id: w.user_id ?? walletId,
+          name: w.name ?? w.username ?? "",
+          student_code: null,
+          grade: null,
+          wallet_id: w.id,
+          wallet_balance: w.balance,
+          card_frozen: false,
+          is_own_user_wallet: true,
+          role: w.role,
+        };
+        setProfile(p);
+        const txs = await api.get<Transaction[]>(`/wallets/${w.id}/transactions`);
+        setTransactions(txs.slice(0, 10));
+        return;
+      }
       const p = await api.get<StudentProfile>(`/customers/${effectiveId}`);
       setProfile(p);
       if (p.wallet_id) {

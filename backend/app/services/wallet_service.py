@@ -166,6 +166,11 @@ class WalletService:
             return False
         if wallet.user_id is not None and wallet.user_id == user.id:
             return True
+        # Co-parent: same family_code can access each other's user wallets
+        if wallet.user_id is not None and user.family_code:
+            wallet_owner = db.query(User).filter(User.id == wallet.user_id).first()
+            if wallet_owner and wallet_owner.family_code and wallet_owner.family_code == user.family_code:
+                return True
         if wallet.customer_id is not None:
             # Students can only access their own wallet — match by username.
             if user.role == "student":
