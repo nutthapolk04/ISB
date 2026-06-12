@@ -738,42 +738,42 @@ run('''INSERT INTO spending_groups (code, name_en, name_th, daily_limit) VALUES
 run('ALTER TABLE shops ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
     'shops.spending_group_id (column only)')
 run(
-    "DO $$ BEGIN "
-    "  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='shops_spending_group_id_fkey') THEN "
-    "    ALTER TABLE shops ADD CONSTRAINT shops_spending_group_id_fkey "
-    "      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; "
-    "  END IF; "
-    "END $$;",
+    'DO $$ BEGIN '
+    \"  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='shops_spending_group_id_fkey') THEN \"
+    '    ALTER TABLE shops ADD CONSTRAINT shops_spending_group_id_fkey '
+    '      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; '
+    '  END IF; '
+    'END $$;',
     'shops.spending_group_id (FK)',
 )
 run('CREATE INDEX IF NOT EXISTS ix_shops_spending_group ON shops(spending_group_id)',
     'shops idx spending_group')
 
 # Backfill by module
-run("UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE code='canteen') "
-    "WHERE module='canteen' AND spending_group_id IS NULL",
+run(\"UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE code='canteen') \"
+    \"WHERE module='canteen' AND spending_group_id IS NULL\",
     'shops.spending_group_id backfill canteen', ok_if_exists=False)
-run("UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE code='store') "
-    "WHERE module='store' AND spending_group_id IS NULL",
+run(\"UPDATE shops SET spending_group_id = (SELECT id FROM spending_groups WHERE code='store') \"
+    \"WHERE module='store' AND spending_group_id IS NULL\",
     'shops.spending_group_id backfill store', ok_if_exists=False)
 
 # receipts.spending_group_id snapshot column
 run('ALTER TABLE receipts ADD COLUMN IF NOT EXISTS spending_group_id INTEGER',
     'receipts.spending_group_id (column only)')
 run(
-    "DO $$ BEGIN "
-    "  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='receipts_spending_group_id_fkey') THEN "
-    "    ALTER TABLE receipts ADD CONSTRAINT receipts_spending_group_id_fkey "
-    "      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; "
-    "  END IF; "
-    "END $$;",
+    'DO $$ BEGIN '
+    \"  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='receipts_spending_group_id_fkey') THEN \"
+    '    ALTER TABLE receipts ADD CONSTRAINT receipts_spending_group_id_fkey '
+    '      FOREIGN KEY (spending_group_id) REFERENCES spending_groups(id) ON DELETE RESTRICT; '
+    '  END IF; '
+    'END $$;',
     'receipts.spending_group_id (FK)',
 )
 
 # Hot-path index for spent-today aggregation
-run("CREATE INDEX IF NOT EXISTS ix_receipts_payer_shop_date "
-    "ON receipts (payer_user_id, customer_id, payer_department_id, spending_group_id, transaction_date) "
-    "WHERE status = 'ACTIVE'",
+run('CREATE INDEX IF NOT EXISTS ix_receipts_payer_shop_date '
+    'ON receipts (payer_user_id, customer_id, payer_department_id, spending_group_id, transaction_date) '
+    \"WHERE status = 'ACTIVE'\",
     'receipts idx payer+group+date')
 
 # === Verification: fail loudly if critical columns/tables are still missing ===
