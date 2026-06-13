@@ -14,6 +14,7 @@ import { listAdminUsers, listStaffForPicker, listStudentsForLink } from "@/servi
 import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily } from "@/services/wallet_service";
+import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -288,6 +289,66 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         amount: t.Number({ exclusiveMinimum: 0 }),
         note: t.Optional(t.String({ maxLength: 500 })),
       }),
+    },
+  )
+  // ── Phase 4: POS receipts (read-only + void) ──────────────────────────
+  .get(
+    "/pos/receipt",
+    async ({ query, user, set }) => {
+      try {
+        return await listReceipts({
+          caller: user as typeof user & { shop_id?: string | null },
+          q: query.q,
+          shopId: query.shop_id,
+          shopIds: query.shop_ids,
+          transactionMode: query.transaction_mode,
+          requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : undefined,
+          page: query.page ? Number(query.page) : undefined,
+          pageSize: query.page_size ? Number(query.page_size) : undefined,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        q: t.Optional(t.String()),
+        shop_id: t.Optional(t.String()),
+        shop_ids: t.Optional(t.String()),
+        transaction_mode: t.Optional(t.String()),
+        requester_user_id: t.Optional(t.String()),
+        page: t.Optional(t.String()),
+        page_size: t.Optional(t.String()),
+      }),
+    },
+  )
+  .get(
+    "/pos/receipt/:id",
+    async ({ params, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid receipt id" }; }
+      try { return await getReceipt(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .post(
+    "/pos/void/:id",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid receipt id" }; }
+      try {
+        return await voidReceipt({
+          caller: user as typeof user & { shop_id?: string | null },
+          receiptId: id,
+          reason: body?.reason ?? null,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Optional(t.Object({ reason: t.Optional(t.String()) })),
     },
   );
 
