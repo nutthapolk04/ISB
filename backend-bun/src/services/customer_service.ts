@@ -1,7 +1,8 @@
-import { eq, and, or, ilike, asc, inArray, sql } from "drizzle-orm";
-import { db } from "@/db/client";
-import { customers, users, wallets } from "@/db/schema";
+import { eq, and, or, ilike, asc, inArray, sql, ne } from "drizzle-orm";
+import { db, pgClient } from "@/db/client";
+import { customers, users, wallets, parentChildLinks, customerTypes, receipts } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
+import type { AccessTokenPayload } from "@/middleware/auth";
 
 /**
  * StudentProfileResponse parity — fields can come from either the customers
@@ -224,6 +225,253 @@ export interface ListCustomersParams {
   limit?: number;
   search?: string;
   isActive?: boolean;
+}
+
+async function profileForCustomerId(id: number): Promise<StudentProfileDTO> {
+  const rows = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const ws = await walletByCustomerIds([id]);
+  return customerToProfile(rows[0], ws.get(id));
+}
+
+/** Permission gate for customer mutations: admin/manager/cashier bypass; otherwise must own a parent_child_link. */
+async function assertCustomerAccess(caller: AccessTokenPayload, customerId: number): Promise<void> {
+  if (caller.is_superuser || caller.roles.some((r) => ["admin", "manager", "cashier"].includes(r))) return;
+  const link = await db
+    .select()
+    .from(parentChildLinks)
+    .where(and(eq(parentChildLinks.parentUserId, Number(caller.sub)), eq(parentChildLinks.childCustomerId, customerId)))
+    .limit(1);
+  if (!link[0]) {
+    const err = new Error("Not authorized");
+    (err as { status?: number }).status = 403;
+    throw err;
+  }
+}
+
+export async function freezeCard(caller: AccessTokenPayload, customerId: number, frozen: boolean): Promise<StudentProfileDTO> {
+  await assertCustomerAccess(caller, customerId);
+  const rows = await db.update(customers).set({ cardFrozen: frozen }).where(eq(customers.id, customerId)).returning();
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return profileForCustomerId(customerId);
+}
+
+export async function setDailyLimit(caller: AccessTokenPayload, customerId: number, limit: number | null): Promise<StudentProfileDTO> {
+  await assertCustomerAccess(caller, customerId);
+  const rows = await db
+    .update(customers)
+    .set({ dailyLimit: limit !== null ? String(limit) : null })
+    .where(eq(customers.id, customerId))
+    .returning();
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return profileForCustomerId(customerId);
+}
+
+export async function updateAllergies(customerId: number, args: {
+  allergies?: string | null;
+  dietary_notes?: string | null;
+  allergy_override_note?: string | null;
+}): Promise<StudentProfileDTO> {
+  const updates: Record<string, unknown> = {};
+  if (args.allergies !== undefined) updates.allergies = args.allergies;
+  if (args.dietary_notes !== undefined) updates.dietaryNotes = args.dietary_notes;
+  if (args.allergy_override_note !== undefined) updates.allergyOverrideNote = args.allergy_override_note || null;
+
+  const rows = await db.update(customers).set(updates).where(eq(customers.id, customerId)).returning();
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return profileForCustomerId(customerId);
+}
+
+export async function setNegativeCreditLimit(customerId: number, limit: number | null): Promise<StudentProfileDTO> {
+  const rows = await db
+    .update(customers)
+    .set({ negativeCreditLimit: limit !== null ? String(limit) : null })
+    .where(eq(customers.id, customerId))
+    .returning();
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return profileForCustomerId(customerId);
+}
+
+export async function bindCard(customerId: number, cardUid: string | null): Promise<StudentProfileDTO> {
+  // Existence check
+  const cur = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
+  if (!cur[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+
+  if (cardUid) {
+    const dupCust = await db
+      .select({ id: customers.id, name: customers.name, customerCode: customers.customerCode })
+      .from(customers)
+      .where(and(eq(customers.cardUid, cardUid), ne(customers.id, customerId)))
+      .limit(1);
+    if (dupCust[0]) {
+      const err = new Error(`Card already assigned to student ${dupCust[0].name} (${dupCust[0].customerCode})`);
+      (err as { status?: number }).status = 409;
+      throw err;
+    }
+    const dupUser = await db
+      .select({ fullName: users.fullName, username: users.username })
+      .from(users)
+      .where(eq(users.cardUid, cardUid))
+      .limit(1);
+    if (dupUser[0]) {
+      const err = new Error(`Card already assigned to user ${dupUser[0].fullName || dupUser[0].username}`);
+      (err as { status?: number }).status = 409;
+      throw err;
+    }
+  }
+
+  await db.update(customers).set({ cardUid: cardUid || null }).where(eq(customers.id, customerId));
+  return profileForCustomerId(customerId);
+}
+
+export interface CreateStudentInput {
+  customer_code: string;
+  name: string;
+  student_code?: string | null;
+  grade?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  allergies?: string | null;
+  dietary_notes?: string | null;
+  card_uid?: string | null;
+  photo_url?: string | null;
+  customer_type_id?: number | null;
+  initial_balance?: number;
+}
+
+export async function createStudent(input: CreateStudentInput): Promise<StudentProfileDTO> {
+  // Uniqueness checks
+  const dupCode = await db.select({ id: customers.id }).from(customers).where(eq(customers.customerCode, input.customer_code)).limit(1);
+  if (dupCode[0]) {
+    const err = new Error("customer_code already exists");
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
+  if (input.student_code) {
+    const dupStudent = await db.select({ id: customers.id }).from(customers).where(eq(customers.studentCode, input.student_code)).limit(1);
+    if (dupStudent[0]) {
+      const err = new Error("student_code already exists");
+      (err as { status?: number }).status = 409;
+      throw err;
+    }
+  }
+  if (input.card_uid) {
+    const dupCard = await db.select({ id: customers.id }).from(customers).where(eq(customers.cardUid, input.card_uid)).limit(1);
+    if (dupCard[0]) {
+      const err = new Error("card_uid already exists");
+      (err as { status?: number }).status = 409;
+      throw err;
+    }
+  }
+
+  // Resolve customer_type_id (default to INTERNAL if missing)
+  let typeId = input.customer_type_id ?? null;
+  if (!typeId) {
+    const ct = await db.select({ id: customerTypes.id }).from(customerTypes).where(eq(customerTypes.typeName, "INTERNAL")).limit(1);
+    if (ct[0]) {
+      typeId = ct[0].id;
+    } else {
+      const [created] = await db
+        .insert(customerTypes)
+        .values({ typeName: "INTERNAL", description: "Student/staff", defaultPriceLevel: "internal" })
+        .returning({ id: customerTypes.id });
+      typeId = created.id;
+    }
+  }
+
+  const customerId = await pgClient.begin(async (sqlTx) => {
+    const cRows = await sqlTx<Array<{ id: number }>>`
+      INSERT INTO customers
+        (customer_code, name, student_code, grade, email, phone, allergies, dietary_notes,
+         card_uid, photo_url, customer_type_id, is_active, card_frozen)
+      VALUES (${input.customer_code}, ${input.name}, ${input.student_code ?? null},
+              ${input.grade ?? null}, ${input.email ?? null}, ${input.phone ?? null},
+              ${input.allergies ?? null}, ${input.dietary_notes ?? null},
+              ${input.card_uid ?? null}, ${input.photo_url ?? null}, ${typeId}, true, false)
+      RETURNING id
+    `;
+    const newId = cRows[0].id;
+    await sqlTx`
+      INSERT INTO wallets (customer_id, balance, is_active)
+      VALUES (${newId}, ${input.initial_balance ?? 0}, true)
+    `;
+    return newId;
+  });
+
+  return profileForCustomerId(customerId);
+}
+
+export interface UpdateCustomerBasicInput {
+  name?: string | null;
+  grade?: string | null;
+  school_type?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  family_code?: string | null;
+}
+
+export async function updateCustomerBasic(
+  caller: AccessTokenPayload,
+  customerId: number,
+  input: UpdateCustomerBasicInput,
+): Promise<StudentProfileDTO> {
+  // Admin role check (caller assertion done at route)
+  const cur = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
+  if (!cur[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  await assertCustomerAccess(caller, customerId);
+
+  const updates: Record<string, unknown> = {};
+  if (input.name !== undefined && input.name !== null) updates.name = input.name;
+  if (input.grade !== undefined) updates.grade = input.grade;
+  if (input.school_type !== undefined) updates.schoolType = input.school_type;
+  if (input.email !== undefined) updates.email = input.email;
+  if (input.phone !== undefined) updates.phone = input.phone;
+  if (input.family_code !== undefined) updates.familyCode = (input.family_code ?? "").trim() || null;
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(customers).set(updates).where(eq(customers.id, customerId));
+  }
+  return profileForCustomerId(customerId);
+}
+
+export async function deleteCustomer(customerId: number): Promise<void> {
+  const cur = await db.select({ id: customers.id }).from(customers).where(eq(customers.id, customerId)).limit(1);
+  if (!cur[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  // Orphan receipts (preserve audit trail)
+  await db.update(receipts).set({ customerId: null }).where(eq(receipts.customerId, customerId));
+  await db.delete(customers).where(eq(customers.id, customerId));
 }
 
 export async function listCustomers(p: ListCustomersParams = {}): Promise<StudentProfileDTO[]> {

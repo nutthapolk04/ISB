@@ -1,5 +1,5 @@
-import { and, eq, ilike, isNull, or, sql, asc } from "drizzle-orm";
-import { db } from "@/db/client";
+import { and, eq, ilike, isNull, ne, or, sql, asc } from "drizzle-orm";
+import { db, pgClient } from "@/db/client";
 import { users, shops, customers, wallets, departments } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
@@ -295,6 +295,217 @@ async function customerToFamilyMember(c: typeof customers.$inferSelect): Promise
     student_code: c.studentCode ?? null,
     username: null,
   };
+}
+
+// ── Writes (Phase 9) ─────────────────────────────────────────────────────
+
+const WALLET_ROLES = new Set(["parent", "staff", "cashier", "manager", "kitchen", "admin"]);
+
+export interface CreateUserInput {
+  username: string;
+  password: string;
+  full_name: string;
+  role: string;
+  shop_id?: string | null;
+  email?: string | null;
+  family_code?: string | null;
+}
+
+function requireAdminOrManager(caller: AccessTokenPayload): void {
+  if (!userIsAdmin(caller) && !userIsManager(caller)) {
+    const err = new Error("Only admins or shop managers may manage users");
+    (err as { status?: number }).status = 403;
+    throw err;
+  }
+}
+
+export async function createUser(
+  caller: AccessTokenPayload & { shop_id?: string | null },
+  input: CreateUserInput,
+): Promise<UserResponseDTO> {
+  requireAdminOrManager(caller);
+
+  if (userIsManager(caller)) {
+    if (!caller.shop_id) {
+      const err = new Error("Manager has no shop assignment");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+    if (input.shop_id !== caller.shop_id) {
+      const err = new Error("Manager can only create users inside their own shop");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+    if (input.role !== "cashier") {
+      const err = new Error("Manager may only create cashier users");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+  }
+
+  if (!input.password || input.password.length < 6) {
+    const err = new Error("Password must be at least 6 characters");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+
+  const dupUsername = await db.select({ id: users.id }).from(users).where(eq(users.username, input.username)).limit(1);
+  if (dupUsername[0]) {
+    const err = new Error(`Username '${input.username}' already exists`);
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
+
+  const email = input.email || `${input.username}@isb-coop.local`;
+  const dupEmail = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (dupEmail[0]) {
+    const err = new Error(`Email '${email}' already exists`);
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
+
+  if (input.shop_id) {
+    const shop = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, input.shop_id)).limit(1);
+    if (!shop[0]) {
+      const err = new Error(`Shop '${input.shop_id}' not found`);
+      (err as { status?: number }).status = 400;
+      throw err;
+    }
+  }
+
+  const hashed = await Bun.password.hash(input.password, { algorithm: "bcrypt", cost: 12 });
+
+  const userId = await pgClient.begin(async (sqlTx) => {
+    const rows = await sqlTx<Array<{ id: number }>>`
+      INSERT INTO users
+        (username, email, full_name, hashed_password, role, shop_id, family_code,
+         is_active, is_superuser, external_id, status)
+      VALUES (${input.username}, ${email}, ${input.full_name}, ${hashed}, ${input.role},
+              ${input.shop_id ?? null},
+              ${(input.family_code?.trim() || null)},
+              true, ${input.role === "admin"}, NULL, 'active')
+      RETURNING id
+    `;
+    const newId = rows[0].id;
+    if (WALLET_ROLES.has(input.role)) {
+      await sqlTx`INSERT INTO wallets (user_id, balance, is_active) VALUES (${newId}, 0, true)`;
+    }
+    return newId;
+  });
+
+  return (await getUser(caller, userId));
+}
+
+export interface UpdateUserInput {
+  shop_id?: string | null;
+  role?: string | null;
+  full_name?: string | null;
+  is_active?: boolean | null;
+  email?: string | null;
+  family_code?: string | null;
+}
+
+export async function updateUser(
+  caller: AccessTokenPayload & { shop_id?: string | null },
+  userId: number,
+  input: UpdateUserInput,
+): Promise<UserResponseDTO> {
+  requireAdminOrManager(caller);
+
+  const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!rows[0]) {
+    const err = new Error("User not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const target = rows[0];
+
+  if (userIsManager(caller)) {
+    if (!caller.shop_id) {
+      const err = new Error("Manager has no shop assignment");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+    if (target.shopId !== caller.shop_id) {
+      const err = new Error("Manager can only manage users inside their own shop");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+    if (input.shop_id !== undefined && input.shop_id !== null && input.shop_id !== caller.shop_id) {
+      const err = new Error("Manager may only assign users to their own shop (or unassign)");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+    if (input.role && (input.role === "admin" || input.role === "manager")) {
+      const err = new Error("Manager may not assign admin or manager roles");
+      (err as { status?: number }).status = 403;
+      throw err;
+    }
+  }
+
+  if (input.shop_id !== undefined && input.shop_id !== null) {
+    const shop = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, input.shop_id)).limit(1);
+    if (!shop[0]) {
+      const err = new Error(`Shop '${input.shop_id}' not found`);
+      (err as { status?: number }).status = 400;
+      throw err;
+    }
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (input.shop_id !== undefined) updates.shopId = input.shop_id;
+  let roleChangedTo: string | undefined;
+  if (input.role !== undefined && input.role !== null) {
+    updates.role = input.role;
+    roleChangedTo = input.role;
+    if (userIsAdmin(caller)) {
+      updates.isSuperuser = input.role === "admin";
+    }
+  }
+  if (input.full_name !== undefined && input.full_name !== null) updates.fullName = input.full_name;
+  if (input.email !== undefined && input.email !== null) updates.email = input.email;
+  if (input.is_active !== undefined && input.is_active !== null) {
+    updates.isActive = input.is_active;
+    updates.status = input.is_active ? "active" : "inactive";
+  }
+  if (input.family_code !== undefined) {
+    updates.familyCode = typeof input.family_code === "string" ? (input.family_code.trim() || null) : null;
+  }
+
+  await pgClient.begin(async (sqlTx) => {
+    if (Object.keys(updates).length > 0) {
+      await db.update(users).set(updates).where(eq(users.id, userId));
+    }
+    const finalRole = roleChangedTo ?? target.role ?? "";
+    if (WALLET_ROLES.has(finalRole)) {
+      const existingWallet = await sqlTx<Array<{ id: number }>>`SELECT id FROM wallets WHERE user_id = ${userId} LIMIT 1`;
+      if (!existingWallet[0]) {
+        await sqlTx`INSERT INTO wallets (user_id, balance, is_active) VALUES (${userId}, 0, true)`;
+      }
+    }
+  });
+
+  return getUser(caller, userId);
+}
+
+export async function deleteUser(caller: AccessTokenPayload, userId: number): Promise<void> {
+  if (!userIsAdmin(caller)) {
+    const err = new Error("Admin only");
+    (err as { status?: number }).status = 403;
+    throw err;
+  }
+  if (Number(caller.sub) === userId) {
+    const err = new Error("Cannot delete yourself");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!rows[0]) {
+    const err = new Error("User not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  await db.delete(users).where(eq(users.id, userId));
 }
 
 export async function familyLookup(q: string): Promise<FamilyLookupResponseDTO> {

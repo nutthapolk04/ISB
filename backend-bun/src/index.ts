@@ -6,6 +6,8 @@ import { healthRoutes } from "@/routes/health";
 import { shopRoutes } from "@/routes/shops";
 import { productRoutes } from "@/routes/products";
 import { customerRoutes } from "@/routes/customers";
+import { freezeCard, setDailyLimit, updateAllergies, setNegativeCreditLimit, bindCard, createStudent, updateCustomerBasic, deleteCustomer } from "@/services/customer_service";
+import { createUser, updateUser, deleteUser } from "@/services/user_service";
 import { reportRoutes } from "@/routes/reports";
 import { jwtPlugin, requireAuth, hasRole } from "@/middleware/auth";
 import { listDepartments } from "@/services/department_service";
@@ -335,6 +337,203 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ id: t.String() }) },
+  )
+  // ── User CRUD writes ───────────────────────────────────────────────────
+  .post(
+    "/users/",
+    async ({ body, user, set }) => {
+      try {
+        set.status = 201;
+        return await createUser(
+          user as typeof user & { shop_id?: string | null },
+          body as Parameters<typeof createUser>[1],
+        );
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        username: t.String({ minLength: 1, maxLength: 50 }),
+        password: t.String({ minLength: 6, maxLength: 128 }),
+        full_name: t.String({ minLength: 1, maxLength: 255 }),
+        role: t.String(),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        email: t.Optional(t.Nullable(t.String())),
+        family_code: t.Optional(t.Nullable(t.String({ maxLength: 20 }))),
+      }),
+    },
+  )
+  .patch(
+    "/users/:id",
+    async ({ params, body, user, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try { return await updateUser(user as typeof user & { shop_id?: string | null }, id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        shop_id: t.Optional(t.Nullable(t.String())),
+        role: t.Optional(t.Nullable(t.String())),
+        full_name: t.Optional(t.Nullable(t.String())),
+        is_active: t.Optional(t.Nullable(t.Boolean())),
+        email: t.Optional(t.Nullable(t.String())),
+        family_code: t.Optional(t.Nullable(t.String({ maxLength: 20 }))),
+      }),
+    },
+  )
+  .delete(
+    "/users/:id",
+    async ({ params, user, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try {
+        await deleteUser(user, id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  // ── Customer writes ────────────────────────────────────────────────────
+  .post(
+    "/customers/",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        set.status = 201;
+        return await createStudent(body as Parameters<typeof createStudent>[0]);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        customer_code: t.String(),
+        name: t.String(),
+        student_code: t.Optional(t.Nullable(t.String())),
+        grade: t.Optional(t.Nullable(t.String())),
+        email: t.Optional(t.Nullable(t.String())),
+        phone: t.Optional(t.Nullable(t.String())),
+        allergies: t.Optional(t.Nullable(t.String())),
+        dietary_notes: t.Optional(t.Nullable(t.String())),
+        card_uid: t.Optional(t.Nullable(t.String())),
+        photo_url: t.Optional(t.Nullable(t.String())),
+        customer_type_id: t.Optional(t.Nullable(t.Number())),
+        initial_balance: t.Optional(t.Number()),
+      }),
+    },
+  )
+  .patch(
+    "/customers/:id",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await updateCustomerBasic(user, id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.Nullable(t.String())),
+        grade: t.Optional(t.Nullable(t.String())),
+        school_type: t.Optional(t.Nullable(t.String())),
+        email: t.Optional(t.Nullable(t.String())),
+        phone: t.Optional(t.Nullable(t.String())),
+        family_code: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .delete(
+    "/customers/:id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try {
+        await deleteCustomer(id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .post(
+    "/customers/:id/freeze",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await freezeCard(user, id, body.frozen); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ frozen: t.Boolean() }),
+    },
+  )
+  .patch(
+    "/customers/:id/limit",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await setDailyLimit(user, id, body.daily_limit ?? null); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ daily_limit: t.Optional(t.Nullable(t.Number({ minimum: 0 }))) }),
+    },
+  )
+  .patch(
+    "/customers/:id/allergies",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await updateAllergies(id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        allergies: t.Optional(t.Nullable(t.String())),
+        dietary_notes: t.Optional(t.Nullable(t.String())),
+        allergy_override_note: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .patch(
+    "/customers/:id/negative-limit",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await setNegativeCreditLimit(id, body.negative_credit_limit ?? null); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ negative_credit_limit: t.Optional(t.Nullable(t.Number({ minimum: 0 }))) }),
+    },
+  )
+  .patch(
+    "/customers/:id/card",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await bindCard(id, body.card_uid ?? null); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ card_uid: t.Optional(t.Nullable(t.String())) }),
+    },
   )
   .post(
     "/pos/checkout",
