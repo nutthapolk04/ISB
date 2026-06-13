@@ -19,7 +19,7 @@ import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBala
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
 import { listBundles, getBundle, checkBundleStock, createBundle, updateBundle, deleteBundle, reorderBundles } from "@/services/bundle_service";
-import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn } from "@/services/returns_service";
+import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import { login, refresh, logout, me, mockSso, googleSso } from "@/services/auth_service";
@@ -800,6 +800,59 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       } catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ id: t.String() }) },
+  )
+  .post(
+    "/returns/:id/refund",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid return id" }; }
+      try {
+        return await processRefund({
+          returnId: id,
+          reason: body.reason,
+          notes: body.notes ?? null,
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        returnItems: t.Optional(t.Array(t.Object({ productCode: t.String(), returnQuantity: t.Number() }))),
+        exchangeItems: t.Optional(t.Nullable(t.Array(t.Object({ productCode: t.String(), quantity: t.Number() })))),
+        refundMethod: t.Optional(t.Nullable(t.String())),
+        reason: t.String(),
+        notes: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .post(
+    "/returns/:id/exchange",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid return id" }; }
+      try {
+        return await processExchange({
+          returnId: id,
+          exchangeItems: body.exchangeItems as Parameters<typeof processExchange>[0]["exchangeItems"],
+          reason: body.reason,
+          notes: body.notes ?? null,
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        returnItems: t.Optional(t.Array(t.Object({ productCode: t.String(), returnQuantity: t.Number() }))),
+        exchangeItems: t.Array(t.Object({ productCode: t.String(), quantity: t.Number({ minimum: 1 }) }), { minItems: 1 }),
+        difference: t.Optional(t.Number()),
+        reason: t.String(),
+        notes: t.Optional(t.Nullable(t.String())),
+      }),
+    },
   )
   .get(
     "/returns",
