@@ -15,6 +15,7 @@ import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily, cashierTopup, adjustDepartmentBalance, listDepartmentTransactions } from "@/services/wallet_service";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
+import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
 import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
@@ -334,6 +335,57 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ id: t.String() }) },
+  )
+  .post(
+    "/pos/checkout",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "cashier", "manager", "admin", "kiosk")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        return await checkout({ ...(body as Omit<CheckoutInput, "userId">), userId: Number(user.sub) });
+      } catch (e) {
+        const err = e as { status?: number; message?: string; code?: string };
+        if (err.status && err.status >= 400 && err.status < 500) {
+          set.status = err.status;
+          return err.code
+            ? { detail: err.message ?? "Bad request", code: err.code }
+            : { detail: err.message ?? "Bad request" };
+        }
+        throw e;
+      }
+    },
+    {
+      body: t.Object({
+        transaction_mode: t.Optional(t.String()),
+        payment_method: t.String(),
+        payer_kind: t.Optional(t.String()),
+        customer_id: t.Optional(t.Nullable(t.Number())),
+        payer_user_id: t.Optional(t.Nullable(t.Number())),
+        payer_department_id: t.Optional(t.Nullable(t.Number())),
+        requester_user_id: t.Optional(t.Nullable(t.Number())),
+        items: t.Array(t.Object({
+          product_variant_id: t.Number(),
+          quantity: t.Number(),
+          unit_price: t.Number({ minimum: 0 }),
+          price_override: t.Optional(t.Nullable(t.Number())),
+          discount: t.Optional(t.Number()),
+          options: t.Optional(t.Array(t.Object({
+            option_id: t.Number(),
+            quantity: t.Optional(t.Number()),
+          }))),
+          is_bundle: t.Optional(t.Boolean()),
+          bundle_id: t.Optional(t.Nullable(t.Number())),
+        })),
+        edc_terminal_ref: t.Optional(t.Nullable(t.String())),
+        edc_approval_code: t.Optional(t.Nullable(t.String())),
+        edc_masked_card: t.Optional(t.Nullable(t.String())),
+        cash_received: t.Optional(t.Nullable(t.Number())),
+        discount: t.Optional(t.Number()),
+        notes: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+      }),
+    },
   )
   .post(
     "/pos/void/:id",
