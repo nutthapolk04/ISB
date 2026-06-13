@@ -19,6 +19,11 @@ import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBala
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
 import { listBundles, getBundle, checkBundleStock, createBundle, updateBundle, deleteBundle, reorderBundles } from "@/services/bundle_service";
+import {
+  createShopProduct, updateShopProduct, deleteShopProduct,
+  receiveStock, adjustStock,
+  createShopCategory, updateShopCategory, deleteShopCategory,
+} from "@/services/shop_product_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
@@ -628,6 +633,165 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  // ── Inventory writes (Phase 8) ─────────────────────────────────────────
+  .post(
+    "/shops/:shopId/products",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        set.status = 201;
+        return await createShopProduct(params.shopId, body as Parameters<typeof createShopProduct>[1], Number(user.sub));
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        product_code: t.String({ minLength: 1, maxLength: 50 }),
+        barcode: t.Optional(t.Nullable(t.String())),
+        name: t.String({ minLength: 1, maxLength: 255 }),
+        category: t.Optional(t.String()),
+        external_price: t.Number({ minimum: 0 }),
+        internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        vat_percent: t.Optional(t.Number({ minimum: 0, maximum: 100 })),
+        avg_cost: t.Optional(t.Number({ minimum: 0 })),
+        stock: t.Optional(t.Number()),
+        min_stock: t.Optional(t.Number({ minimum: 0 })),
+        color: t.Optional(t.Nullable(t.String())),
+        uom_id: t.Optional(t.Nullable(t.Number())),
+      }),
+    },
+  )
+  .patch(
+    "/shops/:shopId/products/:productId",
+    async ({ params, body, user, set }) => {
+      const id = Number(params.productId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid product id" }; }
+      try { return await updateShopProduct(user, params.shopId, id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String(), productId: t.String() }),
+      body: t.Object({
+        product_code: t.Optional(t.Nullable(t.String())),
+        barcode: t.Optional(t.Nullable(t.String())),
+        name: t.Optional(t.Nullable(t.String())),
+        category: t.Optional(t.Nullable(t.String())),
+        external_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        vat_percent: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
+        min_stock: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        is_active: t.Optional(t.Nullable(t.Boolean())),
+        photo_url: t.Optional(t.Nullable(t.String())),
+        color: t.Optional(t.Nullable(t.String())),
+        uom_id: t.Optional(t.Nullable(t.Number())),
+        short_name: t.Optional(t.Nullable(t.String())),
+        sort_order: t.Optional(t.Nullable(t.Number())),
+      }),
+    },
+  )
+  .delete(
+    "/shops/:shopId/products/:productId",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.productId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid product id" }; }
+      try {
+        await deleteShopProduct(user, params.shopId, id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), productId: t.String() }) },
+  )
+  .post(
+    "/shops/:shopId/receive",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await receiveStock({
+          shopId: params.shopId,
+          items: body.items as Parameters<typeof receiveStock>[0]["items"],
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        items: t.Array(t.Object({
+          product_id: t.Number(),
+          qty: t.Number({ exclusiveMinimum: 0 }),
+          cost_per_unit: t.Number({ minimum: 0 }),
+          po: t.Optional(t.Nullable(t.String())),
+          invoice: t.Optional(t.Nullable(t.String())),
+          note: t.Optional(t.Nullable(t.String())),
+        }), { minItems: 1 }),
+      }),
+    },
+  )
+  .post(
+    "/shops/:shopId/adjust",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await adjustStock({
+          shopId: params.shopId,
+          productId: body.product_id,
+          delta: body.delta,
+          reason: body.reason,
+          costPerUnit: body.cost_per_unit ?? null,
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        product_id: t.Number(),
+        delta: t.Number(),
+        reason: t.String({ minLength: 1 }),
+        cost_per_unit: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+      }),
+    },
+  )
+  .post(
+    "/shops/:shopId/categories",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        set.status = 201;
+        return await createShopCategory(params.shopId, body.name);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({ name: t.String({ minLength: 1, maxLength: 100 }) }),
+    },
+  )
+  .patch(
+    "/shops/:shopId/categories/:categoryId",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try { return await updateShopCategory(params.shopId, params.categoryId, body.name); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String(), categoryId: t.String() }),
+      body: t.Object({ name: t.String({ minLength: 1, maxLength: 100 }) }),
+    },
+  )
+  .delete(
+    "/shops/:shopId/categories/:categoryId",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        await deleteShopCategory(params.shopId, params.categoryId);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), categoryId: t.String() }) },
   )
   .post(
     "/shops/:shopId/bundles",
