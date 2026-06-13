@@ -18,6 +18,7 @@ import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
+import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId } from "@/services/family_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -474,6 +475,61 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         notes: t.Optional(t.String({ maxLength: 500 })),
       }),
     },
+  )
+  // ── Phase 6: Family / Parent portal (read-only) ────────────────────────
+  .get(
+    "/family/me",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try { return await myChildren(Number(user.sub)); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .get(
+    "/family/me/coparents",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const familyCode = (user as typeof user & { family_code?: string | null }).family_code ?? null;
+      try { return await myCoparents(Number(user.sub), familyCode); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .get(
+    "/family/me/children/:child_id/low-balance-alert",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.child_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid child id" }; }
+      try { return await getLowBalanceAlert(Number(user.sub), id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ child_id: t.String() }) },
+  )
+  .get(
+    "/family/context/:student_code",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try { return await studentFamilyContext(params.student_code); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ student_code: t.String() }) },
+  )
+  .get(
+    "/family/by-user/:user_id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.user_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try { return await childrenByUserId(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ user_id: t.String() }) },
   );
 
 const app = new Elysia()
