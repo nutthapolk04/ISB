@@ -126,6 +126,16 @@ async function ensureWalletForUser(userId: number): Promise<WalletRow> {
   return created;
 }
 
+export async function ensureWalletForDepartment(departmentId: number): Promise<WalletRow> {
+  const existing = await db.select().from(wallets).where(eq(wallets.departmentId, departmentId)).limit(1);
+  if (existing[0]) return existing[0];
+  const [created] = await db
+    .insert(wallets)
+    .values({ departmentId, balance: "0", isActive: true })
+    .returning();
+  return created;
+}
+
 async function ensureWalletForCustomer(customerId: number): Promise<WalletRow> {
   const existing = await db.select().from(wallets).where(eq(wallets.customerId, customerId)).limit(1);
   if (existing[0]) return existing[0];
@@ -386,6 +396,164 @@ export async function adjustBalance(args: {
     shop_id: null,
     shop_name: null,
     created_at: pgToIso(result.created_at)!,
+  };
+}
+
+export interface CashierTopupDTO {
+  wallet_id: number;
+  customer_name: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  transaction_id: number;
+}
+
+/**
+ * Cashier-side cash top-up — wraps adjustBalance with the right reason format
+ * and enforces the 50,000 THB ceiling (non-department wallets only).
+ */
+export async function cashierTopup(args: {
+  walletId: number;
+  amount: number;
+  cashierUserId: number;
+  notes?: string;
+}): Promise<CashierTopupDTO> {
+  const { walletId, amount, cashierUserId, notes } = args;
+  if (amount <= 0) {
+    const err = new Error("Top-up amount must be positive");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+
+  const wRows = await db.select().from(wallets).where(eq(wallets.id, walletId)).limit(1);
+  if (!wRows[0]) {
+    const err = new Error("Wallet not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const w = wRows[0];
+  if (w.departmentId === null) {
+    const projected = (pgNumber(w.balance) ?? 0) + amount;
+    if (projected > MAX_WALLET_BALANCE) {
+      const current = pgNumber(w.balance) ?? 0;
+      const available = Math.max(0, MAX_WALLET_BALANCE - current);
+      const err = new Error(
+        `Wallet balance cannot exceed ฿${MAX_WALLET_BALANCE.toLocaleString()}. ` +
+        `Current: ฿${current.toFixed(2)}. Max top-up: ฿${available.toFixed(2)}.`,
+      );
+      (err as { status?: number }).status = 400;
+      throw err;
+    }
+  }
+
+  // Resolve display name
+  let customerName = "Unknown";
+  if (w.customerId !== null) {
+    const cr = await db.select({ name: customers.name }).from(customers).where(eq(customers.id, w.customerId)).limit(1);
+    if (cr[0]) customerName = cr[0].name || `Customer #${w.customerId}`;
+  } else if (w.userId !== null) {
+    const ur = await db
+      .select({ fullName: users.fullName, username: users.username })
+      .from(users)
+      .where(eq(users.id, w.userId))
+      .limit(1);
+    if (ur[0]) customerName = ur[0].fullName || ur[0].username;
+  }
+
+  const tx = await adjustBalance({
+    walletId,
+    amount,
+    adminUserId: cashierUserId,
+    reason: "Cash top-up at POS" + (notes ? ` - ${notes}` : ""),
+  });
+
+  return {
+    wallet_id: walletId,
+    customer_name: customerName,
+    amount,
+    balance_before: tx.balance_before,
+    balance_after: tx.balance_after,
+    transaction_id: tx.id,
+  };
+}
+
+export interface DepartmentAdjustDTO {
+  department_id: number;
+  wallet_id: number;
+  new_balance: number;
+  transaction: WalletTransactionResponseDTO;
+}
+
+export async function adjustDepartmentBalance(args: {
+  departmentId: number;
+  amount: number;
+  adminUserId: number;
+  reason: string;
+  referenceTicket?: string;
+}): Promise<DepartmentAdjustDTO> {
+  // Ensure department exists
+  const dr = await db.select().from(departments).where(eq(departments.id, args.departmentId)).limit(1);
+  if (!dr[0]) {
+    const err = new Error("Department not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const wallet = await ensureWalletForDepartment(args.departmentId);
+  const tx = await adjustBalance({
+    walletId: wallet.id,
+    amount: args.amount,
+    adminUserId: args.adminUserId,
+    reason: args.reason,
+    referenceTicket: args.referenceTicket,
+  });
+  return {
+    department_id: args.departmentId,
+    wallet_id: wallet.id,
+    new_balance: tx.balance_after,
+    transaction: tx,
+  };
+}
+
+export async function listDepartmentTransactions(args: {
+  departmentId: number;
+  limit?: number;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<{ items: WalletTransactionResponseDTO[] }> {
+  const dr = await db.select().from(departments).where(eq(departments.id, args.departmentId)).limit(1);
+  if (!dr[0]) {
+    const err = new Error("Department wallet not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const wRows = await db.select().from(wallets).where(eq(wallets.departmentId, args.departmentId)).limit(1);
+  if (!wRows[0]) {
+    return { items: [] };
+  }
+  const conds = [eq(walletTransactions.walletId, wRows[0].id)];
+  if (args.dateFrom) conds.push(gte(walletTransactions.createdAt, `${args.dateFrom}T00:00:00+07:00`));
+  if (args.dateTo) conds.push(lte(walletTransactions.createdAt, `${args.dateTo}T23:59:59.999999+07:00`));
+  const txs = await db
+    .select()
+    .from(walletTransactions)
+    .where(and(...conds))
+    .orderBy(desc(walletTransactions.createdAt))
+    .limit(args.limit ?? 100);
+  return {
+    items: txs.map((t) => ({
+      id: t.id,
+      wallet_id: t.walletId,
+      transaction_type: t.transactionType,
+      amount: pgNumber(t.amount) ?? 0,
+      balance_before: pgNumber(t.balanceBefore) ?? 0,
+      balance_after: pgNumber(t.balanceAfter) ?? 0,
+      reference_type: t.referenceType ?? null,
+      reference_id: t.referenceId ?? null,
+      description: t.description ?? null,
+      shop_id: null,
+      shop_name: null,
+      created_at: pgToIso(t.createdAt)!,
+    })),
   };
 }
 

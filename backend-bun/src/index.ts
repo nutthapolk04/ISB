@@ -13,7 +13,7 @@ import { listUsers, getUser, getUserPayerByUsername, getUserPayerByCard, familyL
 import { listAdminUsers, listStaffForPicker, listStudentsForLink } from "@/services/user_admin_service";
 import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
-import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily } from "@/services/wallet_service";
+import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily, cashierTopup, adjustDepartmentBalance, listDepartmentTransactions } from "@/services/wallet_service";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
@@ -473,6 +473,81 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         amount: t.Number({ exclusiveMinimum: 0 }),
         method: t.Union([t.Literal("CASH"), t.Literal("BANK_TRANSFER"), t.Literal("CHEQUE")]),
         notes: t.Optional(t.String({ maxLength: 500 })),
+      }),
+    },
+  )
+  // ── Phase 3.x: Cashier topup + Dept adjust ─────────────────────────────
+  .post(
+    "/wallets/:id/cashier-topup",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "cashier", "manager", "admin", "staff", "kiosk")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid wallet id" }; }
+      try {
+        return await cashierTopup({
+          walletId: id,
+          amount: body.amount,
+          cashierUserId: Number(user.sub),
+          notes: body.notes,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        notes: t.Optional(t.String({ maxLength: 500 })),
+      }),
+    },
+  )
+  .post(
+    "/admin/departments/:department_id/adjust",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.department_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid department id" }; }
+      try {
+        return await adjustDepartmentBalance({
+          departmentId: id,
+          amount: body.amount,
+          adminUserId: Number(user.sub),
+          reason: body.reason,
+          referenceTicket: body.reference_ticket,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ department_id: t.String() }),
+      body: t.Object({
+        amount: t.Number(),
+        reason: t.String({ minLength: 1, maxLength: 500 }),
+        reference_ticket: t.Optional(t.String({ maxLength: 50 })),
+      }),
+    },
+  )
+  .get(
+    "/admin/departments/:department_id/transactions",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.department_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid department id" }; }
+      try {
+        return await listDepartmentTransactions({
+          departmentId: id,
+          limit: query.limit ? Number(query.limit) : undefined,
+          dateFrom: query.date_from,
+          dateTo: query.date_to,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ department_id: t.String() }),
+      query: t.Object({
+        limit: t.Optional(t.String()),
+        date_from: t.Optional(t.String()),
+        date_to: t.Optional(t.String()),
       }),
     },
   )
