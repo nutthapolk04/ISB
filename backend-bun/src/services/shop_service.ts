@@ -1,6 +1,7 @@
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { shops } from "@/db/schema";
+import { pgToIso } from "@/lib/dates";
 
 export type ShopModule = "canteen" | "store";
 
@@ -64,22 +65,7 @@ function toShopResponse(row: typeof shops.$inferSelect): ShopRow {
     module: row.module,
     uses_dual_pricing: row.usesDualPricing,
     products_order_version: row.productsOrderVersion,
-    created_at: toIso(row.createdAt),
+    created_at: pgToIso(row.createdAt)!,
     spending_group_id: row.spendingGroupId ?? null,
   };
-}
-
-/**
- * Match Pydantic v2 datetime serialization — ISO 8601 with microsecond precision
- * and explicit +HH:MM offset (not "+00"). Postgres-js gives us strings like
- * "2026-05-12 08:43:42.21772+00"; JS Date.toISOString() outputs "Z" suffix and
- * loses microseconds, so we hand-format.
- */
-function toIso(pg: string): string {
-  // Already ISO? leave it.
-  if (pg.includes("T") && (pg.includes("+") || pg.endsWith("Z"))) return pg;
-  const m = pg.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}(?:\.\d+)?)([+-]\d{2})(?::?(\d{2}))?$/);
-  if (!m) return pg;
-  const [, date, time, offH, offM = "00"] = m;
-  return `${date}T${time}${offH}:${offM}`;
 }

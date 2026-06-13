@@ -4,6 +4,8 @@ import { swagger } from "@elysiajs/swagger";
 import { config, APP_VERSION } from "@/lib/config";
 import { healthRoutes } from "@/routes/health";
 import { shopRoutes } from "@/routes/shops";
+import { productRoutes } from "@/routes/products";
+import { customerRoutes } from "@/routes/customers";
 import { jwtPlugin, requireAuth } from "@/middleware/auth";
 
 const app = new Elysia()
@@ -52,7 +54,9 @@ const app = new Elysia()
         roles: user.roles,
         is_superuser: user.is_superuser,
       }))
-      .use(shopRoutes),
+      .use(shopRoutes)
+      .use(productRoutes)
+      .use(customerRoutes),
   )
   .listen(config.port);
 
