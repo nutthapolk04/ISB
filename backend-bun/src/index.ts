@@ -205,6 +205,9 @@ const app = new Elysia()
     return { detail: error instanceof Error ? error.message : "Internal error" };
   })
   .use(healthRoutes)
+  // Public settings — no auth, mounted at root so the group's requireAuth
+  // derive can't reject it.
+  .get("/api/v1/admin/settings/public", async () => await getPublicSettings())
   .group("/api/v1", (api) =>
     api
       .use(requireAuth)
@@ -214,11 +217,7 @@ const app = new Elysia()
         roles: user.roles,
         is_superuser: user.is_superuser,
       }))
-      // FIXME(phase-2): phase2Routes registers in app.routes but never matches
-      // at request time when mounted inside this .group() callback alongside
-      // shopRoutes/productRoutes/etc. The Phase 2 service code is complete and
-      // verified — only the wiring is blocked. Tracking under Phase 2.1.
-      // .use(phase2Routes)
+      .use(phase2Routes)
       .use(shopRoutes)
       .use(productRoutes)
       .use(customerRoutes)
