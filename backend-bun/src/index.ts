@@ -24,6 +24,8 @@ import {
   receiveStock, adjustStock,
   createShopCategory, updateShopCategory, deleteShopCategory,
 } from "@/services/shop_product_service";
+import { listSpendingGroups, getSpendingGroup, createSpendingGroup, updateSpendingGroup, deleteSpendingGroup } from "@/services/spending_group_service";
+import { listUoms, getUom, createUom, updateUom, deleteUom } from "@/services/uom_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
@@ -633,6 +635,145 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  // ── Spending Groups + UoM (Phase 11) ───────────────────────────────────
+  .get(
+    "/spending-groups/",
+    async ({ set }) => {
+      try { return await listSpendingGroups(); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .get(
+    "/spending-groups/:id",
+    async ({ params, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await getSpendingGroup(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .post(
+    "/spending-groups/",
+    async ({ body, user, set }) => {
+      if (!user.is_superuser && !hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        set.status = 201;
+        return await createSpendingGroup(body);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        code: t.String({ minLength: 2, maxLength: 40 }),
+        name_en: t.String({ minLength: 1, maxLength: 100 }),
+        name_th: t.String({ minLength: 1, maxLength: 100 }),
+        daily_limit: t.Number({ exclusiveMinimum: 0 }),
+        is_active: t.Optional(t.Boolean()),
+      }),
+    },
+  )
+  .patch(
+    "/spending-groups/:id",
+    async ({ params, body, user, set }) => {
+      if (!user.is_superuser && !hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await updateSpendingGroup(id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name_en: t.Optional(t.Nullable(t.String())),
+        name_th: t.Optional(t.Nullable(t.String())),
+        daily_limit: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+        is_active: t.Optional(t.Nullable(t.Boolean())),
+      }),
+    },
+  )
+  .delete(
+    "/spending-groups/:id",
+    async ({ params, user, set }) => {
+      if (!user.is_superuser && !hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try {
+        await deleteSpendingGroup(id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .get(
+    "/uom/",
+    async ({ query, set }) => {
+      try { return await listUoms(query.active_only !== "false"); }
+      catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ active_only: t.Optional(t.String()) }) },
+  )
+  .get(
+    "/uom/:id",
+    async ({ params, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await getUom(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .post(
+    "/uom/",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        set.status = 201;
+        return await createUom(body);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        code: t.String({ minLength: 1, maxLength: 20 }),
+        name: t.String({ minLength: 1, maxLength: 100 }),
+        name_en: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
+        base_uom_id: t.Optional(t.Nullable(t.Number())),
+        conversion_factor: t.Optional(t.Number({ minimum: 0 })),
+      }),
+    },
+  )
+  .patch(
+    "/uom/:id",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await updateUom(id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        code: t.Optional(t.Nullable(t.String())),
+        name: t.Optional(t.Nullable(t.String())),
+        name_en: t.Optional(t.Nullable(t.String())),
+        base_uom_id: t.Optional(t.Nullable(t.Number())),
+        conversion_factor: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        is_active: t.Optional(t.Nullable(t.Boolean())),
+      }),
+    },
+  )
+  .delete(
+    "/uom/:id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await deleteUom(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
   )
   // ── Inventory writes (Phase 8) ─────────────────────────────────────────
   .post(
