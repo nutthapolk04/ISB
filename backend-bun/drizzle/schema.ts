@@ -1,5 +1,12 @@
-import { pgTable, index, serial, varchar, integer, numeric, timestamp, foreignKey, unique, text, boolean, jsonb, uniqueIndex, date, check, json, primaryKey, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, index, serial, varchar, integer, numeric, timestamp, foreignKey, unique, text, boolean, jsonb, uniqueIndex, date, check, json, primaryKey, pgEnum, customType } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
+
+// Fallback for bytea columns that drizzle-kit introspect couldn't map.
+const bytea = customType<{ data: Buffer; default: false }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const approvalrequesttype = pgEnum("approvalrequesttype", ['BUDGET_OVERRIDE', 'DISCOUNT', 'RETURN', 'VOID', 'PRICE_OVERRIDE'])
 export const approvalstatus = pgEnum("approvalstatus", ['PENDING', 'APPROVED', 'REJECTED'])
@@ -1129,8 +1136,7 @@ export const productBarcodes = pgTable("product_barcodes", {
 
 export const customerDisplayImages = pgTable("customer_display_images", {
 	id: serial().primaryKey().notNull(),
-	// TODO: failed to parse database type 'bytea'
-	data: unknown("data").notNull(),
+	data: bytea("data").notNull(),
 	contentType: varchar("content_type", { length: 50 }).notNull(),
 	filename: varchar({ length: 200 }),
 	sizeBytes: integer("size_bytes").notNull(),

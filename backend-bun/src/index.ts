@@ -3,6 +3,7 @@ import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { config, APP_VERSION } from "@/lib/config";
 import { healthRoutes } from "@/routes/health";
+import { shopRoutes } from "@/routes/shops";
 import { jwtPlugin, requireAuth } from "@/middleware/auth";
 
 const app = new Elysia()
@@ -43,12 +44,15 @@ const app = new Elysia()
   // Sample protected route — to be replaced by real /me when /users is migrated
   .use(jwtPlugin)
   .group("/api/v1", (api) =>
-    api.use(requireAuth).get("/me", ({ user }) => ({
-      sub: user.sub,
-      username: user.username,
-      roles: user.roles,
-      is_superuser: user.is_superuser,
-    })),
+    api
+      .use(requireAuth)
+      .get("/me", ({ user }) => ({
+        sub: user.sub,
+        username: user.username,
+        roles: user.roles,
+        is_superuser: user.is_superuser,
+      }))
+      .use(shopRoutes),
   )
   .listen(config.port);
 
