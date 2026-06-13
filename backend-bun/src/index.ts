@@ -13,6 +13,7 @@ import { listUsers, getUser, getUserPayerByUsername, getUserPayerByCard, familyL
 import { listAdminUsers, listStaffForPicker, listStudentsForLink } from "@/services/user_admin_service";
 import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
+import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily } from "@/services/wallet_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -188,6 +189,106 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       return { key: params.key, value: newValue };
     },
     { params: t.Object({ key: t.String() }), body: t.Object({ value: t.Any() }) },
+  )
+  // ── Phase 3: Wallet ops ───────────────────────────────────────────────
+  .get(
+    "/wallets/me",
+    async ({ user, set }) => {
+      try { return await getMyWallet(user); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .get(
+    "/wallets/family",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin", "student")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try { return await listFamilyWallets(user); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .get(
+    "/wallets/:id",
+    async ({ params, user, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid wallet id" }; }
+      try {
+        return await getWallet(
+          user as typeof user & { shop_id?: string | null; family_code?: string | null },
+          id,
+        );
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .get(
+    "/wallets/:id/transactions",
+    async ({ params, query, user, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid wallet id" }; }
+      try {
+        return await listTransactions(
+          user as typeof user & { shop_id?: string | null; family_code?: string | null },
+          id,
+          query.date_from,
+          query.date_to,
+        );
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      query: t.Object({ date_from: t.Optional(t.String()), date_to: t.Optional(t.String()) }),
+    },
+  )
+  .post(
+    "/wallets/:id/adjust",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid wallet id" }; }
+      try {
+        return await adjustBalance({
+          walletId: id,
+          amount: body.amount,
+          adminUserId: Number(user.sub),
+          reason: body.reason,
+          referenceTicket: body.reference_ticket,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        amount: t.Number(),
+        reason: t.String({ minLength: 1, maxLength: 500 }),
+        reference_ticket: t.Optional(t.String({ maxLength: 50 })),
+      }),
+    },
+  )
+  .post(
+    "/wallets/transfer",
+    async ({ body, user, set }) => {
+      try {
+        return await transferWithinFamily({
+          fromWalletId: body.from_wallet_id,
+          toWalletId: body.to_wallet_id,
+          amount: body.amount,
+          initiatorUserId: Number(user.sub),
+          initiatorIsAdmin: hasRole(user.roles, "admin") || user.is_superuser,
+          initiatorRoles: user.roles,
+          note: body.note,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        from_wallet_id: t.Number(),
+        to_wallet_id: t.Number(),
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        note: t.Optional(t.String({ maxLength: 500 })),
+      }),
+    },
   );
 
 const app = new Elysia()
