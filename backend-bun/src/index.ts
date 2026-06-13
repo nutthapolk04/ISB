@@ -6,6 +6,7 @@ import { healthRoutes } from "@/routes/health";
 import { shopRoutes } from "@/routes/shops";
 import { productRoutes } from "@/routes/products";
 import { customerRoutes } from "@/routes/customers";
+import { reportRoutes } from "@/routes/reports";
 import { jwtPlugin, requireAuth } from "@/middleware/auth";
 
 const app = new Elysia()
@@ -56,7 +57,8 @@ const app = new Elysia()
       }))
       .use(shopRoutes)
       .use(productRoutes)
-      .use(customerRoutes),
+      .use(customerRoutes)
+      .use(reportRoutes),
   )
   .listen(config.port);
 
