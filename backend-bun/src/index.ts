@@ -26,6 +26,7 @@ import {
 } from "@/services/shop_product_service";
 import { listSpendingGroups, getSpendingGroup, createSpendingGroup, updateSpendingGroup, deleteSpendingGroup } from "@/services/spending_group_service";
 import { listUoms, getUom, createUom, updateUom, deleteUom } from "@/services/uom_service";
+import { listPanels, createPanel, updatePanel, deletePanel, getPanelItems, setItemPrice, setBundleItemPrice } from "@/services/price_panel_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
@@ -635,6 +636,109 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  // ── Price Panels (Phase 11.x) ──────────────────────────────────────────
+  .get(
+    "/shops/:shopId/price-panels",
+    async ({ params, set }) => {
+      try { return await listPanels(params.shopId); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String() }) },
+  )
+  .post(
+    "/shops/:shopId/price-panels",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        set.status = 201;
+        return await createPanel(params.shopId, body.name, body.color ?? null);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({ name: t.String({ minLength: 1 }), color: t.Optional(t.Nullable(t.String())) }),
+    },
+  )
+  .patch(
+    "/shops/:shopId/price-panels/:panelId",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.panelId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid panel id" }; }
+      try { return await updatePanel(params.shopId, id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String(), panelId: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.Nullable(t.String())),
+        color: t.Optional(t.Nullable(t.String())),
+        sort_order: t.Optional(t.Nullable(t.Number())),
+      }),
+    },
+  )
+  .delete(
+    "/shops/:shopId/price-panels/:panelId",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.panelId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid panel id" }; }
+      try {
+        await deletePanel(params.shopId, id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), panelId: t.String() }) },
+  )
+  .get(
+    "/shops/:shopId/price-panels/:panelId/items",
+    async ({ params, set }) => {
+      const id = Number(params.panelId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid panel id" }; }
+      try { return await getPanelItems(params.shopId, id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), panelId: t.String() }) },
+  )
+  .patch(
+    "/shops/:shopId/price-panels/:panelId/items/:productId",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const pId = Number(params.panelId);
+      const prodId = Number(params.productId);
+      if (!Number.isInteger(pId) || !Number.isInteger(prodId)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await setItemPrice(params.shopId, pId, prodId, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String(), panelId: t.String(), productId: t.String() }),
+      body: t.Object({
+        price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        short_name: t.Optional(t.Nullable(t.String())),
+        included: t.Optional(t.Nullable(t.Boolean())),
+      }),
+    },
+  )
+  .patch(
+    "/shops/:shopId/price-panels/:panelId/bundle-items/:bundleId",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const pId = Number(params.panelId);
+      const bId = Number(params.bundleId);
+      if (!Number.isInteger(pId) || !Number.isInteger(bId)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await setBundleItemPrice(params.shopId, pId, bId, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String(), panelId: t.String(), bundleId: t.String() }),
+      body: t.Object({
+        price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        short_name: t.Optional(t.Nullable(t.String())),
+        included: t.Optional(t.Nullable(t.Boolean())),
+      }),
+    },
   )
   // ── Spending Groups + UoM (Phase 11) ───────────────────────────────────
   .get(
