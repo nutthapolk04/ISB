@@ -19,6 +19,7 @@ import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_serv
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
+import { login, refresh, logout, me, mockSso, googleSso } from "@/services/auth_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -717,6 +718,45 @@ const app = new Elysia()
     return { detail: error instanceof Error ? error.message : "Internal error" };
   })
   .use(healthRoutes)
+  // ── Phase 7: Auth (public — no Bearer needed) ──────────────────────────
+  .post(
+    "/api/v1/auth/login",
+    async ({ body, set }) => {
+      try { return await login(body.username, body.password); }
+      catch (e) { return handle(set)(e); }
+    },
+    { body: t.Object({ username: t.String(), password: t.String() }) },
+  )
+  .post(
+    "/api/v1/auth/refresh",
+    async ({ body, set }) => {
+      try { return await refresh(body.refresh_token); }
+      catch (e) { return handle(set)(e); }
+    },
+    { body: t.Object({ refresh_token: t.String() }) },
+  )
+  .post(
+    "/api/v1/auth/sso/mock",
+    async ({ body, set }) => {
+      try { return await mockSso(body.email); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        email: t.String(),
+        full_name: t.Optional(t.String()),
+        provider: t.Optional(t.String()),
+      }),
+    },
+  )
+  .post(
+    "/api/v1/auth/sso/google",
+    async ({ body, set }) => {
+      try { return await googleSso(body.access_token); }
+      catch (e) { return handle(set)(e); }
+    },
+    { body: t.Object({ access_token: t.String() }) },
+  )
   // Public settings — no auth, mounted at root so the group's requireAuth
   // derive can't reject it.
   .get("/api/v1/admin/settings/public", async () => await getPublicSettings())
@@ -729,6 +769,21 @@ const app = new Elysia()
         roles: user.roles,
         is_superuser: user.is_superuser,
       }))
+      .get(
+        "/auth/me",
+        async ({ user, set }) => {
+          try { return await me(Number(user.sub)); }
+          catch (e) { return handle(set)(e); }
+        },
+      )
+      .post(
+        "/auth/logout",
+        async ({ user, set }) => {
+          await logout(Number(user.sub));
+          set.status = 204;
+          return null;
+        },
+      )
       .use(phase2Routes)
       .use(shopRoutes)
       .use(productRoutes)
