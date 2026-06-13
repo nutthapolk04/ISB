@@ -18,7 +18,7 @@ import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
-import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId } from "@/services/family_service";
+import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -605,6 +605,101 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ user_id: t.String() }) },
+  )
+  // ── Phase 6.x: Family writes ───────────────────────────────────────────
+  .put(
+    "/family/me/children/:child_id/low-balance-alert",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.child_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid child id" }; }
+      try {
+        return await updateLowBalanceAlert({
+          parentUserId: Number(user.sub),
+          childId: id,
+          enabled: body.enabled,
+          threshold: body.threshold ?? null,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ child_id: t.String() }),
+      body: t.Object({
+        enabled: t.Boolean(),
+        threshold: t.Optional(t.Number()),
+      }),
+    },
+  )
+  .get(
+    "/family/links",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try { return await listLinks(); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .post(
+    "/family/links",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        set.status = 201;
+        return await createLink({
+          parentUserId: body.parent_user_id,
+          childCustomerId: body.child_customer_id,
+          relation: body.relation,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        parent_user_id: t.Number(),
+        child_customer_id: t.Number(),
+        relation: t.Optional(t.String()),
+      }),
+    },
+  )
+  .delete(
+    "/family/links/:link_id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.link_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid link id" }; }
+      try { return await deleteLink(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ link_id: t.String() }) },
+  )
+  .post(
+    "/family/freeze-all",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "parent", "staff", "cashier", "manager", "kitchen")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        return await freezeAllChildren({
+          caller: { id: Number(user.sub), isAdmin: hasRole(user.roles, "admin") || user.is_superuser },
+          parentUserId: body.parent_user_id,
+          frozen: body.frozen,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        parent_user_id: t.Number(),
+        frozen: t.Boolean(),
+      }),
+    },
+  )
+  .get(
+    "/family/orphans",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try { return await listOrphans(); }
+      catch (e) { return handle(set)(e); }
+    },
   );
 
 const app = new Elysia()

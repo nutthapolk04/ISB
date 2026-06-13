@@ -1,5 +1,5 @@
-import { and, asc, eq, ne } from "drizzle-orm";
-import { db } from "@/db/client";
+import { and, asc, eq, isNotNull, ne, notInArray, sql } from "drizzle-orm";
+import { db, pgClient } from "@/db/client";
 import { parentChildLinks, customers, users, wallets } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
@@ -241,4 +241,270 @@ export async function studentFamilyContext(studentCode: string): Promise<Student
 
 export async function childrenByUserId(parentUserId: number): Promise<ChildSummaryDTO[]> {
   return myChildren(parentUserId);
+}
+
+// ── Writes ─────────────────────────────────────────────────────────────────
+
+export async function updateLowBalanceAlert(args: {
+  parentUserId: number;
+  childId: number;
+  enabled: boolean;
+  threshold: number | null;
+}): Promise<LowBalanceAlertDTO> {
+  const links = await db
+    .select()
+    .from(parentChildLinks)
+    .where(and(eq(parentChildLinks.parentUserId, args.parentUserId), eq(parentChildLinks.childCustomerId, args.childId)))
+    .limit(1);
+  if (!links[0]) {
+    const err = new Error("Child not linked to current user");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  if (args.enabled && (args.threshold === null || args.threshold <= 0)) {
+    const err = new Error("Threshold must be a positive number when alerts are enabled");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+  const updates: Record<string, unknown> = { lowBalanceAlertEnabled: args.enabled };
+  if (args.threshold !== null) updates.lowBalanceThreshold = String(args.threshold);
+  const [updated] = await db
+    .update(parentChildLinks)
+    .set(updates)
+    .where(eq(parentChildLinks.id, links[0].id))
+    .returning();
+  return {
+    child_customer_id: args.childId,
+    enabled: updated.lowBalanceAlertEnabled,
+    threshold: pgNumber(updated.lowBalanceThreshold),
+    last_alert_at: pgToIso(updated.lastLowBalanceAlertAt),
+  };
+}
+
+export interface LinkResponseDTO {
+  id: number;
+  parent_user_id: number;
+  parent_username: string | null;
+  parent_full_name: string | null;
+  child_customer_id: number;
+  child_name: string | null;
+  child_student_code: string | null;
+  child_is_active: boolean | null;
+  relation: string;
+}
+
+export async function listLinks(): Promise<LinkResponseDTO[]> {
+  const links = await db.select().from(parentChildLinks).orderBy(asc(parentChildLinks.id));
+  const out: LinkResponseDTO[] = [];
+  for (const l of links) {
+    const pr = await db
+      .select({ username: users.username, fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, l.parentUserId))
+      .limit(1);
+    const cr = await db
+      .select({ name: customers.name, studentCode: customers.studentCode, isActive: customers.isActive })
+      .from(customers)
+      .where(eq(customers.id, l.childCustomerId))
+      .limit(1);
+    out.push({
+      id: l.id,
+      parent_user_id: l.parentUserId,
+      parent_username: pr[0]?.username ?? null,
+      parent_full_name: pr[0]?.fullName ?? null,
+      child_customer_id: l.childCustomerId,
+      child_name: cr[0]?.name ?? null,
+      child_student_code: cr[0]?.studentCode ?? null,
+      child_is_active: cr[0]?.isActive ?? null,
+      relation: l.relation,
+    });
+  }
+  return out;
+}
+
+export async function createLink(args: {
+  parentUserId: number;
+  childCustomerId: number;
+  relation?: string;
+}): Promise<LinkResponseDTO> {
+  const pr = await db.select().from(users).where(eq(users.id, args.parentUserId)).limit(1);
+  if (!pr[0]) {
+    const err = new Error("Parent user not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const parent = pr[0];
+  if (parent.role !== "parent" && !parent.isSuperuser) {
+    const err = new Error("User is not a parent");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+  const cr = await db.select().from(customers).where(eq(customers.id, args.childCustomerId)).limit(1);
+  if (!cr[0]) {
+    const err = new Error("Child customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const existing = await db
+    .select({ id: parentChildLinks.id })
+    .from(parentChildLinks)
+    .where(and(eq(parentChildLinks.parentUserId, args.parentUserId), eq(parentChildLinks.childCustomerId, args.childCustomerId)))
+    .limit(1);
+  if (existing[0]) {
+    const err = new Error("Link already exists");
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
+
+  const [created] = await db
+    .insert(parentChildLinks)
+    .values({
+      parentUserId: args.parentUserId,
+      childCustomerId: args.childCustomerId,
+      relation: args.relation || "guardian",
+    })
+    .returning();
+  // Ensure child wallet
+  await ensureCustomerWallet(args.childCustomerId);
+  const child = cr[0];
+  return {
+    id: created.id,
+    parent_user_id: created.parentUserId,
+    parent_username: parent.username,
+    parent_full_name: parent.fullName,
+    child_customer_id: created.childCustomerId,
+    child_name: child.name,
+    child_student_code: child.studentCode ?? null,
+    child_is_active: child.isActive,
+    relation: created.relation,
+  };
+}
+
+export async function deleteLink(linkId: number): Promise<{ success: true }> {
+  const rows = await db.select().from(parentChildLinks).where(eq(parentChildLinks.id, linkId)).limit(1);
+  if (!rows[0]) {
+    const err = new Error("Link not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  await db.delete(parentChildLinks).where(eq(parentChildLinks.id, linkId));
+  return { success: true };
+}
+
+export interface FamilyFreezeResponseDTO {
+  parent_user_id: number;
+  frozen: boolean;
+  affected_count: number;
+  children: number[];
+}
+
+export async function freezeAllChildren(args: {
+  caller: { id: number; isAdmin: boolean };
+  parentUserId: number;
+  frozen: boolean;
+}): Promise<FamilyFreezeResponseDTO> {
+  const pr = await db.select().from(users).where(eq(users.id, args.parentUserId)).limit(1);
+  if (!pr[0]) {
+    const err = new Error("Parent user not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  if (!args.caller.isAdmin && args.caller.id !== args.parentUserId) {
+    const err = new Error("Parents can only freeze their own family");
+    (err as { status?: number }).status = 403;
+    throw err;
+  }
+  const links = await db
+    .select()
+    .from(parentChildLinks)
+    .where(eq(parentChildLinks.parentUserId, args.parentUserId));
+  const affected: number[] = [];
+  await pgClient.begin(async (sqlTx) => {
+    for (const link of links) {
+      const cur = await sqlTx<Array<{ id: number; card_frozen: boolean }>>`
+        SELECT id, card_frozen FROM customers WHERE id = ${link.childCustomerId} FOR UPDATE
+      `;
+      if (!cur[0]) continue;
+      if (Boolean(cur[0].card_frozen) !== args.frozen) {
+        await sqlTx`UPDATE customers SET card_frozen = ${args.frozen} WHERE id = ${cur[0].id}`;
+        affected.push(cur[0].id);
+      }
+    }
+  });
+  return {
+    parent_user_id: args.parentUserId,
+    frozen: args.frozen,
+    affected_count: affected.length,
+    children: affected,
+  };
+}
+
+export interface OrphanParentDTO {
+  user_id: number;
+  username: string;
+  full_name: string;
+  email: string | null;
+  family_code: string | null;
+  external_id: string | null;
+  customer_type: string | null;
+}
+
+export interface OrphanStudentDTO {
+  customer_id: number;
+  customer_code: string;
+  student_code: string | null;
+  name: string;
+  grade: string | null;
+  family_code: string | null;
+  external_id: string | null;
+}
+
+export interface OrphansResponseDTO {
+  parents_no_children: OrphanParentDTO[];
+  students_no_parents: OrphanStudentDTO[];
+}
+
+export async function listOrphans(): Promise<OrphansResponseDTO> {
+  const linkedParentRows = await db
+    .selectDistinct({ id: parentChildLinks.parentUserId })
+    .from(parentChildLinks);
+  const linkedChildRows = await db
+    .selectDistinct({ id: parentChildLinks.childCustomerId })
+    .from(parentChildLinks);
+  const linkedParents = new Set(linkedParentRows.map((r) => r.id));
+  const linkedChildren = new Set(linkedChildRows.map((r) => r.id));
+
+  const parents = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.role, "parent"), eq(users.isActive, true)));
+  const students = await db
+    .select()
+    .from(customers)
+    .where(and(isNotNull(customers.studentCode), eq(customers.isActive, true)));
+
+  return {
+    parents_no_children: parents
+      .filter((p) => !linkedParents.has(p.id))
+      .map((u) => ({
+        user_id: u.id,
+        username: u.username,
+        full_name: u.fullName || u.username,
+        email: u.email ?? null,
+        family_code: u.familyCode ?? null,
+        external_id: u.externalId ?? null,
+        customer_type: u.customerType ?? null,
+      })),
+    students_no_parents: students
+      .filter((s) => !linkedChildren.has(s.id))
+      .map((c) => ({
+        customer_id: c.id,
+        customer_code: c.customerCode,
+        student_code: c.studentCode ?? null,
+        name: c.name,
+        grade: c.grade ?? null,
+        family_code: c.familyCode ?? null,
+        external_id: c.externalId ?? null,
+      })),
+  };
 }
