@@ -15,6 +15,9 @@ import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily } from "@/services/wallet_service";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
+import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_service";
+import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
+import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -349,6 +352,127 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Optional(t.Object({ reason: t.Optional(t.String()) })),
+    },
+  )
+  // ── Phase 5: Bundles + Returns + Graduation Refund ─────────────────────
+  .get(
+    "/shops/:shopId/bundles",
+    async ({ params, query, set }) => {
+      try { return await listBundles(params.shopId, query.include_inactive === "true"); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      query: t.Object({ include_inactive: t.Optional(t.String()) }),
+    },
+  )
+  .get(
+    "/shops/:shopId/bundles/:bundleId",
+    async ({ params, set }) => {
+      const id = Number(params.bundleId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid bundle id" }; }
+      try { return await getBundle(params.shopId, id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  .get(
+    "/shops/:shopId/bundles/:bundleId/stock",
+    async ({ params, set }) => {
+      const id = Number(params.bundleId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid bundle id" }; }
+      try { return await checkBundleStock(params.shopId, id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  .get(
+    "/returns",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await listReturns({
+          q: query.filter,
+          shopId: hasRole(user.roles, "admin") || user.is_superuser
+            ? null
+            : (user as typeof user & { shop_id?: string | null }).shop_id ?? null,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ filter: t.Optional(t.String()) }) },
+  )
+  .get(
+    "/returns/by-receipt",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await getReturnsByReceipt(
+          query.receiptId,
+          hasRole(user.roles, "admin") || user.is_superuser
+            ? null
+            : (user as typeof user & { shop_id?: string | null }).shop_id ?? null,
+        );
+      } catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ receiptId: t.String() }) },
+  )
+  .get(
+    "/returns/:id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid return id" }; }
+      try { return await getReturn(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .get(
+    "/return-history",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await getReturnHistory({
+          q: query.filter,
+          shopId: hasRole(user.roles, "admin") || user.is_superuser
+            ? null
+            : (user as typeof user & { shop_id?: string | null }).shop_id ?? null,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ filter: t.Optional(t.String()) }) },
+  )
+  .get(
+    "/refund/candidates",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "admin", "refund_officer")) { set.status = 403; return { detail: "Forbidden" }; }
+      try { return await listRefundCandidates(); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
+  .post(
+    "/refund/:customer_id",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "refund_officer")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.customer_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try {
+        return await createGraduationRefund({
+          customerId: id,
+          amount: body.amount,
+          method: body.method,
+          notes: body.notes ?? null,
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ customer_id: t.String() }),
+      body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        method: t.Union([t.Literal("CASH"), t.Literal("BANK_TRANSFER"), t.Literal("CHEQUE")]),
+        notes: t.Optional(t.String({ maxLength: 500 })),
+      }),
     },
   );
 
