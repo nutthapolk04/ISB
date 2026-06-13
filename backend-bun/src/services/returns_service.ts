@@ -1,6 +1,6 @@
-import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
-import { db } from "@/db/client";
-import { returnRequests, receipts } from "@/db/schema";
+import { and, desc, eq, ilike, ne, or, sql, isNull } from "drizzle-orm";
+import { db, pgClient } from "@/db/client";
+import { returnRequests, receipts, shopProducts } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
 
 export interface ReturnRequestDTO {
@@ -135,6 +135,183 @@ export async function getReturnHistory(args: { q?: string; shopId?: string | nul
     .where(and(...conds))
     .orderBy(desc(returnRequests.processedAt));
   return rows.map(toHistoryDto);
+}
+
+// ── Writes ─────────────────────────────────────────────────────────────
+
+export interface ReturnItemInput {
+  productCode: string;
+  productName: string;
+  quantity: number;
+  returnQuantity: number;
+  price: number;
+  bundleId?: number | null;
+}
+
+export async function createReturn(args: {
+  receiptId: string;
+  items: ReturnItemInput[];
+  reason: string;
+  userId: number;
+}): Promise<ReturnRequestDTO[]> {
+  const created: ReturnRequestDTO[] = [];
+
+  for (const item of args.items) {
+    const purchasedQty = item.quantity;
+    const requestedQty = item.returnQuantity;
+    const bundleIdIn = item.bundleId ?? null;
+
+    const conds = [
+      eq(returnRequests.receiptId, args.receiptId),
+      eq(returnRequests.productCode, item.productCode),
+      ne(returnRequests.status, "rejected"),
+    ];
+    if (bundleIdIn !== null) conds.push(eq(returnRequests.bundleId, bundleIdIn));
+    else conds.push(isNull(returnRequests.bundleId));
+
+    const existing = await db
+      .select({ returnQuantity: returnRequests.returnQuantity })
+      .from(returnRequests)
+      .where(and(...conds));
+    const alreadyReturned = existing.reduce((s, r) => s + r.returnQuantity, 0);
+    const remaining = purchasedQty - alreadyReturned;
+
+    if (remaining <= 0) {
+      const err = new Error(
+        `Product '${item.productCode}' from receipt '${args.receiptId}' has already been fully returned (${alreadyReturned}/${purchasedQty})`,
+      );
+      (err as { status?: number }).status = 409;
+      throw err;
+    }
+    if (requestedQty > remaining) {
+      const err = new Error(
+        `Product '${item.productCode}': requested ${requestedQty} but only ${remaining} remaining (purchased ${purchasedQty}, already returned ${alreadyReturned})`,
+      );
+      (err as { status?: number }).status = 409;
+      throw err;
+    }
+
+    const totalAfter = alreadyReturned + requestedQty;
+    const [inserted] = await db
+      .insert(returnRequests)
+      .values({
+        receiptId: args.receiptId,
+        productCode: item.productCode,
+        productName: item.productName,
+        bundleId: bundleIdIn,
+        quantity: purchasedQty,
+        returnQuantity: requestedQty,
+        price: String(item.price ?? 0),
+        reason: args.reason,
+        status: "pending",
+        returnStatus: totalAfter >= purchasedQty ? "full-return" : "partial-return",
+        createdBy: args.userId,
+      })
+      .returning();
+    created.push(rrToDto(inserted));
+  }
+
+  return created;
+}
+
+export interface ReturnWithoutReceiptItemInput {
+  productCode: string;
+  productName: string;
+  returnQuantity: number;
+  unitPrice: number;
+  shopId: string;
+}
+
+export async function createReturnWithoutReceipt(args: {
+  items: ReturnWithoutReceiptItemInput[];
+  reason: string;
+  customerName?: string | null;
+  notes?: string | null;
+  userId: number;
+}): Promise<ReturnRequestDTO[]> {
+  const created: ReturnRequestDTO[] = [];
+  const noReceiptId = `NO-RCPT-${Math.floor(Date.now() / 1000)}`;
+
+  for (const item of args.items) {
+    const productRows = await db
+      .select({ id: shopProducts.id })
+      .from(shopProducts)
+      .where(and(
+        eq(shopProducts.productCode, item.productCode),
+        eq(shopProducts.shopId, item.shopId),
+        eq(shopProducts.isActive, true),
+      ))
+      .limit(1);
+    if (!productRows[0]) {
+      const err = new Error(`Product '${item.productCode}' not found in shop '${item.shopId}'`);
+      (err as { status?: number }).status = 400;
+      throw err;
+    }
+
+    let fullReason = args.reason;
+    if (args.customerName) fullReason = `${fullReason} (Customer: ${args.customerName})`;
+    if (args.notes) fullReason = `${fullReason} | Notes: ${args.notes}`;
+
+    const [inserted] = await db
+      .insert(returnRequests)
+      .values({
+        receiptId: noReceiptId,
+        productCode: item.productCode,
+        productName: item.productName,
+        quantity: item.returnQuantity,
+        returnQuantity: item.returnQuantity,
+        price: String(item.unitPrice ?? 0),
+        reason: fullReason,
+        status: "pending",
+        returnStatus: "full-return",
+        createdBy: args.userId,
+      })
+      .returning();
+    created.push(rrToDto(inserted));
+  }
+  return created;
+}
+
+export interface UpdateReturnInput {
+  productName?: string | null;
+  quantity?: number | null;
+  returnQuantity?: number | null;
+  reason?: string | null;
+  status?: string | null;
+  priceType?: string | null;
+}
+
+export async function updateReturn(returnId: number, input: UpdateReturnInput): Promise<ReturnRequestDTO> {
+  const rows = await db.select().from(returnRequests).where(eq(returnRequests.id, returnId)).limit(1);
+  if (!rows[0]) {
+    const err = new Error("Return request not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (input.productName !== undefined && input.productName !== null) updates.productName = input.productName;
+  if (input.quantity !== undefined && input.quantity !== null) updates.quantity = input.quantity;
+  if (input.returnQuantity !== undefined && input.returnQuantity !== null) updates.returnQuantity = input.returnQuantity;
+  if (input.reason !== undefined && input.reason !== null) updates.reason = input.reason;
+  if (input.status !== undefined && input.status !== null) updates.status = input.status;
+  if (input.priceType !== undefined && input.priceType !== null) updates.priceType = input.priceType;
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(returnRequests).set(updates).where(eq(returnRequests.id, returnId));
+  }
+  const fresh = await db.select().from(returnRequests).where(eq(returnRequests.id, returnId)).limit(1);
+  return rrToDto(fresh[0]);
+}
+
+export async function deleteReturn(returnId: number): Promise<void> {
+  const rows = await db.select({ id: returnRequests.id }).from(returnRequests).where(eq(returnRequests.id, returnId)).limit(1);
+  if (!rows[0]) {
+    const err = new Error("Return request not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  await db.delete(returnRequests).where(eq(returnRequests.id, returnId));
 }
 
 function toHistoryDto(rr: typeof returnRequests.$inferSelect): ReturnHistoryDTO {

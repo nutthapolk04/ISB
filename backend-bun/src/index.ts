@@ -18,8 +18,8 @@ import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKno
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily, cashierTopup, adjustDepartmentBalance, listDepartmentTransactions } from "@/services/wallet_service";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
-import { listBundles, getBundle, checkBundleStock } from "@/services/bundle_service";
-import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory } from "@/services/returns_service";
+import { listBundles, getBundle, checkBundleStock, createBundle, updateBundle, deleteBundle, reorderBundles } from "@/services/bundle_service";
+import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import { login, refresh, logout, me, mockSso, googleSso } from "@/services/auth_service";
@@ -629,6 +629,77 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
   )
+  .post(
+    "/shops/:shopId/bundles",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        set.status = 201;
+        return await createBundle(params.shopId, body as Parameters<typeof createBundle>[1]);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        bundle_code: t.String({ minLength: 1, maxLength: 50 }),
+        barcode: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
+        name: t.String({ minLength: 1, maxLength: 255 }),
+        description: t.Optional(t.Nullable(t.String())),
+        external_price: t.Number({ minimum: 0 }),
+        internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        color: t.Optional(t.Nullable(t.String())),
+        items: t.Array(t.Object({ product_id: t.Number(), quantity: t.Number({ minimum: 1 }) })),
+      }),
+    },
+  )
+  .patch(
+    "/shops/:shopId/bundles/:bundleId",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.bundleId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid bundle id" }; }
+      try { return await updateBundle(params.shopId, id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String(), bundleId: t.String() }),
+      body: t.Object({
+        bundle_code: t.Optional(t.Nullable(t.String({ minLength: 1, maxLength: 50 }))),
+        barcode: t.Optional(t.Nullable(t.String())),
+        name: t.Optional(t.Nullable(t.String({ minLength: 1, maxLength: 255 }))),
+        description: t.Optional(t.Nullable(t.String())),
+        external_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        photo_url: t.Optional(t.Nullable(t.String())),
+        color: t.Optional(t.Nullable(t.String())),
+        is_active: t.Optional(t.Nullable(t.Boolean())),
+        items: t.Optional(t.Nullable(t.Array(t.Object({ product_id: t.Number(), quantity: t.Number({ minimum: 1 }) })))),
+      }),
+    },
+  )
+  .delete(
+    "/shops/:shopId/bundles/:bundleId",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.bundleId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid bundle id" }; }
+      try { return await deleteBundle(params.shopId, id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  .post(
+    "/shops/:shopId/bundles/reorder",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try { return await reorderBundles(params.shopId, body.sort_map); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({ sort_map: t.Record(t.String(), t.Number()) }),
+    },
+  )
   .get(
     "/shops/:shopId/bundles/:bundleId/stock",
     async ({ params, set }) => {
@@ -638,6 +709,97 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  .post(
+    "/returns/create",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await createReturn({
+          receiptId: body.receiptId,
+          items: body.items as Parameters<typeof createReturn>[0]["items"],
+          reason: body.reason,
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        receiptId: t.String(),
+        items: t.Array(t.Object({
+          productCode: t.String(),
+          productName: t.String(),
+          quantity: t.Number({ minimum: 1 }),
+          returnQuantity: t.Number({ minimum: 1 }),
+          price: t.Number({ minimum: 0 }),
+          bundleId: t.Optional(t.Nullable(t.Number())),
+        })),
+        reason: t.String({ minLength: 1 }),
+      }),
+    },
+  )
+  .post(
+    "/returns/create-without-receipt",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await createReturnWithoutReceipt({
+          items: body.items as Parameters<typeof createReturnWithoutReceipt>[0]["items"],
+          reason: body.reason,
+          customerName: body.customerName ?? null,
+          notes: body.notes ?? null,
+          userId: Number(user.sub),
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        items: t.Array(t.Object({
+          productCode: t.String(),
+          productName: t.String(),
+          returnQuantity: t.Number({ minimum: 1 }),
+          unitPrice: t.Number({ minimum: 0 }),
+          shopId: t.String(),
+        })),
+        reason: t.String({ minLength: 1 }),
+        customerName: t.Optional(t.Nullable(t.String())),
+        notes: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .put(
+    "/returns/:id",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid return id" }; }
+      try { return await updateReturn(id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        productName: t.Optional(t.Nullable(t.String())),
+        quantity: t.Optional(t.Nullable(t.Number())),
+        returnQuantity: t.Optional(t.Nullable(t.Number())),
+        reason: t.Optional(t.Nullable(t.String())),
+        status: t.Optional(t.Nullable(t.String())),
+        priceType: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .delete(
+    "/returns/:id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid return id" }; }
+      try {
+        await deleteReturn(id);
+        return { success: true };
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
   )
   .get(
     "/returns",
