@@ -31,6 +31,8 @@ import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createRe
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import { login, refresh, logout, me, mockSso, googleSso } from "@/services/auth_service";
+import { listImages, getImageBinary, reorderImages, deleteImage } from "@/services/customer_display_service";
+import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -636,6 +638,54 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
+  )
+  // ── Customer Display admin + Sync logs ─────────────────────────────────
+  .delete(
+    "/admin/customer-display/images/:id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try {
+        await deleteImage(id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .patch(
+    "/admin/customer-display/images/order",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try { return await reorderImages(body.ordered_ids); }
+      catch (e) { return handle(set)(e); }
+    },
+    { body: t.Object({ ordered_ids: t.Array(t.Number()) }) },
+  )
+  .get(
+    "/sync/logs",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        return await listSyncLogs(
+          query.limit ? Math.min(Math.max(Number(query.limit), 1), 200) : 50,
+          query.offset ? Math.max(Number(query.offset), 0) : 0,
+        );
+      } catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ limit: t.Optional(t.String()), offset: t.Optional(t.String()) }) },
+  )
+  .get(
+    "/sync/stats",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        const days = query.days ? Math.min(Math.max(Number(query.days), 1), 365) : 30;
+        return await syncStats(days);
+      } catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ days: t.Optional(t.String()) }) },
   )
   // ── Price Panels (Phase 11.x) ──────────────────────────────────────────
   .get(
@@ -1635,6 +1685,23 @@ const app = new Elysia()
   // Public settings — no auth, mounted at root so the group's requireAuth
   // derive can't reject it.
   .get("/api/v1/admin/settings/public", async () => await getPublicSettings())
+  // Customer display — public (no auth), display window has no login
+  .get("/api/v1/customer-display/images", async () => await listImages())
+  .get(
+    "/api/v1/customer-display/images/:id/binary",
+    async ({ params, set }) => {
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try {
+        const bin = await getImageBinary(id);
+        set.headers["Content-Type"] = bin.contentType;
+        set.headers["Cache-Control"] = "public, max-age=3600";
+        set.headers["Content-Length"] = String(bin.sizeBytes);
+        return bin.content;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
   .group("/api/v1", (api) =>
     api
       .use(requireAuth)
