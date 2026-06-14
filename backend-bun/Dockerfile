@@ -8,10 +8,14 @@ FROM oven/bun:1.3-alpine AS deps
 WORKDIR /app
 
 # Copy lockfile + all workspace package.json files so bun install can resolve
-# the workspace graph without copying source.
+# the workspace graph. We need every workspace declared in the root
+# package.json (frontend, kiosk, shared, backend-bun) even though we only
+# build backend-bun — bun refuses install otherwise.
 COPY package.json bun.lock ./
 COPY shared/package.json ./shared/
 COPY backend-bun/package.json ./backend-bun/
+COPY frontend/package.json ./frontend/
+COPY kiosk/package.json ./kiosk/
 
 RUN bun install --frozen-lockfile
 
