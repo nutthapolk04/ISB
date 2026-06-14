@@ -170,7 +170,13 @@ export async function createTokens(user: typeof users.$inferSelect): Promise<Tok
   const sid = generateSessionToken();
   await db.update(users).set({ sessionToken: sid }).where(eq(users.id, user.id));
 
-  const roleNames = (await getRoleNames(user.id)).map((r) => r.name);
+  // Roles: prefer the user_roles M2M table (RBAC), fall back to the legacy
+  // users.role column for accounts that haven't been migrated to RBAC yet
+  // (PowerSchool-seeded parents/students typically only have users.role set).
+  const roleNamesFromRbac = (await getRoleNames(user.id)).map((r) => r.name);
+  const roleNames = roleNamesFromRbac.length > 0
+    ? roleNamesFromRbac
+    : (user.role ? [user.role] : []);
   const now = Math.floor(Date.now() / 1000);
   const accessClaims: AccessTokenClaims = {
     sub: String(user.id),
@@ -223,7 +229,7 @@ export async function me(userId: number): Promise<MeResponseDTO> {
     (err as { status?: number }).status = 404;
     throw err;
   }
-  const [userRolesList, perms] = await Promise.all([
+  const [rbacRoles, perms] = await Promise.all([
     getRoleNames(user.id),
     getPermissionNames(user.id),
   ]);
@@ -243,7 +249,9 @@ export async function me(userId: number): Promise<MeResponseDTO> {
       is_active: user.isActive,
       is_superuser: user.isSuperuser,
       role: user.role ?? null,
-      roles: userRolesList,
+      roles: rbacRoles.length > 0
+        ? rbacRoles
+        : (user.role ? [{ id: 0, name: user.role, description: null }] : []),
       shop_id: user.shopId ?? null,
       shop_module: shopModule,
     },
