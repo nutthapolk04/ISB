@@ -1911,6 +1911,14 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   );
 
 const app = new Elysia()
+  .use(cors({
+    origin: config.corsOrigins.length === 1 && config.corsOrigins[0] === "*"
+      ? true
+      : config.corsOrigins,
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  }))
   .onError(({ code, error, set }) => {
     if (code === "VALIDATION") {
       set.status = 422;
