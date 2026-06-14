@@ -715,6 +715,26 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       }),
     },
   )
+  // ── PowerSchool sync POST stubs ───────────────────────────────────────
+  // The 660-line PowerSchool engine (fixtures, family resolution, photo URL
+  // caching, audit emit) is intentionally not ported. Bun returns 501 so the
+  // admin UI can fall back to FastAPI for this low-frequency manual trigger.
+  .post(
+    "/sync/run",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      set.status = 501;
+      return { detail: "PowerSchool sync engine not yet ported to Bun — route this request through FastAPI" };
+    },
+  )
+  .post(
+    "/sync/powerschool",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      set.status = 501;
+      return { detail: "PowerSchool sync engine not yet ported to Bun — route this request through FastAPI" };
+    },
+  )
   .get(
     "/sync-logs",
     async ({ query, user, set }) => {
