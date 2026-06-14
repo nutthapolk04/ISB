@@ -11,6 +11,7 @@ import { db, pgClient } from "@/db/client";
 import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
+import { createQrPayment, createEasyPay, isPymtConfigured, PymtGatewayError } from "@/services/pymt_gateway";
 
 const MAX_WALLET_BALANCE = 50_000;
 
@@ -145,14 +146,6 @@ export interface CreateTopupInput {
 export async function createTopupIntent(input: CreateTopupInput): Promise<TopupIntentDTO> {
   const paymentMethod = input.paymentMethod ?? "qr_promptpay";
 
-  if (PYMT_METHODS.has(paymentMethod)) {
-    const err = new Error(
-      `Payment method '${paymentMethod}' requires the PYMT gateway HTTP client which is not yet ported to Bun — route this request through FastAPI`,
-    );
-    (err as { status?: number }).status = 501;
-    throw err;
-  }
-
   const wRows = await db.select().from(wallets).where(eq(wallets.id, input.walletId)).limit(1);
   const wallet = wRows[0];
   if (!wallet) {
@@ -178,31 +171,72 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
   }
 
   const refCode = await generateRefCode();
-  const qrPayload = buildMockQrPayload(refCode, input.amount);
+  const initialQrPayload = buildMockQrPayload(refCode, input.amount);
 
   const [created] = await db.insert(paymentIntents).values({
     refCode,
     walletId: input.walletId,
     amount: String(input.amount),
-    qrPayload,
+    qrPayload: initialQrPayload,
     status: "pending",
     paymentMethod,
     createdBy: input.userId,
     notes: input.notes ?? null,
   }).returning();
 
+  // PYMT gateway call (after row exists so ref_code is claimed in DB —
+  // matches FastAPI behaviour: failure cancels the intent, no phantom rows).
+  let txnNo: string | null = created.txnNo ?? null;
+  let qrPayload: string = initialQrPayload;
+  let paymentPageUrl: string | null = null;
+  let paymentFormParams: Record<string, string> | null = null;
+  const pymtConfigured = isPymtConfigured();
+
+  try {
+    if (paymentMethod === "bay_qr" && pymtConfigured) {
+      const r = await createQrPayment({ amount: input.amount, refCode, walletId: input.walletId });
+      qrPayload = r.qrcode_content;
+      txnNo = r.txn_no;
+      await db.update(paymentIntents).set({ qrPayload, txnNo }).where(eq(paymentIntents.id, created.id));
+    } else if (paymentMethod === "bay_easypay" && pymtConfigured) {
+      const feBase = process.env.FRONTEND_BASE_URL ?? "";
+      const r = await createEasyPay({
+        amount: input.amount, refCode,
+        successUrl: `${feBase}/payment/bay/success?ref=${refCode}`,
+        failUrl: `${feBase}/payment/bay/fail?ref=${refCode}`,
+        cancelUrl: `${feBase}/payment/bay/cancel?ref=${refCode}`,
+      });
+      txnNo = r.txn_no;
+      paymentPageUrl = r.payment_page_url;
+      paymentFormParams = r.payment_form_params;
+      await db.update(paymentIntents).set({ txnNo }).where(eq(paymentIntents.id, created.id));
+    } else if (PYMT_METHODS.has(paymentMethod) && !pymtConfigured) {
+      // PYMT method requested but gateway not configured — cancel intent + 503
+      await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, created.id));
+      throw new PymtGatewayError("PYMT not configured", 503);
+    }
+  } catch (e) {
+    if (e instanceof PymtGatewayError) {
+      await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, created.id));
+      const err = new Error(`Payment gateway error: ${e.message}`);
+      (err as { status?: number }).status = e.status >= 400 && e.status < 600 ? e.status : 502;
+      throw err;
+    }
+    throw e;
+  }
+
   return {
     ref_code: created.refCode,
     wallet_id: created.walletId,
     amount: pgNumber(created.amount) ?? 0,
-    qr_payload: created.qrPayload ?? "",
+    qr_payload: qrPayload,
     status: created.status,
     payment_method: created.paymentMethod,
     confirmed_via: created.confirmedVia ?? null,
     created_at: pgToIso(created.createdAt)!,
-    txn_no: created.txnNo ?? null,
-    payment_page_url: null,
-    payment_form_params: null,
+    txn_no: txnNo,
+    payment_page_url: paymentPageUrl,
+    payment_form_params: paymentFormParams,
   };
 }
 

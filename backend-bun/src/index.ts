@@ -38,6 +38,7 @@ import { scopeShop } from "@/services/report_service";
 import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCardholder } from "@/services/cardholder_service";
 import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback } from "@/services/topup_service";
 import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
+import { runSync } from "@/services/powerschool_sync";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -715,24 +716,49 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       }),
     },
   )
-  // ── PowerSchool sync POST stubs ───────────────────────────────────────
-  // The 660-line PowerSchool engine (fixtures, family resolution, photo URL
-  // caching, audit emit) is intentionally not ported. Bun returns 501 so the
-  // admin UI can fall back to FastAPI for this low-frequency manual trigger.
+  // ── PowerSchool sync (mock, fixture-based) ────────────────────────────
   .post(
     "/sync/run",
-    async ({ user, set }) => {
+    async ({ body, user, set }) => {
       if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
-      set.status = 501;
-      return { detail: "PowerSchool sync engine not yet ported to Bun — route this request through FastAPI" };
+      try {
+        return await runSync({
+          triggeredById: Number(user.sub),
+          syncType: (body.sync_type as "full" | "delta") ?? "delta",
+          targetRoles: body.target_roles ?? ["student", "parent", "staff"],
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        sync_type: t.Optional(t.Union([t.Literal("full"), t.Literal("delta")])),
+        target_roles: t.Optional(t.Array(t.String())),
+      }),
     },
   )
   .post(
     "/sync/powerschool",
-    async ({ user, set }) => {
+    async ({ body, user, set }) => {
       if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
-      set.status = 501;
-      return { detail: "PowerSchool sync engine not yet ported to Bun — route this request through FastAPI" };
+      const valid = new Set(["student", "parent", "staff", "admin", "manager", "cashier"]);
+      const targetRoles = (body.target_roles ?? []).filter((r) => valid.has(r));
+      if (targetRoles.length === 0) {
+        set.status = 400;
+        return { detail: "At least one valid target role is required" };
+      }
+      try {
+        return await runSync({
+          triggeredById: Number(user.sub),
+          syncType: (body.sync_type as "full" | "delta") ?? "full",
+          targetRoles,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        sync_type: t.Optional(t.Union([t.Literal("full"), t.Literal("delta")])),
+        target_roles: t.Optional(t.Array(t.String())),
+      }),
     },
   )
   .get(
