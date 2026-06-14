@@ -35,7 +35,7 @@ import { listImages, getImageBinary, reorderImages, deleteImage, uploadImage } f
 import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { closeDay } from "@/services/canteen_service";
 import { scopeShop } from "@/services/report_service";
-import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit } from "@/services/cardholder_service";
+import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCardholder } from "@/services/cardholder_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -656,6 +656,42 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({ file: t.File() }),
+    },
+  )
+  .post(
+    "/cardholders",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        set.status = 201;
+        return await createCardholder(body as Parameters<typeof createCardholder>[0]);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        kind: t.Union([
+          t.Literal("student"), t.Literal("parent"), t.Literal("staff"),
+          t.Literal("department"), t.Literal("other"),
+        ]),
+        name: t.Optional(t.Nullable(t.String())),
+        family_code: t.Optional(t.Nullable(t.String())),
+        card_uid: t.Optional(t.Nullable(t.String())),
+        customer_code: t.Optional(t.Nullable(t.String())),
+        student_code: t.Optional(t.Nullable(t.String())),
+        grade: t.Optional(t.Nullable(t.String())),
+        school_type: t.Optional(t.Nullable(t.String())),
+        initial_balance: t.Optional(t.Nullable(t.Number())),
+        username: t.Optional(t.Nullable(t.String())),
+        email: t.Optional(t.Nullable(t.String())),
+        password: t.Optional(t.Nullable(t.String())),
+        role: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        department_code: t.Optional(t.Nullable(t.String())),
+        department_name: t.Optional(t.Nullable(t.String())),
+        initial_credit: t.Optional(t.Nullable(t.Number())),
+        phone: t.Optional(t.Nullable(t.String())),
+        with_wallet: t.Optional(t.Boolean()),
+      }),
     },
   )
   .get(

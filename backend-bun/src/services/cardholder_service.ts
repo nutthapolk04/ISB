@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
-import { db } from "@/db/client";
-import { users, customers, departments, wallets, syncLogs, syncAuditLogs } from "@/db/schema";
+import { db, pgClient } from "@/db/client";
+import { users, customers, departments, wallets, syncLogs, syncAuditLogs, customerTypes, shops } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { createDepartment } from "@/services/department_service";
 
 export type CardholderKind = "student" | "parent" | "staff" | "department" | "other";
 
@@ -271,6 +272,228 @@ export interface SyncAuditEntryDTO {
   action: string;
   changes: unknown;
   created_at: string;
+}
+
+// ── Create cardholder (polymorphic by kind) ────────────────────────────────
+
+const WALLET_USER_ROLES = new Set(["parent", "cashier", "manager", "kitchen", "admin", "staff"]);
+
+export interface CreateCardholderInput {
+  kind: CardholderKind;
+  name?: string | null;
+  family_code?: string | null;
+  card_uid?: string | null;
+  customer_code?: string | null;
+  student_code?: string | null;
+  grade?: string | null;
+  school_type?: string | null;
+  initial_balance?: number | null;
+  username?: string | null;
+  email?: string | null;
+  password?: string | null;
+  role?: string | null;
+  shop_id?: string | null;
+  department_code?: string | null;
+  department_name?: string | null;
+  initial_credit?: number | null;
+  phone?: string | null;
+  with_wallet?: boolean | null;
+}
+
+function badRequest(msg: string): never {
+  const err = new Error(msg);
+  (err as { status?: number }).status = 400;
+  throw err;
+}
+function conflict(msg: string): never {
+  const err = new Error(msg);
+  (err as { status?: number }).status = 409;
+  throw err;
+}
+
+async function ensureCustomerTypeId(typeName: "Internal" | "Public"): Promise<number> {
+  const rows = await db.select().from(customerTypes).where(eq(customerTypes.typeName, typeName)).limit(1);
+  if (rows[0]) return rows[0].id;
+  const priceLevel = typeName === "Internal" ? "internal" : "retail";
+  const description = typeName === "Internal" ? "Internal" : "Public/visitor";
+  const [created] = await db.insert(customerTypes).values({
+    typeName,
+    description,
+    defaultPriceLevel: priceLevel,
+  }).returning();
+  return created.id;
+}
+
+export async function createCardholder(input: CreateCardholderInput): Promise<CardholderDTO> {
+  const kind = input.kind;
+
+  if (kind === "student") {
+    if (!input.customer_code || !input.name) badRequest("customer_code and name are required for student");
+    const dup = await db.select({ id: customers.id }).from(customers).where(eq(customers.customerCode, input.customer_code!)).limit(1);
+    if (dup[0]) conflict(`Customer code ${input.customer_code} exists`);
+    const ctId = await ensureCustomerTypeId("Internal");
+    const initBalance = input.initial_balance ?? 0;
+
+    let custId = 0;
+    let walletId = 0;
+    await pgClient.begin(async (sqlTx) => {
+      const cins = await sqlTx<Array<{ id: number }>>`
+        INSERT INTO customers
+          (customer_code, name, student_code, grade, school_type, family_code,
+           card_uid, customer_type_id, customer_kind, customer_type, is_active)
+        VALUES (${input.customer_code}, ${input.name}, ${input.student_code ?? null},
+                ${input.grade ?? null}, ${input.school_type ?? null}, ${input.family_code ?? null},
+                ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true)
+        RETURNING id
+      `;
+      custId = cins[0].id;
+      const wins = await sqlTx<Array<{ id: number }>>`
+        INSERT INTO wallets (customer_id, balance, is_active) VALUES (${custId}, ${initBalance}, true) RETURNING id
+      `;
+      walletId = wins[0].id;
+      // Optional student user login
+      if (input.student_code) {
+        const exists = await sqlTx<Array<{ id: number }>>`SELECT id FROM users WHERE username = ${input.student_code}`;
+        if (!exists[0]) {
+          const hash = await Bun.password.hash("parent", { algorithm: "bcrypt", cost: 12 });
+          await sqlTx`
+            INSERT INTO users (username, email, full_name, hashed_password, is_active, is_superuser,
+                               role, status, customer_type, external_id, family_code)
+            VALUES (${input.student_code}, ${`${input.student_code}@students.isb.ac.th`},
+                    ${input.name}, ${hash}, true, false, 'student', 'active', 'Student',
+                    ${input.student_code}, ${input.family_code ?? null})
+          `;
+        }
+      }
+    });
+    return {
+      ...blank(),
+      key: `c-${custId}`,
+      kind: "student",
+      entity_type: "customer",
+      entity_id: custId,
+      name: input.name!,
+      identifier: input.student_code ?? input.customer_code!,
+      family_code: input.family_code ?? null,
+      card_uid: input.card_uid ?? null,
+      wallet_id: walletId,
+      wallet_balance: initBalance,
+      grade: input.grade ?? null,
+      school_type: input.school_type ?? null,
+    };
+  }
+
+  if (kind === "parent" || kind === "staff") {
+    if (!input.username || !input.name || !input.password) badRequest("username, name, password are required");
+    const pw = input.password!;
+    if (pw.length < 8) badRequest("Password must be at least 8 characters");
+    const hasDigitOrSpecial = [...pw].some((c) => /\d/.test(c) || !/[a-zA-Z0-9]/.test(c));
+    if (!hasDigitOrSpecial) badRequest("Password must contain at least one number or special character");
+    const dup = await db.select({ id: users.id }).from(users).where(eq(users.username, input.username!)).limit(1);
+    if (dup[0]) conflict(`Username ${input.username} exists`);
+    const role = kind === "parent" ? "parent" : (input.role || "staff");
+    if (!WALLET_USER_ROLES.has(role)) badRequest(`Invalid role ${role}`);
+    if (input.shop_id) {
+      const sr = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, input.shop_id)).limit(1);
+      if (!sr[0]) badRequest(`Shop ${input.shop_id} not found`);
+    }
+    const hash = await Bun.password.hash(pw, { algorithm: "bcrypt", cost: 12 });
+
+    let uid = 0;
+    let walletId = 0;
+    let balance = 0;
+    await pgClient.begin(async (sqlTx) => {
+      const uins = await sqlTx<Array<{ id: number }>>`
+        INSERT INTO users (username, email, full_name, hashed_password, role, shop_id, family_code,
+                           card_uid, is_active, is_superuser, status)
+        VALUES (${input.username}, ${input.email || `${input.username}@isb-coop.local`},
+                ${input.name}, ${hash}, ${role}, ${input.shop_id ?? null}, ${input.family_code ?? null},
+                ${input.card_uid ?? null}, true, false, 'active')
+        RETURNING id
+      `;
+      uid = uins[0].id;
+      const wins = await sqlTx<Array<{ id: number; balance: string }>>`
+        INSERT INTO wallets (user_id, balance, is_active) VALUES (${uid}, 0, true) RETURNING id, balance
+      `;
+      walletId = wins[0].id;
+      balance = pgNumber(wins[0].balance) ?? 0;
+    });
+    return {
+      ...blank(),
+      key: `u-${uid}`,
+      kind,
+      entity_type: "user",
+      entity_id: uid,
+      name: input.name!,
+      identifier: input.username!,
+      family_code: input.family_code ?? null,
+      card_uid: input.card_uid ?? null,
+      wallet_id: walletId,
+      wallet_balance: balance,
+      role,
+      shop_id: input.shop_id ?? null,
+    };
+  }
+
+  if (kind === "department") {
+    if (!input.department_code || !input.department_name) badRequest("department_code and department_name required");
+    const d = await createDepartment({
+      code: input.department_code!,
+      name: input.department_name!,
+      initialCredit: input.initial_credit ?? 0,
+    });
+    return {
+      ...blank(),
+      key: `d-${d.id}`,
+      kind: "department",
+      entity_type: "department",
+      entity_id: d.id,
+      name: d.name,
+      identifier: d.code,
+      wallet_id: d.walletId,
+      wallet_balance: d.walletBalance,
+      department_code: d.code,
+    };
+  }
+
+  if (kind === "other") {
+    if (!input.name) badRequest("name required for other");
+    const ctId = await ensureCustomerTypeId("Public");
+    const code = input.customer_code || `OTH-${Math.floor(Date.now() / 1000)}`;
+    let custId = 0;
+    let walletId: number | null = null;
+    let balance: number | null = null;
+    await pgClient.begin(async (sqlTx) => {
+      const cins = await sqlTx<Array<{ id: number }>>`
+        INSERT INTO customers
+          (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active)
+        VALUES (${code}, ${input.name}, ${input.email ?? null}, ${input.phone ?? null},
+                ${ctId}, 'other', 'Other', true)
+        RETURNING id
+      `;
+      custId = cins[0].id;
+      if (input.with_wallet) {
+        const wins = await sqlTx<Array<{ id: number }>>`
+          INSERT INTO wallets (customer_id, balance, is_active) VALUES (${custId}, 0, true) RETURNING id
+        `;
+        walletId = wins[0].id;
+        balance = 0;
+      }
+    });
+    return {
+      ...blank(),
+      key: `c-${custId}`,
+      kind: "other",
+      entity_type: "customer",
+      entity_id: custId,
+      name: input.name!,
+      identifier: code,
+      wallet_id: walletId,
+      wallet_balance: balance,
+    };
+  }
+
+  badRequest(`Unknown kind ${kind}`);
 }
 
 export async function listSyncAudit(syncLogId: number, action: string | null): Promise<SyncAuditEntryDTO[]> {

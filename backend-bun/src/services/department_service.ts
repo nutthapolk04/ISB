@@ -1,5 +1,5 @@
 import { and, eq, ilike, or, asc } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, pgClient } from "@/db/client";
 import { departments, wallets } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
 
@@ -47,4 +47,37 @@ export async function listDepartments(args: {
     wallet_id: r.wallet_id ?? null,
     wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
   }));
+}
+
+/**
+ * Atomic department create + wallet seed. Used by cardholder create.
+ * Mirrors DepartmentService.create_department (FastAPI).
+ */
+export async function createDepartment(args: {
+  code: string;
+  name: string;
+  initialCredit?: number;
+}): Promise<{ id: number; code: string; name: string; walletId: number; walletBalance: number }> {
+  const dup = await db.select({ id: departments.id }).from(departments).where(eq(departments.departmentCode, args.code)).limit(1);
+  if (dup[0]) {
+    const err = new Error(`Department code ${args.code} already exists`);
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
+  const credit = args.initialCredit ?? 0;
+  let deptId = 0;
+  let walletId = 0;
+  await pgClient.begin(async (sqlTx) => {
+    const ins = await sqlTx<Array<{ id: number }>>`
+      INSERT INTO departments (department_code, department_name, is_active)
+      VALUES (${args.code}, ${args.name}, true) RETURNING id
+    `;
+    deptId = ins[0].id;
+    const wins = await sqlTx<Array<{ id: number }>>`
+      INSERT INTO wallets (department_id, balance, is_active)
+      VALUES (${deptId}, ${credit}, true) RETURNING id
+    `;
+    walletId = wins[0].id;
+  });
+  return { id: deptId, code: args.code, name: args.name, walletId, walletBalance: credit };
 }
