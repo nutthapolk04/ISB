@@ -37,6 +37,7 @@ import { closeDay } from "@/services/canteen_service";
 import { scopeShop } from "@/services/report_service";
 import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCardholder } from "@/services/cardholder_service";
 import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback } from "@/services/topup_service";
+import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -1521,6 +1522,52 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         amount: t.Number({ exclusiveMinimum: 0 }),
         method: t.Union([t.Literal("CASH"), t.Literal("BANK_TRANSFER"), t.Literal("CHEQUE")]),
         notes: t.Optional(t.String({ maxLength: 500 })),
+      }),
+    },
+  )
+  // ── Admin wallet reports (adjustment + transfer) ─────────────────────────
+  .get(
+    "/admin/adjustment-report",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        return await adjustmentReport({
+          dateFrom: query.date_from ?? null,
+          dateTo: query.date_to ?? null,
+          direction: query.direction ?? null,
+          typeFilter: query.type ?? null,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        date_from: t.Optional(t.String()),
+        date_to: t.Optional(t.String()),
+        direction: t.Optional(t.String()),
+        type: t.Optional(t.String()),
+      }),
+    },
+  )
+  .get(
+    "/admin/transfer-report",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const page = query.page ? Math.max(Number(query.page), 1) : 1;
+      const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 200) : 20;
+      try {
+        return await transferReport({
+          dateFrom: query.date_from ?? null,
+          dateTo: query.date_to ?? null,
+          page, pageSize,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        date_from: t.Optional(t.String()),
+        date_to: t.Optional(t.String()),
+        page: t.Optional(t.String()),
+        page_size: t.Optional(t.String()),
       }),
     },
   )
