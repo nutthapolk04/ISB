@@ -112,16 +112,16 @@ Auth flip is critical — token signing must match. Verify by:
 3. Verify the wallet balance + stock + shop_movements row + audit_logs row + receipt_items rows all match expectation
 4. Monitor for 24h before flipping the next shop
 
-### NOT yet ported (keep on FastAPI)
+### NOT yet ported
 
-```json
-// DO NOT add a rewrite for these:
-// POST /api/v1/sync/run
-// POST /api/v1/sync/powerschool
-// POST /api/v1/bay/callback (gateway → server, lives wherever Bun is deployed —
-//                            update the BAY merchant config to point at Bun
-//                            ONLY after Bun is stable in Waves 3+)
-```
+**Nothing.** All 143 endpoints have real implementations on Bun.
+
+- `POST /api/v1/sync/run` + `POST /api/v1/sync/powerschool` — PowerSchool
+  engine ported (fixtures + upserts + audit). Same shape as FastAPI.
+- `POST /api/v1/wallets/:id/topup` with `bay_qr`/`bay_easypay` — PYMT
+  gateway HTTP client ported. Requires `PYMT_BASE_URL` and
+  `PYMT_MERCHANT_TOKEN` env vars on the Bun service.
+- `POST /api/v1/bay/callback` — already ported (Wave 4).
 
 ---
 
