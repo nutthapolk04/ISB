@@ -181,10 +181,9 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
     return await listKnown();
   })
-  .get("/admin/settings/school", async ({ user, set }) => {
-    if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
-    return await getSchoolSettings();
-  })
+  // /admin/settings/school GET is mounted publicly at root level (see below)
+  // because the FE's SchoolInfoProvider fires it on every page including
+  // /login. PUT stays here under requireAuth + admin.
   .put(
     "/admin/settings/school",
     async ({ user, body, set }) => {
@@ -1975,6 +1974,8 @@ const app = new Elysia()
   // Public settings — no auth, mounted at root so the group's requireAuth
   // derive can't reject it.
   .get("/api/v1/admin/settings/public", async () => await getPublicSettings())
+  // Public GET — see comment in the authed group above for rationale.
+  .get("/api/v1/admin/settings/school", async () => await getSchoolSettings())
   // BAY webhook — public (gateway-to-server, no JWT)
   .post(
     "/api/v1/bay/callback",
