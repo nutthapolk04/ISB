@@ -31,8 +31,10 @@ import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createRe
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import { login, refresh, logout, me, mockSso, googleSso } from "@/services/auth_service";
-import { listImages, getImageBinary, reorderImages, deleteImage } from "@/services/customer_display_service";
+import { listImages, getImageBinary, reorderImages, deleteImage, uploadImage } from "@/services/customer_display_service";
 import { listSyncLogs, syncStats } from "@/services/sync_log_service";
+import { closeDay } from "@/services/canteen_service";
+import { scopeShop } from "@/services/report_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -640,6 +642,33 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     { params: t.Object({ shopId: t.String(), bundleId: t.String() }) },
   )
   // ── Customer Display admin + Sync logs ─────────────────────────────────
+  .post(
+    "/admin/customer-display/images",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try {
+        const f = (body as { file?: File }).file;
+        if (!f) { set.status = 422; return { detail: "file is required" }; }
+        set.status = 201;
+        return await uploadImage({ file: f, userId: Number(user.sub) });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({ file: t.File() }),
+    },
+  )
+  .post(
+    "/canteen/:shopId/close-day",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        const effective = scopeShop(user, params.shopId);
+        if (!effective) { set.status = 403; return { detail: "Not authorized for that shop" }; }
+        return await closeDay(effective);
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ shopId: t.String() }) },
+  )
   .delete(
     "/admin/customer-display/images/:id",
     async ({ params, user, set }) => {
