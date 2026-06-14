@@ -227,6 +227,59 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
   };
 }
 
+/**
+ * Webhook entrypoint — mirrors app/api/v1/bay.py bay_callback.
+ * Idempotent: returns received=true even if intent missing or already confirmed.
+ */
+export async function handleBayCallback(body: {
+  transactionNo?: string | null;
+  reference1?: string | null;
+  reference2?: string | null;
+  orderRef?: string | null;
+  amount: number;
+  status: "COMPLETED" | "FAILED";
+}): Promise<{ received: true }> {
+  // Locate intent: orderRef → txnNo → reference1
+  let refCode: string | null = null;
+  let currentStatus: string | null = null;
+
+  if (body.orderRef) {
+    const rows = await db.select({ refCode: paymentIntents.refCode, status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.refCode, body.orderRef)).limit(1);
+    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; }
+  } else if (body.transactionNo) {
+    const rows = await db.select({ refCode: paymentIntents.refCode, status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.txnNo, body.transactionNo)).limit(1);
+    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; }
+    else if (body.reference1) {
+      const rRows = await db.select({ refCode: paymentIntents.refCode, status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.refCode, body.reference1)).limit(1);
+      if (rRows[0]) { refCode = rRows[0].refCode; currentStatus = rRows[0].status; }
+    }
+  }
+
+  if (!refCode) {
+    // Intent missing — log silently (FastAPI matches this behaviour)
+    return { received: true };
+  }
+  if (currentStatus === "confirmed") return { received: true };
+
+  if (body.status === "COMPLETED") {
+    // wallet_transactions.created_by is NOT NULL with FK → users(id). Use
+    // the intent's creator as the confirmer when webhook fires (FastAPI
+    // works because passlib/SQLAlchemy let None slip past — Bun doesn't).
+    const creatorRows = await db.select({ createdBy: paymentIntents.createdBy }).from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
+    const confirmerId = creatorRows[0]?.createdBy ?? null;
+    if (confirmerId !== null) {
+      try {
+        await confirmTopup({ refCode, confirmerId, confirmedVia: "gateway_webhook" });
+      } catch {
+        // swallow — webhook retries; FastAPI rolls back same way
+      }
+    }
+  } else if (body.status === "FAILED") {
+    await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.refCode, refCode));
+  }
+  return { received: true };
+}
+
 export async function confirmTopup(args: {
   refCode: string;
   confirmerId: number;

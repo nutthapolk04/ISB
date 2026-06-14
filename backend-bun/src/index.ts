@@ -36,7 +36,7 @@ import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { closeDay } from "@/services/canteen_service";
 import { scopeShop } from "@/services/report_service";
 import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCardholder } from "@/services/cardholder_service";
-import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet } from "@/services/topup_service";
+import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback } from "@/services/topup_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -1874,6 +1874,24 @@ const app = new Elysia()
   // Public settings — no auth, mounted at root so the group's requireAuth
   // derive can't reject it.
   .get("/api/v1/admin/settings/public", async () => await getPublicSettings())
+  // BAY webhook — public (gateway-to-server, no JWT)
+  .post(
+    "/api/v1/bay/callback",
+    async ({ body, set }) => {
+      try { return await handleBayCallback(body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        transactionNo: t.Optional(t.Nullable(t.String())),
+        reference1: t.Optional(t.Nullable(t.String())),
+        reference2: t.Optional(t.Nullable(t.String())),
+        orderRef: t.Optional(t.Nullable(t.String())),
+        amount: t.Number(),
+        status: t.Union([t.Literal("COMPLETED"), t.Literal("FAILED")]),
+      }),
+    },
+  )
   // Customer display — public (no auth), display window has no login
   .get("/api/v1/customer-display/images", async () => await listImages())
   .get(
