@@ -1,5 +1,5 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { db, pgClient } from "@/db/client";
 import { spendingGroups, shops } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
@@ -139,4 +139,98 @@ export async function deleteSpendingGroup(id: number): Promise<void> {
     throw err;
   }
   await db.delete(spendingGroups).where(eq(spendingGroups.id, id));
+}
+
+// ── Shop assignment (FE Spending Groups page UX) ────────────────────────────
+
+export interface AssignableShopDTO {
+  id: string;
+  name: string;
+  module: string;
+  is_active: boolean;
+  linked: boolean;
+}
+
+/**
+ * List every shop in the school with a flag indicating whether it's linked
+ * to this group. Used by the "Linked Shops" modal so admins can see both
+ * the current members AND non-members in one place.
+ */
+export async function listAssignableShops(groupId: number): Promise<AssignableShopDTO[]> {
+  const group = await db.select({ id: spendingGroups.id }).from(spendingGroups).where(eq(spendingGroups.id, groupId)).limit(1);
+  if (!group[0]) {
+    const err = new Error("Spending group not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const rows = await db
+    .select({
+      id: shops.id,
+      name: shops.name,
+      module: shops.module,
+      isActive: shops.isActive,
+      spendingGroupId: shops.spendingGroupId,
+    })
+    .from(shops)
+    .orderBy(asc(shops.module), asc(shops.name));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    module: r.module,
+    is_active: r.isActive,
+    linked: r.spendingGroupId === groupId,
+  }));
+}
+
+/**
+ * Replace the set of shops linked to this group atomically:
+ *   - Shops in `shopIds` whose spending_group_id ≠ groupId → set to groupId
+ *   - Shops currently linked but not in `shopIds`           → set to NULL
+ * Other shops untouched.
+ */
+export async function setLinkedShops(groupId: number, shopIds: string[]): Promise<{ linked: number; unlinked: number }> {
+  const group = await db.select({ id: spendingGroups.id }).from(spendingGroups).where(eq(spendingGroups.id, groupId)).limit(1);
+  if (!group[0]) {
+    const err = new Error("Spending group not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  // Validate every requested shop exists (avoid silent skips)
+  if (shopIds.length > 0) {
+    const found = await db
+      .select({ id: shops.id })
+      .from(shops)
+      .where(inArray(shops.id, shopIds));
+    if (found.length !== shopIds.length) {
+      const known = new Set(found.map((r) => r.id));
+      const missing = shopIds.filter((s) => !known.has(s));
+      const err = new Error(`Unknown shop id(s): ${missing.join(", ")}`);
+      (err as { status?: number }).status = 422;
+      throw err;
+    }
+  }
+  let linked = 0;
+  let unlinked = 0;
+  await pgClient.begin(async (sqlTx) => {
+    // Unlink shops currently in group but not in the new set
+    const currentlyLinked = await sqlTx<Array<{ id: string }>>`
+      SELECT id FROM shops WHERE spending_group_id = ${groupId}
+    `;
+    const newSet = new Set(shopIds);
+    const toUnlink = currentlyLinked.map((r) => r.id).filter((id) => !newSet.has(id));
+    if (toUnlink.length > 0) {
+      await sqlTx`UPDATE shops SET spending_group_id = NULL, updated_at = NOW() WHERE id IN ${sqlTx(toUnlink)}`;
+      unlinked = toUnlink.length;
+    }
+    // Link shops in the new set that aren't already linked here
+    if (shopIds.length > 0) {
+      const result = await sqlTx<Array<{ id: string }>>`
+        UPDATE shops SET spending_group_id = ${groupId}, updated_at = NOW()
+        WHERE id IN ${sqlTx(shopIds)} AND (spending_group_id IS NULL OR spending_group_id <> ${groupId})
+        RETURNING id
+      `;
+      linked = result.length;
+    }
+  });
+  return { linked, unlinked };
 }

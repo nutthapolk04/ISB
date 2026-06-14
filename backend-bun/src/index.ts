@@ -24,7 +24,7 @@ import {
   receiveStock, adjustStock,
   createShopCategory, updateShopCategory, deleteShopCategory,
 } from "@/services/shop_product_service";
-import { listSpendingGroups, getSpendingGroup, createSpendingGroup, updateSpendingGroup, deleteSpendingGroup } from "@/services/spending_group_service";
+import { listSpendingGroups, getSpendingGroup, createSpendingGroup, updateSpendingGroup, deleteSpendingGroup, listAssignableShops, setLinkedShops } from "@/services/spending_group_service";
 import { listUoms, getUom, createUom, updateUom, deleteUom } from "@/services/uom_service";
 import { listPanels, createPanel, updatePanel, deletePanel, getPanelItems, setItemPrice, setBundleItemPrice } from "@/services/price_panel_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange } from "@/services/returns_service";
@@ -1027,6 +1027,31 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       } catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ id: t.String() }) },
+  )
+  .get(
+    "/spending-groups/:id/shops",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await listAssignableShops(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ id: t.String() }) },
+  )
+  .patch(
+    "/spending-groups/:id/shops",
+    async ({ params, body, user, set }) => {
+      if (!user.is_superuser && !hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid id" }; }
+      try { return await setLinkedShops(id, body.shop_ids); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ shop_ids: t.Array(t.String()) }),
+    },
   )
   .get(
     "/uom/",

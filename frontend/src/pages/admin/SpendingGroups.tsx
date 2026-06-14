@@ -25,13 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Pencil, Trash2, Store, Building2 } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Store, Building2, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SpendingGroup {
   id: number;
@@ -79,6 +75,7 @@ export default function SpendingGroups() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SpendingGroup | null>(null);
   const [blockingShops, setBlockingShops] = useState<BlockingShop[] | null>(null);
+  const [assignTarget, setAssignTarget] = useState<SpendingGroup | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -241,22 +238,14 @@ export default function SpendingGroups() {
                       <td className="py-3 pr-4">{g.name_th}</td>
                       <td className="py-3 pr-4 font-medium">{formatTHB(g.daily_limit)}</td>
                       <td className="py-3 pr-4">
-                        {g.linked_shop_count === 0 ? (
-                          <Badge variant="outline" className="text-muted-foreground">0</Badge>
-                        ) : (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="flex items-center gap-1 text-xs bg-primary/10 text-primary rounded px-2 py-0.5 hover:bg-primary/20 cursor-pointer">
-                                <Building2 className="h-3 w-3" />
-                                {g.linked_shop_count}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-48 p-2">
-                              <p className="text-xs font-medium mb-1">{t("spendingGroup.linkedShops")}</p>
-                              <LinkedShopsList groupId={g.id} />
-                            </PopoverContent>
-                          </Popover>
-                        )}
+                        <button
+                          onClick={() => setAssignTarget(g)}
+                          className="flex items-center gap-1 text-xs bg-primary/10 text-primary rounded px-2 py-0.5 hover:bg-primary/20 cursor-pointer"
+                          title={t("spendingGroup.manageShops")}
+                        >
+                          <Building2 className="h-3 w-3" />
+                          {g.linked_shop_count}
+                        </button>
                       </td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-2">
@@ -400,28 +389,143 @@ export default function SpendingGroups() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AssignShopsModal
+        group={assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onSaved={() => { setAssignTarget(null); void load(); }}
+      />
     </div>
   );
 }
 
-/** Small component: fetches shop list for a group and renders names */
-function LinkedShopsList({ groupId }: { groupId: number }) {
-  const [shops, setShops] = useState<{ id: string; name: string }[] | null>(null);
+interface AssignableShop {
+  id: string;
+  name: string;
+  module: string;
+  is_active: boolean;
+  linked: boolean;
+}
+
+function AssignShopsModal({
+  group,
+  onClose,
+  onSaved,
+}: {
+  group: SpendingGroup | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const [shops, setShops] = useState<AssignableShop[] | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api
-      .get<{ id: string; name: string; spending_group_id: number }[]>("/shops/?active_only=false")
-      .then((all) => setShops(all.filter((s) => s.spending_group_id === groupId)))
-      .catch(() => setShops([]));
-  }, [groupId]);
+    if (!group) { setShops(null); return; }
+    setShops(null);
+    api.get<AssignableShop[]>(`/spending-groups/${group.id}/shops`)
+      .then((data) => {
+        setShops(data);
+        setSelected(new Set(data.filter((s) => s.linked).map((s) => s.id)));
+      })
+      .catch(() => {
+        toast({ title: "Failed to load shops", variant: "destructive" });
+        onClose();
+      });
+  }, [group?.id]);
 
-  if (shops === null) return <p className="text-xs text-muted-foreground">Loading…</p>;
-  if (shops.length === 0) return <p className="text-xs text-muted-foreground">No shops</p>;
+  const toggle = (shopId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(shopId)) next.delete(shopId); else next.add(shopId);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!group) return;
+    setSaving(true);
+    try {
+      const result = await api.patch<{ linked: number; unlinked: number }>(
+        `/spending-groups/${group.id}/shops`,
+        { shop_ids: Array.from(selected) },
+      );
+      toast({
+        title: t("spendingGroup.shopsSaved", { defaultValue: "Shops updated" }),
+        description: `+${result.linked} / −${result.unlinked}`,
+      });
+      onSaved();
+    } catch (e) {
+      toast({
+        title: "Save failed",
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const byModule: Record<string, AssignableShop[]> = {};
+  for (const s of shops ?? []) {
+    (byModule[s.module] ??= []).push(s);
+  }
+
   return (
-    <ul className="space-y-0.5">
-      {shops.map((s) => (
-        <li key={s.id} className="text-xs">{s.name}</li>
-      ))}
-    </ul>
+    <Dialog open={!!group} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {t("spendingGroup.manageShopsFor", { defaultValue: "Manage shops" })} — {group?.name_en}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+          {shops === null ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Loading…
+            </div>
+          ) : shops.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No shops found.
+            </p>
+          ) : (
+            Object.entries(byModule).map(([module, list]) => (
+              <div key={module} className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {module}
+                </p>
+                {list.map((s) => (
+                  <label
+                    key={s.id}
+                    className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-muted/40 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selected.has(s.id)}
+                      onCheckedChange={() => toggle(s.id)}
+                    />
+                    <span className={`flex-1 text-sm ${s.is_active ? "" : "text-muted-foreground line-through"}`}>
+                      {s.name}
+                    </span>
+                    <span className="text-xs font-mono text-muted-foreground">{s.id}</span>
+                  </label>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </Button>
+          <Button onClick={() => void handleSave()} disabled={saving || shops === null}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {t("common.save", { defaultValue: "Save" })}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
+
