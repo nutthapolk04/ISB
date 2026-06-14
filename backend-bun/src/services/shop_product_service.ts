@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
+import { fifoReceiveInTx, fifoAdjustInTx } from "@/services/inventory_fifo";
 
 export interface ExtraBarcodeDTO {
   id: number;
@@ -164,16 +165,6 @@ async function shopOrThrow(shopId: string): Promise<typeof shops.$inferSelect> {
     throw err;
   }
   return rows[0];
-}
-
-function rejectFifoOr501(shop: typeof shops.$inferSelect, op: string): void {
-  if (shop.shopType === "fifo") {
-    const err = new Error(
-      `${op} on FIFO shops is not yet supported by the Bun backend — route this request through FastAPI ('${shop.id}')`,
-    );
-    (err as { status?: number }).status = 501;
-    throw err;
-  }
 }
 
 async function loadProductDTO(productId: number): Promise<ShopProductDTO> {
@@ -419,7 +410,7 @@ export async function receiveStock(args: {
   userId: number;
 }): Promise<ShopProductDTO[]> {
   const shop = await shopOrThrow(args.shopId);
-  rejectFifoOr501(shop, "Receive stock");
+  const isFifo = shop.shopType === "fifo";
 
   const today = new Date().toISOString().slice(0, 10);
   const updatedIds: number[] = [];
@@ -437,12 +428,20 @@ export async function receiveStock(args: {
         throw err;
       }
       const stockBefore = product.stock;
-      const oldAvg = pgNumber(product.avg_cost) ?? 0;
-      const newStock = stockBefore + item.qty;
-      const newAvg = (stockBefore + item.qty) > 0
-        ? (stockBefore * oldAvg + item.qty * item.cost_per_unit) / (stockBefore + item.qty)
-        : item.cost_per_unit;
-      const newAvgRounded = Math.round(newAvg * 10000) / 10000;
+      let newStock: number;
+      let newAvgRounded: number;
+      if (isFifo) {
+        const r = await fifoReceiveInTx(sqlTx, product.id, product.shop_id, stockBefore, item.qty, item.cost_per_unit);
+        newStock = r.newStock;
+        newAvgRounded = r.newAvgCost;
+      } else {
+        const oldAvg = pgNumber(product.avg_cost) ?? 0;
+        newStock = stockBefore + item.qty;
+        const newAvg = (stockBefore + item.qty) > 0
+          ? (stockBefore * oldAvg + item.qty * item.cost_per_unit) / (stockBefore + item.qty)
+          : item.cost_per_unit;
+        newAvgRounded = Math.round(newAvg * 10000) / 10000;
+      }
       await sqlTx`UPDATE shop_products SET stock = ${newStock}, avg_cost = ${newAvgRounded}, updated_at = NOW() WHERE id = ${product.id}`;
       await sqlTx`
         INSERT INTO shop_movements
@@ -473,7 +472,7 @@ export async function adjustStock(args: {
     throw err;
   }
   const shop = await shopOrThrow(args.shopId);
-  rejectFifoOr501(shop, "Adjust stock");
+  const isFifo = shop.shopType === "fifo";
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -489,13 +488,20 @@ export async function adjustStock(args: {
       throw err;
     }
     const stockBefore = product.stock;
-    const stockAfter = stockBefore + args.delta;
+    let stockAfter: number;
     let newAvg = pgNumber(product.avg_cost) ?? 0;
-    if (args.delta > 0 && args.costPerUnit !== null && args.costPerUnit !== undefined) {
-      newAvg = stockBefore + args.delta > 0
-        ? (stockBefore * newAvg + args.delta * args.costPerUnit) / (stockBefore + args.delta)
-        : args.costPerUnit;
-      newAvg = Math.round(newAvg * 10000) / 10000;
+    if (isFifo) {
+      const r = await fifoAdjustInTx(sqlTx, product.id, product.shop_id, args.delta, newAvg, args.costPerUnit ?? null);
+      stockAfter = r.newStock;
+      newAvg = r.newAvgCost;
+    } else {
+      stockAfter = stockBefore + args.delta;
+      if (args.delta > 0 && args.costPerUnit !== null && args.costPerUnit !== undefined) {
+        newAvg = stockBefore + args.delta > 0
+          ? (stockBefore * newAvg + args.delta * args.costPerUnit) / (stockBefore + args.delta)
+          : args.costPerUnit;
+        newAvg = Math.round(newAvg * 10000) / 10000;
+      }
     }
     await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, avg_cost = ${newAvg}, updated_at = NOW() WHERE id = ${product.id}`;
     await sqlTx`

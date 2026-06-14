@@ -17,6 +17,7 @@ import {
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
+import { fifoDeductInTx } from "@/services/inventory_fifo";
 
 const ALLOWED_PAYMENT_METHODS = new Set([
   "CASH",
@@ -254,8 +255,8 @@ export async function checkout(input: CheckoutInput) {
     }
   }
 
-  // ── FIFO guard: bookstore-style FIFO is intentionally not supported
-  //    in the Bun backend yet — those sales must still go through FastAPI.
+  // ── Shop type detection: drives FIFO branching in the deduction path.
+  let effectiveShopType: "fifo" | "avg_cost" | null = null;
   if (effectiveShopId) {
     const sr = await db
       .select({ shopType: shops.shopType, allowDept: shops.allowDepartmentCharge })
@@ -267,13 +268,7 @@ export async function checkout(input: CheckoutInput) {
       (err as { status?: number }).status = 400;
       throw err;
     }
-    if (sr[0].shopType === "fifo") {
-      const err = new Error(
-        `FIFO shops are not yet supported by the Bun checkout — route this sale through FastAPI ('${effectiveShopId}')`,
-      );
-      (err as { status?: number }).status = 501;
-      throw err;
-    }
+    effectiveShopType = sr[0].shopType as "fifo" | "avg_cost";
     if (isDepartmentPayment && !sr[0].allowDept) {
       const err = new Error(
         `Shop '${effectiveShopId}' does not accept department charges (only coop shops can issue goods on department budget)`,
@@ -309,6 +304,21 @@ export async function checkout(input: CheckoutInput) {
     let subtotal = 0;
     const movementType = transactionMode === "INTERNAL_ISSUE" ? "internal_use" : "sale";
     const today = new Date().toISOString().slice(0, 10);
+
+    // Cache shopType lookups for products whose shop_id differs from
+    // effectiveShopId (rare, but bundles + cross-shop checkout could trigger).
+    const shopTypeCache = new Map<string, "fifo" | "avg_cost">();
+    if (effectiveShopId && effectiveShopType) shopTypeCache.set(effectiveShopId, effectiveShopType);
+    const lookupShopType = async (shopId: string): Promise<"fifo" | "avg_cost"> => {
+      const cached = shopTypeCache.get(shopId);
+      if (cached) return cached;
+      const rows = await sqlTx<Array<{ shop_type: "fifo" | "avg_cost" }>>`
+        SELECT shop_type FROM shops WHERE id = ${shopId}
+      `;
+      const t = (rows[0]?.shop_type ?? "avg_cost") as "fifo" | "avg_cost";
+      shopTypeCache.set(shopId, t);
+      return t;
+    };
 
     // We collect items + audit summary as we go; rows inserted at end.
     interface PreparedItem {
@@ -369,8 +379,16 @@ export async function checkout(input: CheckoutInput) {
           if (anchorProductId === null) anchorProductId = sub.id;
           const deductQty = bi.quantity * qty;
           const stockBefore = sub.stock;
-          const stockAfter = stockBefore - deductQty;
-          await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+          const sType = await lookupShopType(sub.shop_id);
+          let stockAfter: number;
+          if (sType === "fifo") {
+            const r = await fifoDeductInTx(sqlTx, sub.id, deductQty, sub.shop_id);
+            stockAfter = r.newStock;
+            await sqlTx`UPDATE shop_products SET stock = ${r.newStock}, avg_cost = ${r.newAvgCost}, updated_at = NOW() WHERE id = ${sub.id}`;
+          } else {
+            stockAfter = stockBefore - deductQty;
+            await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+          }
           await sqlTx`
             INSERT INTO shop_movements
               (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
@@ -419,8 +437,16 @@ export async function checkout(input: CheckoutInput) {
       subtotal += lineTotal;
 
       const stockBefore = product.stock;
-      const stockAfter = stockBefore - qty;
-      await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${product.id}`;
+      const pType = await lookupShopType(product.shop_id);
+      let stockAfter: number;
+      if (pType === "fifo") {
+        const r = await fifoDeductInTx(sqlTx, product.id, qty, product.shop_id);
+        stockAfter = r.newStock;
+        await sqlTx`UPDATE shop_products SET stock = ${r.newStock}, avg_cost = ${r.newAvgCost}, updated_at = NOW() WHERE id = ${product.id}`;
+      } else {
+        stockAfter = stockBefore - qty;
+        await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${product.id}`;
+      }
       await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,

@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
+import { fifoRefundLot } from "@/services/inventory_fifo";
 
 export interface ReceiptItemDTO {
   id: number;
@@ -394,8 +395,10 @@ export async function voidReceipt(args: {
       if (opts.is_bundle && opts.bundle_id) {
         const subItems = bundleItemsMap.get(opts.bundle_id) ?? [];
         for (const bi of subItems) {
-          const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number }>>`
-            SELECT id, name, shop_id, stock FROM shop_products WHERE id = ${bi.productId} FOR UPDATE
+          const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string; shop_type: string }>>`
+            SELECT sp.id, sp.name, sp.shop_id, sp.stock, sp.avg_cost::text AS avg_cost, s.shop_type
+            FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+            WHERE sp.id = ${bi.productId} FOR UPDATE OF sp
           `;
           const sub = subRows[0];
           if (!sub) continue;
@@ -403,6 +406,9 @@ export async function voidReceipt(args: {
           const stockBefore = sub.stock;
           const stockAfter = stockBefore + restoreQty;
           await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+          if (sub.shop_type === "fifo") {
+            await fifoRefundLot(sqlTx, sub.id, sub.shop_id, restoreQty, receipt.receiptNumber, pgNumber(sub.avg_cost) ?? 0);
+          }
           await sqlTx`
             INSERT INTO shop_movements
               (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
@@ -425,12 +431,18 @@ export async function voidReceipt(args: {
         voidLines.push({ name: `#${item.productVariantId}`, qty: item.quantity, price: pgNumber(item.lineTotal) ?? 0 });
         continue;
       }
-      const lockedRows = await sqlTx<Array<{ stock: number }>>`
-        SELECT stock FROM shop_products WHERE id = ${product.id} FOR UPDATE
+      const lockedRows = await sqlTx<Array<{ stock: number; avg_cost: string; shop_type: string }>>`
+        SELECT sp.stock, sp.avg_cost::text AS avg_cost, s.shop_type
+        FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+        WHERE sp.id = ${product.id} FOR UPDATE OF sp
       `;
-      const stockBefore = lockedRows[0]?.stock ?? product.stock;
+      const locked = lockedRows[0];
+      const stockBefore = locked?.stock ?? product.stock;
       const stockAfter = stockBefore + item.quantity;
       await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${product.id}`;
+      if (locked?.shop_type === "fifo") {
+        await fifoRefundLot(sqlTx, product.id, product.shopId, item.quantity, receipt.receiptNumber, pgNumber(locked.avg_cost) ?? 0);
+      }
       await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,

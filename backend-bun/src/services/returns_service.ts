@@ -2,6 +2,7 @@ import { and, desc, eq, ilike, ne, or, sql, isNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { returnRequests, receipts, shopProducts } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
+import { fifoRefundLot, fifoDeductInTx } from "@/services/inventory_fifo";
 
 export interface ReturnRequestDTO {
   id: number;
@@ -388,8 +389,10 @@ export async function processRefund(args: {
     // ── Restore stock ──
     if (rr.bundleId !== null && bundleItemRows.length > 0) {
       for (const bi of bundleItemRows) {
-        const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number }>>`
-          SELECT id, name, shop_id, stock FROM shop_products WHERE id = ${bi.product_id} FOR UPDATE
+        const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string; shop_type: string }>>`
+          SELECT sp.id, sp.name, sp.shop_id, sp.stock, sp.avg_cost::text AS avg_cost, s.shop_type
+          FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+          WHERE sp.id = ${bi.product_id} FOR UPDATE OF sp
         `;
         const sub = subRows[0];
         if (!sub) continue;
@@ -397,6 +400,9 @@ export async function processRefund(args: {
         const stockBefore = sub.stock;
         const stockAfter = stockBefore + restoreQty;
         await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+        if (sub.shop_type === "fifo") {
+          await fifoRefundLot(sqlTx, sub.id, sub.shop_id, restoreQty, "RTN-" + rr.receiptId, pgNumber(sub.avg_cost) ?? 0);
+        }
         await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
@@ -407,8 +413,10 @@ export async function processRefund(args: {
         `;
       }
     } else if (normalProductId !== null) {
-      const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number }>>`
-        SELECT id, name, shop_id, stock FROM shop_products WHERE id = ${normalProductId} FOR UPDATE
+      const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string; shop_type: string }>>`
+        SELECT sp.id, sp.name, sp.shop_id, sp.stock, sp.avg_cost::text AS avg_cost, s.shop_type
+        FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+        WHERE sp.id = ${normalProductId} FOR UPDATE OF sp
       `;
       const sub = subRows[0];
       if (sub) {
@@ -416,6 +424,9 @@ export async function processRefund(args: {
         const stockBefore = sub.stock;
         const stockAfter = stockBefore + restoreQty;
         await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+        if (sub.shop_type === "fifo") {
+          await fifoRefundLot(sqlTx, sub.id, sub.shop_id, restoreQty, "RTN-" + rr.receiptId, pgNumber(sub.avg_cost) ?? 0);
+        }
         await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
@@ -567,8 +578,10 @@ export async function processExchange(args: {
     // Restore returned stock
     if (rr.bundleId !== null && bundleItemRows.length > 0) {
       for (const bi of bundleItemRows) {
-        const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number }>>`
-          SELECT id, name, shop_id, stock FROM shop_products WHERE id = ${bi.product_id} FOR UPDATE
+        const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string; shop_type: string }>>`
+          SELECT sp.id, sp.name, sp.shop_id, sp.stock, sp.avg_cost::text AS avg_cost, s.shop_type
+          FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+          WHERE sp.id = ${bi.product_id} FOR UPDATE OF sp
         `;
         const sub = subRows[0];
         if (!sub) continue;
@@ -576,6 +589,9 @@ export async function processExchange(args: {
         const stockBefore = sub.stock;
         const stockAfter = stockBefore + restoreQty;
         await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+        if (sub.shop_type === "fifo") {
+          await fifoRefundLot(sqlTx, sub.id, sub.shop_id, restoreQty, "RTN-" + rr.receiptId, pgNumber(sub.avg_cost) ?? 0);
+        }
         await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
@@ -586,8 +602,10 @@ export async function processExchange(args: {
         `;
       }
     } else if (normalProductId !== null) {
-      const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number }>>`
-        SELECT id, name, shop_id, stock FROM shop_products WHERE id = ${normalProductId} FOR UPDATE
+      const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string; shop_type: string }>>`
+        SELECT sp.id, sp.name, sp.shop_id, sp.stock, sp.avg_cost::text AS avg_cost, s.shop_type
+        FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+        WHERE sp.id = ${normalProductId} FOR UPDATE OF sp
       `;
       const sub = subRows[0];
       if (sub) {
@@ -595,6 +613,9 @@ export async function processExchange(args: {
         const stockBefore = sub.stock;
         const stockAfter = stockBefore + restoreQty;
         await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
+        if (sub.shop_type === "fifo") {
+          await fifoRefundLot(sqlTx, sub.id, sub.shop_id, restoreQty, "RTN-" + rr.receiptId, pgNumber(sub.avg_cost) ?? 0);
+        }
         await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
@@ -608,25 +629,34 @@ export async function processExchange(args: {
 
     // Deduct exchanged items
     for (const ex of args.exchangeItems) {
-      const prRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; external_price: string; avg_cost: string }>>`
-        SELECT id, name, shop_id, stock, external_price, avg_cost FROM shop_products
-        WHERE product_code = ${ex.productCode} FOR UPDATE
+      const prRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; external_price: string; avg_cost: string; shop_type: string }>>`
+        SELECT sp.id, sp.name, sp.shop_id, sp.stock, sp.external_price, sp.avg_cost::text AS avg_cost, s.shop_type
+        FROM shop_products sp JOIN shops s ON s.id = sp.shop_id
+        WHERE sp.product_code = ${ex.productCode} FOR UPDATE OF sp
       `;
       const product = prRows[0];
       if (!product) continue;
       const stockBefore = product.stock;
-      const stockAfter = stockBefore - ex.quantity;
       exchangeValue += (pgNumber(product.external_price) ?? 0) * ex.quantity;
       exchangeCodes.push(ex.productCode);
-
-      await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${product.id}`;
+      let stockAfter: number;
+      let newAvgCost = pgNumber(product.avg_cost) ?? 0;
+      if (product.shop_type === "fifo") {
+        const r = await fifoDeductInTx(sqlTx, product.id, ex.quantity, product.shop_id);
+        stockAfter = r.newStock;
+        newAvgCost = r.newAvgCost;
+        await sqlTx`UPDATE shop_products SET stock = ${r.newStock}, avg_cost = ${r.newAvgCost}, updated_at = NOW() WHERE id = ${product.id}`;
+      } else {
+        stockAfter = stockBefore - ex.quantity;
+        await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${product.id}`;
+      }
       await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
            cost_per_unit, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, 'exchange',
                 ${-ex.quantity}, ${stockBefore}, ${stockAfter},
-                ${pgNumber(product.avg_cost) ?? 0}, ${"EX-" + String(rr.id).padStart(3, "0")},
+                ${newAvgCost}, ${"EX-" + String(rr.id).padStart(3, "0")},
                 ${"Exchange from return " + rr.receiptId}, ${args.userId})
       `;
     }
