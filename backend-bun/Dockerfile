@@ -1,16 +1,16 @@
-# Build context = monorepo root (~/ISB). Required for bun workspaces because
-# bun.lock + shared/ live at the root.
+# Build context = monorepo root (~/ISB). Required for bun workspaces
+# because bun.lock + shared/ live at the root.
 #
-# Railway: set "Build Context Path" to repo root, "Dockerfile Path" to
-# backend-bun/Dockerfile.
+# Single-stage to avoid losing Bun's workspace symlink layout when copying
+# node_modules across stages. Bun's resolver expects both the hoisted
+# /app/node_modules and per-workspace /app/<ws>/node_modules to be present
+# in whichever form bun install produced them.
 
-FROM oven/bun:1.3-alpine AS deps
+FROM oven/bun:1.3-alpine
 WORKDIR /app
 
-# Copy lockfile + all workspace package.json files so bun install can resolve
-# the workspace graph. We need every workspace declared in the root
-# package.json (frontend, kiosk, shared, backend-bun) even though we only
-# build backend-bun — bun refuses install otherwise.
+# Copy workspace manifests + lockfile first so the bun install layer caches
+# when only source changes.
 COPY package.json bun.lock ./
 COPY shared/package.json ./shared/
 COPY backend-bun/package.json ./backend-bun/
@@ -19,21 +19,12 @@ COPY kiosk/package.json ./kiosk/
 
 RUN bun install --frozen-lockfile
 
-# ── Runtime image ───────────────────────────────────────────────────────────
-FROM oven/bun:1.3-alpine
-WORKDIR /app
-
-# Bun hoists workspace node_modules to /app/node_modules; per-workspace
-# node_modules dirs are NOT created. Copy only the root one.
-COPY --from=deps /app/node_modules ./node_modules
-
-# Source
+# Source — only the workspaces we actually run at runtime.
 COPY shared ./shared
 COPY backend-bun ./backend-bun
 
 WORKDIR /app/backend-bun
 
-# Railway sets $PORT
 ENV PORT=3001
 EXPOSE 3001
 
