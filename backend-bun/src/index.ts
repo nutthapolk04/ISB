@@ -35,6 +35,7 @@ import { listImages, getImageBinary, reorderImages, deleteImage, uploadImage } f
 import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { closeDay } from "@/services/canteen_service";
 import { scopeShop } from "@/services/report_service";
+import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit } from "@/services/cardholder_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -655,6 +656,61 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({ file: t.File() }),
+    },
+  )
+  .get(
+    "/cardholders",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const page = query.page ? Math.max(Number(query.page), 1) : 1;
+      const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 500) : 50;
+      try {
+        return await listCardholders({ kind: query.kind ?? null, q: query.q ?? null, page, pageSize });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        kind: t.Optional(t.String()),
+        q: t.Optional(t.String()),
+        page: t.Optional(t.String()),
+        page_size: t.Optional(t.String()),
+      }),
+    },
+  )
+  .get(
+    "/sync-logs",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        const limit = query.limit ? Math.min(Math.max(Number(query.limit), 1), 200) : 20;
+        return await listSyncStatuses(limit);
+      } catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ limit: t.Optional(t.String()) }) },
+  )
+  .get(
+    "/sync-logs/:syncLogId",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.syncLogId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid sync_log_id" }; }
+      try { return await getSyncLog(id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ syncLogId: t.String() }) },
+  )
+  .get(
+    "/sync-audit/:syncLogId",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
+      const id = Number(params.syncLogId);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid sync_log_id" }; }
+      try { return await listSyncAudit(id, query.action ?? null); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ syncLogId: t.String() }),
+      query: t.Object({ action: t.Optional(t.String()) }),
     },
   )
   .post(
