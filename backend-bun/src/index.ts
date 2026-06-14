@@ -661,7 +661,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
   )
   .post(
-    "/cardholders",
+    "/admin/cardholders",
     async ({ body, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
       try {
@@ -697,7 +697,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
   )
   .get(
-    "/cardholders",
+    "/admin/cardholders",
     async ({ query, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
       const page = query.page ? Math.max(Number(query.page), 1) : 1;
@@ -761,7 +761,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
   )
   .get(
-    "/sync-logs",
+    "/admin/sync-logs",
     async ({ query, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
       try {
@@ -772,7 +772,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     { query: t.Object({ limit: t.Optional(t.String()) }) },
   )
   .get(
-    "/sync-logs/:syncLogId",
+    "/admin/sync-logs/:syncLogId",
     async ({ params, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
       const id = Number(params.syncLogId);
@@ -783,7 +783,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     { params: t.Object({ syncLogId: t.String() }) },
   )
   .get(
-    "/sync-audit/:syncLogId",
+    "/admin/sync-audit/:syncLogId",
     async ({ params, query, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
       const id = Number(params.syncLogId);
