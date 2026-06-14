@@ -36,6 +36,7 @@ import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { closeDay } from "@/services/canteen_service";
 import { scopeShop } from "@/services/report_service";
 import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCardholder } from "@/services/cardholder_service";
+import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet } from "@/services/topup_service";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -1522,6 +1523,73 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         notes: t.Optional(t.String({ maxLength: 500 })),
       }),
     },
+  )
+  // ── Topup intent + status + parent-confirm (mock QR; PYMT methods 501) ──
+  .post(
+    "/wallets/:id/topup",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid wallet id" }; }
+      try {
+        if (!(await userCanAccessWallet(user, id))) {
+          set.status = 403; return { detail: "Not authorized" };
+        }
+        return await createTopupIntent({
+          walletId: id,
+          amount: body.amount,
+          userId: Number(user.sub),
+          notes: body.notes ?? null,
+          paymentMethod: body.payment_method,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+        payment_method: t.Optional(t.String()),
+      }),
+    },
+  )
+  .get(
+    "/wallets/topup/:refCode/status",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        const { intent, walletId } = await getTopupStatus(params.refCode);
+        if (!(await userCanAccessWallet(user, walletId))) {
+          set.status = 403; return { detail: "Not authorized" };
+        }
+        return intent;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ refCode: t.String() }) },
+  )
+  .post(
+    "/wallets/topup/:refCode/parent-confirm",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "student")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        const { walletId } = await getTopupStatus(params.refCode);
+        if (!(await userCanAccessWallet(user, walletId))) {
+          set.status = 403; return { detail: "Not authorized" };
+        }
+        return await confirmTopup({
+          refCode: params.refCode,
+          confirmerId: Number(user.sub),
+          confirmedVia: "parent_self",
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ refCode: t.String() }) },
   )
   // ── Phase 3.x: Cashier topup + Dept adjust ─────────────────────────────
   .post(
