@@ -23,9 +23,9 @@ RUN bun install --frozen-lockfile
 FROM oven/bun:1.3-alpine
 WORKDIR /app
 
+# Bun hoists workspace node_modules to /app/node_modules; per-workspace
+# node_modules dirs are NOT created. Copy only the root one.
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/shared/node_modules ./shared/node_modules
-COPY --from=deps /app/backend-bun/node_modules ./backend-bun/node_modules
 
 # Source
 COPY shared ./shared
