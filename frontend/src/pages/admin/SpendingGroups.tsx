@@ -29,6 +29,14 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Pencil, Trash2, Store, Building2, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
+interface AssignableShop {
+  id: string;
+  name: string;
+  module: string;
+  is_active: boolean;
+  linked: boolean;
+}
+
 interface SpendingGroup {
   id: number;
   code: string;
@@ -76,6 +84,10 @@ export default function SpendingGroups() {
   const [deleteTarget, setDeleteTarget] = useState<SpendingGroup | null>(null);
   const [blockingShops, setBlockingShops] = useState<BlockingShop[] | null>(null);
   const [assignTarget, setAssignTarget] = useState<SpendingGroup | null>(null);
+  // Shop assignment state, merged into the Create/Edit dialog so the user
+  // can pick group fields + linked shops in one place.
+  const [editShops, setEditShops] = useState<AssignableShop[] | null>(null);
+  const [editShopSelected, setEditShopSelected] = useState<Set<string>>(new Set());
 
   const load = async () => {
     setLoading(true);
@@ -96,6 +108,8 @@ export default function SpendingGroups() {
   const openCreate = () => {
     setEditTarget(null);
     setForm(emptyForm());
+    setEditShops(null);
+    setEditShopSelected(new Set());
     setModalOpen(true);
   };
 
@@ -108,7 +122,16 @@ export default function SpendingGroups() {
       daily_limit: String(g.daily_limit),
       is_active: g.is_active,
     });
+    setEditShops(null);
+    setEditShopSelected(new Set());
     setModalOpen(true);
+    // Fetch shops + pre-select currently linked ones
+    api.get<AssignableShop[]>(`/spending-groups/${g.id}/shops`)
+      .then((data) => {
+        setEditShops(data);
+        setEditShopSelected(new Set(data.filter((s) => s.linked).map((s) => s.id)));
+      })
+      .catch(() => setEditShops([]));
   };
 
   const handleSave = async () => {
@@ -126,8 +149,12 @@ export default function SpendingGroups() {
           daily_limit: limitNum,
           is_active: form.is_active,
         });
-        if (!editTarget.is_active && form.is_active) {
-          // No toast needed for activation toggle
+        // Save shop membership (only if the list was loaded — avoid
+        // overwriting with an empty set when network was slow).
+        if (editShops !== null) {
+          await api.patch(`/spending-groups/${editTarget.id}/shops`, {
+            shop_ids: Array.from(editShopSelected),
+          });
         }
         toast({ title: t("spendingGroup.edit") + " saved" });
       } else {
@@ -285,7 +312,7 @@ export default function SpendingGroups() {
 
       {/* Create / Edit modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editTarget ? t("spendingGroup.edit") : t("spendingGroup.create")}
@@ -341,6 +368,66 @@ export default function SpendingGroups() {
                 {form.is_active ? t("spendingGroup.enforce") : t("spendingGroup.dontEnforce")}
               </Label>
             </div>
+
+            {/* Shop assignment — only on edit (need a group id to PATCH against) */}
+            {editTarget && (
+              <div className="space-y-2 pt-3 border-t">
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  {t("spendingGroup.linkedShops", { defaultValue: "Linked Shops" })}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t("spendingGroup.linkedShopsHint", {
+                    defaultValue: "Tick the shops that belong to this group. Daily limit applies across all ticked shops.",
+                  })}
+                </p>
+                <div className="max-h-56 overflow-y-auto rounded border bg-muted/30 p-2 space-y-2">
+                  {editShops === null ? (
+                    <div className="flex items-center justify-center py-4 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                      Loading shops…
+                    </div>
+                  ) : editShops.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 text-center">No shops</p>
+                  ) : (
+                    Object.entries(
+                      editShops.reduce<Record<string, AssignableShop[]>>((acc, s) => {
+                        (acc[s.module] ??= []).push(s);
+                        return acc;
+                      }, {}),
+                    ).map(([module, list]) => (
+                      <div key={module} className="space-y-0.5">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                          {module}
+                        </p>
+                        {list.map((s) => (
+                          <label
+                            key={s.id}
+                            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-background cursor-pointer text-xs"
+                          >
+                            <Checkbox
+                              checked={editShopSelected.has(s.id)}
+                              onCheckedChange={() => {
+                                setEditShopSelected((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(s.id)) next.delete(s.id);
+                                  else next.add(s.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                            <span className={`flex-1 ${s.is_active ? "" : "text-muted-foreground line-through"}`}>
+                              {s.name}
+                            </span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{s.id}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
@@ -397,14 +484,6 @@ export default function SpendingGroups() {
       />
     </div>
   );
-}
-
-interface AssignableShop {
-  id: string;
-  name: string;
-  module: string;
-  is_active: boolean;
-  linked: boolean;
 }
 
 function AssignShopsModal({
