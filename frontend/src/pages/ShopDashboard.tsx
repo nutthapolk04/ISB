@@ -64,19 +64,21 @@ interface RecentReceipt {
 // Date helpers
 // ---------------------------------------------------------------------------
 
+const TZ = "Asia/Bangkok";
+
 function todayStr() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("en-CA", { timeZone: TZ }); // YYYY-MM-DD
 }
 
 function monthStartStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit" })
+    .format(new Date()).split("-");
+  return `${parts[0]}-${parts[1]}-01`;
 }
 
 function todayLabel() {
   return new Date().toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
+    day: "2-digit", month: "short", year: "numeric", timeZone: TZ,
   });
 }
 
@@ -130,6 +132,14 @@ const METHOD_META: Record<string, { label: string; icon: React.ReactNode; color:
     bg: "bg-indigo-50",
     border: "border-indigo-200",
     bar: "bg-indigo-400",
+  },
+  other: {
+    label: "Other / Return",
+    icon: <CreditCard className="h-3.5 w-3.5" />,
+    color: "text-gray-600",
+    bg: "bg-gray-50",
+    border: "border-gray-200",
+    bar: "bg-gray-400",
   },
 };
 
@@ -212,7 +222,7 @@ export default function ShopDashboard() {
   });
 
   const { data: paymentData, isLoading: loadingPayment } = useQuery<SalesByPaymentReportData>({
-    queryKey: ["shop-dashboard", effectiveShopId, "payment"],
+    queryKey: ["shop-dashboard", effectiveShopId, "payment", today],
     queryFn: () => api.get<SalesByPaymentReportData>(`/reports/sales-by-payment${todayParams}`),
     enabled: !!effectiveShopId || !isAdmin,
     ...LIVE_OPTS,
@@ -343,14 +353,18 @@ export default function ShopDashboard() {
           {(paymentData?.rows ?? []).length === 0 ? (
             <p className="text-center text-muted-foreground py-4 text-sm">No transactions today</p>
           ) : (() => {
-            const sorted = [...(paymentData?.rows ?? [])].sort((a, b) => b.total - a.total);
+            const allRows = paymentData?.rows ?? [];
+            const positiveRows = [...allRows.filter((r) => r.total > 0)].sort((a, b) => b.total - a.total);
+            const negativeRows = [...allRows.filter((r) => r.total <= 0)].sort((a, b) => a.total - b.total);
+            // Use sum of positive channel totals as denominator so bars are meaningful even when returns exist
+            const positiveTotal = positiveRows.reduce((s, r) => s + r.total, 0);
             return (
               <>
-                {/* Stacked bar */}
+                {/* Stacked bar — positive channels only */}
                 <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted gap-px">
-                  {sorted.map((row) => {
+                  {positiveRows.map((row) => {
                     const meta = getMethodMeta(row.payment_method);
-                    const pct = grandTotal > 0 ? (row.total / grandTotal) * 100 : 0;
+                    const pct = positiveTotal > 0 ? (row.total / positiveTotal) * 100 : 0;
                     return (
                       <div
                         key={row.payment_method}
@@ -362,11 +376,11 @@ export default function ShopDashboard() {
                   })}
                 </div>
 
-                {/* Compact rows */}
+                {/* Positive channel rows */}
                 <div className="divide-y divide-border/50">
-                  {sorted.map((row) => {
+                  {positiveRows.map((row) => {
                     const meta = getMethodMeta(row.payment_method);
-                    const pct = grandTotal > 0 ? (row.total / grandTotal) * 100 : 0;
+                    const pct = positiveTotal > 0 ? (row.total / positiveTotal) * 100 : 0;
                     return (
                       <div key={row.payment_method} className="flex items-center gap-3 py-2">
                         <div className={cn("flex items-center gap-1.5 w-28 shrink-0 font-medium text-sm", meta.color)}>
@@ -385,9 +399,32 @@ export default function ShopDashboard() {
                   })}
                 </div>
 
+                {/* Return rows (negative totals) — shown separately without bar */}
+                {negativeRows.length > 0 && (
+                  <div className="border-t pt-2 space-y-0 divide-y divide-border/50">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground pb-1 font-semibold">Returns / Refunds</p>
+                    {negativeRows.map((row) => {
+                      const meta = getMethodMeta(row.payment_method);
+                      return (
+                        <div key={row.payment_method} className="flex items-center gap-3 py-2">
+                          <div className="flex items-center gap-1.5 w-28 shrink-0 font-medium text-sm text-rose-600">
+                            <span className="h-2.5 w-2.5 rounded-sm shrink-0 bg-rose-300" />
+                            {meta.icon}
+                            {meta.label}
+                          </div>
+                          <div className="flex-1" />
+                          <span className="w-10 text-right text-xs text-muted-foreground tabular-nums shrink-0">—</span>
+                          <span className="w-8 text-right text-xs text-muted-foreground tabular-nums shrink-0">{row.receipt_count}x</span>
+                          <span className="w-24 text-right font-bold tabular-nums text-sm shrink-0 text-rose-600">฿{fmt(row.total)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Total row */}
                 <div className="flex items-center justify-between pt-2 border-t px-1">
-                  <span className="font-semibold text-sm">Total Today</span>
+                  <span className="font-semibold text-sm">Net Total Today</span>
                   <span className="text-lg font-bold tabular-nums">฿{fmt(grandTotal)}</span>
                 </div>
               </>

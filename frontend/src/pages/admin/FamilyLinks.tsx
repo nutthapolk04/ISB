@@ -13,6 +13,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
@@ -159,6 +163,7 @@ export default function FamilyLinks() {
   const [childId, setChildId] = useState<string>("");
   const [relation, setRelation] = useState<string>("guardian");
   const [creating, setCreating] = useState(false);
+  const [deleteLinkTarget, setDeleteLinkTarget] = useState<{ linkId: number; childName: string; parentName: string } | null>(null);
 
   // Bulk freeze
   const [freezingParent, setFreezingParent] = useState<number | null>(null);
@@ -322,10 +327,10 @@ export default function FamilyLinks() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm(t("admin.families.confirmDeleteTitle"))) return;
+  const handleConfirmDeleteLink = async () => {
+    if (!deleteLinkTarget) return;
     try {
-      await api.delete(`/family/links/${id}`);
+      await api.delete(`/family/links/${deleteLinkTarget.linkId}`);
       toast({ title: t("admin.families.deleteSuccess") });
       load();
     } catch (e) {
@@ -334,6 +339,8 @@ export default function FamilyLinks() {
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setDeleteLinkTarget(null);
     }
   };
 
@@ -896,7 +903,7 @@ export default function FamilyLinks() {
                           size="sm"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(c.linkId)}
+                          onClick={() => setDeleteLinkTarget({ linkId: c.linkId, childName: c.name, parentName: selectedFamily?.parentName ?? "" })}
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
                           {t("admin.families.unlink")}
@@ -944,6 +951,30 @@ export default function FamilyLinks() {
           )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={!!deleteLinkTarget} onOpenChange={(open) => !open && setDeleteLinkTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("admin.families.confirmDeleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("admin.families.confirmDeleteDesc", {
+                child: deleteLinkTarget?.childName ?? "",
+                parent: deleteLinkTarget?.parentName ?? "",
+                defaultValue: `Remove {{child}} from {{parent}}'s family group. The student will no longer share spending limits with this family. Wallet balances are not affected.`,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmDeleteLink}
+            >
+              {t("admin.families.unlink", "Unlink")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -372,12 +372,14 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     for (let i = labelSpan; i < columns.length; i += 1) {
       const c = columns[i];
       const explicit = totals[c.key];
+      const align = defaultAlign(c);
       if (explicit !== undefined) {
-        cells.push(
-          typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit),
-        );
+        cells.push({
+          content: typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit),
+          styles: { halign: align },
+        });
       } else {
-        cells.push("");
+        cells.push({ content: "", styles: { halign: align } });
       }
     }
     foot = [cells];

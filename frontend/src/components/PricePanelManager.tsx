@@ -22,6 +22,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -149,6 +153,7 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
 
   // Base pseudo-panel
   const [baseExpanded, setBaseExpanded] = useState(false);
+  const [deletePanelTarget, setDeletePanelTarget] = useState<PricePanel | null>(null);
   const [baseProducts, setBaseProducts] = useState<BaseProduct[]>([]);
   const [baseProductsLoading, setBaseProductsLoading] = useState(false);
   const [baseShortNameDrafts, setBaseShortNameDrafts] = useState<Record<number, string>>({});
@@ -260,15 +265,21 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
     }
   };
 
-  const handleDeletePanel = async (panel: PricePanel) => {
-    if (!window.confirm(`Delete panel "${panel.name}"? This cannot be undone.`)) return;
+  const handleDeletePanel = (panel: PricePanel) => {
+    setDeletePanelTarget(panel);
+  };
+
+  const handleConfirmDeletePanel = async () => {
+    if (!deletePanelTarget) return;
     try {
-      await api.delete(`/shops/${shopId}/price-panels/${panel.id}`);
+      await api.delete(`/shops/${shopId}/price-panels/${deletePanelTarget.id}`);
       toast.success("Panel deleted");
-      if (expandedPanelId === panel.id) setExpandedPanelId(null);
+      if (expandedPanelId === deletePanelTarget.id) setExpandedPanelId(null);
       await fetchPanels();
     } catch (err: any) {
       toast.error(err?.detail ?? "Failed to delete panel");
+    } finally {
+      setDeletePanelTarget(null);
     }
   };
 
@@ -767,6 +778,27 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletePanelTarget} onOpenChange={(open) => !open && setDeletePanelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete price panel?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Panel <strong>"{deletePanelTarget?.name}"</strong> and all its price overrides will be permanently deleted.
+              Products will revert to their base price. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmDeletePanel}
+            >
+              Delete panel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

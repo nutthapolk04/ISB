@@ -39,6 +39,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ReceiptItem {
   productCode: string;
@@ -217,6 +227,7 @@ const Returns = () => {
   const [searchDateTo, setSearchDateTo] = useState("");
   const [searchPaymentMethod, setSearchPaymentMethod] = useState<string>("all");
   const [searchStudent, setSearchStudent] = useState("");
+  const [deleteReturn, setDeleteReturn] = useState<ReturnRequest | null>(null);
 
   // Selected receipt
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
@@ -1785,17 +1796,7 @@ const Returns = () => {
                       <IconButton
                         size="sm"
                         tooltip={t('returns.delete')}
-                        onClick={async () => {
-                          if (confirm(t('returns.confirmDelete'))) {
-                            try {
-                              await api.delete(`/returns/${item.id}`);
-                              toast.success(t('returns.deleteSuccess'));
-                              await fetchReturns();
-                            } catch (err: any) {
-                              toast.error(err?.detail ?? "Failed to delete");
-                            }
-                          }
-                        }}
+                        onClick={() => setDeleteReturn(item)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </IconButton>
@@ -2462,6 +2463,40 @@ const Returns = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!deleteReturn} onOpenChange={(open) => !open && setDeleteReturn(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('returns.confirmDelete')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('returns.deleteReturnDesc', {
+                receipt: deleteReturn?.receiptId ?? "",
+                product: deleteReturn?.productName ?? "",
+                defaultValue: `Return record for receipt {{receipt}} ({{product}}) will be permanently deleted. This action cannot be undone.`,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deleteReturn) return;
+                try {
+                  await api.delete(`/returns/${deleteReturn.id}`);
+                  toast.success(t('returns.deleteSuccess'));
+                  await fetchReturns();
+                } catch (err: any) {
+                  toast.error(err?.detail ?? "Failed to delete");
+                } finally {
+                  setDeleteReturn(null);
+                }
+              }}
+            >
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

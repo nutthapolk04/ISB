@@ -826,7 +826,7 @@
     "errorNonZeroQty": "Enter a non-zero quantity",
     "errorSelectReason": "Please select a reason",
     "errorFillIntake": "Please fill in product, quantity, and cost per unit",
-    "errorIntakeValidation": "Quantity must be > 0 and cost must be ≥ 0",
+    "errorIntakeValidation": "Quantity must not be 0, and cost must be ≥ 0",
     "errorBatchEmpty": "No items in batch",
     "allCategories": "All categories",
     "categoryFilter": "Category",

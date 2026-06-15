@@ -15,6 +15,7 @@ import {
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
 import { fifoReceiveInTx, fifoAdjustInTx } from "@/services/inventory_fifo";
+import { calcNewAvgCost } from "@/lib/fifo";
 
 export interface ExtraBarcodeDTO {
   id: number;
@@ -431,20 +432,35 @@ export async function receiveStock(args: {
         (err as { status?: number }).status = 404;
         throw err;
       }
+      if (item.qty === 0) {
+        const err = new Error("qty cannot be 0");
+        (err as { status?: number }).status = 422;
+        throw err;
+      }
       const stockBefore = product.stock;
       let newStock: number;
       let newAvgRounded: number;
       if (isFifo) {
-        const r = await fifoReceiveInTx(sqlTx, product.id, product.shop_id, stockBefore, item.qty, item.cost_per_unit);
-        newStock = r.newStock;
-        newAvgRounded = r.newAvgCost;
+        if (item.qty < 0) {
+          // Negative receive = supplier return: drain oldest lots first
+          const r = await fifoAdjustInTx(sqlTx, product.id, product.shop_id, item.qty, pgNumber(product.avg_cost) ?? 0, null);
+          newStock = r.newStock;
+          newAvgRounded = r.newAvgCost;
+        } else {
+          const r = await fifoReceiveInTx(sqlTx, product.id, product.shop_id, stockBefore, item.qty, item.cost_per_unit);
+          newStock = r.newStock;
+          newAvgRounded = r.newAvgCost;
+        }
       } else {
         const oldAvg = pgNumber(product.avg_cost) ?? 0;
         newStock = stockBefore + item.qty;
-        const newAvg = (stockBefore + item.qty) > 0
-          ? (stockBefore * oldAvg + item.qty * item.cost_per_unit) / (stockBefore + item.qty)
-          : item.cost_per_unit;
-        newAvgRounded = Math.round(newAvg * 10000) / 10000;
+        if (item.qty > 0) {
+          // Use calcNewAvgCost which clamps negative stock to 0 before weighting
+          newAvgRounded = Math.round(calcNewAvgCost(stockBefore, oldAvg, item.qty, item.cost_per_unit) * 10000) / 10000;
+        } else {
+          // Negative receive = return: avg_cost unchanged
+          newAvgRounded = Math.round(oldAvg * 10000) / 10000;
+        }
       }
       await sqlTx`UPDATE shop_products SET stock = ${newStock}, avg_cost = ${newAvgRounded}, updated_at = NOW() WHERE id = ${product.id}`;
       await sqlTx`
@@ -501,10 +517,7 @@ export async function adjustStock(args: {
     } else {
       stockAfter = stockBefore + args.delta;
       if (args.delta > 0 && args.costPerUnit !== null && args.costPerUnit !== undefined) {
-        newAvg = stockBefore + args.delta > 0
-          ? (stockBefore * newAvg + args.delta * args.costPerUnit) / (stockBefore + args.delta)
-          : args.costPerUnit;
-        newAvg = Math.round(newAvg * 10000) / 10000;
+        newAvg = Math.round(calcNewAvgCost(stockBefore, newAvg, args.delta, args.costPerUnit) * 10000) / 10000;
       }
     }
     await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, avg_cost = ${newAvg}, updated_at = NOW() WHERE id = ${product.id}`;

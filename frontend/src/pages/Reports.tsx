@@ -617,7 +617,6 @@ const Reports = () => {
       columns,
       rows: ssData.rows as unknown as Record<string, unknown>[],
       totals: {
-        seq: "TOTAL",
         amt_receive: ssData.totals.amt_receive,
         amt_change: ssData.totals.amt_change,
         amt_billing: ssData.totals.amt_billing,
@@ -718,13 +717,13 @@ const Reports = () => {
       { header: "Date/Time", key: "transaction_date", format: "datetime", width: 95  },
       { header: "Item NO.",  key: "item_no",          width: 70  },
       { header: "Item Name", key: "item_name",        width: 130 },
-      { header: "Receipt",   key: "receipt_number",   width: 70  },
-      { header: "ID",        key: "customer_id",      width: 55  },
-      { header: "Name",      key: "customer_name",    width: 90  },
-      { header: "Qty",       key: "sales_qty",        format: "number",   width: 38 },
-      { header: "Amount",    key: "sales_amt",        format: "currency", width: 60 },
+      { header: "Receipt",   key: "receipt_number",   width: 85  },
+      { header: "ID",        key: "customer_id",      width: 68  },
+      { header: "Name",      key: "customer_name",    width: 77  },
+      { header: "Qty",       key: "sales_qty",        format: "number",   align: "right", width: 38 },
+      { header: "Amount",    key: "sales_amt",        format: "currency", align: "right", width: 60 },
       { header: "Receive",   key: "receive_type",     width: 60  },
-      { header: "Remark",    key: "remark",           width: 80  },
+      { header: "Remark",    key: "remark",           width: 60  },
     ];
     return {
       meta: {
@@ -736,7 +735,6 @@ const Reports = () => {
       columns,
       rows: siData.rows as unknown as Record<string, unknown>[],
       totals: {
-        seq: "TOTAL By Item",
         sales_qty: siData.totals.sales_qty,
         sales_amt: siData.totals.sales_amt,
       },

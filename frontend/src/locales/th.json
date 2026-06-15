@@ -825,7 +825,7 @@
     "errorNonZeroQty": "กรุณากรอกจำนวนที่ไม่ใช่ศูนย์",
     "errorSelectReason": "กรุณาเลือกเหตุผล",
     "errorFillIntake": "กรุณากรอกสินค้า จำนวน และต้นทุนต่อหน่วย",
-    "errorIntakeValidation": "จำนวนต้องมากกว่า 0 และต้นทุนต้องไม่ติดลบ",
+    "errorIntakeValidation": "จำนวนต้องไม่เป็น 0 และต้นทุนต้องไม่ติดลบ",
     "errorBatchEmpty": "ไม่มีรายการในคิว",
     "tabCategories": "ประเภทสินค้า",
     "allCategories": "ทุกประเภท",

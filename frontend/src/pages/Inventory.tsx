@@ -507,14 +507,14 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
     if (!intakeCost || isNaN(parseFloat(intakeCost))) return null;
     if (intakeCostMode === "unit") return parseFloat(intakeCost);
     const qty = parseInt(intakeQty);
-    if (!intakeQty || isNaN(qty) || qty <= 0) return null;
-    return parseFloat(intakeCost) / qty;
+    if (!intakeQty || isNaN(qty) || qty === 0) return null;
+    return parseFloat(intakeCost) / Math.abs(qty);
   }, [intakeCost, intakeCostMode, intakeQty]);
 
   const previewAvgCost = useMemo((): number | null => {
     if (!intakeProduct || !intakeQty || intakeUnitCost === null) return null;
     const qty = parseInt(intakeQty);
-    if (isNaN(qty) || qty <= 0) return null;
+    if (isNaN(qty) || qty === 0) return null;
     if (shopType === "fifo") {
       const existingLots = fifoLots[intakeProduct.id] ?? [];
       const simulatedLots: FifoLot[] = [
@@ -729,7 +729,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
       toast.error(t("inventory.errorFillIntake"));
       return;
     }
-    if (parseInt(intakeQty) <= 0 || intakeUnitCost < 0) {
+    if (parseInt(intakeQty) === 0 || intakeUnitCost < 0) {
       toast.error(t("inventory.errorIntakeValidation"));
       return;
     }

@@ -6,6 +6,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +45,7 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
   const [newBarcode, setNewBarcode] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ExtraBarcode | null>(null);
 
   const fetchBarcodes = useCallback(async () => {
     setLoading(true);
@@ -76,13 +87,16 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/shops/${shopId}/products/${productId}/barcodes/${id}`);
-      setBarcodes((prev) => prev.filter((b) => b.id !== id));
+      await api.delete(`/shops/${shopId}/products/${productId}/barcodes/${deleteTarget.id}`);
+      setBarcodes((prev) => prev.filter((b) => b.id !== deleteTarget.id));
       toast.success("Barcode removed");
     } catch {
       toast.error("Failed to remove barcode");
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -128,7 +142,7 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(b.id)}
+                      onClick={() => setDeleteTarget(b)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -164,5 +178,26 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove barcode?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Barcode <code className="font-mono">{deleteTarget?.barcode}</code> will be permanently removed from <strong>{productName}</strong>.
+            Scanners using this barcode will no longer find this product.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={handleConfirmDelete}
+          >
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
