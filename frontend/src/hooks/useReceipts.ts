@@ -65,7 +65,9 @@ export function useVoidReceipt() {
 
   return useMutation({
     mutationFn: (receiptId: number) =>
-      api.post<Receipt>(`/pos/void/${receiptId}`),
+      // Send an explicit JSON body so Bun/Elysia doesn't try to bind an
+      // undefined body. Reason is null when the UI doesn't collect one.
+      api.post<Receipt>(`/pos/void/${receiptId}`, { reason: null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
