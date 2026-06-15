@@ -40,6 +40,7 @@ import { listUoms, getUom, createUom, updateUom, deleteUom, seedDefaultUoms } fr
 import { listPanels, createPanel, updatePanel, deletePanel, getPanelItems, setItemPrice, setBundleItemPrice } from "@/services/price_panel_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange, searchReceipts, getExchangeProducts } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
+import { buildTemplate, importProducts, importStockReceive, importStore } from "@/services/admin_import_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import {
   login,
@@ -1792,6 +1793,81 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         method: t.Union([t.Literal("CASH"), t.Literal("BANK_TRANSFER"), t.Literal("CHEQUE")]),
         notes: t.Optional(t.String({ maxLength: 500 })),
       }),
+    },
+  )
+  // ── Bulk import (xlsx): template download + 3 upload variants ────────────
+  .get(
+    "/admin/import/template",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Admin/manager only" };
+      }
+      try { return await buildTemplate(query.shop_id ?? ""); }
+      catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ shop_id: t.Optional(t.String()) }) },
+  )
+  .post(
+    "/admin/import/products",
+    async ({ body, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Admin/manager only" };
+      }
+      try {
+        const result = await importProducts({
+          caller: user as typeof user & { shop_id?: string | null },
+          file: body.file,
+          shopId: query.shop_id ?? "",
+        });
+        set.status = result.status;
+        return result.body;
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({ file: t.File() }),
+      query: t.Object({ shop_id: t.Optional(t.String()) }),
+    },
+  )
+  .post(
+    "/admin/import/stock-receive",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Admin/manager only" };
+      }
+      try {
+        const result = await importStockReceive({
+          caller: user as typeof user & { shop_id?: string | null },
+          file: body.file,
+        });
+        set.status = result.status;
+        return result.body;
+      } catch (e) { return handle(set)(e); }
+    },
+    { body: t.Object({ file: t.File() }) },
+  )
+  .post(
+    "/admin/import/store",
+    async ({ body, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Admin/manager only" };
+      }
+      try {
+        const result = await importStore({
+          caller: user as typeof user & { shop_id?: string | null },
+          file: body.file,
+          shopId: query.shop_id ?? "",
+        });
+        set.status = result.status;
+        return result.body;
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({ file: t.File() }),
+      query: t.Object({ shop_id: t.Optional(t.String()) }),
     },
   )
   // ── Admin wallet reports (adjustment + transfer) ─────────────────────────
