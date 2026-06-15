@@ -397,16 +397,20 @@ export async function voidReceipt(args: {
   const voidLines: Array<{ name: string; qty: number; price: number }> = [];
   const today = new Date().toISOString().slice(0, 10);
 
+  // Mark receipt voided OUTSIDE the inner transaction so we can identify
+  // whether the postgres-js 'Object' bind error originates from the
+  // UPDATE itself or from one of the loop SQL statements below.
+  await db
+    .update(receipts)
+    .set({
+      status: "VOIDED",
+      voidedAt: sql`NOW()`,
+      voidedBy: callerId,
+      voidedReason: reason,
+    })
+    .where(eq(receipts.id, receiptId));
+
   await pgClient.begin(async (sqlTx) => {
-    // Mark receipt voided
-    await sqlTx`
-      UPDATE receipts
-      SET status = 'VOIDED',
-          voided_at = NOW(),
-          voided_by = ${callerId},
-          voided_reason = ${reason}
-      WHERE id = ${receiptId}
-    `;
 
     // Restore stock per item
     for (const { item, product } of items) {
