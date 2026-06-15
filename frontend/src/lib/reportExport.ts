@@ -259,26 +259,27 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   await ensureThaiFont(doc);
   const fontFamily = doc.getFontList()[FONT_NAME] ? FONT_NAME : "helvetica";
 
-  // ─── Header: logo (left) + school name & title (right, right-aligned) ─
+  // ─── Header: logo (left) + school name & title (left, next to logo) ──
   const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
 
+  let textStartX = marginX;
   if (logo) {
-    const targetH = 40;
+    const targetH = 52;           // bigger logo
     const targetW = (logo.width / logo.height) * targetH;
     doc.addImage(logo.dataUrl, logo.format, marginX, cursorY, targetW, targetH);
+    textStartX = marginX + targetW + 10;
   }
 
-  // School name + title — right-aligned to page edge
-  const textRightX = pageWidth - marginX;
+  // School name + title — left-aligned, right of logo
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(14);
-  doc.text(meta.schoolName, textRightX, cursorY + 14, { align: "right" });
+  doc.text(meta.schoolName, textStartX, cursorY + 16, { align: "left" });
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(11);
-  doc.text(meta.title, textRightX, cursorY + 30, { align: "right" });
+  doc.text(meta.title, textStartX, cursorY + 32, { align: "left" });
 
-  cursorY += 50; // past the logo block
+  cursorY += 58; // past the (taller) logo block
 
   // ─── Filters summary ──────────────────────────────────────────────────
   if (meta.filters && meta.filters.length > 0) {

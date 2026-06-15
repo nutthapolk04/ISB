@@ -444,4 +444,75 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
       }),
       detail: { summary: "Internal requisition (เบิกของ) — checkout in internal_issue mode" },
     },
+  )
+  // ── Product reorder (optimistic-concurrency) ──────────────────────────
+  .post(
+    "/:shopId/products/reorder",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403; return { detail: "Admin/manager only" };
+      }
+      const shop = await db
+        .select({ id: shopsTable.id, productsOrderVersion: shopsTable.productsOrderVersion })
+        .from(shopsTable)
+        .where(eq(shopsTable.id, params.shopId))
+        .limit(1);
+      if (!shop[0]) { set.status = 404; return { detail: "Shop not found" }; }
+
+      const currentVersion = shop[0].productsOrderVersion ?? 0;
+
+      // Optimistic concurrency: if client version != DB version someone else
+      // saved first. Return 409 with the current sorted list so the UI can
+      // diff and let the user reconcile.
+      if (body.version !== currentVersion) {
+        const products = await db
+          .select({ id: shopProducts.id, sort_order: shopProducts.sortOrder, name: shopProducts.name })
+          .from(shopProducts)
+          .where(eq(shopProducts.shopId, params.shopId));
+        products.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+        set.status = 409;
+        return {
+          current_version: currentVersion,
+          products: products.map((p) => ({ id: p.id, sort_order: p.sort_order, name: p.name })),
+        };
+      }
+
+      // Apply sort_order values from the map (keys are string product ids).
+      const sortMap: Record<string, number> = body.sort_map;
+      const productIds = Object.keys(sortMap).map(Number).filter((n) => !Number.isNaN(n));
+      let updated = 0;
+      for (const pid of productIds) {
+        const newOrder = sortMap[String(pid)];
+        const result = await db
+          .update(shopProducts)
+          .set({ sortOrder: newOrder })
+          .where(eq(shopProducts.id, pid));
+        if (result.count > 0) updated++;
+      }
+
+      // Bump version + persist history
+      const nextVersion = currentVersion + 1;
+      await db.update(shopsTable)
+        .set({ productsOrderVersion: nextVersion })
+        .where(eq(shopsTable.id, params.shopId));
+
+      await db.insert(productOrderHistory).values({
+        shopId: params.shopId,
+        version: nextVersion,
+        sortMap: sortMap as Record<string, number>,
+        changedBy: Number(user.sub),
+        source: body.source ?? "drag",
+      }).catch(() => { /* history is best-effort */ });
+
+      return { version: nextVersion, updated };
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        version: t.Number(),
+        sort_map: t.Record(t.String(), t.Number()),
+        source: t.Optional(t.Nullable(t.String())),
+      }),
+      detail: { summary: "Bulk-update sort_order for products (optimistic concurrency)" },
+    },
   );
