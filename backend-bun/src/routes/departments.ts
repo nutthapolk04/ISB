@@ -14,8 +14,8 @@ export const departmentRoutes = new Elysia({ prefix: "/api/v1/departments" })
     },
     {
       query: t.Object({
-        q: t.Optional(t.String()),
-        active_only: t.Optional(t.String()),
+        q: t.Optional(t.Nullable(t.String())),
+        active_only: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "List departments with wallet summary" },
     },

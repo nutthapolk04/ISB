@@ -30,7 +30,7 @@ export const customerRoutes = new Elysia({ name: "customers", prefix: "/customer
     {
       query: t.Object({
         q: t.String({ minLength: 1 }),
-        limit: t.Optional(t.String()),
+        limit: t.Optional(t.Nullable(t.String())),
       }),
       detail: {
         summary: "Search customers/users",
@@ -82,10 +82,10 @@ export const customerRoutes = new Elysia({ name: "customers", prefix: "/customer
     },
     {
       query: t.Object({
-        skip: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        search: t.Optional(t.String()),
-        is_active: t.Optional(t.String()),
+        skip: t.Optional(t.Nullable(t.String())),
+        limit: t.Optional(t.Nullable(t.String())),
+        search: t.Optional(t.Nullable(t.String())),
+        is_active: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "List customers (paginated)" },
     },

@@ -49,7 +49,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     },
     {
       query: t.Object({
-        active_only: t.Optional(t.String()),
+        active_only: t.Optional(t.Nullable(t.String())),
         module: t.Optional(t.Union([t.Literal("canteen"), t.Literal("store")])),
       }),
       detail: {
@@ -79,9 +79,9 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         name: t.String({ minLength: 1, maxLength: 100 }),
         shop_type: t.Optional(t.Union([t.Literal("avg_cost"), t.Literal("fifo")])),
         description: t.Optional(t.Nullable(t.String())),
-        allow_department_charge: t.Optional(t.Boolean()),
+        allow_department_charge: t.Optional(t.Nullable(t.Boolean())),
         module: t.Optional(t.Union([t.Literal("canteen"), t.Literal("store")])),
-        uses_dual_pricing: t.Optional(t.Boolean()),
+        uses_dual_pricing: t.Optional(t.Nullable(t.Boolean())),
         spending_group_id: t.Optional(t.Nullable(t.Number())),
       }),
       detail: { summary: "Create a shop (admin)" },
@@ -180,9 +180,9 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     {
       params: t.Object({ shopId: t.String() }),
       query: t.Object({
-        search: t.Optional(t.String()),
-        category: t.Optional(t.String()),
-        include_inactive: t.Optional(t.String()),
+        search: t.Optional(t.Nullable(t.String())),
+        category: t.Optional(t.Nullable(t.String())),
+        include_inactive: t.Optional(t.Nullable(t.String())),
       }),
       detail: {
         summary: "List products in a shop",
@@ -294,9 +294,9 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     {
       params: t.Object({ shopId: t.String() }),
       query: t.Object({
-        product_id: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
+        product_id: t.Optional(t.Nullable(t.String())),
+        type: t.Optional(t.Nullable(t.String())),
+        limit: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "Stock movements (most recent first)" },
     },
@@ -315,9 +315,9 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     {
       params: t.Object({ shopId: t.String() }),
       query: t.Object({
-        action: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        offset: t.Optional(t.String()),
+        action: t.Optional(t.Nullable(t.String())),
+        limit: t.Optional(t.Nullable(t.String())),
+        offset: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "Audit log entries for this shop" },
     },

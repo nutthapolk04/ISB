@@ -82,7 +82,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   .get(
     "/departments/",
     async ({ query }) => listDepartments({ q: query.q, activeOnly: query.active_only !== "false" }),
-    { query: t.Object({ q: t.Optional(t.String()), active_only: t.Optional(t.String()) }) },
+    { query: t.Object({ q: t.Optional(t.Nullable(t.String())), active_only: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/users/",
@@ -103,12 +103,12 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        q: t.Optional(t.String()),
-        shop_id: t.Optional(t.String()),
-        role: t.Optional(t.String()),
-        unassigned: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        page_size: t.Optional(t.String()),
+        q: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        role: t.Optional(t.Nullable(t.String())),
+        unassigned: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -152,12 +152,12 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
       return await listAdminUsers({ role: query.role, q: query.q, status: query.status });
     },
-    { query: t.Object({ role: t.Optional(t.String()), q: t.Optional(t.String()), status: t.Optional(t.String()) }) },
+    { query: t.Object({ role: t.Optional(t.Nullable(t.String())), q: t.Optional(t.Nullable(t.String())), status: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/users-admin/staff-picker",
     async ({ query }) => listStaffForPicker({ q: query.q, roles: query.roles }),
-    { query: t.Object({ q: t.Optional(t.String()), roles: t.Optional(t.String()) }) },
+    { query: t.Object({ q: t.Optional(t.Nullable(t.String())), roles: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/users-admin/students",
@@ -165,7 +165,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
       return await listStudentsForLink(query.q);
     },
-    { query: t.Object({ q: t.Optional(t.String()) }) },
+    { query: t.Object({ q: t.Optional(t.Nullable(t.String())) }) },
   )
   .post(
     "/users-admin/students",
@@ -302,14 +302,14 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        entity_type: t.Optional(t.String()),
-        action: t.Optional(t.String()),
-        user_id: t.Optional(t.String()),
-        shop_id: t.Optional(t.String()),
-        date_from: t.Optional(t.String()),
-        date_to: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        page_size: t.Optional(t.String()),
+        entity_type: t.Optional(t.Nullable(t.String())),
+        action: t.Optional(t.Nullable(t.String())),
+        user_id: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -328,13 +328,13 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({
-        school_name: t.Optional(t.String()),
-        school_address: t.Optional(t.String()),
-        school_tax_id: t.Optional(t.String()),
-        school_phone: t.Optional(t.String()),
-        school_logo_url: t.Optional(t.String()),
-        school_cover_url: t.Optional(t.String()),
-        school_receipt_footer: t.Optional(t.String()),
+        school_name: t.Optional(t.Nullable(t.String())),
+        school_address: t.Optional(t.Nullable(t.String())),
+        school_tax_id: t.Optional(t.Nullable(t.String())),
+        school_phone: t.Optional(t.Nullable(t.String())),
+        school_logo_url: t.Optional(t.Nullable(t.String())),
+        school_cover_url: t.Optional(t.Nullable(t.String())),
+        school_receipt_footer: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -398,7 +398,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       params: t.Object({ id: t.String() }),
-      query: t.Object({ date_from: t.Optional(t.String()), date_to: t.Optional(t.String()) }),
+      query: t.Object({ date_from: t.Optional(t.Nullable(t.String())), date_to: t.Optional(t.Nullable(t.String())) }),
     },
   )
   .post(
@@ -422,7 +422,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         amount: t.Number(),
         reason: t.String({ minLength: 1, maxLength: 500 }),
-        reference_ticket: t.Optional(t.String({ maxLength: 50 })),
+        reference_ticket: t.Optional(t.Nullable(t.String({ maxLength: 50 }))),
       }),
     },
   )
@@ -446,7 +446,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         from_wallet_id: t.Number(),
         to_wallet_id: t.Number(),
         amount: t.Number({ exclusiveMinimum: 0 }),
-        note: t.Optional(t.String({ maxLength: 500 })),
+        note: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
       }),
     },
   )
@@ -469,13 +469,13 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        q: t.Optional(t.String()),
-        shop_id: t.Optional(t.String()),
-        shop_ids: t.Optional(t.String()),
-        transaction_mode: t.Optional(t.String()),
-        requester_user_id: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        page_size: t.Optional(t.String()),
+        q: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        shop_ids: t.Optional(t.Nullable(t.String())),
+        transaction_mode: t.Optional(t.Nullable(t.String())),
+        requester_user_id: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -569,7 +569,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         card_uid: t.Optional(t.Nullable(t.String())),
         photo_url: t.Optional(t.Nullable(t.String())),
         customer_type_id: t.Optional(t.Nullable(t.Number())),
-        initial_balance: t.Optional(t.Number()),
+        initial_balance: t.Optional(t.Nullable(t.Number())),
       }),
     },
   )
@@ -707,9 +707,9 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({
-        transaction_mode: t.Optional(t.String()),
+        transaction_mode: t.Optional(t.Nullable(t.String())),
         payment_method: t.String(),
-        payer_kind: t.Optional(t.String()),
+        payer_kind: t.Optional(t.Nullable(t.String())),
         customer_id: t.Optional(t.Nullable(t.Number())),
         payer_user_id: t.Optional(t.Nullable(t.Number())),
         payer_department_id: t.Optional(t.Nullable(t.Number())),
@@ -719,19 +719,19 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           quantity: t.Number(),
           unit_price: t.Number({ minimum: 0 }),
           price_override: t.Optional(t.Nullable(t.Number())),
-          discount: t.Optional(t.Number()),
+          discount: t.Optional(t.Nullable(t.Number())),
           options: t.Optional(t.Array(t.Object({
             option_id: t.Number(),
-            quantity: t.Optional(t.Number()),
+            quantity: t.Optional(t.Nullable(t.Number())),
           }))),
-          is_bundle: t.Optional(t.Boolean()),
+          is_bundle: t.Optional(t.Nullable(t.Boolean())),
           bundle_id: t.Optional(t.Nullable(t.Number())),
         })),
         edc_terminal_ref: t.Optional(t.Nullable(t.String())),
         edc_approval_code: t.Optional(t.Nullable(t.String())),
         edc_masked_card: t.Optional(t.Nullable(t.String())),
         cash_received: t.Optional(t.Nullable(t.Number())),
-        discount: t.Optional(t.Number()),
+        discount: t.Optional(t.Nullable(t.Number())),
         notes: t.Optional(t.Nullable(t.String())),
         shop_id: t.Optional(t.Nullable(t.String())),
       }),
@@ -755,7 +755,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       params: t.Object({ id: t.String() }),
-      body: t.Optional(t.Object({ reason: t.Optional(t.String()) })),
+      body: t.Optional(t.Object({ reason: t.Optional(t.Nullable(t.String())) })),
     },
   )
   // ── Phase 5: Bundles + Returns + Graduation Refund ─────────────────────
@@ -767,7 +767,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       params: t.Object({ shopId: t.String() }),
-      query: t.Object({ include_inactive: t.Optional(t.String()) }),
+      query: t.Object({ include_inactive: t.Optional(t.Nullable(t.String())) }),
     },
   )
   .get(
@@ -828,7 +828,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         department_name: t.Optional(t.Nullable(t.String())),
         initial_credit: t.Optional(t.Nullable(t.Number())),
         phone: t.Optional(t.Nullable(t.String())),
-        with_wallet: t.Optional(t.Boolean()),
+        with_wallet: t.Optional(t.Nullable(t.Boolean())),
       }),
     },
   )
@@ -844,10 +844,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        kind: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        page_size: t.Optional(t.String()),
+        kind: t.Optional(t.Nullable(t.String())),
+        q: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -905,7 +905,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         return await listSyncStatuses(limit);
       } catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ limit: t.Optional(t.String()) }) },
+    { query: t.Object({ limit: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/admin/sync-logs/:syncLogId",
@@ -929,7 +929,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       params: t.Object({ syncLogId: t.String() }),
-      query: t.Object({ action: t.Optional(t.String()) }),
+      query: t.Object({ action: t.Optional(t.Nullable(t.String())) }),
     },
   )
   .post(
@@ -978,7 +978,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         );
       } catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ limit: t.Optional(t.String()), offset: t.Optional(t.String()) }) },
+    { query: t.Object({ limit: t.Optional(t.Nullable(t.String())), offset: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/sync/stats",
@@ -989,7 +989,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         return await syncStats(days);
       } catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ days: t.Optional(t.String()) }) },
+    { query: t.Object({ days: t.Optional(t.Nullable(t.String())) }) },
   )
   // ── Price Panels (Phase 11.x) ──────────────────────────────────────────
   .get(
@@ -1127,7 +1127,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         name_en: t.String({ minLength: 1, maxLength: 100 }),
         name_th: t.String({ minLength: 1, maxLength: 100 }),
         daily_limit: t.Number({ exclusiveMinimum: 0 }),
-        is_active: t.Optional(t.Boolean()),
+        is_active: t.Optional(t.Nullable(t.Boolean())),
       }),
     },
   )
@@ -1195,7 +1195,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       try { return await listUoms(query.active_only !== "false"); }
       catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ active_only: t.Optional(t.String()) }) },
+    { query: t.Object({ active_only: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/uom/:id",
@@ -1222,7 +1222,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         name: t.String({ minLength: 1, maxLength: 100 }),
         name_en: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
         base_uom_id: t.Optional(t.Nullable(t.Number())),
-        conversion_factor: t.Optional(t.Number({ minimum: 0 })),
+        conversion_factor: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
       }),
     },
   )
@@ -1282,13 +1282,13 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         product_code: t.String({ minLength: 1, maxLength: 50 }),
         barcode: t.Optional(t.Nullable(t.String())),
         name: t.String({ minLength: 1, maxLength: 255 }),
-        category: t.Optional(t.String()),
+        category: t.Optional(t.Nullable(t.String())),
         external_price: t.Number({ minimum: 0 }),
         internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
-        vat_percent: t.Optional(t.Number({ minimum: 0, maximum: 100 })),
-        avg_cost: t.Optional(t.Number({ minimum: 0 })),
-        stock: t.Optional(t.Number()),
-        min_stock: t.Optional(t.Number({ minimum: 0 })),
+        vat_percent: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
+        avg_cost: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        stock: t.Optional(t.Nullable(t.Number())),
+        min_stock: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
         color: t.Optional(t.Nullable(t.String())),
         uom_id: t.Optional(t.Nullable(t.Number())),
       }),
@@ -1644,7 +1644,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         returnItems: t.Optional(t.Array(t.Object({ productCode: t.String(), returnQuantity: t.Number() }))),
         exchangeItems: t.Array(t.Object({ productCode: t.String(), quantity: t.Number({ minimum: 1 }) }), { minItems: 1 }),
-        difference: t.Optional(t.Number()),
+        difference: t.Optional(t.Nullable(t.Number())),
         reason: t.String(),
         notes: t.Optional(t.Nullable(t.String())),
       }),
@@ -1663,7 +1663,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         });
       } catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ filter: t.Optional(t.String()) }) },
+    { query: t.Object({ filter: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/returns/by-receipt",
@@ -1704,7 +1704,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         });
       } catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ filter: t.Optional(t.String()) }) },
+    { query: t.Object({ filter: t.Optional(t.Nullable(t.String())) }) },
   )
   .get(
     "/receipts/search",
@@ -1736,11 +1736,11 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        receiptId: t.Optional(t.String()),
-        studentCode: t.Optional(t.String()),
-        dateFrom: t.Optional(t.String()),
-        dateTo: t.Optional(t.String()),
-        paymentMethod: t.Optional(t.String()),
+        receiptId: t.Optional(t.Nullable(t.String())),
+        studentCode: t.Optional(t.Nullable(t.String())),
+        dateFrom: t.Optional(t.Nullable(t.String())),
+        dateTo: t.Optional(t.Nullable(t.String())),
+        paymentMethod: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -1757,8 +1757,8 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        inStock: t.Optional(t.String()),
-        shop_id: t.Optional(t.String()),
+        inStock: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -1791,7 +1791,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         amount: t.Number({ exclusiveMinimum: 0 }),
         method: t.Union([t.Literal("CASH"), t.Literal("BANK_TRANSFER"), t.Literal("CHEQUE")]),
-        notes: t.Optional(t.String({ maxLength: 500 })),
+        notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
       }),
     },
   )
@@ -1806,7 +1806,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       try { return await buildTemplate(query.shop_id ?? ""); }
       catch (e) { return handle(set)(e); }
     },
-    { query: t.Object({ shop_id: t.Optional(t.String()) }) },
+    { query: t.Object({ shop_id: t.Optional(t.Nullable(t.String())) }) },
   )
   .post(
     "/admin/import/products",
@@ -1827,7 +1827,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({ file: t.File() }),
-      query: t.Object({ shop_id: t.Optional(t.String()) }),
+      query: t.Object({ shop_id: t.Optional(t.Nullable(t.String())) }),
     },
   )
   .post(
@@ -1867,7 +1867,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({ file: t.File() }),
-      query: t.Object({ shop_id: t.Optional(t.String()) }),
+      query: t.Object({ shop_id: t.Optional(t.Nullable(t.String())) }),
     },
   )
   // ── Admin wallet reports (adjustment + transfer) ─────────────────────────
@@ -1886,10 +1886,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        date_from: t.Optional(t.String()),
-        date_to: t.Optional(t.String()),
-        direction: t.Optional(t.String()),
-        type: t.Optional(t.String()),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        direction: t.Optional(t.Nullable(t.String())),
+        type: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -1909,10 +1909,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       query: t.Object({
-        date_from: t.Optional(t.String()),
-        date_to: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        page_size: t.Optional(t.String()),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -1943,7 +1943,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         amount: t.Number({ exclusiveMinimum: 0 }),
         notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
-        payment_method: t.Optional(t.String()),
+        payment_method: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -2005,7 +2005,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       params: t.Object({ id: t.String() }),
       body: t.Object({
         amount: t.Number({ exclusiveMinimum: 0 }),
-        notes: t.Optional(t.String({ maxLength: 500 })),
+        notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
       }),
     },
   )
@@ -2030,7 +2030,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         amount: t.Number(),
         reason: t.String({ minLength: 1, maxLength: 500 }),
-        reference_ticket: t.Optional(t.String({ maxLength: 50 })),
+        reference_ticket: t.Optional(t.Nullable(t.String({ maxLength: 50 }))),
       }),
     },
   )
@@ -2052,9 +2052,9 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     {
       params: t.Object({ department_id: t.String() }),
       query: t.Object({
-        limit: t.Optional(t.String()),
-        date_from: t.Optional(t.String()),
-        date_to: t.Optional(t.String()),
+        limit: t.Optional(t.Nullable(t.String())),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -2135,7 +2135,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       params: t.Object({ child_id: t.String() }),
       body: t.Object({
         enabled: t.Boolean(),
-        threshold: t.Optional(t.Number()),
+        threshold: t.Optional(t.Nullable(t.Number())),
       }),
     },
   )
@@ -2164,7 +2164,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         parent_user_id: t.Number(),
         child_customer_id: t.Number(),
-        relation: t.Optional(t.String()),
+        relation: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
@@ -2262,8 +2262,8 @@ const app = new Elysia()
     {
       body: t.Object({
         email: t.String(),
-        full_name: t.Optional(t.String()),
-        provider: t.Optional(t.String()),
+        full_name: t.Optional(t.Nullable(t.String())),
+        provider: t.Optional(t.Nullable(t.String())),
       }),
     },
   )

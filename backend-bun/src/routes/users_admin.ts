@@ -23,9 +23,9 @@ export const usersAdminRoutes = new Elysia({ name: "users-admin", prefix: "/user
     },
     {
       query: t.Object({
-        role: t.Optional(t.String()),
-        q: t.Optional(t.String()),
-        status: t.Optional(t.String()),
+        role: t.Optional(t.Nullable(t.String())),
+        q: t.Optional(t.Nullable(t.String())),
+        status: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "Admin user list with has_children + shop_name enrichment" },
     },
@@ -37,8 +37,8 @@ export const usersAdminRoutes = new Elysia({ name: "users-admin", prefix: "/user
     },
     {
       query: t.Object({
-        q: t.Optional(t.String()),
-        roles: t.Optional(t.String()),
+        q: t.Optional(t.Nullable(t.String())),
+        roles: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "Compact staff list for the requisition requester picker" },
     },
@@ -53,7 +53,7 @@ export const usersAdminRoutes = new Elysia({ name: "users-admin", prefix: "/user
       return await listStudentsForLink(query.q);
     },
     {
-      query: t.Object({ q: t.Optional(t.String()) }),
+      query: t.Object({ q: t.Optional(t.Nullable(t.String())) }),
       detail: { summary: "Customer rows with student_code set, for the Link Student picker" },
     },
   );

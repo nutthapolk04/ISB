@@ -40,12 +40,12 @@ export const userRoutes = new Elysia({ name: "users", prefix: "/users" })
     },
     {
       query: t.Object({
-        q: t.Optional(t.String()),
-        shop_id: t.Optional(t.String()),
-        role: t.Optional(t.String()),
-        unassigned: t.Optional(t.String()),
-        page: t.Optional(t.String()),
-        page_size: t.Optional(t.String()),
+        q: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        role: t.Optional(t.Nullable(t.String())),
+        unassigned: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "Paginated user list (admin/manager only)" },
     },

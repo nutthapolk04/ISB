@@ -21,8 +21,8 @@ export const productRoutes = new Elysia({ name: "products", prefix: "/products" 
     {
       query: t.Object({
         q: t.String({ minLength: 1 }),
-        skip: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
+        skip: t.Optional(t.Nullable(t.String())),
+        limit: t.Optional(t.Nullable(t.String())),
       }),
       detail: {
         summary: "Search products by name, SKU, or barcode",
@@ -78,10 +78,10 @@ export const productRoutes = new Elysia({ name: "products", prefix: "/products" 
     },
     {
       query: t.Object({
-        skip: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
-        category_id: t.Optional(t.String()),
-        is_active: t.Optional(t.String()),
+        skip: t.Optional(t.Nullable(t.String())),
+        limit: t.Optional(t.Nullable(t.String())),
+        category_id: t.Optional(t.Nullable(t.String())),
+        is_active: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "List products with pagination + filters" },
     },
