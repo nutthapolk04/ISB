@@ -338,7 +338,17 @@ export async function voidReceipt(args: {
   receiptId: number;
   reason: string | null;
 }): Promise<ReceiptDTO> {
-  const { caller, receiptId, reason } = args;
+  const { caller, receiptId } = args;
+  // Defensive: coerce reason to string|null so we never accidentally
+  // pass a parsed JSON object (e.g. when frontend sends `{}` or `[]`)
+  // into a string column; postgres-js then throws the unhelpful
+  // 'Received an instance of Object' message.
+  const reason: string | null =
+    args.reason === null || args.reason === undefined
+      ? null
+      : typeof args.reason === "string"
+        ? args.reason
+        : String(args.reason);
   const callerId = Number(caller.sub);
 
   const rRows = await db.select().from(receipts).where(eq(receipts.id, receiptId)).limit(1);
