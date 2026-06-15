@@ -270,7 +270,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     doc.setFontSize(8);
     doc.setTextColor(100);
     for (const line of meta.filters) {
-      doc.text(line, marginX, cursorY);
+      doc.text(line, pageWidth - marginX, cursorY, { align: "right" });
       cursorY += 10;
     }
     doc.setTextColor(0);
