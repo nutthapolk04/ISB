@@ -419,17 +419,41 @@ const Receipts = () => {
 
   const handleVoidConfirm = async () => {
     if (!voidTarget) return;
+    const targetId = voidTarget.id;
+    const targetNumber = voidTarget.receipt_number;
     setVoidLoading(true);
     try {
-      const updated = await api.post<ReceiptApi>(`/pos/void/${voidTarget.id}`, {
+      const updated = await api.post<ReceiptApi>(`/pos/void/${targetId}`, {
         reason: voidReason.trim() || null,
       });
       setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
-      toast.success(t("receipts.voidDialog.successToast", { number: voidTarget.receipt_number }));
+      toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
       setVoidTarget(null);
       setVoidReason("");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : t("receipts.voidDialog.failToast"));
+      // If backend says the receipt is ALREADY voided, treat it as success:
+      // an earlier request did succeed at the DB level but the response
+      // never made it back (e.g. transient 500 during the postgres-js bug).
+      // Refetch the row so the UI reflects the real voided state.
+      const isAlreadyVoided =
+        e instanceof ApiError &&
+        typeof e.detail === "string" &&
+        /already.*voided/i.test(e.detail);
+      if (isAlreadyVoided) {
+        try {
+          const refreshed = await api.get<ReceiptApi>(`/pos/receipt/${targetId}`);
+          setReceipts((prev) => prev.map((r) => r.id === refreshed.id ? refreshed : r));
+        } catch {
+          // If refetch also fails, fall back to a soft local mark so the
+          // cashier doesn't keep re-trying. They can hard-refresh later.
+          setReceipts((prev) => prev.map((r) => r.id === targetId ? { ...r, status: "voided" } : r));
+        }
+        toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
+        setVoidTarget(null);
+        setVoidReason("");
+      } else {
+        toast.error(e instanceof ApiError ? e.detail : t("receipts.voidDialog.failToast"));
+      }
     } finally {
       setVoidLoading(false);
     }
