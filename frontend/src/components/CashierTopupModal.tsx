@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,8 @@ import {
   ArrowLeft,
   Check,
   Banknote,
+  QrCode,
+  AlertCircle,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -45,13 +48,37 @@ interface TopupSuccessResult {
   transaction_id: number;
 }
 
+interface TopupIntent {
+  ref_code: string;
+  wallet_id: number;
+  amount: number;
+  qr_payload: string;
+  status: string;
+  created_at: string;
+  payment_page_url: string | null;
+  payment_form_params: Record<string, string> | null;
+  txn_no: string | null;
+}
+
+interface IntentStatus {
+  status: string;
+}
+
+interface WalletBalance {
+  id: number;
+  balance: number;
+}
+
+type PaymentMethod = "cash" | "bay_qr";
+type QrStatus = "waiting" | "confirmed" | "cancelled" | "timeout";
+
 interface CashierTopupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (result: TopupSuccessResult) => void;
 }
 
-type ModalStep = "search" | "topup" | "success";
+type ModalStep = "search" | "topup" | "qr" | "success";
 
 export function CashierTopupModal({
   open,
@@ -69,9 +96,13 @@ export function CashierTopupModal({
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerResult | null>(null);
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [submitting, setSubmitting] = useState(false);
 
   const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
+  const [intent, setIntent] = useState<TopupIntent | null>(null);
+  const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
+  const [confirming, setConfirming] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -83,7 +114,10 @@ export function CashierTopupModal({
       setSelectedCustomer(null);
       setAmount("");
       setNotes("");
+      setPaymentMethod("cash");
       setTopupResult(null);
+      setIntent(null);
+      setQrStatus("waiting");
     }
   }, [open]);
 
@@ -134,12 +168,18 @@ export function CashierTopupModal({
       setStep("search");
       setAmount("");
       setNotes("");
+    } else if (step === "qr") {
+      setStep("topup");
+      setIntent(null);
+      setQrStatus("waiting");
     } else if (step === "success") {
       setStep("search");
       setSelectedCustomer(null);
       setAmount("");
       setNotes("");
       setTopupResult(null);
+      setIntent(null);
+      setQrStatus("waiting");
     }
   };
 
@@ -157,22 +197,126 @@ export function CashierTopupModal({
 
     setSubmitting(true);
     try {
-      const result = await api.post<TopupSuccessResult>(
-        `/wallets/${selectedCustomer.wallet_id}/cashier-topup`,
-        {
-          amount: amountNum,
-          notes: notes.trim() || null,
-        }
-      );
+      if (paymentMethod === "bay_qr") {
+        const resp = await api.post<TopupIntent>(
+          `/wallets/${selectedCustomer.wallet_id}/topup`,
+          {
+            amount: amountNum,
+            payment_method: "bay_qr",
+            notes: notes.trim() || null,
+          }
+        );
+        setIntent(resp);
+        setQrStatus("waiting");
+        setStep("qr");
+      } else {
+        const result = await api.post<TopupSuccessResult>(
+          `/wallets/${selectedCustomer.wallet_id}/cashier-topup`,
+          {
+            amount: amountNum,
+            notes: notes.trim() || null,
+          }
+        );
 
-      setTopupResult(result);
-      setStep("success");
-      onSuccess?.(result);
-      toast.success(t("topup.success", "Top-up successful"));
+        setTopupResult(result);
+        setStep("success");
+        onSuccess?.(result);
+        toast.success(t("topup.success", "Top-up successful"));
+      }
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed");
+      toast.error(paymentMethod === "bay_qr" ? t("topup.qrCreateFailed", "Failed to create QR") : msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Poll BAY QR status while waiting
+  useEffect(() => {
+    if (step !== "qr" || !intent) return;
+    let cancelled = false;
+    const MAX_WAIT_MS = 15 * 60 * 1000;
+    const POLL_INTERVAL_MS = 3_000;
+    const startTime = Date.now();
+    const refCode = intent.ref_code;
+    const walletId = intent.wallet_id;
+    const customerName = selectedCustomer?.name ?? "";
+    const intentAmount = intent.amount;
+
+    async function poll() {
+      while (Date.now() - startTime < MAX_WAIT_MS) {
+        if (cancelled) return;
+        await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
+        if (cancelled) return;
+        try {
+          const s = await api.get<IntentStatus>(`/wallets/topup/${refCode}/status`);
+          if (s.status === "confirmed") {
+            if (cancelled) return;
+            setQrStatus("confirmed");
+            try {
+              const wallet = await api.get<WalletBalance>(`/wallets/${walletId}`);
+              const balanceAfter = wallet.balance;
+              const balanceBefore = balanceAfter - intentAmount;
+              const successResult: TopupSuccessResult = {
+                wallet_id: walletId,
+                customer_name: customerName,
+                amount: intentAmount,
+                balance_before: balanceBefore,
+                balance_after: balanceAfter,
+                transaction_id: 0,
+              };
+              if (cancelled) return;
+              setTopupResult(successResult);
+              setStep("success");
+              onSuccess?.(successResult);
+            } catch {
+              // Wallet fetch failed — still surface success
+              const successResult: TopupSuccessResult = {
+                wallet_id: walletId,
+                customer_name: customerName,
+                amount: intentAmount,
+                balance_before: selectedCustomer?.wallet_balance ?? 0,
+                balance_after: (selectedCustomer?.wallet_balance ?? 0) + intentAmount,
+                transaction_id: 0,
+              };
+              if (cancelled) return;
+              setTopupResult(successResult);
+              setStep("success");
+              onSuccess?.(successResult);
+            }
+            toast.success(t("topup.success", "Top-up successful"));
+            return;
+          }
+          if (s.status === "cancelled") {
+            if (cancelled) return;
+            setQrStatus("cancelled");
+            return;
+          }
+        } catch { /* ignore poll errors */ }
+      }
+      if (!cancelled) setQrStatus("timeout");
+    }
+    poll();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, intent?.ref_code]);
+
+  const handleCancelQr = () => {
+    setIntent(null);
+    setQrStatus("waiting");
+    setStep("topup");
+  };
+
+  const handleMarkPaid = async () => {
+    if (!intent) return;
+    setConfirming(true);
+    try {
+      await api.post(`/wallets/topup/${intent.ref_code}/parent-confirm`, {});
+      // Polling effect will detect "confirmed" on next tick and route to success.
     } catch (e) {
       toast.error(e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed"));
     } finally {
-      setSubmitting(false);
+      setConfirming(false);
     }
   };
 
@@ -190,6 +334,11 @@ export function CashierTopupModal({
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-emerald-500" />
             {t("topup.title", "Cash Top-up")}
+            {step === "qr" && (
+              <Badge variant="secondary" className="ml-1">
+                {t("topup.methodBayQr", "BAY PromptPay QR")}
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -348,6 +497,39 @@ export function CashierTopupModal({
               </div>
             </div>
 
+            {/* Payment method picker */}
+            <div className="space-y-2">
+              <Label>{t("topup.methodLabel", "Payment Method")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cash")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                    paymentMethod === "cash"
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
+                  )}
+                >
+                  <Banknote className="h-4 w-4" />
+                  {t("topup.methodCash", "Cash")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("bay_qr")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                    paymentMethod === "bay_qr"
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
+                  )}
+                >
+                  <QrCode className="h-4 w-4" />
+                  {t("topup.methodBayQr", "BAY PromptPay QR")}
+                </button>
+              </div>
+            </div>
+
             {/* Amount input */}
             <div className="space-y-2">
               <Label>{t("topup.amount", "Top-up Amount")} (THB)</Label>
@@ -429,12 +611,114 @@ export function CashierTopupModal({
                 </>
               ) : (
                 <>
-                  <Wallet className="h-5 w-5 mr-2" />
+                  {paymentMethod === "bay_qr" ? (
+                    <QrCode className="h-5 w-5 mr-2" />
+                  ) : (
+                    <Wallet className="h-5 w-5 mr-2" />
+                  )}
                   {t("topup.confirmTopup", "Confirm Top-up")}
                   {amount && parseFloat(amount) > 0 && ` ฿${parseFloat(amount).toLocaleString()}`}
                 </>
               )}
             </Button>
+          </div>
+        )}
+
+        {step === "qr" && intent && selectedCustomer && (
+          <div className="space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="mb-2 -ml-2"
+              disabled={qrStatus === "waiting" && confirming}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              {t("common.back", "Back")}
+            </Button>
+
+            <div className="text-center space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                {selectedCustomer.name}
+              </p>
+              <p className="text-2xl font-bold tabular-nums text-emerald-600">
+                ฿{intent.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("topup.scanQr", "Ask customer to scan this QR with their banking app")}
+              </p>
+            </div>
+
+            <div className="flex justify-center rounded-xl bg-white p-4 border border-emerald-100 shadow-inner">
+              <QRCodeSVG value={intent.qr_payload} size={220} />
+            </div>
+
+            <div className="space-y-1 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-emerald-700">{t("topup.qrRefCode", "Reference")}</span>
+                <span className="font-mono text-emerald-900">{intent.ref_code}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-emerald-700">{t("topup.amount", "Top-up Amount")}</span>
+                <span className="font-semibold text-emerald-900 tabular-nums">
+                  ฿{intent.amount.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {qrStatus === "waiting" && (
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>{t("topup.waitingPayment", "Waiting for payment...")}</span>
+              </div>
+            )}
+            {qrStatus === "cancelled" && (
+              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{t("topup.qrCancelled", "Payment cancelled")}</span>
+              </div>
+            )}
+            {qrStatus === "timeout" && (
+              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{t("topup.qrTimedOut", "QR timed out")}</span>
+              </div>
+            )}
+            {qrStatus === "waiting" && (
+              <p className="text-xs text-center text-muted-foreground">
+                {t("topup.timeoutWarning", "QR expires in 15 minutes")}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-11"
+                onClick={handleCancelQr}
+                disabled={confirming}
+              >
+                {t("topup.cancel", "Cancel")}
+              </Button>
+              {qrStatus === "waiting" && (
+                <Button
+                  onClick={handleMarkPaid}
+                  disabled={confirming}
+                  className="flex-1 h-11 bg-emerald-500 hover:bg-emerald-600"
+                >
+                  {confirming ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      {t("topup.processing", "Processing...")}
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-1.5" />
+                      {t("topup.markPaid", "Mark as Paid")}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -472,10 +756,12 @@ export function CashierTopupModal({
                   ฿{topupResult.balance_after.toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between text-xs pt-2 border-t">
-                <span className="text-muted-foreground">Transaction ID:</span>
-                <span className="font-mono">{topupResult.transaction_id}</span>
-              </div>
+              {topupResult.transaction_id > 0 && (
+                <div className="flex justify-between text-xs pt-2 border-t">
+                  <span className="text-muted-foreground">Transaction ID:</span>
+                  <span className="font-mono">{topupResult.transaction_id}</span>
+                </div>
+              )}
             </div>
 
             {/* Actions */}

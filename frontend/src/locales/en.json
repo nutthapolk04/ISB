@@ -2821,7 +2821,19 @@
     "successTitle": "Top-up Successful!",
     "success": "Top-up successful",
     "failed": "Top-up failed",
-    "topupAnother": "Top-up Another"
+    "topupAnother": "Top-up Another",
+    "methodCash": "Cash",
+    "methodBayQr": "BAY PromptPay QR",
+    "methodLabel": "Payment Method",
+    "scanQr": "Ask customer to scan this QR with their banking app",
+    "waitingPayment": "Waiting for payment...",
+    "timeoutWarning": "QR expires in 15 minutes",
+    "cancel": "Cancel",
+    "qrCreateFailed": "Failed to create QR",
+    "qrCancelled": "Payment cancelled",
+    "qrTimedOut": "QR timed out",
+    "qrRefCode": "Reference",
+    "markPaid": "Mark as Paid"
   },
   "users": {
     "tabMyTeamDesc": "Manage staff in your shop"

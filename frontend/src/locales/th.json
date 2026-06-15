@@ -2819,7 +2819,19 @@
     "successTitle": "เติมเงินสำเร็จ!",
     "success": "เติมเงินสำเร็จ",
     "failed": "เติมเงินไม่สำเร็จ",
-    "topupAnother": "เติมให้คนอื่น"
+    "topupAnother": "เติมให้คนอื่น",
+    "methodCash": "เงินสด",
+    "methodBayQr": "BAY พร้อมเพย์ QR",
+    "methodLabel": "ช่องทางชำระเงิน",
+    "scanQr": "ให้ลูกค้าสแกน QR ด้วยแอปธนาคาร",
+    "waitingPayment": "รอการชำระเงิน...",
+    "timeoutWarning": "QR หมดอายุใน 15 นาที",
+    "cancel": "ยกเลิก",
+    "qrCreateFailed": "สร้าง QR ไม่สำเร็จ",
+    "qrCancelled": "ยกเลิกการชำระเงิน",
+    "qrTimedOut": "QR หมดเวลา",
+    "qrRefCode": "เลขอ้างอิง",
+    "markPaid": "ยืนยันรับเงินแล้ว"
   },
   "users": {
     "tabMyTeamDesc": "จัดการพนักงานในร้านของคุณ"
