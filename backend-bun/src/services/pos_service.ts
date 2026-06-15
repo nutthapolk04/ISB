@@ -82,8 +82,15 @@ export interface ReceiptDTO {
 }
 
 function userCanAccessShop(caller: AccessTokenPayload & { shop_id?: string | null }, shopId: string): boolean {
+  // Mirrors `user_can_access_shop` in FastAPI deps.py:
+  // - admin / superuser: all shops
+  // - unscoped manager (shop_id null) AND has manager role: all shops
+  //   (multi-shop / regional managers don't carry a single shop_id)
+  // - everyone else: only their own shop
   if (caller.is_superuser || caller.roles.includes("admin")) return true;
-  return caller.shop_id === shopId;
+  const callerShop = caller.shop_id ?? null;
+  if (callerShop === null && caller.roles.includes("manager")) return true;
+  return callerShop === shopId;
 }
 
 async function loadItems(receiptId: number): Promise<ReceiptItemDTO[]> {
