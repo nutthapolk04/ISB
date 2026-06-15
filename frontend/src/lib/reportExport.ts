@@ -117,6 +117,16 @@ export interface ReportMeta {
  */
 export const SECTION_KEY = "__section" as const;
 
+/**
+ * Optional sentinel key to mark a body row as a summary/subtotal so the PDF
+ * renderer can give it visual weight (bold + tinted background). Two levels:
+ *   - "subtotal": light grey background, bold text. Used for Closing Balance.
+ *   - "total":    darker grey background, bold text. Used for per-section TOTAL.
+ * Rows without this key render as plain data rows.
+ */
+export const EMPHASIS_KEY = "__emphasis" as const;
+export type RowEmphasis = "subtotal" | "total";
+
 export interface ReportPayload<TRow extends Record<string, unknown>> {
   meta: ReportMeta;
   columns: ReportColumn[];
@@ -133,6 +143,11 @@ export interface ReportPayload<TRow extends Record<string, unknown>> {
 function sectionLabel(row: Record<string, unknown>): string | null {
   const v = row[SECTION_KEY];
   return typeof v === "string" ? v : null;
+}
+
+function rowEmphasis(row: Record<string, unknown>): RowEmphasis | null {
+  const v = row[EMPHASIS_KEY];
+  return v === "subtotal" || v === "total" ? v : null;
 }
 
 // ─── Value formatting (shared between PDF and Excel) ─────────────────────
@@ -314,6 +329,23 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
         },
       ];
     }
+
+    // Emphasis styling for subtotal / total rows so they stand out from
+    // the plain movement rows above them. Cell content stays right/left
+    // aligned per columnStyles — we only override fill + font weight.
+    const emphasis = rowEmphasis(row);
+    if (emphasis !== null) {
+      const fill: [number, number, number] =
+        emphasis === "total" ? [203, 213, 225] : [241, 245, 249];
+      return columns.map((c) => ({
+        content: formatCell(row[c.key], c.format),
+        styles: {
+          fontStyle: "bold",
+          fillColor: fill,
+        },
+      }));
+    }
+
     return columns.map((c) => formatCell(row[c.key], c.format));
   });
 

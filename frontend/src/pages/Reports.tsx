@@ -32,6 +32,7 @@ import {
   exportToExcel,
   buildDateFilterLine,
   SECTION_KEY,
+  EMPHASIS_KEY,
   type ReportColumn,
   type ReportPayload,
 } from "@/lib/reportExport";
@@ -422,7 +423,14 @@ const Reports = () => {
         [SECTION_KEY]: `Product Code: ${block.product_code} — ${block.product_name}`,
       });
       for (const r of block.rows) {
+        // The "Closing Balance" row is the per-product running total — mark
+        // it as a subtotal so the PDF gives it a tinted background and bold
+        // text. "Beginning Balance" stays plain.
+        const isClosing =
+          typeof r.description === "string" &&
+          r.description.toLowerCase().includes("closing");
         body.push({
+          ...(isClosing ? { [EMPHASIS_KEY]: "subtotal" as const } : {}),
           date: r.date ?? "",
           description: r.description,
           invoice_no: r.invoice_no ?? "",
@@ -435,8 +443,10 @@ const Reports = () => {
           amount_balance: r.amount_balance,
         });
       }
-      // Per-product subtotal row.
+      // Per-product subtotal row — darker emphasis than Closing Balance so
+      // the eye can tell them apart at a glance.
       body.push({
+        [EMPHASIS_KEY]: "total" as const,
         date: "",
         description: "Total :",
         invoice_no: "",
