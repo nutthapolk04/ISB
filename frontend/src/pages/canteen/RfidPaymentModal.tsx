@@ -367,12 +367,20 @@ export function RfidPaymentModal({
       ? Number(student.daily_limit)
       : null;
 
-  // User/department wallet has no overdraft cap or daily limit.
-  const overLimit =
-    payerKind === "customer" &&
-    remaining < allowedFloor &&
-    !isFrozen;
-  const goingNegative = !overLimit && remaining < 0 && !isFrozen && payerKind !== "department";
+  // Overdraft policy:
+  //   - customer wallet: allowed up to negative_credit_limit (0 if null)
+  //   - user wallet (parent/staff): NEVER allowed to go negative from the
+  //     frontend — the global allow_negative_user_wallet flag is admin-only
+  //     and not exposed to the cashier UI. Without that flag the backend
+  //     400's on any negative projection, so block here to prevent the
+  //     confusing "Confirm → Checkout failed" round-trip.
+  //   - department wallet: no cap (department charges, settled elsewhere)
+  const overLimit = !isFrozen && (
+    (payerKind === "customer" && remaining < allowedFloor) ||
+    (payerKind === "user" && remaining < 0)
+  );
+  const goingNegative =
+    payerKind === "customer" && !overLimit && remaining < 0 && !isFrozen;
 
   const hasPayer =
     payerKind === "user" ? !!userPayer
@@ -726,9 +734,15 @@ export function RfidPaymentModal({
               <div className="flex items-center gap-3 rounded-lg border-2 border-red-400 bg-red-50 p-4 text-red-800">
                 <XCircle className="h-10 w-10 shrink-0 text-red-600" strokeWidth={2.5} />
                 <div className="flex-1">
-                  <div className="text-base font-bold text-red-700">{r("overLimitTitle")}</div>
+                  <div className="text-base font-bold text-red-700">
+                    {payerKind === "user"
+                      ? r("insufficientUserTitle")
+                      : r("overLimitTitle")}
+                  </div>
                   <div className="text-xs">
-                    {r("overLimitDesc", { amount: Math.abs(remaining).toFixed(2), cap: Number(negLimit ?? 0).toFixed(2) })}
+                    {payerKind === "user"
+                      ? r("insufficientUserDesc", { amount: Math.abs(remaining).toFixed(2) })
+                      : r("overLimitDesc", { amount: Math.abs(remaining).toFixed(2), cap: Number(negLimit ?? 0).toFixed(2) })}
                   </div>
                 </div>
               </div>
