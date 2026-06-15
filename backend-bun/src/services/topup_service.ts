@@ -11,7 +11,15 @@ import { db, pgClient } from "@/db/client";
 import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
-import { createQrPayment, createEasyPay, isPymtConfigured, PymtGatewayError } from "@/services/pymt_gateway";
+import {
+  createQrPayment,
+  createEasyPay,
+  isPymtConfigured,
+  PymtGatewayError,
+  qrInquiry,
+  easyPayInquiry,
+  type InquiryResult,
+} from "@/services/pymt_gateway";
 
 const MAX_WALLET_BALANCE = 50_000;
 
@@ -141,6 +149,12 @@ export interface CreateTopupInput {
   userId: number;
   notes?: string | null;
   paymentMethod?: string;
+  /** Optional remark forwarded to BAY (visible in BAY merchant dashboard). */
+  remark?: string | null;
+  /** EASYPay only — "N" (sale, default) or "H" (hold/authorize). */
+  payType?: "N" | "H" | null;
+  /** EASYPay only — "T" Thai (default) or "E" English. */
+  lang?: "T" | "E" | null;
 }
 
 export async function createTopupIntent(input: CreateTopupInput): Promise<TopupIntentDTO> {
@@ -194,7 +208,12 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
 
   try {
     if (paymentMethod === "bay_qr" && pymtConfigured) {
-      const r = await createQrPayment({ amount: input.amount, refCode, walletId: input.walletId });
+      const r = await createQrPayment({
+        amount: input.amount,
+        refCode,
+        walletId: input.walletId,
+        remark: input.remark ?? null,
+      });
       qrPayload = r.qrcode_content;
       txnNo = r.txn_no;
       await db.update(paymentIntents).set({ qrPayload, txnNo }).where(eq(paymentIntents.id, created.id));
@@ -205,6 +224,9 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
         successUrl: `${feBase}/payment/bay/success?ref=${refCode}`,
         failUrl: `${feBase}/payment/bay/fail?ref=${refCode}`,
         cancelUrl: `${feBase}/payment/bay/cancel?ref=${refCode}`,
+        lang: input.lang ?? undefined,
+        payType: input.payType ?? undefined,
+        remark: input.remark ?? null,
       });
       txnNo = r.txn_no;
       paymentPageUrl = r.payment_page_url;
@@ -237,6 +259,104 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
     txn_no: txnNo,
     payment_page_url: paymentPageUrl,
     payment_form_params: paymentFormParams,
+  };
+}
+
+// ── Inquiry (force-sync from BAY) ────────────────────────────────────────
+
+export interface TopupInquiryDTO {
+  ref_code: string;
+  wallet_id: number;
+  /** Local intent status after sync. */
+  status: string;
+  /** Raw inquiry result from BAY. */
+  gateway: InquiryResult;
+}
+
+/**
+ * Force a status check against BAY via PYMT inquiry, then sync local
+ * payment_intents row + (if confirmed) trigger wallet credit. Used by the
+ * EASYPay landing page and as a manual "Check again" button when the
+ * webhook is slow.
+ */
+export async function inquireTopupFromGateway(refCode: string): Promise<TopupInquiryDTO> {
+  const rows = await db
+    .select()
+    .from(paymentIntents)
+    .where(eq(paymentIntents.refCode, refCode))
+    .limit(1);
+  const intent = rows[0];
+  if (!intent) {
+    const err = new Error("Top-up intent not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  if (!intent.txnNo) {
+    // No gateway txnNo yet — nothing to inquire. Return current local state.
+    return {
+      ref_code: intent.refCode,
+      wallet_id: intent.walletId,
+      status: intent.status,
+      gateway: {
+        status: "pending",
+        raw_status: "NO_TXN",
+        txn_no: null,
+        card_no: null,
+        payment_method: null,
+        paid_at: null,
+        bay_trx_status: null,
+      },
+    };
+  }
+
+  let result: InquiryResult;
+  if (intent.paymentMethod === "bay_easypay") {
+    result = await easyPayInquiry({ transactionNo: intent.txnNo });
+  } else if (intent.paymentMethod === "bay_qr") {
+    result = await qrInquiry({ transactionNo: intent.txnNo });
+  } else {
+    // Non-BAY method (e.g. mock qr_promptpay) — gateway has nothing to say.
+    return {
+      ref_code: intent.refCode,
+      wallet_id: intent.walletId,
+      status: intent.status,
+      gateway: {
+        status: "pending",
+        raw_status: "NOT_APPLICABLE",
+        txn_no: intent.txnNo,
+        card_no: null,
+        payment_method: null,
+        paid_at: null,
+        bay_trx_status: null,
+      },
+    };
+  }
+
+  // Sync local status if gateway says something different
+  if (intent.status === "pending") {
+    if (result.status === "confirmed") {
+      // Reuse the webhook path — same idempotent confirmTopup call
+      const confirmerId = intent.createdBy ?? null;
+      if (confirmerId !== null) {
+        try {
+          await confirmTopup({ refCode: intent.refCode, confirmerId, confirmedVia: "gateway_inquiry" });
+        } catch {
+          // best-effort; client can retry
+        }
+      }
+    } else if (result.status === "cancelled") {
+      await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, intent.id));
+    }
+  }
+
+  // Re-read local status post-sync
+  const after = await db.select({ status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.id, intent.id)).limit(1);
+
+  return {
+    ref_code: intent.refCode,
+    wallet_id: intent.walletId,
+    status: after[0]?.status ?? intent.status,
+    gateway: result,
   };
 }
 

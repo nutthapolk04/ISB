@@ -276,13 +276,19 @@ export function MockBayPaymentSuccess() {
     }
 
     let cancelled = false;
-    const MAX_WAIT_MS = 10_000;
+    // Webhook can be slow under real BAY. Poll local status fast (cheap)
+    // and ALSO hit the BAY inquiry endpoint every few rounds so we don't
+    // strand the user if the gateway callback is delayed.
+    const MAX_WAIT_MS = 15_000;
     const POLL_INTERVAL_MS = 1_500;
+    const INQUIRY_EVERY_N_POLLS = 3; // ~4.5s between inquiries
     const startTime = Date.now();
 
     async function pollAndConfirm() {
+      let round = 0;
       while (Date.now() - startTime < MAX_WAIT_MS) {
         if (cancelled) return;
+        round += 1;
         try {
           const status = await api.get<{ status: string }>(`/wallets/topup/${orderRef}/status`);
           if (status.status === "confirmed") {
@@ -300,27 +306,82 @@ export function MockBayPaymentSuccess() {
         } catch {
           // ignore poll errors, keep trying
         }
+
+        // Every Nth round, ask BAY directly via the inquiry endpoint so we
+        // don't depend solely on the webhook arriving in time.
+        if (round % INQUIRY_EVERY_N_POLLS === 0) {
+          try {
+            const inq = await api.post<{ status: string }>(
+              `/wallets/topup/${orderRef}/inquiry`,
+              {},
+            );
+            if (inq.status === "confirmed") {
+              clearBayIntent(intent!.orderRef);
+              setState("done");
+              toast({ title: "Top up successful", description: `Wallet credited ${fmtTHB(intent!.amount)}` });
+              setTimeout(() => navigate(intent!.returnUrl, { replace: true }), 1500);
+              return;
+            }
+            if (inq.status === "cancelled") {
+              setError("Payment failed. Please try again.");
+              setState("error");
+              return;
+            }
+          } catch {
+            // inquiry can fail if PYMT is unreachable — keep polling local
+          }
+        }
+
         await new Promise<void>((res) => setTimeout(res, POLL_INTERVAL_MS));
       }
 
+      // Timeout reached — DO NOT auto-confirm against the user's wallet.
+      // The webhook may still land, or the cashier can hit "Check again".
+      // Surface a clear "still processing" state instead of silently
+      // crediting (the old parent-confirm fallback was a dev-only shortcut).
       if (cancelled) return;
-      try {
-        await api.post(`/wallets/topup/${intent!.orderRef}/parent-confirm`, {});
-        if (cancelled) return;
-        clearBayIntent(intent!.orderRef);
-        setState("done");
-        toast({ title: "Top up successful", description: `Wallet credited ${fmtTHB(intent!.amount)}` });
-        setTimeout(() => navigate(intent!.returnUrl, { replace: true }), 1500);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof ApiError ? e.detail : "Could not confirm payment");
-        setState("error");
-      }
+      setError(
+        "Payment is still being verified by the bank. " +
+        "If money was deducted, it will appear within a few minutes — " +
+        "use 'Check again' below to refresh, or close this page and " +
+        "view the wallet later."
+      );
+      setState("error");
     }
 
     pollAndConfirm();
     return () => { cancelled = true; };
   }, [orderRef, intent, navigate]);
+
+  async function checkAgain() {
+    if (!orderRef || !intent) return;
+    setState("working");
+    setError("");
+    try {
+      const inq = await api.post<{ status: string }>(
+        `/wallets/topup/${orderRef}/inquiry`,
+        {},
+      );
+      if (inq.status === "confirmed") {
+        clearBayIntent(intent.orderRef);
+        setState("done");
+        toast({ title: "Top up successful", description: `Wallet credited ${fmtTHB(intent.amount)}` });
+        setTimeout(() => navigate(intent.returnUrl, { replace: true }), 1500);
+        return;
+      }
+      if (inq.status === "cancelled") {
+        setError("Payment failed. Please try again.");
+        setState("error");
+        return;
+      }
+      // Still pending — let the user retry or leave
+      setError("Bank has not confirmed yet. Try again in a moment.");
+      setState("error");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Could not contact the bank");
+      setState("error");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -346,11 +407,16 @@ export function MockBayPaymentSuccess() {
         {state === "error" && (
           <>
             <AlertCircle className="h-12 w-12 mx-auto text-amber-500" />
-            <h2 className="text-xl font-semibold">Confirmation failed</h2>
+            <h2 className="text-xl font-semibold">Still verifying with the bank</h2>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => navigate(intent?.returnUrl ?? "/", { replace: true })}>
-              Back to wallet
-            </Button>
+            <div className="flex gap-2 justify-center pt-2">
+              <Button variant="outline" onClick={() => navigate(intent?.returnUrl ?? "/", { replace: true })}>
+                Back to wallet
+              </Button>
+              <Button onClick={checkAgain}>
+                Check again
+              </Button>
+            </div>
           </>
         )}
       </div>

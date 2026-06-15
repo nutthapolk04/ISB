@@ -58,7 +58,7 @@ import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { closeDay } from "@/services/canteen_service";
 import { scopeShop } from "@/services/report_service";
 import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCardholder } from "@/services/cardholder_service";
-import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback } from "@/services/topup_service";
+import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback, inquireTopupFromGateway } from "@/services/topup_service";
 import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
 import { runSync } from "@/services/powerschool_sync";
 
@@ -1934,7 +1934,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           amount: body.amount,
           userId: Number(user.sub),
           notes: body.notes ?? null,
-          paymentMethod: body.payment_method,
+          paymentMethod: body.payment_method ?? undefined,
+          remark: body.remark ?? null,
+          payType: body.pay_type ?? null,
+          lang: body.lang ?? null,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -1944,6 +1947,9 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         amount: t.Number({ exclusiveMinimum: 0 }),
         notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         payment_method: t.Optional(t.Nullable(t.String())),
+        remark: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
+        pay_type: t.Optional(t.Nullable(t.Union([t.Literal("N"), t.Literal("H")]))),
+        lang: t.Optional(t.Nullable(t.Union([t.Literal("T"), t.Literal("E")]))),
       }),
     },
   )
@@ -1979,6 +1985,25 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           confirmerId: Number(user.sub),
           confirmedVia: "parent_self",
         });
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ refCode: t.String() }) },
+  )
+  // Force-sync against BAY (PYMT inquiry). Useful when the gateway webhook
+  // is late and the EASYPay landing page wants to know status right now,
+  // or when a cashier polling the QR wants a second opinion before giving up.
+  .post(
+    "/wallets/topup/:refCode/inquiry",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        const { walletId } = await getTopupStatus(params.refCode);
+        if (!(await userCanAccessWallet(user, walletId))) {
+          set.status = 403; return { detail: "Not authorized" };
+        }
+        return await inquireTopupFromGateway(params.refCode);
       } catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ refCode: t.String() }) },
