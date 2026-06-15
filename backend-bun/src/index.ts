@@ -1952,6 +1952,10 @@ const app = new Elysia()
       set.status = 404;
       return { detail: "Not found" };
     }
+    // Intentional 401/403 from auth/role middlewares — don't spam logs.
+    if (set.status === 401 || set.status === 403) {
+      return { detail: error instanceof Error ? error.message : "Unauthorized" };
+    }
     console.error("Unhandled error:", error);
     set.status = set.status === 200 ? 500 : set.status;
     return { detail: error instanceof Error ? error.message : "Internal error" };
