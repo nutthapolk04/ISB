@@ -68,6 +68,11 @@ export interface AccessTokenClaims {
   email: string;
   roles: string[];
   is_superuser: boolean;
+  // Shop scoping — embedded so request handlers can clamp queries to the
+  // caller's shop without re-querying the users table on every request.
+  // null = unscoped (e.g. admin or multi-shop manager).
+  shop_id: string | null;
+  shop_module: string | null;
   exp: number;
   type: "access";
   sid?: string;
@@ -184,6 +189,8 @@ export async function createTokens(user: typeof users.$inferSelect): Promise<Tok
     email: user.email,
     roles: roleNames,
     is_superuser: user.isSuperuser,
+    shop_id: user.shopId ?? null,
+    shop_module: user.shopModule ?? null,
     exp: now + ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     type: "access",
     sid,

@@ -9,6 +9,10 @@ export interface AccessTokenPayload {
   email: string;
   roles: UserRole[];
   is_superuser: boolean;
+  // Shop scoping claims (embedded so handlers can scope queries without
+  // touching the users table). null = unscoped (admin / regional manager).
+  shop_id: string | null;
+  shop_module: string | null;
   exp: number;
   type: "access" | "refresh";
   sid?: string;
