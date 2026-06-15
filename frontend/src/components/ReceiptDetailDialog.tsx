@@ -271,7 +271,7 @@ function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: s
   <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}${taxSection}
   <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
-  ${r.payment_method === "cash" && r.cash_received != null ? `
+  ${r.payment_method.toLowerCase() === "cash" && r.cash_received != null ? `
   <hr/>
   <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
   <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
@@ -543,7 +543,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               <span className="text-primary tabular-nums">฿{receipt.total.toLocaleString()}</span>
             </div>
 
-            {receipt.payment_method === "cash" && receipt.cash_received != null && (
+            {receipt.payment_method.toLowerCase() === "cash" && receipt.cash_received != null && (
               <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">

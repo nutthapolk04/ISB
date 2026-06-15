@@ -314,7 +314,7 @@ export function buildReceiptHtml(
   ${taxSection}
   <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
   ${balanceAfterSection}
-  ${r.payment_method === "cash" && r.cash_received != null ? `
+  ${r.payment_method.toLowerCase() === "cash" && r.cash_received != null ? `
   <hr/>
   <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
   <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}

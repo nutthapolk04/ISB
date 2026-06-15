@@ -81,10 +81,13 @@ export function CashPaymentModal({
             {t("cashPay.tenderedAmount", "Tendered amount")}
           </label>
           <Input
-            type="number"
+            type="text"
             inputMode="decimal"
             value={received}
-            onChange={(e) => setReceived(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (/^\d*\.?\d*$/.test(v)) setReceived(v);
+            }}
             placeholder="0.00"
             className="h-14 text-xl font-semibold tabular-nums"
             autoFocus
@@ -94,6 +97,7 @@ export function CashPaymentModal({
               <Button
                 key={q}
                 variant="outline"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setReceived(String(q))}
                 className="h-11"
               >
