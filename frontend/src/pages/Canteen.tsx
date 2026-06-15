@@ -72,6 +72,7 @@ import {
 } from "./canteen/RfidPaymentModal";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
+import { EdcPaymentModal } from "./store/EdcPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
@@ -251,6 +252,7 @@ export default function Canteen() {
   const [rfidOpen, setRfidOpen] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [edcOpen, setEdcOpen] = useState(false);
   const [deptOpen, setDeptOpen] = useState(false);
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
   const [cardTapOpen, setCardTapOpen] = useState(false);
@@ -602,7 +604,10 @@ export default function Canteen() {
       | { kind: "customer"; customerId: number }
       | { kind: "user"; userId: number }
       | { kind: "department"; departmentId: number },
-    extras?: { cashReceived?: number },
+    extras?: {
+      cashReceived?: number;
+      edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string };
+    },
   ) => {
     setConfirming(true);
     try {
@@ -618,6 +623,9 @@ export default function Canteen() {
           backendPaymentMethod === "cash" && extras?.cashReceived !== undefined
             ? extras.cashReceived
             : undefined,
+        edc_approval_code: extras?.edcRefs?.approval_code,
+        edc_terminal_ref: extras?.edcRefs?.terminal_ref,
+        edc_masked_card: extras?.edcRefs?.masked_card,
         shop_id: CANTEEN_SHOP_ID,
         items: cart.items.map((i) => ({
           product_variant_id: i.id,
@@ -697,7 +705,7 @@ export default function Canteen() {
     setMethodPickerOpen(false);
     if (method === "wallet") setRfidOpen(true);
     else if (method === "cash") setCashOpen(true);
-    else if (method === "edc") void handleConfirmEdc();
+    else if (method === "edc") setEdcOpen(true);
     else if (method === "department") setDeptOpen(true);
     else setQrOpen(true);
   };
@@ -878,7 +886,8 @@ export default function Canteen() {
     }
   };
 
-  const handleConfirmEdc = async () => {
+  const handleConfirmEdc = async (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) => {
+    setEdcOpen(false);
     const amount = cart.total;
     display.processing({
       items: buildDisplayItems(),
@@ -887,7 +896,7 @@ export default function Canteen() {
       method: "edc",
     });
     try {
-      const res = await doCheckout("edc");
+      const res = await doCheckout("edc", undefined, { edcRefs: refs });
       display.success({
         total: amount,
         payer: null,
@@ -1361,6 +1370,14 @@ export default function Canteen() {
         departments={departmentOptions}
         onBack={() => { setDeptOpen(false); setMethodPickerOpen(true); }}
         onConfirm={handleConfirmDept}
+        confirming={confirming}
+      />
+      <EdcPaymentModal
+        open={edcOpen}
+        onOpenChange={setEdcOpen}
+        total={cart.total}
+        onBack={() => { setEdcOpen(false); setMethodPickerOpen(true); }}
+        onConfirm={handleConfirmEdc}
         confirming={confirming}
       />
       <ReceiptSuccessModal

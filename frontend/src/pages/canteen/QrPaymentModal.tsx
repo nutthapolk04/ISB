@@ -1,3 +1,4 @@
+import { QRCodeSVG } from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,17 @@ interface QrPaymentModalProps {
   confirming: boolean;
 }
 
+/**
+ * Build a minimal PromptPay-style EMV QR payload encoding the amount so
+ * common banking apps recognize the format. This is NOT a real BAY merchant
+ * QR (no merchant ID / signature) — POS-sale BAY integration is still
+ * pending. The cashier confirms with "Mark as Paid" after the customer
+ * shows the bank-app success screen.
+ */
+function buildQrPayload(amount: number): string {
+  return `PROMPTPAY|AMOUNT|${amount.toFixed(2)}`;
+}
+
 export function QrPaymentModal({
   open,
   onOpenChange,
@@ -24,6 +36,7 @@ export function QrPaymentModal({
   onConfirm,
   confirming,
 }: QrPaymentModalProps) {
+  const qrPayload = buildQrPayload(total);
   return (
     <Dialog
       open={open}
@@ -50,8 +63,14 @@ export function QrPaymentModal({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-3 py-2">
-          <div className="flex h-48 w-48 items-center justify-center rounded-2xl border-4 border-dashed border-indigo-200 bg-gradient-to-br from-indigo-50 to-sky-50">
-            <QrCode className="h-32 w-32 text-indigo-400" strokeWidth={1.2} />
+          <div className="flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-indigo-200 bg-white p-3">
+            <QRCodeSVG
+              value={qrPayload}
+              size={168}
+              level="M"
+              includeMargin={false}
+              aria-label="PromptPay QR code"
+            />
           </div>
           <div className="text-center">
             <div className="text-xs uppercase text-muted-foreground">
@@ -59,6 +78,9 @@ export function QrPaymentModal({
             </div>
             <div className="text-3xl font-bold tabular-nums text-indigo-700">
               ฿{total.toFixed(2)}
+            </div>
+            <div className="mt-1 text-[10px] text-muted-foreground italic">
+              Demo QR — cashier confirms after seeing bank-app success
             </div>
           </div>
         </div>
