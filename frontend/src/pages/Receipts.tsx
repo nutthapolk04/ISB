@@ -804,6 +804,12 @@ const Receipts = () => {
                     {selectedReceipt.status === "active" ? "Active" : "Voided"}
                   </Badge>
                 </div>
+                {selectedReceipt.created_by_name && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">{t("receipts.cashier", "Cashier")}:</span>
+                    <span className="text-sm font-medium">{selectedReceipt.created_by_name}</span>
+                  </div>
+                )}
                 {selectedReceipt.notes && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Notes:</span>
@@ -891,9 +897,14 @@ const Receipts = () => {
                     <div key={item.id} className="text-sm">
                       <div className="flex justify-between">
                         <span>
-                          {displayName} x {item.quantity}
+                          {displayName} ×{item.quantity}
                         </span>
                         <span className="data-number">฿{gross.toLocaleString()}</span>
+                      </div>
+                      <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
+                        Unit price: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {" · "}
+                        Total: ฿{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </div>
                       {!isBundle && opts?.groups && opts.groups.length > 0 && (
                         <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
@@ -955,7 +966,7 @@ const Receipts = () => {
                   ฿{selectedReceipt.total.toLocaleString()}
                 </span>
               </div>
-              {selectedReceipt.payment_method === "cash" && selectedReceipt.cash_received != null && (
+              {selectedReceipt.payment_method.toLowerCase() === "cash" && selectedReceipt.cash_received != null && (
                 <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
