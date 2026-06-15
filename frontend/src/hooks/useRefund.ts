@@ -21,6 +21,10 @@ export interface RefundCandidate {
   wallet_balance: number;
   enroll_date: string | null;
   withdraw_date: string | null;
+  /** Total customers sharing this family_code (null if no family_code). */
+  family_total_count: number | null;
+  /** Customers in this family who are still studying (is_graduated=false). */
+  family_active_count: number | null;
 }
 
 export interface RefundCreateRequest {

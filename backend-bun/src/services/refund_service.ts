@@ -20,6 +20,11 @@ export interface RefundCandidateDTO {
   wallet_balance: number;
   enroll_date: string | null;
   withdraw_date: string | null;
+  // Family aggregation — null when family_code is null. Used by the
+  // frontend to surface "All graduated" vs "Has active students" so the
+  // refund officer can avoid paying out while siblings still attend.
+  family_total_count: number | null;
+  family_active_count: number | null;
 }
 
 export interface RefundResponseDTO {
@@ -50,22 +55,50 @@ export async function listRefundCandidates(): Promise<RefundCandidateDTO[]> {
     )
     .orderBy(
       desc(customers.isGraduated),
-      // NULLS LAST for withdraw_date desc
       sql`${customers.withdrawDate} DESC NULLS LAST`,
       asc(customers.name),
     );
 
-  return rows.map(({ customer, wallet }) => ({
-    id: customer.id,
-    name: customer.name,
-    student_code: customer.studentCode ?? null,
-    family_code: customer.familyCode ?? null,
-    is_graduated: customer.isGraduated,
-    wallet_id: wallet.id,
-    wallet_balance: pgNumber(wallet.balance) ?? 0,
-    enroll_date: customer.enrollDate ?? null,
-    withdraw_date: customer.withdrawDate ?? null,
-  }));
+  // Aggregate family counts across the customers table (including kids with
+  // zero balance) so the refund officer can tell whether siblings are still
+  // enrolled. is_graduated=false AND is_active=true => still studying.
+  const familyCodes = Array.from(
+    new Set(rows.map((r) => r.customer.familyCode).filter((c): c is string => !!c)),
+  );
+
+  const familyTotals = new Map<string, { total: number; active: number }>();
+  if (familyCodes.length > 0) {
+    const counts = await db
+      .select({
+        familyCode: customers.familyCode,
+        total: sql<number>`count(*)::int`,
+        active: sql<number>`count(*) FILTER (WHERE ${customers.isGraduated} = false AND ${customers.isActive} = true)::int`,
+      })
+      .from(customers)
+      .where(sql`${customers.familyCode} = ANY(${familyCodes})`)
+      .groupBy(customers.familyCode);
+    for (const c of counts) {
+      if (c.familyCode) familyTotals.set(c.familyCode, { total: c.total, active: c.active });
+    }
+  }
+
+  return rows.map(({ customer, wallet }) => {
+    const fc = customer.familyCode;
+    const fam = fc ? familyTotals.get(fc) : undefined;
+    return {
+      id: customer.id,
+      name: customer.name,
+      student_code: customer.studentCode ?? null,
+      family_code: fc ?? null,
+      is_graduated: customer.isGraduated,
+      wallet_id: wallet.id,
+      wallet_balance: pgNumber(wallet.balance) ?? 0,
+      enroll_date: customer.enrollDate ?? null,
+      withdraw_date: customer.withdrawDate ?? null,
+      family_total_count: fam?.total ?? null,
+      family_active_count: fam?.active ?? null,
+    };
+  });
 }
 
 export async function createGraduationRefund(args: {

@@ -2954,7 +2954,9 @@
       "graduated": "Graduated",
       "balance": "Wallet Balance",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "enrollDate": "Enroll Date",
+      "withdrawDate": "Withdraw Date"
     },
     "status": {
       "graduated": "Graduated",
@@ -2964,6 +2966,27 @@
       "refund": "Refund"
     },
     "refundForCustomer": "Refund for {{name}}",
+    "search": {
+      "label": "Search",
+      "placeholder": "Name / student code / family code"
+    },
+    "filter": {
+      "graduatedOnly": "Show only families with no active students"
+    },
+    "summary": {
+      "families": "Families",
+      "allGraduated": "All graduated",
+      "hasActive": "Has active students"
+    },
+    "family": {
+      "label": "Family",
+      "noFamily": "(No family code)",
+      "statusReady": "All graduated — refund OK",
+      "statusBlocked": "Has active student(s) — review before refund",
+      "members": "Members",
+      "activeCount": "active",
+      "totalBalance": "Total balance"
+    },
     "dialog": {
       "title": "Issue Refund",
       "customerLabel": "Customer",

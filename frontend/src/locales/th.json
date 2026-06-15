@@ -2952,7 +2952,9 @@
       "graduated": "จบการศึกษา",
       "balance": "ยอดคงเหลือ",
       "status": "สถานะ",
-      "actions": "การดำเนินการ"
+      "actions": "การดำเนินการ",
+      "enrollDate": "วันเข้าเรียน",
+      "withdrawDate": "วันถอนตัว"
     },
     "status": {
       "graduated": "จบการศึกษา",
@@ -2962,6 +2964,27 @@
       "refund": "คืนเงิน"
     },
     "refundForCustomer": "คืนเงินให้ {{name}}",
+    "search": {
+      "label": "ค้นหา",
+      "placeholder": "ชื่อ / รหัสนักเรียน / รหัสครอบครัว"
+    },
+    "filter": {
+      "graduatedOnly": "แสดงเฉพาะครอบครัวที่ไม่มีนักเรียนกำลังศึกษา"
+    },
+    "summary": {
+      "families": "ครอบครัว",
+      "allGraduated": "จบการศึกษาทั้งครอบครัว",
+      "hasActive": "ยังมีนักเรียนกำลังศึกษา"
+    },
+    "family": {
+      "label": "ครอบครัว",
+      "noFamily": "(ไม่มีรหัสครอบครัว)",
+      "statusReady": "จบการศึกษาครบ — คืนเงินได้",
+      "statusBlocked": "ยังมีนักเรียนกำลังศึกษา — กรุณาตรวจสอบก่อนคืนเงิน",
+      "members": "สมาชิก",
+      "activeCount": "กำลังศึกษา",
+      "totalBalance": "ยอดรวม"
+    },
     "dialog": {
       "title": "คืนเงิน",
       "customerLabel": "นักเรียน",
