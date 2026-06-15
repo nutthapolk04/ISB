@@ -2,7 +2,16 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
 import { config, APP_VERSION } from "@/lib/config";
+import { ensureSchema } from "@/db/ensure_schema";
 import { healthRoutes } from "@/routes/health";
+
+// Run idempotent ALTER TABLE patches before we start binding routes.
+// The Bun container's Dockerfile doesn't execute the FastAPI start.sh, so
+// new Drizzle schema columns need this hook to actually exist in the DB.
+// We don't await at module top level because Bun handles top-level await,
+// but we kick it off as a fire-and-forget that errors loudly. If a patch
+// fails, the offending endpoint will throw — better than silently passing.
+await ensureSchema();
 import { shopRoutes } from "@/routes/shops";
 import { productRoutes } from "@/routes/products";
 import { customerRoutes } from "@/routes/customers";
