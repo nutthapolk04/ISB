@@ -56,8 +56,19 @@ export function QrPaymentModal({
   const [error, setError] = useState<string>("");
   // Stable ref so the poll loop can cancel itself when the modal closes.
   const cancelledRef = useRef(false);
+  // The parent passes a fresh `buildCartPayload` closure on every render.
+  // We snapshot the latest reference in a ref so the create-intent effect
+  // can read it WITHOUT taking it as a dep — otherwise the effect would
+  // re-run on every parent re-render (e.g. react-query refetches) and
+  // create a brand-new BAY transaction each time. amount is captured at
+  // mount via `totalRef` for the same reason.
+  const buildCartRef = useRef(buildCartPayload);
+  buildCartRef.current = buildCartPayload;
+  const totalRef = useRef(total);
+  totalRef.current = total;
 
-  // Create the BAY intent the moment the modal opens.
+  // Create the BAY intent the moment the modal opens — exactly once per
+  // open transition. Deps are intentionally only `open`.
   useEffect(() => {
     if (!open) {
       // Reset state when modal closes — next open starts fresh.
@@ -71,9 +82,9 @@ export function QrPaymentModal({
 
     const createIntent = async () => {
       try {
-        const cart = buildCartPayload();
+        const cart = buildCartRef.current();
         const created = await api.post<PosQrIntent>("/pos/qr-intent", {
-          amount: total,
+          amount: totalRef.current,
           cart,
         });
         if (cancelledRef.current) return;
@@ -86,7 +97,13 @@ export function QrPaymentModal({
       }
     };
     void createIntent();
-  }, [open, total, buildCartPayload]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Same ref-stabilizing trick for the parent's onPaid callback so the
+  // polling effect doesn't reset every time the parent re-renders.
+  const onPaidRef = useRef(onPaid);
+  onPaidRef.current = onPaid;
 
   // Poll status while the intent is alive.
   useEffect(() => {
@@ -115,7 +132,7 @@ export function QrPaymentModal({
           if (fresh.status === "confirmed") {
             setIntent(fresh);
             setPhase("confirmed");
-            onPaid({
+            onPaidRef.current({
               refCode: fresh.ref_code,
               receiptId: fresh.receipt_id,
               receiptNumber: fresh.receipt_number,
@@ -141,7 +158,8 @@ export function QrPaymentModal({
     };
     void poll();
     return () => { cancelledRef.current = true; };
-  }, [open, intent, phase, onPaid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, intent, phase]);
 
   const handleCheckNow = async () => {
     if (!intent) return;
@@ -154,7 +172,7 @@ export function QrPaymentModal({
       setIntent(fresh);
       if (fresh.status === "confirmed") {
         setPhase("confirmed");
-        onPaid({
+        onPaidRef.current({
           refCode: fresh.ref_code,
           receiptId: fresh.receipt_id,
           receiptNumber: fresh.receipt_number,

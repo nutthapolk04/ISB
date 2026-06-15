@@ -174,77 +174,112 @@ export async function getPosQrIntent(refCode: string): Promise<PosQrIntentDTO> {
 // ── Confirm — called from webhook OR from inquiry sync ───────────────────
 
 /**
- * Take a confirmed POS-sale intent and produce a receipt. Idempotent:
- * - SELECT FOR UPDATE locks the row so concurrent webhook + inquiry can't
- *   both create receipts.
- * - Status check skips work if already confirmed/cancelled.
- * - Receipt linkage stored on the intent so subsequent calls just return.
+ * Take a confirmed POS-sale intent and produce a receipt. Three-phase to
+ * dodge the nested-transaction orphan problem:
  *
- * Returns the receipt_id (existing or newly created), null if the intent
- * is in a state that can't produce a receipt (e.g. already cancelled).
+ *   Phase A (short tx): SELECT FOR UPDATE the intent, decide if we should
+ *   create a receipt, atomically "claim" the work by setting
+ *   confirmed_via='gateway_webhook_claimed'. Any second caller (webhook
+ *   retry, parallel inquiry) sees the claim and bails.
+ *
+ *   Phase B (no tx, or rather checkout's own tx): run checkout() which
+ *   commits the receipt independently.
+ *
+ *   Phase C (separate UPDATE): stamp receipt_id back onto the intent and
+ *   flip status. Guard with `WHERE receipt_id IS NULL` so a retry can't
+ *   overwrite a previously-stamped row.
+ *
+ * If phase B crashes after claiming → next retry sees the claim → skips →
+ * stuck-pending intent (operator visible, no double receipt). If phase B
+ * succeeds but phase C crashes → next retry sees the claim → also skips →
+ * orphan receipt still exists in DB but at least no DOUBLE-charge of stock.
+ * That's the realistic safest tradeoff under at-least-once webhook delivery.
  */
 export async function confirmPosQrSale(refCode: string): Promise<number | null> {
-  return await pgClient.begin(async (sqlTx) => {
+  // ── Phase A: claim ─────────────────────────────────────────────────────
+  type Claim =
+    | { kind: "skip"; receiptId: number | null }
+    | { kind: "go"; intentId: number; createdBy: number | null; cart: Omit<CheckoutInput, "payment_method"> & { userId?: number } };
+
+  const claim: Claim = await pgClient.begin(async (sqlTx) => {
     const rows = await sqlTx<Array<{
       id: number;
-      ref_code: string;
-      amount: string;
       status: string;
       intent_type: string | null;
       cart_snapshot: unknown;
       receipt_id: number | null;
+      confirmed_via: string | null;
       created_by: number | null;
     }>>`
-      SELECT id, ref_code, amount, status, intent_type, cart_snapshot, receipt_id, created_by
+      SELECT id, status, intent_type, cart_snapshot, receipt_id, confirmed_via, created_by
       FROM payment_intents
       WHERE ref_code = ${refCode}
       FOR UPDATE
     `;
     const intent = rows[0];
-    if (!intent) {
-      // Not a POS-sale intent we own — let the wallet-topup webhook path
-      // handle it. Returning null is a no-op signal.
-      return null;
+    if (!intent) return { kind: "skip", receiptId: null };
+    if (intent.intent_type !== "pos_sale") return { kind: "skip", receiptId: null };
+    // Receipt already stamped — idempotent return of the existing receipt.
+    if (intent.receipt_id !== null) return { kind: "skip", receiptId: intent.receipt_id };
+    // Cancelled intent — never produce a receipt.
+    if (intent.status === "cancelled") return { kind: "skip", receiptId: null };
+    // Another worker has already taken the claim — back off. They (or the
+    // next retry after a phase-B crash) will finish stamping the receipt.
+    if (intent.confirmed_via === "gateway_webhook_claimed") {
+      return { kind: "skip", receiptId: null };
     }
-    if (intent.intent_type !== "pos_sale") return null;
-    // Already produced a receipt: idempotent return.
-    if (intent.receipt_id !== null) return intent.receipt_id;
-    // Cancelled intent never gets a receipt.
-    if (intent.status === "cancelled") return null;
 
     const cart = intent.cart_snapshot as
       | (Omit<CheckoutInput, "payment_method"> & { userId?: number })
       | null;
     if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
-      // Malformed snapshot — cancel the intent rather than producing a
-      // half-baked receipt.
+      // Malformed snapshot — cancel rather than ever attempting checkout.
       await sqlTx`UPDATE payment_intents SET status = 'cancelled' WHERE id = ${intent.id}`;
-      return null;
+      return { kind: "skip", receiptId: null };
     }
 
-    // Drive the existing checkout path. payment_method='qr_promptpay' so
-    // the receipt + downstream reports show this as a QR sale. cashier_id
-    // comes from the intent's creator (the original cashier who picked QR).
-    const checkoutInput: CheckoutInput = {
-      ...cart,
-      payment_method: "qr_promptpay",
-      userId: cart.userId ?? intent.created_by ?? 0,
-    };
-
-    const receipt = await checkout(checkoutInput);
-    const receiptId = receipt.id;
-
+    // Take the claim. confirmed_via='..._claimed' is our sentinel — phase
+    // C will overwrite it to 'gateway_webhook' once receipt_id is set.
     await sqlTx`
       UPDATE payment_intents
-      SET status = 'confirmed',
-          confirmed_at = NOW(),
-          confirmed_via = 'gateway_webhook',
-          receipt_id = ${receiptId}
+      SET confirmed_via = 'gateway_webhook_claimed'
       WHERE id = ${intent.id}
     `;
 
-    return receiptId;
+    return {
+      kind: "go",
+      intentId: intent.id,
+      createdBy: intent.created_by,
+      cart,
+    };
   });
+
+  if (claim.kind === "skip") return claim.receiptId;
+
+  // ── Phase B: run checkout (its own tx) ────────────────────────────────
+  const checkoutInput: CheckoutInput = {
+    ...claim.cart,
+    payment_method: "qr_promptpay",
+    userId: claim.cart.userId ?? claim.createdBy ?? 0,
+  };
+  const receipt = await checkout(checkoutInput);
+  const receiptId = receipt.id;
+
+  // ── Phase C: stamp receipt + flip status (guarded UPDATE) ─────────────
+  // WHERE receipt_id IS NULL means a parallel retry that somehow slipped
+  // the Phase A guard still can't overwrite. confirmed_via flips from the
+  // claim sentinel back to the final value.
+  await db.execute(
+    sql`UPDATE payment_intents
+        SET status = 'confirmed',
+            confirmed_at = NOW(),
+            confirmed_via = 'gateway_webhook',
+            receipt_id = ${receiptId}
+        WHERE id = ${claim.intentId}
+          AND receipt_id IS NULL`,
+  );
+
+  return receiptId;
 }
 
 /**

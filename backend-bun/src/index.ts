@@ -795,12 +795,12 @@ const phase2Routes = new Elysia({ name: "phase-2" })
             quantity: t.Number(),
             unit_price: t.Number({ minimum: 0 }),
             price_override: t.Optional(t.Nullable(t.Number())),
-            discount: t.Optional(t.Number()),
-            options: t.Optional(t.Array(t.Object({
+            discount: t.Optional(t.Nullable(t.Number())),
+            options: t.Optional(t.Nullable(t.Array(t.Object({
               option_id: t.Number(),
-              quantity: t.Optional(t.Number()),
-            }))),
-            is_bundle: t.Optional(t.Boolean()),
+              quantity: t.Optional(t.Nullable(t.Number())),
+            })))),
+            is_bundle: t.Optional(t.Nullable(t.Boolean())),
             bundle_id: t.Optional(t.Nullable(t.Number())),
           })),
         }),
@@ -2402,10 +2402,45 @@ const app = new Elysia()
   .get("/api/v1/admin/settings/public", async () => await getPublicSettings())
   // Public GET — see comment in the authed group above for rationale.
   .get("/api/v1/admin/settings/school", async () => await getSchoolSettings())
-  // BAY webhook — public (gateway-to-server, no JWT)
+  // BAY webhook — public (gateway-to-server, no JWT) but signed via HMAC.
+  //
+  // Now that this endpoint can create POS receipts (not just credit wallets),
+  // an attacker who can guess a ref_code could spoof a COMPLETED callback and
+  // get free goods + drained stock. We require an HMAC-SHA256 signature of
+  // the raw body, keyed on PYMT_WEBHOOK_SECRET, sent in the X-PYMT-Signature
+  // header as `sha256=<hex>`. Timing-safe compare against the expected
+  // value. If PYMT_WEBHOOK_SECRET is unset we log a loud warning and accept
+  // the body (dev/UAT only — production must set the secret).
   .post(
     "/api/v1/bay/callback",
-    async ({ body, set }) => {
+    async ({ body, request, set }) => {
+      const secret = process.env.PYMT_WEBHOOK_SECRET ?? "";
+      if (secret) {
+        const provided = request.headers.get("x-pymt-signature") ?? "";
+        if (!provided) {
+          set.status = 401;
+          return { detail: "Missing X-PYMT-Signature header" };
+        }
+        // jsonbinary parity: re-serialize body the way Elysia gives it so the
+        // HMAC matches what PYMT signed. PYMT signs the JSON body bytes.
+        const raw = JSON.stringify(body);
+        const hasher = new Bun.CryptoHasher("sha256", secret);
+        hasher.update(raw);
+        const expectedHex = hasher.digest("hex");
+        const expected = `sha256=${expectedHex}`;
+        // Timing-safe compare
+        const a = new TextEncoder().encode(expected);
+        const b = new TextEncoder().encode(provided);
+        let diff = a.length ^ b.length;
+        for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a[i] ^ b[i];
+        if (diff !== 0) {
+          set.status = 401;
+          return { detail: "Invalid signature" };
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn("[bay/callback] PYMT_WEBHOOK_SECRET not set — accepting unsigned webhook (dev only)");
+      }
       try { return await handleBayCallback(body); }
       catch (e) { return handle(set)(e); }
     },
