@@ -101,6 +101,7 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -199,5 +200,6 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    </>
   );
 }
