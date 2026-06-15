@@ -12,7 +12,18 @@ import { reportRoutes } from "@/routes/reports";
 import { jwtPlugin, requireAuth, hasRole } from "@/middleware/auth";
 import { listDepartments } from "@/services/department_service";
 import { listUsers, getUser, getUserPayerByUsername, getUserPayerByCard, familyLookup } from "@/services/user_service";
-import { listAdminUsers, listStaffForPicker, listStudentsForLink } from "@/services/user_admin_service";
+import {
+  listAdminUsers,
+  listStaffForPicker,
+  listStudentsForLink,
+  getAdminUser,
+  updateAdminUser,
+  createStudent as createStudentUserAccount,
+  getUserFamily,
+  updateFamilyProfile,
+  linkStudentToUser,
+  unlinkStudent,
+} from "@/services/user_admin_service";
 import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily, cashierTopup, adjustDepartmentBalance, listDepartmentTransactions } from "@/services/wallet_service";
@@ -25,12 +36,22 @@ import {
   createShopCategory, updateShopCategory, deleteShopCategory,
 } from "@/services/shop_product_service";
 import { listSpendingGroups, getSpendingGroup, createSpendingGroup, updateSpendingGroup, deleteSpendingGroup, listAssignableShops, setLinkedShops } from "@/services/spending_group_service";
-import { listUoms, getUom, createUom, updateUom, deleteUom } from "@/services/uom_service";
+import { listUoms, getUom, createUom, updateUom, deleteUom, seedDefaultUoms } from "@/services/uom_service";
 import { listPanels, createPanel, updatePanel, deletePanel, getPanelItems, setItemPrice, setBundleItemPrice } from "@/services/price_panel_service";
-import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange } from "@/services/returns_service";
+import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange, searchReceipts, getExchangeProducts } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
-import { login, refresh, logout, me, mockSso, googleSso } from "@/services/auth_service";
+import {
+  login,
+  refresh,
+  logout,
+  me,
+  mockSso,
+  googleSso,
+  listUserRoles,
+  assignRoleToUser,
+  removeRoleFromUser,
+} from "@/services/auth_service";
 import { listImages, getImageBinary, reorderImages, deleteImage, uploadImage } from "@/services/customer_display_service";
 import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { closeDay } from "@/services/canteen_service";
@@ -144,6 +165,120 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       return await listStudentsForLink(query.q);
     },
     { query: t.Object({ q: t.Optional(t.String()) }) },
+  )
+  .post(
+    "/users-admin/students",
+    async ({ body, user, set }) => {
+      try {
+        set.status = 201;
+        return await createStudentUserAccount(user.roles, body);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        customer_code: t.String(),
+        username: t.Optional(t.Nullable(t.String())),
+        password: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .get(
+    "/users-admin/:user_id",
+    async ({ params, user, set }) => {
+      const id = Number(params.user_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try { return await getAdminUser(user.roles, id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ user_id: t.String() }) },
+  )
+  .patch(
+    "/users-admin/:user_id",
+    async ({ params, body, user, set }) => {
+      const id = Number(params.user_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try { return await updateAdminUser(user.roles, Number(user.sub), id, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ user_id: t.String() }),
+      body: t.Object({
+        full_name: t.Optional(t.Nullable(t.String())),
+        email: t.Optional(t.Nullable(t.String())),
+        role: t.Optional(t.Nullable(t.String())),
+        external_id: t.Optional(t.Nullable(t.String())),
+        external_id_change_reason: t.Optional(t.Nullable(t.String())),
+        family_code: t.Optional(t.Nullable(t.String({ maxLength: 20 }))),
+        photo_url: t.Optional(t.Nullable(t.String())),
+        status: t.Optional(t.Nullable(t.String())),
+        allergies: t.Optional(t.Nullable(t.String())),
+        card_uid: t.Optional(t.Nullable(t.String())),
+        customer_type: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .get(
+    "/users-admin/:user_id/family",
+    async ({ params, user, set }) => {
+      const id = Number(params.user_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try { return await getUserFamily(user.roles, id); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ user_id: t.String() }) },
+  )
+  .patch(
+    "/users-admin/family-profile/:family_code",
+    async ({ params, body, user, set }) => {
+      try { return await updateFamilyProfile(user.roles, params.family_code, body); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ family_code: t.String() }),
+      body: t.Object({
+        notification_emails: t.Optional(t.Nullable(t.Array(t.String()))),
+        login_ids: t.Optional(t.Nullable(t.Array(t.String()))),
+      }),
+    },
+  )
+  .post(
+    "/users-admin/:user_id/link-student",
+    async ({ params, body, user, set }) => {
+      const id = Number(params.user_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
+      try {
+        set.status = 201;
+        return await linkStudentToUser(user.roles, id, body);
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ user_id: t.String() }),
+      body: t.Object({
+        child_customer_id: t.Number(),
+        relation: t.Optional(t.Nullable(t.String())),
+        parent_rank: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  .delete(
+    "/users-admin/:user_id/link-student/:customer_id",
+    async ({ params, user, set }) => {
+      const userIdN = Number(params.user_id);
+      const customerIdN = Number(params.customer_id);
+      if (!Number.isInteger(userIdN) || !Number.isInteger(customerIdN)) {
+        set.status = 422;
+        return { detail: "Invalid id" };
+      }
+      try { return await unlinkStudent(user.roles, userIdN, customerIdN); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({
+        user_id: t.String(),
+        customer_id: t.String(),
+      }),
+    },
   )
   .get(
     "/admin/audit-logs",
@@ -1122,6 +1257,14 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     { params: t.Object({ id: t.String() }) },
   )
+  .post(
+    "/uom/seed-defaults",
+    async ({ user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      try { return await seedDefaultUoms(); }
+      catch (e) { return handle(set)(e); }
+    },
+  )
   // ── Inventory writes (Phase 8) ─────────────────────────────────────────
   .post(
     "/shops/:shopId/products",
@@ -1561,6 +1704,62 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       } catch (e) { return handle(set)(e); }
     },
     { query: t.Object({ filter: t.Optional(t.String()) }) },
+  )
+  .get(
+    "/receipts/search",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      if (!query.receiptId && !query.studentCode && !query.dateFrom && !query.dateTo && !query.paymentMethod) {
+        set.status = 400; return { detail: "At least one search criterion is required" };
+      }
+      try {
+        const shopScope = hasRole(user.roles, "admin") || user.is_superuser
+          ? null
+          : (user as typeof user & { shop_id?: string | null }).shop_id ?? null;
+        const results = await searchReceipts({
+          receiptId: query.receiptId ?? null,
+          studentCode: query.studentCode ?? null,
+          dateFrom: query.dateFrom ?? null,
+          dateTo: query.dateTo ?? null,
+          paymentMethod: query.paymentMethod ?? null,
+          shopId: shopScope,
+        });
+        if (results.length === 0) {
+          set.status = 404; return { detail: "Receipt not found" };
+        }
+        return {
+          receipts: results,
+          receipt: results.length === 1 ? results[0] : null,
+        };
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        receiptId: t.Optional(t.String()),
+        studentCode: t.Optional(t.String()),
+        dateFrom: t.Optional(t.String()),
+        dateTo: t.Optional(t.String()),
+        paymentMethod: t.Optional(t.String()),
+      }),
+    },
+  )
+  .get(
+    "/exchange/products",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        return await getExchangeProducts({
+          shopId: query.shop_id ?? null,
+          inStock: query.inStock !== "false",
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        inStock: t.Optional(t.String()),
+        shop_id: t.Optional(t.String()),
+      }),
+    },
   )
   .get(
     "/refund/candidates",
@@ -2063,6 +2262,68 @@ const app = new Elysia()
           set.status = 204;
           return null;
         },
+      )
+      // ── User × Role (admin only): list / assign / remove secondary roles ──
+      .get(
+        "/auth/users/:user_id/roles",
+        async ({ params, user, set }) => {
+          if (!hasRole(user.roles, "admin")) {
+            set.status = 403;
+            return { detail: "Admin only" };
+          }
+          const id = Number(params.user_id);
+          if (!Number.isInteger(id)) {
+            set.status = 422;
+            return { detail: "Invalid user id" };
+          }
+          try { return await listUserRoles(id); }
+          catch (e) { return handle(set)(e); }
+        },
+        { params: t.Object({ user_id: t.String() }) },
+      )
+      .post(
+        "/auth/users/:user_id/roles",
+        async ({ params, body, user, set }) => {
+          if (!hasRole(user.roles, "admin")) {
+            set.status = 403;
+            return { detail: "Admin only" };
+          }
+          const id = Number(params.user_id);
+          if (!Number.isInteger(id)) {
+            set.status = 422;
+            return { detail: "Invalid user id" };
+          }
+          try {
+            set.status = 201;
+            return await assignRoleToUser(id, body.role_name);
+          } catch (e) {
+            return handle(set)(e);
+          }
+        },
+        {
+          params: t.Object({ user_id: t.String() }),
+          body: t.Object({ role_name: t.String() }),
+        },
+      )
+      .delete(
+        "/auth/users/:user_id/roles/:role_name",
+        async ({ params, user, set }) => {
+          if (!hasRole(user.roles, "admin")) {
+            set.status = 403;
+            return { detail: "Admin only" };
+          }
+          const id = Number(params.user_id);
+          if (!Number.isInteger(id)) {
+            set.status = 422;
+            return { detail: "Invalid user id" };
+          }
+          try {
+            return await removeRoleFromUser(id, decodeURIComponent(params.role_name));
+          } catch (e) {
+            return handle(set)(e);
+          }
+        },
+        { params: t.Object({ user_id: t.String(), role_name: t.String() }) },
       )
       .use(phase2Routes)
       .use(shopRoutes)

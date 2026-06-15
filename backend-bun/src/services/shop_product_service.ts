@@ -1,4 +1,4 @@
-import { eq, and, or, ilike, asc, inArray, ne } from "drizzle-orm";
+import { eq, and, or, ilike, asc, desc, inArray, ne, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
   shops,
@@ -7,6 +7,10 @@ import {
   menuOptionGroups,
   unitsOfMeasure,
   productBarcodes,
+  shopMovements,
+  fifoLots,
+  auditLogs,
+  users as usersTbl,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
@@ -598,3 +602,214 @@ function toShopProductDTO(
     extra_barcodes: ctx.extraBarcodes,
   };
 }
+
+// ── Extra product barcodes CRUD ────────────────────────────────────────────
+
+export async function listProductBarcodes(shopId: string, productId: number): Promise<ExtraBarcodeDTO[]> {
+  await getProductInShop(shopId, productId);
+  const rows = await db
+    .select()
+    .from(productBarcodes)
+    .where(eq(productBarcodes.productId, productId))
+    .orderBy(asc(productBarcodes.createdAt));
+  return rows.map((b) => ({ id: b.id, barcode: b.barcode, label: b.label ?? null }));
+}
+
+export async function addProductBarcode(args: {
+  shopId: string;
+  productId: number;
+  barcode: string;
+  label?: string | null;
+}): Promise<ExtraBarcodeDTO> {
+  await getProductInShop(args.shopId, args.productId);
+  const dup = await db
+    .select({ id: productBarcodes.id })
+    .from(productBarcodes)
+    .where(eq(productBarcodes.barcode, args.barcode))
+    .limit(1);
+  if (dup[0]) {
+    const err = new Error(`Barcode '${args.barcode}' already assigned to another product`);
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
+  const rows = await db
+    .insert(productBarcodes)
+    .values({ productId: args.productId, barcode: args.barcode, label: args.label ?? null })
+    .returning();
+  return { id: rows[0].id, barcode: rows[0].barcode, label: rows[0].label ?? null };
+}
+
+export async function deleteProductBarcode(args: {
+  shopId: string;
+  productId: number;
+  barcodeId: number;
+}): Promise<void> {
+  await getProductInShop(args.shopId, args.productId);
+  const rows = await db
+    .delete(productBarcodes)
+    .where(
+      and(
+        eq(productBarcodes.id, args.barcodeId),
+        eq(productBarcodes.productId, args.productId),
+      ),
+    )
+    .returning({ id: productBarcodes.id });
+  if (!rows[0]) {
+    const err = new Error("Barcode not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+}
+
+// ── FIFO lots — read-only listing ──────────────────────────────────────────
+
+export interface FifoLotDTO {
+  id: string;
+  product_id: number;
+  date: string;
+  qty_remaining: number;
+  cost_per_unit: number;
+}
+
+export async function listFifoLots(shopId: string, productId: number): Promise<FifoLotDTO[]> {
+  await shopOrThrow(shopId);
+  const rows = await db
+    .select()
+    .from(fifoLots)
+    .where(and(eq(fifoLots.productId, productId), eq(fifoLots.shopId, shopId)))
+    .orderBy(asc(fifoLots.date));
+  return rows.map((l) => ({
+    id: l.id,
+    product_id: l.productId,
+    date: String(l.date),
+    qty_remaining: pgNumber(l.qtyRemaining) ?? 0,
+    cost_per_unit: pgNumber(l.costPerUnit) ?? 0,
+  }));
+}
+
+// ── Stock movements list ───────────────────────────────────────────────────
+
+export interface ShopMovementDTO {
+  id: number;
+  date: string;
+  product_id: number | null;
+  product_name: string;
+  shop_id: string;
+  type: string;
+  quantity: number;
+  stock_before: number;
+  stock_after: number;
+  cost_per_unit: number | null;
+  reference: string | null;
+  note: string | null;
+  reverses_id: number | null;
+  reversed_by_id: number | null;
+}
+
+export interface ListMovementsFilters {
+  productId?: number;
+  type?: string;
+  limit?: number;
+}
+
+export async function listShopMovements(
+  shopId: string,
+  filters: ListMovementsFilters = {},
+): Promise<ShopMovementDTO[]> {
+  await shopOrThrow(shopId);
+  const limit = Math.min(filters.limit ?? 200, 1000);
+  const conds = [eq(shopMovements.shopId, shopId)];
+  if (filters.productId !== undefined) conds.push(eq(shopMovements.productId, filters.productId));
+  if (filters.type) {
+    conds.push(sql`${shopMovements.type} = ${filters.type}`);
+  }
+  const rows = await db
+    .select()
+    .from(shopMovements)
+    .where(and(...conds))
+    .orderBy(desc(shopMovements.createdAt))
+    .limit(limit);
+  return rows.map((m) => ({
+    id: m.id,
+    date: String(m.date),
+    product_id: m.productId ?? null,
+    product_name: m.productName,
+    shop_id: m.shopId,
+    type: m.type,
+    quantity: m.quantity,
+    stock_before: m.stockBefore,
+    stock_after: m.stockAfter,
+    cost_per_unit: pgNumber(m.costPerUnit ?? null),
+    reference: m.reference ?? null,
+    note: m.note ?? null,
+    reverses_id: m.reversesId ?? null,
+    reversed_by_id: m.reversedById ?? null,
+  }));
+}
+
+// ── Audit logs list (shop-scoped) ──────────────────────────────────────────
+
+export interface ShopAuditLogDTO {
+  id: number;
+  entity_type: string;
+  entity_id: number | null;
+  entity_name: string | null;
+  action: string;
+  changes: unknown;
+  created_at: string | null;
+  user_username: string | null;
+  user_full_name: string | null;
+}
+
+export interface ListAuditLogsFilters {
+  action?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function listShopAuditLogs(
+  shopId: string,
+  filters: ListAuditLogsFilters = {},
+): Promise<ShopAuditLogDTO[]> {
+  await shopOrThrow(shopId);
+  const limit = Math.min(filters.limit ?? 50, 200);
+  const offset = Math.max(filters.offset ?? 0, 0);
+  const conds = [eq(auditLogs.shopId, shopId)];
+  if (filters.action) {
+    // auditLogs.action is a pgEnum but eq accepts the underlying string.
+    conds.push(sql`${auditLogs.action} = ${filters.action}`);
+  }
+  const rows = await db
+    .select({
+      id: auditLogs.id,
+      entity_type: auditLogs.entityType,
+      entity_id: auditLogs.entityId,
+      entity_name: auditLogs.entityName,
+      action: auditLogs.action,
+      changes: auditLogs.changesJson,
+      created_at: auditLogs.createdAt,
+      user_username: usersTbl.username,
+      user_full_name: usersTbl.fullName,
+    })
+    .from(auditLogs)
+    .leftJoin(usersTbl, eq(usersTbl.id, auditLogs.userId))
+    .where(and(...conds))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(limit)
+    .offset(offset);
+  return rows.map((r) => ({
+    id: r.id,
+    entity_type: r.entity_type,
+    entity_id: r.entity_id ?? null,
+    entity_name: r.entity_name ?? null,
+    action: r.action,
+    changes: r.changes ?? null,
+    created_at: pgToIso(r.created_at) ?? null,
+    user_username: r.user_username ?? null,
+    user_full_name: r.user_full_name ?? null,
+  }));
+}
+
+// Suppress unused-imports warnings on transitive table refs
+void sql;
+void ne;

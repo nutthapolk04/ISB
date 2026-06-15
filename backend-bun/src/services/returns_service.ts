@@ -1,6 +1,6 @@
-import { and, desc, eq, ilike, ne, or, sql, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, ne, or, sql, isNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { returnRequests, receipts, shopProducts } from "@/db/schema";
+import { returnRequests, receipts, receiptItems, shopProducts, customers, users, departments } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
 import { fifoRefundLot, fifoDeductInTx } from "@/services/inventory_fifo";
 
@@ -706,4 +706,163 @@ function toHistoryDto(rr: typeof returnRequests.$inferSelect): ReturnHistoryDTO 
     status: rr.status,
     reason: rr.reason,
   };
+}
+
+// ── Receipt Search (for return page) ──────────────────────────────────────
+export interface SearchReceiptItemDTO {
+  productCode: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  isBundle: boolean;
+  bundleId: number | null;
+  bundleCode: string | null;
+}
+
+export interface SearchReceiptDTO {
+  id: string;
+  date: string;
+  items: SearchReceiptItemDTO[];
+  total: number;
+  paymentMethod: string;
+  shopId: string | null;
+  payer: { type: string; label: string; id?: number };
+  edcMaskedCard: string | null;
+}
+
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  cash: "CASH",
+  wallet: "WALLET",
+  department: "DEPARTMENT",
+  edc: "EDC",
+  qr: "BANK_TRANSFER",
+  credit_card: "CREDIT_CARD",
+  debit_card: "DEBIT_CARD",
+  card_tap: "CARD_TAP",
+  bank_transfer: "BANK_TRANSFER",
+  other: "OTHER",
+};
+
+async function receiptToSearchDto(receipt: typeof receipts.$inferSelect): Promise<SearchReceiptDTO> {
+  const itemRows = await db
+    .select({ item: receiptItems, product: shopProducts })
+    .from(receiptItems)
+    .leftJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
+    .where(eq(receiptItems.receiptId, receipt.id))
+    .orderBy(asc(receiptItems.id));
+
+  let shopId: string | null = null;
+  const items: SearchReceiptItemDTO[] = itemRows.map(({ item, product }) => {
+    if (product && !shopId) shopId = product.shopId;
+    const opts = (item.options ?? {}) as Record<string, unknown>;
+    const isBundle = Boolean(opts.is_bundle);
+    const bundleId = isBundle && typeof opts.bundle_id === "number" ? (opts.bundle_id as number) : null;
+    const bundleCode = isBundle && typeof opts.bundle_code === "string" ? (opts.bundle_code as string) : null;
+    const bundleName = isBundle && typeof opts.bundle_name === "string" ? (opts.bundle_name as string) : null;
+    return {
+      productCode: product?.productCode ?? "UNKNOWN",
+      productName: isBundle && bundleName ? bundleName : (product?.name ?? "Unknown"),
+      quantity: item.quantity,
+      price: pgNumber(item.unitPrice) ?? 0,
+      isBundle,
+      bundleId,
+      bundleCode,
+    };
+  });
+
+  let payer: { type: string; label: string; id?: number } = { type: "unknown", label: "" };
+  if (receipt.customerId !== null) {
+    const c = await db.select().from(customers).where(eq(customers.id, receipt.customerId)).limit(1);
+    if (c[0]) payer = { type: "customer", label: c[0].name || c[0].customerCode || "", id: receipt.customerId };
+  } else if (receipt.payerUserId !== null) {
+    const u = await db.select().from(users).where(eq(users.id, receipt.payerUserId)).limit(1);
+    if (u[0]) payer = { type: "user", label: u[0].fullName || u[0].username || "", id: receipt.payerUserId };
+  } else if (receipt.payerDepartmentId !== null) {
+    const d = await db.select().from(departments).where(eq(departments.id, receipt.payerDepartmentId)).limit(1);
+    if (d[0]) payer = { type: "department", label: d[0].departmentName || "", id: receipt.payerDepartmentId };
+  }
+
+  const ts = receipt.transactionDate;
+  const dateStr = ts ? ts.slice(0, 16).replace("T", " ") : "";
+  return {
+    id: receipt.receiptNumber,
+    date: dateStr,
+    items,
+    total: pgNumber(receipt.total) ?? 0,
+    paymentMethod: (receipt.paymentMethod ?? "CASH").toLowerCase(),
+    shopId,
+    payer,
+    edcMaskedCard: receipt.edcMaskedCard ?? null,
+  };
+}
+
+export async function searchReceipts(args: {
+  receiptId?: string | null;
+  studentCode?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  paymentMethod?: string | null;
+  shopId?: string | null;
+  limit?: number;
+}): Promise<SearchReceiptDTO[]> {
+  const conds = [] as Array<ReturnType<typeof eq>>;
+  if (args.shopId) conds.push(eq(receipts.shopId, args.shopId));
+  if (args.receiptId) conds.push(ilike(receipts.receiptNumber, `%${args.receiptId}%`));
+
+  if (args.studentCode) {
+    const customer = await db
+      .select({ id: customers.id })
+      .from(customers)
+      .where(or(eq(customers.studentCode, args.studentCode), eq(customers.customerCode, args.studentCode)))
+      .limit(1);
+    if (!customer[0]) return [];
+    conds.push(eq(receipts.customerId, customer[0].id));
+  }
+
+  if (args.dateFrom) {
+    conds.push(gte(receipts.transactionDate, `${args.dateFrom} 00:00:00+00`));
+  }
+  if (args.dateTo) {
+    conds.push(lte(receipts.transactionDate, `${args.dateTo} 23:59:59.999999+00`));
+  }
+
+  if (args.paymentMethod && args.paymentMethod.toLowerCase() !== "all") {
+    const mapped = PAYMENT_METHOD_MAP[args.paymentMethod.toLowerCase()];
+    if (!mapped) return [];
+    // paymentMethod column is an enum; cast via sql for type-checker
+    conds.push(sql`${receipts.paymentMethod} = ${mapped}` as unknown as ReturnType<typeof eq>);
+  }
+
+  const rows = await db
+    .select()
+    .from(receipts)
+    .where(conds.length > 0 ? and(...conds) : undefined)
+    .orderBy(desc(receipts.transactionDate))
+    .limit(args.limit ?? 100);
+
+  return Promise.all(rows.map(receiptToSearchDto));
+}
+
+// ── Available Products (for exchange) ─────────────────────────────────────
+export interface ExchangeProductDTO {
+  productCode: string;
+  productName: string;
+  quantity: number;
+  price: number;
+}
+
+export async function getExchangeProducts(args: {
+  shopId?: string | null;
+  inStock?: boolean;
+}): Promise<ExchangeProductDTO[]> {
+  const conds = [eq(shopProducts.isActive, true)];
+  if (args.shopId) conds.push(eq(shopProducts.shopId, args.shopId));
+  if (args.inStock !== false) conds.push(gte(shopProducts.stock, 1));
+  const rows = await db.select().from(shopProducts).where(and(...conds));
+  return rows.map((p) => ({
+    productCode: p.productCode,
+    productName: p.name,
+    quantity: p.stock,
+    price: pgNumber(p.externalPrice) ?? 0,
+  }));
 }

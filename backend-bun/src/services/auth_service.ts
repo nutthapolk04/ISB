@@ -222,6 +222,78 @@ export async function logout(userId: number): Promise<void> {
   await db.update(users).set({ sessionToken: null }).where(eq(users.id, userId));
 }
 
+// ── User × Role management (admin only) ───────────────────────────────────
+
+async function notFoundUser(): Promise<never> {
+  const err = new Error("User not found") as Error & { status?: number };
+  err.status = 404;
+  throw err;
+}
+
+export async function listUserRoles(userId: number): Promise<RoleResponseDTO[]> {
+  const user = await findUserById(userId);
+  if (!user) await notFoundUser();
+  return getRoleNames(userId);
+}
+
+export async function assignRoleToUser(
+  userId: number,
+  roleName: string,
+): Promise<RoleResponseDTO[]> {
+  const name = roleName.trim();
+  if (!name) {
+    const err = new Error("role_name is required") as Error & { status?: number };
+    err.status = 400;
+    throw err;
+  }
+
+  const user = await findUserById(userId);
+  if (!user) await notFoundUser();
+
+  // Upsert role by name — auto-create if missing (mirrors FastAPI behaviour)
+  let roleRow = (await db.select().from(roles).where(eq(roles.name, name)).limit(1))[0];
+  if (!roleRow) {
+    const [inserted] = await db
+      .insert(roles)
+      .values({
+        name,
+        description: `Auto-created for ${name}`,
+        isActive: true,
+      })
+      .returning();
+    roleRow = inserted;
+  }
+
+  // Idempotent link
+  const existing = await db
+    .select()
+    .from(userRoles)
+    .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleRow.id)))
+    .limit(1);
+  if (existing.length === 0) {
+    await db.insert(userRoles).values({ userId, roleId: roleRow.id });
+  }
+
+  return getRoleNames(userId);
+}
+
+export async function removeRoleFromUser(
+  userId: number,
+  roleName: string,
+): Promise<RoleResponseDTO[]> {
+  const user = await findUserById(userId);
+  if (!user) await notFoundUser();
+
+  const roleRow = (await db.select().from(roles).where(eq(roles.name, roleName)).limit(1))[0];
+  if (roleRow) {
+    await db
+      .delete(userRoles)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleRow.id)));
+  }
+
+  return getRoleNames(userId);
+}
+
 export async function me(userId: number): Promise<MeResponseDTO> {
   const user = await findUserById(userId);
   if (!user) {

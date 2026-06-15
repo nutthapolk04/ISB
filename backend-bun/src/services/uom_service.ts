@@ -149,6 +149,51 @@ export async function updateUom(id: number, input: UpdateUomInput): Promise<UOMR
   return toDTO(fresh[0]);
 }
 
+interface SeedResult {
+  success: true;
+  created: string[];
+  message: string;
+}
+
+const DEFAULT_UOMS: Array<{ code: string; name: string; name_en: string }> = [
+  { code: "PCS", name: "ชิ้น", name_en: "Piece" },
+  { code: "BOX", name: "กล่อง", name_en: "Box" },
+  { code: "SET", name: "ชุด", name_en: "Set" },
+  { code: "PAIR", name: "คู่", name_en: "Pair" },
+  { code: "PACK", name: "แพ็ค", name_en: "Pack" },
+  { code: "DOZEN", name: "โหล", name_en: "Dozen" },
+  { code: "KG", name: "กิโลกรัม", name_en: "Kilogram" },
+  { code: "G", name: "กรัม", name_en: "Gram" },
+  { code: "L", name: "ลิตร", name_en: "Liter" },
+  { code: "ML", name: "มิลลิลิตร", name_en: "Milliliter" },
+  { code: "M", name: "เมตร", name_en: "Meter" },
+  { code: "CM", name: "เซนติเมตร", name_en: "Centimeter" },
+];
+
+export async function seedDefaultUoms(): Promise<SeedResult> {
+  const existing = await db.select({ code: unitsOfMeasure.code }).from(unitsOfMeasure);
+  const existingCodes = new Set(existing.map((r) => r.code));
+  const toCreate = DEFAULT_UOMS.filter((d) => !existingCodes.has(d.code));
+  const created: string[] = [];
+  for (const item of toCreate) {
+    await db.insert(unitsOfMeasure).values({
+      code: item.code,
+      name: item.name,
+      nameEn: item.name_en,
+      conversionFactor: "1",
+      isActive: true,
+    });
+    created.push(item.code);
+  }
+  return {
+    success: true,
+    created,
+    message: created.length > 0
+      ? `Created ${created.length} default UOMs`
+      : "All default UOMs already exist",
+  };
+}
+
 export async function deleteUom(id: number): Promise<{ success: true }> {
   const rows = await db.select({ id: unitsOfMeasure.id }).from(unitsOfMeasure).where(eq(unitsOfMeasure.id, id)).limit(1);
   if (!rows[0]) {
