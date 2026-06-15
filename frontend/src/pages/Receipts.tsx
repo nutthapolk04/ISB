@@ -106,83 +106,6 @@ interface ReceiptApi {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const PAYMENT_LABELS_TH: Record<string, string> = {
-  cash: "เงินสด",
-  credit_card: "บัตรเครดิต",
-  debit_card: "บัตรเดบิต",
-  wallet: "Wallet",
-  bank_transfer: "โอนเงิน",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
-  edc: "EDC (บัตรเครดิต/เดบิต)",
-  department: "หักจากงบแผนก",
-  other: "อื่นๆ",
-};
-
-const PAYMENT_LABELS_EN: Record<string, string> = {
-  cash: "Cash",
-  credit_card: "Credit Card",
-  debit_card: "Debit Card",
-  wallet: "Wallet",
-  bank_transfer: "Bank Transfer",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
-  edc: "EDC (Credit/Debit Card)",
-  department: "Budget Deduction",
-  other: "Other",
-};
-
-const RECEIPT_LABELS = {
-  th: {
-    htmlLang: "th",
-    locale: "th-TH",
-    title: "ใบเสร็จ",
-    subtitle: "ใบเสร็จรับเงิน / Receipt",
-    receiptNo: "เลขที่",
-    date: "วันที่",
-    payer: "ผู้ซื้อ",
-    cashier: "ผู้ขาย",
-    payment: "ชำระด้วย",
-    itemDiscount: "ส่วนลด",
-    billDiscount: "ส่วนลดท้ายบิล",
-    tax: "ภาษี",
-    subtotal: "ยอดรวม",
-    grandTotal: "รวมสุทธิ",
-    balanceBefore: "ยอดก่อนชำระ",
-    balanceAfter: "ยอดคงเหลือ",
-    voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
-    thanks: "ขอบคุณที่ใช้บริการ / Thank you",
-    taxId: "เลขภาษี",
-    tel: "โทร",
-    cashReceived: "รับเงินสด",
-    change: "เงินทอน",
-  },
-  en: {
-    htmlLang: "en",
-    locale: "en-US",
-    title: "Receipt",
-    subtitle: "Sales Receipt",
-    receiptNo: "Receipt #",
-    date: "Date",
-    payer: "Payer",
-    cashier: "Cashier",
-    payment: "Payment",
-    itemDiscount: "Discount",
-    billDiscount: "Bill Discount",
-    tax: "Tax",
-    subtotal: "Subtotal",
-    grandTotal: "Grand Total",
-    balanceBefore: "Balance before",
-    balanceAfter: "Balance after",
-    voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
-    thanks: "Thank you for your purchase",
-    taxId: "Tax ID",
-    tel: "Tel",
-    cashReceived: "Cash received",
-    change: "Change",
-  },
-};
-
 function fmtDate(iso: string, locale: string = "th-TH"): string {
   try {
     const d = new Date(iso);
@@ -201,158 +124,11 @@ function fmtDateOnly(iso: string): string {
 }
 
 // ── Print / PDF ───────────────────────────────────────────────────────────────
+// Receipt print uses the shared builder in lib/printReceipt so the layout
+// matches what auto-print produces at sale time. School is international so
+// the paper receipt is always rendered in English.
 
-const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="64" height="64" role="img" aria-label="ISB Logo">
-  <rect width="512" height="512" fill="#f3f4f6"/>
-  <polygon points="256,120 60,300 452,300" fill="#eacb46"/>
-  <polygon points="256,158 154,264 358,264" fill="#d4362a"/>
-  <polygon points="256,158 358,264 256,264" fill="#b6352a"/>
-  <text x="256" y="430" text-anchor="middle" font-family="Times New Roman, serif" font-size="190" fill="#111111">ISB</text>
-</svg>`;
-
-import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
-
-function buildReceiptHtml(r: ReceiptApi, school: SchoolInfo, shopName?: string | null, lang: string = "th"): string {
-  const isEn = lang.startsWith("en");
-  const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
-  const paymentMap = isEn ? PAYMENT_LABELS_EN : PAYMENT_LABELS_TH;
-  const paymentLabel = paymentMap[r.payment_method] ?? r.payment_method;
-  const itemRows = r.items.map((item) => {
-    const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
-    const isBundle = opts?.is_bundle === true;
-    const name = isBundle
-      ? (opts?.bundle_name ?? "Bundle")
-      : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
-    const optionLines = !isBundle && opts?.groups
-      ? opts.groups.flatMap((g: any) =>
-          g.options.map((o: any) => {
-            const price = o.price_delta > 0 ? ` +฿${(o.price_delta * o.quantity).toLocaleString()}` : "";
-            return `<div class="opt">+ ${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""}${price}</div>`;
-          }),
-        ).join("")
-      : "";
-    const discountLine = item.discount > 0
-      ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
-      : "";
-    return `
-      <div class="row">
-        <span>${name} ×${item.quantity}</span>
-        <span>฿${item.line_total.toLocaleString()}</span>
-      </div>
-      ${optionLines}
-      ${discountLine}`;
-  }).join("");
-
-  const discountSection = r.discount > 0
-    ? `<div class="row small"><span>${lbl.billDiscount}</span><span>-฿${r.discount.toLocaleString()}</span></div>`
-    : "";
-  const taxSection = r.tax > 0
-    ? `<div class="row small"><span>${lbl.tax}</span><span>฿${r.tax.toLocaleString()}</span></div>`
-    : "";
-  const payerSection = r.payer_label
-    ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
-    : "";
-  // Cashier (ผู้ขาย) — comes from receipts.created_by_name (the user who
-  // closed the sale). Useful for audits where "who took the cash?" matters.
-  const cashierSection = r.created_by_name
-    ? `<div class="row small"><span>${lbl.cashier}</span><span>${r.created_by_name}</span></div>`
-    : "";
-  const voidedSection = r.status !== "active"
-    ? `<div class="voided">${lbl.voided}</div>`
-    : "";
-
-  const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;
-  const balanceBeforeSection =
-    r.payment_method === "wallet" && walletBalanceAfter !== null
-      ? `<div class="row small"><span>${lbl.balanceBefore}</span><span>฿${(walletBalanceAfter + r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
-      : "";
-  const balanceAfterSection =
-    r.payment_method === "wallet" && walletBalanceAfter !== null
-      ? `<div class="row balance-after"><span>${lbl.balanceAfter}</span><span>฿${walletBalanceAfter.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
-      : "";
-  const cashSection =
-    r.payment_method === "cash" && r.cash_received != null
-      ? `<div class="row small"><span>${lbl.cashReceived}</span><span>฿${Number(r.cash_received).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>
-         <div class="row small" style="font-weight:bold;color:#059669"><span>${lbl.change}</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
-      : "";
-
-  const shopLine = shopName
-    ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>`
-    : "";
-  const logoHtml = school.logoUrl
-    ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />`
-    : ISB_LOGO_SVG;
-  const addressLine = school.address
-    ? `<p class="sub">${school.address}</p>`
-    : "";
-  const taxPhoneLine = (school.taxId || school.phone)
-    ? `<p class="sub">${school.taxId ? `${lbl.taxId}: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `${lbl.tel}: ${school.phone}` : ""}</p>`
-    : "";
-
-  return `<!DOCTYPE html>
-<html lang="${lbl.htmlLang}">
-<head>
-<meta charset="UTF-8" />
-<title>${lbl.title} ${r.receipt_number}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Courier New', monospace; font-size: 12px;
-         width: 80mm; margin: 0 auto; padding: 8px; color: #111; }
-  .logo-wrap { display: flex; justify-content: center; margin-bottom: 4px; }
-  h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
-  .center { text-align: center; }
-  .sub { font-size: 11px; color: #555; text-align: center; margin-bottom: 3px; }
-  hr { border: none; border-top: 1px dashed #888; margin: 6px 0; }
-  .row { display: flex; justify-content: space-between; margin: 2px 0; }
-  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 6px; }
-  .opt { padding-left: 12px; font-size: 11px; color: #666; }
-  .disc { color: #c00; font-size: 11px; }
-  .small { font-size: 11px; color: #555; }
-  .total { font-size: 15px; font-weight: bold; margin-top: 4px; }
-  .balance-after { font-size: 16px; font-weight: bold; color: #1d4ed8; margin-top: 6px; }
-  .voided { text-align: center; color: #c00; font-weight: bold;
-             font-size: 13px; margin: 6px 0; border: 1px solid #c00; padding: 3px; }
-  @media print { @page { margin: 0; size: 80mm auto; } }
-</style>
-</head>
-<body>
-  <div class="logo-wrap">${logoHtml}</div>
-  <h1>${school.name}</h1>
-  ${addressLine}
-  ${taxPhoneLine}
-  ${shopLine}
-  <p class="sub">${lbl.subtitle}</p>
-  ${voidedSection}
-  <hr/>
-  <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
-  <div class="row small"><span>${lbl.date}</span><span>${fmtDate(r.transaction_date, lbl.locale)}</span></div>
-  ${payerSection}
-  ${cashierSection}
-  <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
-  <hr/>
-  ${itemRows}
-  <hr/>
-  ${balanceBeforeSection}
-  <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
-  ${discountSection}
-  ${taxSection}
-  <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
-  ${balanceAfterSection}
-  ${cashSection ? `<hr/>${cashSection}` : ""}
-  <hr/>
-  <p class="center sub">${school.receiptFooter || lbl.thanks}</p>
-</body>
-</html>`;
-}
-
-function printReceipt(r: ReceiptApi, school: SchoolInfo, shopName?: string | null, lang: string = "th"): void {
-  const win = window.open("", "_blank", "width=400,height=640");
-  if (!win) return;
-  win.document.write(buildReceiptHtml(r, school, shopName, lang));
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 300);
-}
+import { printReceipt as printReceiptShared, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -820,7 +596,7 @@ const Receipts = () => {
                         </IconButton>
                         <IconButton
                           tooltip={t("receipts.tooltip.download")}
-                          onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+                          onClick={() => printReceiptShared(receipt as unknown as LibReceiptApi, schoolInfo, user?.shopName, "en")}
                         >
                           <Download className="h-4 w-4" />
                         </IconButton>
@@ -1203,14 +979,14 @@ const Receipts = () => {
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                  onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName, i18n.language)}
+                  onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, user?.shopName, "en")}
                 >
                   <Printer className="h-4 w-4 mr-2" />
                   {t("receipts.print", "Print")}
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => printReceipt(selectedReceipt, schoolInfo, user?.shopName, i18n.language)}
+                  onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, user?.shopName, "en")}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   {t("receipts.download", "Save PDF")}
