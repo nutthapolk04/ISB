@@ -231,7 +231,6 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   filename: string,
 ): Promise<void> {
   const { meta, columns, rows, totals } = payload;
-  const generatedAt = meta.generatedAt ?? new Date();
 
   // Landscape A4 — most reports have many columns. Switch to portrait if a
   // particular report ever proves it needs that.
@@ -245,33 +244,24 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   await ensureThaiFont(doc);
   const fontFamily = doc.getFontList()[FONT_NAME] ? FONT_NAME : "helvetica";
 
-  // ─── Header: logo (left) + school name (right of logo) ────────────────
+  // ─── Header: logo (left) + school name & title (right, right-aligned) ─
   const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
-  const headerStartX = marginX;
-  let textStartX = headerStartX;
 
   if (logo) {
     const targetH = 40;
     const targetW = (logo.width / logo.height) * targetH;
-    doc.addImage(logo.dataUrl, logo.format, headerStartX, cursorY, targetW, targetH);
-    textStartX = headerStartX + targetW + 12;
+    doc.addImage(logo.dataUrl, logo.format, marginX, cursorY, targetW, targetH);
   }
 
-  // School name + title
+  // School name + title — right-aligned to page edge
+  const textRightX = pageWidth - marginX;
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(14);
-  doc.text(meta.schoolName, textStartX, cursorY + 14);
+  doc.text(meta.schoolName, textRightX, cursorY + 14, { align: "right" });
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(11);
-  doc.text(meta.title, textStartX, cursorY + 30);
-
-  // Right side: "Generated …"
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  const stamp = `Generated: ${formatDateTime(generatedAt)}`;
-  doc.text(stamp, pageWidth - marginX, cursorY + 14, { align: "right" });
-  doc.setTextColor(0);
+  doc.text(meta.title, textRightX, cursorY + 30, { align: "right" });
 
   cursorY += 50; // past the logo block
 
