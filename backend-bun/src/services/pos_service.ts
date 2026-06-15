@@ -249,7 +249,9 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
     tax: pgNumber(receipt.tax) ?? 0,
     total: pgNumber(receipt.total) ?? 0,
     payment_method: receipt.paymentMethod,
-    status: receipt.status,
+    // Lowercase to match frontend expectation ('active' / 'voided').
+    // Drizzle returns the raw enum value ('ACTIVE' / 'VOIDED').
+    status: receipt.status.toLowerCase() as "active" | "voided",
     terminal_id: receipt.terminalId ?? null,
     notes: receipt.notes ?? null,
     edc_terminal_ref: receipt.edcTerminalRef ?? null,
