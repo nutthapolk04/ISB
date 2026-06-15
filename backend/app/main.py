@@ -53,6 +53,11 @@ def _ensure_runtime_schema() -> None:
         "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)",
         "ALTER TABLE customers ADD COLUMN IF NOT EXISTS enroll_date DATE",
         "ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE",
+        # POS-sale BAY QR: extend payment_intents with cart snapshot + intent_type
+        "ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS intent_type VARCHAR(20) DEFAULT 'wallet_topup'",
+        "ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS cart_snapshot JSONB",
+        "ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS receipt_id INTEGER",
+        "ALTER TABLE payment_intents ALTER COLUMN wallet_id DROP NOT NULL",
     ]
     for stmt in stmts:
         try:

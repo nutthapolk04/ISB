@@ -968,7 +968,8 @@ export const unitsOfMeasure = pgTable("units_of_measure", {
 export const paymentIntents = pgTable("payment_intents", {
 	id: serial().primaryKey().notNull(),
 	refCode: varchar("ref_code", { length: 50 }).notNull(),
-	walletId: integer("wallet_id").notNull(),
+	// wallet_id is null for POS-sale intents (intent_type='pos_sale')
+	walletId: integer("wallet_id"),
 	amount: numeric({ precision: 10, scale:  2 }).notNull(),
 	qrPayload: text("qr_payload"),
 	status: paymentintentstatus().notNull(),
@@ -980,6 +981,13 @@ export const paymentIntents = pgTable("payment_intents", {
 	confirmedBy: integer("confirmed_by"),
 	notes: varchar({ length: 500 }),
 	txnNo: varchar("txn_no", { length: 100 }),
+	// Discriminator: 'wallet_topup' (default) or 'pos_sale'
+	intentType: varchar("intent_type", { length: 20 }),
+	// POS-sale only: full cart payload so the webhook can create a receipt
+	// without the cashier round-tripping back. Shape mirrors CheckoutInput.
+	cartSnapshot: json("cart_snapshot"),
+	// POS-sale only: FK to the receipt created after the webhook confirms.
+	receiptId: integer("receipt_id"),
 }, (table) => [
 	index("ix_payment_intents_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_payment_intents_ref").using("btree", table.refCode.asc().nullsLast().op("text_ops")),

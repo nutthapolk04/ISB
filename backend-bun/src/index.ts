@@ -29,6 +29,8 @@ import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKno
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily, cashierTopup, adjustDepartmentBalance, listDepartmentTransactions } from "@/services/wallet_service";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
+import { createPosQrIntent, getPosQrIntent, cancelPosQrIntent, confirmPosQrSale } from "@/services/pos_qr_service";
+import { qrInquiry as bayQrInquiry } from "@/services/pymt_gateway";
 import { listBundles, getBundle, checkBundleStock, createBundle, updateBundle, deleteBundle, reorderBundles } from "@/services/bundle_service";
 import {
   createShopProduct, updateShopProduct, deleteShopProduct,
@@ -757,6 +759,101 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       params: t.Object({ id: t.String() }),
       body: t.Optional(t.Object({ reason: t.Optional(t.Nullable(t.String())) })),
     },
+  )
+  // ── POS-sale BAY QR — cart-snapshot intents ───────────────────────────
+  .post(
+    "/pos/qr-intent",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "cashier", "manager", "admin", "kiosk")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        return await createPosQrIntent({
+          cart: { ...(body.cart as Omit<CheckoutInput, "payment_method">), userId: Number(user.sub) },
+          cashierUserId: Number(user.sub),
+          amount: body.amount,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        // We accept the full checkout payload as opaque cart_snapshot.
+        // Backend will re-validate when the webhook calls checkout().
+        cart: t.Object({
+          transaction_mode: t.Optional(t.Nullable(t.String())),
+          payer_kind: t.Optional(t.Nullable(t.String())),
+          customer_id: t.Optional(t.Nullable(t.Number())),
+          payer_user_id: t.Optional(t.Nullable(t.Number())),
+          payer_department_id: t.Optional(t.Nullable(t.Number())),
+          requester_user_id: t.Optional(t.Nullable(t.Number())),
+          shop_id: t.Optional(t.Nullable(t.String())),
+          discount: t.Optional(t.Nullable(t.Number())),
+          notes: t.Optional(t.Nullable(t.String())),
+          items: t.Array(t.Object({
+            product_variant_id: t.Number(),
+            quantity: t.Number(),
+            unit_price: t.Number({ minimum: 0 }),
+            price_override: t.Optional(t.Nullable(t.Number())),
+            discount: t.Optional(t.Number()),
+            options: t.Optional(t.Array(t.Object({
+              option_id: t.Number(),
+              quantity: t.Optional(t.Number()),
+            }))),
+            is_bundle: t.Optional(t.Boolean()),
+            bundle_id: t.Optional(t.Nullable(t.Number())),
+          })),
+        }),
+      }),
+    },
+  )
+  .get(
+    "/pos/qr-intent/:refCode/status",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "cashier", "manager", "admin", "kiosk")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try { return await getPosQrIntent(params.refCode); }
+      catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ refCode: t.String() }) },
+  )
+  .post(
+    "/pos/qr-intent/:refCode/inquiry",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "cashier", "manager", "admin", "kiosk")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        // First check local state — if we already know the answer, skip
+        // the round-trip to PYMT.
+        const local = await getPosQrIntent(params.refCode);
+        if (local.status !== "pending" || !local.txn_no) return local;
+        // Ask BAY directly
+        const inq = await bayQrInquiry({ transactionNo: local.txn_no });
+        if (inq.status === "confirmed") {
+          await confirmPosQrSale(params.refCode);
+        } else if (inq.status === "cancelled") {
+          await cancelPosQrIntent(params.refCode);
+        }
+        // Re-read post-sync
+        return await getPosQrIntent(params.refCode);
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ refCode: t.String() }) },
+  )
+  .post(
+    "/pos/qr-intent/:refCode/cancel",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "cashier", "manager", "admin", "kiosk")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      try {
+        await cancelPosQrIntent(params.refCode);
+        return await getPosQrIntent(params.refCode);
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ refCode: t.String() }) },
   )
   // ── Phase 5: Bundles + Returns + Graduation Refund ─────────────────────
   .get(

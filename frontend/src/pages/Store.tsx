@@ -1267,10 +1267,8 @@ const Store = () => {
   const handleConfirmWallet = (payer: WalletPayer) => doCheckout("wallet", { payer });
   const handleConfirmCash = (cashReceived: number) =>
     doCheckout("cash", { cashReceived });
-  const handleConfirmQr = () => {
-    setQrOpen(false); // Close modal immediately — no stuck spinner
-    doCheckout("qr");
-  };
+  // QR PromptPay now lives entirely inside QrPaymentModal (BAY intent +
+  // polling + auto-receipt via webhook). handleConfirmQr no longer needed.
   const handleConfirmDept = (deptId: number, empCode: string | null) =>
     doCheckout("department", { deptId, empCode });
   const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) =>
@@ -2058,14 +2056,40 @@ const Store = () => {
         confirming={confirming}
       />
 
-      {/* QR */}
+      {/* QR — modal owns the BAY intent lifecycle now. */}
       <QrPaymentModal
         open={qrOpen}
         onOpenChange={setQrOpen}
         total={total}
         onBack={handleBackToPicker}
-        onConfirm={handleConfirmQr}
-        confirming={confirming}
+        buildCartPayload={() => ({
+          transaction_mode: "sale",
+          payer_kind: "customer",
+          shop_id: user?.shopId ?? undefined,
+          discount: billDiscountAmount,
+          items: cart.map((i) => ({
+            product_variant_id: i.id,
+            quantity: i.quantity,
+            unit_price: i.price,
+            price_override: i.priceOverride ?? null,
+            discount: 0,
+            options: (i.selectedOptions ?? []).flatMap((g) =>
+              g.options.map((o) => ({ option_id: o.id, quantity: o.quantity })),
+            ),
+          })),
+        })}
+        onPaid={(info) => {
+          setQrOpen(false);
+          setLastReceipt({
+            receiptNumber: info.receiptNumber ?? "",
+            amount: total,
+            remainingBalance: undefined,
+            studentName: null,
+            studentPhotoUrl: null,
+            studentGrade: null,
+          });
+          setSuccessOpen(true);
+        }}
       />
 
       {/* Department */}

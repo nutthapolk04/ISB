@@ -855,36 +855,10 @@ export default function Canteen() {
     }
   };
 
-  const handleConfirmQr = async () => {
-    const amount = cart.total;
-    // Close modal immediately — cashier shouldn't be stuck watching a spinner.
-    // Checkout runs in the background; success animation fires when it's done.
-    setQrOpen(false);
-    display.qr({
-      items: buildDisplayItems(),
-      total: amount,
-      qrPayload: `PROMPTPAY|AMOUNT|${amount.toFixed(2)}`,
-      expiresAt: null,
-    });
-    try {
-      const res = await doCheckout("other");
-      display.success({
-        total: amount,
-        payer: null,
-        method: "qr",
-        receiptNumber: res.receipt_number,
-      });
-      finalizeSuccess(res.receipt_number, amount, null, null, res as unknown as ReceiptApi);
-    } catch (e) {
-      const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
-      display.failed({ reason: String(reason), method: "qr" });
-      toast.error(t("checkout.failed", "Checkout failed"), {
-        description: e instanceof ApiError ? e.detail : t("checkout.failedHint", "Please try again or check your network."),
-      });
-      // Reopen modal so cashier can retry
-      setQrOpen(true);
-    }
-  };
+  // QR PromptPay sale now lives entirely inside QrPaymentModal:
+  // it creates a BAY intent, renders the real QR, polls the gateway, and
+  // calls back through `onPaid` once the webhook produces a receipt.
+  // (Old handleConfirmQr removed; the modal owns the checkout side-effect.)
 
   const handleConfirmEdc = async (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) => {
     setEdcOpen(false);
@@ -1360,8 +1334,37 @@ export default function Canteen() {
           setQrOpen(false);
           setMethodPickerOpen(true);
         }}
-        onConfirm={handleConfirmQr}
-        confirming={confirming}
+        buildCartPayload={() => ({
+          transaction_mode: cart.priceMode === "internal" ? "internal_issue" : "sale",
+          payer_kind: "customer",
+          shop_id: CANTEEN_SHOP_ID,
+          discount: cart.billDiscountAmount,
+          notes: receiptNote.trim() || undefined,
+          items: cart.items.map((i) => ({
+            product_variant_id: i.id,
+            quantity: i.quantity,
+            unit_price: cart.priceMode === "internal" ? i.internalPrice : i.price,
+            price_override: i.priceOverride ?? null,
+            discount: cart.lineDiscountAmountFor(i),
+            options: i.selectedOptions.flatMap((g) =>
+              g.options.map((o) => ({
+                option_id: o.id,
+                quantity: o.quantity,
+              })),
+            ),
+          })),
+        })}
+        onPaid={(info) => {
+          setQrOpen(false);
+          const receiptNumber = info.receiptNumber ?? "";
+          display.success({
+            total: cart.total,
+            payer: null,
+            method: "qr",
+            receiptNumber,
+          });
+          finalizeSuccess(receiptNumber, cart.total, null, null, undefined);
+        }}
       />
       <DepartmentPaymentModal
         open={deptOpen}

@@ -396,16 +396,29 @@ export async function handleBayCallback(body: {
   // Locate intent: orderRef → txnNo → reference1
   let refCode: string | null = null;
   let currentStatus: string | null = null;
+  let intentType: string | null = null;
 
   if (body.orderRef) {
-    const rows = await db.select({ refCode: paymentIntents.refCode, status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.refCode, body.orderRef)).limit(1);
-    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; }
+    const rows = await db
+      .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
+      .from(paymentIntents)
+      .where(eq(paymentIntents.refCode, body.orderRef))
+      .limit(1);
+    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; intentType = rows[0].intentType ?? null; }
   } else if (body.transactionNo) {
-    const rows = await db.select({ refCode: paymentIntents.refCode, status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.txnNo, body.transactionNo)).limit(1);
-    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; }
+    const rows = await db
+      .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
+      .from(paymentIntents)
+      .where(eq(paymentIntents.txnNo, body.transactionNo))
+      .limit(1);
+    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; intentType = rows[0].intentType ?? null; }
     else if (body.reference1) {
-      const rRows = await db.select({ refCode: paymentIntents.refCode, status: paymentIntents.status }).from(paymentIntents).where(eq(paymentIntents.refCode, body.reference1)).limit(1);
-      if (rRows[0]) { refCode = rRows[0].refCode; currentStatus = rRows[0].status; }
+      const rRows = await db
+        .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
+        .from(paymentIntents)
+        .where(eq(paymentIntents.refCode, body.reference1))
+        .limit(1);
+      if (rRows[0]) { refCode = rRows[0].refCode; currentStatus = rRows[0].status; intentType = rRows[0].intentType ?? null; }
     }
   }
 
@@ -416,9 +429,22 @@ export async function handleBayCallback(body: {
   if (currentStatus === "confirmed") return { received: true };
 
   if (body.status === "COMPLETED") {
+    // Route by intent_type. Wallet topups credit the wallet; POS-sale
+    // intents auto-create a receipt from the stored cart snapshot.
+    if (intentType === "pos_sale") {
+      try {
+        // Lazy-import to avoid a circular dependency between pos_qr_service
+        // and topup_service (POS QR calls into pymt_gateway via topup land).
+        const { confirmPosQrSale } = await import("@/services/pos_qr_service");
+        await confirmPosQrSale(refCode);
+      } catch {
+        // best-effort; webhook will retry
+      }
+      return { received: true };
+    }
+
     // wallet_transactions.created_by is NOT NULL with FK → users(id). Use
-    // the intent's creator as the confirmer when webhook fires (FastAPI
-    // works because passlib/SQLAlchemy let None slip past — Bun doesn't).
+    // the intent's creator as the confirmer when webhook fires.
     const creatorRows = await db.select({ createdBy: paymentIntents.createdBy }).from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
     const confirmerId = creatorRows[0]?.createdBy ?? null;
     if (confirmerId !== null) {

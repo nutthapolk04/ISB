@@ -331,6 +331,20 @@ run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS txn_no VARCHAR(100)',
 run('CREATE INDEX IF NOT EXISTS ix_payment_intents_txn_no ON payment_intents(txn_no)',
     'payment_intents idx txn_no')
 
+# === POS-sale BAY QR: extend payment_intents to carry cart snapshots ===
+# Wallet topups carry wallet_id; POS sales carry a cart_snapshot JSON and
+# the receipt_id is filled in after the webhook auto-creates the receipt.
+run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS intent_type VARCHAR(20) DEFAULT \'wallet_topup\'',
+    'payment_intents.intent_type')
+run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS cart_snapshot JSONB',
+    'payment_intents.cart_snapshot')
+run('ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS receipt_id INTEGER',
+    'payment_intents.receipt_id')
+run('ALTER TABLE payment_intents ALTER COLUMN wallet_id DROP NOT NULL',
+    'payment_intents.wallet_id NULL allowed')
+run('CREATE INDEX IF NOT EXISTS ix_payment_intents_intent_type ON payment_intents(intent_type)',
+    'payment_intents idx intent_type')
+
 # === Wallet adjustment audit columns ===
 run('ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS reason TEXT',
     'wallet_transactions.reason')
