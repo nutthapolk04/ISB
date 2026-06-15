@@ -328,23 +328,61 @@ export function buildReceiptHtml(
 // ── Print trigger ────────────────────────────────────────────────────────────
 
 /**
- * Print a receipt by opening a hidden popup window, writing the receipt HTML,
- * and invoking the browser's print routine.
+ * Print a receipt by injecting the HTML into a hidden iframe and calling its
+ * print routine. Iframe (not window.open) so the POS browser doesn't accumulate
+ * popup tabs/windows after each sale — popups also trip browser popup blockers
+ * outside of a click handler.
  *
  * For true "silent" printing (no print dialog), the deployment must launch
  * Chromium with `--kiosk-printing` so the dialog is auto-confirmed against the
  * default printer. Without that flag the standard print dialog appears.
  */
+const RECEIPT_IFRAME_ID = "receipt-print-frame";
+
 export function printReceipt(
   r: ReceiptApi,
   school: SchoolInfo,
   shopName?: string | null,
   lang: string = "en",
 ): void {
-  const win = window.open("", "_blank", "width=400,height=640");
-  if (!win) return;
-  win.document.write(buildReceiptHtml(r, school, shopName, lang));
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 300);
+  const html = buildReceiptHtml(r, school, shopName, lang);
+
+  // Remove any stale iframe from a prior print before creating a new one.
+  document.getElementById(RECEIPT_IFRAME_ID)?.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = RECEIPT_IFRAME_ID;
+  iframe.setAttribute("aria-hidden", "true");
+  Object.assign(iframe.style, {
+    position: "fixed",
+    right: "0",
+    bottom: "0",
+    width: "0",
+    height: "0",
+    border: "0",
+    visibility: "hidden",
+  });
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // Give the iframe a tick to lay out, then fire print and clean up.
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (err) {
+      console.warn("Receipt print failed:", err);
+    }
+    // Remove the iframe after the print job is queued. Delay covers the
+    // OS print dialog round-trip on stations without --kiosk-printing.
+    setTimeout(() => iframe.remove(), 1500);
+  }, 250);
 }
