@@ -240,7 +240,7 @@ export function buildReceiptHtml(
       : "";
 
   const shopLine = shopName
-    ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>`
+    ? `<p class="shop-name">${shopName}</p>`
     : "";
   const logoHtml = school.logoUrl
     ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />`
@@ -265,10 +265,12 @@ export function buildReceiptHtml(
   body { font-family: 'Sarabun', 'Arial', sans-serif; font-size: 16px;
          font-weight: 500; line-height: 1.4;
          width: 80mm; margin: 0 auto; padding: 10px; color: #000; }
-  .logo-wrap { display: flex; justify-content: center; margin-bottom: 6px; }
-  h1 { text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 3px; }
+  .logo-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
+  h1 { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 2px; line-height: 1.3; }
   .center { text-align: center; }
-  .sub { font-size: 13px; color: #333; text-align: center; margin-bottom: 3px; }
+  .sub { font-size: 12px; color: #555; text-align: center; margin-bottom: 2px; }
+  .shop-name { font-size: 14px; font-weight: 700; color: #111; text-align: center; margin-bottom: 2px; letter-spacing: 0.2px; }
+  .doc-type { font-size: 11px; color: #777; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
   hr { border: none; border-top: 1.5px dashed #444; margin: 7px 0; }
   .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; }
   .row span:first-child { font-weight: 600; }
@@ -295,7 +297,7 @@ export function buildReceiptHtml(
   ${addressLine}
   ${taxPhoneLine}
   ${shopLine}
-  <p class="sub">${lbl.subtitle}</p>
+  <p class="doc-type">${lbl.subtitle}</p>
   ${voidedSection}
   <hr/>
   <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
