@@ -21,8 +21,8 @@ import {
 } from "@/services/shop_product_service";
 import { checkout } from "@/services/pos_checkout_service";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { users, shops as shopsTable, shopProducts, productOrderHistory } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
 
 type SetLike = { status?: number | string };
 
