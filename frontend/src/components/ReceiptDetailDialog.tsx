@@ -22,7 +22,8 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
-import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
+import { printReceipt } from "@/lib/printReceipt";
+import type { ReceiptApi } from "@/lib/printReceipt";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,20 +100,6 @@ export interface ReceiptDetailData {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: "เงินสด",
-  credit_card: "บัตรเครดิต",
-  debit_card: "บัตรเดบิต",
-  wallet: "Wallet",
-  card_tap: "บัตรสมาชิก",
-  bank_transfer: "โอนเงิน",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
-  edc: "EDC",
-  department: "ตัดงบ",
-  other: "อื่นๆ",
-};
-
 function fmtDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString("th-TH", {
@@ -122,185 +109,6 @@ function fmtDate(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-const ISB_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="64" height="64">
-  <rect width="512" height="512" fill="#f3f4f6"/>
-  <polygon points="256,120 60,300 452,300" fill="#eacb46"/>
-  <polygon points="256,158 154,264 358,264" fill="#d4362a"/>
-  <polygon points="256,158 358,264 256,264" fill="#b6352a"/>
-  <text x="256" y="430" text-anchor="middle" font-family="Times New Roman,serif" font-size="190" fill="#111">ISB</text>
-</svg>`;
-
-const RECEIPT_LABELS = {
-  th: {
-    subtitle: "ใบเสร็จรับเงิน / Receipt",
-    receiptNo: "เลขที่",
-    date: "วันที่",
-    payer: "ผู้ชำระ",
-    payment: "ชำระด้วย",
-    itemDiscount: "ส่วนลด",
-    billDiscount: "ส่วนลดท้ายบิล",
-    tax: "ภาษี",
-    subtotal: "ยอดรวม",
-    grandTotal: "รวมสุทธิ",
-    voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
-    thanks: "ขอบคุณที่ใช้บริการ / Thank you",
-    taxId: "เลขภาษี",
-    tel: "โทร",
-    locale: "th-TH",
-  },
-  en: {
-    subtitle: "Receipt",
-    receiptNo: "Receipt No.",
-    date: "Date",
-    payer: "Payer",
-    payment: "Payment",
-    itemDiscount: "Discount",
-    billDiscount: "Bill Discount",
-    tax: "Tax",
-    subtotal: "Subtotal",
-    grandTotal: "Grand Total",
-    voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
-    thanks: "Thank you for your purchase",
-    taxId: "Tax ID",
-    tel: "Tel",
-    locale: "en-GB",
-  },
-};
-
-const PAYMENT_LABELS_EN: Record<string, string> = {
-  cash: "Cash",
-  wallet: "Wallet",
-  card_tap: "Member Card",
-  credit_card: "Credit Card",
-  debit_card: "Debit Card",
-  edc: "EDC",
-  bank_transfer: "Bank Transfer",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
-  department: "Budget Deduction",
-  other: "Other",
-};
-
-function buildReceiptHtml(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "en"): string {
-  const isEn = !lang.startsWith("th");
-  const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
-  const paymentLabel = isEn
-    ? (PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method)
-    : (PAYMENT_LABELS[r.payment_method] ?? r.payment_method);
-
-  const itemRows = r.items
-    .map((item) => {
-      const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
-      const isBundle = opts?.is_bundle === true;
-      const name = isBundle
-        ? (opts?.bundle_name ?? "Bundle")
-        : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
-      const optionLines =
-        !isBundle && opts?.groups
-          ? opts.groups
-              .flatMap((g: any) =>
-                g.options.map((o: any) => {
-                  const price = o.price_delta > 0 ? ` +฿${(o.price_delta * o.quantity).toLocaleString()}` : "";
-                  return `<div class="opt">+ ${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""}${price}</div>`;
-                }),
-              )
-              .join("")
-          : "";
-      const discountLine =
-        item.discount > 0
-          ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
-          : "";
-      return `<div class="row"><span>${name} ×${item.quantity}</span><span>฿${item.line_total.toLocaleString()}</span></div>${optionLines}${discountLine}`;
-    })
-    .join("");
-
-  const discountSection =
-    r.discount > 0 ? `<div class="row small"><span>${lbl.billDiscount}</span><span>-฿${r.discount.toLocaleString()}</span></div>` : "";
-  const taxSection =
-    r.tax > 0 ? `<div class="row small"><span>${lbl.tax}</span><span>฿${r.tax.toLocaleString()}</span></div>` : "";
-  const payerSection = r.payer_label
-    ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
-    : "";
-  const cashierSection = r.created_by_name
-    ? `<div class="row small"><span>${isEn ? "Cashier" : "ผู้ขาย"}</span><span>${r.created_by_name}</span></div>`
-    : "";
-  const voidedSection =
-    r.status !== "active" ? `<div class="voided">${lbl.voided}</div>` : "";
-  const shopLine = shopName ? `<p class="sub" style="font-weight:600;color:#111;">${shopName}</p>` : "";
-  const logoHtml = school.logoUrl ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />` : ISB_LOGO_SVG;
-  const addressLine = school.address ? `<p class="sub">${school.address}</p>` : "";
-  const taxPhoneLine =
-    school.taxId || school.phone
-      ? `<p class="sub">${school.taxId ? `${lbl.taxId}: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `${lbl.tel}: ${school.phone}` : ""}</p>`
-      : "";
-  const dateStr = new Date(r.transaction_date).toLocaleString(lbl.locale, { dateStyle: "short", timeStyle: "short" });
-
-  return `<!DOCTYPE html><html lang="${isEn ? "en" : "th"}"><head><meta charset="UTF-8"/>
-<title>Receipt ${r.receipt_number}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  /* Print legibility — match the inline size scheme in lib/printReceipt.ts.
-   * Thermal printheads bleed at thin strokes so we use 16px base + bolder
-   * amounts. */
-  body{font-family:'Sarabun','Arial',sans-serif;font-size:16px;font-weight:500;line-height:1.4;width:80mm;margin:0 auto;padding:10px;color:#000}
-  .logo-wrap{display:flex;justify-content:center;margin-bottom:6px}
-  h1{text-align:center;font-size:20px;font-weight:800;margin-bottom:3px}
-  .center{text-align:center}.sub{font-size:13px;color:#333;text-align:center;margin-bottom:3px}
-  hr{border:none;border-top:1.5px dashed #444;margin:7px 0}
-  .row{display:flex;justify-content:space-between;margin:4px 0;font-size:16px}
-  .row span:first-child{font-weight:600}
-  .row span:last-child{text-align:right;white-space:nowrap;padding-left:8px;font-weight:700}
-  .opt{padding-left:14px;font-size:14px;color:#333}.disc{color:#a00;font-size:15px;font-weight:600}
-  .small{font-size:14px;color:#222}.small span:last-child{font-weight:700}
-  .total{font-size:22px;font-weight:800;margin-top:5px}
-  .voided{text-align:center;color:#a00;font-weight:800;font-size:16px;margin:7px 0;border:2px solid #a00;padding:5px}
-  @media print{@page{margin:0;size:80mm auto}}
-</style></head><body>
-  <div class="logo-wrap">${logoHtml}</div>
-  <h1>${school.name}</h1>${addressLine}${taxPhoneLine}${shopLine}
-  <p class="sub">${lbl.subtitle}</p>${voidedSection}
-  <hr/>
-  <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
-  <div class="row small"><span>${lbl.date}</span><span>${dateStr}</span></div>
-  ${payerSection}
-  ${cashierSection}
-  <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
-  <hr/>${itemRows}<hr/>
-  <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
-  ${discountSection}${taxSection}
-  <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
-  ${r.payment_method.toLowerCase() === "cash" && r.cash_received != null ? `
-  <hr/>
-  <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
-  <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
-  <hr/><p class="center sub">${school.receiptFooter || lbl.thanks}</p>
-</body></html>`;
-}
-
-/** Open a popup, render the receipt HTML, fire window.print().
- *
- *  Behavior depends on how Chrome was launched on the cashier station:
- *    - With `--kiosk-printing`: prints silently to the default OS printer
- *      (no dialog) — used at POS stations wired to a receipt printer.
- *    - Without the flag (admin laptops, parent devices): browser opens the
- *      regular Print dialog so the user can Save as PDF or pick another
- *      printer. This is the "download" affordance too.
- *
- *  We expose two buttons (Print / Download) that both call this — the
- *  semantic difference is intent, not behavior. Same function keeps the
- *  receipt rendering in one place. */
-function printReceipt(r: ReceiptDetailData, school: SchoolInfo, shopName?: string | null, lang = "en"): void {
-  const win = window.open("", "_blank", "width=400,height=640");
-  if (!win) return;
-  win.document.write(buildReceiptHtml(r, school, shopName, lang));
-  win.document.close();
-  win.focus();
-  setTimeout(() => {
-    win.print();
-    win.close();
-  }, 300);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -566,14 +374,14 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               <Button
                 variant="default"
                 className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+                onClick={() => printReceipt(receipt as unknown as ReceiptApi, schoolInfo, user?.shopName, "en")}
               >
                 <Printer className="h-4 w-4 mr-2" />
                 {t("receipts.print", "Print")}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => printReceipt(receipt, schoolInfo, user?.shopName, i18n.language)}
+                onClick={() => printReceipt(receipt as unknown as ReceiptApi, schoolInfo, user?.shopName, "en")}
               >
                 <Download className="h-4 w-4 mr-2" />
                 {t("receipts.download", "Save PDF")}
