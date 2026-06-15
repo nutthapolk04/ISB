@@ -33,6 +33,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import { fmtDateTime } from "@/lib/dateFormat";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -196,14 +197,7 @@ export function VoidDialog({
           piece: t("store.pieces", "ชิ้น"),
         };
 
-    const voidedAtFormatted = new Date(voidResult.voidedAt).toLocaleString(locale, {
-      day: "2-digit",
-      month: "short",
-      year: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    const voidedAtFormatted = fmtDateTime(voidResult.voidedAt);
 
     const reasonLabel = t(`store.void.reasons.${voidResult.reason}`, voidResult.reason);
 
@@ -297,7 +291,7 @@ export function VoidDialog({
 
   <div class="divider"></div>
   <div class="center" style="font-size:10px;color:#555;margin-top:4px">
-    ${lbl.printedAt}: ${new Date().toLocaleString(locale)}<br/>
+    ${lbl.printedAt}: ${fmtDateTime(new Date())}<br/>
     ${lbl.internalOnly}
   </div>
 </body>
@@ -517,10 +511,7 @@ export function VoidDialog({
           <div className="flex justify-between px-4 py-2">
             <span className="text-muted-foreground">{t("store.void.auditVoidedAt")}</span>
             <span className="tabular-nums">
-              {new Date(voidResult.voidedAt).toLocaleString("th-TH", {
-                day: "2-digit", month: "short", year: "2-digit",
-                hour: "2-digit", minute: "2-digit",
-              })}
+              {fmtDateTime(voidResult.voidedAt)}
             </span>
           </div>
           <div className="flex justify-between px-4 py-2">

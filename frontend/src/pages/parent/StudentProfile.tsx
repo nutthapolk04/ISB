@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -134,11 +135,7 @@ export default function StudentProfile() {
 
   const formatLastAlert = (iso: string | null): string => {
     if (!iso) return t("parent.lowBalanceAlert.neverSent", "Never sent yet");
-    try {
-      return new Date(iso).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
-    } catch {
-      return iso;
-    }
+    return fmtDateTime(iso);
   };
 
   const toggleFreeze = async (frozen: boolean) => {

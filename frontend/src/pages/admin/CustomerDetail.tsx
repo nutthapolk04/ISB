@@ -77,11 +77,9 @@ interface ParentUser {
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
-const formatDate = (iso: string, lang: string) =>
-  new Date(iso).toLocaleString(lang === "th" ? "th-TH" : "en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+
+const formatDate = (iso: string, _lang: string) => fmtDateTimeShared(iso);
 
 export default function CustomerDetail() {
   const { t, i18n } = useTranslation();

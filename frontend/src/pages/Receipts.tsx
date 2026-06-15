@@ -106,13 +106,10 @@ interface ReceiptApi {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtDate(iso: string, locale: string = "th-TH"): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
-  } catch {
-    return iso;
-  }
+import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+
+function fmtDate(iso: string, _locale?: string): string {
+  return fmtDateTimeShared(iso);
 }
 
 function fmtDateOnly(iso: string): string {

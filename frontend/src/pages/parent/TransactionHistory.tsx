@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -48,9 +49,7 @@ export default function TransactionHistory() {
   const [dateTo, setDateTo] = useState("");
   const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
 
-  const locale = i18n.language === "en" ? "en-US" : "th-TH";
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
+  const formatDate = (iso: string) => fmtDateTime(iso);
 
   const txTypeLabel = (type: string): string => {
     const map: Record<string, string> = {

@@ -100,15 +100,10 @@ export interface ReceiptDetailData {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+import { fmtDateTime } from "@/lib/dateFormat";
+
 function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("th-TH", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return iso;
-  }
+  return fmtDateTime(iso);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

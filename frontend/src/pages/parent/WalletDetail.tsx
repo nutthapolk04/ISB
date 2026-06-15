@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -96,9 +97,7 @@ export default function WalletDetail() {
   const [gatewayOpen, setGatewayOpen] = useState(false);
   const [pendingAmt, setPendingAmt] = useState(0);
 
-  const locale = i18n.language === "en" ? "en-US" : "th-TH";
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
+  const formatDate = (iso: string) => fmtDateTime(iso);
 
   const amtNumber = parseFloat(amount) || 0;
   const fee = paymentMethod === "credit_card"

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { VoidDialog, type VoidCartItem } from "@/components/VoidDialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { api } from "@/lib/api";
+import { fmtDate } from "@/lib/dateFormat";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,10 +126,7 @@ const Void = () => {
     catch { return iso; }
   };
 
-  const formatDate = (iso: string) => {
-    try { return new Date(iso).toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" }); }
-    catch { return iso; }
-  };
+  const formatDate = (iso: string) => fmtDate(iso);
 
   // ── Loading ─────────────────────────────────────────────────────────────
   if (loading) {

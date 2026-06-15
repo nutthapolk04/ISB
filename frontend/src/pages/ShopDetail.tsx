@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import Inventory from "./Inventory";
 import Bundles from "./Bundles";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -545,9 +546,7 @@ const ShopDetail = () => {
                       auditLogs.map((log) => (
                         <TableRow key={log.id}>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {log.created_at
-                              ? new Date(log.created_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })
-                              : "-"}
+                            {log.created_at ? fmtDateTime(log.created_at) : "-"}
                           </TableCell>
                           <TableCell className="text-sm">
                             {log.user_full_name || log.user_username || "-"}

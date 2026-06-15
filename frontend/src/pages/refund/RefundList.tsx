@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useRefundCandidates, type RefundCandidate } from "@/hooks/useRefund";
+import { fmtDate } from "@/lib/dateFormat";
 import { RefundDialog } from "@/components/refund/RefundDialog";
 import { FamilyLookupCard } from "@/components/refund/FamilyLookupCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,10 +32,7 @@ import { cn } from "@/lib/utils";
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
-const formatDate = (iso: string | null): string => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
-};
+const formatDate = (iso: string | null): string => fmtDate(iso);
 
 interface FamilyGroup {
   familyCode: string | null; // null => "no family" bucket

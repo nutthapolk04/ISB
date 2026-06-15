@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -127,9 +128,7 @@ export default function CanteenMenuPage() {
                       auditLogs.map((log) => (
                         <TableRow key={log.id}>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {log.created_at
-                              ? new Date(log.created_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })
-                              : "-"}
+                            {log.created_at ? fmtDateTime(log.created_at) : "-"}
                           </TableCell>
                           <TableCell className="text-sm">
                             {log.user_full_name || log.user_username || "-"}

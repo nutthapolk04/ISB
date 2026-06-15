@@ -54,14 +54,9 @@ interface FamilyLookupCardProps {
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
-const formatDate = (iso: string | null): string => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("th-TH", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
+import { fmtDate } from "@/lib/dateFormat";
+
+const formatDate = (iso: string | null): string => fmtDate(iso);
 
 /** Map a FamilyMemberDetail (customer-typed) to the shared RefundCandidate
  * shape consumed by the existing RefundDialog. Returns null when the member

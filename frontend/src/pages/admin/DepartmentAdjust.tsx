@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -549,7 +550,7 @@ export default function DepartmentAdjust() {
                         return (
                           <TableRow key={tx.id}>
                             <TableCell className="text-xs whitespace-nowrap">
-                              {new Date(tx.created_at).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
+                              {fmtDateTime(tx.created_at)}
                             </TableCell>
                             <TableCell className="text-xs capitalize">{tx.transaction_type}</TableCell>
                             <TableCell className="text-xs max-w-xs truncate">{tx.description ?? "—"}</TableCell>

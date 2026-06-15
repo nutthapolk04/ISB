@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -925,7 +926,7 @@ export default function FamilyLinks() {
                                   <div className="min-w-0 flex-1">
                                     <p className="font-medium truncate">{tx.description || tx.transaction_type}</p>
                                     <p className="text-muted-foreground">
-                                      {new Date(tx.created_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}
+                                      {fmtDateTime(tx.created_at)}
                                       {tx.shop_name ? ` · ${tx.shop_name}` : ""}
                                     </p>
                                   </div>

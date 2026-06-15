@@ -2,6 +2,7 @@
 // Single source of truth for receipt HTML and the print trigger.
 
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
+import { fmtDateTime } from "@/lib/dateFormat";
 
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
@@ -173,10 +174,7 @@ export function buildReceiptHtml(
   const paymentLabel = isEn
     ? (PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method)
     : (PAYMENT_LABELS[r.payment_method] ?? r.payment_method);
-  const dateStr = new Date(r.transaction_date).toLocaleString(lbl.locale, {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  const dateStr = fmtDateTime(r.transaction_date);
 
   const itemRows = r.items.map((item) => {
     const bundleMeta =

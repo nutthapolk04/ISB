@@ -78,7 +78,7 @@ function monthStartStr() {
 
 function todayLabel() {
   return new Date().toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric", timeZone: TZ,
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ,
   });
 }
 

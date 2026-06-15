@@ -28,6 +28,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/components/ui/sonner";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -849,7 +850,7 @@ const Returns = () => {
     <tr><td class="meta">${lbl.origReceipt}</td><td style="text-align:right" class="meta">${result.receiptId}</td></tr>
     <tr><td class="meta">${lbl.purchaseDate}</td><td style="text-align:right" class="meta">${result.receiptDate}</td></tr>
     <tr><td class="meta">${lbl.payer}</td><td style="text-align:right" class="meta">${result.payerLabel || "—"}</td></tr>
-    <tr><td class="meta">${lbl.returnDate}</td><td style="text-align:right" class="meta">${new Date(result.returnedAt).toLocaleString(locale)}</td></tr>
+    <tr><td class="meta">${lbl.returnDate}</td><td style="text-align:right" class="meta">${fmtDateTime(result.returnedAt)}</td></tr>
     <tr><td class="meta">${lbl.reason}</td><td style="text-align:right" class="meta">${result.reason || "—"}</td></tr>
   </table>
   <hr class="divider"/>
@@ -1660,10 +1661,7 @@ const Returns = () => {
                 {displayedReceipts.map((r) => (
                   <TableRow key={r.id} className={r.status === "voided" ? "opacity-50" : ""}>
                     <TableCell className="text-sm tabular-nums text-muted-foreground whitespace-nowrap">
-                      {new Date(r.transaction_date).toLocaleString("th-TH", {
-                        day: "2-digit", month: "2-digit", year: "2-digit",
-                        hour: "2-digit", minute: "2-digit",
-                      })}
+                      {fmtDateTime(r.transaction_date)}
                     </TableCell>
                     <TableCell className="font-mono font-medium">{r.receipt_number}</TableCell>
                     <TableCell className="text-sm">{r.payer_label ?? "—"}</TableCell>
@@ -2406,7 +2404,7 @@ const Returns = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>{t("returns.returnDate", "Return date")}</span>
-                  <span>{new Date(returnResult.returnedAt).toLocaleString(i18n.language === "th" ? "th-TH" : "en-US")}</span>
+                  <span>{fmtDateTime(returnResult.returnedAt)}</span>
                 </div>
               </div>
             </div>

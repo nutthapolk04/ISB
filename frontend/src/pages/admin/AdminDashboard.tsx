@@ -110,22 +110,22 @@ const formatTHB = (n: number) =>
 
 const todayIso = () => format(new Date(), "yyyy-MM-dd");
 
-const formatDateLong = (d: Date, lang: string) =>
-  d.toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", {
+const formatDateLong = (d: Date, _lang: string) =>
+  d.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-const formatDateRangeLabel = (from: string, to: string, lang: string): string => {
+const formatDateRangeLabel = (from: string, to: string, _lang: string): string => {
   if (!from || !to) return "—";
   const f = new Date(from);
   const tt = new Date(to);
   const fmt = (d: Date) =>
-    d.toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", {
+    d.toLocaleDateString("en-GB", {
       day: "2-digit",
-      month: "short",
+      month: "2-digit",
       year: "numeric",
     });
   if (from === to) return fmt(f);
