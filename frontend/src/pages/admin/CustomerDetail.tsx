@@ -417,7 +417,7 @@ export default function CustomerDetail() {
         description: resp.message,
       });
       setGradDialogOpen(false);
-      navigate("/admin/wallet-adjust");
+      navigate(-1);
     } catch (e) {
       toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
     } finally {
@@ -438,7 +438,7 @@ export default function CustomerDetail() {
     <div className="page-shell">
       <div className="space-y-4 sm:space-y-6">
       <Button asChild variant="ghost" size="sm" className="w-fit">
-        <Link to="/admin/wallet-adjust"><ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.customer.back")}</Link>
+        <Link to="#" onClick={(e) => { e.preventDefault(); navigate(-1); }}><ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.customer.back")}</Link>
       </Button>
 
       {/* Header card */}
