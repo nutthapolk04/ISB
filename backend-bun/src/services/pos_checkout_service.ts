@@ -29,6 +29,10 @@ const ALLOWED_PAYMENT_METHODS = new Set([
   "EDC",
   "DEPARTMENT",
   "OTHER",
+  // QR PromptPay via BAY (POS sale). Stored as a distinct enum value so
+  // reports can split QR receipts out from the legacy "OTHER" bucket that
+  // covered the old fake-QR flow.
+  "QR_PROMPTPAY",
 ]);
 
 export interface SelectedOptionInput {

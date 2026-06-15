@@ -41,6 +41,13 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `CREATE INDEX IF NOT EXISTS ix_payment_intents_intent_type ON payment_intents(intent_type)`,
     label: "payment_intents idx intent_type",
   },
+  // ── BAY POS QR introduces 'QR_PROMPTPAY' as a paymentmethod enum value
+  // so we can split it from the legacy 'OTHER' bucket in reports.
+  // ALTER TYPE ... ADD VALUE IF NOT EXISTS requires Postgres 12+.
+  {
+    sql: `ALTER TYPE paymentmethod ADD VALUE IF NOT EXISTS 'QR_PROMPTPAY'`,
+    label: "paymentmethod += QR_PROMPTPAY",
+  },
   // ── Graduation Refund (mirrors FastAPI _ensure_runtime_schema) ──
   {
     sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)`,
