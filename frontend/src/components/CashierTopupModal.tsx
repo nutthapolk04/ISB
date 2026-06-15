@@ -333,7 +333,7 @@ export function CashierTopupModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-emerald-500" />
-            {t("topup.title", "Cash Top-up")}
+            {t("topup.title", "Top-up")}
             {step === "qr" && (
               <Badge variant="secondary" className="ml-1">
                 {t("topup.methodBayQr", "BAY PromptPay QR")}
