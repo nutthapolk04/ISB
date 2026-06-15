@@ -317,18 +317,37 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     return columns.map((c) => formatCell(row[c.key], c.format));
   });
 
-  let foot: string[][] | undefined;
+  let foot: AutoTableCell[][] | undefined;
   if (totals) {
-    // Build the TOTAL row — first column gets "TOTAL" label unless caller
-    // already supplied one, then each subsequent column reads its key.
-    const row = columns.map((c, i) => {
+    // Build the TOTAL row.
+    //
+    // The label "TOTAL" used to live in column 0 (often "Seq", which is
+    // narrow), so it line-broke to "TOTA L". Instead, merge every leading
+    // text column with no total value into one wide right-aligned cell so
+    // the label has room to breathe — then start emitting numeric totals
+    // from the first column that actually has a value.
+    const firstTotalIdx = columns.findIndex((c) => totals[c.key] !== undefined);
+    const labelSpan = firstTotalIdx > 0 ? firstTotalIdx : 1;
+
+    const cells: AutoTableCell[] = [
+      {
+        content: "TOTAL",
+        colSpan: labelSpan,
+        styles: { halign: "right", fontStyle: "bold" },
+      },
+    ];
+    for (let i = labelSpan; i < columns.length; i += 1) {
+      const c = columns[i];
       const explicit = totals[c.key];
       if (explicit !== undefined) {
-        return typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit);
+        cells.push(
+          typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit),
+        );
+      } else {
+        cells.push("");
       }
-      return i === 0 ? "TOTAL" : "";
-    });
-    foot = [row];
+    }
+    foot = [cells];
   }
 
   // Auto-size font when there are many columns so we stop wrapping headers
