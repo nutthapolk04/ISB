@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useRefundCandidates, type RefundCandidate } from "@/hooks/useRefund";
 import { RefundDialog } from "@/components/refund/RefundDialog";
+import { FamilyLookupCard } from "@/components/refund/FamilyLookupCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,10 @@ export default function RefundList() {
           </Badge>
         )}
       </div>
+
+      {/* Pre-refund family lookup — works even when no candidates are loaded
+          (e.g. while waiting for PowerSchool sync). */}
+      <FamilyLookupCard onRefundClick={setSelectedCandidate} />
 
       {/* Search + filter */}
       <Card className="mb-4">

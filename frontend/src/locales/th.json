@@ -3017,6 +3017,50 @@
     "confirm": {
       "title": "ยืนยันการคืนเงิน",
       "message": "ระบบจะหักเงินจำนวน {amount} บาท จาก Wallet ของ {name}. การดำเนินการนี้ไม่สามารถยกเลิกได้"
+    },
+    "familyLookup": {
+      "title": "ค้นหาครอบครัว",
+      "subtitle": "ตรวจสอบครอบครัวก่อนทำการคืนเงิน — ค้นหาจากรหัสครอบครัว ชื่อ/รหัสนักเรียน หรือ username/อีเมลของผู้ปกครอง",
+      "searchLabel": "ค้นหา",
+      "searchPlaceholder": "รหัสครอบครัว ชื่อนักเรียน รหัส username หรืออีเมลผู้ปกครอง",
+      "clear": "ล้าง",
+      "searching": "กำลังค้นหา…",
+      "noMatches": "ไม่พบครอบครัวที่ตรงกับคำค้น",
+      "status": {
+        "active": "กำลังเรียน",
+        "graduated": "จบการศึกษา",
+        "withdrawn": "ถอนออก",
+        "inactive": "ไม่ใช้งาน",
+        "parent": "ผู้ปกครอง / เจ้าหน้าที่"
+      },
+      "match": {
+        "members": "สมาชิก",
+        "graduated": "จบแล้ว"
+      },
+      "roster": {
+        "familyLabel": "ครอบครัว",
+        "total": "รวม",
+        "activeCount": "กำลังเรียน",
+        "graduatedCount": "จบการศึกษา",
+        "withdrawnCount": "ถอนออก / ไม่ใช้งาน",
+        "totalBalance": "ยอดรวม",
+        "error": "โหลดรายชื่อสมาชิกในครอบครัวไม่สำเร็จ",
+        "empty": "ครอบครัวนี้ไม่มีสมาชิก"
+      },
+      "col": {
+        "name": "ชื่อ",
+        "identifier": "รหัส",
+        "status": "สถานะ",
+        "dates": "วันลงทะเบียน / ถอนออก",
+        "balance": "Wallet",
+        "actions": "การกระทำ"
+      },
+      "action": {
+        "refund": "คืนเงิน",
+        "notRefundable": "—",
+        "noWallet": "ไม่มี Wallet",
+        "zeroBalance": "ยอดเป็น 0"
+      }
     }
   }
 }

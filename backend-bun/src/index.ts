@@ -51,6 +51,7 @@ import { listUoms, getUom, createUom, updateUom, deleteUom, seedDefaultUoms } fr
 import { listPanels, createPanel, updatePanel, deletePanel, getPanelItems, setItemPrice, setBundleItemPrice } from "@/services/price_panel_service";
 import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createReturn, createReturnWithoutReceipt, updateReturn, deleteReturn, processRefund, processExchange, searchReceipts, getExchangeProducts } from "@/services/returns_service";
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
+import { searchRefundFamilies, getRefundFamilyRoster } from "@/services/refund_family_service";
 import { buildTemplate, importProducts, importStockReceive, importStore } from "@/services/admin_import_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import {
@@ -1875,6 +1876,45 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       try { return await listRefundCandidates(); }
       catch (e) { return handle(set)(e); }
     },
+  )
+  // Pre-refund family search — by famcode / student / parent identifiers.
+  // Returns top-N family headers so the refund officer can pick a family
+  // before drilling into the full roster.
+  .get(
+    "/refund/family-search",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "refund_officer")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        const q = query.q ?? "";
+        const limit = query.limit ? Number(query.limit) : 10;
+        const items = await searchRefundFamilies(q, limit);
+        return { query: q, items };
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      query: t.Object({
+        q: t.String({ minLength: 2, maxLength: 100 }),
+        limit: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+  // Full family roster — every member of `family_code`, including inactive,
+  // withdrawn, and graduated entries, with a read-only wallet snapshot. Used
+  // for pre-refund verification.
+  .get(
+    "/refund/family/:family_code",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "refund_officer")) { set.status = 403; return { detail: "Forbidden" }; }
+      try {
+        const roster = await getRefundFamilyRoster(params.family_code);
+        if (!roster) {
+          set.status = 404;
+          return { detail: `No members found for family_code '${params.family_code}'` };
+        }
+        return roster;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ family_code: t.String({ minLength: 1, maxLength: 20 }) }) },
   )
   .post(
     "/refund/:customer_id",

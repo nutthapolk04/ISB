@@ -3019,6 +3019,50 @@
     "confirm": {
       "title": "Confirm refund",
       "message": "This will deduct {amount} THB from {name}'s wallet. This action cannot be undone."
+    },
+    "familyLookup": {
+      "title": "Family Lookup",
+      "subtitle": "Verify a family before issuing a refund — search by family code, student name/code, or parent username/email.",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Family code, student name, code, parent username or email",
+      "clear": "Clear",
+      "searching": "Searching…",
+      "noMatches": "No families match this query.",
+      "status": {
+        "active": "Active",
+        "graduated": "Graduated",
+        "withdrawn": "Withdrawn",
+        "inactive": "Inactive",
+        "parent": "Parent / Staff"
+      },
+      "match": {
+        "members": "Members",
+        "graduated": "Grad"
+      },
+      "roster": {
+        "familyLabel": "Family",
+        "total": "Total",
+        "activeCount": "Active",
+        "graduatedCount": "Graduated",
+        "withdrawnCount": "Withdrawn / inactive",
+        "totalBalance": "Total balance",
+        "error": "Failed to load family roster.",
+        "empty": "This family has no members."
+      },
+      "col": {
+        "name": "Name",
+        "identifier": "Identifier",
+        "status": "Status",
+        "dates": "Enroll / Withdraw",
+        "balance": "Wallet",
+        "actions": "Actions"
+      },
+      "action": {
+        "refund": "Refund",
+        "notRefundable": "—",
+        "noWallet": "No wallet",
+        "zeroBalance": "Zero balance"
+      }
     }
   }
 }
