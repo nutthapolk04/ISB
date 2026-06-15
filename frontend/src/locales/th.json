@@ -658,7 +658,16 @@
       "colRunning": "ยอดคงเหลือสะสม",
       "colReference": "อ้างอิง",
       "colNotes": "หมายเหตุ",
-      "noMovements": "ไม่มีรายการเคลื่อนไหวในช่วงนี้"
+      "noMovements": "ไม่มีรายการเคลื่อนไหวในช่วงนี้",
+      "productSearch": "สินค้า",
+      "productSearchPlaceholder": "ค้นหาด้วยรหัส ชื่อ หรือบาร์โค้ด",
+      "category": "หมวดหมู่",
+      "allCategories": "ทุกหมวดหมู่",
+      "showEmpty": "แสดงสินค้าที่ไม่มีการเคลื่อนไหว",
+      "showEmptyHint": "รวมสินค้าที่ไม่มียอดขายและยอดยกมาเป็นศูนย์",
+      "filterProductSearch": "ค้นหา",
+      "filterCategory": "หมวดหมู่",
+      "filterIncludeEmpty": "รวมสินค้าที่ไม่มีการเคลื่อนไหว"
     },
     "colPaymentMethod": "วิธีชำระเงิน",
     "colReceiptCount": "จำนวนใบเสร็จ",

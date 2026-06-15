@@ -613,6 +613,15 @@ def stock_card_report(
     date_to: date = Query(...),
     shop_id: Optional[str] = Query(None),
     product_variant_id: Optional[int] = Query(None),
+    product_search: Optional[str] = Query(
+        None,
+        description="Case-insensitive substring on product code, name, or barcode",
+    ),
+    category: Optional[str] = Query(None, description="ShopProduct.category exact match"),
+    include_empty: bool = Query(
+        False,
+        description="Include products with no movement and zero opening balance",
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -622,6 +631,10 @@ def stock_card_report(
       - product_variant_id set → returns one block for that SKU only.
       - shop_id set → returns one block per active product in the shop that
         has any movement OR a non-zero opening balance during the range.
+
+    Multi-product mode supports text search on code/name/barcode and exact
+    category match. Pass include_empty=true to keep products that had no
+    movement and zero opening balance (default: hidden so reports stay compact).
 
     ShopMovement is the live audit table written by checkout, void, returns,
     and inventory adjustments.
@@ -646,18 +659,27 @@ def stock_card_report(
                 status.HTTP_400_BAD_REQUEST,
                 detail="shop_id is required when product_variant_id is not provided",
             )
-        target_products = (
+        q = (
             db.query(ShopProduct)
             .filter(ShopProduct.shop_id == scoped_shop_id, ShopProduct.is_active == True)  # noqa: E712
-            .order_by(ShopProduct.product_code, ShopProduct.id)
-            .all()
         )
+        if product_search:
+            term = f"%{product_search.strip().lower()}%"
+            q = q.filter(
+                (ShopProduct.name.ilike(term))
+                | (ShopProduct.product_code.ilike(term))
+                | (ShopProduct.barcode.ilike(term))
+            )
+        if category:
+            q = q.filter(ShopProduct.category == category)
+        target_products = q.order_by(ShopProduct.product_code, ShopProduct.id).all()
         effective_shop_id = scoped_shop_id
 
     blocks = [_build_product_block(db, p, date_from, date_to) for p in target_products]
     # When listing the whole shop, hide rows that are completely empty in the
     # range (no movement and zero opening balance) so the report stays compact.
-    if product_variant_id is None:
+    # Caller can pass include_empty=true to bypass this for audit purposes.
+    if product_variant_id is None and not include_empty:
         blocks = [
             b
             for b in blocks

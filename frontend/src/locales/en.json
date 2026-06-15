@@ -658,7 +658,16 @@
       "colRunning": "Running Balance",
       "colReference": "Reference",
       "colNotes": "Notes",
-      "noMovements": "No movements in this period"
+      "noMovements": "No movements in this period",
+      "productSearch": "Product",
+      "productSearchPlaceholder": "Search by code, name, or barcode",
+      "category": "Category",
+      "allCategories": "All categories",
+      "showEmpty": "Show products with no movement",
+      "showEmptyHint": "Include items that had no sales and zero opening balance",
+      "filterProductSearch": "Search",
+      "filterCategory": "Category",
+      "filterIncludeEmpty": "Includes empty products"
     },
     "colPaymentMethod": "Payment Method",
     "colReceiptCount": "Receipt Count",

@@ -354,11 +354,14 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     startY: cursorY,
     margin: { left: marginX, right: marginX },
     tableWidth: usableWidth,
+    theme: "grid",
     styles: {
       font: fontFamily,
       fontSize: tableFontSize,
       cellPadding: tableCellPadding,
       overflow: "linebreak",
+      lineColor: [150, 150, 150],
+      lineWidth: 0.4,
     },
     headStyles: {
       font: fontFamily,
@@ -369,8 +372,17 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
       // half-point so the columns don't all collapse into 1-char width.
       fontSize: tableFontSize + 0.5,
       cellPadding: tableCellPadding,
+      lineColor: [150, 150, 150],
+      lineWidth: 0.4,
     },
-    footStyles: { font: fontFamily, fillColor: [241, 245, 249], textColor: 30, fontStyle: "bold" },
+    footStyles: {
+      font: fontFamily,
+      fillColor: [241, 245, 249],
+      textColor: 30,
+      fontStyle: "bold",
+      lineColor: [150, 150, 150],
+      lineWidth: 0.4,
+    },
     columnStyles: Object.fromEntries(
       columns.map((c, i) => [
         i,

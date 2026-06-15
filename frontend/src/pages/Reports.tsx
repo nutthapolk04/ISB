@@ -266,15 +266,42 @@ const Reports = () => {
   const [stockCardShopId, setStockCardShopId] = useState<string>("");
   const [stockCardFrom, setStockCardFrom] = useState("");
   const [stockCardTo, setStockCardTo] = useState("");
+  const [stockCardProductSearch, setStockCardProductSearch] = useState("");
+  const [stockCardCategory, setStockCardCategory] = useState<string>("all");
+  const [stockCardIncludeEmpty, setStockCardIncludeEmpty] = useState(false);
   const [stockCardLoading, setStockCardLoading] = useState(false);
   const [stockCardData, setStockCardData] = useState<StockCardReportData | null>(null);
   const [stockCardShops, setStockCardShops] = useState<ShopOption[]>([]);
+  const [stockCardCategories, setStockCardCategories] = useState<string[]>([]);
 
   // Admin needs a shop dropdown — fetch active shops once.
   useEffect(() => {
     if (user?.role !== "admin") return;
     api.get<ShopOption[]>("/shops/?active_only=true").then(setStockCardShops).catch(() => {});
   }, [user?.role]);
+
+  // Fetch distinct category names for the current shop so the dropdown shows
+  // only categories that actually have products. Resets when the shop
+  // changes; admins switch shops, manager/cashier are pinned to theirs.
+  useEffect(() => {
+    const shopForCats = user?.role === "admin" ? stockCardShopId : user?.shopId ?? "";
+    if (!shopForCats) {
+      setStockCardCategories([]);
+      setStockCardCategory("all");
+      return;
+    }
+    api
+      .get<{ category: string }[] | string[]>(`/shops/${shopForCats}/products?include_inactive=false`)
+      .then((products) => {
+        const names = new Set<string>();
+        for (const p of products as Array<{ category?: string }>) {
+          if (p?.category) names.add(p.category);
+        }
+        setStockCardCategories([...names].sort());
+      })
+      .catch(() => setStockCardCategories([]));
+    setStockCardCategory("all");
+  }, [stockCardShopId, user?.role, user?.shopId]);
 
   // ── Sales Summary state ─────────────────────────────────────────────────
   // Every filter is optional. Strings start empty (untouched), dropdown
@@ -341,6 +368,12 @@ const Reports = () => {
         date_from: stockCardFrom,
         date_to: stockCardTo,
       });
+      const trimmedSearch = stockCardProductSearch.trim();
+      if (trimmedSearch) params.set("product_search", trimmedSearch);
+      if (stockCardCategory && stockCardCategory !== "all") {
+        params.set("category", stockCardCategory);
+      }
+      if (stockCardIncludeEmpty) params.set("include_empty", "true");
       const data = await api.get<StockCardReportData>(
         `/reports/stock-card?${params.toString()}`,
       );
@@ -417,16 +450,24 @@ const Reports = () => {
       });
     }
 
+    const filterLines: string[] = [
+      `Shop: ${shop_name ?? stockCardData.shop_id ?? "-"}`,
+    ];
+    const trimmedSearch = stockCardProductSearch.trim();
+    if (trimmedSearch) filterLines.push(`Search: ${trimmedSearch}`);
+    if (stockCardCategory && stockCardCategory !== "all") {
+      filterLines.push(`Category: ${stockCardCategory}`);
+    }
+    if (stockCardIncludeEmpty) filterLines.push("Includes empty products");
+    filterLines.push(`User ID: ${user?.username ?? user?.fullName ?? "-"}`);
+    filterLines.push(`Print Date: ${new Date().toLocaleString("en-GB")}`);
+
     return {
       meta: {
         title: `Stockcard Report From ${date_from} To ${date_to}`,
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
-        filters: [
-          `Shop: ${shop_name ?? stockCardData.shop_id ?? "-"}`,
-          `User ID: ${user?.username ?? user?.fullName ?? "-"}`,
-          `Print Date: ${new Date().toLocaleString("en-GB")}`,
-        ],
+        filters: filterLines,
       },
       columns,
       rows: body,
@@ -880,6 +921,64 @@ const Reports = () => {
                     onStartChange={setStockCardFrom}
                     onEndChange={setStockCardTo}
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="scProductSearch">
+                    {t("reports.stockCard.productSearch", "Product")}
+                  </Label>
+                  <Input
+                    id="scProductSearch"
+                    value={stockCardProductSearch}
+                    onChange={(e) => setStockCardProductSearch(e.target.value)}
+                    placeholder={t(
+                      "reports.stockCard.productSearchPlaceholder",
+                      "Search by code, name, or barcode",
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scCategory">
+                    {t("reports.stockCard.category", "Category")}
+                  </Label>
+                  <Select value={stockCardCategory} onValueChange={setStockCardCategory}>
+                    <SelectTrigger id="scCategory">
+                      <SelectValue
+                        placeholder={t("reports.stockCard.allCategories", "All categories")}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        {t("reports.stockCard.allCategories", "All categories")}
+                      </SelectItem>
+                      {stockCardCategories.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scIncludeEmpty">
+                    {t("reports.stockCard.showEmpty", "Show products with no movement")}
+                  </Label>
+                  <div className="flex items-center h-10 gap-2">
+                    <input
+                      id="scIncludeEmpty"
+                      type="checkbox"
+                      checked={stockCardIncludeEmpty}
+                      onChange={(e) => setStockCardIncludeEmpty(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {t(
+                        "reports.stockCard.showEmptyHint",
+                        "Include items that had no sales and zero opening balance",
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
