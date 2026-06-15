@@ -280,7 +280,16 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   }
 
   // ─── Table ────────────────────────────────────────────────────────────
-  const head = [columns.map((c) => c.header)];
+  // Header cells are explicit objects so we can center-align them
+  // independently of the body column alignment (which stays right-aligned
+  // for numeric and left-aligned for text). columnStyles.halign normally
+  // wins over headStyles.halign, so we declare the override per-cell.
+  const head = [
+    columns.map((c) => ({
+      content: c.header,
+      styles: { halign: "center" as const },
+    })),
+  ];
   // Rows are either plain arrays of cell strings OR — for section markers —
   // a single merged cell that spans every column. autoTable accepts both
   // shapes inside the same body array.
