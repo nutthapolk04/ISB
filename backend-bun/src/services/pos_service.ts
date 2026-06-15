@@ -521,7 +521,7 @@ export async function voidReceipt(args: {
       INSERT INTO audit_logs (entity_type, entity_id, entity_name, shop_id, action, user_id, changes_json)
       VALUES ('receipt', ${receiptId}, ${receipt.receiptNumber}, ${receipt.shopId}, 'VOID',
               ${callerId},
-              ${sqlTx.json({ reason, total: pgNumber(receipt.total) ?? 0, products: voidLines })})
+              ${JSON.stringify({ reason, total: pgNumber(receipt.total) ?? 0, products: voidLines })}::jsonb)
     `;
   });
 

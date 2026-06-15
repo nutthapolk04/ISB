@@ -392,7 +392,7 @@ export async function deleteShopProduct(
     await sqlTx`
       INSERT INTO audit_logs (entity_type, entity_id, entity_name, shop_id, action, user_id, changes_json)
       VALUES ('shop_product', ${productId}, ${product.name}, ${shopId}, 'DELETE',
-              ${Number(caller.sub)}, ${sqlTx.json({ snapshot })})
+              ${Number(caller.sub)}, ${JSON.stringify({ snapshot })}::jsonb)
     `;
   });
 }

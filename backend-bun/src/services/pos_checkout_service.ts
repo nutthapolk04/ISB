@@ -625,7 +625,7 @@ export async function checkout(input: CheckoutInput) {
            discount, line_total, options)
         VALUES (${receiptId}, ${ri.product_variant_id}, ${ri.quantity}, ${ri.unit_price},
                 ${ri.price_override}, ${ri.discount}, ${ri.line_total},
-                ${ri.options !== null ? sqlTx.json(ri.options) : null})
+                ${ri.options !== null ? JSON.stringify(ri.options) : null}::jsonb)
       `;
     }
 
@@ -646,12 +646,12 @@ export async function checkout(input: CheckoutInput) {
         (entity_type, entity_id, entity_name, shop_id, action, user_id, changes_json)
       VALUES ('receipt', ${receiptId}, ${receiptNumber}, ${effectiveShopId}, 'CREATE',
               ${input.userId},
-              ${sqlTx.json({
+              ${JSON.stringify({
                 payment_method: paymentMethod.toLowerCase(),
                 total,
                 items: prepared.length,
                 products: auditLines,
-              })})
+              })}::jsonb)
     `;
 
     return receiptId;

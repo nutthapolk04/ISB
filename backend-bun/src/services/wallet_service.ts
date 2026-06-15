@@ -373,12 +373,12 @@ export async function adjustBalance(args: {
       INSERT INTO audit_logs (entity_type, entity_id, entity_name, shop_id, action, user_id, changes_json)
       VALUES ('wallet', ${walletId}, ${"wallet#" + walletId}, NULL, 'UPDATE',
               ${adminUserId},
-              ${sqlTx.json({
+              ${JSON.stringify({
                 reason,
                 amount,
                 balance_before: balanceBefore,
                 balance_after: balanceAfter,
-              })})
+              })}::jsonb)
     `;
     return txRows[0];
   });
