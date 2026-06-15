@@ -600,6 +600,10 @@ export async function buildTemplate(shopId: string): Promise<Response> {
       // Row 3: catalog-only — no stock receive this time.
       ["ดินสอ HB กล่อง 12 แท่ง", "BK001003", 60, 35, "เครื่องเขียน", "กล่อง", sampleShopId,
        null, null, null, null],
+      // Row 4: stock-only top-up — leave product columns blank, fill barcode
+      // of an EXISTING product + quantity to receive more stock into it.
+      [null, "BK001001", null, null, null, null, sampleShopId,
+       20, 65, "เติมสต็อกล็อตใหม่", "PO-2026-003"],
     ];
   }
 
