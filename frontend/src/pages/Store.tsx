@@ -2090,6 +2090,18 @@ const Store = () => {
           });
           setSuccessOpen(true);
         }}
+        onIntentReady={(info) => {
+          if (info) {
+            display.qr({
+              items: buildDisplayItems(),
+              total,
+              qrPayload: info.qrPayload,
+              expiresAt: null,
+            });
+          } else {
+            display.standby();
+          }
+        }}
       />
 
       {/* Department */}

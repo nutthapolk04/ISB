@@ -23,6 +23,14 @@ interface QrPaymentModalProps {
   onPaid: (info: { refCode: string; receiptId: number | null; receiptNumber: string | null }) => void;
   /** Used to build the intent — the parent owns the cart shape. */
   buildCartPayload: () => Record<string, unknown>;
+  /**
+   * Called the moment the BAY intent comes back with a real qr_payload
+   * (or fails). Parent uses this to push the same QR onto the second
+   * monitor / customer display so the customer can scan it without
+   * leaning over the cashier's shoulder. Receives null when the modal
+   * is closing / cancelled.
+   */
+  onIntentReady?: (info: { qrPayload: string; refCode: string } | null) => void;
 }
 
 interface PosQrIntent {
@@ -50,6 +58,7 @@ export function QrPaymentModal({
   onBack,
   onPaid,
   buildCartPayload,
+  onIntentReady,
 }: QrPaymentModalProps) {
   const [phase, setPhase] = useState<Phase>("creating");
   const [intent, setIntent] = useState<PosQrIntent | null>(null);
@@ -72,10 +81,13 @@ export function QrPaymentModal({
   useEffect(() => {
     if (!open) {
       // Reset state when modal closes — next open starts fresh.
+      // Also clear the customer display so it doesn't keep showing a
+      // stale QR after the cashier cancels or the payment completes.
       cancelledRef.current = true;
       setIntent(null);
       setError("");
       setPhase("creating");
+      onIntentReadyRef.current?.(null);
       return;
     }
     cancelledRef.current = false;
@@ -90,10 +102,19 @@ export function QrPaymentModal({
         if (cancelledRef.current) return;
         setIntent(created);
         setPhase("waiting");
+        // Push the real BAY QR to the customer-facing screen so the
+        // customer can scan without leaning over the cashier.
+        if (created.qr_payload) {
+          onIntentReadyRef.current?.({
+            qrPayload: created.qr_payload,
+            refCode: created.ref_code,
+          });
+        }
       } catch (e) {
         if (cancelledRef.current) return;
         setError(e instanceof ApiError ? e.detail : "Could not generate QR code");
         setPhase("failed");
+        onIntentReadyRef.current?.(null);
       }
     };
     void createIntent();
@@ -104,6 +125,8 @@ export function QrPaymentModal({
   // polling effect doesn't reset every time the parent re-renders.
   const onPaidRef = useRef(onPaid);
   onPaidRef.current = onPaid;
+  const onIntentReadyRef = useRef(onIntentReady);
+  onIntentReadyRef.current = onIntentReady;
 
   // Poll status while the intent is alive.
   useEffect(() => {

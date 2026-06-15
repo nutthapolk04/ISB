@@ -1365,6 +1365,21 @@ export default function Canteen() {
           });
           finalizeSuccess(receiptNumber, cart.total, null, null, undefined);
         }}
+        onIntentReady={(info) => {
+          // Push the BAY QR onto the customer-facing screen the moment
+          // the gateway returns it. Pass null to clear the screen back
+          // to standby when the modal closes/cancels.
+          if (info) {
+            display.qr({
+              items: buildDisplayItems(),
+              total: cart.total,
+              qrPayload: info.qrPayload,
+              expiresAt: null,
+            });
+          } else {
+            display.standby();
+          }
+        }}
       />
       <DepartmentPaymentModal
         open={deptOpen}
