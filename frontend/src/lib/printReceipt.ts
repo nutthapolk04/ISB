@@ -228,12 +228,13 @@ export function buildReceiptHtml(
     : "";
 
   const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;
+  const isWalletPayment = r.payment_method.toLowerCase() === "wallet";
   const balanceBeforeSection =
-    r.payment_method === "wallet" && walletBalanceAfter !== null
+    isWalletPayment && walletBalanceAfter !== null
       ? `<div class="row small"><span>${lbl.balanceBefore}</span><span>฿${(walletBalanceAfter + r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
       : "";
   const balanceAfterSection =
-    r.payment_method === "wallet" && walletBalanceAfter !== null
+    isWalletPayment && walletBalanceAfter !== null
       ? `<div class="row balance-after"><span>${lbl.balanceAfter}</span><span>฿${walletBalanceAfter.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
       : "";
 
