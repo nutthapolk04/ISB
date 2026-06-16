@@ -312,6 +312,11 @@ function conflict(msg: string): never {
 }
 
 async function ensureCustomerTypeId(typeName: "INTERNAL" | "PUBLIC"): Promise<number> {
+  // The customer_types.type_name column is the customertypeenum which only
+  // accepts UPPERCASE values (PUBLIC, INTERNAL). The earlier "Internal" /
+  // "Public" literals here are a leftover from the SQLAlchemy enum which
+  // stored the Python name. Sending Title-case here trips the pg enum
+  // check and the error bubbles up as the cryptic "Failed query" toast.
   const rows = await db.select().from(customerTypes).where(eq(customerTypes.typeName, typeName)).limit(1);
   if (rows[0]) return rows[0].id;
   const priceLevel = typeName === "INTERNAL" ? "internal" : "retail";

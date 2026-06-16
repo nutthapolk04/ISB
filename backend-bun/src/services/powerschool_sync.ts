@@ -154,10 +154,11 @@ async function emitAudit(args: {
 // ── Internal CustomerType ─────────────────────────────────────────────────
 
 async function getInternalTypeId(): Promise<number> {
-  const rows = await db.select().from(customerTypes).where(eq(customerTypes.typeName, "Internal")).limit(1);
+  // pg enum value is UPPERCASE — "Internal" would fail the enum check.
+  const rows = await db.select().from(customerTypes).where(eq(customerTypes.typeName, "INTERNAL")).limit(1);
   if (rows[0]) return rows[0].id;
   const [created] = await db.insert(customerTypes).values({
-    typeName: "Internal",
+    typeName: "INTERNAL",
     description: "Student/staff internal customer",
     defaultPriceLevel: "internal",
   }).returning();

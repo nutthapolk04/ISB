@@ -48,6 +48,46 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `ALTER TYPE paymentmethod ADD VALUE IF NOT EXISTS 'QR_PROMPTPAY'`,
     label: "paymentmethod += QR_PROMPTPAY",
   },
+  // ── customer_types: table + enum + seed rows ──
+  // Created via SQLAlchemy Base.metadata.create_all on FastAPI, which the
+  // Bun container never runs. Without these rows, creating a student
+  // (ensureCustomerTypeId('INTERNAL')) blows up with "Failed query: select
+  // from customer_types" because the table doesn't exist OR the seed row
+  // is missing.
+  {
+    sql: `DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'customertypeenum') THEN
+        CREATE TYPE customertypeenum AS ENUM ('PUBLIC', 'INTERNAL');
+      END IF;
+    END $$;`,
+    label: "type customertypeenum",
+  },
+  {
+    sql: `CREATE TABLE IF NOT EXISTS customer_types (
+      id SERIAL PRIMARY KEY,
+      type_name customertypeenum NOT NULL UNIQUE,
+      description VARCHAR(255),
+      default_price_level VARCHAR(50) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+    label: "customer_types table",
+  },
+  {
+    sql: `CREATE INDEX IF NOT EXISTS ix_customer_types_id ON customer_types(id)`,
+    label: "customer_types idx",
+  },
+  {
+    sql: `INSERT INTO customer_types (type_name, description, default_price_level)
+          VALUES ('INTERNAL', 'Student/staff internal customer', 'internal')
+          ON CONFLICT (type_name) DO NOTHING`,
+    label: "customer_types seed INTERNAL",
+  },
+  {
+    sql: `INSERT INTO customer_types (type_name, description, default_price_level)
+          VALUES ('PUBLIC', 'Public/visitor', 'retail')
+          ON CONFLICT (type_name) DO NOTHING`,
+    label: "customer_types seed PUBLIC",
+  },
   // ── Graduation Refund (mirrors FastAPI _ensure_runtime_schema) ──
   {
     sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)`,

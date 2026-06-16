@@ -1,0 +1,45 @@
+{
+  "features": [
+    {
+      "name": "1. Version format in sidebar",
+      "status": "FAIL",
+      "details": "Sidebar footer not found"
+    },
+    {
+      "name": "2. Shop Dashboard nav item",
+      "status": "PASS",
+      "details": "Nav text: \"Shop Dashboard\""
+    },
+    {
+      "name": "3. Shop Dashboard KPI cards",
+      "status": "PASS",
+      "details": "Found 5 card elements"
+    },
+    {
+      "name": "4. RFID Tap button in Canteen POS",
+      "status": "FAIL",
+      "details": "RFID button not found"
+    },
+    {
+      "name": "5. Negative stock in Store POS",
+      "status": "PASS",
+      "details": "Stock elements found"
+    },
+    {
+      "name": "6. Stock adjustment shortcuts",
+      "status": "INCOMPLETE",
+      "details": "Adjustment buttons not visible on initial load"
+    },
+    {
+      "name": "7. Google SSO button",
+      "status": "FAIL",
+      "details": "Google SSO button not found"
+    },
+    {
+      "name": "8. Returns page auto-complete",
+      "status": "PASS",
+      "details": "No approval buttons found (as expected)"
+    }
+  ],
+  "timestamp": "2026-05-20T18:16:47.201Z"
+}
