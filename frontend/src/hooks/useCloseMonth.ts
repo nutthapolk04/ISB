@@ -79,14 +79,14 @@ export function useBulkUpdateItems(shopId: string, closeId: number) {
   });
 }
 
-export function useImportCsv(shopId: string, closeId: number) {
+export function useImportExcel(shopId: string, closeId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => {
       const form = new FormData();
       form.append("file", file);
       return api.postFormData<{ imported: number; skipped: number }>(
-        `/shops/${shopId}/close-month/${closeId}/import-csv`,
+        `/shops/${shopId}/close-month/${closeId}/import-excel`,
         form,
       );
     },

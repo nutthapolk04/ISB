@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useCloseDetail,
   useBulkUpdateItems,
-  useImportCsv,
+  useImportExcel,
   useConfirmClose,
 } from "@/hooks/useCloseMonth";
 import { ApiError } from "@/lib/api";
@@ -29,7 +29,7 @@ export default function CloseMonthDetail() {
 
   const { data: close, isLoading } = useCloseDetail(shopId, id);
   const bulkUpdate = useBulkUpdateItems(shopId, id);
-  const importCsvMutation = useImportCsv(shopId, id);
+  const importExcelMutation = useImportExcel(shopId, id);
   const confirm = useConfirmClose(shopId, id);
 
   const [localQty, setLocalQty] = useState<Record<number, string>>({});
@@ -60,7 +60,7 @@ export default function CloseMonthDetail() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const result = await importCsvMutation.mutateAsync(file);
+      const result = await importExcelMutation.mutateAsync(file);
       toast.success(`Imported ${result.imported} items (skipped ${result.skipped})`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.detail : (err as Error)?.message ?? "Import failed");
@@ -81,7 +81,7 @@ export default function CloseMonthDetail() {
 
   async function handleExportCsv() {
     const token = localStorage.getItem("access_token");
-    const url = `${API_BASE_URL}/shops/${shopId}/close-month/${id}/export-csv`;
+    const url = `${API_BASE_URL}/shops/${shopId}/close-month/${id}/export-excel`;
     try {
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -91,7 +91,7 @@ export default function CloseMonthDetail() {
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
-      a.download = `close-${id}.csv`;
+      a.download = `close-${id}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -216,10 +216,10 @@ export default function CloseMonthDetail() {
         <TabsContent value="csv" className="space-y-4">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Download the template, fill in physical_qty, then upload it back.
+              Download the Excel template, fill in physical_qty, then upload it back.
             </p>
             <Button variant="outline" onClick={handleExportCsv}>
-              Download CSV Template
+              Download Excel Template
             </Button>
           </div>
           {!isClosed && (
@@ -228,12 +228,12 @@ export default function CloseMonthDetail() {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="text-sm"
                 onChange={handleImport}
-                disabled={importCsvMutation.isPending}
+                disabled={importExcelMutation.isPending}
               />
-              {importCsvMutation.isPending && (
+              {importExcelMutation.isPending && (
                 <p className="text-sm text-muted-foreground">Importing...</p>
               )}
             </div>

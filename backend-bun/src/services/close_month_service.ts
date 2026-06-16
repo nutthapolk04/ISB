@@ -1,4 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
+import * as XLSX from "xlsx";
 import { db, pgClient } from "@/db/client";
 import {
   stockPeriodCloses,
@@ -210,9 +211,9 @@ export async function bulkUpdateItems(
   }
 }
 
-export async function importCsv(
+export async function importExcel(
   closeId: number,
-  csvText: string,
+  buffer: ArrayBuffer,
 ): Promise<{ imported: number; skipped: number }> {
   const [close] = await db
     .select({ status: stockPeriodCloses.status })
@@ -222,16 +223,18 @@ export async function importCsv(
   if (!close) throw err("Close period not found", 404);
   if (close.status === "closed") throw err("Cannot update a closed period", 409);
 
-  const lines = csvText.trim().split("\n");
-  const dataLines = lines.slice(1); // skip header
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
+  const dataRows = rows.slice(1); // skip header
 
   let imported = 0;
   let skipped = 0;
 
-  for (const line of dataLines) {
-    const cols = line.split(",");
-    const itemId = parseInt(cols[0]?.trim() ?? "", 10);
-    const physicalQty = parseInt(cols[3]?.trim() ?? "", 10);
+  for (const row of dataRows) {
+    if (!Array.isArray(row)) { skipped++; continue; }
+    const itemId = parseInt(String(row[0] ?? ""), 10);
+    const physicalQty = parseInt(String(row[3] ?? ""), 10);
 
     if (isNaN(itemId) || isNaN(physicalQty) || physicalQty < 0) {
       skipped++;
@@ -250,14 +253,16 @@ export async function importCsv(
   return { imported, skipped };
 }
 
-export async function exportCsv(closeId: number): Promise<string> {
+export async function exportExcel(closeId: number): Promise<Buffer> {
   const items = await fetchItems(closeId);
-  const header = "item_id,product_name,system_qty,physical_qty";
-  const rows = items.map(
-    (i) =>
-      `${i.id},${csvCell(i.product_name)},${i.system_qty},${i.physical_qty ?? ""}`,
-  );
-  return [header, ...rows].join("\n");
+  const wb = XLSX.utils.book_new();
+  const data = [
+    ["item_id", "product_name", "system_qty", "physical_qty"],
+    ...items.map((i) => [i.id, i.product_name, i.system_qty, i.physical_qty ?? ""]),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb, ws, "Stock Count");
+  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
 export async function confirmClose(closeId: number, userId: number): Promise<CloseDTO> {

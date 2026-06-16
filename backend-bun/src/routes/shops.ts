@@ -25,8 +25,8 @@ import {
   createClose,
   getClose,
   bulkUpdateItems,
-  importCsv,
-  exportCsv,
+  importExcel,
+  exportExcel,
   confirmClose,
 } from "@/services/close_month_service";
 import { db } from "@/db/client";
@@ -632,7 +632,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
   )
 
   .post(
-    "/:shopId/close-month/:closeId/import-csv",
+    "/:shopId/close-month/:closeId/import-excel",
     async ({ params, body, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) {
         set.status = 403;
@@ -649,8 +649,8 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
           set.status = 403;
           return { detail: "Forbidden" };
         }
-        const csvText = await body.file.text();
-        return await importCsv(id, csvText);
+        const buffer = await body.file.arrayBuffer();
+        return await importExcel(id, buffer);
       } catch (e) {
         return handleErr(set, e);
       }
@@ -663,7 +663,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
   )
 
   .get(
-    "/:shopId/close-month/:closeId/export-csv",
+    "/:shopId/close-month/:closeId/export-excel",
     async ({ params, user, set }) => {
       if (!hasRole(user.roles, "admin", "manager")) {
         set.status = 403;
@@ -680,10 +680,10 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
           set.status = 403;
           return { detail: "Forbidden" };
         }
-        const csv = await exportCsv(id);
-        set.headers["Content-Type"] = "text/csv";
-        set.headers["Content-Disposition"] = `attachment; filename="close-${params.closeId}.csv"`;
-        return csv;
+        const buffer = await exportExcel(id);
+        set.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        set.headers["Content-Disposition"] = `attachment; filename="close-${params.closeId}.xlsx"`;
+        return buffer;
       } catch (e) {
         return handleErr(set, e);
       }
