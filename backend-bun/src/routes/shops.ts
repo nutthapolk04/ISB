@@ -20,6 +20,15 @@ import {
   listShopAuditLogs,
 } from "@/services/shop_product_service";
 import { checkout } from "@/services/pos_checkout_service";
+import {
+  listCloses,
+  createClose,
+  getClose,
+  bulkUpdateItems,
+  importCsv,
+  exportCsv,
+  confirmClose,
+} from "@/services/close_month_service";
 import { db } from "@/db/client";
 import { users, shops as shopsTable, shopProducts, productOrderHistory } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -515,4 +524,145 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
       }),
       detail: { summary: "Bulk-update sort_order for products (optimistic concurrency)" },
     },
+  )
+
+  // ─── Close Month ────────────────────────────────────────────────────────────
+
+  .get(
+    "/:shopId/close-month",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        return await listCloses(params.shopId);
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    { params: t.Object({ shopId: t.String() }) },
+  )
+
+  .post(
+    "/:shopId/close-month",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        set.status = 201;
+        return await createClose(
+          params.shopId,
+          body.period_year,
+          body.period_month,
+        );
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        period_year: t.Number({ minimum: 2000, maximum: 2100 }),
+        period_month: t.Number({ minimum: 1, maximum: 12 }),
+      }),
+    },
+  )
+
+  .get(
+    "/:shopId/close-month/:closeId",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        return await getClose(parseInt(params.closeId));
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    { params: t.Object({ shopId: t.String(), closeId: t.String() }) },
+  )
+
+  .patch(
+    "/:shopId/close-month/:closeId/items",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        await bulkUpdateItems(parseInt(params.closeId), body.updates);
+        return { ok: true };
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String(), closeId: t.String() }),
+      body: t.Object({
+        updates: t.Array(
+          t.Object({ item_id: t.Number(), physical_qty: t.Number({ minimum: 0 }) }),
+        ),
+      }),
+    },
+  )
+
+  .post(
+    "/:shopId/close-month/:closeId/import-csv",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        const csvText = await body.file.text();
+        return await importCsv(parseInt(params.closeId), csvText);
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String(), closeId: t.String() }),
+      body: t.Object({ file: t.File() }),
+      type: "multipart/form-data",
+    },
+  )
+
+  .get(
+    "/:shopId/close-month/:closeId/export-csv",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        const csv = await exportCsv(parseInt(params.closeId));
+        set.headers["Content-Type"] = "text/csv";
+        set.headers["Content-Disposition"] = `attachment; filename="close-${params.closeId}.csv"`;
+        return csv;
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    { params: t.Object({ shopId: t.String(), closeId: t.String() }) },
+  )
+
+  .post(
+    "/:shopId/close-month/:closeId/confirm",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      try {
+        return await confirmClose(parseInt(params.closeId), user.id);
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    { params: t.Object({ shopId: t.String(), closeId: t.String() }) },
   );
