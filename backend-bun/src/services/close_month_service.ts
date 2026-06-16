@@ -3,7 +3,6 @@ import { db, pgClient } from "@/db/client";
 import {
   stockPeriodCloses,
   stockPeriodCloseItems,
-  shopMovements,
   shopProducts,
 } from "@/db/schema";
 
@@ -51,6 +50,13 @@ export interface CloseSummaryDTO {
 
 function err(msg: string, status: number): Error {
   return Object.assign(new Error(msg), { status });
+}
+
+function csvCell(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
 }
 
 async function fetchItems(closeId: number): Promise<CloseItemDTO[]> {
@@ -263,7 +269,7 @@ export async function exportCsv(closeId: number): Promise<string> {
   const header = "item_id,product_name,system_qty,physical_qty";
   const rows = items.map(
     (i) =>
-      `${i.id},${JSON.stringify(i.product_name)},${i.system_qty},${i.physical_qty ?? ""}`,
+      `${i.id},${csvCell(i.product_name)},${i.system_qty},${i.physical_qty ?? ""}`,
   );
   return [header, ...rows].join("\n");
 }
@@ -315,6 +321,7 @@ export async function confirmClose(closeId: number, userId: number): Promise<Clo
         VALUES (${today}, ${item.product_id}, ${product?.name ?? item.product_name}, ${close.shopId}, 'adjustment', ${variance}, ${stockBefore}, ${stockAfter}, ${item.unit_cost ?? null}, ${"ปิดรอบ " + monthLabel}, ${userId})
         RETURNING id
       `;
+      if (!movement) throw new Error("Failed to insert adjustment movement");
 
       await tx`UPDATE shop_products SET stock = ${stockAfter} WHERE id = ${item.product_id}`;
 
