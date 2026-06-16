@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
   stockPeriodCloses,
@@ -115,10 +115,7 @@ export async function listCloses(shopId: string): Promise<CloseSummaryDTO[]> {
     .select()
     .from(stockPeriodCloses)
     .where(eq(stockPeriodCloses.shopId, shopId))
-    .orderBy(
-      sql`${stockPeriodCloses.periodYear} DESC`,
-      sql`${stockPeriodCloses.periodMonth} DESC`,
-    );
+    .orderBy(desc(stockPeriodCloses.periodYear), desc(stockPeriodCloses.periodMonth));
   return rows.map((r) => ({
     id: r.id,
     shop_id: r.shopId,
@@ -137,28 +134,17 @@ export async function createClose(
   periodYear: number,
   periodMonth: number,
 ): Promise<CloseDTO> {
-  const existing = await db
-    .select({ id: stockPeriodCloses.id })
-    .from(stockPeriodCloses)
-    .where(
-      and(
-        eq(stockPeriodCloses.shopId, shopId),
-        eq(stockPeriodCloses.periodYear, periodYear),
-        eq(stockPeriodCloses.periodMonth, periodMonth),
-      ),
-    )
-    .limit(1);
-  if (existing[0]) throw err("Period already exists for this shop and month", 409);
+  const [close] = await db
+    .insert(stockPeriodCloses)
+    .values({ shopId, periodYear, periodMonth, status: "draft" })
+    .onConflictDoNothing()
+    .returning();
+  if (!close) throw err("Period already exists for this shop and month", 409);
 
   const products = await db
     .select({ id: shopProducts.id, stock: shopProducts.stock, avgCost: shopProducts.avgCost })
     .from(shopProducts)
     .where(and(eq(shopProducts.shopId, shopId), eq(shopProducts.isActive, true)));
-
-  const [close] = await db
-    .insert(stockPeriodCloses)
-    .values({ shopId, periodYear, periodMonth, status: "draft" })
-    .returning();
 
   if (products.length > 0) {
     await db.insert(stockPeriodCloseItems).values(
