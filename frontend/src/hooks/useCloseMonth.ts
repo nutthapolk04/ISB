@@ -40,8 +40,9 @@ export interface CloseSummary {
 }
 
 const closeMonthKeys = {
-  list: (shopId: string) => ["close-month", shopId] as const,
-  detail: (shopId: string, closeId: number) => ["close-month", shopId, "detail", closeId] as const,
+  all: (shopId: string) => ["close-month", shopId] as const,
+  list: (shopId: string) => [...closeMonthKeys.all(shopId), "list"] as const,
+  detail: (shopId: string, closeId: number) => [...closeMonthKeys.all(shopId), "detail", closeId] as const,
 };
 
 export function useCloseList(shopId: string) {
@@ -99,8 +100,7 @@ export function useConfirmClose(shopId: string, closeId: number) {
     mutationFn: () =>
       api.post<CloseDetail>(`/shops/${shopId}/close-month/${closeId}/confirm`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: closeMonthKeys.detail(shopId, closeId) });
-      qc.invalidateQueries({ queryKey: closeMonthKeys.list(shopId) });
+      qc.invalidateQueries({ queryKey: closeMonthKeys.all(shopId) });
     },
   });
 }
