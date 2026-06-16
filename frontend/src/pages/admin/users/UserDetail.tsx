@@ -525,7 +525,7 @@ export default function UserDetail() {
                   <Select value={form.role || ""} onValueChange={(v) => setForm({ ...form, role: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["admin", "manager", "cashier", "parent", "staff", "student", "teacher", "canteen_owner", "visitor"].map((r) => (
+                      {["admin", "manager", "cashier", "staff"].map((r) => (
                         <SelectItem key={r} value={r}>{r}</SelectItem>
                       ))}
                     </SelectContent>

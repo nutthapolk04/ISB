@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { systemSettings, auditLogs } from "@/db/schema";
 
@@ -80,10 +80,15 @@ export async function getPublicSettings(): Promise<Record<string, unknown>> {
 }
 
 export async function getSchoolSettings(): Promise<Record<string, unknown>> {
+  const keys = [...SCHOOL_KEYS];
+  const rows = await db
+    .select({ key: systemSettings.key, value: systemSettings.value })
+    .from(systemSettings)
+    .where(inArray(systemSettings.key, keys));
+  const found = Object.fromEntries(rows.map((r) => [r.key, coerce(r.value, null)]));
   const out: Record<string, unknown> = {};
-  for (const key of SCHOOL_KEYS) {
-    const v = await getRaw(key);
-    out[key] = v !== null ? v : (KNOWN_FLAGS[key] ?? "");
+  for (const key of keys) {
+    out[key] = key in found ? found[key] : (KNOWN_FLAGS[key] ?? "");
   }
   return out;
 }

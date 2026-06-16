@@ -294,32 +294,34 @@ export interface LinkResponseDTO {
 }
 
 export async function listLinks(): Promise<LinkResponseDTO[]> {
-  const links = await db.select().from(parentChildLinks).orderBy(asc(parentChildLinks.id));
-  const out: LinkResponseDTO[] = [];
-  for (const l of links) {
-    const pr = await db
-      .select({ username: users.username, fullName: users.fullName })
-      .from(users)
-      .where(eq(users.id, l.parentUserId))
-      .limit(1);
-    const cr = await db
-      .select({ name: customers.name, studentCode: customers.studentCode, isActive: customers.isActive })
-      .from(customers)
-      .where(eq(customers.id, l.childCustomerId))
-      .limit(1);
-    out.push({
-      id: l.id,
-      parent_user_id: l.parentUserId,
-      parent_username: pr[0]?.username ?? null,
-      parent_full_name: pr[0]?.fullName ?? null,
-      child_customer_id: l.childCustomerId,
-      child_name: cr[0]?.name ?? null,
-      child_student_code: cr[0]?.studentCode ?? null,
-      child_is_active: cr[0]?.isActive ?? null,
-      relation: l.relation,
-    });
-  }
-  return out;
+  const rows = await db
+    .select({
+      id: parentChildLinks.id,
+      parentUserId: parentChildLinks.parentUserId,
+      childCustomerId: parentChildLinks.childCustomerId,
+      relation: parentChildLinks.relation,
+      parentUsername: users.username,
+      parentFullName: users.fullName,
+      childName: customers.name,
+      childStudentCode: customers.studentCode,
+      childIsActive: customers.isActive,
+    })
+    .from(parentChildLinks)
+    .leftJoin(users, eq(users.id, parentChildLinks.parentUserId))
+    .leftJoin(customers, eq(customers.id, parentChildLinks.childCustomerId))
+    .orderBy(asc(parentChildLinks.id));
+
+  return rows.map((r) => ({
+    id: r.id,
+    parent_user_id: r.parentUserId,
+    parent_username: r.parentUsername ?? null,
+    parent_full_name: r.parentFullName ?? null,
+    child_customer_id: r.childCustomerId,
+    child_name: r.childName ?? null,
+    child_student_code: r.childStudentCode ?? null,
+    child_is_active: r.childIsActive ?? null,
+    relation: r.relation,
+  }));
 }
 
 export async function createLink(args: {
@@ -334,8 +336,9 @@ export async function createLink(args: {
     throw err;
   }
   const parent = pr[0];
-  if (parent.role !== "parent" && !parent.isSuperuser) {
-    const err = new Error("User is not a parent");
+  const role = (parent.role ?? "").toLowerCase();
+  if (role !== "parent" && role !== "staff" && !parent.isSuperuser) {
+    const err = new Error("User is not a parent or staff");
     (err as { status?: number }).status = 400;
     throw err;
   }
@@ -367,6 +370,13 @@ export async function createLink(args: {
   // Ensure child wallet
   await ensureCustomerWallet(args.childCustomerId);
   const child = cr[0];
+
+  // Propagate family_code between parent and child (same as linkStudentToUser)
+  if (parent.familyCode && !child.familyCode) {
+    await db.update(customers).set({ familyCode: parent.familyCode }).where(eq(customers.id, child.id));
+  } else if (child.familyCode && !parent.familyCode) {
+    await db.update(users).set({ familyCode: child.familyCode }).where(eq(users.id, parent.id));
+  }
   return {
     id: created.id,
     parent_user_id: created.parentUserId,
@@ -387,7 +397,28 @@ export async function deleteLink(linkId: number): Promise<{ success: true }> {
     (err as { status?: number }).status = 404;
     throw err;
   }
+  const { parentUserId, childCustomerId } = rows[0];
   await db.delete(parentChildLinks).where(eq(parentChildLinks.id, linkId));
+
+  // Clear family_code if no remaining links exist for each side
+  const remainingForChild = await db
+    .select({ id: parentChildLinks.id })
+    .from(parentChildLinks)
+    .where(eq(parentChildLinks.childCustomerId, childCustomerId))
+    .limit(1);
+  if (!remainingForChild[0]) {
+    await db.update(customers).set({ familyCode: null }).where(eq(customers.id, childCustomerId));
+  }
+
+  const remainingForParent = await db
+    .select({ id: parentChildLinks.id })
+    .from(parentChildLinks)
+    .where(eq(parentChildLinks.parentUserId, parentUserId))
+    .limit(1);
+  if (!remainingForParent[0]) {
+    await db.update(users).set({ familyCode: null }).where(eq(users.id, parentUserId));
+  }
+
   return { success: true };
 }
 

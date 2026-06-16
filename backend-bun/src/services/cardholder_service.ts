@@ -311,11 +311,11 @@ function conflict(msg: string): never {
   throw err;
 }
 
-async function ensureCustomerTypeId(typeName: "Internal" | "Public"): Promise<number> {
+async function ensureCustomerTypeId(typeName: "INTERNAL" | "PUBLIC"): Promise<number> {
   const rows = await db.select().from(customerTypes).where(eq(customerTypes.typeName, typeName)).limit(1);
   if (rows[0]) return rows[0].id;
-  const priceLevel = typeName === "Internal" ? "internal" : "retail";
-  const description = typeName === "Internal" ? "Internal" : "Public/visitor";
+  const priceLevel = typeName === "INTERNAL" ? "internal" : "retail";
+  const description = typeName === "INTERNAL" ? "Internal" : "Public/visitor";
   const [created] = await db.insert(customerTypes).values({
     typeName,
     description,
@@ -331,7 +331,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
     if (!input.customer_code || !input.name) badRequest("customer_code and name are required for student");
     const dup = await db.select({ id: customers.id }).from(customers).where(eq(customers.customerCode, input.customer_code!)).limit(1);
     if (dup[0]) conflict(`Customer code ${input.customer_code} exists`);
-    const ctId = await ensureCustomerTypeId("Internal");
+    const ctId = await ensureCustomerTypeId("INTERNAL");
     const initBalance = input.initial_balance ?? 0;
 
     let custId = 0;
@@ -340,10 +340,10 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
       const cins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO customers
           (customer_code, name, student_code, grade, school_type, family_code,
-           card_uid, customer_type_id, customer_kind, customer_type, is_active)
+           card_uid, customer_type_id, customer_kind, customer_type, is_active, card_frozen)
         VALUES (${input.customer_code}, ${input.name}, ${input.student_code ?? null},
                 ${input.grade ?? null}, ${input.school_type ?? null}, ${input.family_code ?? null},
-                ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true)
+                ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true, false)
         RETURNING id
       `;
       custId = cins[0].id;
@@ -458,7 +458,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
 
   if (kind === "other") {
     if (!input.name) badRequest("name required for other");
-    const ctId = await ensureCustomerTypeId("Public");
+    const ctId = await ensureCustomerTypeId("PUBLIC");
     const code = input.customer_code || `OTH-${Math.floor(Date.now() / 1000)}`;
     let custId = 0;
     let walletId: number | null = null;
@@ -466,9 +466,9 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
     await pgClient.begin(async (sqlTx) => {
       const cins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO customers
-          (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active)
+          (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active, card_frozen)
         VALUES (${code}, ${input.name}, ${input.email ?? null}, ${input.phone ?? null},
-                ${ctId}, 'other', 'Other', true)
+                ${ctId}, 'other', 'Other', true, false)
         RETURNING id
       `;
       custId = cins[0].id;

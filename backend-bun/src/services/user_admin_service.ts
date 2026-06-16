@@ -378,10 +378,28 @@ async function getFamilyProfile(family_code: string | null): Promise<FamilyProfi
 
 async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
   const fcode = u.familyCode ?? null;
-  const [withKids, familyProfile, familyMembers, history, shopName] = await Promise.all([
+  const [withKids, familyProfile, familyMembers, linkedChildren, history, shopName] = await Promise.all([
     fcode ? familiesWithChildren(new Set([fcode])) : Promise.resolve(new Set<string>()),
     getFamilyProfile(fcode),
     resolveFamily(fcode),
+    // Always fetch children via parent_child_links — independent of family_code
+    db
+      .select({
+        id: customers.id,
+        name: customers.name,
+        studentCode: customers.studentCode,
+        customerCode: customers.customerCode,
+        grade: customers.grade,
+        photoUrl: customers.photoUrl,
+        externalId: customers.externalId,
+        customerType: customers.customerType,
+        schoolType: customers.schoolType,
+        cardUid: customers.cardUid,
+        relation: parentChildLinks.relation,
+      })
+      .from(parentChildLinks)
+      .innerJoin(customers, eq(customers.id, parentChildLinks.childCustomerId))
+      .where(eq(parentChildLinks.parentUserId, u.id)),
     identityHistory("user", u.id),
     u.shopId
       ? db
@@ -392,6 +410,32 @@ async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
           .then((rs) => rs[0]?.name ?? null)
       : Promise.resolve(null),
   ]);
+
+  // Merge: add linked children not already in family_members (by id)
+  const existingCustomerIds = new Set(
+    familyMembers.filter((m) => m.entity_type === "customer").map((m) => m.id),
+  );
+  for (const c of linkedChildren) {
+    if (!existingCustomerIds.has(c.id)) {
+      familyMembers.push({
+        entity_type: "customer",
+        id: c.id,
+        name: c.name,
+        role: "student",
+        external_id: c.externalId ?? null,
+        grade: c.grade ?? null,
+        photo_url: c.photoUrl ?? null,
+        student_code: c.studentCode ?? null,
+        customer_code: c.customerCode,
+        customer_type: c.customerType ?? null,
+        school_type: c.schoolType ?? null,
+        card_uid: c.cardUid ?? null,
+      });
+    }
+  }
+
+  const hasChildren = linkedChildren.length > 0 || !!(fcode && withKids.has(fcode));
+
   return {
     id: u.id,
     username: u.username,
@@ -409,7 +453,7 @@ async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
     staff_type: u.staffType ?? null,
     ps_department: u.psDepartment ?? null,
     card_uid: u.cardUid ?? null,
-    has_children: !!(fcode && withKids.has(fcode)),
+    has_children: hasChildren,
     family_profile: familyProfile,
     family_members: familyMembers,
     identity_history: history,
@@ -773,5 +817,25 @@ export async function unlinkStudent(
   if (!rows[0]) throw statusErr(404, "Link not found");
 
   await db.delete(parentChildLinks).where(eq(parentChildLinks.id, rows[0].id));
+
+  // Clear family_code if no remaining links exist for each side
+  const remainingForChild = await db
+    .select({ id: parentChildLinks.id })
+    .from(parentChildLinks)
+    .where(eq(parentChildLinks.childCustomerId, customerId))
+    .limit(1);
+  if (!remainingForChild[0]) {
+    await db.update(customers).set({ familyCode: null }).where(eq(customers.id, customerId));
+  }
+
+  const remainingForParent = await db
+    .select({ id: parentChildLinks.id })
+    .from(parentChildLinks)
+    .where(eq(parentChildLinks.parentUserId, userId))
+    .limit(1);
+  if (!remainingForParent[0]) {
+    await db.update(users).set({ familyCode: null }).where(eq(users.id, userId));
+  }
+
   return { success: true };
 }
