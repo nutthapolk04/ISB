@@ -635,7 +635,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   placeholder={t("bundles.searchProductsHint", "Search by code, name, or barcode…")}
-                  className="pl-10"
+                  className="pl-10 h-9 text-sm"
                 />
               </div>
 
@@ -658,13 +658,13 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                         onClick={() => handleAddItem(p)}
                       >
                         <div>
-                          <div className="font-medium">{p.name}</div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-sm font-medium">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">
                             {p.product_code} · Stock: {p.stock}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono">
+                          <span className="text-sm font-mono">
                             {p.external_price.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                           </span>
                           <Plus className="h-4 w-4 text-primary" />

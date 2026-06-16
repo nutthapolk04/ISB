@@ -208,29 +208,6 @@ const CUSTOMER_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "guest",   label: "Guest" },
 ];
 
-const BOM = String.fromCharCode(0xfeff);
-
-function downloadCsv(name: string, content: string) {
-  const blob = new Blob([BOM + content], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", name);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-const csvEscape = (v: string | number | null | undefined): string => {
-  if (v === null || v === undefined) return "";
-  const s = String(v);
-  if (s.includes(",") || s.includes("\n") || s.includes('"')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-};
 
 const Reports = () => {
   const { t } = useTranslation();
@@ -778,74 +755,144 @@ const Reports = () => {
     return user?.shopId ? `&shop_id=${encodeURIComponent(user.shopId)}` : "";
   })();
 
-  const handleExportExcel = async () => {
+  const buildDialogReportPayload = async (): Promise<{
+    payload: ReportPayload<Record<string, unknown>>;
+    baseFilename: string;
+  } | null> => {
     if (needsRange && (!startDate || !endDate)) {
       toast.error(t("reports.selectDateRangeDesc"));
-      return;
+      return null;
     }
 
-    const reportName = t(`reports.${selectedReportType}`);
+    const dateFilter = buildDateFilterLine("Date", startDate, endDate);
+    const filters = dateFilter ? [dateFilter] : [];
+    const dateLabel = needsRange ? `_${startDate}_${endDate}` : "";
+
+    if (selectedReportType === "salesReport" || selectedReportType === "topSellingReport") {
+      const data = await api.get<SalesReportData>(
+        `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+      );
+      const rows = selectedReportType === "topSellingReport"
+        ? [...data.rows].sort((a, b) => b.quantity - a.quantity)
+        : data.rows;
+      return {
+        payload: {
+          meta: {
+            title: t(`reports.${selectedReportType}`),
+            schoolName: school.name,
+            schoolLogoUrl: school.logoUrl || undefined,
+            filters,
+          },
+          columns: [
+            { header: t("reports.colProduct"),  key: "product_name", width: 45 },
+            { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
+            { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
+          ],
+          rows: rows as unknown as Record<string, unknown>[],
+          totals: { total: data.grand_total },
+        },
+        baseFilename: `${selectedReportType === "topSellingReport" ? "TopSelling" : "SalesReport"}${dateLabel}`,
+      };
+    }
+
+    if (selectedReportType === "salesByPaymentReport") {
+      const data = await api.get<SalesByPaymentReportData>(
+        `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+      );
+      const retailRows = data.rows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
+      const deptRow   = data.rows.find((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
+      const bodyRows: Record<string, unknown>[] = [
+        ...retailRows.map((r) => ({
+          payment_method: t(`payment.${r.payment_method}`) || r.payment_method,
+          receipt_count: r.receipt_count,
+          total: r.total,
+        })),
+        { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
+        ...(deptRow
+          ? [{ payment_method: "Department Use", receipt_count: deptRow.receipt_count, total: deptRow.total }]
+          : []),
+      ];
+      return {
+        payload: {
+          meta: {
+            title: t("reports.salesByPaymentReport"),
+            schoolName: school.name,
+            schoolLogoUrl: school.logoUrl || undefined,
+            filters,
+          },
+          columns: [
+            { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
+            { header: t("reports.colReceiptCount")  || "Receipt Count",  key: "receipt_count", format: "number",   align: "right", width: 15 },
+            { header: t("reports.colTotal"),                              key: "total",         format: "currency", align: "right", width: 15 },
+          ],
+          rows: bodyRows,
+          totals: { total: data.retail_total },
+        },
+        baseFilename: `SalesByPayment${dateLabel}`,
+      };
+    }
+
+    if (selectedReportType === "stockReport") {
+      const stockShopParam = shopParam.replace(/^&/, "?");
+      const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);
+      return {
+        payload: {
+          meta: {
+            title: t("reports.stockReport"),
+            schoolName: school.name,
+            schoolLogoUrl: school.logoUrl || undefined,
+            filters: [],
+          },
+          columns: [
+            { header: t("reports.colShop"),        key: "shop_name",    width: 25 },
+            { header: t("reports.colProductCode"), key: "product_code", width: 18 },
+            { header: t("reports.colProduct"),     key: "product_name", width: 45 },
+            { header: t("reports.colStock"),       key: "stock_qty",    format: "number", align: "right", width: 12 },
+          ],
+          rows: data.rows.map((r) => ({ ...r, shop_name: r.shop_name ?? r.shop_id })) as unknown as Record<string, unknown>[],
+        },
+        baseFilename: "StockReport",
+      };
+    }
+
+    if (selectedReportType === "returnReport") {
+      const data = await api.get<ReturnReportData>(
+        `/reports/returns?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+      );
+      return {
+        payload: {
+          meta: {
+            title: t("reports.returnReport"),
+            schoolName: school.name,
+            schoolLogoUrl: school.logoUrl || undefined,
+            filters,
+          },
+          columns: [
+            { header: t("reports.colId"),       key: "id",              format: "number",   align: "right", width: 8  },
+            { header: t("reports.colDate"),      key: "return_date",     format: "date",                     width: 13 },
+            { header: t("reports.colReceipt"),   key: "receipt_number",                                      width: 20 },
+            { header: t("reports.colProduct"),   key: "product_name",                                        width: 40 },
+            { header: t("reports.colQuantity"),  key: "quantity",        format: "number",   align: "right", width: 10 },
+            { header: t("reports.colRefund"),    key: "refund_amount",   format: "currency", align: "right", width: 14 },
+            { header: t("reports.colExchange"),  key: "exchange_amount", format: "currency", align: "right", width: 14 },
+            { header: t("reports.colStatus"),    key: "status",                                              width: 14 },
+          ],
+          rows: data.rows as unknown as Record<string, unknown>[],
+          totals: { refund_amount: data.total_refund, exchange_amount: data.total_exchange },
+        },
+        baseFilename: `ReturnReport${dateLabel}`,
+      };
+    }
+
+    return null;
+  };
+
+  const handleExportExcel = async () => {
     setExporting(true);
     try {
-      let csv = `${reportName}\n`;
-      if (needsRange) {
-        csv += `${t("reports.startDate")}: ${startDate}\n${t("reports.endDate")}: ${endDate}\n\n`;
-      } else {
-        csv += `\n`;
-      }
-
-      if (selectedReportType === "salesReport" || selectedReportType === "topSellingReport") {
-        const data = await api.get<SalesReportData>(
-          `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-        );
-        const rows = selectedReportType === "topSellingReport"
-          ? [...data.rows].sort((a, b) => b.quantity - a.quantity)
-          : data.rows;
-        csv += `${t("reports.colProduct")},${t("reports.colQuantity")},${t("reports.colTotal")}\n`;
-        for (const r of rows) {
-          csv += `${csvEscape(r.product_name)},${r.quantity},${r.total.toFixed(2)}\n`;
-        }
-        csv += `\n${t("reports.grandTotal")},,${data.grand_total.toFixed(2)}\n`;
-        csv += `${t("reports.receiptCount")},${data.receipt_count},\n`;
-      } else if (selectedReportType === "salesByPaymentReport") {
-        const data = await api.get<SalesByPaymentReportData>(
-          `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-        );
-        csv += `${t("reports.colPaymentMethod") || "Payment Method"},${t("reports.colReceiptCount") || "Receipt Count"},${t("reports.colTotal")}\n`;
-        for (const r of data.rows) {
-          if (r.payment_method.toUpperCase() === "DEPARTMENT") continue;
-          const methodLabel = t(`payment.${r.payment_method}`) || r.payment_method;
-          csv += `${csvEscape(methodLabel)},${r.receipt_count},${r.total.toFixed(2)}\n`;
-        }
-        csv += `\n${t("reports.grandTotal")},,${data.retail_total.toFixed(2)}\n`;
-        csv += `${t("reports.totalReceipts") || "Total Receipts"},${data.total_receipts - data.department_receipts},\n`;
-        csv += `\n${t("reports.deptUseHeader", "Department Use (Internal)")},,\n`;
-        csv += `Department Use,${data.department_receipts},${data.department_total.toFixed(2)}\n`;
-      } else if (selectedReportType === "stockReport") {
-        const stockShopParam = shopParam.replace(/^&/, "?");
-        const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);
-        csv += `${t("reports.colShop")},${t("reports.colProductCode")},${t("reports.colProduct")},${t("reports.colStock")}\n`;
-        for (const r of data.rows) {
-          csv += `${csvEscape(r.shop_name ?? r.shop_id)},${csvEscape(r.product_code)},${csvEscape(r.product_name)},${r.stock_qty}\n`;
-        }
-      } else if (selectedReportType === "returnReport") {
-        const data = await api.get<ReturnReportData>(
-          `/reports/returns?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-        );
-        csv += `${t("reports.colId")},${t("reports.colDate")},${t("reports.colReceipt")},${t("reports.colProduct")},${t("reports.colQuantity")},${t("reports.colRefund")},${t("reports.colExchange")},${t("reports.colStatus")}\n`;
-        for (const r of data.rows) {
-          csv += `${r.id},${r.return_date.slice(0, 10)},${csvEscape(r.receipt_number)},${csvEscape(r.product_name)},${r.quantity},${r.refund_amount.toFixed(2)},${r.exchange_amount.toFixed(2)},${csvEscape(r.status)}\n`;
-        }
-        csv += `\n${t("reports.totalRefund")},,,,,${data.total_refund.toFixed(2)},,\n`;
-        csv += `${t("reports.totalExchange")},,,,,,${data.total_exchange.toFixed(2)},\n`;
-      } else {
-        toast.message(t("reports.comingSoon"));
-        setExporting(false);
-        return;
-      }
-
-      const dateLabel = needsRange ? `_${startDate}_${endDate}` : "";
-      downloadCsv(`${reportName}${dateLabel}.csv`, csv);
+      const result = await buildDialogReportPayload();
+      if (!result) return;
+      exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
       toast.success(t("reports.exportSuccess"));
       setIsDatePickerOpen(false);
     } catch (err) {
@@ -855,6 +902,7 @@ const Reports = () => {
       setExporting(false);
     }
   };
+
 
   return (
     <div className="page-shell">
@@ -1522,11 +1570,7 @@ const Reports = () => {
               {t("common.cancel")}
             </Button>
             <Button onClick={handleExportExcel} disabled={exporting}>
-              {exporting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <FileDown className="h-4 w-4 mr-2" />
-              )}
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
               {t("reports.exportExcel")}
             </Button>
           </DialogFooter>

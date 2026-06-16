@@ -23,7 +23,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Upload, Download, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, ChevronLeft, Package, Users, Loader2, History, ArrowUpRight, Layers, Tag, Upload, Download, ChevronDown, CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
@@ -115,6 +115,7 @@ const ShopDetail = () => {
   // ── Bulk import state ───────────────────────────────────────────────────
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [inventoryKey, setInventoryKey] = useState(0);
   const storeFileRef = useRef<HTMLInputElement>(null);
 
   const startStorePreview = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,6 +161,7 @@ const ShopDetail = () => {
         toast.success(msg);
       }
       setPreview(null);
+      setInventoryKey((k) => k + 1);
     } catch (err: any) {
       toast.error(err?.detail ?? t("shopImport.commitFailed", "Import failed"));
       setPreview((prev) => (prev ? { ...prev, confirming: false } : prev));
@@ -438,6 +440,20 @@ const ShopDetail = () => {
                     </div>
                   </div>
 
+                  {/* Warning: existing products will have stock added */}
+                  {preview.result.products.updated > 0 && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-600" />
+                      <span>
+                        {t("shopImport.warnUpdatedStock", {
+                          count: preview.result.products.updated,
+                          defaultValue:
+                            "{{count}} product(s) already exist — their name/price will be updated and any quantity in this file will be added on top of existing stock.",
+                        })}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Stock section */}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">{t("shopImport.sectionStock", "Stock receive")}</p>
@@ -503,7 +519,7 @@ const ShopDetail = () => {
             </DialogContent>
           </Dialog>
 
-          <Inventory lockedShopId={shopId} shopType={shopType} />
+          <Inventory lockedShopId={shopId} shopType={shopType} refreshKey={inventoryKey} />
         </TabsContent>
 
         {/* ── Tab: Price Panels ─────────────────────────────────────────── */}

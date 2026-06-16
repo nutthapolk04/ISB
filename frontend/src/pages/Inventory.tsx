@@ -251,9 +251,11 @@ interface InventoryProps {
   lockedShopId?: string;
   /** Costing method for this shop; defaults to avg_cost */
   shopType?: "avg_cost" | "fifo";
+  /** Bump this to force a product list refresh (e.g. after bulk import) */
+  refreshKey?: number;
 }
 
-const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {}) => {
+const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: InventoryProps = {}) => {
   const { t } = useTranslation();
   const embedded = lockedShopId !== undefined;
   const { uoms } = useUom();
@@ -397,7 +399,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost" }: InventoryProps = {})
         })));
       } catch { /* ignore */ }
     }
-  }, [embedded, lockedShopId]);
+  }, [embedded, lockedShopId, refreshKey]);
 
   const fetchCategories = useCallback(async () => {
     if (!lockedShopId) return;

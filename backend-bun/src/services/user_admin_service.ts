@@ -779,11 +779,13 @@ export async function linkStudentToUser(
     await db.insert(wallets).values({ customerId: child.id, balance: "0", isActive: true });
   }
 
-  // Propagate family_code between parent and child
-  if (parent.familyCode && !child.familyCode) {
-    await db.update(customers).set({ familyCode: parent.familyCode }).where(eq(customers.id, child.id));
-  } else if (child.familyCode && !parent.familyCode) {
-    await db.update(users).set({ familyCode: child.familyCode }).where(eq(users.id, parent.id));
+  // Propagate family_code between parent and child; generate one if both are null
+  const resolvedCode = parent.familyCode ?? child.familyCode ?? `FAM-${link.id}`;
+  if (!parent.familyCode) {
+    await db.update(users).set({ familyCode: resolvedCode }).where(eq(users.id, parent.id));
+  }
+  if (!child.familyCode) {
+    await db.update(customers).set({ familyCode: resolvedCode }).where(eq(customers.id, child.id));
   }
 
   return {
