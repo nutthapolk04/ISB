@@ -29,6 +29,7 @@ import {
   exportExcel,
   confirmClose,
 } from "@/services/close_month_service";
+import { getMonthlyStockReport, exportMonthlyStockReport } from "@/services/monthly_stock_service";
 import { db } from "@/db/client";
 import { users, shops as shopsTable, shopProducts, productOrderHistory } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -523,6 +524,64 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         source: t.Optional(t.Nullable(t.String())),
       }),
       detail: { summary: "Bulk-update sort_order for products (optimistic concurrency)" },
+    },
+  )
+
+  // ─── Monthly Stock Report ────────────────────────────────────────────────────
+
+  .get(
+    "/:shopId/monthly-stock-report",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      const year = parseInt(query.year ?? "");
+      const month = parseInt(query.month ?? "");
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        set.status = 422;
+        return { detail: "Invalid year or month" };
+      }
+      try {
+        return await getMonthlyStockReport(params.shopId, year, month);
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      query: t.Object({ year: t.Optional(t.String()), month: t.Optional(t.String()) }),
+    },
+  )
+
+  .get(
+    "/:shopId/monthly-stock-report/export",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      const year = parseInt(query.year ?? "");
+      const month = parseInt(query.month ?? "");
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        set.status = 422;
+        return { detail: "Invalid year or month" };
+      }
+      try {
+        const buffer = await exportMonthlyStockReport(params.shopId, year, month);
+        return new Response(buffer, {
+          headers: {
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition": `attachment; filename="stock-report-${year}-${String(month).padStart(2, "0")}.xlsx"`,
+          },
+        });
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      query: t.Object({ year: t.Optional(t.String()), month: t.Optional(t.String()) }),
     },
   )
 

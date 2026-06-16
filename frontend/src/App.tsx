@@ -28,8 +28,6 @@ import Receipts from "./pages/Receipts";
 import Reports from "./pages/Reports";
 import ShopManagement from "./pages/ShopManagement";
 import StoreRequisition from "./pages/store/StoreRequisition";
-import CloseMonthList from "./pages/store/CloseMonthList";
-import CloseMonthDetail from "./pages/store/CloseMonthDetail";
 import ShopDetail from "./pages/ShopDetail";
 import Login from "./pages/Login";
 import HomeHub from "./pages/HomeHub";
@@ -300,10 +298,7 @@ const App = () => {
                     <Route path="/store/reports" element={<Reports />} />
                     <Route path="/store/audit-logs" element={<AuditLogList />} />
                   </Route>
-                  <Route element={<RequireRole roles={["admin", "manager"]} />}>
-                    <Route path="/store/close-month" element={<CloseMonthList />} />
-                    <Route path="/store/close-month/:closeId" element={<CloseMonthDetail />} />
-                  </Route>
+
                 </Route>
 
                 {/* Unified User Management — admin (system-wide) + manager (shop-scoped) */}

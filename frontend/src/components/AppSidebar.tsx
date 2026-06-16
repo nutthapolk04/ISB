@@ -23,7 +23,6 @@ import {
   ClipboardList,
   Layers,
   HandCoins,
-  CalendarCheck,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -117,7 +116,6 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,      roles: ["admin", "manager", "cashier"] },
-      { titleKey: "nav.storeCloseMonth", url: "/store/close-month",    icon: CalendarCheck,  roles: ["admin", "manager"], matchPrefix: true },
     ],
   },
   {

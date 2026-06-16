@@ -62,11 +62,13 @@ import {
   HandHelping,
   Printer,
   Barcode,
+  CalendarCheck,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
+import MonthlyStockReport from "./store/MonthlyStockReport";
 import { useUom, type UnitOfMeasure } from "@/hooks/useUom";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
 import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
@@ -1124,6 +1126,12 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             <ArrowDownToLine className="h-4 w-4" />
             {t("inventory.tabReceive")}
           </TabsTrigger>
+          {embedded && (
+            <TabsTrigger value="monthly-report" className="gap-2">
+              <CalendarCheck className="h-4 w-4" />
+              Monthly Report
+            </TabsTrigger>
+          )}
           <TabsTrigger value="movements" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             {t("inventory.tabMovements")}
@@ -1636,6 +1644,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Tab: Monthly Stock Report ──────────────────────────────────── */}
+        <TabsContent value="monthly-report">
+          {embedded && lockedShopId && (
+            <MonthlyStockReport shopId={lockedShopId} />
+          )}
         </TabsContent>
 
         {/* ── Tab: Movement Log ─────────────────────────────────────────── */}
