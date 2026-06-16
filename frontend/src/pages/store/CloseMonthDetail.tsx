@@ -15,9 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 
-const MONTH_NAMES_TH = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 export default function CloseMonthDetail() {
@@ -50,9 +50,9 @@ export default function CloseMonthDetail() {
     try {
       await bulkUpdate.mutateAsync(updates);
       setLocalQty({});
-      toast.success("บันทึกแล้ว");
+      toast.success("Saved");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "เกิดข้อผิดพลาด");
+      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "An error occurred");
     }
   }
 
@@ -61,21 +61,21 @@ export default function CloseMonthDetail() {
     if (!file) return;
     try {
       const result = await importCsvMutation.mutateAsync(file);
-      toast.success(`นำเข้า ${result.imported} รายการ (ข้าม ${result.skipped} รายการ)`);
+      toast.success(`Imported ${result.imported} items (skipped ${result.skipped})`);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : (err as Error)?.message ?? "นำเข้าไม่สำเร็จ");
+      toast.error(err instanceof ApiError ? err.detail : (err as Error)?.message ?? "Import failed");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   async function handleConfirm() {
-    if (!window.confirm("ยืนยันปิดรอบเดือนนี้? ระบบจะสร้างรายการปรับสต๊อกตามผลต่าง")) return;
+    if (!window.confirm("Confirm closing this period? The system will create stock adjustment entries based on the variance.")) return;
     try {
       await confirm.mutateAsync();
-      toast.success("ปิดรอบเดือนสำเร็จ");
+      toast.success("Period closed successfully");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "เกิดข้อผิดพลาด");
+      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "An error occurred");
     }
   }
 
@@ -97,14 +97,14 @@ export default function CloseMonthDetail() {
       a.remove();
       URL.revokeObjectURL(objUrl);
     } catch {
-      toast.error("ดาวน์โหลดไม่สำเร็จ");
+      toast.error("Download failed");
     }
   }
 
-  if (!shopId) return <div className="p-6 text-muted-foreground">ไม่พบร้านค้าที่กำหนด</div>;
-  if (!id || isNaN(id)) return <div className="p-6 text-muted-foreground">รหัสรอบปิดไม่ถูกต้อง</div>;
-  if (isLoading) return <div className="p-6 text-muted-foreground">กำลังโหลด...</div>;
-  if (!close) return <div className="p-6 text-muted-foreground">ไม่พบข้อมูล</div>;
+  if (!shopId) return <div className="p-6 text-muted-foreground">No shop assigned</div>;
+  if (!id || isNaN(id)) return <div className="p-6 text-muted-foreground">Invalid close period ID</div>;
+  if (isLoading) return <div className="p-6 text-muted-foreground">Loading...</div>;
+  if (!close) return <div className="p-6 text-muted-foreground">Not found</div>;
 
   const filledCount = close.items.filter((i) => {
     const v = localQty[i.id];
@@ -120,28 +120,28 @@ export default function CloseMonthDetail() {
           onClick={() => navigate("/store/close-month")}
           className="text-muted-foreground hover:text-foreground text-sm"
         >
-          ← กลับ
+          ← Back
         </button>
         <h1 className="text-xl font-semibold">
-          ปิดรอบ {MONTH_NAMES_TH[close.period_month - 1]} {close.period_year}
+          Close Period {MONTH_NAMES[close.period_month - 1]} {close.period_year}
         </h1>
         <Badge variant={isClosed ? "success" : "secondary"}>
-          {isClosed ? "ปิดแล้ว" : "ร่าง"}
+          {isClosed ? "Closed" : "Draft"}
         </Badge>
       </div>
 
       {/* Warning banner */}
       {close.has_backdated_movements && (
         <div className="rounded-md border border-yellow-400 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-          มีรายการ movement ที่เกิดขึ้นหลังจากสร้างรอบนี้ ข้อมูลอาจไม่ตรงกับความเป็นจริง
+          Some movements occurred after this period was created. Data may not reflect the current state.
         </div>
       )}
 
       <Tabs defaultValue="count">
         <TabsList>
-          <TabsTrigger value="count">นับสต๊อก ({filledCount}/{totalCount})</TabsTrigger>
-          <TabsTrigger value="csv">นำเข้า CSV</TabsTrigger>
-          <TabsTrigger value="summary">สรุป</TabsTrigger>
+          <TabsTrigger value="count">Stock Count ({filledCount}/{totalCount})</TabsTrigger>
+          <TabsTrigger value="csv">Import CSV</TabsTrigger>
+          <TabsTrigger value="summary">Summary</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Physical count */}
@@ -153,7 +153,7 @@ export default function CloseMonthDetail() {
                 onClick={handleSave}
                 disabled={bulkUpdate.isPending || Object.keys(localQty).length === 0}
               >
-                {bulkUpdate.isPending ? "กำลังบันทึก..." : "บันทึก"}
+                {bulkUpdate.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
           )}
@@ -161,10 +161,10 @@ export default function CloseMonthDetail() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="p-3 text-left">สินค้า</th>
-                  <th className="p-3 text-right">ในระบบ</th>
-                  <th className="p-3 text-right">นับจริง</th>
-                  <th className="p-3 text-right">ผลต่าง</th>
+                  <th className="p-3 text-left">Product</th>
+                  <th className="p-3 text-right">System Qty</th>
+                  <th className="p-3 text-right">Physical Count</th>
+                  <th className="p-3 text-right">Variance</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,15 +216,15 @@ export default function CloseMonthDetail() {
         <TabsContent value="csv" className="space-y-4">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              ดาวน์โหลด template แล้วกรอก physical_qty จากนั้นอัปโหลดกลับ
+              Download the template, fill in physical_qty, then upload it back.
             </p>
             <Button variant="outline" onClick={handleExportCsv}>
-              ดาวน์โหลด CSV Template
+              Download CSV Template
             </Button>
           </div>
           {!isClosed && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">อัปโหลด CSV ที่กรอกแล้ว</p>
+              <p className="text-sm font-medium">Upload completed CSV</p>
               <input
                 ref={fileRef}
                 type="file"
@@ -234,7 +234,7 @@ export default function CloseMonthDetail() {
                 disabled={importCsvMutation.isPending}
               />
               {importCsvMutation.isPending && (
-                <p className="text-sm text-muted-foreground">กำลังนำเข้า...</p>
+                <p className="text-sm text-muted-foreground">Importing...</p>
               )}
             </div>
           )}
@@ -246,11 +246,11 @@ export default function CloseMonthDetail() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="p-3 text-left">สินค้า</th>
-                  <th className="p-3 text-right">ในระบบ</th>
-                  <th className="p-3 text-right">นับจริง</th>
-                  <th className="p-3 text-right">ผลต่าง</th>
-                  <th className="p-3 text-right">มูลค่าต่าง</th>
+                  <th className="p-3 text-left">Product</th>
+                  <th className="p-3 text-right">System Qty</th>
+                  <th className="p-3 text-right">Physical Count</th>
+                  <th className="p-3 text-right">Variance</th>
+                  <th className="p-3 text-right">Variance Value</th>
                 </tr>
               </thead>
               <tbody>
@@ -294,10 +294,10 @@ export default function CloseMonthDetail() {
                 disabled={confirm.isPending || filledCount < totalCount}
               >
                 {confirm.isPending
-                  ? "กำลังปิดรอบ..."
+                  ? "Closing..."
                   : filledCount < totalCount
-                  ? `ยังกรอกไม่ครบ (${filledCount}/${totalCount})`
-                  : "ยืนยันปิดรอบ"}
+                  ? `Incomplete (${filledCount}/${totalCount})`
+                  : "Confirm Close Period"}
               </Button>
             </div>
           )}

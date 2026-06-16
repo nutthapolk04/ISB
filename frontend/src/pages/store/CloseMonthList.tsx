@@ -21,9 +21,9 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { ApiError } from "@/lib/api";
 
-const MONTH_NAMES_TH = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 export default function CloseMonthList() {
@@ -47,30 +47,30 @@ export default function CloseMonthList() {
       setOpen(false);
       navigate(`/store/close-month/${result.id}`);
     } catch (e: any) {
-      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "เกิดข้อผิดพลาด");
+      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "An error occurred");
     }
   }
 
   if (!shopId) {
-    return <div className="p-6 text-muted-foreground">ไม่พบร้านค้าที่กำหนด</div>;
+    return <div className="p-6 text-muted-foreground">No shop assigned</div>;
   }
 
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">ปิดรอบเดือน</h1>
+        <h1 className="text-xl font-semibold">Close Month</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>+ เริ่มปิดรอบ</Button>
+            <Button>+ Start Close Period</Button>
           </DialogTrigger>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>เลือกรอบที่ต้องการปิด</DialogTitle>
+              <DialogTitle>Select Period to Close</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 pt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm text-muted-foreground">ปี</label>
+                  <label className="text-sm text-muted-foreground">Year</label>
                   <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -79,11 +79,11 @@ export default function CloseMonthList() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground">เดือน</label>
+                  <label className="text-sm text-muted-foreground">Month</label>
                   <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {MONTH_NAMES_TH.map((n, i) => (
+                      {MONTH_NAMES.map((n, i) => (
                         <SelectItem key={i + 1} value={String(i + 1)}>{n}</SelectItem>
                       ))}
                     </SelectContent>
@@ -95,7 +95,7 @@ export default function CloseMonthList() {
                 onClick={handleCreate}
                 disabled={createClose.isPending}
               >
-                {createClose.isPending ? "กำลังสร้าง..." : "สร้างรอบปิด"}
+                {createClose.isPending ? "Creating..." : "Create Close Period"}
               </Button>
             </div>
           </DialogContent>
@@ -103,19 +103,19 @@ export default function CloseMonthList() {
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground">กำลังโหลด...</div>
+        <div className="text-muted-foreground">Loading...</div>
       ) : isError ? (
-        <div className="text-destructive text-sm">โหลดข้อมูลไม่สำเร็จ</div>
+        <div className="text-destructive text-sm">Failed to load data</div>
       ) : closes.length === 0 ? (
-        <div className="text-muted-foreground">ยังไม่มีรอบปิดเดือน</div>
+        <div className="text-muted-foreground">No close periods yet</div>
       ) : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="p-3 text-left">เดือน</th>
-                <th className="p-3 text-left">สถานะ</th>
-                <th className="p-3 text-left">วันที่ปิด</th>
+                <th className="p-3 text-left">Month</th>
+                <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-left">Closed Date</th>
               </tr>
             </thead>
             <tbody>
@@ -126,16 +126,16 @@ export default function CloseMonthList() {
                   onClick={() => navigate(`/store/close-month/${c.id}`)}
                 >
                   <td className="p-3">
-                    {MONTH_NAMES_TH[c.period_month - 1]} {c.period_year}
+                    {MONTH_NAMES[c.period_month - 1]} {c.period_year}
                   </td>
                   <td className="p-3">
                     <Badge variant={c.status === "closed" ? "success" : "secondary"}>
-                      {c.status === "closed" ? "ปิดแล้ว" : "ร่าง"}
+                      {c.status === "closed" ? "Closed" : "Draft"}
                     </Badge>
                   </td>
                   <td className="p-3 text-muted-foreground">
                     {c.closed_at
-                      ? new Date(c.closed_at).toLocaleDateString("th-TH")
+                      ? new Date(c.closed_at).toLocaleDateString("en-GB")
                       : "—"}
                   </td>
                 </tr>
