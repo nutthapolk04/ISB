@@ -368,7 +368,7 @@ export async function updateShopProduct(
     await pgClient`
       INSERT INTO audit_logs (entity_type, entity_id, entity_name, shop_id, action, user_id, changes_json)
       VALUES ('shop_product', ${productId}, ${fresh.name}, ${shopId}, 'UPDATE',
-              ${Number(caller.sub)}, ${{ old: oldPrices, new: { external_price: fresh.external_price, internal_price: fresh.internal_price } }})
+              ${Number(caller.sub)}, ${JSON.stringify({ old: oldPrices, new: { external_price: fresh.external_price, internal_price: fresh.internal_price } })})
     `;
   }
 

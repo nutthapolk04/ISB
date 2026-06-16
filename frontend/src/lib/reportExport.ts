@@ -577,7 +577,20 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");
-  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+
+  const fname = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Small convenience used by every report tab ──────────────────────────

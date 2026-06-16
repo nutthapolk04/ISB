@@ -108,59 +108,70 @@ export default function CanteenMenuPage() {
                 </div>
               ) : (
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("auditLog.date")}</TableHead>
-                      <TableHead>{t("auditLog.user")}</TableHead>
-                      <TableHead>{t("auditLog.action")}</TableHead>
-                      <TableHead>{t("auditLog.product")}</TableHead>
-                      <TableHead>{t("auditLog.detail")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {auditLogs.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                          {t("auditLog.noLogs")}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      auditLogs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {log.created_at ? fmtDateTime(log.created_at) : "-"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {log.user_full_name || log.user_username || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={log.action === "DELETE_PRODUCT" ? "destructive" : "secondary"}
-                              className="text-xs"
-                            >
-                              {log.action === "UPDATE_PRICE"
-                                ? t("auditLog.actionUpdatePrice")
-                                : log.action === "DELETE_PRODUCT"
-                                ? t("auditLog.actionDeleteProduct")
-                                : log.action}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">{log.entity_name || "-"}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {log.action === "UPDATE_PRICE" && log.changes ? (
-                              <span>
-                                {t("auditLog.oldPrice")}: ฿{(log.changes as {old: {external_price: number}}).old?.external_price ?? "-"}
-                                {" → "}
-                                {t("auditLog.newPrice")}: ฿{(log.changes as {new: {external_price: number}}).new?.external_price ?? "-"}
-                              </span>
-                            ) : log.action === "DELETE_PRODUCT" && log.changes ? (
-                              <span>฿{(log.changes as {snapshot: {external_price: number}}).snapshot?.external_price ?? "-"}</span>
-                            ) : "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
+                  {(() => {
+                    const hasDetail = auditLogs.some(
+                      (log) => log.changes && (log.action === "UPDATE_PRICE" || log.action === "DELETE_PRODUCT"),
+                    );
+                    return (
+                      <>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t("auditLog.date")}</TableHead>
+                            <TableHead>{t("auditLog.user")}</TableHead>
+                            <TableHead>{t("auditLog.action")}</TableHead>
+                            <TableHead>{t("auditLog.product")}</TableHead>
+                            {hasDetail && <TableHead>{t("auditLog.detail")}</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {auditLogs.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={hasDetail ? 5 : 4} className="h-24 text-center text-muted-foreground">
+                                {t("auditLog.noLogs")}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            auditLogs.map((log) => (
+                              <TableRow key={log.id}>
+                                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                                  {log.created_at ? fmtDateTime(log.created_at) : "-"}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {log.user_full_name || log.user_username || "-"}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={log.action === "DELETE_PRODUCT" ? "destructive" : "secondary"}
+                                    className="text-xs"
+                                  >
+                                    {log.action === "UPDATE_PRICE"
+                                      ? t("auditLog.actionUpdatePrice")
+                                      : log.action === "DELETE_PRODUCT"
+                                      ? t("auditLog.actionDeleteProduct")
+                                      : log.action}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">{log.entity_name || "-"}</TableCell>
+                                {hasDetail && (
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {log.action === "UPDATE_PRICE" && log.changes ? (
+                                      <span>
+                                        {t("auditLog.oldPrice")}: ฿{(log.changes as {old: {external_price: number}}).old?.external_price ?? "-"}
+                                        {" → "}
+                                        {t("auditLog.newPrice")}: ฿{(log.changes as {new: {external_price: number}}).new?.external_price ?? "-"}
+                                      </span>
+                                    ) : log.action === "DELETE_PRODUCT" && log.changes ? (
+                                      <span>฿{(log.changes as {snapshot: {external_price: number}}).snapshot?.external_price ?? "-"}</span>
+                                    ) : "-"}
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </>
+                    );
+                  })()}
                 </Table>
               )}
             </CardContent>

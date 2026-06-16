@@ -536,21 +536,21 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
-      const year = parseInt(query.year ?? "");
-      const month = parseInt(query.month ?? "");
-      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      const { start_date, end_date } = query;
+      if (!start_date || !end_date || !/^\d{4}-\d{2}-\d{2}$/.test(start_date) || !/^\d{4}-\d{2}-\d{2}$/.test(end_date)) {
         set.status = 422;
-        return { detail: "Invalid year or month" };
+        return { detail: "Invalid date range" };
       }
       try {
-        return await getMonthlyStockReport(params.shopId, year, month);
+        return await getMonthlyStockReport(params.shopId, start_date, end_date);
       } catch (e) {
+        console.error("[monthly-stock-report] error:", e);
         return handleErr(set, e);
       }
     },
     {
       params: t.Object({ shopId: t.String() }),
-      query: t.Object({ year: t.Optional(t.String()), month: t.Optional(t.String()) }),
+      query: t.Object({ start_date: t.Optional(t.String()), end_date: t.Optional(t.String()) }),
     },
   )
 
@@ -561,18 +561,17 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
-      const year = parseInt(query.year ?? "");
-      const month = parseInt(query.month ?? "");
-      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      const { start_date, end_date } = query;
+      if (!start_date || !end_date || !/^\d{4}-\d{2}-\d{2}$/.test(start_date) || !/^\d{4}-\d{2}-\d{2}$/.test(end_date)) {
         set.status = 422;
-        return { detail: "Invalid year or month" };
+        return { detail: "Invalid date range" };
       }
       try {
-        const buffer = await exportMonthlyStockReport(params.shopId, year, month);
+        const buffer = await exportMonthlyStockReport(params.shopId, start_date, end_date);
         return new Response(buffer, {
           headers: {
             "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "Content-Disposition": `attachment; filename="stock-report-${year}-${String(month).padStart(2, "0")}.xlsx"`,
+            "Content-Disposition": `attachment; filename="stock-report-${start_date}-to-${end_date}.xlsx"`,
           },
         });
       } catch (e) {
@@ -581,7 +580,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     },
     {
       params: t.Object({ shopId: t.String() }),
-      query: t.Object({ year: t.Optional(t.String()), month: t.Optional(t.String()) }),
+      query: t.Object({ start_date: t.Optional(t.String()), end_date: t.Optional(t.String()) }),
     },
   )
 

@@ -11,13 +11,13 @@ export interface MonthlyStockRow {
   current_stock: number | null;
 }
 
-export function useMonthlyStockReport(shopId: string, year: number, month: number) {
+export function useMonthlyStockReport(shopId: string, startDate: string, endDate: string) {
   return useQuery({
-    queryKey: ["monthly-stock", shopId, year, month],
+    queryKey: ["monthly-stock", shopId, startDate, endDate],
     queryFn: () =>
       api.get<MonthlyStockRow[]>(
-        `/shops/${shopId}/monthly-stock-report?year=${year}&month=${month}`,
+        `/shops/${shopId}/monthly-stock-report?start_date=${startDate}&end_date=${endDate}`,
       ),
-    enabled: !!shopId && !!year && !!month,
+    enabled: !!shopId && !!startDate && !!endDate,
   });
 }

@@ -13,8 +13,8 @@ export interface MonthlyStockRow {
 
 export async function getMonthlyStockReport(
   shopId: string,
-  year: number,
-  month: number,
+  startDate: string,
+  endDate: string,
 ): Promise<MonthlyStockRow[]> {
   const rows = await pgClient`
     SELECT
@@ -28,8 +28,8 @@ export async function getMonthlyStockReport(
     FROM shop_movements sm
     LEFT JOIN shop_products sp ON sp.id = sm.product_id
     WHERE sm.shop_id = ${shopId}
-      AND EXTRACT(YEAR FROM sm.date) = ${year}
-      AND EXTRACT(MONTH FROM sm.date) = ${month}
+      AND sm.date >= ${startDate}::date
+      AND sm.date <= ${endDate}::date
     GROUP BY sm.product_id, sm.product_name, sp.stock
     ORDER BY sm.product_name
   `;
@@ -46,10 +46,10 @@ export async function getMonthlyStockReport(
 
 export async function exportMonthlyStockReport(
   shopId: string,
-  year: number,
-  month: number,
+  startDate: string,
+  endDate: string,
 ): Promise<Buffer> {
-  const rows = await getMonthlyStockReport(shopId, year, month);
+  const rows = await getMonthlyStockReport(shopId, startDate, endDate);
   const wb = XLSX.utils.book_new();
   const data = [
     ["Product", "Received", "Sold", "Internal Use", "Adjustment", "Net Change", "Current Stock"],
@@ -59,6 +59,6 @@ export async function exportMonthlyStockReport(
     }),
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, "Monthly Stock");
+  XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
