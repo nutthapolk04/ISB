@@ -681,9 +681,12 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
           return { detail: "Forbidden" };
         }
         const buffer = await exportExcel(id);
-        set.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        set.headers["Content-Disposition"] = `attachment; filename="close-${params.closeId}.xlsx"`;
-        return buffer;
+        return new Response(buffer, {
+          headers: {
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition": `attachment; filename="close-${params.closeId}.xlsx"`,
+          },
+        });
       } catch (e) {
         return handleErr(set, e);
       }

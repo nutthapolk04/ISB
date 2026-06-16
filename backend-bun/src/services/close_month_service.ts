@@ -223,7 +223,7 @@ export async function importExcel(
   if (!close) throw err("Close period not found", 404);
   if (close.status === "closed") throw err("Cannot update a closed period", 409);
 
-  const wb = XLSX.read(buffer, { type: "array" });
+  const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
   const dataRows = rows.slice(1); // skip header
