@@ -18,6 +18,7 @@ import { pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
 import { fifoDeductInTx } from "@/services/inventory_fifo";
+import { checkAndSendLowBalanceAlerts } from "@/services/low_balance_notification";
 
 const ALLOWED_PAYMENT_METHODS = new Set([
   "CASH",
@@ -302,6 +303,7 @@ export async function checkout(input: CheckoutInput) {
   const allowNegCustomer = ((await getSettingRaw("allow_negative_customer_wallet")) as boolean) === true;
 
   // Run the actual mutation under one DB transaction.
+  let postCheckoutCustomerData: { customerId: number; balanceAfter: number } | null = null;
   const newReceiptId = await pgClient.begin(async (sqlTx) => {
     const receiptNumber = await generateReceiptNumber(sqlTx);
 
@@ -597,6 +599,9 @@ export async function checkout(input: CheckoutInput) {
       }
       await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
       walletDeductData = { walletId, balanceBefore, balanceAfter: projected, amount: total };
+      if (input.customer_id) {
+        postCheckoutCustomerData = { customerId: input.customer_id, balanceAfter: projected };
+      }
     }
 
     // ── Insert receipt + items ───────────────────────────────────────
@@ -661,5 +666,11 @@ export async function checkout(input: CheckoutInput) {
     return receiptId;
   });
 
-  return getReceipt(newReceiptId);
+  const receipt = await getReceipt(newReceiptId);
+  // Fire-and-forget — never block checkout response
+  const notifyData = postCheckoutCustomerData as { customerId: number; balanceAfter: number } | null;
+  if (notifyData) {
+    checkAndSendLowBalanceAlerts(notifyData.customerId, notifyData.balanceAfter).catch(() => {});
+  }
+  return receipt;
 }
