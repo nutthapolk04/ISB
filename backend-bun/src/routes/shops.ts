@@ -578,8 +578,18 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
+      const id = parseInt(params.closeId);
+      if (!Number.isInteger(id)) {
+        set.status = 422;
+        return { detail: "Invalid close id" };
+      }
       try {
-        return await getClose(parseInt(params.closeId));
+        const close = await getClose(id);
+        if (close.shop_id !== params.shopId) {
+          set.status = 403;
+          return { detail: "Forbidden" };
+        }
+        return close;
       } catch (e) {
         return handleErr(set, e);
       }
@@ -594,8 +604,18 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
+      const id = parseInt(params.closeId);
+      if (!Number.isInteger(id)) {
+        set.status = 422;
+        return { detail: "Invalid close id" };
+      }
       try {
-        await bulkUpdateItems(parseInt(params.closeId), body.updates);
+        const close = await getClose(id);
+        if (close.shop_id !== params.shopId) {
+          set.status = 403;
+          return { detail: "Forbidden" };
+        }
+        await bulkUpdateItems(id, body.updates);
         return { ok: true };
       } catch (e) {
         return handleErr(set, e);
@@ -618,9 +638,19 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
+      const id = parseInt(params.closeId);
+      if (!Number.isInteger(id)) {
+        set.status = 422;
+        return { detail: "Invalid close id" };
+      }
       try {
+        const close = await getClose(id);
+        if (close.shop_id !== params.shopId) {
+          set.status = 403;
+          return { detail: "Forbidden" };
+        }
         const csvText = await body.file.text();
-        return await importCsv(parseInt(params.closeId), csvText);
+        return await importCsv(id, csvText);
       } catch (e) {
         return handleErr(set, e);
       }
@@ -639,8 +669,18 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
+      const id = parseInt(params.closeId);
+      if (!Number.isInteger(id)) {
+        set.status = 422;
+        return { detail: "Invalid close id" };
+      }
       try {
-        const csv = await exportCsv(parseInt(params.closeId));
+        const close = await getClose(id);
+        if (close.shop_id !== params.shopId) {
+          set.status = 403;
+          return { detail: "Forbidden" };
+        }
+        const csv = await exportCsv(id);
         set.headers["Content-Type"] = "text/csv";
         set.headers["Content-Disposition"] = `attachment; filename="close-${params.closeId}.csv"`;
         return csv;
@@ -658,8 +698,18 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         set.status = 403;
         return { detail: "Forbidden" };
       }
+      const id = parseInt(params.closeId);
+      if (!Number.isInteger(id)) {
+        set.status = 422;
+        return { detail: "Invalid close id" };
+      }
       try {
-        return await confirmClose(parseInt(params.closeId), user.id);
+        const close = await getClose(id);
+        if (close.shop_id !== params.shopId) {
+          set.status = 403;
+          return { detail: "Forbidden" };
+        }
+        return await confirmClose(id, Number(user.sub));
       } catch (e) {
         return handleErr(set, e);
       }
