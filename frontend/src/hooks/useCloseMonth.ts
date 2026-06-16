@@ -41,7 +41,7 @@ export interface CloseSummary {
 
 const closeMonthKeys = {
   list: (shopId: string) => ["close-month", shopId] as const,
-  detail: (closeId: number) => ["close-month-detail", closeId] as const,
+  detail: (shopId: string, closeId: number) => ["close-month", shopId, "detail", closeId] as const,
 };
 
 export function useCloseList(shopId: string) {
@@ -54,7 +54,7 @@ export function useCloseList(shopId: string) {
 
 export function useCloseDetail(shopId: string, closeId: number) {
   return useQuery({
-    queryKey: closeMonthKeys.detail(closeId),
+    queryKey: closeMonthKeys.detail(shopId, closeId),
     queryFn: () => api.get<CloseDetail>(`/shops/${shopId}/close-month/${closeId}`),
     enabled: !!shopId && !!closeId,
   });
@@ -74,7 +74,7 @@ export function useBulkUpdateItems(shopId: string, closeId: number) {
   return useMutation({
     mutationFn: (updates: { item_id: number; physical_qty: number }[]) =>
       api.patch<{ ok: boolean }>(`/shops/${shopId}/close-month/${closeId}/items`, { updates }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: closeMonthKeys.detail(closeId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: closeMonthKeys.detail(shopId, closeId) }),
   });
 }
 
@@ -89,7 +89,7 @@ export function useImportCsv(shopId: string, closeId: number) {
         form,
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: closeMonthKeys.detail(closeId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: closeMonthKeys.detail(shopId, closeId) }),
   });
 }
 
@@ -99,7 +99,7 @@ export function useConfirmClose(shopId: string, closeId: number) {
     mutationFn: () =>
       api.post<CloseDetail>(`/shops/${shopId}/close-month/${closeId}/confirm`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: closeMonthKeys.detail(closeId) });
+      qc.invalidateQueries({ queryKey: closeMonthKeys.detail(shopId, closeId) });
       qc.invalidateQueries({ queryKey: closeMonthKeys.list(shopId) });
     },
   });
