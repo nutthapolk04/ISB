@@ -140,14 +140,29 @@ export default function CloseMonthDetail() {
       <Tabs defaultValue="count">
         <TabsList>
           <TabsTrigger value="count">Stock Count ({filledCount}/{totalCount})</TabsTrigger>
-          <TabsTrigger value="csv">Import CSV</TabsTrigger>
           <TabsTrigger value="summary">Summary</TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Physical count */}
+        {/* Tab 1: Physical count + Import Excel */}
         <TabsContent value="count" className="space-y-3">
           {!isClosed && (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                  Download Excel Template
+                </Button>
+                <label className={`text-sm cursor-pointer px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground ${importExcelMutation.isPending ? "opacity-50 pointer-events-none" : ""}`}>
+                  {importExcelMutation.isPending ? "Importing..." : "Import Excel"}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="hidden"
+                    onChange={handleImport}
+                    disabled={importExcelMutation.isPending}
+                  />
+                </label>
+              </div>
               <Button
                 size="sm"
                 onClick={handleSave}
@@ -210,34 +225,6 @@ export default function CloseMonthDetail() {
               </tbody>
             </table>
           </div>
-        </TabsContent>
-
-        {/* Tab 2: CSV */}
-        <TabsContent value="csv" className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Download the Excel template, fill in physical_qty, then upload it back.
-            </p>
-            <Button variant="outline" onClick={handleExportCsv}>
-              Download Excel Template
-            </Button>
-          </div>
-          {!isClosed && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Upload completed CSV</p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="text-sm"
-                onChange={handleImport}
-                disabled={importExcelMutation.isPending}
-              />
-              {importExcelMutation.isPending && (
-                <p className="text-sm text-muted-foreground">Importing...</p>
-              )}
-            </div>
-          )}
         </TabsContent>
 
         {/* Tab 3: Summary */}
