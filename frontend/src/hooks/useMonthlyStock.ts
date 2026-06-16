@@ -8,6 +8,7 @@ export interface MonthlyStockRow {
   sold: number;
   internal_use: number;
   adjustment: number;
+  current_stock: number | null;
 }
 
 export function useMonthlyStockReport(shopId: string, year: number, month: number) {

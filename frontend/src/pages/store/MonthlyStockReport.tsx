@@ -93,6 +93,7 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
                 <th className="p-3 text-right">Internal Use</th>
                 <th className="p-3 text-right">Adjustment</th>
                 <th className="p-3 text-right">Net Change</th>
+                <th className="p-3 text-right">Current Stock</th>
               </tr>
             </thead>
             <tbody>
@@ -109,6 +110,9 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
                     </td>
                     <td className={`p-3 text-right tabular-nums font-medium ${net > 0 ? "text-green-700" : net < 0 ? "text-red-600" : ""}`}>
                       {net > 0 ? `+${net}` : net === 0 ? "0" : `${net}`}
+                    </td>
+                    <td className="p-3 text-right tabular-nums font-semibold">
+                      {r.current_stock ?? "—"}
                     </td>
                   </tr>
                 );

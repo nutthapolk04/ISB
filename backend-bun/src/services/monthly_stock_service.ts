@@ -8,6 +8,7 @@ export interface MonthlyStockRow {
   sold: number;
   internal_use: number;
   adjustment: number;
+  current_stock: number | null;
 }
 
 export async function getMonthlyStockReport(
@@ -22,12 +23,14 @@ export async function getMonthlyStockReport(
       SUM(CASE WHEN sm.type = 'receive' THEN sm.quantity ELSE 0 END)::int AS received,
       SUM(CASE WHEN sm.type = 'sale' THEN sm.quantity ELSE 0 END)::int AS sold,
       SUM(CASE WHEN sm.type IN ('internal_use', 'exchange') THEN sm.quantity ELSE 0 END)::int AS internal_use,
-      SUM(CASE WHEN sm.type = 'adjustment' THEN (sm.stock_after - sm.stock_before) ELSE 0 END)::int AS adjustment
+      SUM(CASE WHEN sm.type = 'adjustment' THEN (sm.stock_after - sm.stock_before) ELSE 0 END)::int AS adjustment,
+      sp.stock AS current_stock
     FROM shop_movements sm
+    LEFT JOIN shop_products sp ON sp.id = sm.product_id
     WHERE sm.shop_id = ${shopId}
       AND EXTRACT(YEAR FROM sm.date) = ${year}
       AND EXTRACT(MONTH FROM sm.date) = ${month}
-    GROUP BY sm.product_id, sm.product_name
+    GROUP BY sm.product_id, sm.product_name, sp.stock
     ORDER BY sm.product_name
   `;
   return rows.map((r: any) => ({
@@ -37,6 +40,7 @@ export async function getMonthlyStockReport(
     sold: r.sold,
     internal_use: r.internal_use,
     adjustment: r.adjustment,
+    current_stock: r.current_stock ?? null,
   }));
 }
 
@@ -48,10 +52,10 @@ export async function exportMonthlyStockReport(
   const rows = await getMonthlyStockReport(shopId, year, month);
   const wb = XLSX.utils.book_new();
   const data = [
-    ["Product", "Received", "Sold", "Internal Use", "Adjustment", "Net Change"],
+    ["Product", "Received", "Sold", "Internal Use", "Adjustment", "Net Change", "Current Stock"],
     ...rows.map((r) => {
       const net = r.received - r.sold - r.internal_use + r.adjustment;
-      return [r.product_name, r.received, r.sold, r.internal_use, r.adjustment, net];
+      return [r.product_name, r.received, r.sold, r.internal_use, r.adjustment, net, r.current_stock ?? ""];
     }),
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
