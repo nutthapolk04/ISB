@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
+import { ApiError } from "@/lib/api";
 
 const MONTH_NAMES_TH = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -30,7 +31,7 @@ export default function CloseMonthList() {
   const navigate = useNavigate();
   const shopId = user?.shopId ?? "";
 
-  const { data: closes = [], isLoading } = useCloseList(shopId);
+  const { data: closes = [], isLoading, isError } = useCloseList(shopId);
   const createClose = useCreateClose(shopId);
 
   const [open, setOpen] = useState(false);
@@ -46,7 +47,7 @@ export default function CloseMonthList() {
       setOpen(false);
       navigate(`/store/close-month/${result.id}`);
     } catch (e: any) {
-      toast.error(e?.message ?? "เกิดข้อผิดพลาด");
+      toast.error(e instanceof ApiError ? e.detail : (e as Error)?.message ?? "เกิดข้อผิดพลาด");
     }
   }
 
@@ -103,6 +104,8 @@ export default function CloseMonthList() {
 
       {isLoading ? (
         <div className="text-muted-foreground">กำลังโหลด...</div>
+      ) : isError ? (
+        <div className="text-destructive text-sm">โหลดข้อมูลไม่สำเร็จ</div>
       ) : closes.length === 0 ? (
         <div className="text-muted-foreground">ยังไม่มีรอบปิดเดือน</div>
       ) : (
