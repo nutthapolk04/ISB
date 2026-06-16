@@ -2006,6 +2006,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           caller: user as typeof user & { shop_id?: string | null },
           file: body.file,
           shopId: query.shop_id ?? "",
+          dryRun: query.dry_run === "true",
         });
         set.status = result.status;
         return result.body;
@@ -2013,7 +2014,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
     {
       body: t.Object({ file: t.File() }),
-      query: t.Object({ shop_id: t.Optional(t.Nullable(t.String())) }),
+      query: t.Object({
+        shop_id: t.Optional(t.Nullable(t.String())),
+        dry_run: t.Optional(t.String()),
+      }),
     },
   )
   // ── Admin wallet reports (adjustment + transfer) ─────────────────────────

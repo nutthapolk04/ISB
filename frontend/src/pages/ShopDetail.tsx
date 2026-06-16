@@ -30,8 +30,24 @@ import { api } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { PricePanelManager } from "@/components/PricePanelManager";
 
+interface ProductPreviewRow {
+  row: number;
+  name: string;
+  barcode: string | null;
+  price: number;
+  cost_price: number;
+  category: string;
+  action: "create" | "update" | "stock_only";
+  quantity: number | null;
+}
+
 interface StoreImportResult {
-  products: { created: number; updated: number; errors: { row: number; reason: string }[] };
+  products: {
+    created: number;
+    updated: number;
+    errors: { row: number; reason: string }[];
+    preview?: ProductPreviewRow[];
+  };
   stock: { imported: number; errors: { row: number; reason: string }[] };
 }
 
@@ -411,7 +427,7 @@ const ShopDetail = () => {
 
           {/* ── Preview dialog (dry-run results) ──────────────────────── */}
           <Dialog open={preview?.open ?? false} onOpenChange={(open) => { if (!open) setPreview(null); }}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-3xl">
               <DialogHeader>
                 <DialogTitle>{t("shopImport.previewTitle", "Preview import")}</DialogTitle>
               </DialogHeader>
@@ -468,6 +484,51 @@ const ShopDetail = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Row-level preview table */}
+                  {preview.result.products.preview && preview.result.products.preview.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">{t("shopImport.previewRows", "Items to import")}</p>
+                      <div className="max-h-56 overflow-y-auto rounded border text-xs">
+                        <table className="w-full">
+                          <thead className="sticky top-0 bg-muted/80">
+                            <tr>
+                              <th className="p-2 text-left font-medium">#</th>
+                              <th className="p-2 text-left font-medium">{t("shopImport.colName", "Name")}</th>
+                              <th className="p-2 text-left font-medium">{t("shopImport.colBarcode", "Barcode")}</th>
+                              <th className="p-2 text-right font-medium">{t("shopImport.colPrice", "Price")}</th>
+                              <th className="p-2 text-right font-medium">{t("shopImport.colQty", "Qty")}</th>
+                              <th className="p-2 text-center font-medium">{t("shopImport.colAction", "Action")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preview.result.products.preview.map((r) => (
+                              <tr key={r.row} className="border-t">
+                                <td className="p-2 text-muted-foreground font-mono">{r.row}</td>
+                                <td className="p-2 font-medium">{r.name}</td>
+                                <td className="p-2 font-mono text-muted-foreground">{r.barcode || "—"}</td>
+                                <td className="p-2 text-right tabular-nums">
+                                  {r.action !== "stock_only" ? `฿${r.price}` : "—"}
+                                </td>
+                                <td className="p-2 text-right tabular-nums">
+                                  {r.quantity != null ? `+${r.quantity}` : "—"}
+                                </td>
+                                <td className="p-2 text-center">
+                                  {r.action === "create" ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800">Create</span>
+                                  ) : r.action === "update" ? (
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">Update</span>
+                                  ) : (
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">Stock+</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Combined errors list */}
                   {(preview.result.products.errors.length > 0 || preview.result.stock.errors.length > 0) ? (

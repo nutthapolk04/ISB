@@ -30,10 +30,22 @@ export interface ImportRowError {
   reason: string;
 }
 
+export interface ProductPreviewRow {
+  row: number;
+  name: string;
+  barcode: string | null;
+  price: number;
+  cost_price: number;
+  category: string;
+  action: "create" | "update" | "stock_only";
+  quantity: number | null;
+}
+
 export interface ProductImportResult {
   created: number;
   updated: number;
   errors: ImportRowError[];
+  preview?: ProductPreviewRow[];
 }
 
 export interface StockImportResult {
@@ -353,6 +365,105 @@ async function processStockRows(rows: Row[], ctx: ProcessCtx): Promise<StockImpo
 }
 
 /**
+ * Dry-run pass: validate rows and determine create/update actions without
+ * writing anything to the DB. Returns preview rows + errors for UI display.
+ */
+async function dryRunCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreImportResult> {
+  const preview: ProductPreviewRow[] = [];
+  const productErrors: ImportRowError[] = [];
+  let stockImported = 0;
+  const stockErrors: ImportRowError[] = [];
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const rowIdx = i + 2;
+    const row = rows[i];
+
+    const name = coerceStr(row.name);
+    const priceVal = coerceNum(row.price);
+    const costVal = coerceNum(row.cost_price);
+    const qtyVal = coerceInt(row.quantity);
+    const barcode = coerceStr(row.barcode) || null;
+    const category = coerceStr(row.category) || "ทั่วไป";
+    const rowShopId = coerceStr(row.shop_id) || ctx.defaultShopId;
+
+    const hasProductData = name && priceVal !== null && costVal !== null;
+    const hasStockData = qtyVal !== null && qtyVal > 0;
+
+    if (hasProductData) {
+      if (!rowShopId) {
+        productErrors.push({ row: rowIdx, reason: "ต้องระบุ shop_id" });
+        continue;
+      }
+      if (ctx.isManager && rowShopId !== ctx.managerShopId) {
+        productErrors.push({ row: rowIdx, reason: "Manager นำเข้าได้เฉพาะร้านของตัวเองเท่านั้น" });
+        continue;
+      }
+
+      // Check existing product (create vs update) — read-only.
+      let exists = false;
+      if (barcode) {
+        const r = await db.select({ id: shopProducts.id }).from(shopProducts)
+          .where(and(eq(shopProducts.shopId, rowShopId), eq(shopProducts.barcode, barcode))).limit(1);
+        exists = !!r[0];
+      } else {
+        const r = await db.select({ id: shopProducts.id }).from(shopProducts)
+          .where(and(eq(shopProducts.shopId, rowShopId), eq(shopProducts.name, name))).limit(1);
+        exists = !!r[0];
+      }
+
+      preview.push({
+        row: rowIdx,
+        name,
+        barcode,
+        price: priceVal!,
+        cost_price: costVal!,
+        category,
+        action: exists ? "update" : "create",
+        quantity: hasStockData ? qtyVal : null,
+      });
+      if (hasStockData) stockImported += 1;
+
+    } else if (hasStockData && !hasProductData) {
+      // Stock-only top-up row — look up existing product by barcode.
+      const rowShopId2 = coerceStr(row.shop_id) || ctx.defaultShopId;
+      let productName: string | null = null;
+      if (barcode) {
+        const r = await db.select({ name: shopProducts.name }).from(shopProducts)
+          .where(and(eq(shopProducts.barcode, barcode), eq(shopProducts.shopId, rowShopId2))).limit(1);
+        if (r[0]) productName = r[0].name;
+      }
+      if (productName) {
+        preview.push({
+          row: rowIdx,
+          name: productName,
+          barcode,
+          price: 0,
+          cost_price: 0,
+          category: "",
+          action: "stock_only",
+          quantity: qtyVal,
+        });
+        stockImported += 1;
+      } else if (barcode) {
+        stockErrors.push({ row: rowIdx, reason: "ไม่พบสินค้า barcode นี้ในระบบ" });
+      }
+    } else if (name || priceVal !== null || costVal !== null) {
+      if (!name) productErrors.push({ row: rowIdx, reason: "ต้องระบุ 'name' (ชื่อสินค้า)" });
+      else if (priceVal === null) productErrors.push({ row: rowIdx, reason: "'price' (ราคาขาย) ต้องเป็นตัวเลข" });
+      else productErrors.push({ row: rowIdx, reason: "'cost_price' (ต้นทุน) ต้องเป็นตัวเลข" });
+    }
+  }
+
+  const created = preview.filter((r) => r.action === "create").length;
+  const updated = preview.filter((r) => r.action === "update").length;
+
+  return {
+    products: { created, updated, errors: productErrors, preview },
+    stock: { imported: stockImported, errors: stockErrors },
+  };
+}
+
+/**
  * Combined single-sheet processor: every row may carry both product columns
  * and stock-receive columns. Mirrors `_run_combined_rows` in the Python
  * module — product step first, then stock step using the just-upserted
@@ -516,6 +627,7 @@ export async function importStore(args: {
   caller: AccessTokenPayload & { shop_id?: string | null };
   file: File;
   shopId: string;
+  dryRun?: boolean;
 }): Promise<{ status: number; body: StoreImportResult | { detail: string } }> {
   const { ctx, forbidden } = callerCtx(args.caller, args.shopId);
   if (forbidden) return { status: 403, body: { detail: forbidden } };
@@ -526,6 +638,28 @@ export async function importStore(args: {
   } catch (e) {
     return { status: 400, body: { detail: `Could not read file: ${friendlyDbError(e)}` } };
   }
+
+  if (args.dryRun) {
+    let rows: Row[];
+    try {
+      // For dry-run prefer the unified sheet; fall back handles legacy workbooks below.
+      let legacyProducts: Row[] = [];
+      let legacyStock: Row[] = [];
+      try { legacyProducts = parseXlsx(buf, "Products"); } catch { /* ignore */ }
+      try { legacyStock = parseXlsx(buf, "StockReceive"); } catch { /* ignore */ }
+      if (legacyProducts.length > 0 && legacyStock.length > 0) {
+        // Legacy two-sheet dry-run: merge into a combined preview list.
+        rows = [...legacyProducts, ...legacyStock];
+      } else {
+        rows = parseXlsx(buf, null);
+      }
+    } catch (e) {
+      return { status: 400, body: { detail: `Could not parse file: ${friendlyDbError(e)}` } };
+    }
+    return { status: 200, body: await dryRunCombinedRows(rows, ctx) };
+  }
+
+  // ── Real import ───────────────────────────────────────────────────────────
 
   // Legacy two-sheet workbook detection: when both Products + StockReceive
   // sheets are present, use the split-sheet flow so old template files keep
