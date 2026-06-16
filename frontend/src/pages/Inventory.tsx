@@ -1126,16 +1126,16 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             <ArrowDownToLine className="h-4 w-4" />
             {t("inventory.tabReceive")}
           </TabsTrigger>
+          <TabsTrigger value="movements" className="gap-2">
+            <ClipboardList className="h-4 w-4" />
+            {t("inventory.tabMovements")}
+          </TabsTrigger>
           {embedded && (
             <TabsTrigger value="monthly-report" className="gap-2">
               <CalendarCheck className="h-4 w-4" />
               Monthly Report
             </TabsTrigger>
           )}
-          <TabsTrigger value="movements" className="gap-2">
-            <ClipboardList className="h-4 w-4" />
-            {t("inventory.tabMovements")}
-          </TabsTrigger>
           {embedded && (
             <TabsTrigger value="categories" className="gap-2">
               <Tag className="h-4 w-4" />
