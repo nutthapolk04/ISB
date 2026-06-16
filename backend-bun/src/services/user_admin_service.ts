@@ -555,7 +555,18 @@ export async function updateAdminUser(
   }
 
   if (has("full_name")) updates.fullName = payload.full_name ?? u.fullName;
-  if (has("email")) updates.email = payload.email ?? u.email;
+  if (has("email") && payload.email) {
+    const dupEmail = await db
+      .select({ id: users.id, fullName: users.fullName })
+      .from(users)
+      .where(and(eq(users.email, payload.email), ne(users.id, u.id)))
+      .limit(1);
+    if (dupEmail[0]) {
+      const label = dupEmail[0].fullName || "another user";
+      throw statusErr(409, `Email นี้ถูกใช้งานโดย ${label} อยู่แล้ว`);
+    }
+    updates.email = payload.email;
+  }
   if (has("role")) updates.role = payload.role ?? null;
   if (has("family_code")) updates.familyCode = payload.family_code ?? null;
   if (has("photo_url")) updates.photoUrl = payload.photo_url ?? null;
