@@ -1235,3 +1235,57 @@ export const userRoles = pgTable("user_roles", {
 		}).onDelete("cascade"),
 	primaryKey({ columns: [table.roleId, table.userId], name: "user_roles_pkey"}),
 ]);
+
+export const stockPeriodCloses = pgTable("stock_period_closes", {
+  id: serial().primaryKey().notNull(),
+  shopId: varchar("shop_id", { length: 50 }).notNull(),
+  periodYear: integer("period_year").notNull(),
+  periodMonth: integer("period_month").notNull(),
+  status: varchar({ length: 10 }).notNull().default("draft"),
+  closedBy: integer("closed_by"),
+  closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+  notes: text(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
+}, (table) => [
+  unique("uq_stock_period_closes_shop_period").on(table.shopId, table.periodYear, table.periodMonth),
+  index("ix_stock_period_closes_shop_id").using("btree", table.shopId.asc()),
+  foreignKey({
+    columns: [table.shopId],
+    foreignColumns: [shops.id],
+    name: "stock_period_closes_shop_id_fkey",
+  }).onDelete("cascade"),
+  foreignKey({
+    columns: [table.closedBy],
+    foreignColumns: [users.id],
+    name: "stock_period_closes_closed_by_fkey",
+  }),
+]);
+
+export const stockPeriodCloseItems = pgTable("stock_period_close_items", {
+  id: serial().primaryKey().notNull(),
+  closeId: integer("close_id").notNull(),
+  productId: integer("product_id").notNull(),
+  systemQty: integer("system_qty").notNull(),
+  physicalQty: integer("physical_qty"),
+  varianceQty: integer("variance_qty"),
+  unitCost: numeric("unit_cost", { precision: 10, scale: 4 }),
+  varianceValue: numeric("variance_value", { precision: 10, scale: 4 }),
+  adjustmentMovementId: integer("adjustment_movement_id"),
+}, (table) => [
+  index("ix_stock_period_close_items_close_id").using("btree", table.closeId.asc()),
+  foreignKey({
+    columns: [table.closeId],
+    foreignColumns: [stockPeriodCloses.id],
+    name: "stock_period_close_items_close_id_fkey",
+  }).onDelete("cascade"),
+  foreignKey({
+    columns: [table.productId],
+    foreignColumns: [shopProducts.id],
+    name: "stock_period_close_items_product_id_fkey",
+  }),
+  foreignKey({
+    columns: [table.adjustmentMovementId],
+    foreignColumns: [shopMovements.id],
+    name: "stock_period_close_items_adjustment_movement_id_fkey",
+  }).onDelete("set null"),
+]);

@@ -101,6 +101,44 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE`,
     label: "customers.withdraw_date",
   },
+  // ── Close Month: monthly stock period closes ──────────────────────────────
+  {
+    sql: `CREATE TABLE IF NOT EXISTS stock_period_closes (
+      id SERIAL PRIMARY KEY,
+      shop_id VARCHAR(50) NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      period_year INTEGER NOT NULL,
+      period_month INTEGER NOT NULL,
+      status VARCHAR(10) NOT NULL DEFAULT 'draft',
+      closed_by INTEGER REFERENCES users(id),
+      closed_at TIMESTAMPTZ,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_stock_period_closes_shop_period UNIQUE (shop_id, period_year, period_month)
+    )`,
+    label: "CREATE stock_period_closes",
+  },
+  {
+    sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_closes_shop_id ON stock_period_closes(shop_id)`,
+    label: "idx stock_period_closes.shop_id",
+  },
+  {
+    sql: `CREATE TABLE IF NOT EXISTS stock_period_close_items (
+      id SERIAL PRIMARY KEY,
+      close_id INTEGER NOT NULL REFERENCES stock_period_closes(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES shop_products(id),
+      system_qty INTEGER NOT NULL,
+      physical_qty INTEGER,
+      variance_qty INTEGER,
+      unit_cost NUMERIC(10,4),
+      variance_value NUMERIC(10,4),
+      adjustment_movement_id INTEGER REFERENCES shop_movements(id) ON DELETE SET NULL
+    )`,
+    label: "CREATE stock_period_close_items",
+  },
+  {
+    sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_close_items_close_id ON stock_period_close_items(close_id)`,
+    label: "idx stock_period_close_items.close_id",
+  },
 ];
 
 export async function ensureSchema(): Promise<void> {
