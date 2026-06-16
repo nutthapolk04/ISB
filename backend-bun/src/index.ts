@@ -53,6 +53,7 @@ import { listReturns, getReturnsByReceipt, getReturn, getReturnHistory, createRe
 import { listRefundCandidates, createGraduationRefund } from "@/services/refund_service";
 import { searchRefundFamilies, getRefundFamilyRoster } from "@/services/refund_family_service";
 import { buildTemplate, importProducts, importStockReceive, importStore } from "@/services/admin_import_service";
+import { sendEmail } from "@/services/email_service";
 import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import {
   login,
@@ -361,6 +362,22 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       return { key: params.key, value: newValue };
     },
     { params: t.Object({ key: t.String() }), body: t.Object({ value: t.Any() }) },
+  )
+  .post(
+    "/admin/settings/test-email",
+    async ({ body, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Admin/manager only" }; }
+      const to = (body as { to?: string }).to ?? user.email;
+      if (!to) { set.status = 400; return { detail: "No recipient email" }; }
+      try {
+        await sendEmail(to, "ISB — Test Email", `<p>Test email sent successfully at ${new Date().toISOString()}</p>`);
+        return { sent: true, to };
+      } catch (e) {
+        set.status = 502;
+        return { sent: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    { body: t.Object({ to: t.Optional(t.String()) }) },
   )
   // ── Phase 3: Wallet ops ───────────────────────────────────────────────
   .get(
@@ -1460,7 +1477,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         items: t.Array(t.Object({
           product_id: t.Number(),
-          qty: t.Number({ exclusiveMinimum: 0 }),
+          qty: t.Number(),
           cost_per_unit: t.Number({ minimum: 0 }),
           po: t.Optional(t.Nullable(t.String())),
           invoice: t.Optional(t.Nullable(t.String())),
