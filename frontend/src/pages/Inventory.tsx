@@ -241,7 +241,7 @@ function deductFifoLots(lots: FifoLot[], qty: number): FifoLot[] {
 const emptyForm = {
   productCode: "", barcode: "", name: "", category: "",
   subMerchantId: "coop", externalPrice: "", internalPrice: "",
-  vatPercent: "7", avgCost: "", stock: "", minStock: "", color: "",
+  vatPercent: "0", avgCost: "", stock: "", minStock: "", color: "",
   uomId: "" as string | number,
 };
 
