@@ -101,6 +101,8 @@ export default function CloseMonthDetail() {
     }
   }
 
+  if (!shopId) return <div className="p-6 text-muted-foreground">ไม่พบร้านค้าที่กำหนด</div>;
+  if (!id || isNaN(id)) return <div className="p-6 text-muted-foreground">รหัสรอบปิดไม่ถูกต้อง</div>;
   if (isLoading) return <div className="p-6 text-muted-foreground">กำลังโหลด...</div>;
   if (!close) return <div className="p-6 text-muted-foreground">ไม่พบข้อมูล</div>;
 
