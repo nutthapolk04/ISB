@@ -548,13 +548,12 @@ const ShopDetail = () => {
                       <TableHead>{t("auditLog.user")}</TableHead>
                       <TableHead>{t("auditLog.action")}</TableHead>
                       <TableHead>{t("auditLog.product")}</TableHead>
-                      <TableHead>{t("auditLog.detail")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {auditLogs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                           {t("auditLog.noLogs")}
                         </TableCell>
                       </TableRow>
@@ -569,28 +568,13 @@ const ShopDetail = () => {
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={log.action === "DELETE_PRODUCT" ? "destructive" : "secondary"}
+                              variant={log.action === "DELETE" ? "destructive" : "secondary"}
                               className="text-xs"
                             >
-                              {log.action === "UPDATE_PRICE"
-                                ? t("auditLog.actionUpdatePrice")
-                                : log.action === "DELETE_PRODUCT"
-                                ? t("auditLog.actionDeleteProduct")
-                                : log.action}
+                              {log.action}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">{log.entity_name || "-"}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {log.action === "UPDATE_PRICE" && log.changes ? (
-                              <span>
-                                {t("auditLog.oldPrice")}: ฿{(log.changes as {old: {external_price: number}}).old?.external_price ?? "-"}
-                                {" → "}
-                                {t("auditLog.newPrice")}: ฿{(log.changes as {new: {external_price: number}}).new?.external_price ?? "-"}
-                              </span>
-                            ) : log.action === "DELETE_PRODUCT" && log.changes ? (
-                              <span>฿{(log.changes as {snapshot: {external_price: number}}).snapshot?.external_price ?? "-"} · stock {(log.changes as {snapshot: {stock: number}}).snapshot?.stock ?? 0}</span>
-                            ) : "-"}
-                          </TableCell>
                         </TableRow>
                       ))
                     )}
