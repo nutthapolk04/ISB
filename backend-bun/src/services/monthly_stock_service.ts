@@ -18,20 +18,21 @@ export async function getMonthlyStockReport(
 ): Promise<MonthlyStockRow[]> {
   const rows = await pgClient`
     SELECT
-      sm.product_id,
-      sm.product_name,
-      SUM(CASE WHEN sm.type = 'receive' THEN sm.quantity ELSE 0 END)::int AS received,
-      SUM(CASE WHEN sm.type = 'sale' THEN sm.quantity ELSE 0 END)::int AS sold,
-      SUM(CASE WHEN sm.type IN ('internal_use', 'exchange') THEN sm.quantity ELSE 0 END)::int AS internal_use,
-      SUM(CASE WHEN sm.type = 'adjustment' THEN (sm.stock_after - sm.stock_before) ELSE 0 END)::int AS adjustment,
+      sp.id AS product_id,
+      sp.name AS product_name,
+      COALESCE(SUM(CASE WHEN sm.type = 'receive' THEN sm.quantity ELSE 0 END), 0)::int AS received,
+      COALESCE(SUM(CASE WHEN sm.type = 'sale' THEN sm.quantity ELSE 0 END), 0)::int AS sold,
+      COALESCE(SUM(CASE WHEN sm.type IN ('internal_use', 'exchange') THEN sm.quantity ELSE 0 END), 0)::int AS internal_use,
+      COALESCE(SUM(CASE WHEN sm.type = 'adjustment' THEN (sm.stock_after - sm.stock_before) ELSE 0 END), 0)::int AS adjustment,
       sp.stock AS current_stock
-    FROM shop_movements sm
-    LEFT JOIN shop_products sp ON sp.id = sm.product_id
-    WHERE sm.shop_id = ${shopId}
+    FROM shop_products sp
+    LEFT JOIN shop_movements sm ON sm.product_id = sp.id
+      AND sm.shop_id = ${shopId}
       AND sm.date >= ${startDate}::date
       AND sm.date <= ${endDate}::date
-    GROUP BY sm.product_id, sm.product_name, sp.stock
-    ORDER BY sm.product_name
+    WHERE sp.shop_id = ${shopId} AND sp.is_active = true
+    GROUP BY sp.id, sp.name, sp.stock
+    ORDER BY sp.name
   `;
   return rows.map((r: any) => ({
     product_id: r.product_id,
