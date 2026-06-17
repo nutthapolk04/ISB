@@ -54,7 +54,7 @@ import { listRefundCandidates, createGraduationRefund } from "@/services/refund_
 import { searchRefundFamilies, getRefundFamilyRoster } from "@/services/refund_family_service";
 import { buildTemplate, importProducts, importStockReceive, importStore } from "@/services/admin_import_service";
 import { sendEmail } from "@/services/email_service";
-import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
+import { myChildren, myCoparents, getLowBalanceAlert, studentFamilyContext, childrenByUserId, familyByUserId, updateLowBalanceAlert, listLinks, createLink, deleteLink, freezeAllChildren, listOrphans } from "@/services/family_service";
 import {
   login,
   refresh,
@@ -2297,10 +2297,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   .get(
     "/family/by-user/:user_id",
     async ({ params, user, set }) => {
-      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      if (!hasRole(user.roles, "admin", "kiosk")) { set.status = 403; return { detail: "Forbidden" }; }
       const id = Number(params.user_id);
       if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid user id" }; }
-      try { return await childrenByUserId(id); }
+      try { return await familyByUserId(id); }
       catch (e) { return handle(set)(e); }
     },
     { params: t.Object({ user_id: t.String() }) },

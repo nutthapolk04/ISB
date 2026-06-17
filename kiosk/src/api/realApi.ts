@@ -47,6 +47,21 @@ interface ISBChildSummary {
   wallet_balance?: number | null;
 }
 
+interface ISBCoParentSummary {
+  user_id: number;
+  full_name: string;
+  relation: string | null;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
+  photo_url?: string | null;
+  username: string;
+}
+
+interface ISBFamilyResponse {
+  children: ISBChildSummary[];
+  coparents: ISBCoParentSummary[];
+}
+
 interface ISBWalletTransaction {
   id: number;
   wallet_id: number;
@@ -147,7 +162,9 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
 const CARD_GRADIENT = 'linear-gradient(135deg, #3b1f7e 0%, #6b3fa0 50%, #9b6fcf 100%)';
 const CHILD_GRADIENT = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)';
 
-function mapCustomer(c: ISBCustomerLookupResult, children: ISBChildSummary[] = []): User {
+const COPARENT_GRADIENT = 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #2dd4bf 100%)';
+
+function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { children: [], coparents: [] }): User {
   const personalWallet: Wallet | null = c.wallet_id != null
     ? {
         id: String(c.wallet_id),
@@ -161,7 +178,20 @@ function mapCustomer(c: ISBCustomerLookupResult, children: ISBChildSummary[] = [
       }
     : null;
 
-  const childWallets: Wallet[] = children
+  const coparentWallets: Wallet[] = family.coparents
+    .filter(cp => cp.wallet_id != null)
+    .map(cp => ({
+      id: String(cp.wallet_id),
+      type: 'coparent' as const,
+      name: `${cp.full_name}'s Wallet`,
+      holderName: cp.full_name,
+      cardId: cp.username,
+      balance: cp.wallet_balance ?? 0,
+      colorTheme: COPARENT_GRADIENT,
+      photoUrl: cp.photo_url ?? undefined,
+    }));
+
+  const childWallets: Wallet[] = family.children
     .filter(ch => ch.wallet_id != null)
     .map(ch => ({
       id: String(ch.wallet_id),
@@ -179,7 +209,7 @@ function mapCustomer(c: ISBCustomerLookupResult, children: ISBChildSummary[] = [
     name: c.name,
     employeeId: c.student_code ?? c.customer_code ?? String(c.id),
     role: c.customer_kind ?? undefined,
-    wallets: [...(personalWallet ? [personalWallet] : []), ...childWallets],
+    wallets: [...(personalWallet ? [personalWallet] : []), ...coparentWallets, ...childWallets],
   };
 }
 
@@ -227,20 +257,18 @@ export const realApi = {
           c.customer_code?.toLowerCase() === lower,
       ) ?? results[0];
 
-      // If this is a parent/staff User (not a student Customer), fetch their children
-      let children: ISBChildSummary[] = [];
+      // If this is a parent/staff User (not a student Customer), fetch family
+      let family: ISBFamilyResponse = { children: [], coparents: [] };
       if (exact.user_id != null) {
         try {
-          children = await request<ISBChildSummary[]>(`/family/by-user/${exact.user_id}`);
-          console.log('[Kiosk] family children for user', exact.user_id, children);
+          family = await request<ISBFamilyResponse>(`/family/by-user/${exact.user_id}`);
+          console.log('[Kiosk] family for user', exact.user_id, family);
         } catch (err) {
           console.warn('[Kiosk] /family/by-user failed:', err);
         }
-      } else {
-        console.log('[Kiosk] no user_id in result — student account, no children lookup', exact);
       }
 
-      return mapCustomer(exact, children);
+      return mapCustomer(exact, family);
     } catch {
       return null;
     }

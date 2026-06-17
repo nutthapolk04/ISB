@@ -13,6 +13,7 @@ export interface AccessTokenPayload {
   // touching the users table). null = unscoped (admin / regional manager).
   shop_id: string | null;
   shop_module: string | null;
+  family_code: string | null;
   exp: number;
   type: "access" | "refresh";
   sid?: string;

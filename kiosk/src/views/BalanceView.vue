@@ -207,7 +207,7 @@ onUnmounted(() => {
         >
           <!-- Wallet Type Badge -->
           <div class="wallet-type-badge">
-            {{ wallet.type === 'personal' ? currT.personal : currT.child }}
+            {{ wallet.type === 'personal' ? currT.personal : wallet.type === 'coparent' ? currT.personal : currT.child }}
           </div>
 
           <div class="user-row">
@@ -294,20 +294,20 @@ onUnmounted(() => {
 /* ---- Carousel ---- */
 .carousel-wrapper {
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   position: relative;
 }
 
 .wallet-carousel {
   display: flex;
   gap: 1rem;
-  overflow-x: hidden;
+  overflow-x: scroll;
   scroll-snap-type: x mandatory;
   flex: 1;
   cursor: grab;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.wallet-carousel::-webkit-scrollbar { display: none; }
 .wallet-carousel:active { cursor: grabbing; }
 
 .user-balance-card {
@@ -462,28 +462,33 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-/* Carousel nav buttons */
+/* Carousel nav buttons — overlay on card edges */
 .carousel-nav {
-  background: var(--card-bg);
-  border: 2px solid rgba(0,0,0,0.08);
-  color: var(--text-color);
-  width: 48px;
-  height: 48px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(0,0,0,0.35);
+  border: none;
+  color: white;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   transition: opacity 0.2s, transform 0.1s;
 }
+.carousel-nav.prev { left: 0.75rem; }
+.carousel-nav.next { right: 0.75rem; }
 .carousel-nav:disabled {
-  opacity: 0.3;
+  opacity: 0.2;
   cursor: default;
 }
 .carousel-nav:active:not(:disabled) {
-  transform: scale(0.9);
+  transform: translateY(-50%) scale(0.9);
 }
 
 /* Dot indicators */

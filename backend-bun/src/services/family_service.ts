@@ -243,6 +243,20 @@ export async function childrenByUserId(parentUserId: number): Promise<ChildSumma
   return myChildren(parentUserId);
 }
 
+export async function familyByUserId(parentUserId: number): Promise<{
+  children: ChildSummaryDTO[];
+  coparents: CoParentSummaryDTO[];
+}> {
+  const userRow = await db.select({ familyCode: users.familyCode })
+    .from(users).where(eq(users.id, parentUserId)).limit(1);
+  const familyCode = userRow[0]?.familyCode ?? null;
+  const [children, coparents] = await Promise.all([
+    myChildren(parentUserId),
+    myCoparents(parentUserId, familyCode),
+  ]);
+  return { children, coparents };
+}
+
 // ── Writes ─────────────────────────────────────────────────────────────────
 
 export async function updateLowBalanceAlert(args: {

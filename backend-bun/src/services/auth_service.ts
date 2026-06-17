@@ -73,6 +73,7 @@ export interface AccessTokenClaims {
   // null = unscoped (e.g. admin or multi-shop manager).
   shop_id: string | null;
   shop_module: string | null;
+  family_code: string | null;
   exp: number;
   type: "access";
   sid?: string;
@@ -191,6 +192,7 @@ export async function createTokens(user: typeof users.$inferSelect): Promise<Tok
     is_superuser: user.isSuperuser,
     shop_id: user.shopId ?? null,
     shop_module: user.shopModule ?? null,
+    family_code: user.familyCode ?? null,
     exp: now + ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     type: "access",
     sid,

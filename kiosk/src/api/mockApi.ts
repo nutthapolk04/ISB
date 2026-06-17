@@ -21,7 +21,7 @@ export interface Transaction {
 
 export interface Wallet {
     id: string;
-    type: 'personal' | 'child';
+    type: 'personal' | 'child' | 'coparent';
     name: string;
     holderName: string;
     cardId: string;
