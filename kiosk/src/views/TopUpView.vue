@@ -109,7 +109,7 @@ const methods = [
 type Step = 'methods' | 'amount' | 'qr' | 'cash-confirm' | 'success' | 'fail';
 
 const selectedMethod = ref<string | null>(null);
-const currentStep = ref<Step>('methods');
+const currentStep = ref<Step>('amount');
 const enteredAmount = ref('0');
 const failType = ref<'internet' | 'server'>('internet');
 const failDetail = ref<string | null>(null);
@@ -146,8 +146,12 @@ const formatCurrency = (val: number) => {
 // --- Actions ---
 const selectMethod = (key: string) => {
   selectedMethod.value = key;
-  enteredAmount.value = '0';
-  currentStep.value = 'amount';
+  if (key === 'cash') {
+    currentStep.value = 'cash-confirm';
+  } else {
+    currentStep.value = 'qr';
+    startQrTimer();
+  }
 };
 
 const pressKey = (key: string) => {
@@ -178,12 +182,7 @@ const selectShortcut = (val: number) => {
 
 const confirmAmount = () => {
   if (!isAmountValid.value) return;
-  if (selectedMethod.value === 'cash') {
-    currentStep.value = 'cash-confirm';
-  } else {
-    currentStep.value = 'qr';
-    startQrTimer();
-  }
+  currentStep.value = 'methods';
 };
 
 // --- QR Timer (120 seconds) ---
@@ -249,7 +248,6 @@ const simulateFail = (type: 'internet' | 'server') => {
 const backToMethods = () => {
   selectedMethod.value = null;
   currentStep.value = 'methods';
-  enteredAmount.value = '0';
   clearQrTimer();
 };
 
@@ -303,7 +301,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   <div class="kiosk-container topup-view">
     <!-- Header -->
     <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail'">
-      <button class="back-btn" @click="currentStep === 'methods' ? goBack() : currentStep === 'cash-confirm' ? backToMethods() : currentStep === 'qr' ? backToAmount() : currentStep === 'amount' ? backToMethods() : goBack()">
+      <button class="back-btn" @click="currentStep === 'amount' ? goBack() : currentStep === 'methods' ? backToAmount() : currentStep === 'cash-confirm' ? backToMethods() : currentStep === 'qr' ? backToMethods() : goBack()">
         <ChevronLeft :size="32" />
         <span>{{ currT.back }}</span>
       </button>
@@ -314,7 +312,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
     </div>
 
     <!-- Wallet Info Bar (shown in amount & qr steps) -->
-    <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'qr' || currentStep === 'cash-confirm')" class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
+    <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'methods' || currentStep === 'qr' || currentStep === 'cash-confirm')" class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
       <div class="wallet-bar-name">{{ currentWallet.holderName }}</div>
       <div class="wallet-bar-balance">
         <span class="wallet-bar-label">{{ currT.currentBalance }}</span>
@@ -379,11 +377,11 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
       <!-- Confirm -->
       <div class="amount-footer">
-        <button class="kiosk-btn btn-secondary" @click="backToMethods" style="max-width: 180px;">
+        <button class="kiosk-btn btn-secondary" @click="goBack">
           <ChevronLeft :size="24" />
           <span>{{ currT.back }}</span>
         </button>
-        <button class="kiosk-btn btn-primary" :disabled="!isAmountValid" @click="confirmAmount" style="max-width: 260px;">
+        <button class="kiosk-btn btn-primary" :disabled="!isAmountValid" @click="confirmAmount">
           <span>{{ currT.confirm }}</span>
         </button>
       </div>
@@ -568,15 +566,15 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
 .wallet-bar {
   width: 100%;
   color: white;
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
+  border-radius: 1.25rem;
+  padding: 1.75rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 .wallet-bar-name {
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1.6rem;
 }
 .wallet-bar-balance {
   display: flex;
@@ -584,11 +582,11 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   align-items: flex-end;
 }
 .wallet-bar-label {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   opacity: 0.8;
 }
 .wallet-bar-amount {
-  font-size: 1.3rem;
+  font-size: 2.2rem;
   font-weight: 800;
 }
 
@@ -668,24 +666,25 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   width: 100%;
   background: var(--card-bg);
   border-radius: 1.25rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem 0.75rem;
   box-shadow: var(--shadow);
   text-align: center;
   border: 2px solid rgba(0,0,0,0.05);
 }
 
 .amount-display {
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 800;
   color: var(--text-muted);
   transition: color 0.2s;
+  line-height: 1;
 }
 .amount-display.has-value {
   color: var(--text-color);
 }
 
 .max-hint {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
 }
@@ -695,17 +694,20 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   display: flex;
   gap: 0.5rem;
   width: 100%;
-  justify-content: center;
-  flex-wrap: wrap;
+  justify-content: stretch;
+  flex-wrap: nowrap;
+}
+.shortcut-btn {
+  flex: 1;
 }
 
 .shortcut-btn {
-  padding: 0.5rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 2rem;
   border: 2px solid var(--text-muted);
   background: var(--card-bg);
   color: var(--text-color);
-  font-size: 1.1rem;
+  font-size: 1.6rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
@@ -723,16 +725,15 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   width: 100%;
-  max-width: 400px;
 }
 
 .num-key {
-  height: 3.5rem;
+  height: 4.5rem;
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: 0.75rem;
   background: var(--card-bg);
   color: var(--text-color);
-  font-size: 1.5rem;
+  font-size: 2.5rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.1s;
