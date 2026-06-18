@@ -370,17 +370,18 @@ export default function FamilyDashboard() {
 
       {!loading && !error && cards.length > 0 && (
         <>
-          {/* Peek carousel */}
+          {/* Peek carousel — overflow-hidden wrapper prevents page-width blowout */}
+          <div className="overflow-hidden">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="-mx-4 flex gap-3 overflow-x-auto px-4"
+            className="flex gap-3 overflow-x-auto"
             style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
           >
             {cards.map((card, idx) => (
               <div
                 key={idx}
-                className="shrink-0 min-w-[calc(100%-2.5rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden"
+                className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden"
                 style={{ scrollSnapAlign: "start" }}
               >
                 <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
@@ -438,6 +439,7 @@ export default function FamilyDashboard() {
               </div>
             ))}
           </div>
+          </div>{/* end overflow-hidden wrapper */}
 
           {/* Dots */}
           {cards.length > 1 && (
