@@ -297,26 +297,26 @@ export default function FamilyDashboard() {
           <p className="text-sm text-slate-500">{dateStr}</p>
         </div>
 
-        <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden">
-          <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/15 pointer-events-none" />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
+        <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 shadow-lg relative overflow-hidden">
+          <div className="absolute right-10 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/15 pointer-events-none" />
           <div className="relative z-10">
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-lg font-bold text-white truncate">{studentWallet.name}</p>
+                <p className="text-base font-bold text-white truncate">{studentWallet.name}</p>
               </div>
-              <div className="shrink-0 flex h-16 w-16 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
-                <UserRound className="h-8 w-8 text-white" />
+              <div className="shrink-0 flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
+                <UserRound className="h-6 w-6 text-white" />
               </div>
             </div>
-            <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
-            <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">{formatTHB(studentWallet.balance)}</p>
-            {studentWallet.username && <p className="text-xs text-blue-200 mt-2">{studentWallet.username}</p>}
-            <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+            <p className="text-xs text-blue-200 mt-2">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
+            <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{formatTHB(studentWallet.balance)}</p>
+            {studentWallet.username && <p className="text-[0.7rem] text-blue-200 mt-1">{studentWallet.username}</p>}
+            <p className="text-[0.7rem] text-blue-300 mt-0.5 flex items-center gap-1">
               <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
             </p>
-            <div className="flex justify-end mt-2">
-              <span className="bg-white/25 border border-white/30 text-white font-medium text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "Student")}</span>
+            <div className="flex justify-end mt-1">
+              <span className="bg-white/25 border border-white/30 text-white font-medium text-[0.7rem] rounded-full px-2 py-0.5">{t("roles.student", "Student")}</span>
             </div>
           </div>
         </div>
@@ -388,16 +388,16 @@ export default function FamilyDashboard() {
             {cards.map((card, idx) => (
               <div
                 key={idx}
-                className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden"
+                className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 shadow-lg relative overflow-hidden"
                 style={{ scrollSnapAlign: "start" }}
               >
-                <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/15 pointer-events-none" />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
+                <div className="absolute right-10 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/15 pointer-events-none" />
 
                 <div className="relative z-10">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-lg font-bold text-white truncate">{card.name}</p>
+                      <p className="text-base font-bold text-white truncate">{card.name}</p>
                       {card.cardFrozen && (
                         <span className="inline-flex items-center gap-1 text-xs text-red-300 mt-0.5">
                           <Lock className="h-3 w-3" /> {t("parent.dashboard.cardFrozen", "Card frozen")}
@@ -406,30 +406,30 @@ export default function FamilyDashboard() {
                     </div>
                     <div className="shrink-0">
                       {card.photoUrl ? (
-                        <img src={card.photoUrl} alt={card.name} className="h-16 w-16 rounded-full object-cover border-2 border-white/30" />
+                        <img src={card.photoUrl} alt={card.name} className="h-12 w-12 rounded-full object-cover border-2 border-white/30" />
                       ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
-                          <UserRound className="h-8 w-8 text-white" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
+                          <UserRound className="h-6 w-6 text-white" />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
-                  <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">
+                  <p className="text-xs text-blue-200 mt-2">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
+                  <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">
                     {card.balance !== null ? formatTHB(card.balance) : "—"}
                   </p>
-                  {card.code && <p className="text-xs text-blue-200 mt-2">{card.code}</p>}
+                  {card.code && <p className="text-[0.7rem] text-blue-200 mt-1">{card.code}</p>}
                   {card.grade && (
-                    <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+                    <p className="text-[0.7rem] text-blue-300 mt-0.5 flex items-center gap-1">
                       <GraduationCap className="h-2.5 w-2.5" />{card.grade}
                     </p>
                   )}
-                  <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+                  <p className="text-[0.7rem] text-blue-300 mt-0.5 flex items-center gap-1">
                     <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
                   </p>
-                  <div className="flex justify-end mt-2">
-                    <span className="bg-white/25 border border-white/30 text-white font-medium text-xs rounded-full px-2.5 py-0.5">{card.role}</span>
+                  <div className="flex justify-end mt-1">
+                    <span className="bg-white/25 border border-white/30 text-white font-medium text-[0.7rem] rounded-full px-2 py-0.5">{card.role}</span>
                   </div>
                 </div>
 
