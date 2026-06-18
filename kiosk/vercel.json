@@ -1,4 +1,5 @@
 {
+  "installCommand": "npm install --no-workspaces",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
