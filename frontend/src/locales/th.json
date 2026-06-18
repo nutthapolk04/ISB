@@ -1772,6 +1772,7 @@
     "active": "ใช้งาน",
     "inactive": "ปิดใช้งาน",
     "loading": "กำลังโหลด…",
+    "saving": "กำลังบันทึก…",
     "ok": "ตกลง",
     "paymentMethods": {
       "cash": "เงินสด",

@@ -241,6 +241,13 @@ export default function FamilyDashboard() {
     })),
   ];
 
+  // Clamp activeIdx if cards shrinks (e.g. coparent unlinked mid-session)
+  useEffect(() => {
+    if (activeIdx > 0 && activeIdx >= cards.length) {
+      setActiveIdx(Math.max(0, cards.length - 1));
+    }
+  }, [cards.length, activeIdx]);
+
   // Fetch transactions for active card
   useEffect(() => {
     const card = cards[activeIdx];
@@ -250,9 +257,9 @@ export default function FamilyDashboard() {
       .then((data) => setTxs(data.slice(0, 5)))
       .catch(() => setTxs([]))
       .finally(() => setTxLoading(false));
-    // cards array rebuilt every render; use walletId + activeIdx as key
+    // cards array rebuilt every render; depend on walletId + activeIdx instead
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIdx, loading]);
+  }, [activeIdx, cards[activeIdx]?.walletId]);
 
   const getCardWidth = () => {
     if (!scrollRef.current || !scrollRef.current.firstElementChild) return scrollRef.current?.offsetWidth ?? 0;
@@ -273,7 +280,7 @@ export default function FamilyDashboard() {
     setActiveIdx(idx);
   };
 
-  const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  const now = new Date().toLocaleTimeString(i18n.language === "th" ? "th-TH" : "en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
   const dateStr = new Date().toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
@@ -306,7 +313,7 @@ export default function FamilyDashboard() {
             <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">{formatTHB(studentWallet.balance)}</p>
             {studentWallet.username && <p className="text-xs text-blue-200 mt-2">{studentWallet.username}</p>}
             <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
-              <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
+              <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
             </p>
             <div className="flex justify-end mt-2">
               <span className="bg-white/25 border border-white/30 text-white font-medium text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "Student")}</span>
@@ -393,7 +400,7 @@ export default function FamilyDashboard() {
                       <p className="text-lg font-bold text-white truncate">{card.name}</p>
                       {card.cardFrozen && (
                         <span className="inline-flex items-center gap-1 text-xs text-red-300 mt-0.5">
-                          <Lock className="h-3 w-3" /> Card Frozen
+                          <Lock className="h-3 w-3" /> {t("parent.dashboard.cardFrozen", "Card frozen")}
                         </span>
                       )}
                     </div>
@@ -419,7 +426,7 @@ export default function FamilyDashboard() {
                     </p>
                   )}
                   <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
-                    <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
+                    <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
                   </p>
                   <div className="flex justify-end mt-2">
                     <span className="bg-white/25 border border-white/30 text-white font-medium text-xs rounded-full px-2.5 py-0.5">{card.role}</span>

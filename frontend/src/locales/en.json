@@ -1772,6 +1772,7 @@
     "active": "Active",
     "inactive": "Inactive",
     "loading": "Loading…",
+    "saving": "Saving…",
     "ok": "OK",
     "paymentMethods": {
       "cash": "Cash",
