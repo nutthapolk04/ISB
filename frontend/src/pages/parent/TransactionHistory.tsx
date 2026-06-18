@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
@@ -8,15 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Download } from "lucide-react";
+import { Download, History } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
+import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
+import { getRoleStyle } from "@/lib/roleStyles";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface StudentProfile {
   id: number;
   name: string;
   student_code?: string | null;
   wallet_id?: number | null;
+  // for own/wallet-N resolved wallets
+  is_own_wallet?: boolean;
+  role?: string | null;
 }
 
 interface Transaction {
@@ -34,48 +41,70 @@ interface Transaction {
   created_at: string;
 }
 
+// API shape returned by /wallets/me and /wallets/:id
+interface WalletResponse {
+  id: number;
+  owner_type: "user" | "customer";
+  user_id: number | null;
+  customer_id: number | null;
+  balance: number;
+  name: string | null;
+  username: string | null;
+  role: string | null;
+  photo_url: string | null;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function TransactionHistory() {
+  // customerId can be a numeric string, "own", or "wallet-N"
   const { customerId } = useParams<{ customerId: string }>();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
+  const [openTopupTx, setOpenTopupTx] = useState<TopupTransaction | null>(null);
 
   const formatDate = (iso: string) => fmtDateTime(iso);
 
   const txTypeLabel = (type: string): string => {
     const map: Record<string, string> = {
       TOPUP: t("parent.transactions.txTopup"),
+      topup: t("parent.transactions.txTopup"),
       DEDUCTION: t("parent.transactions.txDeduction"),
+      deduction: t("parent.transactions.txDeduction"),
       REFUND: t("parent.transactions.txRefund"),
+      refund: t("parent.transactions.txRefund"),
       ADJUSTMENT_CREDIT: t("parent.transactions.txAdjCredit"),
       ADJUSTMENT_DEBIT: t("parent.transactions.txAdjDebit"),
     };
     return map[type] ?? type;
   };
 
-  const txAmountClass = (type: string): string => {
-    switch (type) {
-      case "TOPUP":            return "text-green-600";
-      case "DEDUCTION":        return "text-red-500";
-      case "REFUND":           return "text-blue-600";
-      case "ADJUSTMENT_CREDIT":return "text-purple-600";
-      case "ADJUSTMENT_DEBIT": return "text-orange-600";
-      default:                 return "text-gray-700";
+  const txAmountClass = (type: string, isCredit: boolean): string => {
+    if (isCredit) return "text-emerald-600";
+    const upper = type.toUpperCase();
+    switch (upper) {
+      case "DEDUCTION": return "text-red-500";
+      case "REFUND":    return "text-blue-600";
+      case "ADJUSTMENT_CREDIT": return "text-purple-600";
+      case "ADJUSTMENT_DEBIT":  return "text-orange-600";
+      default:          return "text-red-500";
     }
   };
 
   const loadTransactions = async (walletId: number) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
-    if (dateTo) params.set("date_to", dateTo);
+    if (dateTo)   params.set("date_to", dateTo);
     const qs = params.toString();
     const path = `/wallets/${walletId}/transactions${qs ? `?${qs}` : ""}`;
     try {
@@ -90,13 +119,47 @@ export default function TransactionHistory() {
     }
   };
 
+  // Resolve profile + wallet from any supported customerId form
+  const resolveProfile = async (): Promise<{ profile: StudentProfile; walletId: number | null }> => {
+    if (!customerId) throw new Error("No customer ID");
+
+    if (customerId === "own") {
+      const w = await api.get<WalletResponse>("/wallets/me");
+      const p: StudentProfile = {
+        id: w.user_id ?? 0,
+        name: w.name ?? w.username ?? "",
+        wallet_id: w.id,
+        is_own_wallet: true,
+        role: w.role,
+      };
+      return { profile: p, walletId: w.id };
+    }
+
+    if (customerId.startsWith("wallet-")) {
+      const walletId = parseInt(customerId.slice(7), 10);
+      const w = await api.get<WalletResponse>(`/wallets/${walletId}`);
+      const p: StudentProfile = {
+        id: w.user_id ?? walletId,
+        name: w.name ?? w.username ?? "",
+        wallet_id: w.id,
+        is_own_wallet: true,
+        role: w.role,
+      };
+      return { profile: p, walletId: w.id };
+    }
+
+    // Numeric customer ID — child wallet
+    const p = await api.get<StudentProfile>(`/customers/${customerId}`);
+    return { profile: p, walletId: p.wallet_id ?? null };
+  };
+
   useEffect(() => {
     (async () => {
       if (!customerId) return;
       try {
-        const p = await api.get<StudentProfile>(`/customers/${customerId}`);
+        const { profile: p, walletId } = await resolveProfile();
         setProfile(p);
-        if (p.wallet_id) await loadTransactions(p.wallet_id);
+        if (walletId) await loadTransactions(walletId);
       } catch (e) {
         toast({
           title: t("parent.transactions.loadFailed"),
@@ -107,10 +170,19 @@ export default function TransactionHistory() {
         setLoading(false);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
-  const handleOpenReceipt = (tx: Transaction) => {
-    if (tx.reference_id) setOpenReceiptId(tx.reference_id);
+  const handleRowClick = (tx: Transaction) => {
+    const isCredit = tx.balance_after >= tx.balance_before;
+    if (tx.reference_type === "receipt" && tx.reference_id) {
+      setOpenReceiptId(tx.reference_id);
+    } else {
+      // topup, credit, adjustment, or any other non-receipt row
+      setOpenTopupTx(tx as TopupTransaction);
+    }
+    // Suppress unused-var lint for isCredit: kept for clarity, all non-receipt rows open TopupDetailDialog
+    void isCredit;
   };
 
   const handleFilter = () => {
@@ -176,37 +248,46 @@ export default function TransactionHistory() {
     win.print();
   };
 
+  // Display role for gradient color: use profile.role for own/wallet-N, "student" for children
+  const displayRole = profile?.is_own_wallet ? (profile.role ?? "staff") : "student";
+  const headerStyle = getRoleStyle(displayRole);
+
   if (loading) return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
   if (!profile) return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
 
   return (
     <div className="page-shell space-y-4">
-      {/* Back button */}
-      <div className="page-header flex items-center gap-2">
-        <BackButton to="/parent/dashboard" />
-      </div>
 
-      {/* Header banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 px-6 py-5 shadow-lg text-white">
-        <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm">
-          {t("parent.transactions.title", { name: profile.name })}
-        </h1>
-        {profile.student_code && (
-          <span className="mt-2 inline-block rounded-full bg-white/25 px-3 py-0.5 text-sm font-medium text-white">
-            {profile.student_code}
-          </span>
-        )}
+      {/* Header banner — BackButton inside, absolute top-right */}
+      <div className="rounded-2xl px-6 py-5 shadow-lg text-white relative" style={headerStyle}>
+        <div className="absolute top-3 right-3 z-10">
+          <BackButton to="/parent/dashboard" />
+        </div>
+        <div className="pr-24">
+          <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm">
+            {t("parent.transactions.title", { name: profile.name })}
+          </h1>
+          {profile.student_code && (
+            <span className="mt-2 inline-block rounded-full bg-white/25 px-3 py-0.5 text-sm font-medium text-white">
+              {profile.student_code}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Filter card */}
       <Card className="rounded-2xl shadow-md border-orange-100">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-orange-600">{t("parent.transactions.filterTitle")}</CardTitle>
+          <CardTitle className="text-base font-semibold text-orange-600">
+            {t("parent.transactions.filterTitle")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <div>
-              <Label htmlFor="dateRange" className="text-xs text-orange-500 font-medium">{t("parent.transactions.dateRange")}</Label>
+              <Label htmlFor="dateRange" className="text-xs text-orange-500 font-medium">
+                {t("parent.transactions.dateRange")}
+              </Label>
               <DateRangePicker
                 id="dateRange"
                 startDate={dateFrom}
@@ -218,25 +299,34 @@ export default function TransactionHistory() {
             <Button onClick={handleFilter} className="h-10 bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
               {t("parent.transactions.filter")}
             </Button>
-            <Button variant="outline" onClick={handleExportPDF} disabled={txs.length === 0} className="h-10 border-orange-300 text-orange-600 hover:bg-orange-50">
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              disabled={txs.length === 0}
+              className="h-10 border-orange-300 text-orange-600 hover:bg-orange-50"
+            >
               <Download className="h-4 w-4 mr-1" /> {t("parent.transactions.exportPdf", "PDF")}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Transaction list card */}
-      <Card className="rounded-2xl shadow-md border-orange-100">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-orange-600">
-            {t("parent.transactions.listTitle", { count: txs.length })}
+      {/* Transaction list card — styled to match WalletDetail history tab */}
+      <Card className="overflow-hidden border border-amber-100 shadow-md">
+        <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4 flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
+            <History className="h-5 w-5 text-amber-600" />
+            {t("parent.wallet.recentTitle", "Recent transactions")}
           </CardTitle>
+          <span className="text-sm text-amber-700 font-medium shrink-0">
+            {txs.length} {t("parent.transactions.entries", "entries")}
+          </span>
         </CardHeader>
-        <CardContent className="p-3 sm:p-6">
+        <CardContent className="space-y-2 pt-4">
           {txs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <div className="rounded-full bg-slate-100 p-5">
-                <Download className="h-8 w-8 text-slate-400" />
+              <div className="rounded-full bg-amber-50 p-5">
+                <History className="h-8 w-8 text-amber-300" />
               </div>
               <p className="text-center text-slate-400 font-medium">
                 {t("parent.transactions.noResults")}
@@ -246,23 +336,22 @@ export default function TransactionHistory() {
             <div className="space-y-2">
               {txs.map((tx) => {
                 const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-                const hasReceipt = tx.reference_type === "receipt" && tx.reference_id;
                 const label = tx.description || txTypeLabel(tx.transaction_type);
                 return (
                   <div
                     key={tx.id}
-                    className={`flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/40 p-3 text-sm transition-colors ${hasReceipt ? "cursor-pointer hover:bg-slate-100/80" : "hover:bg-slate-50/80"}`}
-                    onClick={() => hasReceipt && handleOpenReceipt(tx)}
+                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm cursor-pointer hover:bg-amber-50/80 hover:shadow-sm transition-colors"
+                    onClick={() => handleRowClick(tx)}
                   >
                     <div className="min-w-0 flex-1 pr-4">
                       <p className="font-medium text-gray-800 leading-snug">{label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{formatDate(tx.created_at)}</p>
+                      <p className="text-xs text-amber-700/70 mt-0.5">{formatDate(tx.created_at)}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`font-bold tabular-nums ${txAmountClass(tx.transaction_type)}`}>
+                      <p className={`font-bold tabular-nums ${txAmountClass(tx.transaction_type, isCredit)}`}>
                         {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                      <p className="text-xs text-amber-700/70 mt-0.5 tabular-nums">
                         {t("parent.transactions.balanceAfter", { amount: formatTHB(tx.balance_after) })}
                       </p>
                     </div>
@@ -273,9 +362,14 @@ export default function TransactionHistory() {
           )}
         </CardContent>
       </Card>
+
       <ReceiptDetailDialog
         receiptId={openReceiptId}
         onClose={() => setOpenReceiptId(null)}
+      />
+      <TopupDetailDialog
+        transaction={openTopupTx}
+        onClose={() => setOpenTopupTx(null)}
       />
     </div>
   );

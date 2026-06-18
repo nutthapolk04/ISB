@@ -63,7 +63,7 @@ export default function ChildSettings() {
 
     setSaving(true);
     try {
-      await api.post(`/customers/${customerId}/limit`, {
+      await api.patch(`/customers/${customerId}/limit`, {
         daily_limit_canteen: canteen,
         daily_limit_store: store,
       });

@@ -565,8 +565,8 @@ export default function FamilyDashboard() {
                     icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
                     label={t("parent.dashboard.history", "History")}
                     to={
-                      activeCard.kind === "self" ? "/parent/wallet/own?tab=history" :
-                      `/parent/wallet/wallet-${activeCard.walletId}?tab=history`
+                      activeCard.kind === "self" ? "/parent/transactions/own" :
+                      `/parent/transactions/wallet-${activeCard.walletId}`
                     }
                     disabled={activeCard.kind !== "self" && !activeCard.walletId}
                   />
@@ -600,12 +600,12 @@ export default function FamilyDashboard() {
                   </Link>
                 )}
                 {activeCard.kind === "self" && (
-                  <Link to="/parent/wallet/own?tab=history" className="text-sm text-blue-600">
+                  <Link to="/parent/transactions/own" className="text-sm text-blue-600">
                     {t("parent.dashboard.viewAll", "View all")}
                   </Link>
                 )}
                 {activeCard.kind === "coparent" && activeCard.walletId && (
-                  <Link to={`/parent/wallet/wallet-${activeCard.walletId}?tab=history`} className="text-sm text-blue-600">
+                  <Link to={`/parent/transactions/wallet-${activeCard.walletId}`} className="text-sm text-blue-600">
                     {t("parent.dashboard.viewAll", "View all")}
                   </Link>
                 )}

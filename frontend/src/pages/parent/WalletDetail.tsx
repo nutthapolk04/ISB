@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
+import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
 import { Wallet as WalletIcon, CheckCircle2, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 import { storeBayIntent } from "@/pages/payment/MockBayGateway";
@@ -53,19 +53,6 @@ interface OwnWalletResponse {
   photo_url: string | null;
 }
 
-interface Transaction {
-  id: number;
-  wallet_id: number;
-  transaction_type: string;
-  amount: number;
-  balance_before: number;
-  balance_after: number;
-  description?: string | null;
-  reference_type?: string | null;
-  reference_id?: number | null;
-  created_at: string;
-}
-
 interface TopupIntent {
   ref_code: string;
   wallet_id: number;
@@ -83,13 +70,10 @@ const formatTHB = (n: number) =>
 
 export default function WalletDetail() {
   const { customerId } = useParams<{ customerId: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const activeTab = searchParams.get("tab") === "history" ? "history" : "topup";
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>("100");
@@ -102,8 +86,7 @@ export default function WalletDetail() {
   const [gatewayOpen, setGatewayOpen] = useState(false);
   const [pendingAmt, setPendingAmt] = useState(0);
   const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
-
-  const formatDate = (iso: string) => fmtDateTime(iso);
+  const [openTopupTx, setOpenTopupTx] = useState<TopupTransaction | null>(null);
 
   const amtNumber = parseFloat(amount) || 0;
   const fee = paymentMethod === "credit_card"
@@ -134,8 +117,6 @@ export default function WalletDetail() {
           role: w.role,
         };
         setProfile(p);
-        const txs = await api.get<Transaction[]>(`/wallets/${w.id}/transactions`);
-        setTransactions(txs.slice(0, 10));
         return;
       }
       if (effectiveId.startsWith("wallet-")) {
@@ -153,16 +134,10 @@ export default function WalletDetail() {
           role: w.role,
         };
         setProfile(p);
-        const txs = await api.get<Transaction[]>(`/wallets/${w.id}/transactions`);
-        setTransactions(txs.slice(0, 10));
         return;
       }
       const p = await api.get<StudentProfile>(`/customers/${effectiveId}`);
       setProfile(p);
-      if (p.wallet_id) {
-        const txs = await api.get<Transaction[]>(`/wallets/${p.wallet_id}/transactions`);
-        setTransactions(txs.slice(0, 10));
-      }
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : (e instanceof Error ? e.message : "Unknown error");
       setLoadError(msg);
@@ -439,38 +414,8 @@ export default function WalletDetail() {
           </div>
         </Card>
 
-        {/* Tab toggle */}
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() => setSearchParams({})}
-            className={cn(
-              "h-10 gap-1.5 font-semibold transition-all whitespace-nowrap",
-              activeTab === "topup"
-                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
-                : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
-            )}
-          >
-            <WalletIcon className="h-4 w-4" />
-            {t("parent.wallet.topUpTitle")}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setSearchParams({ tab: "history" })}
-            className={cn(
-              "h-10 gap-1.5 font-semibold transition-all whitespace-nowrap",
-              activeTab === "history"
-                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
-                : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
-            )}
-          >
-            <History className="h-4 w-4" />
-            {t("parent.wallet.recentTitle")}
-          </Button>
-        </div>
-
-        {activeTab === "topup" && (
-          <Card className="overflow-hidden border border-amber-100 shadow-md">
+        {/* Top-up card (always visible) */}
+        <Card className="overflow-hidden border border-amber-100 shadow-md">
             <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4">
               <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
                 <WalletIcon className="h-5 w-5 text-amber-600" />
@@ -589,65 +534,32 @@ export default function WalletDetail() {
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {activeTab === "history" && (
-          <Card className="overflow-hidden border border-amber-100 shadow-md">
-            <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4 flex flex-row items-center justify-between gap-2">
-              <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
-                <History className="h-5 w-5 text-amber-600" />
-                {t("parent.wallet.recentTitle")}
-              </CardTitle>
-              {!profile.is_own_user_wallet && (
-                <Button
-                  asChild
-                  size="sm"
-                  className="h-9 shrink-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-sm hover:from-orange-600 hover:to-amber-600 border-0"
-                >
-                  <Link to={`/parent/transactions/${profile.id}`}>
-                    <History className="h-4 w-4 mr-1" /> {t("parent.wallet.viewAll")}
-                  </Link>
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-2 pt-4">
-              {transactions.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-6">{t("parent.wallet.noTransactions")}</p>
-              )}
-              {transactions.map((tx) => {
-                const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-                const hasReceipt = tx.reference_type === "receipt" && tx.reference_id != null;
-                return (
-                  <div
-                    key={tx.id}
-                    onClick={() => hasReceipt && setOpenReceiptId(tx.reference_id!)}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm transition-colors",
-                      hasReceipt ? "cursor-pointer hover:bg-amber-50/80 hover:shadow-sm" : "hover:bg-amber-50/80",
-                    )}
-                  >
-                    <div>
-                      <p className="font-medium text-gray-800">{tx.description || tx.transaction_type}</p>
-                      <p className="text-xs text-amber-700/70 mt-0.5">{formatDate(tx.created_at)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={cn(
-                        "font-bold tabular-nums",
-                        isCredit ? "text-emerald-600" : "text-red-500",
-                      )}>
-                        {isCredit ? "+" : "-"}
-                        {formatTHB(Math.abs(tx.amount))}
-                      </p>
-                      <p className="text-xs text-amber-700/70 mt-0.5">
-                        {t("parent.wallet.balanceAfter", { amount: formatTHB(tx.balance_after) })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+        {/* View transaction history — links to TransactionHistory page */}
+        {(() => {
+          // Determine history URL:
+          // child customer → /parent/transactions/:customerId
+          // own wallet (effectiveId === "own") → /parent/transactions/own
+          // wallet-N (coparent/other user wallet) → /parent/transactions/wallet-N
+          const historyPath =
+            !profile.is_own_user_wallet
+              ? `/parent/transactions/${effectiveId}`
+              : effectiveId === "own"
+              ? `/parent/transactions/own`
+              : `/parent/transactions/${effectiveId}`; // e.g. wallet-17
+          return (
+            <Button
+              asChild
+              variant="outline"
+              className="w-full h-11 border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300 gap-2 font-semibold"
+            >
+              <Link to={historyPath}>
+                <History className="h-4 w-4" />
+                {t("parent.wallet.viewHistory", "View transaction history")}
+              </Link>
+            </Button>
+          );
+        })()}
 
         <KrungsriGatewayDialog
           open={gatewayOpen}
@@ -736,6 +648,10 @@ export default function WalletDetail() {
         <ReceiptDetailDialog
           receiptId={openReceiptId}
           onClose={() => setOpenReceiptId(null)}
+        />
+        <TopupDetailDialog
+          transaction={openTopupTx}
+          onClose={() => setOpenTopupTx(null)}
         />
       </div>
     </div>
