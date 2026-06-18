@@ -237,6 +237,17 @@ export default function UserList() {
     [bucketed],
   );
 
+  const activeByBucket = useMemo(
+    () => ({
+      all:    bucketed.all.filter((u) => u.is_active).length,
+      staff:  bucketed.staff.filter((u) => u.is_active).length,
+      parent: bucketed.parent.filter((u) => u.is_active).length,
+      shop:   bucketed.shop.filter((u) => u.is_active).length,
+      other:  bucketed.other.filter((u) => u.is_active).length,
+    }),
+    [bucketed],
+  );
+
   const stats = useMemo(
     () => ({
       total: users.length,
@@ -541,26 +552,34 @@ export default function UserList() {
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
             <TabsList className="w-full flex-wrap justify-start h-auto sm:w-fit">
-              <TabsTrigger value="all">
-                {t("admin.users.tabAll", "All")}
-                <Badge variant="secondary" className="ml-1.5 px-1.5">{counts.all}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="staff">
-                {t("admin.users.tabStaff", "Staff")}
-                <Badge variant="secondary" className="ml-1.5 px-1.5">{counts.staff}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="parent">
-                {t("admin.users.tabParent", "Parents")}
-                <Badge variant="secondary" className="ml-1.5 px-1.5">{counts.parent}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="shop">
-                {t("admin.users.tabShop", "Shop Staff")}
-                <Badge variant="secondary" className="ml-1.5 px-1.5">{counts.shop}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="other">
-                {t("admin.users.tabOther", "Others")}
-                <Badge variant="secondary" className="ml-1.5 px-1.5">{counts.other}</Badge>
-              </TabsTrigger>
+              {(
+                [
+                  { key: "all",    label: t("admin.users.tabAll", "All") },
+                  { key: "staff",  label: t("admin.users.tabStaff", "Staff") },
+                  { key: "parent", label: t("admin.users.tabParent", "Parents") },
+                  { key: "shop",   label: t("admin.users.tabShop", "Shop Staff") },
+                  { key: "other",  label: t("admin.users.tabOther", "Others") },
+                ] as { key: TabKey; label: string }[]
+              ).map(({ key, label }) => {
+                const total    = counts[key];
+                const active   = activeByBucket[key];
+                const inactive = total - active;
+                return (
+                  <TabsTrigger key={key} value={key}>
+                    {label}
+                    <span className="ml-1.5 inline-flex items-center gap-0.5">
+                      <Badge className="px-1.5 py-0 text-[10px] bg-green-100 text-green-700 hover:bg-green-100 border-0">
+                        {active}
+                      </Badge>
+                      {inactive > 0 && (
+                        <Badge className="px-1.5 py-0 text-[10px] bg-red-100 text-red-600 hover:bg-red-100 border-0">
+                          {inactive}
+                        </Badge>
+                      )}
+                    </span>
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
 
             {(["all", "staff", "parent", "shop", "other"] as TabKey[]).map((k) => (

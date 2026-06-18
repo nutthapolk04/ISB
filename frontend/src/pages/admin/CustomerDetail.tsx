@@ -39,6 +39,7 @@ interface StudentProfile {
   allergy_override_note?: string | null;
   card_uid?: string | null;
   card_frozen: boolean;
+  is_active?: boolean;
   daily_limit?: number | null;
   negative_credit_limit?: number | null;
   wallet_id?: number | null;
@@ -94,7 +95,7 @@ export default function CustomerDetail() {
 
   // Basic info editor
   const [editingBasic, setEditingBasic] = useState(false);
-  const [basicDraft, setBasicDraft] = useState({ name: "", grade: "", school_type: "", email: "", phone: "" });
+  const [basicDraft, setBasicDraft] = useState({ name: "", grade: "", school_type: "", email: "", phone: "", is_active: true });
   const [savingBasic, setSavingBasic] = useState(false);
 
   // Allergy editor
@@ -126,6 +127,7 @@ export default function CustomerDetail() {
 
   // Freeze toggle
   const [togglingFreeze, setTogglingFreeze] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
 
   // Link parent dialog
   const [linkParentOpen, setLinkParentOpen] = useState(false);
@@ -147,6 +149,7 @@ export default function CustomerDetail() {
         school_type: p.school_type ?? "",
         email: p.email ?? "",
         phone: p.phone ?? "",
+        is_active: p.is_active !== false,
       });
       setAllergyDraft({
         allergies: p.allergies ?? "",
@@ -214,11 +217,15 @@ export default function CustomerDetail() {
     if (!profile) return;
     setSavingBasic(true);
     try {
+      const { is_active, ...textFields } = basicDraft;
       const payload: Record<string, string | null> = {};
-      for (const [k, v] of Object.entries(basicDraft)) {
+      for (const [k, v] of Object.entries(textFields)) {
         payload[k] = v.trim() === "" ? null : v.trim();
       }
       await api.patch(`/customers/${profile.id}`, payload);
+      if (is_active !== (profile.is_active !== false)) {
+        await api.patch(`/customers/${profile.id}/active`, { active: is_active });
+      }
       toast({ title: t("admin.customer.basicSaved") });
       setEditingBasic(false);
       loadAll();
@@ -400,6 +407,20 @@ export default function CustomerDetail() {
     }
   };
 
+  const handleToggleActive = async () => {
+    if (!profile) return;
+    setTogglingActive(true);
+    try {
+      await api.patch(`/customers/${profile.id}/active`, { active: !profile.is_active });
+      toast({ title: profile.is_active ? t("admin.customer.setInactive", "Set to Inactive") : t("admin.customer.setActive", "Set to Active") });
+      loadAll();
+    } catch (e) {
+      toast({ title: t("admin.customer.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+    } finally {
+      setTogglingActive(false);
+    }
+  };
+
   const handleGraduate = async () => {
     if (!profile) return;
     if (!window.confirm(t("admin.customer.gradConfirmOne", { name: profile.name }))) return;
@@ -474,6 +495,9 @@ export default function CustomerDetail() {
                   <Badge variant="outline">{profile.customer_code}</Badge>
                   {profile.grade && <Badge variant="outline"><GraduationCap className="h-3 w-3 mr-0.5" />{profile.grade}</Badge>}
                   {profile.school_type && <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">{profile.school_type}</Badge>}
+                  <Badge className={`border-0 ${profile.is_active === false ? "bg-red-100 text-red-600 hover:bg-red-100" : "bg-green-100 text-green-700 hover:bg-green-100"}`}>
+                    {profile.is_active === false ? "Inactive" : "Active"}
+                  </Badge>
                   {profile.card_frozen && (
                     <Badge variant="destructive"><Lock className="h-3 w-3 mr-0.5" />{t("admin.customer.frozenBadge")}</Badge>
                   )}
@@ -498,7 +522,7 @@ export default function CustomerDetail() {
                 {profile.card_frozen ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
                 {profile.card_frozen ? t("admin.customer.unfreezeCard") : t("admin.customer.freezeCard")}
               </Button>
-              <Button
+<Button
                 variant="outline"
                 size="sm"
                 onClick={() => setGradDialogOpen(true)}
@@ -533,6 +557,7 @@ export default function CustomerDetail() {
                       school_type: profile.school_type ?? "",
                       email: profile.email ?? "",
                       phone: profile.phone ?? "",
+                      is_active: profile.is_active !== false,
                     });
                   }}
                 >
@@ -580,6 +605,18 @@ export default function CustomerDetail() {
                   <Label className="text-xs">{t("admin.customer.basicPhone")}</Label>
                   <Input value={basicDraft.phone} onChange={(e) => setBasicDraft({ ...basicDraft, phone: e.target.value })} />
                 </div>
+                <div>
+                  <Label className="text-xs">Status</Label>
+                  <Select value={basicDraft.is_active ? "active" : "inactive"} onValueChange={(v) => setBasicDraft({ ...basicDraft, is_active: v === "active" })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active" className="text-green-700">Active</SelectItem>
+                      <SelectItem value="inactive" className="text-red-600">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </>
             ) : (
               <>
@@ -602,6 +639,12 @@ export default function CustomerDetail() {
                 <div>
                   <p className="text-xs text-muted-foreground">{t("admin.customer.basicPhone")}</p>
                   <p className="text-sm">{profile.phone || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Badge className={`border-0 mt-0.5 ${profile.is_active === false ? "bg-red-100 text-red-600 hover:bg-red-100" : "bg-green-100 text-green-700 hover:bg-green-100"}`}>
+                    {profile.is_active === false ? "Inactive" : "Active"}
+                  </Badge>
                 </div>
               </>
             )}

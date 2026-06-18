@@ -118,6 +118,8 @@ export const shops = pgTable("shops", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	spendingGroupId: integer("spending_group_id"),
+	receiptHeader: varchar("receipt_header", { length: 500 }),
+	receiptFooter: varchar("receipt_footer", { length: 500 }),
 }, (table) => [
 	index("ix_shops_spending_group").using("btree", table.spendingGroupId.asc().nullsLast().op("int4_ops")),
 	foreignKey({
@@ -247,6 +249,8 @@ export const customers = pgTable("customers", {
 	cardUid: varchar("card_uid", { length: 50 }),
 	cardFrozen: boolean("card_frozen").notNull(),
 	dailyLimit: numeric("daily_limit", { precision: 10, scale:  2 }),
+	dailyLimitCanteen: numeric("daily_limit_canteen", { precision: 10, scale: 2 }),
+	dailyLimitStore: numeric("daily_limit_store", { precision: 10, scale: 2 }),
 	negativeCreditLimit: numeric("negative_credit_limit", { precision: 10, scale:  2 }),
 	allergyOverrideNote: text("allergy_override_note"),
 	powerschoolSyncAt: timestamp("powerschool_sync_at", { withTimezone: true, mode: 'string' }),

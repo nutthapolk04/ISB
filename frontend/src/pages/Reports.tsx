@@ -658,6 +658,27 @@ const Reports = () => {
       const data = await api.get<SalesByItemReportData>(
         `/reports/sales-by-item${qs ? `?${qs}` : ""}`,
       );
+
+      // Sort by best-selling item (highest total qty first) unless the filter
+      // targets exactly one item code (from == to, both non-empty).
+      const from = siItemNoFrom.trim();
+      const to = siItemNoTo.trim();
+      const isSingleItem = from !== "" && to !== "" && from.toLowerCase() === to.toLowerCase();
+      if (!isSingleItem && data.rows.length > 0) {
+        const qtyByItem = new Map<string, number>();
+        for (const row of data.rows) {
+          const key = row.item_no ?? "";
+          qtyByItem.set(key, (qtyByItem.get(key) ?? 0) + row.sales_qty);
+        }
+        data.rows.sort((a, b) => {
+          const qa = qtyByItem.get(a.item_no ?? "") ?? 0;
+          const qb = qtyByItem.get(b.item_no ?? "") ?? 0;
+          if (qb !== qa) return qb - qa;
+          return a.transaction_date.localeCompare(b.transaction_date);
+        });
+        data.rows.forEach((r, i) => { r.seq = i + 1; });
+      }
+
       setSiData(data);
       if (data.rows.length === 0) toast.message("No line items match these filters.");
     } catch (err) {

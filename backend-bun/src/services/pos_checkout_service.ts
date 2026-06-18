@@ -210,6 +210,26 @@ async function todayDeductedForWallet(walletId: number): Promise<number> {
   return pgNumber(rows[0]?.total ?? "0") ?? 0;
 }
 
+export const DEFAULT_DAILY_LIMIT_CANTEEN = 500;
+export const DEFAULT_DAILY_LIMIT_STORE = 25_000;
+
+export async function todayDeductedByModule(walletId: number, shopModule: string): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = await db.execute(sql`
+    SELECT COALESCE(SUM(wt.amount), 0) AS total
+    FROM wallet_transactions wt
+    JOIN receipts r ON r.id = CAST(wt.reference_id AS integer) AND wt.reference_type = 'receipt'
+    JOIN shops s ON s.id = r.shop_id
+    WHERE wt.wallet_id = ${walletId}
+      AND wt.transaction_type = 'DEDUCTION'
+      AND wt.created_at >= ${today + "T00:00:00+07:00"}
+      AND wt.created_at <= ${today + "T23:59:59.999999+07:00"}
+      AND s.module = ${shopModule}
+  `);
+  const row = (rows as unknown as Array<{ total: string | number }>)[0];
+  return pgNumber(String(row?.total ?? "0")) ?? 0;
+}
+
 export async function checkout(input: CheckoutInput) {
   // ── Pre-flight validation ────────────────────────────────────────────
   const paymentMethod = (input.payment_method ?? "").toUpperCase();
@@ -262,9 +282,10 @@ export async function checkout(input: CheckoutInput) {
 
   // ── Shop type detection: drives FIFO branching in the deduction path.
   let effectiveShopType: "fifo" | "avg_cost" | null = null;
+  let effectiveShopModule: string | null = null;
   if (effectiveShopId) {
     const sr = await db
-      .select({ shopType: shops.shopType, allowDept: shops.allowDepartmentCharge })
+      .select({ shopType: shops.shopType, allowDept: shops.allowDepartmentCharge, module: shops.module })
       .from(shops)
       .where(eq(shops.id, effectiveShopId))
       .limit(1);
@@ -274,6 +295,7 @@ export async function checkout(input: CheckoutInput) {
       throw err;
     }
     effectiveShopType = sr[0].shopType as "fifo" | "avg_cost";
+    effectiveShopModule = sr[0].module ?? null;
     if (isDepartmentPayment && !sr[0].allowDept) {
       const err = new Error(
         `Shop '${effectiveShopId}' does not accept department charges (only coop shops can issue goods on department budget)`,
@@ -539,8 +561,8 @@ export async function checkout(input: CheckoutInput) {
       await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
       walletDeductData = { walletId, balanceBefore, balanceAfter: projected, amount: total };
     } else if (isWalletPayment && input.customer_id !== null && input.customer_id !== undefined) {
-      const cRows = await sqlTx<Array<{ id: number; name: string; card_frozen: boolean; daily_limit: string | null; negative_credit_limit: string | null }>>`
-        SELECT id, name, card_frozen, daily_limit, negative_credit_limit
+      const cRows = await sqlTx<Array<{ id: number; name: string; card_frozen: boolean; daily_limit: string | null; daily_limit_canteen: string | null; daily_limit_store: string | null; negative_credit_limit: string | null }>>`
+        SELECT id, name, card_frozen, daily_limit, daily_limit_canteen, daily_limit_store, negative_credit_limit
         FROM customers WHERE id = ${input.customer_id}
       `;
       const customer = cRows[0];
@@ -570,14 +592,19 @@ export async function checkout(input: CheckoutInput) {
         walletId = wRows[0].id;
         balanceBefore = Number(wRows[0].balance);
       }
-      // Daily limit check
-      if (customer.daily_limit !== null) {
-        const todaySpent = await todayDeductedForWallet(walletId);
-        const limit = Number(customer.daily_limit);
-        if (todaySpent + total > limit) {
-          const remaining = Math.max(0, limit - todaySpent);
+      // Daily limit check (per shop module)
+      if (effectiveShopModule) {
+        const isCanteen = effectiveShopModule === "canteen";
+        const customLimit = isCanteen ? customer.daily_limit_canteen : customer.daily_limit_store;
+        const effectiveLimit = customLimit !== null
+          ? Number(customLimit)
+          : (isCanteen ? DEFAULT_DAILY_LIMIT_CANTEEN : DEFAULT_DAILY_LIMIT_STORE);
+        const todaySpent = await todayDeductedByModule(walletId, effectiveShopModule);
+        if (todaySpent + total > effectiveLimit) {
+          const remaining = Math.max(0, effectiveLimit - todaySpent);
+          const groupName = isCanteen ? "โรงอาหาร" : "ร้านค้า";
           const err = new Error(
-            `Daily limit exceeded. Limit: ฿${limit.toFixed(2)}, already spent today: ฿${todaySpent.toFixed(2)}, remaining: ฿${remaining.toFixed(2)}`,
+            `วงเงินรายวัน${groupName}เกินกำหนด. วงเงิน: ฿${effectiveLimit.toFixed(2)}, ใช้ไปแล้ว: ฿${todaySpent.toFixed(2)}, คงเหลือ: ฿${remaining.toFixed(2)}`,
           );
           (err as { status?: number }).status = 400;
           throw err;

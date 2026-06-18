@@ -288,6 +288,19 @@ const Store = () => {
     void autoOpenCustomerDisplayWindow();
   }, []);
 
+  // ── Per-shop receipt overrides ──────────────────────────────────────────
+  const [shopReceipt, setShopReceipt] = useState<{
+    receiptHeader: string | null;
+    receiptFooter: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user?.shopId) return;
+    api.get<{ receipt_header: string | null; receipt_footer: string | null }>(`/shops/${user.shopId}`)
+      .then((s) => setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer }))
+      .catch(() => {});
+  }, [user?.shopId]);
+
   // ── Products + shop metadata ────────────────────────────────────────────
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
@@ -1116,6 +1129,7 @@ const Store = () => {
             // School is international — receipt is always English on paper,
             // regardless of the cashier's UI language.
             "en",
+            shopReceipt ?? undefined,
           );
         } catch (printErr) {
           console.warn("Auto-print failed:", printErr);

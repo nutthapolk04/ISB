@@ -168,6 +168,7 @@ export function buildReceiptHtml(
   school: SchoolInfo,
   shopName?: string | null,
   lang: string = "en",
+  shopOverrides?: { receiptHeader?: string | null; receiptFooter?: string | null },
 ): string {
   const isEn = !lang.startsWith("th");
   const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
@@ -241,6 +242,10 @@ export function buildReceiptHtml(
   const shopLine = shopName
     ? `<p class="shop-name">${shopName}</p>`
     : "";
+  const shopHeaderLine = shopOverrides?.receiptHeader
+    ? `<p class="sub" style="margin-bottom:4px">${shopOverrides.receiptHeader}</p>`
+    : "";
+  const footerText = shopOverrides?.receiptFooter || school.receiptFooter;
   const logoHtml = school.logoUrl
     ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />`
     : ISB_LOGO_SVG;
@@ -276,14 +281,14 @@ export function buildReceiptHtml(
   .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; }
   .opt { padding-left: 14px; font-size: 14px; color: #333; }
   .item-sub { padding-left: 14px; font-size: 13px; color: #555; margin-top: -2px; margin-bottom: 3px; }
-  .disc { color: #a00; font-size: 15px; font-weight: 600; }
+  .disc { color: #000; font-size: 15px; font-weight: 600; }
   .small { font-size: 14px; color: #222; }
   .small span:last-child { font-weight: 700; }
   .total { font-size: 22px; font-weight: 800; margin-top: 5px; }
   .total span { font-weight: 800; }
-  .balance-after { font-size: 20px; font-weight: 800; color: #1d4ed8; margin-top: 7px; }
-  .voided { text-align: center; color: #a00; font-weight: 800;
-             font-size: 16px; margin: 7px 0; border: 2px solid #a00; padding: 5px; }
+  .balance-after { font-size: 20px; font-weight: 800; color: #000; margin-top: 7px; }
+  .voided { text-align: center; color: #000; font-weight: 800;
+             font-size: 16px; margin: 7px 0; border: 2px solid #000; padding: 5px; }
   .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
   .notes-label { font-size: 13px; font-weight: 700; color: #333; }
   .notes-text { font-size: 14px; color: #000; word-break: break-word; }
@@ -296,6 +301,7 @@ export function buildReceiptHtml(
   ${addressLine}
   ${taxPhoneLine}
   ${shopLine}
+  ${shopHeaderLine}
   <p class="doc-type">${lbl.subtitle}</p>
   ${voidedSection}
   <hr/>
@@ -316,10 +322,10 @@ export function buildReceiptHtml(
   ${r.payment_method.toLowerCase() === "cash" && r.cash_received != null ? `
   <hr/>
   <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
-  <div class="row small" style="font-weight:bold;color:#059669"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
+  <div class="row small" style="font-weight:bold;color:#000"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
   ${notesSection}
   <hr/>
-  <p class="center sub">${school.receiptFooter || lbl.thanks}</p>
+  <p class="center sub">${footerText || lbl.thanks}</p>
 </body>
 </html>`;
 }
@@ -343,8 +349,9 @@ export function printReceipt(
   school: SchoolInfo,
   shopName?: string | null,
   lang: string = "en",
+  shopOverrides?: { receiptHeader?: string | null; receiptFooter?: string | null },
 ): void {
-  const html = buildReceiptHtml(r, school, shopName, lang);
+  const html = buildReceiptHtml(r, school, shopName, lang, shopOverrides);
 
   // Remove any stale iframe from a prior print before creating a new one.
   document.getElementById(RECEIPT_IFRAME_ID)?.remove();

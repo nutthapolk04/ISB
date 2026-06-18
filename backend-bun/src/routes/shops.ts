@@ -144,6 +144,8 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         module: t.Optional(t.Nullable(t.Union([t.Literal("canteen"), t.Literal("store")]))),
         uses_dual_pricing: t.Optional(t.Nullable(t.Boolean())),
         spending_group_id: t.Optional(t.Nullable(t.Number())),
+        receipt_header: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+        receipt_footer: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
       }),
       detail: { summary: "Update a shop (admin)" },
     },

@@ -17,6 +17,8 @@ export interface ShopRow {
   products_order_version: number;
   created_at: string;
   spending_group_id: number | null;
+  receipt_header: string | null;
+  receipt_footer: string | null;
 }
 
 export interface ListShopsFilters {
@@ -99,6 +101,8 @@ export interface UpdateShopInput {
   module?: ShopModule | null;
   uses_dual_pricing?: boolean | null;
   spending_group_id?: number | null;
+  receipt_header?: string | null;
+  receipt_footer?: string | null;
 }
 
 export async function updateShop(shopId: string, input: UpdateShopInput): Promise<ShopRow> {
@@ -111,6 +115,8 @@ export async function updateShop(shopId: string, input: UpdateShopInput): Promis
   if (input.uses_dual_pricing !== undefined && input.uses_dual_pricing !== null) updates.usesDualPricing = input.uses_dual_pricing;
   // spending_group_id: explicit null clears
   if (input.spending_group_id !== undefined) updates.spendingGroupId = input.spending_group_id;
+  if (input.receipt_header !== undefined) updates.receiptHeader = input.receipt_header;
+  if (input.receipt_footer !== undefined) updates.receiptFooter = input.receipt_footer;
 
   if (Object.keys(updates).length > 0) {
     const updated = await db
@@ -268,5 +274,7 @@ function toShopResponse(row: typeof shops.$inferSelect): ShopRow {
     products_order_version: row.productsOrderVersion,
     created_at: pgToIso(row.createdAt)!,
     spending_group_id: row.spendingGroupId ?? null,
+    receipt_header: row.receiptHeader ?? null,
+    receipt_footer: row.receiptFooter ?? null,
   };
 }

@@ -179,6 +179,7 @@ async function upsertProductRow(
   }
 
   const category = coerceStr(row.category) || "ทั่วไป";
+  const rowProductCode = coerceStr(row.product_code);
 
   // Ensure category exists for this shop (mirrors Python — flush a new
   // ShopCategory before the product so the FK reference is valid).
@@ -236,6 +237,7 @@ async function upsertProductRow(
         category,
       };
       if (uomId !== null) updates.uomId = uomId;
+      if (rowProductCode) updates.productCode = rowProductCode;
       const updated = await db
         .update(shopProducts)
         .set(updates)
@@ -247,7 +249,7 @@ async function upsertProductRow(
     // New product. `IMP-<ts-suffix><1-hex-byte>` mirrors the Python code-gen.
     const tsSuffix = Date.now() % 100_000_000;
     const hex = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
-    const productCode = `IMP-${String(tsSuffix).padStart(8, "0")}${hex}`;
+    const productCode = rowProductCode || `IMP-${String(tsSuffix).padStart(8, "0")}${hex}`;
 
     const inserted = await db
       .insert(shopProducts)
@@ -716,28 +718,16 @@ export async function buildTemplate(shopId: string): Promise<Response> {
   if (module === "canteen") {
     sheetName = "Menu";
     aoa = [
-      ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
-      ["ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sampleShopId],
-      ["น้ำส้มคั้น", "CT001002", 20, 10, "เครื่องดื่ม", "แก้ว", sampleShopId],
+      ["product_code", "name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
+      ["FOOD-001", "ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sampleShopId],
     ];
   } else {
     sheetName = "Store";
     aoa = [
-      ["name", "barcode", "price", "cost_price", "category", "uom", "shop_id",
+      ["product_code", "name", "barcode", "price", "cost_price", "category", "uom", "shop_id",
        "quantity", "cost_per_unit", "notes", "reference"],
-      // Row 1: new product + opening stock in one go.
-      ["หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sampleShopId,
+      ["BK-001", "หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sampleShopId,
        50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
-      // Row 2: another combined entry — different category.
-      ["สมุดบันทึก A4 80 แผ่น", "BK001002", 35, 20, "เครื่องเขียน", "เล่ม", sampleShopId,
-       100, 18, "รับเข้าประจำเดือน", "PO-2026-002"],
-      // Row 3: catalog-only — no stock receive this time.
-      ["ดินสอ HB กล่อง 12 แท่ง", "BK001003", 60, 35, "เครื่องเขียน", "กล่อง", sampleShopId,
-       null, null, null, null],
-      // Row 4: stock-only top-up — leave product columns blank, fill barcode
-      // of an EXISTING product + quantity to receive more stock into it.
-      [null, "BK001001", null, null, null, null, sampleShopId,
-       20, 65, "เติมสต็อกล็อตใหม่", "PO-2026-003"],
     ];
   }
 

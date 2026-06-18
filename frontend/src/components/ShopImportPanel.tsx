@@ -279,7 +279,7 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
             />
 
             <span className="text-xs text-muted-foreground ml-auto">
-              {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">name, barcode, price, cost_price, category, uom, shop_id</code>
+              {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">product_code, name, barcode, price, cost_price, category, uom, shop_id</code>
               {showStockReceive && (
                 <>
                   {" · "}

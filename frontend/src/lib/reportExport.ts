@@ -107,6 +107,20 @@ export interface ReportMeta {
   filters?: string[];
   /** Override the "Generated at" stamp. Defaults to new Date(). */
   generatedAt?: Date;
+  /**
+   * Report ID shown in the PDF/Excel footer. Auto-generated as
+   * "RPT-YYYYMMDD-HHmmss-XXXX" when omitted.
+   */
+  reportId?: string;
+}
+
+/** Generate a sequential Report ID: ISB001, ISB002, … Counter persisted in localStorage. */
+export function generateReportId(prefix = "ISB"): string {
+  const STORAGE_KEY = "isb_report_id_counter";
+  const current = parseInt(localStorage.getItem(STORAGE_KEY) ?? "0", 10);
+  const next = current + 1;
+  localStorage.setItem(STORAGE_KEY, String(next));
+  return `${prefix}${String(next).padStart(3, "0")}`;
 }
 
 /**
@@ -246,6 +260,9 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   filename: string,
 ): Promise<void> {
   const { meta, columns, rows, totals } = payload;
+  const reportId = meta.reportId ?? generateReportId();
+  const generatedAt = meta.generatedAt ?? new Date();
+  const printDateTime = formatDateTime(generatedAt);
 
   // Landscape A4 — most reports have many columns. Switch to portrait if a
   // particular report ever proves it needs that.
@@ -258,6 +275,14 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   // Thai. Falls back to Helvetica silently if the font fetch fails.
   await ensureThaiFont(doc);
   const fontFamily = doc.getFontList()[FONT_NAME] ? FONT_NAME : "helvetica";
+
+  // ─── Top meta bar: Report ID (left) + Printed (right) ───────────────
+  doc.setFont(fontFamily, "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(130);
+  doc.text(`Report ID: ${reportId}`, marginX, 20, { align: "left" });
+  doc.text(`Printed: ${printDateTime}`, pageWidth - marginX, 20, { align: "right" });
+  doc.setTextColor(0);
 
   // ─── Header: logo (left) + school name & title (left, next to logo) ──
   const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
@@ -445,20 +470,21 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
         },
       ]),
     ),
-    didDrawPage: (data) => {
-      // Footer: page number, centered.
-      const pageNo = doc.getNumberOfPages();
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(
-        `Page ${data.pageNumber} of ${pageNo}`,
-        pageWidth / 2,
-        doc.internal.pageSize.getHeight() - 16,
-        { align: "center" },
-      );
-      doc.setTextColor(0);
-    },
   });
+
+  // Draw footer on every page after autoTable has finished laying out all rows.
+  // This is more reliable than didDrawPage because autoTable's total page count
+  // is only known after the call returns.
+  const totalPages = doc.getNumberOfPages();
+  const footerY = doc.internal.pageSize.getHeight() - 16;
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(130);
+    doc.text(`Page ${p} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
+    doc.setTextColor(0);
+  }
 
   doc.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
 }
@@ -471,13 +497,15 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
 ): void {
   const { meta, columns, rows, totals } = payload;
   const generatedAt = meta.generatedAt ?? new Date();
+  const reportId = meta.reportId ?? generateReportId();
 
   // Build a sheet from an array of arrays — gives us the most control over
   // the header band above the data table.
   const aoa: (string | number)[][] = [];
   aoa.push([meta.schoolName]);
   aoa.push([meta.title]);
-  aoa.push([`Generated: ${formatDateTime(generatedAt)}`]);
+  aoa.push([`Report ID: ${reportId}`]);
+  aoa.push([`Printed: ${formatDateTime(generatedAt)}`]);
   if (meta.filters && meta.filters.length > 0) {
     aoa.push([`Filters: ${meta.filters.join(" · ")}`]);
   }
@@ -553,7 +581,9 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
 
   // Apply number/currency formatting on the data cells so the value reads
   // "1,234.56" in Excel instead of plain 1234.56.
-  const headerRowIndex = aoa.findIndex((r) => r === aoa[5]); // row 6 (0-indexed = 5)
+  // Locate the column-header row dynamically — it's the first row that has
+  // as many cells as there are columns (i.e. the actual column names row).
+  const headerRowIndex = aoa.findIndex((r) => r.length === columns.length && r[0] === columns[0].header);
   if (headerRowIndex >= 0) {
     const firstDataRow = headerRowIndex + 1;
     const totalRow = totals ? aoa.length - 1 : -1;

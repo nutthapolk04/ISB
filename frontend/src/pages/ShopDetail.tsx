@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -67,6 +68,8 @@ interface ShopApiResponse {
   shop_type: "avg_cost" | "fifo";
   description: string | null;
   is_active: boolean;
+  receipt_header: string | null;
+  receipt_footer: string | null;
 }
 
 interface AuditLogEntry {
@@ -114,7 +117,7 @@ const ShopDetail = () => {
   useEffect(() => { fetchShop(); }, [fetchShop]);
 
   // ── Shop info edit state ────────────────────────────────────────────────
-  const [shopInfoDraft, setShopInfoDraft] = useState({ name: "", description: "", isActive: "active" as "active" | "inactive" });
+  const [shopInfoDraft, setShopInfoDraft] = useState({ name: "", description: "", isActive: "active" as "active" | "inactive", receiptHeader: "", receiptFooter: "" });
 
   useEffect(() => {
     if (shopData) {
@@ -122,6 +125,8 @@ const ShopDetail = () => {
         name: shopData.name,
         description: shopData.description ?? "",
         isActive: shopData.is_active ? "active" : "inactive",
+        receiptHeader: shopData.receipt_header ?? "",
+        receiptFooter: shopData.receipt_footer ?? "",
       });
     }
   }, [shopData]);
@@ -235,6 +240,8 @@ const ShopDetail = () => {
         name: shopInfoDraft.name.trim(),
         description: shopInfoDraft.description.trim() || null,
         is_active: shopInfoDraft.isActive === "active",
+        receipt_header: shopInfoDraft.receiptHeader.trim() || null,
+        receipt_footer: shopInfoDraft.receiptFooter.trim() || null,
       });
       toast.success(t("management.shopUpdated"));
       await fetchShop();
@@ -362,6 +369,28 @@ const ShopDetail = () => {
                     <SelectItem value="inactive">{t("management.statusInactive")}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>{t("management.receiptHeader", "Receipt Header")}</Label>
+                <Textarea
+                  value={shopInfoDraft.receiptHeader}
+                  onChange={(e) => setShopInfoDraft({ ...shopInfoDraft, receiptHeader: e.target.value })}
+                  placeholder={t("management.receiptHeaderPlaceholder", "e.g. Shop Building A, 2nd Floor")}
+                  maxLength={200}
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground mt-1">{t("management.receiptHeaderHint", "Shown below shop name on receipt")}</p>
+              </div>
+              <div>
+                <Label>{t("management.receiptFooter", "Receipt Footer")}</Label>
+                <Textarea
+                  value={shopInfoDraft.receiptFooter}
+                  onChange={(e) => setShopInfoDraft({ ...shopInfoDraft, receiptFooter: e.target.value })}
+                  placeholder={t("management.receiptFooterPlaceholder", "e.g. Thank you for shopping with us!")}
+                  maxLength={200}
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground mt-1">{t("management.receiptFooterHint", "Overrides school footer. Leave blank to use school default.")}</p>
               </div>
               <Button onClick={handleSaveShopInfo} disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

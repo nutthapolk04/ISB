@@ -5,11 +5,10 @@ import { useEffect, useState } from "react";
 
 const STORAGE_PREFIX = "isb.autoPrint.";
 
-function readStored(key: string): boolean {
-  if (typeof window === "undefined") return true;
+function readStored(key: string, defaultValue: boolean): boolean {
+  if (typeof window === "undefined") return defaultValue;
   const raw = window.localStorage.getItem(STORAGE_PREFIX + key);
-  // Default OFF — station must explicitly enable auto-print.
-  if (raw === null) return false;
+  if (raw === null) return defaultValue;
   return raw === "1";
 }
 
@@ -23,14 +22,12 @@ function writeStored(key: string, value: boolean) {
  *   preference is namespaced so a cashier covering multiple shops keeps
  *   independent toggles.
  */
-export function useAutoPrint(scope: string): [boolean, (v: boolean) => void] {
-  const [enabled, setEnabled] = useState<boolean>(() => readStored(scope));
+export function useAutoPrint(scope: string, defaultOn = true): [boolean, (v: boolean) => void] {
+  const [enabled, setEnabled] = useState<boolean>(() => readStored(scope, defaultOn));
 
-  // Re-sync when scope changes (e.g. cashier switches shops via role picker
-  // without a full reload).
   useEffect(() => {
-    setEnabled(readStored(scope));
-  }, [scope]);
+    setEnabled(readStored(scope, defaultOn));
+  }, [scope, defaultOn]);
 
   const update = (v: boolean) => {
     writeStored(scope, v);

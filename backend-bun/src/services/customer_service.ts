@@ -3,6 +3,8 @@ import { db, pgClient } from "@/db/client";
 import { customers, users, wallets, parentChildLinks, customerTypes, receipts } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
+import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
+import { todayDeductedByModule, DEFAULT_DAILY_LIMIT_CANTEEN, DEFAULT_DAILY_LIMIT_STORE } from "@/services/pos_checkout_service";
 
 /**
  * StudentProfileResponse parity — fields can come from either the customers
@@ -25,7 +27,10 @@ export interface StudentProfileDTO {
   allergy_override_note: string | null;
   card_uid: string | null;
   card_frozen: boolean;
+  is_active: boolean;
   daily_limit: number | null;
+  daily_limit_canteen: number | null;
+  daily_limit_store: number | null;
   negative_credit_limit: number | null;
   external_id: string | null;
   family_code: string | null;
@@ -84,7 +89,10 @@ function customerToProfile(
     allergy_override_note: c.allergyOverrideNote ?? null,
     card_uid: c.cardUid ?? null,
     card_frozen: c.cardFrozen,
+    is_active: c.isActive,
     daily_limit: pgNumber(c.dailyLimit),
+    daily_limit_canteen: pgNumber(c.dailyLimitCanteen),
+    daily_limit_store: pgNumber(c.dailyLimitStore),
     negative_credit_limit: pgNumber(c.negativeCreditLimit),
     external_id: c.externalId ?? null,
     family_code: c.familyCode ?? null,
@@ -115,7 +123,10 @@ function userToProfile(
     allergy_override_note: null,
     card_uid: u.cardUid ?? null,
     card_frozen: false,
+    is_active: u.isActive,
     daily_limit: null,
+    daily_limit_canteen: null,
+    daily_limit_store: null,
     negative_credit_limit: null,
     external_id: u.externalId ?? null,
     family_code: u.familyCode ?? null,
@@ -253,6 +264,16 @@ async function assertCustomerAccess(caller: AccessTokenPayload, customerId: numb
   }
 }
 
+export async function setActive(customerId: number, active: boolean): Promise<StudentProfileDTO> {
+  const rows = await db.update(customers).set({ isActive: active }).where(eq(customers.id, customerId)).returning();
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return profileForCustomerId(customerId);
+}
+
 export async function freezeCard(caller: AccessTokenPayload, customerId: number, frozen: boolean): Promise<StudentProfileDTO> {
   await assertCustomerAccess(caller, customerId);
   const rows = await db.update(customers).set({ cardFrozen: frozen }).where(eq(customers.id, customerId)).returning();
@@ -271,6 +292,30 @@ export async function setDailyLimit(caller: AccessTokenPayload, customerId: numb
     .set({ dailyLimit: limit !== null ? String(limit) : null })
     .where(eq(customers.id, customerId))
     .returning();
+  if (!rows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return profileForCustomerId(customerId);
+}
+
+export async function setDailyLimits(
+  caller: AccessTokenPayload,
+  customerId: number,
+  limits: { daily_limit_canteen?: number | null; daily_limit_store?: number | null },
+): Promise<StudentProfileDTO> {
+  await assertCustomerAccess(caller, customerId);
+  const updates: Record<string, string | null> = {};
+  if ("daily_limit_canteen" in limits) {
+    updates.dailyLimitCanteen = limits.daily_limit_canteen !== null && limits.daily_limit_canteen !== undefined
+      ? String(limits.daily_limit_canteen) : null;
+  }
+  if ("daily_limit_store" in limits) {
+    updates.dailyLimitStore = limits.daily_limit_store !== null && limits.daily_limit_store !== undefined
+      ? String(limits.daily_limit_store) : null;
+  }
+  const rows = await db.update(customers).set(updates).where(eq(customers.id, customerId)).returning();
   if (!rows[0]) {
     const err = new Error("Customer not found");
     (err as { status?: number }).status = 404;
@@ -474,6 +519,125 @@ export async function deleteCustomer(customerId: number): Promise<void> {
   await db.delete(customers).where(eq(customers.id, customerId));
 }
 
+export interface GraduateResponseDTO {
+  customer_id: number;
+  deactivated: boolean;
+  transferred_to_customer_id: number | null;
+  transferred_amount: number;
+  siblings_available: number[];
+  message: string;
+}
+
+export async function graduateStudent(
+  caller: AccessTokenPayload,
+  customerId: number,
+  payload: { transfer_to_customer_id: number | null },
+): Promise<GraduateResponseDTO> {
+  const cRows = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
+  const customer = cRows[0];
+  if (!customer) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+
+  const wRows = await db
+    .select({ id: wallets.id, balance: wallets.balance })
+    .from(wallets)
+    .where(eq(wallets.customerId, customerId))
+    .limit(1);
+  const wallet = wRows[0] ?? null;
+  const balance = wallet ? pgNumber(wallet.balance) ?? 0 : 0;
+
+  const parentRows = await db
+    .select({ parentUserId: parentChildLinks.parentUserId })
+    .from(parentChildLinks)
+    .where(eq(parentChildLinks.childCustomerId, customerId));
+  const parentIds = parentRows.map((r) => r.parentUserId);
+
+  let siblings: Array<{ id: number; name: string }> = [];
+  if (parentIds.length > 0) {
+    siblings = await db
+      .selectDistinct({ id: customers.id, name: customers.name })
+      .from(customers)
+      .innerJoin(parentChildLinks, eq(parentChildLinks.childCustomerId, customers.id))
+      .where(
+        and(
+          inArray(parentChildLinks.parentUserId, parentIds),
+          ne(customers.id, customerId),
+          eq(customers.isActive, true),
+        ),
+      );
+  }
+  const siblingsAvailable = siblings.map((s) => s.id);
+
+  let transferredTo: number | null = null;
+  let transferredAmount = 0;
+  let message = "";
+
+  if (balance > 0 && wallet) {
+    let targetId: number | null = payload.transfer_to_customer_id;
+
+    if (targetId === null || targetId === undefined) {
+      if (siblings.length === 1) {
+        targetId = siblings[0].id;
+      } else if (siblings.length > 1) {
+        return {
+          customer_id: customerId,
+          deactivated: false,
+          transferred_to_customer_id: null,
+          transferred_amount: 0,
+          siblings_available: siblingsAvailable,
+          message: "Multiple siblings found — specify transfer_to_customer_id",
+        };
+      }
+    }
+
+    if (targetId !== null) {
+      const target = siblings.find((s) => s.id === targetId);
+      if (!target) {
+        const err = new Error(`Customer ${targetId} is not a sibling of ${customerId}`);
+        (err as { status?: number }).status = 400;
+        throw err;
+      }
+      const targetWallet = await ensureWalletForCustomer(target.id);
+      await transferWithinFamily({
+        fromWalletId: wallet.id,
+        toWalletId: targetWallet.id,
+        amount: balance,
+        initiatorUserId: Number(caller.sub),
+        initiatorIsAdmin: true,
+        initiatorRoles: caller.roles,
+        note: `Graduation transfer from ${customer.name}`,
+      });
+      transferredTo = target.id;
+      transferredAmount = balance;
+      message = `Transferred ฿${balance.toFixed(2)} to sibling ${target.name}`;
+    } else {
+      message = `No siblings found — balance ฿${balance.toFixed(2)} left in wallet, needs admin action`;
+    }
+  }
+
+  await db
+    .update(customers)
+    .set({
+      isActive: false,
+      isGraduated: true,
+      cardFrozen: true,
+      powerschoolSyncAt: new Date().toISOString(),
+    })
+    .where(eq(customers.id, customerId));
+
+  return {
+    customer_id: customerId,
+    deactivated: true,
+    transferred_to_customer_id: transferredTo,
+    transferred_amount: transferredAmount,
+    siblings_available: siblingsAvailable,
+    message: message || "Student deactivated",
+  };
+}
+
 export async function listCustomers(p: ListCustomersParams = {}): Promise<StudentProfileDTO[]> {
   const skip = p.skip ?? 0;
   const limit = Math.min(p.limit ?? 20, 100);
@@ -498,4 +662,66 @@ export async function listCustomers(p: ListCustomersParams = {}): Promise<Studen
     .offset(skip);
   const ws = await walletByCustomerIds(rows.map((r) => r.id));
   return rows.map((c) => customerToProfile(c, ws.get(c.id)));
+}
+
+export interface SpendingGroupUsage {
+  spending_group_id: number;
+  code: string;
+  name_en: string;
+  name_th: string;
+  daily_limit: number;
+  spent_today: number;
+  remaining: number;
+}
+
+export async function getSpendingGroupsUsageToday(customerId: number): Promise<SpendingGroupUsage[]> {
+  const cRows = await db
+    .select({ id: customers.id, dailyLimitCanteen: customers.dailyLimitCanteen, dailyLimitStore: customers.dailyLimitStore })
+    .from(customers)
+    .where(eq(customers.id, customerId))
+    .limit(1);
+  if (!cRows[0]) {
+    const err = new Error("Customer not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const customer = cRows[0];
+
+  const wRows = await db
+    .select({ id: wallets.id })
+    .from(wallets)
+    .where(eq(wallets.customerId, customerId))
+    .limit(1);
+  const walletId = wRows[0]?.id ?? null;
+
+  const canteenLimit = pgNumber(customer.dailyLimitCanteen) ?? DEFAULT_DAILY_LIMIT_CANTEEN;
+  const storeLimit = pgNumber(customer.dailyLimitStore) ?? DEFAULT_DAILY_LIMIT_STORE;
+
+  const [canteenSpent, storeSpent] = walletId
+    ? await Promise.all([
+        todayDeductedByModule(walletId, "canteen"),
+        todayDeductedByModule(walletId, "store"),
+      ])
+    : [0, 0];
+
+  return [
+    {
+      spending_group_id: 1,
+      code: "canteen",
+      name_en: "Canteen",
+      name_th: "โรงอาหาร",
+      daily_limit: canteenLimit,
+      spent_today: canteenSpent,
+      remaining: Math.max(0, canteenLimit - canteenSpent),
+    },
+    {
+      spending_group_id: 2,
+      code: "store",
+      name_en: "Store",
+      name_th: "ร้านค้า",
+      daily_limit: storeLimit,
+      spent_today: storeSpent,
+      remaining: Math.max(0, storeLimit - storeSpent),
+    },
+  ];
 }

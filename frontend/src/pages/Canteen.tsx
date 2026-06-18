@@ -109,7 +109,7 @@ interface CheckoutResponse {
 export default function Canteen() {
   const { t, i18n } = useTranslation();
   const { user, hasRole } = useAuth();
-  const [autoPrint, setAutoPrint] = useAutoPrint(`canteen:${user?.shopId ?? "default"}`);
+  const [autoPrint, setAutoPrint] = useAutoPrint(`canteen:${user?.shopId ?? "default"}`, false);
   const schoolInfo = useSchoolInfo();
 
   // Pop the customer display once when entering the POS, on desktop only.
@@ -129,6 +129,20 @@ export default function Canteen() {
   }, []);
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
+
+  // ── Per-shop receipt overrides ──────────────────────────────────────────
+  const [shopReceipt, setShopReceipt] = useState<{
+    receiptHeader: string | null;
+    receiptFooter: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user?.shopId) return;
+    api.get<{ receipt_header: string | null; receipt_footer: string | null }>(`/shops/${user.shopId}`)
+      .then((s) => setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer }))
+      .catch(() => {});
+  }, [user?.shopId]);
+
   const cart = useCanteenCart();
   const [products, setProducts] = useState<CanteenProduct[]>([]);
 
@@ -675,7 +689,7 @@ export default function Canteen() {
     // Skipped entirely when the per-station auto-print toggle is off.
     if (fullReceipt && autoPrint) {
       try {
-        printReceipt(fullReceipt, schoolInfo, user?.shopName, "en");
+        printReceipt(fullReceipt, schoolInfo, user?.shopName, "en", shopReceipt ?? undefined);
       } catch (printErr) {
         console.warn("Auto-print failed:", printErr);
       }

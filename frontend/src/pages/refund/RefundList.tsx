@@ -3,8 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
   GraduationCap,
   Loader2,
-  Inbox,
-  Search,
   Users as UsersIcon,
   AlertTriangle,
   CheckCircle2,
@@ -16,9 +14,6 @@ import { FamilyLookupCard } from "@/components/refund/FamilyLookupCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -88,26 +83,7 @@ export default function RefundList() {
   const { data: candidates = [], isLoading } = useRefundCandidates();
   const [selectedCandidate, setSelectedCandidate] =
     useState<RefundCandidate | null>(null);
-  const [search, setSearch] = useState("");
-  const [graduatedOnly, setGraduatedOnly] = useState(false);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return candidates.filter((c) => {
-      if (graduatedOnly) {
-        const familySafe = c.family_active_count === null
-          ? c.is_graduated
-          : c.family_active_count === 0;
-        if (!familySafe) return false;
-      }
-      if (!q) return true;
-      return (
-        c.name.toLowerCase().includes(q) ||
-        (c.student_code ?? "").toLowerCase().includes(q) ||
-        (c.family_code ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [candidates, search, graduatedOnly]);
+  const filtered = candidates;
 
   const groups = useMemo(() => groupByFamily(filtered), [filtered]);
 
@@ -146,52 +122,12 @@ export default function RefundList() {
           (e.g. while waiting for PowerSchool sync). */}
       <FamilyLookupCard onRefundClick={setSelectedCandidate} />
 
-      {/* Search + filter */}
-      <Card className="mb-4">
-        <CardContent className="pt-4 pb-4 flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[240px]">
-            <Label htmlFor="refund-search" className="text-xs text-muted-foreground">
-              {t("refund.search.label", "Search")}
-            </Label>
-            <div className="relative">
-              <Search
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <Input
-                id="refund-search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("refund.search.placeholder", "Name / student code / family code")}
-                className="pl-8"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pb-2">
-            <Checkbox
-              id="grad-only"
-              checked={graduatedOnly}
-              onCheckedChange={(v) => setGraduatedOnly(v === true)}
-            />
-            <Label htmlFor="grad-only" className="cursor-pointer text-sm">
-              {t("refund.filter.graduatedOnly", "Show only families with no active students")}
-            </Label>
-          </div>
-        </CardContent>
-      </Card>
 
       {isLoading ? (
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">{t("refund.pageTitle")}</span>
-          </CardContent>
-        </Card>
-      ) : groups.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Inbox className="h-10 w-10 mb-3" aria-hidden="true" />
-            <p>{t("refund.tableEmpty")}</p>
           </CardContent>
         </Card>
       ) : (

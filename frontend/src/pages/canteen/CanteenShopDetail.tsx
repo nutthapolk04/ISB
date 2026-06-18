@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -31,6 +32,8 @@ interface Shop {
   description?: string;
   is_active: boolean;
   module: string;
+  receipt_header?: string | null;
+  receipt_footer?: string | null;
 }
 
 interface CloseDaySummary {
@@ -66,12 +69,16 @@ export default function CanteenShopDetail() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [receiptHeader, setReceiptHeader] = useState("");
+  const [receiptFooter, setReceiptFooter] = useState("");
 
   useEffect(() => {
     if (shop) {
       setName(shop.name);
       setDescription(shop.description ?? "");
       setIsActive(shop.is_active);
+      setReceiptHeader(shop.receipt_header ?? "");
+      setReceiptFooter(shop.receipt_footer ?? "");
     }
   }, [shop]);
 
@@ -157,6 +164,8 @@ export default function CanteenShopDetail() {
         name: name.trim(),
         description: description.trim() || null,
         is_active: isActive,
+        receipt_header: receiptHeader.trim() || null,
+        receipt_footer: receiptFooter.trim() || null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["shop", shopId] });
@@ -267,6 +276,28 @@ export default function CanteenShopDetail() {
               <div className="flex items-center gap-3">
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
                 <Label>{isActive ? t("canteen.statusActive") : t("canteen.statusInactive")}</Label>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("management.receiptHeader", "Receipt Header")}</Label>
+                <Textarea
+                  value={receiptHeader}
+                  onChange={(e) => setReceiptHeader(e.target.value)}
+                  placeholder={t("management.receiptHeaderPlaceholder", "e.g. Shop Building A, 2nd Floor")}
+                  maxLength={200}
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">{t("management.receiptHeaderHint", "Shown below shop name on receipt")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("management.receiptFooter", "Receipt Footer")}</Label>
+                <Textarea
+                  value={receiptFooter}
+                  onChange={(e) => setReceiptFooter(e.target.value)}
+                  placeholder={t("management.receiptFooterPlaceholder", "e.g. Thank you for shopping with us!")}
+                  maxLength={200}
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">{t("management.receiptFooterHint", "Overrides school footer. Leave blank to use school default.")}</p>
               </div>
               <Button
                 onClick={() => saveMut.mutate()}

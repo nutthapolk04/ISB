@@ -15,7 +15,7 @@ await ensureSchema();
 import { shopRoutes } from "@/routes/shops";
 import { productRoutes } from "@/routes/products";
 import { customerRoutes } from "@/routes/customers";
-import { freezeCard, setDailyLimit, updateAllergies, setNegativeCreditLimit, bindCard, createStudent, updateCustomerBasic, deleteCustomer } from "@/services/customer_service";
+import { freezeCard, setActive, setDailyLimit, setDailyLimits, updateAllergies, setNegativeCreditLimit, bindCard, createStudent, updateCustomerBasic, deleteCustomer, graduateStudent, getSpendingGroupsUsageToday } from "@/services/customer_service";
 import { createUser, updateUser, deleteUser } from "@/services/user_service";
 import { reportRoutes } from "@/routes/reports";
 import { jwtPlugin, requireAuth, hasRole } from "@/middleware/auth";
@@ -37,7 +37,7 @@ import { listAuditLogs } from "@/services/audit_log_service";
 import { KNOWN_FLAGS, SCHOOL_KEYS, getPublicSettings, getSchoolSettings, listKnown, setSchoolSettings, setValue } from "@/services/settings_service";
 import { getMyWallet, listFamilyWallets, getWallet, listTransactions, adjustBalance, transferWithinFamily, cashierTopup, adjustDepartmentBalance, listDepartmentTransactions } from "@/services/wallet_service";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
-import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
+import { checkout, type CheckoutInput, todayDeductedByModule, DEFAULT_DAILY_LIMIT_CANTEEN, DEFAULT_DAILY_LIMIT_STORE } from "@/services/pos_checkout_service";
 import { createPosQrIntent, getPosQrIntent, cancelPosQrIntent, confirmPosQrSale } from "@/services/pos_qr_service";
 import { qrInquiry as bayQrInquiry } from "@/services/pymt_gateway";
 import { listBundles, getBundle, checkBundleStock, createBundle, updateBundle, deleteBundle, reorderBundles } from "@/services/bundle_service";
@@ -654,6 +654,20 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
   )
   .patch(
+    "/customers/:id/active",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try { return await setActive(id, body.active); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ active: t.Boolean() }),
+    },
+  )
+  .patch(
     "/customers/:id/limit",
     async ({ params, body, user, set }) => {
       if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "admin")) {
@@ -661,12 +675,24 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       }
       const id = Number(params.id);
       if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
-      try { return await setDailyLimit(user, id, body.daily_limit ?? null); }
+      try {
+        if ("daily_limit_canteen" in body || "daily_limit_store" in body) {
+          return await setDailyLimits(user, id, {
+            daily_limit_canteen: body.daily_limit_canteen ?? null,
+            daily_limit_store: body.daily_limit_store ?? null,
+          });
+        }
+        return await setDailyLimit(user, id, body.daily_limit ?? null);
+      }
       catch (e) { return handle(set)(e); }
     },
     {
       params: t.Object({ id: t.String() }),
-      body: t.Object({ daily_limit: t.Optional(t.Nullable(t.Number({ minimum: 0 }))) }),
+      body: t.Object({
+        daily_limit: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        daily_limit_canteen: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        daily_limit_store: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+      }),
     },
   )
   .patch(
@@ -713,6 +739,25 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({ card_uid: t.Optional(t.Nullable(t.String())) }),
+    },
+  )
+  .post(
+    "/customers/:id/graduate",
+    async ({ params, body, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid customer id" }; }
+      try {
+        return await graduateStudent(user, id, {
+          transfer_to_customer_id: body.transfer_to_customer_id ?? null,
+        });
+      } catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        transfer_to_customer_id: t.Optional(t.Nullable(t.Number({ minimum: 1 }))),
+      }),
     },
   )
   .post(
@@ -1219,6 +1264,21 @@ const phase2Routes = new Elysia({ name: "phase-2" })
     },
   )
   // ── Spending Groups + UoM (Phase 11) ───────────────────────────────────
+  .get(
+    "/spending-groups/usage-today/by-child",
+    async ({ query, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const customerId = Number(query.customer_id);
+      if (!Number.isInteger(customerId) || customerId <= 0) {
+        set.status = 422; return { detail: "Invalid customer_id" };
+      }
+      try { return await getSpendingGroupsUsageToday(customerId); }
+      catch (e) { return handle(set)(e); }
+    },
+    { query: t.Object({ customer_id: t.String() }) },
+  )
   .get(
     "/spending-groups/",
     async ({ set }) => {

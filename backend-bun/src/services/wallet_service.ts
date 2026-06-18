@@ -136,7 +136,7 @@ export async function ensureWalletForDepartment(departmentId: number): Promise<W
   return created;
 }
 
-async function ensureWalletForCustomer(customerId: number): Promise<WalletRow> {
+export async function ensureWalletForCustomer(customerId: number): Promise<WalletRow> {
   const existing = await db.select().from(wallets).where(eq(wallets.customerId, customerId)).limit(1);
   if (existing[0]) return existing[0];
   const [created] = await db

@@ -3,15 +3,11 @@ import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, AlertCircle, Bell, IdCard, Lock, Save, Unlock } from "lucide-react";
+import { ArrowLeft, AlertCircle, IdCard } from "lucide-react";
 
 interface StudentProfile {
   id: number;
@@ -27,6 +23,8 @@ interface StudentProfile {
   card_uid?: string | null;
   card_frozen: boolean;
   daily_limit?: number | null;
+  daily_limit_canteen?: number | null;
+  daily_limit_store?: number | null;
   wallet_id?: number | null;
   wallet_balance?: number | null;
 }
@@ -39,29 +37,16 @@ export default function StudentProfile() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isStudent = user?.role === "student";
-  // Allergy / dietary panel is for staff (canteen / nurse) only — parents
-  // were asked not to see it on this page. Hide when the active role is
-  // parent or student; keep visible for admin / manager / teacher.
   const isParent = user?.activeRole === "parent";
   const showAllergyPanel = !isParent && !isStudent;
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savingLimit, setSavingLimit] = useState(false);
-  const [limitInput, setLimitInput] = useState<string>("");
-
-  // Low-balance email alert settings (parent-only)
-  const [alertEnabled, setAlertEnabled] = useState(false);
-  const [alertThreshold, setAlertThreshold] = useState<string>("");
-  const [alertLastSent, setAlertLastSent] = useState<string | null>(null);
-  const [alertLoading, setAlertLoading] = useState(false);
-  const [savingAlert, setSavingAlert] = useState(false);
 
   const load = async () => {
     if (!customerId) return;
     try {
       const p = await api.get<StudentProfile>(`/customers/${customerId}`);
       setProfile(p);
-      setLimitInput(p.daily_limit !== null && p.daily_limit !== undefined ? String(p.daily_limit) : "");
     } catch (e) {
       toast({
         title: t("parent.studentProfile.loadFailed"),
@@ -73,117 +58,7 @@ export default function StudentProfile() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, [customerId]);
-
-  // Load low-balance alert settings — parents only (students/admins skip).
-  useEffect(() => {
-    if (!customerId || isStudent) return;
-    setAlertLoading(true);
-    api
-      .get<{ enabled: boolean; threshold: number | null; last_alert_at: string | null }>(
-        `/family/me/children/${customerId}/low-balance-alert`,
-      )
-      .then((s) => {
-        setAlertEnabled(s.enabled);
-        setAlertThreshold(s.threshold != null ? String(s.threshold) : "");
-        setAlertLastSent(s.last_alert_at);
-      })
-      .catch(() => {
-        // Likely 404 (not linked) — leave defaults so the card stays usable.
-      })
-      .finally(() => setAlertLoading(false));
-  }, [customerId, isStudent]);
-
-  const saveAlertSettings = async () => {
-    if (!customerId) return;
-    const thresholdNum = alertThreshold.trim() ? parseFloat(alertThreshold) : null;
-    if (alertEnabled && (thresholdNum === null || thresholdNum <= 0 || Number.isNaN(thresholdNum))) {
-      toast({
-        title: t("parent.lowBalanceAlert.invalidThreshold", "Enter a balance threshold to alert on"),
-        variant: "destructive",
-      });
-      return;
-    }
-    setSavingAlert(true);
-    try {
-      const updated = await api.put<{
-        enabled: boolean;
-        threshold: number | null;
-        last_alert_at: string | null;
-      }>(`/family/me/children/${customerId}/low-balance-alert`, {
-        enabled: alertEnabled,
-        threshold: thresholdNum,
-      });
-      setAlertEnabled(updated.enabled);
-      setAlertThreshold(updated.threshold != null ? String(updated.threshold) : "");
-      setAlertLastSent(updated.last_alert_at);
-      toast({
-        title: t("parent.lowBalanceAlert.saved", "Notification settings saved"),
-      });
-    } catch (e) {
-      toast({
-        title: t("parent.lowBalanceAlert.saveFailed", "Failed to save"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingAlert(false);
-    }
-  };
-
-  const formatLastAlert = (iso: string | null): string => {
-    if (!iso) return t("parent.lowBalanceAlert.neverSent", "Never sent yet");
-    return fmtDateTime(iso);
-  };
-
-  const toggleFreeze = async (frozen: boolean) => {
-    if (!profile) return;
-    try {
-      const updated = await api.post<StudentProfile>(
-        `/customers/${profile.id}/freeze`,
-        { frozen },
-      );
-      setProfile(updated);
-      toast({
-        title: frozen ? t("parent.studentProfile.freezeSuccess") : t("parent.studentProfile.unfreezeSuccess"),
-      });
-    } catch (e) {
-      toast({
-        title: t("parent.studentProfile.actionFailed"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveDailyLimit = async () => {
-    if (!profile) return;
-    const val = limitInput.trim();
-    const daily_limit = val === "" ? null : parseFloat(val);
-    if (daily_limit !== null && (isNaN(daily_limit) || daily_limit < 0)) {
-      toast({ title: t("parent.studentProfile.invalidLimit"), variant: "destructive" });
-      return;
-    }
-    setSavingLimit(true);
-    try {
-      const updated = await api.patch<StudentProfile>(
-        `/customers/${profile.id}/limit`,
-        { daily_limit },
-      );
-      setProfile(updated);
-      toast({ title: t("parent.studentProfile.limitSaved") });
-    } catch (e) {
-      toast({
-        title: t("parent.studentProfile.actionFailed"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingLimit(false);
-    }
-  };
+  useEffect(() => { load(); }, [customerId]);
 
   if (loading) return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
   if (!profile) return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
@@ -199,27 +74,19 @@ export default function StudentProfile() {
           </Button>
         </div>
 
-        {/* Profile Hero Card — softer warm gradient, avatar + identity laid out
-            side-by-side so nothing floats half-in/half-out of the banner. */}
+        {/* Profile Hero Card */}
         <div className="rounded-2xl overflow-hidden shadow-md bg-white">
           <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-              {/* Avatar — now inline with the name, no overlap math */}
               <div className="shrink-0">
                 {profile.photo_url ? (
-                  <img
-                    src={profile.photo_url}
-                    alt={profile.name}
-                    className="h-20 w-20 rounded-full object-cover border-2 border-white/70 shadow-lg"
-                  />
+                  <img src={profile.photo_url} alt={profile.name} className="h-20 w-20 rounded-full object-cover border-2 border-white/70 shadow-lg" />
                 ) : (
                   <div className="h-20 w-20 rounded-full bg-white/15 border-2 border-white/70 shadow-lg flex items-center justify-center text-white text-2xl font-bold">
                     {profile.name.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
-
-              {/* Identity */}
               <div className="min-w-0 flex-1">
                 <h1 className="text-xl sm:text-2xl font-bold text-white break-words">{profile.name}</h1>
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -240,8 +107,6 @@ export default function StudentProfile() {
                   )}
                 </div>
               </div>
-
-              {/* Balance */}
               <div className="sm:text-right bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/25 self-start sm:self-center">
                 <p className="text-xs text-white/85 font-medium">{t("parent.studentProfile.balance")}</p>
                 <p className="text-2xl font-bold text-white tabular-nums">
@@ -252,7 +117,7 @@ export default function StudentProfile() {
           </div>
         </div>
 
-        {/* Personal Info Card — blue accent */}
+        {/* Personal Info Card */}
         <Card className="border-0 shadow-md overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
           <CardHeader className="bg-blue-50 border-b border-blue-100 pb-3">
@@ -283,8 +148,7 @@ export default function StudentProfile() {
           </CardContent>
         </Card>
 
-        {/* Allergies — staff-only panel (canteen / nurse). Hidden from
-            parents and students per stakeholder request. */}
+        {/* Allergies — staff-only */}
         {showAllergyPanel && (
           <Card className={`border-0 shadow-md overflow-hidden ${profile.allergies ? "ring-2 ring-red-400" : ""}`}>
             <div className={`h-1 ${profile.allergies ? "bg-gradient-to-r from-red-500 to-red-400" : "bg-gradient-to-r from-green-400 to-emerald-400"}`} />
@@ -307,146 +171,7 @@ export default function StudentProfile() {
                   {profile.dietary_notes || <span className="text-gray-400">{t("parent.studentProfile.noData")}</span>}
                 </div>
               </div>
-              <p className="text-xs text-gray-500 italic">
-                {t("parent.studentProfile.allergyNote")}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Card Controls — hidden for students */}
-        {!isStudent && (
-          <Card className="border-0 shadow-md overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
-            <CardHeader className="bg-amber-50 border-b border-amber-100 pb-3">
-              <CardTitle className="text-base font-semibold text-amber-800">{t("parent.studentProfile.cardControlTitle")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              {/* Freeze toggle */}
-              <div className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${profile.card_frozen ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
-                <div>
-                  <p className={`font-semibold flex items-center gap-2 ${profile.card_frozen ? "text-red-700" : "text-gray-700"}`}>
-                    {profile.card_frozen
-                      ? <Lock className="h-4 w-4 text-red-600" />
-                      : <Unlock className="h-4 w-4 text-green-600" />}
-                    {t("parent.studentProfile.freezeLabel")}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {t("parent.studentProfile.freezeHint")}
-                  </p>
-                </div>
-                <Switch
-                  checked={profile.card_frozen}
-                  onCheckedChange={toggleFreeze}
-                />
-              </div>
-
-              {/* Daily limit */}
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
-                <div>
-                  <Label htmlFor="dailyLimit" className="text-amber-900 font-semibold">{t("parent.studentProfile.dailyLimitLabel")}</Label>
-                  <p className="text-xs text-amber-700 mt-0.5">{t("parent.studentProfile.dailyLimitHint")}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    id="dailyLimit"
-                    type="number"
-                    min="0"
-                    step="10"
-                    value={limitInput}
-                    onChange={(e) => setLimitInput(e.target.value)}
-                    placeholder="150"
-                    className="border-amber-300 focus:ring-amber-400 focus:border-amber-400"
-                  />
-                  <Button
-                    onClick={saveDailyLimit}
-                    disabled={savingLimit}
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-sm border-0 shrink-0"
-                  >
-                    <Save className="h-4 w-4 mr-1" />
-                    {savingLimit ? t("parent.studentProfile.saving") : t("parent.studentProfile.save")}
-                  </Button>
-                </div>
-                {profile.daily_limit !== null && profile.daily_limit !== undefined && (
-                  <p className="text-xs text-amber-700 font-medium">
-                    {t("parent.studentProfile.currentLimit", { amount: formatTHB(profile.daily_limit) })}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Low-balance email alert — parent-only */}
-        {!isStudent && (
-          <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-amber-900">
-                <Bell className="h-4 w-4" />
-                {t("parent.lowBalanceAlert.title", "Low-balance email alerts")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-amber-900">
-                  {t(
-                    "parent.lowBalanceAlert.toggleLabel",
-                    "Email me when the balance drops below the threshold",
-                  )}
-                </div>
-                <Switch
-                  checked={alertEnabled}
-                  onCheckedChange={setAlertEnabled}
-                  disabled={alertLoading || savingAlert}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="threshold-input" className="text-amber-900">
-                  {t("parent.lowBalanceAlert.thresholdLabel", "Alert when balance is below (THB)")}
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="threshold-input"
-                    type="number"
-                    inputMode="decimal"
-                    min={1}
-                    step="0.01"
-                    value={alertThreshold}
-                    onChange={(e) => setAlertThreshold(e.target.value)}
-                    placeholder="200"
-                    disabled={!alertEnabled || alertLoading || savingAlert}
-                    className="border-amber-300 focus:ring-amber-400 focus:border-amber-400"
-                  />
-                  <Button
-                    onClick={saveAlertSettings}
-                    disabled={alertLoading || savingAlert}
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-sm border-0 shrink-0"
-                  >
-                    <Save className="h-4 w-4 mr-1" />
-                    {savingAlert
-                      ? t("parent.studentProfile.saving")
-                      : t("parent.studentProfile.save")}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="text-xs text-amber-700/80 space-y-1">
-                <p>
-                  {t("parent.lowBalanceAlert.sendTo", "Send to")}:{" "}
-                  <span className="font-medium">{user?.email ?? "—"}</span>
-                </p>
-                <p>
-                  {t("parent.lowBalanceAlert.lastSent", "Last alert sent")}:{" "}
-                  <span className="font-medium">{formatLastAlert(alertLastSent)}</span>
-                </p>
-                <p className="pt-1 text-amber-600/70">
-                  {t(
-                    "parent.lowBalanceAlert.cooldownNote",
-                    "Repeat alerts are sent at most every 4 hours to avoid spam.",
-                  )}
-                </p>
-              </div>
+              <p className="text-xs text-gray-500 italic">{t("parent.studentProfile.allergyNote")}</p>
             </CardContent>
           </Card>
         )}

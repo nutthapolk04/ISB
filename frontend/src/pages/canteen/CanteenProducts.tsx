@@ -334,6 +334,7 @@ export default function CanteenProducts({ shopId: propShopId, embedded }: { shop
                 <TableRow>
                   <TableHead className="w-10 px-1" aria-label="Reorder" />
                   <TableHead className="w-16"></TableHead>
+                  <TableHead>{t("canteen.colProductCode", "Product Code")}</TableHead>
                   <TableHead>{t("canteen.colName")}</TableHead>
                   <TableHead>{t("canteen.colCategory")}</TableHead>
                   <TableHead className="text-right">
@@ -354,7 +355,7 @@ export default function CanteenProducts({ shopId: propShopId, embedded }: { shop
                   {isLoading && (
                     <TableRow>
                       <TableCell
-                        colSpan={usesDualPricing ? 8 : 7}
+                        colSpan={usesDualPricing ? 9 : 8}
                         className="py-6 text-center text-muted-foreground"
                       >
                         {t("canteen.loading")}
@@ -364,7 +365,7 @@ export default function CanteenProducts({ shopId: propShopId, embedded }: { shop
                   {!isLoading && filtered.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={usesDualPricing ? 8 : 7}
+                        colSpan={usesDualPricing ? 9 : 8}
                         className="py-6 text-center text-muted-foreground"
                       >
                         {t("canteen.noMenuItems")}
@@ -398,11 +399,11 @@ export default function CanteenProducts({ shopId: propShopId, embedded }: { shop
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.product_code}
+                    </TableCell>
                     <TableCell>
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {p.product_code}
-                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{p.category}</Badge>

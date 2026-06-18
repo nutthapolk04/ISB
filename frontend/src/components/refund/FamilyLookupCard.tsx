@@ -17,7 +17,6 @@ import {
   Users as UsersIcon,
   Loader2,
   UserRound,
-  GraduationCap,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -97,38 +96,18 @@ function MemberAvatar({ photoUrl, name }: { photoUrl: string | null; name: strin
 
 function StatusBadge({ member }: { member: FamilyMemberDetail }) {
   const { t } = useTranslation();
-
-  if (member.entity_type === "user") {
+  if (member.is_active) {
     return (
-      <Badge variant="outline" className="gap-1">
-        <UsersIcon className="h-3 w-3" aria-hidden="true" />
-        {member.role ?? t("refund.familyLookup.status.parent", "Parent / Staff")}
-      </Badge>
-    );
-  }
-
-  if (member.is_graduated) {
-    return (
-      <Badge variant="success" className="gap-1">
-        <GraduationCap className="h-3 w-3" aria-hidden="true" />
-        {t("refund.familyLookup.status.graduated", "Graduated")}
-      </Badge>
-    );
-  }
-  if (!member.is_active) {
-    return (
-      <Badge variant="secondary" className="gap-1 border-amber-300 bg-amber-50 text-amber-900">
-        <XCircle className="h-3 w-3" aria-hidden="true" />
-        {member.withdraw_date
-          ? t("refund.familyLookup.status.withdrawn", "Withdrawn")
-          : t("refund.familyLookup.status.inactive", "Inactive")}
+      <Badge variant="secondary" className="gap-1">
+        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+        {t("refund.familyLookup.status.active", "Active")}
       </Badge>
     );
   }
   return (
-    <Badge variant="secondary" className="gap-1">
-      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-      {t("refund.familyLookup.status.active", "Active")}
+    <Badge variant="secondary" className="gap-1 border-amber-300 bg-amber-50 text-amber-900">
+      <XCircle className="h-3 w-3" aria-hidden="true" />
+      {t("refund.familyLookup.status.inactive", "Inactive")}
     </Badge>
   );
 }
@@ -336,13 +315,19 @@ export function FamilyLookupCard({ onRefundClick }: FamilyLookupCardProps) {
                       {t("refund.familyLookup.col.name", "Name")}
                     </TableHead>
                     <TableHead scope="col">
-                      {t("refund.familyLookup.col.identifier", "Identifier")}
+                      {t("refund.familyLookup.col.identifier", "ID Number")}
+                    </TableHead>
+                    <TableHead scope="col" className="w-28">
+                      {t("refund.familyLookup.col.type", "Type")}
                     </TableHead>
                     <TableHead scope="col" className="w-32">
                       {t("refund.familyLookup.col.status", "Status")}
                     </TableHead>
-                    <TableHead scope="col" className="w-32">
-                      {t("refund.familyLookup.col.dates", "Enroll / Withdraw")}
+                    <TableHead scope="col" className="w-28">
+                      {t("refund.familyLookup.col.enrollDate", "Enroll Date")}
+                    </TableHead>
+                    <TableHead scope="col" className="w-28">
+                      {t("refund.familyLookup.col.withdrawDate", "Withdraw Date")}
                     </TableHead>
                     <TableHead scope="col" className="text-right">
                       {t("refund.familyLookup.col.balance", "Wallet")}
@@ -375,18 +360,21 @@ export function FamilyLookupCard({ onRefundClick }: FamilyLookupCardProps) {
                             ? m.student_code ?? m.customer_code ?? "—"
                             : m.username ?? m.email ?? "—"}
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {m.entity_type === "customer"
+                            ? t("refund.familyLookup.type.student", "Student")
+                            : m.entity_type === "department"
+                              ? t("refund.familyLookup.type.department", "Department")
+                              : t("refund.familyLookup.type.parent", "Parent")}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge member={m} />
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {m.entity_type === "customer" ? (
-                            <>
-                              <div>{formatDate(m.enroll_date)}</div>
-                              {m.withdraw_date && <div>{formatDate(m.withdraw_date)}</div>}
-                            </>
-                          ) : (
-                            "—"
-                          )}
+                          {m.entity_type === "customer" ? formatDate(m.enroll_date) : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {m.entity_type === "customer" && m.withdraw_date ? formatDate(m.withdraw_date) : "—"}
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold tabular-nums">
                           {m.wallet_id == null
