@@ -100,7 +100,7 @@ function AppShell() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <main className="flex flex-1 flex-col">
+        <main className="flex flex-1 flex-col min-w-0">
           <header className="app-topbar">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
