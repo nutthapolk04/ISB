@@ -1784,6 +1784,8 @@
       "bank_transfer": "โอนเงิน",
       "qr": "QR พร้อมเพย์",
       "qr_promptpay": "QR พร้อมเพย์",
+      "bay_qr": "QR พร้อมเพย์ (BAY)",
+      "bay_easypay": "บัตรเครดิต / เดบิต (BAY)",
       "department": "ตัดงบ",
       "other": "อื่นๆ"
     },

@@ -1784,6 +1784,8 @@
       "bank_transfer": "Bank Transfer",
       "qr": "QR PromptPay",
       "qr_promptpay": "QR PromptPay",
+      "bay_qr": "QR PromptPay (BAY)",
+      "bay_easypay": "Credit / Debit Card (BAY)",
       "department": "Budget Deduction",
       "other": "Other"
     },

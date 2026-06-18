@@ -166,7 +166,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{t("receipts.paymentMethod", "Payment")}:</span>
                 <span className="text-sm font-semibold">
-                  {t(`common.paymentMethods.${receipt.payment_method}`, receipt.payment_method)}
+                  {t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
