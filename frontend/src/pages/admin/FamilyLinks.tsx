@@ -576,9 +576,13 @@ export default function FamilyLinks() {
       {loading ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t("admin.families.loading")}</CardContent></Card>
       ) : sortedFamilies.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          {links.length === 0 ? t("admin.families.noLinks") : t("admin.families.noLinksSearch")}
-        </CardContent></Card>
+        // Show empty state only when there's truly nothing — hide on search-no-match
+        // since the reconciliation section below provides context.
+        links.length === 0 && orphans.parents_no_children.length === 0 && orphans.students_no_parents.length === 0 ? (
+          <Card><CardContent className="py-12 text-center text-muted-foreground">
+            {t("admin.families.noLinks")}
+          </CardContent></Card>
+        ) : null
       ) : (
         <>
           <Card>
@@ -736,17 +740,24 @@ export default function FamilyLinks() {
                     const matchCount = p.family_code
                       ? students.filter((s) => s.family_code === p.family_code).length
                       : 0;
+                    const usernameLooksLikeEmail = p.username.includes("@");
                     return (
                       <div
                         key={p.user_id}
                         className="flex items-center justify-between gap-3 rounded-md border bg-background p-2"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium truncate">{p.full_name}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium truncate">{p.full_name}</span>
+                            <Badge variant="outline" className="text-[10px]">{p.customer_type || "Parent"}</Badge>
+                          </div>
+                          {p.email && p.email !== p.username && (
+                            <div className="text-xs text-muted-foreground truncate">{p.email}</div>
+                          )}
                           <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
-                            <span>@{p.username}</span>
+                            <span className="truncate">{usernameLooksLikeEmail ? p.username : `@${p.username}`}</span>
+                            {p.external_id && <span className="font-mono">#{p.external_id}</span>}
                             {p.family_code && <span className="font-mono">family {p.family_code}</span>}
-                            {p.customer_type && <Badge variant="outline" className="text-[10px]">{p.customer_type}</Badge>}
                           </div>
                         </div>
                         <Button
@@ -790,17 +801,20 @@ export default function FamilyLinks() {
                         className="flex items-center justify-between gap-3 rounded-md border bg-background p-2"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium truncate">{s.name}</div>
-                          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
-                            {s.student_code && <span>#{s.student_code}</span>}
-                            {s.grade && <span>{s.grade}</span>}
-                            {s.family_code ? (
-                              <span className="font-mono">family {s.family_code}</span>
-                            ) : (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium truncate">{s.name}</span>
+                            <Badge variant="outline" className="text-[10px]">Student</Badge>
+                            {!s.family_code && (
                               <Badge variant="destructive" className="text-[10px]">
                                 {t("admin.families.reconciliation.noFamilyCode")}
                               </Badge>
                             )}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
+                            {s.student_code && <span className="font-mono">#{s.student_code}</span>}
+                            {s.customer_code && s.customer_code !== s.student_code && <span className="font-mono">{s.customer_code}</span>}
+                            {s.grade && <span>{s.grade}</span>}
+                            {s.family_code && <span className="font-mono">family {s.family_code}</span>}
                           </div>
                         </div>
                         <Button
