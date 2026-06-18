@@ -517,7 +517,7 @@ const Receipts = () => {
               )}
               {appliedSearch.paymentType !== "all" && (
                 <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  {t("receipts.paymentMethod")}: {t(`common.paymentMethods.${appliedSearch.paymentType}`, appliedSearch.paymentType)}
+                  {t("receipts.paymentMethod")}: {t(`common.paymentMethods.${(appliedSearch.paymentType ?? "").toLowerCase()}`, appliedSearch.paymentType)}
                 </span>
               )}
               <span className="text-xs text-muted-foreground self-center ml-1">
@@ -569,7 +569,7 @@ const Receipts = () => {
                     <TableCell className="text-sm">{receipt.created_by_name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {t(`common.paymentMethods.${receipt.payment_method}`, receipt.payment_method)}
+                        {t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">{receipt.payer_label ?? "—"}</TableCell>
@@ -792,7 +792,7 @@ const Receipts = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">{t("receipts.paymentMethod")}:</span>
                   <span className="text-sm font-semibold">
-                    {t(`common.paymentMethods.${selectedReceipt.payment_method}`, selectedReceipt.payment_method)}
+                    {t(`common.paymentMethods.${(selectedReceipt.payment_method ?? "").toLowerCase()}`, selectedReceipt.payment_method)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">

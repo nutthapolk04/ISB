@@ -2296,7 +2296,14 @@
       "qr": "QR Code",
       "edc": "บัตรเครดิต/เดบิต",
       "department": "เบิกจากแผนก",
-      "credit_card": "บัตรเครดิต"
+      "credit_card": "บัตรเครดิต",
+      "debit_card": "บัตรเดบิต",
+      "card_tap": "บัตรสมาชิก",
+      "qr_promptpay": "QR พร้อมเพย์",
+      "bay_qr": "QR พร้อมเพย์ (BAY)",
+      "bay_easypay": "บัตรเครดิต / เดบิต (BAY)",
+      "bank_transfer": "โอนเงิน",
+      "other": "อื่นๆ"
     },
     "summary": {
       "createReceipt": "ขาย {{items}} รายการ รวม ฿{{total}} จ่ายด้วย{{payment}}",

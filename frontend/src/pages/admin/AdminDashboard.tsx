@@ -781,7 +781,7 @@ export default function AdminDashboard() {
                         : null);
                   const badge = shopBadgeVariant(sid, t, shopMap);
                   const pmLabel = r.payment_method
-                    ? t(`common.paymentMethods.${r.payment_method}`, r.payment_method)
+                    ? t(`common.paymentMethods.${r.payment_method.toLowerCase()}`, r.payment_method)
                     : "—";
                   const isVoided = r.status === "voided";
                   return (

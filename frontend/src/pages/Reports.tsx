@@ -824,7 +824,7 @@ const Reports = () => {
       const deptRow   = data.rows.find((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
       const bodyRows: Record<string, unknown>[] = [
         ...retailRows.map((r) => ({
-          payment_method: t(`payment.${r.payment_method}`) || r.payment_method,
+          payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
           receipt_count: r.receipt_count,
           total: r.total,
         })),

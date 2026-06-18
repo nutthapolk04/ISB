@@ -2298,7 +2298,14 @@
       "qr": "QR Code",
       "edc": "Card (EDC)",
       "department": "Department charge",
-      "credit_card": "Credit card"
+      "credit_card": "Credit card",
+      "debit_card": "Debit card",
+      "card_tap": "Member Card",
+      "qr_promptpay": "QR PromptPay",
+      "bay_qr": "QR PromptPay (BAY)",
+      "bay_easypay": "Credit / Debit Card (BAY)",
+      "bank_transfer": "Bank Transfer",
+      "other": "Other"
     },
     "summary": {
       "createReceipt": "Sold {{items}} items for ฿{{total}} via {{payment}}",
