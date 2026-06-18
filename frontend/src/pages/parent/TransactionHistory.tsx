@@ -136,35 +136,63 @@ export default function TransactionHistory() {
     if (profile?.wallet_id) loadTransactions(profile.wallet_id);
   };
 
-  const handleExportCSV = () => {
-    // CSV headers follow the UI language so an English-locale export is
-    // self-explanatory for non-Thai admins.
-    const header = [
-      t("txHistory.csv.date", "Date"),
-      t("txHistory.csv.type", "Type"),
-      t("txHistory.csv.shop", "Shop"),
-      t("txHistory.csv.description", "Description"),
-      t("txHistory.csv.amount", "Amount"),
-      t("txHistory.csv.balance", "Balance"),
-    ];
-    const rows = txs.map((tx) => [
-      formatDate(tx.created_at),
-      txTypeLabel(tx.transaction_type),
-      (tx.shop_name ?? "").replace(/"/g, '""'),
-      (tx.description ?? "").replace(/"/g, '""'),
-      tx.amount.toFixed(2),
-      tx.balance_after.toFixed(2),
-    ]);
-    const csv =
-      "﻿" +
-      [header, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `wallet-${profile?.student_code ?? profile?.id}-${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExportPDF = () => {
+    const studentId = profile?.student_code ?? profile?.id ?? "";
+    const title = t("parent.transactions.title", { name: profile?.name ?? "" });
+    const rows = txs.map((tx) => {
+      const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+      return `
+        <tr>
+          <td>${formatDate(tx.created_at)}</td>
+          <td>${txTypeLabel(tx.transaction_type)}</td>
+          <td>${tx.shop_name ?? ""}</td>
+          <td>${tx.description ?? ""}</td>
+          <td style="text-align:right;font-weight:600;color:${isCredit ? "#16a34a" : "#dc2626"}">${isCredit ? "+" : "-"}${formatTHB(Math.abs(tx.amount))}</td>
+          <td style="text-align:right">${formatTHB(tx.balance_after)}</td>
+        </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <style>
+    body { font-family: sans-serif; font-size: 12px; color: #1e293b; margin: 24px; }
+    h2 { font-size: 16px; margin-bottom: 4px; }
+    p.sub { font-size: 11px; color: #64748b; margin: 0 0 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #fff7ed; color: #c2410c; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 2px solid #fed7aa; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafaf9; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h2>${title}</h2>
+  <p class="sub">${t("txHistory.csv.date", "Date")}: ${new Date().toLocaleDateString()} &nbsp;|&nbsp; ID: ${studentId}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>${t("txHistory.csv.date", "Date")}</th>
+        <th>${t("txHistory.csv.type", "Type")}</th>
+        <th>${t("txHistory.csv.shop", "Shop")}</th>
+        <th>${t("txHistory.csv.description", "Description")}</th>
+        <th style="text-align:right">${t("txHistory.csv.amount", "Amount")}</th>
+        <th style="text-align:right">${t("txHistory.csv.balance", "Balance")}</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   if (loading) return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
@@ -173,8 +201,8 @@ export default function TransactionHistory() {
   return (
     <div className="page-shell space-y-4">
       {/* Back button */}
-      <div className="flex items-center gap-2">
-        <Button asChild size="sm" className="h-9 bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
+      <div className="page-header flex items-center gap-2">
+        <Button asChild variant="ghost" size="sm" className="h-10 text-slate-700 hover:text-slate-900 hover:bg-slate-200">
           <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}</Link>
         </Button>
       </div>
@@ -211,8 +239,8 @@ export default function TransactionHistory() {
             <Button onClick={handleFilter} className="h-10 bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
               {t("parent.transactions.filter")}
             </Button>
-            <Button variant="outline" onClick={handleExportCSV} disabled={txs.length === 0} className="h-10 border-orange-300 text-orange-600 hover:bg-orange-50">
-              <Download className="h-4 w-4 mr-1" /> CSV
+            <Button variant="outline" onClick={handleExportPDF} disabled={txs.length === 0} className="h-10 border-orange-300 text-orange-600 hover:bg-orange-50">
+              <Download className="h-4 w-4 mr-1" /> {t("parent.transactions.exportPdf", "PDF")}
             </Button>
           </div>
         </CardContent>
@@ -258,8 +286,8 @@ export default function TransactionHistory() {
                       onClick={() => hasReceipt && handleOpenReceipt(tx)}
                     >
                       {/* accent bar */}
-                      <div className={`h-1 w-full bg-gradient-to-r ${barGradient}`} />
-                      <div className="p-3 space-y-2">
+                      <div className={`h-1.5 w-full bg-gradient-to-r ${barGradient}`} />
+                      <div className="p-3 space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <Badge
                             variant="secondary"

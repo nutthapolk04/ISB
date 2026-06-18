@@ -157,7 +157,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
 
         {!loading && receipt && (
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-            {/* Meta */}
+            {/* Meta — date, payment method, status */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{t("receipts.dateTime", "Date/Time")}:</span>
@@ -175,6 +175,19 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                   {receipt.status === "active" ? "Active" : "Voided"}
                 </Badge>
               </div>
+              {/* Cashier shown inline with meta (matches store receipt layout) */}
+              {receipt.created_by_name && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">{t("receipts.cashier", "Cashier")}:</span>
+                  <span className="text-sm font-medium">{receipt.created_by_name}</span>
+                </div>
+              )}
+              {receipt.shop_name && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">{t("receipts.shop", "Shop")}:</span>
+                  <span className="text-sm font-semibold">{receipt.shop_name}</span>
+                </div>
+              )}
               {receipt.notes && (
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">{t("receipts.notes", "Notes")}:</span>
@@ -190,24 +203,6 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
             </div>
 
             <Separator />
-
-            {/* Seller (shop) */}
-            {receipt.shop_name && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.shop", "Shop")}:</span>
-                <span className="text-sm font-semibold">{receipt.shop_name}</span>
-              </div>
-            )}
-
-            {/* Cashier */}
-            {receipt.created_by_name && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t("receipts.cashier", "Cashier")}:</span>
-                <span className="text-sm">{receipt.created_by_name}</span>
-              </div>
-            )}
-
-            {(receipt.shop_name || receipt.created_by_name) && <Separator />}
 
             {/* Payer card */}
             {receipt.payer_detail && (
@@ -268,7 +263,7 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
               </>
             )}
 
-            {/* Items */}
+            {/* Items — with unit-price sub-line matching store receipt */}
             <div className="space-y-2">
               <h4 className="font-semibold text-sm">{t("receipts.productList", "Items")}</h4>
               {receipt.items.map((item) => {
@@ -282,10 +277,15 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                   <div key={item.id} className="text-sm">
                     <div className="flex justify-between">
                       <span>
-                        {displayName} ×{" "}
-                        {item.quantity}
+                        {displayName} ×{item.quantity}
                       </span>
                       <span className="tabular-nums">฿{item.line_total.toLocaleString()}</span>
+                    </div>
+                    {/* Unit price sub-line (matches store receipt) */}
+                    <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
+                      {t("receipts.unitPrice", "Unit price")}: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {" · "}
+                      {t("receipts.lineTotal", "Total")}: ฿{item.line_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </div>
                     {!isBundle && opts?.groups && opts.groups.length > 0 && (
                       <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
