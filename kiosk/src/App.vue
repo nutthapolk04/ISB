@@ -6,7 +6,7 @@ import { useKioskStore } from './stores/kioskStore';
 const router = useRouter();
 const route = useRoute();
 const store = useKioskStore();
-const buildInfo = __BUILD__;
+const buildInfo = `V${__APP_VERSION__} ${__BUILD_TIME__}`;
 
 // Auto-reset logic
 // topup page gets 5 min (user is paying via phone — no kiosk interaction)
@@ -88,8 +88,8 @@ watch(() => route.path, () => {
   position: fixed;
   bottom: 8px;
   left: 12px;
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.25);
+  font-size: 0.7rem;
+  color: #ef4444;
   pointer-events: none;
   user-select: none;
   z-index: 9999;
