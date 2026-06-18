@@ -157,8 +157,8 @@ function ActionButton({ icon, label, to, disabled = false }: { icon: React.React
 
 function TxIcon({ isCredit }: { isCredit: boolean }) {
   return isCredit
-    ? <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100"><ArrowUpCircle className="h-5 w-5 text-green-600" /></div>
-    : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100"><ArrowDownCircle className="h-5 w-5 text-orange-500" /></div>;
+    ? <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 shadow-sm"><ArrowUpCircle className="h-5 w-5 text-green-600" /></div>
+    : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 shadow-sm"><ArrowDownCircle className="h-5 w-5 text-orange-500" /></div>;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -291,15 +291,15 @@ export default function FamilyDashboard() {
         </div>
 
         <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden">
-          <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
+          <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/15 pointer-events-none" />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
           <div className="relative z-10">
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-lg font-bold text-white truncate">{studentWallet.name}</p>
               </div>
-              <div className="shrink-0 flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/40 border-2 border-white/20">
-                <UserRound className="h-8 w-8 text-white/60" />
+              <div className="shrink-0 flex h-16 w-16 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
+                <UserRound className="h-8 w-8 text-white" />
               </div>
             </div>
             <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
@@ -309,13 +309,13 @@ export default function FamilyDashboard() {
               <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
             </p>
             <div className="flex justify-end mt-2">
-              <span className="bg-white/20 text-white text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "Student")}</span>
+              <span className="bg-white/25 border border-white/30 text-white font-medium text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "Student")}</span>
             </div>
           </div>
         </div>
 
         <div className="mt-5">
-          <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "Actions")}</p>
+          <p className="text-base font-semibold text-slate-800 mb-3">{t("parent.dashboard.actions", "Actions")}</p>
           <div className="grid grid-cols-2 gap-2.5">
             <ActionButton
               icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"><WalletIcon className="h-5 w-5 text-blue-600" /></div>}
@@ -384,8 +384,8 @@ export default function FamilyDashboard() {
                 className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden"
                 style={{ scrollSnapAlign: "start" }}
               >
-                <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
+                <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/15 pointer-events-none" />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
 
                 <div className="relative z-10">
                   <div className="flex items-start gap-2">
@@ -401,8 +401,8 @@ export default function FamilyDashboard() {
                       {card.photoUrl ? (
                         <img src={card.photoUrl} alt={card.name} className="h-16 w-16 rounded-full object-cover border-2 border-white/30" />
                       ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/40 border-2 border-white/20">
-                          <UserRound className="h-8 w-8 text-white/60" />
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
+                          <UserRound className="h-8 w-8 text-white" />
                         </div>
                       )}
                     </div>
@@ -422,7 +422,7 @@ export default function FamilyDashboard() {
                     <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
                   </p>
                   <div className="flex justify-end mt-2">
-                    <span className="bg-white/20 text-white text-xs rounded-full px-2.5 py-0.5">{card.role}</span>
+                    <span className="bg-white/25 border border-white/30 text-white font-medium text-xs rounded-full px-2.5 py-0.5">{card.role}</span>
                   </div>
                 </div>
 
@@ -460,7 +460,7 @@ export default function FamilyDashboard() {
           {/* Action buttons */}
           {activeCard && (
             <div className="mt-5">
-              <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "Actions")}</p>
+              <p className="text-base font-semibold text-slate-800 mb-3">{t("parent.dashboard.actions", "Actions")}</p>
               <div className="grid grid-cols-2 gap-2.5">
                 <ActionButton
                   icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"><WalletIcon className="h-5 w-5 text-blue-600" /></div>}
@@ -512,7 +512,7 @@ export default function FamilyDashboard() {
           {activeCard?.walletId && (
             <div className="mt-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-slate-700">{t("parent.dashboard.recentActivity", "Recent activity")}</p>
+                <p className="text-base font-semibold text-slate-800">{t("parent.dashboard.recentActivity", "Recent activity")}</p>
                 {activeCard.kind === "child" && activeCard.customerId && (
                   <Link to={`/parent/transactions/${activeCard.customerId}`} className="text-sm text-blue-600">
                     {t("parent.dashboard.viewAll", "View all")}
@@ -564,14 +564,14 @@ export default function FamilyDashboard() {
                     return (
                       <div
                         key={tx.id}
-                        className={cn("flex items-center gap-3 px-4 py-3", i < txs.length - 1 && "border-b border-slate-100")}
+                        className={cn("flex items-center gap-3 px-4 py-3.5", i < txs.length - 1 && "border-b border-slate-100")}
                       >
                         <TxIcon isCredit={isCredit} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-800 truncate">{shopLabel}</p>
-                          <p className="text-xs text-slate-400">{fmtDate(tx.created_at)} · {fmtTime(tx.created_at)}</p>
+                          <p className="text-sm font-semibold text-slate-800 truncate">{shopLabel}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{fmtDate(tx.created_at)} · {fmtTime(tx.created_at)}</p>
                         </div>
-                        <p className={cn("text-sm font-semibold tabular-nums shrink-0", isCredit ? "text-green-600" : "text-red-500")}>
+                        <p className={cn("text-sm font-bold tabular-nums shrink-0", isCredit ? "text-green-600" : "text-red-500")}>
                           {isCredit ? "+" : ""}{formatTHB(Math.abs(tx.amount))}
                         </p>
                       </div>
