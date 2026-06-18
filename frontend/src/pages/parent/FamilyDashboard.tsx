@@ -4,14 +4,16 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
-import { AlertCircle, Bell, ChevronLeft, ChevronRight, GraduationCap, Lock, Save, Unlock, UserRound, Wallet as WalletIcon, History, RefreshCw, Receipt } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { fmtDate, fmtTime } from "@/lib/dateFormat";
+import {
+  AlertCircle, ArrowUpCircle, ArrowDownCircle, Bell,
+  ChevronRight, GraduationCap, Lock, RefreshCw,
+  Settings, UserRound, Wallet as WalletIcon,
+} from "lucide-react";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface GroupUsage {
   spending_group_id: number;
@@ -21,50 +23,6 @@ interface GroupUsage {
   daily_limit: number;
   spent_today: number;
   remaining: number;
-}
-
-function ChildTodayActivity({ customerId }: { customerId: number }) {
-  const { t, i18n } = useTranslation();
-  const [groups, setGroups] = useState<GroupUsage[] | null>(null);
-
-  useEffect(() => {
-    api
-      .get<GroupUsage[]>(`/spending-groups/usage-today/by-child?customer_id=${customerId}`)
-      .then((data) => setGroups(data))
-      .catch(() => setGroups([]));
-  }, [customerId]);
-
-  if (groups === null || groups.length === 0) return null;
-  if (groups.every((g) => g.spent_today === 0)) return null;
-
-  const formatTHB = (n: number) =>
-    "฿" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-  return (
-    <div className="rounded-md border bg-white/10 p-2.5 space-y-2 mt-3">
-      <p className="text-xs font-semibold text-blue-200">{t("parent.dashboard.todayActivity")}</p>
-      {groups.map((g) => {
-        const pct = g.daily_limit > 0 ? (g.spent_today / g.daily_limit) * 100 : 0;
-        const atLimit = pct >= 100;
-        const nearLimit = pct >= 80 && !atLimit;
-        const name = i18n.language === "th" ? g.name_th : g.name_en;
-        return (
-          <div key={g.spending_group_id} className="space-y-0.5">
-            <div className="flex items-center justify-between text-[0.7rem]">
-              <span className="font-medium truncate text-white/80">{name}</span>
-              <span className={cn("font-mono tabular-nums shrink-0 ml-2 text-white/80", atLimit && "text-red-300 font-bold", nearLimit && "text-amber-300")}>
-                {t("parent.dashboard.todaySpentVsLimit", { spent: formatTHB(g.spent_today), limit: formatTHB(g.daily_limit) })}
-              </span>
-            </div>
-            <Progress
-              value={Math.min(pct, 100)}
-              className={cn("h-1.5 bg-white/20", atLimit ? "[&>div]:bg-red-400" : nearLimit ? "[&>div]:bg-amber-400" : "[&>div]:bg-white/70")}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 interface ChildSummary {
@@ -98,11 +56,22 @@ interface CoParentSummary {
   user_id: number;
   full_name: string;
   relation?: string | null;
-  parent_rank?: string | null;
   wallet_id?: number | null;
   wallet_balance?: number | null;
   photo_url?: string | null;
   username?: string | null;
+}
+
+interface WalletTransaction {
+  id: number;
+  wallet_id: number;
+  transaction_type: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  description?: string | null;
+  shop_name?: string | null;
+  created_at: string;
 }
 
 type CardKind = "self" | "coparent" | "child";
@@ -121,166 +90,84 @@ interface FamilyCard {
   grade?: string | null;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
-function ChildControls({ customerId, userEmail, onFreezeChange }: { customerId: number; userEmail?: string; onFreezeChange?: (frozen: boolean) => void }) {
-  const { t } = useTranslation();
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-  // Profile state
-  const [cardFrozen, setCardFrozen] = useState(false);
-  const [canteenInput, setCanteenInput] = useState("");
-  const [storeInput, setStoreInput] = useState("");
-  const [savingLimit, setSavingLimit] = useState(false);
-
-  // Alert state
-  const [alertEnabled, setAlertEnabled] = useState(false);
-  const [alertThreshold, setAlertThreshold] = useState("");
-  const [alertLastSent, setAlertLastSent] = useState<string | null>(null);
-  const [savingAlert, setSavingAlert] = useState(false);
-
-  const [loaded, setLoaded] = useState(false);
+function ChildTodayActivity({ customerId }: { customerId: number }) {
+  const { t, i18n } = useTranslation();
+  const [groups, setGroups] = useState<GroupUsage[] | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      api.get<{ card_frozen: boolean; daily_limit_canteen?: number | null; daily_limit_store?: number | null }>(`/customers/${customerId}`),
-      api.get<{ enabled: boolean; threshold: number | null; last_alert_at: string | null }>(`/family/me/children/${customerId}/low-balance-alert`).catch(() => null),
-    ]).then(([p, alert]) => {
-      setCardFrozen(p.card_frozen);
-      setCanteenInput(p.daily_limit_canteen != null ? String(p.daily_limit_canteen) : "");
-      setStoreInput(p.daily_limit_store != null ? String(p.daily_limit_store) : "");
-      if (alert) {
-        setAlertEnabled(alert.enabled);
-        setAlertThreshold(alert.threshold != null ? String(alert.threshold) : "");
-        setAlertLastSent(alert.last_alert_at);
-      }
-      setLoaded(true);
-    }).catch(() => setLoaded(true));
+    api
+      .get<GroupUsage[]>(`/spending-groups/usage-today/by-child?customer_id=${customerId}`)
+      .then((data) => setGroups(data))
+      .catch(() => setGroups([]));
   }, [customerId]);
 
-  const toggleFreeze = async (frozen: boolean) => {
-    try {
-      await api.post(`/customers/${customerId}/freeze`, { frozen });
-      setCardFrozen(frozen);
-      onFreezeChange?.(frozen);
-      toast({ title: frozen ? t("parent.studentProfile.freezeSuccess") : t("parent.studentProfile.unfreezeSuccess") });
-    } catch (e) {
-      toast({ title: t("parent.studentProfile.actionFailed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
-    }
-  };
+  if (groups === null || groups.length === 0) return null;
+  if (groups.every((g) => g.spent_today === 0)) return null;
 
-  const saveLimits = async () => {
-    const parse = (s: string) => { const v = s.trim(); if (v === "") return null; const n = parseFloat(v); return isNaN(n) || n < 0 ? undefined : n; };
-    const canteen = parse(canteenInput);
-    const store = parse(storeInput);
-    if (canteen === undefined || store === undefined) {
-      toast({ title: t("parent.studentProfile.invalidLimit", "Invalid limit value"), variant: "destructive" }); return;
-    }
-    setSavingLimit(true);
-    try {
-      await api.patch(`/customers/${customerId}/limit`, { daily_limit_canteen: canteen, daily_limit_store: store });
-      toast({ title: t("parent.studentProfile.limitSaved", "Saved") });
-    } catch (e) {
-      toast({ title: t("parent.studentProfile.actionFailed", "Failed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
-    } finally { setSavingLimit(false); }
-  };
-
-  const saveAlert = async () => {
-    const thresholdNum = alertThreshold.trim() ? parseFloat(alertThreshold) : null;
-    if (alertEnabled && (thresholdNum === null || thresholdNum <= 0 || Number.isNaN(thresholdNum))) {
-      toast({ title: t("parent.lowBalanceAlert.invalidThreshold", "Enter a balance threshold"), variant: "destructive" }); return;
-    }
-    setSavingAlert(true);
-    try {
-      const updated = await api.put<{ enabled: boolean; threshold: number | null; last_alert_at: string | null }>(
-        `/family/me/children/${customerId}/low-balance-alert`, { enabled: alertEnabled, threshold: thresholdNum }
-      );
-      setAlertEnabled(updated.enabled);
-      setAlertThreshold(updated.threshold != null ? String(updated.threshold) : "");
-      setAlertLastSent(updated.last_alert_at);
-      toast({ title: t("parent.lowBalanceAlert.saved", "Notification settings saved") });
-    } catch (e) {
-      toast({ title: t("parent.lowBalanceAlert.saveFailed", "Failed to save"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
-    } finally { setSavingAlert(false); }
-  };
-
-  if (!loaded) return null;
+  const fmt = (n: number) => "฿" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   return (
-    <div className="space-y-3">
-      {/* Freeze */}
-      <div className={`flex items-center justify-between rounded-xl border p-3 transition-colors ${cardFrozen ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
-        <div>
-          <p className={`text-sm font-semibold flex items-center gap-1.5 ${cardFrozen ? "text-red-700" : "text-gray-700"}`}>
-            {cardFrozen ? <Lock className="h-3.5 w-3.5 text-red-600" /> : <Unlock className="h-3.5 w-3.5 text-green-600" />}
-            {t("parent.dashboard.blockCard", "Block Card")}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">{t("parent.studentProfile.freezeHint")}</p>
-        </div>
-        <Switch checked={cardFrozen} onCheckedChange={toggleFreeze} />
-      </div>
-
-      {/* Daily limits */}
-      <div className={`rounded-xl border p-3 space-y-3 transition-opacity ${cardFrozen ? "opacity-40 pointer-events-none border-gray-200 bg-gray-50" : "border-amber-200 bg-amber-50"}`}>
-        <div>
-          <p className="text-xs font-semibold text-amber-900">{t("parent.studentProfile.dailyLimitLabel", "Daily spending limit (THB)")}</p>
-          <p className="text-[0.65rem] text-amber-700 mt-0.5">{t("parent.studentProfile.dailyLimitHint", "Leave blank to use system default")}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <Label className="text-[0.65rem] font-semibold text-amber-800 uppercase tracking-wide">
-              {t("parent.studentProfile.canteenLimitLabel", "โรงอาหาร")}
-            </Label>
-            <Input type="number" min="0" step="10" value={canteenInput} onChange={(e) => setCanteenInput(e.target.value)} placeholder={t("parent.studentProfile.canteenLimitPlaceholder", "default 500")} disabled={cardFrozen} className="h-8 text-sm border-amber-300" />
+    <div className="rounded-md border bg-white/10 p-2.5 space-y-2 mt-3">
+      <p className="text-xs font-semibold text-blue-200">{t("parent.dashboard.todayActivity")}</p>
+      {groups.map((g) => {
+        const pct = g.daily_limit > 0 ? (g.spent_today / g.daily_limit) * 100 : 0;
+        const atLimit = pct >= 100;
+        const nearLimit = pct >= 80 && !atLimit;
+        const name = i18n.language === "th" ? g.name_th : g.name_en;
+        return (
+          <div key={g.spending_group_id} className="space-y-0.5">
+            <div className="flex items-center justify-between text-[0.7rem]">
+              <span className="font-medium truncate text-white/80">{name}</span>
+              <span className={cn("font-mono tabular-nums shrink-0 ml-2 text-white/80", atLimit && "text-red-300 font-bold", nearLimit && "text-amber-300")}>
+                {t("parent.dashboard.todaySpentVsLimit", { spent: fmt(g.spent_today), limit: fmt(g.daily_limit) })}
+              </span>
+            </div>
+            <Progress
+              value={Math.min(pct, 100)}
+              className={cn("h-1.5 bg-white/20", atLimit ? "[&>div]:bg-red-400" : nearLimit ? "[&>div]:bg-amber-400" : "[&>div]:bg-white/70")}
+            />
           </div>
-          <div className="space-y-1">
-            <Label className="text-[0.65rem] font-semibold text-amber-800 uppercase tracking-wide">
-              {t("parent.studentProfile.storeLimitLabel", "ร้านค้า")}
-            </Label>
-            <Input type="number" min="0" step="100" value={storeInput} onChange={(e) => setStoreInput(e.target.value)} placeholder={t("parent.studentProfile.storeLimitPlaceholder", "default 25,000")} disabled={cardFrozen} className="h-8 text-sm border-amber-300" />
-          </div>
-        </div>
-        <Button onClick={saveLimits} disabled={savingLimit || cardFrozen} size="sm" className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0">
-          <Save className="h-3.5 w-3.5 mr-1" />
-          {savingLimit ? t("parent.studentProfile.saving", "Saving…") : t("parent.studentProfile.save", "Save")}
-        </Button>
-      </div>
-
-      {/* Low-balance alert */}
-      <div className={`rounded-xl border p-3 space-y-3 transition-opacity ${cardFrozen ? "opacity-40 pointer-events-none border-gray-200 bg-gray-50" : "border-amber-200 bg-amber-50/60"}`}>
-        <p className="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
-          <Bell className="h-3.5 w-3.5" />
-          {t("parent.lowBalanceAlert.title", "Low-balance email alerts")}
-        </p>
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-amber-900">{t("parent.lowBalanceAlert.toggleLabel", "Email me when balance drops below threshold")}</p>
-          <Switch checked={alertEnabled} onCheckedChange={setAlertEnabled} disabled={savingAlert || cardFrozen} />
-        </div>
-        <div className="flex gap-2">
-          <Input
-            type="number" inputMode="decimal" min={1} step="0.01"
-            value={alertThreshold} onChange={(e) => setAlertThreshold(e.target.value)}
-            placeholder="200" disabled={!alertEnabled || savingAlert || cardFrozen}
-            className="h-8 text-sm border-amber-300 flex-1"
-          />
-          <Button onClick={saveAlert} disabled={savingAlert || cardFrozen} size="sm" className="bg-amber-500 hover:bg-amber-600 text-white border-0 shrink-0">
-            <Save className="h-3.5 w-3.5 mr-1" />
-            {savingAlert ? t("parent.studentProfile.saving", "Saving…") : t("parent.studentProfile.save", "Save")}
-          </Button>
-        </div>
-        <div className="text-[0.65rem] text-amber-700 space-y-0.5">
-          {userEmail && <p>{t("parent.lowBalanceAlert.sendTo", "Send to")}: <span className="font-medium">{userEmail}</span></p>}
-          <p>{t("parent.lowBalanceAlert.lastSent", "Last alert sent")}: <span className="font-medium">{alertLastSent ? new Date(alertLastSent).toLocaleString() : t("parent.lowBalanceAlert.neverSent", "Never")}</span></p>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }
+
+function ActionButton({ icon, label, to, disabled = false }: { icon: React.ReactNode; label: string; to: string; disabled?: boolean }) {
+  const inner = (
+    <div className={cn(
+      "flex items-center gap-3 rounded-2xl border bg-white p-3.5 transition-colors",
+      disabled ? "opacity-40 pointer-events-none" : "hover:bg-slate-50 active:bg-slate-100",
+    )}>
+      <div className="shrink-0">{icon}</div>
+      <span className="flex-1 text-sm font-medium text-slate-700">{label}</span>
+      <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
+    </div>
+  );
+  if (disabled) return inner;
+  return <Link to={to}>{inner}</Link>;
+}
+
+function TxIcon({ isCredit }: { isCredit: boolean }) {
+  return isCredit
+    ? <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100"><ArrowUpCircle className="h-5 w-5 text-green-600" /></div>
+    : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100"><ArrowDownCircle className="h-5 w-5 text-orange-500" /></div>;
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function FamilyDashboard() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isStudent = user?.role === "student";
+
   const [children, setChildren] = useState<ChildSummary[]>([]);
   const [ownWallet, setOwnWallet] = useState<OwnWallet | null>(null);
   const [studentWallet, setStudentWallet] = useState<OwnWallet | null>(null);
@@ -289,6 +176,10 @@ export default function FamilyDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Recent transactions for the active card
+  const [txs, setTxs] = useState<WalletTransaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -350,76 +241,113 @@ export default function FamilyDashboard() {
     })),
   ];
 
+  // Fetch transactions for active card
+  useEffect(() => {
+    const card = cards[activeIdx];
+    if (!card?.walletId) { setTxs([]); return; }
+    setTxLoading(true);
+    api.get<WalletTransaction[]>(`/wallets/${card.walletId}/transactions?limit=5`)
+      .then((data) => setTxs(data.slice(0, 5)))
+      .catch(() => setTxs([]))
+      .finally(() => setTxLoading(false));
+    // cards array rebuilt every render; use walletId + activeIdx as key
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIdx, loading]);
+
+  const getCardWidth = () => {
+    if (!scrollRef.current || !scrollRef.current.firstElementChild) return scrollRef.current?.offsetWidth ?? 0;
+    return (scrollRef.current.firstElementChild as HTMLElement).offsetWidth + 12;
+  };
+
   const handleScroll = () => {
     if (!scrollRef.current) return;
-    const { scrollLeft, offsetWidth } = scrollRef.current;
-    const idx = Math.round(scrollLeft / offsetWidth);
+    const cardW = getCardWidth();
+    if (!cardW) return;
+    const idx = Math.round(scrollRef.current.scrollLeft / cardW);
     setActiveIdx(Math.max(0, Math.min(idx, cards.length - 1)));
   };
 
   const scrollTo = (idx: number) => {
     if (!scrollRef.current) return;
-    scrollRef.current.scrollTo({ left: idx * scrollRef.current.offsetWidth, behavior: "smooth" });
+    scrollRef.current.scrollTo({ left: idx * getCardWidth(), behavior: "smooth" });
     setActiveIdx(idx);
   };
 
   const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
   const dateStr = new Date().toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
+  const displayName = ownWallet?.name ?? studentWallet?.name ?? user?.username ?? "";
   const activeCard = cards[activeIdx] ?? null;
 
+  // ── Student view ────────────────────────────────────────────────────────────
   if (isStudent && studentWallet) {
     return (
       <div className="page-shell">
-        <p className="text-sm text-slate-400 mb-4">{dateStr}</p>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-slate-800">{studentWallet.name ?? user?.username}</h2>
+          <p className="text-sm text-slate-500">{dateStr}</p>
+        </div>
+
         <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden">
           <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
-          <div className="flex items-start justify-between relative z-10">
-            <div className="flex-1 min-w-0 pr-3">
-              <div className="flex items-center gap-2 flex-wrap pr-6">
-                <p className="text-xl font-bold text-white truncate">{studentWallet.name}</p>
-                <span className="shrink-0 bg-white/20 text-white text-[0.65rem] font-semibold rounded-full px-2 py-0.5">
-                  {t("roles.student", "Student")}
-                </span>
+          <div className="relative z-10">
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-lg font-bold text-white truncate">{studentWallet.name}</p>
               </div>
-              {studentWallet.username && (
-                <p className="text-xs text-blue-200 mt-1">{studentWallet.username}</p>
-              )}
-              <p className="text-[0.65rem] text-blue-300 mt-3 uppercase tracking-wide">{t("parent.dashboard.balance", "Balance")}</p>
-              <p className="text-3xl font-extrabold text-white tabular-nums leading-tight">{formatTHB(studentWallet.balance)}</p>
-              <p className="text-[0.65rem] text-blue-300/70 mt-2 flex items-center gap-1">
-                <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
-              </p>
+              <div className="shrink-0 flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/40 border-2 border-white/20">
+                <UserRound className="h-8 w-8 text-white/60" />
+              </div>
             </div>
-            <div className="ml-4 shrink-0 flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/40 border-2 border-white/20">
-              <UserRound className="h-8 w-8 text-white/60" />
+            <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balance", "ยอดเงินคงเหลือ")} (บาท)</p>
+            <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">{formatTHB(studentWallet.balance)}</p>
+            {studentWallet.username && <p className="text-xs text-blue-200 mt-2">{studentWallet.username}</p>}
+            <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+              <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
+            </p>
+            <div className="flex justify-end mt-2">
+              <span className="bg-white/20 text-white text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "นักเรียน")}</span>
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          <Button asChild variant="outline" className="h-11">
-            <Link to={`/parent/wallet/${studentWallet.customer_id}`}><WalletIcon className="h-4 w-4 mr-1.5" />Top up</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11">
-            <Link to={`/parent/transactions/${studentWallet.customer_id}`}><History className="h-4 w-4 mr-1.5" />History</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11">
-            <Link to={`/parent/profile/${studentWallet.customer_id}`}><Receipt className="h-4 w-4 mr-1.5" />Profile</Link>
-          </Button>
+
+        <div className="mt-5">
+          <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "การดำเนินการ")}</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <ActionButton
+              icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"><WalletIcon className="h-5 w-5 text-blue-600" /></div>}
+              label={t("parent.dashboard.topup", "เติมเงิน")}
+              to={`/parent/wallet/${studentWallet.customer_id}`}
+            />
+            <ActionButton
+              icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
+              label={t("parent.dashboard.profile", "โปรไฟล์")}
+              to={`/parent/profile/${studentWallet.customer_id}`}
+            />
+          </div>
         </div>
       </div>
     );
   }
 
+  // ── Parent view ─────────────────────────────────────────────────────────────
   return (
     <div className="page-shell">
-      <p className="text-sm text-slate-400 mb-4">{dateStr}</p>
+      {/* Header: user name + date */}
+      {loading ? (
+        <div className="mb-5">
+          <div className="h-7 w-40 rounded-md bg-slate-200 animate-pulse mb-1.5" />
+          <div className="h-4 w-56 rounded-md bg-slate-100 animate-pulse" />
+        </div>
+      ) : (
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-slate-800">{displayName}</h2>
+          <p className="text-sm text-slate-500">{dateStr}</p>
+        </div>
+      )}
 
       {error && (
         <Card className="border-destructive">
@@ -430,9 +358,7 @@ export default function FamilyDashboard() {
         </Card>
       )}
 
-      {loading && (
-        <div className="h-44 rounded-2xl bg-blue-200 animate-pulse" />
-      )}
+      {loading && <div className="h-44 rounded-2xl bg-blue-200 animate-pulse" />}
 
       {!loading && !error && cards.length === 0 && (
         <Card>
@@ -444,88 +370,58 @@ export default function FamilyDashboard() {
 
       {!loading && !error && cards.length > 0 && (
         <>
-          {/* Carousel — arrows overlaid inside the card so they never clip */}
+          {/* Peek carousel */}
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex items-start overflow-x-auto"
+            className="-mx-4 flex gap-3 overflow-x-auto px-4"
             style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
           >
             {cards.map((card, idx) => (
               <div
                 key={idx}
-                className="shrink-0 w-full rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden"
-                style={{ scrollSnapAlign: "center" }}
+                className="shrink-0 min-w-[calc(100%-2.5rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 shadow-lg relative overflow-hidden"
+                style={{ scrollSnapAlign: "start" }}
               >
-                {/* Decorative circles */}
                 <div className="absolute right-16 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
 
-                {/* Nav arrows — inside card so they're always in bounds */}
-                {idx === activeIdx && activeIdx > 0 && (
-                  <button
-                    onClick={() => scrollTo(activeIdx - 1)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-white/25 text-white hover:bg-white/40 transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                )}
-                {idx === activeIdx && activeIdx < cards.length - 1 && (
-                  <button
-                    onClick={() => scrollTo(activeIdx + 1)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-white/25 text-white hover:bg-white/40 transition-colors"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                )}
-
-                <div className="flex items-start justify-between relative z-10">
-                  <div className="flex-1 min-w-0 pr-3">
-                    {/* Row 1: Name + Role badge */}
-                    <div className="flex items-center gap-2 flex-wrap pr-6">
-                      <p className="text-xl font-bold text-white truncate">{card.name}</p>
-                      <span className="shrink-0 bg-white/20 text-white text-[0.65rem] font-semibold rounded-full px-2 py-0.5">
-                        {card.role}
-                      </span>
-                    </div>
-                    {/* Row 2: Code · Grade · Block Card */}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {card.code && <span className="text-xs text-blue-200">{card.code}</span>}
-                      {card.grade && (
-                        <>
-                          <span className="text-blue-300/50 text-xs">·</span>
-                          <span className="text-xs text-blue-200 flex items-center gap-1">
-                            <GraduationCap className="h-3 w-3" />{card.grade}
-                          </span>
-                        </>
-                      )}
+                <div className="relative z-10">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-lg font-bold text-white truncate">{card.name}</p>
                       {card.cardFrozen && (
-                        <>
-                          <span className="text-blue-300/50 text-xs">·</span>
-                          <span className="inline-flex items-center gap-1 text-xs text-red-300 font-semibold">
-                            <Lock className="h-3 w-3" />{t("parent.dashboard.blockCard", "Block Card")}
-                          </span>
-                        </>
+                        <span className="inline-flex items-center gap-1 text-xs text-red-300 mt-0.5">
+                          <Lock className="h-3 w-3" /> Card Frozen
+                        </span>
                       )}
                     </div>
-                    {/* Row 3: Balance */}
-                    <p className="text-[0.65rem] text-blue-300 mt-3 uppercase tracking-wide">{t("parent.dashboard.balance", "Balance")}</p>
-                    <p className="text-3xl font-extrabold text-white tabular-nums leading-tight">
-                      {card.balance !== null ? formatTHB(card.balance) : "—"}
-                    </p>
-                    {/* Row 4: Updated at */}
-                    <p className="text-[0.65rem] text-blue-300/70 mt-2 flex items-center gap-1">
-                      <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
-                    </p>
+                    <div className="shrink-0">
+                      {card.photoUrl ? (
+                        <img src={card.photoUrl} alt={card.name} className="h-16 w-16 rounded-full object-cover border-2 border-white/30" />
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/40 border-2 border-white/20">
+                          <UserRound className="h-8 w-8 text-white/60" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="shrink-0">
-                    {card.photoUrl ? (
-                      <img src={card.photoUrl} alt={card.name} className="h-16 w-16 rounded-full object-cover border-2 border-white/30" />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/40 border-2 border-white/20">
-                        <UserRound className="h-8 w-8 text-white/60" />
-                      </div>
-                    )}
+
+                  <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balance", "ยอดเงินคงเหลือ")} (บาท)</p>
+                  <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">
+                    {card.balance !== null ? formatTHB(card.balance) : "—"}
+                  </p>
+                  {card.code && <p className="text-xs text-blue-200 mt-2">{card.code}</p>}
+                  {card.grade && (
+                    <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+                      <GraduationCap className="h-2.5 w-2.5" />{card.grade}
+                    </p>
+                  )}
+                  <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+                    <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
+                  </p>
+                  <div className="flex justify-end mt-2">
+                    <span className="bg-white/20 text-white text-xs rounded-full px-2.5 py-0.5">{card.role}</span>
                   </div>
                 </div>
 
@@ -561,62 +457,130 @@ export default function FamilyDashboard() {
 
           {/* Action buttons */}
           {activeCard && (
-            <div className="mt-4 space-y-2">
-              <div className="flex gap-2">
+            <div className="mt-5">
+              <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "การดำเนินการ")}</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* เติมเงิน — all card types */}
+                <ActionButton
+                  icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"><WalletIcon className="h-5 w-5 text-blue-600" /></div>}
+                  label={t("parent.dashboard.topup", "เติมเงิน")}
+                  to={
+                    activeCard.kind === "self" ? "/parent/wallet/own" :
+                    activeCard.kind === "coparent" ? `/parent/wallet/wallet-${activeCard.walletId}` :
+                    `/parent/wallet/${activeCard.customerId}`
+                  }
+                  disabled={activeCard.kind !== "self" && !activeCard.walletId}
+                />
+
+                {/* โปรไฟล์ (child) / ประวัติ (self/coparent) */}
+                {activeCard.kind === "child" ? (
+                  <ActionButton
+                    icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
+                    label={t("parent.dashboard.profile", "โปรไฟล์")}
+                    to={`/parent/profile/${activeCard.customerId}`}
+                  />
+                ) : (
+                  <ActionButton
+                    icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
+                    label={t("parent.dashboard.history", "ประวัติ")}
+                    to={
+                      activeCard.kind === "self" ? "/parent/wallet/own?tab=history" :
+                      `/parent/wallet/wallet-${activeCard.walletId}?tab=history`
+                    }
+                    disabled={activeCard.kind !== "self" && !activeCard.walletId}
+                  />
+                )}
+
+                {/* แจ้งเตือน (child only) */}
+                <ActionButton
+                  icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100"><Bell className="h-5 w-5 text-purple-600" /></div>}
+                  label={t("parent.dashboard.alerts", "แจ้งเตือน")}
+                  to={activeCard.kind === "child" ? `/parent/alerts/${activeCard.customerId}` : "#"}
+                  disabled={activeCard.kind !== "child"}
+                />
+
+                {/* ตั้งค่า (child only — leads to StudentProfile which has card freeze) */}
+                <ActionButton
+                  icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100"><Settings className="h-5 w-5 text-orange-500" /></div>}
+                  label={t("parent.dashboard.settings", "ตั้งค่า")}
+                  to={activeCard.kind === "child" ? `/parent/profile/${activeCard.customerId}` : "#"}
+                  disabled={activeCard.kind !== "child"}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Recent transactions */}
+          {activeCard?.walletId && (
+            <div className="mt-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-slate-700">{t("parent.dashboard.recentTx", "รายการล่าสุด")}</p>
+                {activeCard.kind === "child" && activeCard.customerId && (
+                  <Link to={`/parent/transactions/${activeCard.customerId}`} className="text-sm text-blue-600">
+                    {t("parent.dashboard.viewAll", "ดูทั้งหมด")}
+                  </Link>
+                )}
                 {activeCard.kind === "self" && (
-                  <>
-                    <Button asChild variant="outline" className="h-11 flex-1">
-                      <Link to="/parent/wallet/own"><WalletIcon className="h-4 w-4 mr-1.5" />Top up</Link>
-                    </Button>
-                    <Button asChild variant="outline" className="h-11 flex-1">
-                      <Link to="/parent/wallet/own?tab=history"><History className="h-4 w-4 mr-1.5" />History</Link>
-                    </Button>
-                  </>
+                  <Link to="/parent/wallet/own?tab=history" className="text-sm text-blue-600">
+                    {t("parent.dashboard.viewAll", "ดูทั้งหมด")}
+                  </Link>
                 )}
-                {activeCard.kind === "coparent" && (
-                  <>
-                    <Button asChild variant="outline" className="h-11 flex-1" disabled={!activeCard.walletId}>
-                      <Link to={`/parent/wallet/wallet-${activeCard.walletId}`}><WalletIcon className="h-4 w-4 mr-1.5" />Top up</Link>
-                    </Button>
-                    <Button asChild variant="outline" className="h-11 flex-1" disabled={!activeCard.walletId}>
-                      <Link to={`/parent/wallet/wallet-${activeCard.walletId}?tab=history`}><History className="h-4 w-4 mr-1.5" />History</Link>
-                    </Button>
-                  </>
-                )}
-                {activeCard.kind === "child" && (
-                  <>
-                    <Button asChild variant="outline" className="h-11 flex-1" disabled={!activeCard.walletId}>
-                      <Link to={`/parent/wallet/${activeCard.customerId}`}><WalletIcon className="h-4 w-4 mr-1.5" />Top up</Link>
-                    </Button>
-                    <Button asChild variant="outline" className="h-11 flex-1" disabled={!activeCard.walletId}>
-                      <Link to={`/parent/transactions/${activeCard.customerId}`}><History className="h-4 w-4 mr-1.5" />History</Link>
-                    </Button>
-                  </>
+                {activeCard.kind === "coparent" && activeCard.walletId && (
+                  <Link to={`/parent/wallet/wallet-${activeCard.walletId}?tab=history`} className="text-sm text-blue-600">
+                    {t("parent.dashboard.viewAll", "ดูทั้งหมด")}
+                  </Link>
                 )}
               </div>
-              {activeCard.kind === "child" && (
-                <Button asChild variant="outline" className="h-11 w-full">
-                  <Link to={`/parent/profile/${activeCard.customerId}`}><Receipt className="h-4 w-4 mr-1.5" />Profile</Link>
-                </Button>
-              )}
-              {activeCard.kind === "child" && activeCard.customerId && (
-                <>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider pt-1">
-                    {t("parent.dashboard.cardSettings", "Card settings")}
-                  </p>
-                  <ChildControls
-                    customerId={activeCard.customerId}
-                    userEmail={user?.email ?? undefined}
-                    onFreezeChange={(frozen) =>
-                      setChildren((prev) =>
-                        prev.map((c) =>
-                          c.customer_id === activeCard.customerId ? { ...c, card_frozen: frozen } : c,
-                        ),
-                      )
-                    }
-                  />
-                </>
-              )}
+
+              <Card>
+                <CardContent className="p-0">
+                  {txLoading && (
+                    <div className="space-y-px">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-3 px-4 py-3">
+                          <div className="h-9 w-9 rounded-full bg-slate-100 animate-pulse shrink-0" />
+                          <div className="flex-1 space-y-1.5">
+                            <div className="h-3.5 w-24 rounded bg-slate-100 animate-pulse" />
+                            <div className="h-3 w-32 rounded bg-slate-100 animate-pulse" />
+                          </div>
+                          <div className="h-4 w-16 rounded bg-slate-100 animate-pulse" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!txLoading && txs.length === 0 && (
+                    <p className="px-4 py-6 text-center text-sm text-slate-400">
+                      {t("parent.dashboard.noTx", "ยังไม่มีรายการ")}
+                    </p>
+                  )}
+
+                  {!txLoading && txs.map((tx, i) => {
+                    const isCredit = tx.balance_after > tx.balance_before;
+                    const typeLabel = tx.transaction_type === "topup" || isCredit
+                      ? t("parent.transactions.txTopup", "top-up")
+                      : tx.transaction_type === "refund"
+                      ? t("parent.transactions.txRefund", "refund")
+                      : t("parent.transactions.txDeduction", "purchase");
+                    const shopLabel = tx.shop_name ?? tx.description ?? typeLabel;
+                    return (
+                      <div
+                        key={tx.id}
+                        className={cn("flex items-center gap-3 px-4 py-3", i < txs.length - 1 && "border-b border-slate-100")}
+                      >
+                        <TxIcon isCredit={isCredit} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{shopLabel}</p>
+                          <p className="text-xs text-slate-400">{fmtDate(tx.created_at)} · {fmtTime(tx.created_at)}</p>
+                        </div>
+                        <p className={cn("text-sm font-semibold tabular-nums shrink-0", isCredit ? "text-green-600" : "text-red-500")}>
+                          {isCredit ? "+" : ""}{formatTHB(Math.abs(tx.amount))}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
             </div>
           )}
         </>

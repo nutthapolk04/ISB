@@ -43,6 +43,7 @@ import FamilyDashboard from "./pages/parent/FamilyDashboard";
 import WalletDetail from "./pages/parent/WalletDetail";
 import TransactionHistory from "./pages/parent/TransactionHistory";
 import StudentProfile from "./pages/parent/StudentProfile";
+import AlertSettings from "./pages/parent/AlertSettings";
 import Transfer from "./pages/parent/Transfer";
 import WalletAdjust from "./pages/admin/WalletAdjust";
 import WalletTransfer from "./pages/admin/WalletTransfer";
@@ -338,6 +339,7 @@ const App = () => {
                   <Route path="/parent/wallet/:customerId" element={<WalletDetail />} />
                   <Route path="/parent/transactions/:customerId" element={<TransactionHistory />} />
                   <Route path="/parent/profile/:customerId" element={<StudentProfile />} />
+                  <Route path="/parent/alerts/:customerId" element={<AlertSettings />} />
                 </Route>
 
                 {/* Transfer — parent-initiated transfers disabled (admin-only per policy) */}
