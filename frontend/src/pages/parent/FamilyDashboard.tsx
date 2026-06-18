@@ -582,7 +582,7 @@ export default function FamilyDashboard() {
                 <ActionButton
                   icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100"><Settings className="h-5 w-5 text-orange-500" /></div>}
                   label={t("parent.dashboard.settings", "Settings")}
-                  to={activeCard.kind === "child" ? `/parent/profile/${activeCard.customerId}` : "#"}
+                  to={activeCard.kind === "child" ? `/parent/settings/${activeCard.customerId}` : "#"}
                   disabled={activeCard.kind !== "child"}
                 />
               </div>

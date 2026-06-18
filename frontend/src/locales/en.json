@@ -2533,6 +2533,18 @@
       "thresholdLabel": "Alert when balance is below (THB)",
       "title": "Low-balance email alerts",
       "toggleLabel": "Email me when the balance drops below the threshold"
+    },
+    "childSettings": {
+      "title": "Daily Spending Limits",
+      "canteenLabel": "Canteen daily limit",
+      "storeLabel": "Store daily limit",
+      "unlimitedPlaceholder": "Unlimited",
+      "unlimitedHint": "Leave empty for unlimited",
+      "save": "Save limits",
+      "saving": "Saving...",
+      "saveSuccess": "Limits saved",
+      "saveFailed": "Failed to save",
+      "loadFailed": "Failed to load data"
     }
   },
   "canteenMgmt": {
