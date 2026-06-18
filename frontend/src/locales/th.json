@@ -2383,7 +2383,11 @@
       "recentActivity": "รายการล่าสุด",
       "viewAll": "ดูทั้งหมด",
       "noTx": "ยังไม่มีรายการ",
-      "balanceUnit": "ยอดเงินคงเหลือ (บาท)"
+      "balanceUnit": "ยอดเงินคงเหลือ (บาท)",
+      "empId": "รหัสพนักงาน",
+      "cardId": "รหัสบัตร",
+      "typePersonal": "บัตรของฉัน",
+      "typeChild": "บัตรลูก"
     },
     "wallet": {
       "myWalletLabel": "กระเป๋าของฉัน — {{name}}",

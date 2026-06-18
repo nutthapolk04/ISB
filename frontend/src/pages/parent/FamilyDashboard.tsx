@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { fmtDate, fmtTime } from "@/lib/dateFormat";
 import {
   AlertCircle, ArrowUpCircle, ArrowDownCircle, Bell,
-  ChevronRight, GraduationCap, Lock, RefreshCw,
+  ChevronRight, GraduationCap, Lock,
   Settings, UserRound, Wallet as WalletIcon,
 } from "lucide-react";
 
@@ -56,6 +56,7 @@ interface CoParentSummary {
   user_id: number;
   full_name: string;
   relation?: string | null;
+  role?: string | null;
   wallet_id?: number | null;
   wallet_balance?: number | null;
   photo_url?: string | null;
@@ -81,7 +82,8 @@ interface FamilyCard {
   name: string;
   balance: number | null;
   code: string;
-  role: string;
+  role: string;          // display label e.g. "Parent / Guardian"
+  userRole: string;      // raw role for color lookup: parent/staff/student/admin
   photoUrl: string | null;
   walletId: number | null;
   customerId?: number | null;
@@ -94,6 +96,23 @@ interface FamilyCard {
 
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
+
+// Role-based card colors — single source of truth: users.role
+// parent → purple, staff → teal, student → orange, fallback → teal
+const ROLE_STYLES: Record<string, React.CSSProperties> = {
+  parent: { background: "linear-gradient(135deg, #3b1f7e 0%, #6b3fa0 50%, #9b6fcf 100%)" },
+  staff: { background: "linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #2dd4bf 100%)" },
+  student: { background: "linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)" },
+};
+const getRoleStyle = (role: string | null | undefined): React.CSSProperties =>
+  ROLE_STYLES[role || ""] ?? ROLE_STYLES.staff;
+
+const maskData = (s: string | null | undefined): string => {
+  if (!s) return "****";
+  const str = String(s);
+  if (str.length <= 4) return str;
+  return "****" + str.slice(-4);
+};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -143,12 +162,12 @@ function ChildTodayActivity({ customerId }: { customerId: number }) {
 function ActionButton({ icon, label, to, disabled = false }: { icon: React.ReactNode; label: string; to: string; disabled?: boolean }) {
   const inner = (
     <div className={cn(
-      "flex items-center gap-3 rounded-2xl border bg-white p-3.5 transition-colors",
+      "flex items-center gap-3 rounded-2xl border bg-white p-4 transition-colors",
       disabled ? "opacity-40 pointer-events-none" : "hover:bg-slate-50 active:bg-slate-100",
     )}>
       <div className="shrink-0">{icon}</div>
-      <span className="flex-1 text-sm font-medium text-slate-700">{label}</span>
-      <ChevronRight className="h-4 w-4 text-slate-300 shrink-0" />
+      <span className="flex-1 text-base font-bold text-slate-800">{label}</span>
+      <ChevronRight className="h-5 w-5 text-slate-400 shrink-0" />
     </div>
   );
   if (disabled) return inner;
@@ -205,6 +224,16 @@ export default function FamilyDashboard() {
     })();
   }, [isStudent]);
 
+  const roleLabel = (r: string | null | undefined): string => {
+    if (r === "student") return t("roles.student", "Student");
+    if (r === "staff") return t("roles.staff", "Staff");
+    if (r === "admin") return t("roles.admin", "Admin");
+    if (r === "manager") return t("roles.manager", "Manager");
+    if (r === "cashier") return t("roles.cashier", "Cashier");
+    if (r === "kitchen") return t("roles.kitchen", "Kitchen");
+    return t("roles.parent", "Parent / Guardian");
+  };
+
   const cards: FamilyCard[] = [
     ...(ownWallet
       ? [{
@@ -212,7 +241,8 @@ export default function FamilyDashboard() {
           name: ownWallet.name ?? user?.username ?? "",
           balance: ownWallet.balance,
           code: ownWallet.username ?? "",
-          role: t("roles.parent", "Parent / Guardian"),
+          role: roleLabel(user?.role),
+          userRole: user?.role ?? "parent",
           photoUrl: ownWallet.photo_url,
           walletId: ownWallet.id,
         }]
@@ -222,7 +252,8 @@ export default function FamilyDashboard() {
       name: cp.full_name,
       balance: cp.wallet_balance ?? 0,
       code: cp.username ?? "",
-      role: t("roles.parent", "Parent / Guardian"),
+      role: roleLabel(cp.role),
+      userRole: cp.role ?? "parent",
       photoUrl: cp.photo_url ?? null,
       walletId: cp.wallet_id ?? null,
     })),
@@ -232,6 +263,7 @@ export default function FamilyDashboard() {
       balance: ch.wallet_balance ?? 0,
       code: ch.student_code ?? ch.customer_code,
       role: t("roles.student", "Student"),
+      userRole: "student",
       photoUrl: ch.photo_url ?? null,
       walletId: ch.wallet_id ?? null,
       customerId: ch.customer_id,
@@ -280,7 +312,6 @@ export default function FamilyDashboard() {
     setActiveIdx(idx);
   };
 
-  const now = new Date().toLocaleTimeString(i18n.language === "th" ? "th-TH" : "en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
   const dateStr = new Date().toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
@@ -297,26 +328,39 @@ export default function FamilyDashboard() {
           <p className="text-sm text-slate-500">{dateStr}</p>
         </div>
 
-        <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 shadow-lg relative overflow-hidden">
+        <div className="rounded-2xl p-4 shadow-lg relative overflow-hidden" style={getRoleStyle("student")}>
+          <span className="absolute top-3 right-3 z-20 bg-white/25 border border-white/40 text-white text-[0.6rem] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5">
+            {t("parent.dashboard.typeChild", "Child's")}
+          </span>
           <div className="absolute right-10 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/15 pointer-events-none" />
           <div className="relative z-10">
-            <div className="flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-white truncate">{studentWallet.name}</p>
-              </div>
+            <div className="flex items-start gap-3 pr-20">
               <div className="shrink-0 flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
                 <UserRound className="h-6 w-6 text-white" />
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-white truncate">{studentWallet.name}</p>
+                <span className="inline-block bg-white/25 border border-white/40 text-white text-[0.6rem] font-bold uppercase tracking-wider rounded-full px-2 py-0 mt-1">
+                  {t("roles.student", "Student")}
+                </span>
+                <p className="text-[0.7rem] text-white/80 mt-1">{t("parent.dashboard.balanceUnit", "Current Balance (Baht)")}</p>
+              </div>
             </div>
-            <p className="text-xs text-blue-200 mt-2">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
-            <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">{formatTHB(studentWallet.balance)}</p>
-            {studentWallet.username && <p className="text-[0.7rem] text-blue-200 mt-1">{studentWallet.username}</p>}
-            <p className="text-[0.7rem] text-blue-300 mt-0.5 flex items-center gap-1">
-              <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
-            </p>
-            <div className="flex justify-end mt-1">
-              <span className="bg-white/25 border border-white/30 text-white font-medium text-[0.7rem] rounded-full px-2 py-0.5">{t("roles.student", "Student")}</span>
+            <div className="text-center my-3">
+              <span className="text-3xl font-extrabold text-white tabular-nums">{formatTHB(studentWallet.balance)}</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {user?.username && (
+                <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                  {t("parent.dashboard.empId", "Employee ID")}: {maskData(user.username)}
+                </span>
+              )}
+              {studentWallet.username && (
+                <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                  {t("parent.dashboard.cardId", "Card ID")}: {maskData(studentWallet.username)}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -388,22 +432,17 @@ export default function FamilyDashboard() {
             {cards.map((card, idx) => (
               <div
                 key={idx}
-                className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 shadow-lg relative overflow-hidden"
-                style={{ scrollSnapAlign: "start" }}
+                className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl p-4 shadow-lg relative overflow-hidden"
+                style={{ scrollSnapAlign: "start", ...getRoleStyle(card.userRole) }}
               >
+                <span className="absolute top-3 right-3 z-20 bg-white/25 border border-white/40 text-white text-[0.6rem] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5">
+                  {card.kind === "child" ? t("parent.dashboard.typeChild", "Child's") : t("parent.dashboard.typePersonal", "Personal")}
+                </span>
                 <div className="absolute right-10 top-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-white/15 pointer-events-none" />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/15 pointer-events-none" />
 
                 <div className="relative z-10">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold text-white truncate">{card.name}</p>
-                      {card.cardFrozen && (
-                        <span className="inline-flex items-center gap-1 text-xs text-red-300 mt-0.5">
-                          <Lock className="h-3 w-3" /> {t("parent.dashboard.cardFrozen", "Card frozen")}
-                        </span>
-                      )}
-                    </div>
+                  <div className="flex items-start gap-3 pr-20">
                     <div className="shrink-0">
                       {card.photoUrl ? (
                         <img src={card.photoUrl} alt={card.name} className="h-12 w-12 rounded-full object-cover border-2 border-white/30" />
@@ -413,23 +452,37 @@ export default function FamilyDashboard() {
                         </div>
                       )}
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-bold text-white truncate">{card.name}</p>
+                      <span className="inline-block bg-white/25 border border-white/40 text-white text-[0.6rem] font-bold uppercase tracking-wider rounded-full px-2 py-0 mt-1">
+                        {card.role}
+                      </span>
+                      <p className="text-[0.7rem] text-white/80 mt-1">{t("parent.dashboard.balanceUnit", "Current Balance (Baht)")}</p>
+                      {card.cardFrozen && (
+                        <span className="inline-flex items-center gap-1 text-[0.7rem] text-red-200 mt-1">
+                          <Lock className="h-3 w-3" /> {t("parent.dashboard.cardFrozen", "Card frozen")}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <p className="text-xs text-blue-200 mt-2">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
-                  <p className="text-2xl font-extrabold text-white tabular-nums leading-tight">
-                    {card.balance !== null ? formatTHB(card.balance) : "—"}
-                  </p>
-                  {card.code && <p className="text-[0.7rem] text-blue-200 mt-1">{card.code}</p>}
-                  {card.grade && (
-                    <p className="text-[0.7rem] text-blue-300 mt-0.5 flex items-center gap-1">
-                      <GraduationCap className="h-2.5 w-2.5" />{card.grade}
-                    </p>
-                  )}
-                  <p className="text-[0.7rem] text-blue-300 mt-0.5 flex items-center gap-1">
-                    <RefreshCw className="h-2.5 w-2.5" />{t("parent.dashboard.updatedAt", "Updated at")} {now}
-                  </p>
-                  <div className="flex justify-end mt-1">
-                    <span className="bg-white/25 border border-white/30 text-white font-medium text-[0.7rem] rounded-full px-2 py-0.5">{card.role}</span>
+                  <div className="text-center my-3">
+                    <span className="text-3xl font-extrabold text-white tabular-nums">
+                      {card.balance !== null ? formatTHB(card.balance) : "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    {user?.username && (
+                      <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                        {t("parent.dashboard.empId", "Employee ID")}: {maskData(user.username)}
+                      </span>
+                    )}
+                    {card.code && (
+                      <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                        {t("parent.dashboard.cardId", "Card ID")}: {maskData(card.code)}
+                      </span>
+                    )}
                   </div>
                 </div>
 

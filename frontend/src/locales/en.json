@@ -2385,7 +2385,11 @@
       "recentActivity": "Recent activity",
       "viewAll": "View all",
       "noTx": "No transactions yet",
-      "balanceUnit": "Balance (THB)"
+      "balanceUnit": "Current Balance (Baht)",
+      "empId": "Employee ID",
+      "cardId": "Card ID",
+      "typePersonal": "Personal",
+      "typeChild": "Child's"
     },
     "wallet": {
       "myWalletLabel": "My Wallet — {{name}}",

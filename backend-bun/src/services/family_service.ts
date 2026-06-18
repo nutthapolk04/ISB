@@ -30,6 +30,7 @@ export interface CoParentSummaryDTO {
   full_name: string;
   relation: string | null;
   parent_rank: string | null;
+  role: string | null;
   wallet_id: number | null;
   wallet_balance: number | null;
   photo_url: string | null;
@@ -156,6 +157,7 @@ export async function myCoparents(parentUserId: number, familyCode: string | nul
       full_name: u.fullName || u.username || "",
       relation: link?.relation ?? null,
       parent_rank: link?.parentRank ?? null,
+      role: u.role ?? null,
       wallet_id: wallet[0]?.id ?? null,
       wallet_balance: wallet[0] ? pgNumber(wallet[0].balance) : null,
       photo_url: u.photoUrl ?? null,
