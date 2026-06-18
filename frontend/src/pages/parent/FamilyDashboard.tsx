@@ -284,12 +284,16 @@ export default function FamilyDashboard() {
     })),
   ];
 
-  // Clamp activeIdx if cards shrinks (e.g. coparent unlinked mid-session)
+  // Clamp activeIdx if cards shrinks (e.g. coparent unlinked mid-session).
+  // CRITICAL: skip while loading — cards starts at length 0 and a saved
+  // activeIdx from sessionStorage would get wiped to 0 before the real
+  // cards array arrives, defeating the persistence.
   useEffect(() => {
-    if (activeIdx > 0 && activeIdx >= cards.length) {
-      setActiveIdx(Math.max(0, cards.length - 1));
+    if (loading || cards.length === 0) return;
+    if (activeIdx >= cards.length) {
+      setActiveIdx(cards.length - 1);
     }
-  }, [cards.length, activeIdx]);
+  }, [loading, cards.length, activeIdx]);
 
   // Scroll carousel to restored activeIdx once cards have rendered (one-shot on mount/load).
   useEffect(() => {
