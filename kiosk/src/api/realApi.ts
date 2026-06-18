@@ -319,6 +319,18 @@ export const realApi = {
     return { balance_after: res.balance_after, transaction_id: res.transaction_id };
   },
 
+  async createTopupIntent(walletId: string, amount: number): Promise<{ ref_code: string; qr_payload: string; status: string; payment_method: string }> {
+    return requestPost(`/wallets/${walletId}/topup`, {
+      amount,
+      payment_method: 'bay_qr',
+      remark: 'Kiosk top-up via PromptPay',
+    });
+  },
+
+  async getTopupStatus(refCode: string): Promise<{ ref_code: string; status: string; amount: number; payment_method: string }> {
+    return request(`/wallets/topup/${refCode}/status`);
+  },
+
   async getPublicSettings(): Promise<{ school_name: string; school_logo_url: string }> {
     try {
       const res = await fetch(`${BASE_URL}/admin/settings/public`);

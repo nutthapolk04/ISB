@@ -2087,7 +2087,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   .post(
     "/wallets/:id/topup",
     async ({ params, body, user, set }) => {
-      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student")) {
+      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student", "kiosk")) {
         set.status = 403; return { detail: "Forbidden" };
       }
       const id = Number(params.id);
@@ -2123,7 +2123,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   .get(
     "/wallets/topup/:refCode/status",
     async ({ params, user, set }) => {
-      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student")) {
+      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student", "kiosk")) {
         set.status = 403; return { detail: "Forbidden" };
       }
       try {
@@ -2162,7 +2162,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   .post(
     "/wallets/topup/:refCode/inquiry",
     async ({ params, user, set }) => {
-      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student")) {
+      if (!hasRole(user.roles, "parent", "staff", "admin", "cashier", "manager", "kitchen", "student", "kiosk")) {
         set.status = 403; return { detail: "Forbidden" };
       }
       try {

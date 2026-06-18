@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, Smartphone, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut } from 'lucide-vue-next';
 import { ref, computed, onUnmounted } from 'vue';
 import { realApi } from '../api/realApi';
+import QRCode from 'qrcode';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -114,6 +115,10 @@ const enteredAmount = ref('0');
 const failType = ref<'internet' | 'server'>('internet');
 const failDetail = ref<string | null>(null);
 const isProcessing = ref(false);
+const qrDataUrl = ref('');
+const qrLoading = ref(false);
+const activeRefCode = ref<string | null>(null);
+let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 5000;
 const SHORTCUTS = [50, 100, 200, 500, 1000];
@@ -144,13 +149,13 @@ const formatCurrency = (val: number) => {
 };
 
 // --- Actions ---
-const selectMethod = (key: string) => {
+const selectMethod = async (key: string) => {
   selectedMethod.value = key;
   if (key === 'cash') {
     currentStep.value = 'cash-confirm';
   } else {
     currentStep.value = 'qr';
-    startQrTimer();
+    await initQrPayment();
   }
 };
 
@@ -185,8 +190,8 @@ const confirmAmount = () => {
   currentStep.value = 'methods';
 };
 
-// --- QR Timer (120 seconds) ---
-const QR_TIMEOUT = 120;
+// --- QR Timer (600 seconds = 10 min to match BAY gateway expiry) ---
+const QR_TIMEOUT = 600;
 const qrTimeLeft = ref(QR_TIMEOUT);
 let qrTimerInterval: number | null = null;
 
@@ -209,10 +214,67 @@ const clearQrTimer = () => {
     clearInterval(qrTimerInterval);
     qrTimerInterval = null;
   }
+  stopPolling();
+};
+
+const initQrPayment = async () => {
+  const walletId = store.currentWallet?.id;
+  if (!walletId || !isAmountValid.value) return;
+  qrLoading.value = true;
+  qrDataUrl.value = '';
+  activeRefCode.value = null;
+  stopPolling();
+  try {
+    const intent = await realApi.createTopupIntent(walletId, amountNumber.value);
+    activeRefCode.value = intent.ref_code;
+    qrDataUrl.value = await QRCode.toDataURL(intent.qr_payload, {
+      width: 240,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+    startQrTimer();
+    startPolling();
+  } catch (e) {
+    failType.value = 'server';
+    failDetail.value = e instanceof Error ? e.message : String(e);
+    currentStep.value = 'fail';
+  } finally {
+    qrLoading.value = false;
+  }
+};
+
+const startPolling = () => {
+  stopPolling();
+  pollInterval = window.setInterval(async () => {
+    if (!activeRefCode.value) return;
+    try {
+      const s = await realApi.getTopupStatus(activeRefCode.value);
+      if (s.status === 'confirmed') {
+        stopPolling();
+        clearQrTimer();
+        await store.refreshBalance();
+        currentStep.value = 'success';
+      } else if (s.status === 'cancelled') {
+        stopPolling();
+        clearQrTimer();
+        failType.value = 'server';
+        failDetail.value = 'Payment was cancelled or expired';
+        currentStep.value = 'fail';
+      }
+    } catch { /* ignore transient poll errors */ }
+  }, 3000);
+};
+
+const stopPolling = () => {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
 };
 
 onUnmounted(() => {
   clearQrTimer();
+  stopPolling();
 });
 
 // Real top-up via backend
@@ -238,17 +300,13 @@ const doTopUp = async () => {
   }
 };
 
-// Demo-only: still keep for PromptPay demo buttons
-const simulateFail = (type: 'internet' | 'server') => {
-  failType.value = type;
-  failDetail.value = type === 'internet' ? 'ERR_NETWORK_CHANGED' : 'HTTP 503 Service Unavailable';
-  currentStep.value = 'fail';
-};
-
 const backToMethods = () => {
   selectedMethod.value = null;
   currentStep.value = 'methods';
   clearQrTimer();
+  stopPolling();
+  qrDataUrl.value = '';
+  activeRefCode.value = null;
 };
 
 const backToAmount = () => {
@@ -392,20 +450,23 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
       <div class="qr-card" :style="{ borderColor: selectedColor('border') }">
         <h3 class="qr-method-name">{{ (currT as any)[selectedMethod as any] }}</h3>
         <div class="qr-amount-badge">฿{{ formattedAmount }}</div>
-        
-        <!-- QR Code with overlay when expired -->
+
+        <!-- QR Code -->
         <div class="qr-wrapper">
-          <div class="qr-placeholder" :class="{ expired: isQrExpired }" :style="{ backgroundColor: selectedColor('colorBg'), color: selectedColor('colorText') }">
-            <QrCode :size="160" />
+          <div v-if="qrLoading" class="qr-loading">
+            <div class="qr-spinner"></div>
           </div>
-          <div v-if="isQrExpired" class="qr-expired-overlay">
+          <template v-else-if="qrDataUrl && !isQrExpired">
+            <img :src="qrDataUrl" class="qr-image" alt="PromptPay QR" />
+          </template>
+          <div v-else-if="isQrExpired" class="qr-expired-overlay-standalone">
             <XCircle :size="48" />
             <span>{{ currT.qrExpired }}</span>
           </div>
         </div>
 
         <!-- Countdown Timer -->
-        <div class="qr-timer" :class="{ 'timer-warning': qrTimeLeft <= 30, 'timer-danger': qrTimeLeft <= 10 }">
+        <div class="qr-timer" :class="{ 'timer-warning': qrTimeLeft <= 60, 'timer-danger': qrTimeLeft <= 30 }">
           <Timer :size="18" />
           <span>{{ currT.timeRemaining }}: </span>
           <span class="timer-value">{{ Math.floor(qrTimeLeft / 60) }}:{{ (qrTimeLeft % 60).toString().padStart(2, '0') }}</span>
@@ -413,20 +474,17 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
         <!-- Timer Progress Bar -->
         <div class="timer-bar">
-          <div class="timer-bar-fill" :style="{ width: (qrProgress * 100) + '%' }" :class="{ 'bar-warning': qrTimeLeft <= 30, 'bar-danger': qrTimeLeft <= 10 }"></div>
+          <div class="timer-bar-fill" :style="{ width: (qrProgress * 100) + '%' }" :class="{ 'bar-warning': qrTimeLeft <= 60, 'bar-danger': qrTimeLeft <= 30 }"></div>
         </div>
 
-        <p v-if="!isQrExpired" class="scan-text">{{ currT.scan }}</p>
-        <p v-if="!isQrExpired" class="sub-text">{{ currT.amount }}</p>
+        <p v-if="!isQrExpired && !qrLoading" class="scan-text">{{ currT.scan }}</p>
+        <p v-if="!isQrExpired && !qrLoading" class="sub-text">{{ currT.amount }}</p>
         <p v-if="isQrExpired" class="expired-sub-text">{{ currT.qrExpiredSub }}</p>
-
-        <!-- Min amount info -->
-        <p class="min-amount-hint">{{ currT.minAmount }}</p>
       </div>
 
       <!-- Action Buttons -->
       <div class="qr-actions">
-        <button class="kiosk-btn btn-secondary qr-action-btn" @click="backToMethods">
+        <button class="kiosk-btn btn-secondary qr-action-btn" :disabled="qrLoading" @click="backToMethods">
           <ArrowLeft :size="20" />
           <span>{{ currT.changeMethod }}</span>
         </button>
@@ -434,21 +492,6 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
           <XCircle :size="20" />
           <span>{{ currT.cancelTopup }}</span>
         </button>
-      </div>
-
-      <!-- Demo buttons to simulate success/fail -->
-      <div class="demo-actions">
-        <div class="demo-notice">
-          <Smartphone :size="20" />
-          <span>{{ currT.demo }}</span>
-        </div>
-        <div class="demo-buttons">
-          <button class="demo-btn success" :disabled="isProcessing" @click="doTopUp">
-            {{ isProcessing ? currT.processing : '✓ Success (Real)' }}
-          </button>
-          <button class="demo-btn fail" @click="simulateFail('internet')">✗ No Internet</button>
-          <button class="demo-btn fail" @click="simulateFail('server')">✗ Server Error</button>
-        </div>
       </div>
     </div>
 
@@ -1155,4 +1198,39 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   opacity: 0.7;
 }
 .logout-btn:hover { opacity: 1; }
+
+.qr-image {
+  width: 240px;
+  height: 240px;
+  border-radius: 8px;
+}
+.qr-loading {
+  width: 240px;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #0284c7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.qr-expired-overlay-standalone {
+  width: 240px;
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #ef4444;
+  font-weight: 600;
+}
 </style>
