@@ -185,6 +185,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
         balance: c.wallet_balance ?? 0,
         colorTheme: colorForRole(c.customer_kind),
         photoUrl: c.photo_url ?? undefined,
+        role: c.customer_kind ?? null,
       }
     : null;
 
@@ -199,6 +200,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
       balance: cp.wallet_balance ?? 0,
       colorTheme: colorForRole(cp.role),
       photoUrl: cp.photo_url ?? undefined,
+      role: cp.role ?? null,
     }));
 
   const childWallets: Wallet[] = family.children
@@ -212,6 +214,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
       balance: ch.wallet_balance ?? 0,
       colorTheme: STUDENT_GRADIENT,
       photoUrl: ch.photo_url ?? undefined,
+      role: 'student',
     }));
 
   return {

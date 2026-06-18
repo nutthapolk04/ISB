@@ -24,8 +24,8 @@ const t = {
     personal: 'Personal',
     child: "Child's",
     walletOf: 'of',
-    roleParent: 'Parent',
-    roleStaff: 'Staff',
+    roleParent: 'Parent / Guardian',
+    roleStaff: 'Staff / Teacher',
     roleStudent: 'Student',
   },
   TH: {
@@ -39,8 +39,8 @@ const t = {
     personal: 'ส่วนตัว',
     child: 'ของบุตร',
     walletOf: 'ของ',
-    roleParent: 'ผู้ปกครอง',
-    roleStaff: 'Staff',
+    roleParent: 'ผู้ปกครอง / ผู้ดูแล',
+    roleStaff: 'บุคลากร / ครู',
     roleStudent: 'นักเรียน',
   }
 };
@@ -70,13 +70,16 @@ const formatCurrency = (val: number) => {
   }).format(val);
 };
 
-const roleLabel = computed(() => {
-  const role = store.currentUser?.role?.toLowerCase() ?? '';
-  if (role.includes('parent') || role.includes('guardian')) return currT.value.roleParent;
-  if (role.includes('staff') || role.includes('teacher') || role.includes('employee')) return currT.value.roleStaff;
-  if (role.includes('student')) return currT.value.roleStudent;
-  return null;
-});
+// Per-wallet role label — uses each wallet's holder role, not the logged-in user's.
+// E.g. when Malee (parent) taps her card, her own wallet shows "Parent / Guardian"
+// but Somchai's coparent wallet shows "Staff / Teacher".
+const walletRoleLabel = (role: string | null | undefined): string => {
+  const r = (role ?? '').toLowerCase();
+  if (r.includes('parent') || r.includes('guardian')) return currT.value.roleParent;
+  if (r.includes('staff') || r.includes('teacher') || r.includes('employee')) return currT.value.roleStaff;
+  if (r.includes('student') || r.includes('child')) return currT.value.roleStudent;
+  return currT.value.roleParent;
+};
 
 const maskData = (str: string) => {
   if (str.length <= 4) return str;
@@ -218,8 +221,7 @@ onUnmounted(() => {
             <div class="user-details">
               <h2 class="user-name">{{ wallet.holderName }}</h2>
               <div class="role-row">
-                <span v-if="wallet.type === 'child'" class="role-badge role-child">{{ currT.child }}</span>
-                <span v-else-if="roleLabel" class="role-badge role-account">{{ roleLabel }}</span>
+                <span class="role-badge role-account">{{ walletRoleLabel(wallet.role) }}</span>
               </div>
               <p class="balance-sub">{{ currT.balance }} {{ currT.balanceUnit }}</p>
             </div>
@@ -382,20 +384,18 @@ onUnmounted(() => {
   display: inline-block;
   padding: 0.15rem 0.6rem;
   border-radius: 2rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #fff;
 }
 
-.role-account {
-  background: rgba(255,255,255,0.9);
-  color: #3b1f7e;
-}
-
+.role-account,
 .role-child {
-  background: rgba(255,255,255,0.9);
-  color: #b45309;
+  /* Use the unified role-badge style above — white tint works on all gradients. */
 }
 
 .user-details { flex: 1; }

@@ -28,6 +28,7 @@ export interface Wallet {
     balance: number;
     colorTheme: string; // hex color or class
     photoUrl?: string;  // face photo for avatar
+    role?: string | null; // holder's role: parent/staff/student/...
 }
 
 export interface User {
