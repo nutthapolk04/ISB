@@ -125,10 +125,18 @@ export async function getLowBalanceAlert(parentUserId: number, childId: number):
 
 export async function myCoparents(parentUserId: number, familyCode: string | null): Promise<CoParentSummaryDTO[]> {
   if (!familyCode) return [];
+  // Co-parents = other guardians in the same family, NOT students.
+  // Students may have user accounts (for login) with the same family_code,
+  // but they should appear under children (via parent_child_links), not here.
   const coUsers = await db
     .select()
     .from(users)
-    .where(and(eq(users.familyCode, familyCode), ne(users.id, parentUserId), eq(users.isActive, true)));
+    .where(and(
+      eq(users.familyCode, familyCode),
+      ne(users.id, parentUserId),
+      eq(users.isActive, true),
+      ne(users.role, "student"),
+    ));
 
   const results: CoParentSummaryDTO[] = [];
   for (const u of coUsers) {
