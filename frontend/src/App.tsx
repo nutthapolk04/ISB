@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { CenterAlertHost } from "@/components/CenterAlert";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -95,16 +95,21 @@ function AppShell() {
   const { t } = useTranslation();
   const [pwOpen, setPwOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  // Hide operational widgets on family/parent surfaces — those routes are
+  // for end-user wallet viewing, not POS/admin ops.
+  const isFamilySurface = location.pathname.startsWith("/parent");
+  const showOpsWidgets = !isFamilySurface && hasRole("admin", "manager", "cashier", "kitchen");
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full overflow-x-hidden">
         <AppSidebar />
-        <main className="flex flex-1 flex-col min-w-0">
+        <main className="flex flex-1 flex-col min-w-0 overflow-x-hidden">
           <header className="app-topbar">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
-              {hasRole("admin", "staff", "cashier", "manager", "kitchen") && (
+              {showOpsWidgets && (
                 <>
                   <ServerStatusIndicator />
                   <ReSyncControl />
