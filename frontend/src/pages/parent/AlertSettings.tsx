@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Bell, BellOff } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 
 interface AlertConfig {
   child_customer_id: number;
@@ -86,9 +87,7 @@ export default function AlertSettings() {
   return (
     <div className="page-shell">
       <div className="flex items-center gap-3 mb-6">
-        <Button asChild variant="ghost" size="icon" className="h-9 w-9">
-          <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
+        <BackButton to="/parent/dashboard" />
         <div>
           <h1 className="text-lg font-bold text-slate-800">{t("parent.dashboard.alerts", "Alerts")}</h1>
           {customer && <p className="text-sm text-slate-500">{customer.name}</p>}

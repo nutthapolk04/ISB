@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, AlertCircle, IdCard } from "lucide-react";
+import { AlertCircle, IdCard } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 
 interface StudentProfile {
   id: number;
@@ -69,9 +68,7 @@ export default function StudentProfile() {
 
         {/* Back button */}
         <div className="page-header flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="h-10 text-slate-700 hover:text-slate-900 hover:bg-slate-200">
-            <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}</Link>
-          </Button>
+          <BackButton to="/parent/dashboard" />
         </div>
 
         {/* Profile Hero Card */}

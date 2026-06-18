@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Wallet as WalletIcon, CheckCircle2, Clock, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
+import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
+import { BackButton } from "@/components/BackButton";
+import { Wallet as WalletIcon, CheckCircle2, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 import { storeBayIntent } from "@/pages/payment/MockBayGateway";
 
@@ -369,64 +371,66 @@ export default function WalletDetail() {
     );
   }
 
+  // Determine role for color theming:
+  // - own wallet (effectiveId === "own") → logged-in user's role
+  // - wallet-* prefix → the wallet record has role from API (stored in profile.role)
+  // - child customer (numeric ID) → "student"
+  const displayRole: string = effectiveId === "own" || effectiveId.startsWith("wallet-")
+    ? (profile.role ?? user?.role ?? "staff")
+    : "student";
+
+  const headerStyle = getRoleStyle(displayRole);
+
   return (
     <div className="page-shell">
       <div className="space-y-4 sm:space-y-6">
 
+        {/* Back button — raised, above the gradient banner */}
+        <div className="flex items-center gap-2">
+          <BackButton to={user?.role === "parent" ? "/parent/dashboard" : "/"} />
+        </div>
+
         {/* Header banner */}
-        <div className="rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 p-5 shadow-md">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
-                <WalletIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white drop-shadow-sm">
-                  {profile.is_own_user_wallet
-                    ? t("parent.wallet.myWalletLabel", { name: profile.name })
-                    : profile.name}
-                </h1>
-                <div className="flex flex-wrap gap-1.5 mt-0.5">
-                  {profile.is_own_user_wallet && profile.role && (
-                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white capitalize">
-                      {profile.role}
-                    </span>
-                  )}
-                  {!profile.is_own_user_wallet && profile.student_code && (
-                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
-                      {profile.student_code}
-                    </span>
-                  )}
-                  {!profile.is_own_user_wallet && profile.grade && (
-                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
-                      {profile.grade}
-                    </span>
-                  )}
-                  {profile.card_frozen && (
-                    <span className="inline-flex items-center rounded-full bg-red-500/80 px-2 py-0.5 text-xs font-medium text-white">
-                      {t("parent.wallet.cardFrozen")}
-                    </span>
-                  )}
-                </div>
+        <div className="rounded-2xl p-5 shadow-md" style={headerStyle}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
+              <WalletIcon className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white drop-shadow-sm">
+                {profile.is_own_user_wallet
+                  ? t("parent.wallet.myWalletLabel", { name: profile.name })
+                  : profile.name}
+              </h1>
+              <div className="flex flex-wrap gap-1.5 mt-0.5">
+                {/* Role badge pill */}
+                <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                  {getRoleLabel(displayRole)}
+                </span>
+                {!profile.is_own_user_wallet && profile.student_code && (
+                  <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                    {profile.student_code}
+                  </span>
+                )}
+                {!profile.is_own_user_wallet && profile.grade && (
+                  <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                    {profile.grade}
+                  </span>
+                )}
+                {profile.card_frozen && (
+                  <span className="inline-flex items-center rounded-full bg-red-500/80 px-2 py-0.5 text-xs font-medium text-white">
+                    {t("parent.wallet.cardFrozen")}
+                  </span>
+                )}
               </div>
             </div>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="h-9 shrink-0 text-white hover:bg-white/20 hover:text-white border border-white/30"
-            >
-              <Link to={user?.role === "parent" ? "/parent/dashboard" : "/"}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> {t("parent.common.back")}
-              </Link>
-            </Button>
           </div>
         </div>
 
         {/* Balance card */}
         <Card className="overflow-hidden border-0 shadow-lg">
-          <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-center">
-            <p className="text-sm font-medium text-orange-100">{t("parent.wallet.balance")}</p>
+          <div className="p-6 text-center" style={headerStyle}>
+            <p className="text-sm font-medium text-white/80">{t("parent.wallet.balance")}</p>
             <p className="text-4xl sm:text-5xl font-extrabold text-white mt-1 tabular-nums drop-shadow-sm">
               {formatTHB(profile.wallet_balance ?? 0)}
             </p>
