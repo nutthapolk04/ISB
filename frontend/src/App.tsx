@@ -104,8 +104,12 @@ function AppShell() {
           <header className="app-topbar">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
-              <ServerStatusIndicator />
-              <ReSyncControl />
+              {hasRole("admin", "staff", "cashier", "manager", "kitchen") && (
+                <>
+                  <ServerStatusIndicator />
+                  <ReSyncControl />
+                </>
+              )}
               <LanguageSwitcher />
               {user && (
                 <div className="flex items-center gap-2 border-l border-border/60 pl-2">
