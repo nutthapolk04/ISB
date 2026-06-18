@@ -302,29 +302,29 @@ export default function FamilyDashboard() {
                 <UserRound className="h-8 w-8 text-white/60" />
               </div>
             </div>
-            <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balance", "ยอดเงินคงเหลือ")} (บาท)</p>
+            <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
             <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">{formatTHB(studentWallet.balance)}</p>
             {studentWallet.username && <p className="text-xs text-blue-200 mt-2">{studentWallet.username}</p>}
             <p className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
               <RefreshCw className="h-2.5 w-2.5" />Updated at {now}
             </p>
             <div className="flex justify-end mt-2">
-              <span className="bg-white/20 text-white text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "นักเรียน")}</span>
+              <span className="bg-white/20 text-white text-xs rounded-full px-2.5 py-0.5">{t("roles.student", "Student")}</span>
             </div>
           </div>
         </div>
 
         <div className="mt-5">
-          <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "การดำเนินการ")}</p>
+          <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "Actions")}</p>
           <div className="grid grid-cols-2 gap-2.5">
             <ActionButton
               icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"><WalletIcon className="h-5 w-5 text-blue-600" /></div>}
-              label={t("parent.dashboard.topup", "เติมเงิน")}
+              label={t("parent.dashboard.topUp", "Top up")}
               to={`/parent/wallet/${studentWallet.customer_id}`}
             />
             <ActionButton
               icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
-              label={t("parent.dashboard.profile", "โปรไฟล์")}
+              label={t("parent.dashboard.profile", "Profile")}
               to={`/parent/profile/${studentWallet.customer_id}`}
             />
           </div>
@@ -408,7 +408,7 @@ export default function FamilyDashboard() {
                     </div>
                   </div>
 
-                  <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balance", "ยอดเงินคงเหลือ")} (บาท)</p>
+                  <p className="text-xs text-blue-200 mt-3">{t("parent.dashboard.balanceUnit", "Balance (THB)")}</p>
                   <p className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">
                     {card.balance !== null ? formatTHB(card.balance) : "—"}
                   </p>
@@ -460,12 +460,11 @@ export default function FamilyDashboard() {
           {/* Action buttons */}
           {activeCard && (
             <div className="mt-5">
-              <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "การดำเนินการ")}</p>
+              <p className="text-sm font-semibold text-slate-700 mb-3">{t("parent.dashboard.actions", "Actions")}</p>
               <div className="grid grid-cols-2 gap-2.5">
-                {/* เติมเงิน — all card types */}
                 <ActionButton
                   icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100"><WalletIcon className="h-5 w-5 text-blue-600" /></div>}
-                  label={t("parent.dashboard.topup", "เติมเงิน")}
+                  label={t("parent.dashboard.topUp", "Top up")}
                   to={
                     activeCard.kind === "self" ? "/parent/wallet/own" :
                     activeCard.kind === "coparent" ? `/parent/wallet/wallet-${activeCard.walletId}` :
@@ -474,17 +473,16 @@ export default function FamilyDashboard() {
                   disabled={activeCard.kind !== "self" && !activeCard.walletId}
                 />
 
-                {/* โปรไฟล์ (child) / ประวัติ (self/coparent) */}
                 {activeCard.kind === "child" ? (
                   <ActionButton
                     icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
-                    label={t("parent.dashboard.profile", "โปรไฟล์")}
+                    label={t("parent.dashboard.profile", "Profile")}
                     to={`/parent/profile/${activeCard.customerId}`}
                   />
                 ) : (
                   <ActionButton
                     icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
-                    label={t("parent.dashboard.history", "ประวัติ")}
+                    label={t("parent.dashboard.history", "History")}
                     to={
                       activeCard.kind === "self" ? "/parent/wallet/own?tab=history" :
                       `/parent/wallet/wallet-${activeCard.walletId}?tab=history`
@@ -493,18 +491,16 @@ export default function FamilyDashboard() {
                   />
                 )}
 
-                {/* แจ้งเตือน (child only) */}
                 <ActionButton
                   icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100"><Bell className="h-5 w-5 text-purple-600" /></div>}
-                  label={t("parent.dashboard.alerts", "แจ้งเตือน")}
+                  label={t("parent.dashboard.alerts", "Alerts")}
                   to={activeCard.kind === "child" ? `/parent/alerts/${activeCard.customerId}` : "#"}
                   disabled={activeCard.kind !== "child"}
                 />
 
-                {/* ตั้งค่า (child only — leads to StudentProfile which has card freeze) */}
                 <ActionButton
                   icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100"><Settings className="h-5 w-5 text-orange-500" /></div>}
-                  label={t("parent.dashboard.settings", "ตั้งค่า")}
+                  label={t("parent.dashboard.settings", "Settings")}
                   to={activeCard.kind === "child" ? `/parent/profile/${activeCard.customerId}` : "#"}
                   disabled={activeCard.kind !== "child"}
                 />
@@ -516,20 +512,20 @@ export default function FamilyDashboard() {
           {activeCard?.walletId && (
             <div className="mt-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-slate-700">{t("parent.dashboard.recentTx", "รายการล่าสุด")}</p>
+                <p className="text-sm font-semibold text-slate-700">{t("parent.dashboard.recentActivity", "Recent activity")}</p>
                 {activeCard.kind === "child" && activeCard.customerId && (
                   <Link to={`/parent/transactions/${activeCard.customerId}`} className="text-sm text-blue-600">
-                    {t("parent.dashboard.viewAll", "ดูทั้งหมด")}
+                    {t("parent.dashboard.viewAll", "View all")}
                   </Link>
                 )}
                 {activeCard.kind === "self" && (
                   <Link to="/parent/wallet/own?tab=history" className="text-sm text-blue-600">
-                    {t("parent.dashboard.viewAll", "ดูทั้งหมด")}
+                    {t("parent.dashboard.viewAll", "View all")}
                   </Link>
                 )}
                 {activeCard.kind === "coparent" && activeCard.walletId && (
                   <Link to={`/parent/wallet/wallet-${activeCard.walletId}?tab=history`} className="text-sm text-blue-600">
-                    {t("parent.dashboard.viewAll", "ดูทั้งหมด")}
+                    {t("parent.dashboard.viewAll", "View all")}
                   </Link>
                 )}
               </div>
@@ -553,7 +549,7 @@ export default function FamilyDashboard() {
 
                   {!txLoading && txs.length === 0 && (
                     <p className="px-4 py-6 text-center text-sm text-slate-400">
-                      {t("parent.dashboard.noTx", "ยังไม่มีรายการ")}
+                      {t("parent.dashboard.noTx", "No transactions yet")}
                     </p>
                   )}
 

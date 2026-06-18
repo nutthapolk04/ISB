@@ -2375,7 +2375,14 @@
       "todaySpentVsLimit": "ใช้ไปแล้ว {{spent}} จาก {{limit}} วันนี้",
       "cardSettings": "ตั้งค่าบัตร",
       "blockCard": "บล็อกบัตร",
-      "updatedAt": "อัพเดทเมื่อ"
+      "updatedAt": "อัพเดทเมื่อ",
+      "actions": "การดำเนินการ",
+      "alerts": "แจ้งเตือน",
+      "settings": "ตั้งค่า",
+      "recentActivity": "รายการล่าสุด",
+      "viewAll": "ดูทั้งหมด",
+      "noTx": "ยังไม่มีรายการ",
+      "balanceUnit": "ยอดเงินคงเหลือ (บาท)"
     },
     "wallet": {
       "myWalletLabel": "กระเป๋าของฉัน — {{name}}",

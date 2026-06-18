@@ -2377,7 +2377,14 @@
       "todaySpentVsLimit": "{{spent}} of {{limit}} spent today",
       "cardSettings": "Card settings",
       "blockCard": "Block Card",
-      "updatedAt": "Updated at"
+      "updatedAt": "Updated at",
+      "actions": "Actions",
+      "alerts": "Alerts",
+      "settings": "Settings",
+      "recentActivity": "Recent activity",
+      "viewAll": "View all",
+      "noTx": "No transactions yet",
+      "balanceUnit": "Balance (THB)"
     },
     "wallet": {
       "myWalletLabel": "My Wallet — {{name}}",

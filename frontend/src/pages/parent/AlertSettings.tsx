@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,8 +58,11 @@ export default function AlertSettings() {
   const handleSave = async () => {
     if (!customerId) return;
     const thresholdNum = threshold ? Number(threshold) : null;
-    if (threshold && (isNaN(thresholdNum!) || thresholdNum! <= 0)) {
-      toast({ title: t("parent.alerts.invalidThreshold", "กรุณาระบุจำนวนเงินที่ถูกต้อง"), variant: "destructive" });
+    if (enabled && (thresholdNum === null || isNaN(thresholdNum) || thresholdNum <= 0)) {
+      toast({
+        title: t("parent.lowBalanceAlert.invalidThreshold", "Enter a balance threshold to alert on"),
+        variant: "destructive",
+      });
       return;
     }
     setSaving(true);
@@ -67,10 +71,10 @@ export default function AlertSettings() {
         enabled,
         threshold: thresholdNum,
       });
-      toast({ title: t("parent.alerts.saveSuccess", "บันทึกการตั้งค่าแจ้งเตือนแล้ว") });
+      toast({ title: t("parent.lowBalanceAlert.saved", "Notification settings saved") });
     } catch (e) {
       toast({
-        title: t("parent.alerts.saveFailed", "บันทึกไม่สำเร็จ"),
+        title: t("parent.lowBalanceAlert.saveFailed", "Failed to save"),
         description: e instanceof ApiError ? e.detail : undefined,
         variant: "destructive",
       });
@@ -86,7 +90,7 @@ export default function AlertSettings() {
           <Link to="/parent/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div>
-          <h1 className="text-lg font-bold text-slate-800">{t("parent.alerts.title", "การแจ้งเตือน")}</h1>
+          <h1 className="text-lg font-bold text-slate-800">{t("parent.dashboard.alerts", "Alerts")}</h1>
           {customer && <p className="text-sm text-slate-500">{customer.name}</p>}
         </div>
       </div>
@@ -105,22 +109,21 @@ export default function AlertSettings() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 {enabled ? <Bell className="h-4 w-4 text-blue-500" /> : <BellOff className="h-4 w-4 text-slate-400" />}
-                {t("parent.alerts.lowBalanceAlert", "แจ้งเตือนยอดเงินต่ำ")}
+                {t("parent.lowBalanceAlert.title", "Low-balance email alerts")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">{t("parent.alerts.enableAlert", "เปิดใช้งานการแจ้งเตือน")}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{t("parent.alerts.enableDesc", "แจ้งเตือนทางอีเมลเมื่อยอดเงินต่ำกว่าที่กำหนด")}</p>
-                </div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-slate-700 flex-1">
+                  {t("parent.lowBalanceAlert.toggleLabel", "Email me when the balance drops below the threshold")}
+                </p>
                 <Switch checked={enabled} onCheckedChange={setEnabled} />
               </div>
 
               {enabled && (
                 <div className="space-y-1.5">
                   <Label htmlFor="threshold" className="text-sm font-medium text-slate-700">
-                    {t("parent.alerts.threshold", "แจ้งเตือนเมื่อยอดเงินต่ำกว่า (บาท)")}
+                    {t("parent.lowBalanceAlert.thresholdLabel", "Alert when balance is below (THB)")}
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">฿</span>
@@ -136,21 +139,21 @@ export default function AlertSettings() {
                     />
                   </div>
                   <p className="text-xs text-slate-400">
-                    {t("parent.alerts.thresholdDesc", "ระบุยอดเงินขั้นต่ำที่ต้องการรับการแจ้งเตือน เช่น 200 บาท")}
+                    {t("parent.lowBalanceAlert.cooldownNote", "Repeat alerts are sent at most every 4 hours to avoid spam.")}
                   </p>
                 </div>
               )}
 
               {config.last_alert_at && (
                 <p className="text-xs text-slate-400">
-                  {t("parent.alerts.lastAlert", "แจ้งเตือนล่าสุด")}: {new Date(config.last_alert_at).toLocaleString("th-TH")}
+                  {t("parent.lowBalanceAlert.lastSent", "Last alert sent")}: {fmtDateTime(config.last_alert_at)}
                 </p>
               )}
             </CardContent>
           </Card>
 
           <Button onClick={handleSave} disabled={saving} className="w-full h-11">
-            {saving ? t("parent.alerts.saving", "กำลังบันทึก…") : t("parent.alerts.save", "บันทึกการตั้งค่า")}
+            {saving ? t("common.saving", "Saving…") : t("common.save", "Save")}
           </Button>
         </div>
       )}
