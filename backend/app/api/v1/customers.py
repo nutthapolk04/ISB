@@ -2,9 +2,10 @@
 Customer / Student API — lookup (by code/uid) + card management.
 """
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.api.deps import get_current_user, require_role
@@ -28,6 +29,25 @@ from app.services.wallet_service import WalletService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _spent_today_by_module(db: Session, customer_id: int) -> Dict[str, float]:
+    """Return today's total spend per shop module for a customer (Thailand timezone)."""
+    rows = db.execute(text("""
+        SELECT s.module, COALESCE(SUM(r.total), 0)
+        FROM receipts r
+        JOIN shops s ON s.id = r.shop_id
+        WHERE r.customer_id = :cid
+          AND r.status = 'active'
+          AND (r.transaction_date AT TIME ZONE 'Asia/Bangkok')::date
+              = (now() AT TIME ZONE 'Asia/Bangkok')::date
+        GROUP BY s.module
+    """), {"cid": customer_id}).fetchall()
+    result: Dict[str, float] = {"canteen": 0.0, "store": 0.0}
+    for module, total in rows:
+        if module in result:
+            result[module] = float(total)
+    return result
 
 
 def _user_to_search_profile(u: User) -> StudentProfileResponse:
@@ -54,8 +74,9 @@ def _user_to_search_profile(u: User) -> StudentProfileResponse:
     )
 
 
-def _to_profile(c: Customer) -> StudentProfileResponse:
+def _to_profile(c: Customer, db: Optional[Session] = None) -> StudentProfileResponse:
     wallet = c.wallet
+    spent = _spent_today_by_module(db, c.id) if db is not None else {}
     return StudentProfileResponse(
         id=c.id,
         customer_code=c.customer_code,
@@ -71,6 +92,10 @@ def _to_profile(c: Customer) -> StudentProfileResponse:
         card_uid=c.card_uid,
         card_frozen=bool(c.card_frozen),
         daily_limit=float(c.daily_limit) if c.daily_limit is not None else None,
+        daily_limit_canteen=float(c.daily_limit_canteen) if c.daily_limit_canteen is not None else None,
+        daily_limit_store=float(c.daily_limit_store) if c.daily_limit_store is not None else None,
+        spent_today_canteen=spent.get("canteen"),
+        spent_today_store=spent.get("store"),
         negative_credit_limit=float(c.negative_credit_limit) if c.negative_credit_limit is not None else None,
         school_type=c.school_type,
         external_id=c.external_id,
@@ -247,7 +272,7 @@ def get_customer_profile(
         WalletService.ensure_wallet_for_customer(db, c.id)
         db.commit()
         db.refresh(c)
-    return _to_profile(c)
+    return _to_profile(c, db)
 
 
 @router.patch("/{customer_id}", response_model=StudentProfileResponse)
@@ -343,10 +368,16 @@ def set_daily_limit(
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
     _authz_access_customer(db, current_user, c)
-    c.daily_limit = payload.daily_limit
+    fields = payload.model_fields_set
+    if "daily_limit" in fields:
+        c.daily_limit = payload.daily_limit
+    if "daily_limit_canteen" in fields:
+        c.daily_limit_canteen = payload.daily_limit_canteen
+    if "daily_limit_store" in fields:
+        c.daily_limit_store = payload.daily_limit_store
     db.commit()
     db.refresh(c)
-    return _to_profile(c)
+    return _to_profile(c, db)
 
 
 @router.patch("/{customer_id}/allergies", response_model=StudentProfileResponse)

@@ -798,6 +798,12 @@ run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS enroll_date DATE',
 run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE',
     'customers.withdraw_date')
 
+# === Parent daily limit per module (canteen / store) ===
+run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_canteen NUMERIC(10,2)',
+    'customers.daily_limit_canteen')
+run('ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_store NUMERIC(10,2)',
+    'customers.daily_limit_store')
+
 # === Verification: fail loudly if critical columns/tables are still missing ===
 required_cols = [
     ('users', 'role'),

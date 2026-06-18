@@ -54,6 +54,8 @@ class Customer(Base):
     card_uid = Column(String(50), unique=True, nullable=True, index=True)
     card_frozen = Column(Boolean, default=False, nullable=False)
     daily_limit = Column(Numeric(10, 2), nullable=True)
+    daily_limit_canteen = Column(Numeric(10, 2), nullable=True)
+    daily_limit_store = Column(Numeric(10, 2), nullable=True)
     negative_credit_limit = Column(Numeric(10, 2), nullable=True)  # Phase 3: allow overdraft up to this amount
     allergy_override_note = Column(Text, nullable=True)             # Phase 3: admin-added safety note (distinct from PowerSchool-synced allergies)
     powerschool_sync_at = Column(DateTime(timezone=True), nullable=True)

@@ -24,6 +24,10 @@ class StudentProfileResponse(BaseModel):
     card_uid: Optional[str] = None
     card_frozen: bool = False
     daily_limit: Optional[float] = None
+    daily_limit_canteen: Optional[float] = None
+    daily_limit_store: Optional[float] = None
+    spent_today_canteen: Optional[float] = None
+    spent_today_store: Optional[float] = None
     negative_credit_limit: Optional[float] = None
     external_id: Optional[str] = None
     family_code: Optional[str] = None
@@ -41,6 +45,8 @@ class FreezeCardRequest(BaseModel):
 
 class DailyLimitRequest(BaseModel):
     daily_limit: Optional[float] = Field(None, ge=0)
+    daily_limit_canteen: Optional[float] = Field(None, ge=0)
+    daily_limit_store: Optional[float] = Field(None, ge=0)
 
 
 class NegativeCreditLimitRequest(BaseModel):
