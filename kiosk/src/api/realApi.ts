@@ -51,6 +51,7 @@ interface ISBCoParentSummary {
   user_id: number;
   full_name: string;
   relation: string | null;
+  role?: string | null;
   wallet_id?: number | null;
   wallet_balance?: number | null;
   photo_url?: string | null;
@@ -159,10 +160,19 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
 
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
-const CARD_GRADIENT = 'linear-gradient(135deg, #3b1f7e 0%, #6b3fa0 50%, #9b6fcf 100%)';
-const CHILD_GRADIENT = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)';
+// Role-based wallet card colors — must match frontend ROLE_STYLES
+const PARENT_GRADIENT = 'linear-gradient(135deg, #3b1f7e 0%, #6b3fa0 50%, #9b6fcf 100%)';
+const STAFF_GRADIENT = 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #2dd4bf 100%)';
+const STUDENT_GRADIENT = 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)';
 
-const COPARENT_GRADIENT = 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #2dd4bf 100%)';
+function colorForRole(role: string | null | undefined): string {
+  switch (role) {
+    case 'parent': return PARENT_GRADIENT;
+    case 'staff': return STAFF_GRADIENT;
+    case 'student': return STUDENT_GRADIENT;
+    default: return STAFF_GRADIENT;
+  }
+}
 
 function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { children: [], coparents: [] }): User {
   const personalWallet: Wallet | null = c.wallet_id != null
@@ -173,7 +183,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
         holderName: c.name,
         cardId: c.student_code ?? c.customer_code ?? String(c.id),
         balance: c.wallet_balance ?? 0,
-        colorTheme: CARD_GRADIENT,
+        colorTheme: colorForRole(c.customer_kind),
         photoUrl: c.photo_url ?? undefined,
       }
     : null;
@@ -187,7 +197,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
       holderName: cp.full_name,
       cardId: cp.username,
       balance: cp.wallet_balance ?? 0,
-      colorTheme: COPARENT_GRADIENT,
+      colorTheme: colorForRole(cp.role),
       photoUrl: cp.photo_url ?? undefined,
     }));
 
@@ -200,7 +210,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
       holderName: ch.name,
       cardId: ch.student_code ?? ch.customer_code,
       balance: ch.wallet_balance ?? 0,
-      colorTheme: CHILD_GRADIENT,
+      colorTheme: STUDENT_GRADIENT,
       photoUrl: ch.photo_url ?? undefined,
     }));
 
