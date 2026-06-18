@@ -9,17 +9,19 @@ const store = useKioskStore();
 const buildInfo = __BUILD__;
 
 // Auto-reset logic
-const TIMEOUT_DURATION = 15000; // 15 seconds
+// topup page gets 5 min (user is paying via phone — no kiosk interaction)
+const TIMEOUT_TOPUP = 300_000;
+const TIMEOUT_DEFAULT = 60_000;
 let timeoutId: number | null = null;
 
 const resetTimeout = () => {
   if (timeoutId) clearTimeout(timeoutId);
   store.updateActivity();
-  
-  // Don't start timer on Welcome screen
-  if (route.name !== 'welcome') {
-    timeoutId = window.setTimeout(handleTimeout, TIMEOUT_DURATION);
-  }
+
+  if (route.name === 'welcome') return;
+
+  const duration = route.path.startsWith('/topup') ? TIMEOUT_TOPUP : TIMEOUT_DEFAULT;
+  timeoutId = window.setTimeout(handleTimeout, duration);
 };
 
 const handleTimeout = () => {
