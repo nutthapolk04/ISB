@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
 import { BackButton } from "@/components/BackButton";
+import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { Wallet as WalletIcon, CheckCircle2, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 import { storeBayIntent } from "@/pages/payment/MockBayGateway";
@@ -60,6 +61,8 @@ interface Transaction {
   balance_before: number;
   balance_after: number;
   description?: string | null;
+  reference_type?: string | null;
+  reference_id?: number | null;
   created_at: string;
 }
 
@@ -98,6 +101,7 @@ export default function WalletDetail() {
   const [qrStatus, setQrStatus] = useState<"waiting" | "confirmed" | "cancelled" | "timeout">("waiting");
   const [gatewayOpen, setGatewayOpen] = useState(false);
   const [pendingAmt, setPendingAmt] = useState(0);
+  const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
 
   const formatDate = (iso: string) => fmtDateTime(iso);
 
@@ -385,18 +389,16 @@ export default function WalletDetail() {
     <div className="page-shell">
       <div className="space-y-4 sm:space-y-6">
 
-        {/* Back button — raised, above the gradient banner */}
-        <div className="flex items-center gap-2">
-          <BackButton to={user?.role === "parent" ? "/parent/dashboard" : "/"} />
-        </div>
-
-        {/* Header banner */}
-        <div className="rounded-2xl p-5 shadow-md" style={headerStyle}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
+        {/* Header banner with Back button inside */}
+        <div className="rounded-2xl p-5 shadow-md relative" style={headerStyle}>
+          <div className="absolute top-3 right-3 z-10">
+            <BackButton to={user?.role === "parent" ? "/parent/dashboard" : "/"} />
+          </div>
+          <div className="flex items-start gap-3 pr-24">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner shrink-0">
               <WalletIcon className="h-6 w-6" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold text-white drop-shadow-sm">
                 {profile.is_own_user_wallet
                   ? t("parent.wallet.myWalletLabel", { name: profile.name })
@@ -614,10 +616,15 @@ export default function WalletDetail() {
               )}
               {transactions.map((tx) => {
                 const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+                const hasReceipt = tx.reference_type === "receipt" && tx.reference_id != null;
                 return (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm hover:bg-amber-50/80 transition-colors"
+                    onClick={() => hasReceipt && setOpenReceiptId(tx.reference_id!)}
+                    className={cn(
+                      "flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm transition-colors",
+                      hasReceipt ? "cursor-pointer hover:bg-amber-50/80 hover:shadow-sm" : "hover:bg-amber-50/80",
+                    )}
                   >
                     <div>
                       <p className="font-medium text-gray-800">{tx.description || tx.transaction_type}</p>
@@ -725,6 +732,11 @@ export default function WalletDetail() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ReceiptDetailDialog
+          receiptId={openReceiptId}
+          onClose={() => setOpenReceiptId(null)}
+        />
       </div>
     </div>
   );

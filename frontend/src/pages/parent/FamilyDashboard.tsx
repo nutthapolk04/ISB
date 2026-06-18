@@ -193,7 +193,18 @@ export default function FamilyDashboard() {
   const [coParents, setCoParents] = useState<CoParentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeIdx, setActiveIdx] = useState(0);
+  // Persist active card index across navigation (e.g., user opens wallet,
+  // navigates back — should land on the same card, not card #1).
+  const FAMILY_ACTIVE_IDX_KEY = "isb:family-dashboard:activeIdx";
+  const [activeIdx, setActiveIdx] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const raw = sessionStorage.getItem(FAMILY_ACTIVE_IDX_KEY);
+    const n = raw ? parseInt(raw, 10) : 0;
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  });
+  useEffect(() => {
+    sessionStorage.setItem(FAMILY_ACTIVE_IDX_KEY, String(activeIdx));
+  }, [activeIdx]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Recent transactions for the active card
@@ -279,6 +290,16 @@ export default function FamilyDashboard() {
       setActiveIdx(Math.max(0, cards.length - 1));
     }
   }, [cards.length, activeIdx]);
+
+  // Scroll carousel to restored activeIdx once cards have rendered (one-shot on mount/load).
+  useEffect(() => {
+    if (loading || cards.length === 0 || activeIdx === 0) return;
+    if (!scrollRef.current?.firstElementChild) return;
+    const cardW = (scrollRef.current.firstElementChild as HTMLElement).offsetWidth + 12;
+    scrollRef.current.scrollTo({ left: activeIdx * cardW, behavior: "auto" });
+    // run once after first render with data; subsequent scrolls are handled by user input
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, cards.length]);
 
   // Fetch transactions for active card
   useEffect(() => {
