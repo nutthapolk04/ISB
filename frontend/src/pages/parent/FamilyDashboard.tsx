@@ -65,6 +65,7 @@ interface CoParentSummary {
   wallet_balance?: number | null;
   photo_url?: string | null;
   username?: string | null;
+  card_uid?: string | null;
 }
 
 interface WalletTransaction {
@@ -269,6 +270,7 @@ export default function FamilyDashboard() {
       name: cp.full_name,
       balance: cp.wallet_balance ?? 0,
       code: cp.username ?? "",
+      cardUid: cp.card_uid ?? undefined,
       role: roleLabel(cp.role),
       userRole: cp.role ?? "parent",
       photoUrl: cp.photo_url ?? null,

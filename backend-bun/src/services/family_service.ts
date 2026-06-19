@@ -36,6 +36,7 @@ export interface CoParentSummaryDTO {
   wallet_balance: number | null;
   photo_url: string | null;
   username: string | null;
+  card_uid: string | null;
 }
 
 export interface ParentSummaryDTO {
@@ -164,6 +165,7 @@ export async function myCoparents(parentUserId: number, familyCode: string | nul
       wallet_balance: wallet[0] ? pgNumber(wallet[0].balance) : null,
       photo_url: u.photoUrl ?? null,
       username: u.username,
+      card_uid: u.cardUid ?? null,
     });
   }
   return results;
