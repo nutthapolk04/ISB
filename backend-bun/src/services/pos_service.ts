@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
   receipts,
@@ -276,6 +276,8 @@ export interface ListReceiptsParams {
   shopIds?: string;
   transactionMode?: string;
   requesterUserId?: number;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   pageSize?: number;
 }
@@ -309,6 +311,8 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ReceiptDTO[]>
   }
   if (p.transactionMode) conds.push(eq(receipts.transactionMode, p.transactionMode));
   if (p.requesterUserId !== undefined) conds.push(eq(receipts.requesterUserId, p.requesterUserId));
+  if (p.dateFrom) conds.push(gte(receipts.transactionDate, p.dateFrom));
+  if (p.dateTo) conds.push(lte(receipts.transactionDate, p.dateTo));
 
   const rows = await db
     .select()

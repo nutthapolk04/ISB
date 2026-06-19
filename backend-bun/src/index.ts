@@ -491,6 +491,8 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           shopIds: query.shop_ids,
           transactionMode: query.transaction_mode,
           requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : undefined,
+          dateFrom: query.date_from ?? undefined,
+          dateTo: query.date_to ?? undefined,
           page: query.page ? Number(query.page) : undefined,
           pageSize: query.page_size ? Number(query.page_size) : undefined,
         });
@@ -503,6 +505,8 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         shop_ids: t.Optional(t.Nullable(t.String())),
         transaction_mode: t.Optional(t.Nullable(t.String())),
         requester_user_id: t.Optional(t.Nullable(t.String())),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
       }),

@@ -143,6 +143,8 @@ const Receipts = () => {
 
   const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
   const [loading, setLoading] = useState(true);
+  const [monthlySales, setMonthlySales] = useState<number>(0);
+  const [monthlyCount, setMonthlyCount] = useState<number>(0);
 
   // ── Structured search fields (inputs) ──────────────────────────────────
   const [searchReceiptId, setSearchReceiptId] = useState("");
@@ -288,6 +290,25 @@ const Receipts = () => {
 
   useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
 
+  // ── Monthly stats fetch (no-filter state) ────────────────────────────────
+  const fetchMonthlyStats = useCallback(async () => {
+    try {
+      const now = new Date();
+      const dateFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const dateTo = now.toISOString().slice(0, 10);
+      const sep = queryParams.includes("?") ? "&" : "?";
+      const params = `${queryParams}${sep}date_from=${dateFrom}&date_to=${dateTo}&page_size=500`;
+      const data = await api.get<ReceiptApi[]>(`/pos/receipt${params}`);
+      const active = data.filter((r) => r.status === "active");
+      setMonthlySales(active.reduce((s, r) => s + r.total, 0));
+      setMonthlyCount(data.length);
+    } catch {
+      // non-critical — leave previous values
+    }
+  }, [queryParams]);
+
+  useEffect(() => { fetchMonthlyStats(); }, [fetchMonthlyStats]);
+
   // ── Derived ─────────────────────────────────────────────────────────────
   const filteredReceipts = receipts.filter((r) => {
     const { receiptId, payer, dateFrom, dateTo, paymentType } = appliedSearch;
@@ -319,14 +340,16 @@ const Receipts = () => {
   const safePage = Math.min(currentPage, totalPages);
   const pagedReceipts = filteredReceipts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const totalSales = receipts
-    .filter((r) => r.status === "active")
-    .reduce((s, r) => s + r.total, 0);
-
   const todayStr = new Date().toISOString().slice(0, 10);
   const todaySales = receipts
     .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
     .reduce((s, r) => s + r.total, 0);
+
+  const displayMonthlySales = hasActiveSearch
+    ? filteredReceipts.filter((r) => r.status === "active").reduce((s, r) => s + r.total, 0)
+    : monthlySales;
+
+  const displayMonthlyCount = hasActiveSearch ? filteredReceipts.length : monthlyCount;
 
   const handleViewReceipt = async (receipt: ReceiptApi) => {
     // Show immediately with what we have, then enrich with payer_detail from single-receipt endpoint
@@ -410,26 +433,26 @@ const Receipts = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="kpi-card">
           <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.totalSales")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value text-primary">฿{totalSales.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.receiptCount")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value">{receipts.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="kpi-card">
-          <CardHeader>
             <CardTitle className="kpi-label">{t("receipts.todaySales")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="kpi-value text-success">฿{todaySales.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="kpi-card">
+          <CardHeader>
+            <CardTitle className="kpi-label">{t("receipts.totalSalesMonthly", "Total Sales Monthly")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="kpi-value text-primary">฿{displayMonthlySales.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card className="kpi-card">
+          <CardHeader>
+            <CardTitle className="kpi-label">{t("receipts.receiptCountMonthly", "Receipt Count Monthly")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="kpi-value">{displayMonthlyCount}</p>
           </CardContent>
         </Card>
       </div>
