@@ -223,8 +223,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Home Hub — visible for multi-role users OR staff with a shop assignment */}
-        {!isRefundOnlyMode && user && ((user.allRoles?.length ?? 1) > 1 || (user.role === "staff" && !!user.shopId)) && (
+        {/* Home Hub — visible to all authenticated users so they can always navigate back */}
+        {!isRefundOnlyMode && user && (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0">

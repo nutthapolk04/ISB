@@ -267,14 +267,19 @@ export default function GuidePage() {
   const effectiveRole = (user?.activeRole ?? user?.role ?? "cashier") as UserRole;
   // cashier has no dedicated guide — map to canteen or store based on shop module
   const guideRole = useMemo(() => {
-    if (effectiveRole !== "cashier") return effectiveRole;
-    const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
-    return mod === "canteen" ? "canteen" : "store";
+    // cashier / staff / kitchen have no dedicated guide — map to canteen or store
+    if (effectiveRole === "cashier" || effectiveRole === "staff" || effectiveRole === "kitchen") {
+      const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
+      return mod === "canteen" ? "canteen" : "store";
+    }
+    return effectiveRole;
   }, [effectiveRole, user]);
 
   const visibleGuides = useMemo(() => {
     if (guideRole === "admin") return roleGuides;
-    return roleGuides.filter((g) => g.id === guideRole);
+    const matched = roleGuides.filter((g) => g.id === guideRole);
+    // Fallback: unknown role → show all guides rather than silently defaulting to admin
+    return matched.length > 0 ? matched : roleGuides;
   }, [guideRole]);
 
   // Initial selection — first visible guide. If the user only sees one
