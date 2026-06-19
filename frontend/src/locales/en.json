@@ -990,7 +990,7 @@
       "schoolSaved": "School info saved"
     },
     "dashboard": {
-      "title": "Admin Dashboard",
+      "title": "Dashboard",
       "todayPrefix": "Today",
       "canteenSalesToday": "Canteen Sales Today",
       "receiptsTodayCount": "{{count}} receipts today",
