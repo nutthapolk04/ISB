@@ -500,7 +500,7 @@ export default function FamilyDashboard() {
                   </div>
 
                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {card.code && card.customerCode && card.code !== card.customerCode && (
+                    {card.code && (card.kind !== "child" || !card.customerCode || card.code !== card.customerCode) && (
                       <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
                         {t("parent.dashboard.idNumber", "ID Number")}: {card.code}
                       </span>
