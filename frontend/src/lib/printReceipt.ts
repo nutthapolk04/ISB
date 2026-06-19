@@ -120,16 +120,17 @@ const RECEIPT_LABELS = {
   th: {
     subtitle: "ใบเสร็จรับเงิน / Receipt",
     receiptNo: "เลขที่",
-    date: "วันที่",
+    date: "วันที่ / เวลา",
+    cashier: "แคชเชียร์",
     payer: "ผู้ชำระ",
-    payment: "ชำระด้วย",
+    payment: "ประเภทการชำระ",
     itemDiscount: "ส่วนลด",
     billDiscount: "ส่วนลดท้ายบิล",
     tax: "ภาษี",
     subtotal: "ยอดรวม",
     grandTotal: "รวมสุทธิ",
-    balanceBefore: "ยอดก่อนชำระ",
-    balanceAfter: "ยอดคงเหลือ",
+    balanceBefore: "ยอดก่อนการซื้อครั้งนี้",
+    balanceAfter: "ยอดหลังการซื้อครั้งนี้",
     voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
     thanks: "ขอบคุณที่ใช้บริการ / Thank you",
     taxId: "เลขภาษี",
@@ -139,16 +140,17 @@ const RECEIPT_LABELS = {
   en: {
     subtitle: "Receipt",
     receiptNo: "Receipt No.",
-    date: "Date",
+    date: "Date / Time",
+    cashier: "Cashier",
     payer: "Payer",
-    payment: "Payment",
+    payment: "Payment Type",
     itemDiscount: "Discount",
     billDiscount: "Bill Discount",
     tax: "Tax",
     subtotal: "Subtotal",
     grandTotal: "Grand Total",
-    balanceBefore: "Balance Before",
-    balanceAfter: "Balance After",
+    balanceBefore: "Balance Before This Sale",
+    balanceAfter: "Balance After This Sale",
     voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
     thanks: "Thank you for your purchase",
     taxId: "Tax ID",
@@ -223,7 +225,7 @@ export function buildReceiptHtml(
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
   const cashierSection = r.created_by_name
-    ? `<div class="row small"><span>${isEn ? "Cashier" : "ผู้ขาย"}</span><span>${r.created_by_name}</span></div>`
+    ? `<div class="row small"><span>${lbl.cashier}</span><span>${r.created_by_name}</span></div>`
     : "";
   const notesSection = r.notes?.trim()
     ? `<hr/><div class="notes-block"><span class="notes-label">${isEn ? "Note" : "หมายเหตุ"}</span><span class="notes-text">${r.notes.trim()}</span></div>`
