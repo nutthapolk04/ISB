@@ -2543,7 +2543,7 @@
       "limitSaved": "Daily limit saved"
     },
     "lowBalanceAlert": {
-      "cooldownNote": "Repeat alerts are sent at most every 4 hours to avoid spam.",
+      "cooldownNote": "When your wallet balance drops below the set threshold after a transaction, an alert email will be sent. Repeat alerts are sent at most every 4 hours to avoid spam.",
       "invalidThreshold": "Enter a balance threshold to alert on",
       "lastSent": "Last alert sent",
       "neverSent": "Never sent yet",
