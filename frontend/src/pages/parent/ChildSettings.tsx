@@ -71,6 +71,7 @@ export default function ChildSettings() {
         daily_limit_store: store,
       });
       toast({ title: t("parent.childSettings.saveSuccess", "Limits saved") });
+      await load();
     } catch (e) {
       toast({
         title: t("parent.childSettings.saveFailed", "Failed to save"),
