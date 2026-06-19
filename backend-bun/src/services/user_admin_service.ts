@@ -295,9 +295,8 @@ async function parentRankMap(family_code: string | null): Promise<Map<number, st
 
 async function resolveFamily(family_code: string | null): Promise<FamilyMemberDTO[]> {
   if (!family_code) return [];
-  const [userRows, custRows, ranks] = await Promise.all([
+  const [userRows, ranks] = await Promise.all([
     db.select().from(users).where(eq(users.familyCode, family_code)),
-    db.select().from(customers).where(eq(customers.familyCode, family_code)),
     parentRankMap(family_code),
   ]);
   const members: FamilyMemberDTO[] = [];
@@ -314,23 +313,59 @@ async function resolveFamily(family_code: string | null): Promise<FamilyMemberDT
       parent_rank: ranks.get(u.id) ?? null,
     });
   }
-  for (const c of custRows) {
-    members.push({
-      entity_type: "customer",
-      id: c.id,
-      name: c.name,
-      role: "student",
-      external_id: c.externalId ?? null,
-      grade: c.grade ?? null,
-      photo_url: c.photoUrl ?? null,
-      student_code: c.studentCode ?? null,
-      customer_code: c.customerCode,
-      customer_type: c.customerType ?? null,
-      school_type: c.schoolType ?? null,
-      card_uid: c.cardUid ?? null,
-    });
+
+  // Use parent_child_links as source of truth for customer members — avoids stale
+  // family_code on customers that can persist after link deletion or PS sync.
+  const parentUserIds = userRows.map((u) => u.id);
+  if (parentUserIds.length > 0) {
+    const custRows = await db
+      .select({
+        id: customers.id,
+        name: customers.name,
+        externalId: customers.externalId,
+        grade: customers.grade,
+        photoUrl: customers.photoUrl,
+        studentCode: customers.studentCode,
+        customerCode: customers.customerCode,
+        customerType: customers.customerType,
+        schoolType: customers.schoolType,
+        cardUid: customers.cardUid,
+      })
+      .from(parentChildLinks)
+      .innerJoin(customers, eq(customers.id, parentChildLinks.childCustomerId))
+      .where(inArray(parentChildLinks.parentUserId, parentUserIds));
+
+    // Deduplicate by customer id (child may be linked to both parents in the family)
+    const seenIds = new Set<number>();
+    for (const c of custRows) {
+      if (seenIds.has(c.id)) continue;
+      seenIds.add(c.id);
+      members.push({
+        entity_type: "customer",
+        id: c.id,
+        name: c.name,
+        role: "student",
+        external_id: c.externalId ?? null,
+        grade: c.grade ?? null,
+        photo_url: c.photoUrl ?? null,
+        student_code: c.studentCode ?? null,
+        customer_code: c.customerCode,
+        customer_type: c.customerType ?? null,
+        school_type: c.schoolType ?? null,
+        card_uid: c.cardUid ?? null,
+      });
+    }
   }
-  return members;
+
+  // Remove user-entity entries whose external_id is already covered by a customer
+  // entity — student user accounts (for kiosk/parent-portal login) would otherwise
+  // duplicate the customer record that holds the canonical student data.
+  const customerExtIds = new Set(
+    members.filter((m) => m.entity_type === "customer" && m.external_id).map((m) => m.external_id!),
+  );
+  return members.filter(
+    (m) => m.entity_type !== "user" || !m.external_id || !customerExtIds.has(m.external_id),
+  );
 }
 
 async function identityHistory(entity_type: string, entity_id: number): Promise<IdentityHistoryDTO[]> {

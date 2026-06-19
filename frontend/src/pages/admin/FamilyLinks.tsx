@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
@@ -18,19 +20,16 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
 import { toast } from "@/hooks/use-toast";
 import {
-  Lock, Plus, Search, Trash2, Unlock, Users, UserCircle2, Eye, ChevronDown, ChevronUp,
+  Lock, Plus, Search, Trash2, Unlock, Users, UserCircle2,
+  ChevronDown, ChevronUp, ChevronRight,
   ArrowUp, ArrowDown, ArrowUpDown, Loader2,
 } from "lucide-react";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface LinkRow {
   id: number;
@@ -94,23 +93,34 @@ interface OrphansResponse {
   students_no_parents: OrphanStudent[];
 }
 
-interface FamilyChild {
+interface FamilyParent {
+  userId: number;
+  username: string;
+  name: string;
+}
+
+interface FamilyChildLink {
   linkId: number;
+  parentUserId: number;
+  parentName: string;
+  relation: string;
+}
+
+interface FamilyChild {
   customerId: number;
   name: string;
   studentCode?: string | null;
   grade?: string | null;
-  relation: string;
   walletId?: number | null;
   walletBalance: number;
   cardFrozen: boolean;
   photoUrl?: string | null;
+  links: FamilyChildLink[];
 }
 
-interface FamilyGroup {
-  parentId: number;
-  parentUsername: string;
-  parentName: string;
+interface FamilyUnit {
+  familyCode: string;
+  parents: FamilyParent[];
   children: FamilyChild[];
   totalBalance: number;
   frozenCount: number;
@@ -137,12 +147,14 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
-function familyStatus(f: FamilyGroup): StatusFilter {
-  if (f.children.length === 0) return "normal";
-  if (f.frozenCount === 0) return "normal";
-  if (f.frozenCount === f.children.length) return "all_frozen";
+function unitStatus(u: FamilyUnit): StatusFilter {
+  if (u.children.length === 0) return "normal";
+  if (u.frozenCount === 0) return "normal";
+  if (u.frozenCount === u.children.length) return "all_frozen";
   return "partial";
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function FamilyLinks() {
   const { t } = useTranslation();
@@ -166,15 +178,13 @@ export default function FamilyLinks() {
   const [creating, setCreating] = useState(false);
   const [deleteLinkTarget, setDeleteLinkTarget] = useState<{ linkId: number; childName: string; parentName: string } | null>(null);
 
-  // Bulk freeze
-  const [freezingParent, setFreezingParent] = useState<number | null>(null);
-
-  // Detail drawer
-  const [selectedParentId, setSelectedParentId] = useState<number | null>(null);
+  // Accordion + per-child state
+  const [expandedFamilyCode, setExpandedFamilyCode] = useState<string | null>(null);
   const [expandedChild, setExpandedChild] = useState<number | null>(null);
   const [childTxs, setChildTxs] = useState<Record<number, TxRow[]>>({});
   const [loadingTxs, setLoadingTxs] = useState<number | null>(null);
   const [freezingChild, setFreezingChild] = useState<number | null>(null);
+  const [freezingFamily, setFreezingFamily] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -199,9 +209,7 @@ export default function FamilyLinks() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const studentById = useMemo(() => {
     const map = new Map<number, StudentRow>();
@@ -209,86 +217,102 @@ export default function FamilyLinks() {
     return map;
   }, [students]);
 
-  const families: FamilyGroup[] = useMemo(() => {
-    const map = new Map<number, FamilyGroup>();
+  const parentById = useMemo(() => {
+    const map = new Map<number, UserRow>();
+    for (const p of parents) map.set(p.id, p);
+    return map;
+  }, [parents]);
+
+  // Group links into family units (one unit per family_code)
+  const familyUnits: FamilyUnit[] = useMemo(() => {
+    const unitMap = new Map<string, FamilyUnit>();
+
     for (const l of links) {
-      if (!map.has(l.parent_user_id)) {
-        map.set(l.parent_user_id, {
-          parentId: l.parent_user_id,
-          parentUsername: l.parent_username || "",
-          parentName: l.parent_full_name || l.parent_username || `user#${l.parent_user_id}`,
-          children: [],
-          totalBalance: 0,
-          frozenCount: 0,
+      const parent = parentById.get(l.parent_user_id);
+      const fcode = parent?.family_code ?? `_pid_${l.parent_user_id}`;
+
+      if (!unitMap.has(fcode)) {
+        unitMap.set(fcode, { familyCode: fcode, parents: [], children: [], totalBalance: 0, frozenCount: 0 });
+      }
+      const unit = unitMap.get(fcode)!;
+
+      if (!unit.parents.find((p) => p.userId === l.parent_user_id)) {
+        unit.parents.push({
+          userId: l.parent_user_id,
+          username: l.parent_username ?? "",
+          name: l.parent_full_name || l.parent_username || `user#${l.parent_user_id}`,
         });
       }
-      const group = map.get(l.parent_user_id)!;
-      const s = studentById.get(l.child_customer_id);
-      const balance = s?.wallet_balance ?? 0;
-      const frozen = !!s?.card_frozen;
-      group.children.push({
-        linkId: l.id,
-        customerId: l.child_customer_id,
-        name: l.child_name || s?.name || `#${l.child_customer_id}`,
-        studentCode: l.child_student_code ?? s?.student_code,
-        grade: s?.grade,
-        relation: l.relation,
-        walletId: s?.wallet_id ?? null,
-        walletBalance: balance,
-        cardFrozen: frozen,
-        photoUrl: s?.photo_url,
-      });
-      group.totalBalance += balance;
-      if (frozen) group.frozenCount += 1;
-    }
-    return Array.from(map.values());
-  }, [links, studentById]);
 
-  const filteredFamilies = useMemo(() => {
+      const existing = unit.children.find((c) => c.customerId === l.child_customer_id);
+      if (existing) {
+        existing.links.push({
+          linkId: l.id,
+          parentUserId: l.parent_user_id,
+          parentName: l.parent_full_name || l.parent_username || `user#${l.parent_user_id}`,
+          relation: l.relation,
+        });
+      } else {
+        const s = studentById.get(l.child_customer_id);
+        const balance = s?.wallet_balance ?? 0;
+        const frozen = !!s?.card_frozen;
+        unit.children.push({
+          customerId: l.child_customer_id,
+          name: l.child_name || s?.name || `#${l.child_customer_id}`,
+          studentCode: l.child_student_code ?? s?.student_code,
+          grade: s?.grade,
+          walletId: s?.wallet_id ?? null,
+          walletBalance: balance,
+          cardFrozen: frozen,
+          photoUrl: s?.photo_url,
+          links: [{
+            linkId: l.id,
+            parentUserId: l.parent_user_id,
+            parentName: l.parent_full_name || l.parent_username || `user#${l.parent_user_id}`,
+            relation: l.relation,
+          }],
+        });
+        unit.totalBalance += balance;
+        if (frozen) unit.frozenCount += 1;
+      }
+    }
+    return Array.from(unitMap.values());
+  }, [links, studentById, parentById]);
+
+  const filteredUnits = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return families.filter((f) => {
+    return familyUnits.filter((u) => {
       if (q) {
         const match =
-          f.parentName.toLowerCase().includes(q) ||
-          f.parentUsername.toLowerCase().includes(q) ||
-          f.children.some((c) =>
-            c.name.toLowerCase().includes(q) ||
-            (c.studentCode || "").toLowerCase().includes(q),
-          );
+          u.familyCode.toLowerCase().includes(q) ||
+          u.parents.some((p) => p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)) ||
+          u.children.some((c) => c.name.toLowerCase().includes(q) || (c.studentCode ?? "").toLowerCase().includes(q));
         if (!match) return false;
       }
-      if (statusFilter !== "all" && familyStatus(f) !== statusFilter) return false;
+      if (statusFilter !== "all" && unitStatus(u) !== statusFilter) return false;
       return true;
     });
-  }, [families, search, statusFilter]);
+  }, [familyUnits, search, statusFilter]);
 
-  const sortedFamilies = useMemo(() => {
-    const arr = [...filteredFamilies];
+  const sortedUnits = useMemo(() => {
+    const arr = [...filteredUnits];
     const dir = sortDir === "asc" ? 1 : -1;
     arr.sort((a, b) => {
       if (sortKey === "children") return (a.children.length - b.children.length) * dir;
       if (sortKey === "balance") return (a.totalBalance - b.totalBalance) * dir;
-      return a.parentName.localeCompare(b.parentName) * dir;
+      return (a.parents[0]?.name ?? a.familyCode).localeCompare(b.parents[0]?.name ?? b.familyCode) * dir;
     });
     return arr;
-  }, [filteredFamilies, sortKey, sortDir]);
+  }, [filteredUnits, sortKey, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedFamilies.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedUnits.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pagedFamilies = useMemo(() => {
+  const pagedUnits = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return sortedFamilies.slice(start, start + pageSize);
-  }, [sortedFamilies, currentPage, pageSize]);
+    return sortedUnits.slice(start, start + pageSize);
+  }, [sortedUnits, currentPage, pageSize]);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [search, statusFilter, pageSize, sortKey, sortDir]);
-
-  const selectedFamily = useMemo(
-    () => families.find((f) => f.parentId === selectedParentId) ?? null,
-    [families, selectedParentId],
-  );
+  useEffect(() => { setPage(1); }, [search, statusFilter, pageSize, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -298,6 +322,8 @@ export default function FamilyLinks() {
       setSortDir(key === "balance" || key === "children" ? "desc" : "asc");
     }
   };
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleCreate = async () => {
     if (!parentId || !childId) {
@@ -313,9 +339,7 @@ export default function FamilyLinks() {
       });
       toast({ title: t("admin.families.linkSuccess") });
       setDialogOpen(false);
-      setParentId("");
-      setChildId("");
-      setRelation("guardian");
+      setParentId(""); setChildId(""); setRelation("guardian");
       load();
     } catch (e) {
       toast({
@@ -345,22 +369,24 @@ export default function FamilyLinks() {
     }
   };
 
-  const handleToggleFamilyFreeze = async (family: FamilyGroup, freeze: boolean) => {
+  const handleToggleUnitFreeze = async (unit: FamilyUnit, freeze: boolean) => {
     const confirmMsg = freeze
-      ? t("admin.families.freezeAllConfirm", { name: family.parentName })
-      : t("admin.families.unfreezeAllConfirm", { name: family.parentName });
+      ? t("admin.families.freezeAllConfirm", { name: unit.familyCode })
+      : t("admin.families.unfreezeAllConfirm", { name: unit.familyCode });
     if (!window.confirm(confirmMsg)) return;
-    setFreezingParent(family.parentId);
+    setFreezingFamily(unit.familyCode);
     try {
-      const resp = await api.post<{ affected_count: number }>(`/family/freeze-all`, {
-        parent_user_id: family.parentId,
-        frozen: freeze,
-      });
+      let totalAffected = 0;
+      for (const parent of unit.parents) {
+        const resp = await api.post<{ affected_count: number }>(`/family/freeze-all`, {
+          parent_user_id: parent.userId,
+          frozen: freeze,
+        });
+        totalAffected += resp.affected_count;
+      }
       toast({
-        title: freeze
-          ? t("admin.families.freezeAllSuccess")
-          : t("admin.families.unfreezeAllSuccess"),
-        description: t("admin.families.affectedCount", { count: resp.affected_count }),
+        title: freeze ? t("admin.families.freezeAllSuccess") : t("admin.families.unfreezeAllSuccess"),
+        description: t("admin.families.affectedCount", { count: totalAffected }),
       });
       load();
     } catch (e) {
@@ -370,7 +396,7 @@ export default function FamilyLinks() {
         variant: "destructive",
       });
     } finally {
-      setFreezingParent(null);
+      setFreezingFamily(null);
     }
   };
 
@@ -383,9 +409,7 @@ export default function FamilyLinks() {
     setFreezingChild(child.customerId);
     try {
       await api.post(`/customers/${child.customerId}/freeze`, { frozen: next });
-      toast({
-        title: next ? t("admin.families.freezeOneSuccess") : t("admin.families.unfreezeOneSuccess"),
-      });
+      toast({ title: next ? t("admin.families.freezeOneSuccess") : t("admin.families.unfreezeOneSuccess") });
       await load();
     } catch (e) {
       toast({
@@ -399,10 +423,7 @@ export default function FamilyLinks() {
   };
 
   const handleToggleTxs = async (child: FamilyChild) => {
-    if (expandedChild === child.customerId) {
-      setExpandedChild(null);
-      return;
-    }
+    if (expandedChild === child.customerId) { setExpandedChild(null); return; }
     setExpandedChild(child.customerId);
     if (child.walletId && !childTxs[child.walletId]) {
       setLoadingTxs(child.walletId);
@@ -421,27 +442,33 @@ export default function FamilyLinks() {
     }
   };
 
+  // ── Sort header helper ────────────────────────────────────────────────────
+
   const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col) return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" />;
-    return sortDir === "asc"
-      ? <ArrowUp className="h-3.5 w-3.5" />
-      : <ArrowDown className="h-3.5 w-3.5" />;
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const statusBadge = (f: FamilyGroup) => {
-    const status = familyStatus(f);
-    if (status === "all_frozen") {
-      return <Badge variant="destructive" className="gap-1"><Lock className="h-3 w-3" /> {t("admin.families.statusAllFrozen")}</Badge>;
-    }
-    if (status === "partial") {
-      return <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600"><Lock className="h-3 w-3" /> {t("admin.families.statusPartial", { frozen: f.frozenCount, total: f.children.length })}</Badge>;
-    }
-    return <Badge variant="secondary">{t("admin.families.statusNormal")}</Badge>;
+  const statusBadge = (u: FamilyUnit) => {
+    const s = unitStatus(u);
+    if (s === "all_frozen") return (
+      <Badge variant="destructive" className="gap-1 text-[11px]">
+        <Lock className="h-2.5 w-2.5" /> {t("admin.families.statusAllFrozen")}
+      </Badge>
+    );
+    if (s === "partial") return (
+      <Badge variant="outline" className="gap-1 text-[11px] border-amber-400 text-amber-700">
+        <Lock className="h-2.5 w-2.5" /> {t("admin.families.statusPartial", { frozen: u.frozenCount, total: u.children.length })}
+      </Badge>
+    );
+    return null;
   };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="page-shell">
-      {/* Header */}
+      {/* Page header */}
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="page-title flex items-center gap-2">
@@ -449,6 +476,8 @@ export default function FamilyLinks() {
           </h1>
           <p className="page-description">{t("admin.families.description")}</p>
         </div>
+
+        {/* Add link dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-1" /> {t("admin.families.addLink")}</Button>
@@ -479,9 +508,7 @@ export default function FamilyLinks() {
                   const selectedParent = parents.find((p) => String(p.id) === parentId);
                   const fc = selectedParent?.family_code ?? null;
                   const suggested = fc ? students.filter((s) => s.family_code === fc) : [];
-                  const others = fc
-                    ? students.filter((s) => s.family_code !== fc)
-                    : students;
+                  const others = fc ? students.filter((s) => s.family_code !== fc) : students;
                   return (
                     <Select value={childId} onValueChange={setChildId}>
                       <SelectTrigger><SelectValue placeholder={t("admin.families.selectChildPlaceholder")} /></SelectTrigger>
@@ -493,8 +520,7 @@ export default function FamilyLinks() {
                         )}
                         {suggested.map((s) => (
                           <SelectItem key={s.id} value={String(s.id)}>
-                            {s.name} {s.student_code ? `(${s.student_code})` : `(${s.customer_code})`}
-                            {" · "}✓
+                            {s.name} {s.student_code ? `(${s.student_code})` : `(${s.customer_code})`} · ✓
                           </SelectItem>
                         ))}
                         {fc && suggested.length > 0 && others.length > 0 && (
@@ -528,11 +554,7 @@ export default function FamilyLinks() {
         </Dialog>
       </div>
 
-      <InfoCallout
-        id="families.scope"
-        variant="tip"
-        title={t("admin.families.info.scope.title")}
-      >
+      <InfoCallout id="families.scope" variant="tip" title={t("admin.families.info.scope.title")}>
         {t("admin.families.info.scope.body")}
       </InfoCallout>
 
@@ -559,10 +581,28 @@ export default function FamilyLinks() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Sort controls */}
+        <div className="flex items-center gap-1 ml-auto">
+          <span className="text-xs text-muted-foreground mr-1">Sort:</span>
+          {(["name", "children", "balance"] as SortKey[]).map((key) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={sortKey === key ? "secondary" : "ghost"}
+              className="h-8 gap-1 text-xs"
+              onClick={() => toggleSort(key)}
+            >
+              {key === "name" ? "Name" : key === "children" ? "Children" : "Balance"}
+              <SortIcon col={key} />
+            </Button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2">
           <Label className="text-sm text-muted-foreground whitespace-nowrap">{t("admin.families.pageSize")}</Label>
           <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
             <SelectContent>
               {PAGE_SIZE_OPTIONS.map((n) => (
                 <SelectItem key={n} value={String(n)}>{n}</SelectItem>
@@ -572,103 +612,251 @@ export default function FamilyLinks() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Family list */}
       {loading ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t("admin.families.loading")}</CardContent></Card>
-      ) : sortedFamilies.length === 0 ? (
-        // Show empty state only when there's truly nothing — hide on search-no-match
-        // since the reconciliation section below provides context.
+      ) : sortedUnits.length === 0 ? (
         links.length === 0 && orphans.parents_no_children.length === 0 && orphans.students_no_parents.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-muted-foreground">
-            {t("admin.families.noLinks")}
-          </CardContent></Card>
+          <Card><CardContent className="py-12 text-center text-muted-foreground">{t("admin.families.noLinks")}</CardContent></Card>
         ) : null
       ) : (
         <>
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("name")}>
-                      {t("admin.families.colParent")} <SortIcon col="name" />
-                    </button>
-                  </TableHead>
-                  <TableHead className="w-28">@username</TableHead>
-                  <TableHead className="w-24 text-center">
-                    <button className="flex items-center gap-1 mx-auto hover:text-foreground" onClick={() => toggleSort("children")}>
-                      {t("admin.families.colChildren")} <SortIcon col="children" />
-                    </button>
-                  </TableHead>
-                  <TableHead className="w-36 text-right">
-                    <button className="flex items-center gap-1 ml-auto hover:text-foreground" onClick={() => toggleSort("balance")}>
-                      {t("admin.families.colTotal")} <SortIcon col="balance" />
-                    </button>
-                  </TableHead>
-                  <TableHead className="w-48">{t("admin.families.colStatus")}</TableHead>
-                  <TableHead className="w-56 text-right">{t("admin.families.colActions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedFamilies.map((family) => {
-                  const allFrozen = family.frozenCount === family.children.length && family.children.length > 0;
-                  return (
-                    <TableRow key={family.parentId}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <UserCircle2 className="h-5 w-5 text-muted-foreground shrink-0" />
-                          {family.parentName}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground font-mono">@{family.parentUsername}</TableCell>
-                      <TableCell className="text-center">{family.children.length}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatTHB(family.totalBalance)}</TableCell>
-                      <TableCell>{statusBadge(family)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => { setSelectedParentId(family.parentId); setExpandedChild(null); }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" /> {t("admin.families.viewDetails")}
-                          </Button>
-                          {allFrozen ? (
-                            <IconButton
-                              tooltip={t("admin.families.unfreezeAllCards")}
-                              size="sm"
-                              variant="outline"
-                              disabled={freezingParent === family.parentId}
-                              onClick={() => handleToggleFamilyFreeze(family, false)}
-                            >
-                              <Unlock className="h-4 w-4" />
-                            </IconButton>
-                          ) : (
-                            <IconButton
-                              tooltip={t("admin.families.freezeAllCards")}
-                              size="sm"
-                              variant="destructive"
-                              disabled={freezingParent === family.parentId || family.children.length === 0}
-                              onClick={() => handleToggleFamilyFreeze(family, true)}
-                            >
-                              <Lock className="h-4 w-4" />
-                            </IconButton>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+          <div className="space-y-2">
+            {pagedUnits.map((unit) => {
+              const isExpanded = expandedFamilyCode === unit.familyCode;
+              const allFrozen = unit.frozenCount === unit.children.length && unit.children.length > 0;
+              const status = unitStatus(unit);
 
+              return (
+                <div key={unit.familyCode} className="rounded-lg border bg-card shadow-sm">
+                  {/* Family header row */}
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors rounded-lg"
+                    onClick={() => {
+                      setExpandedFamilyCode(isExpanded ? null : unit.familyCode);
+                      setExpandedChild(null);
+                    }}
+                  >
+                    <ChevronRight className={cn("h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-150", isExpanded && "rotate-90")} />
+
+                    {/* Family code */}
+                    <Badge variant="outline" className="font-mono text-[11px] shrink-0 hidden sm:inline-flex">
+                      {unit.familyCode.startsWith("_pid_") ? "—" : unit.familyCode}
+                    </Badge>
+
+                    {/* Parents */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {unit.parents.map((p, i) => (
+                          <span key={p.userId} className="text-sm font-medium flex items-center gap-1">
+                            {i > 0 && <span className="text-muted-foreground text-xs">·</span>}
+                            {p.name}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0 mt-0.5">
+                        {unit.parents.map((p) => (
+                          <span key={p.userId} className="text-xs text-muted-foreground font-mono">@{p.username}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Stats + status */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {unit.children.length} {unit.children.length === 1 ? "child" : "children"}
+                      </span>
+                      <span className="text-sm font-mono tabular-nums font-medium">{formatTHB(unit.totalBalance)}</span>
+                      {status !== "normal" && statusBadge(unit)}
+                    </div>
+
+                    {/* Actions — stop propagation so click doesn't toggle expand */}
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {allFrozen ? (
+                        <IconButton
+                          tooltip={t("admin.families.unfreezeAllCards")}
+                          size="sm" variant="outline"
+                          disabled={freezingFamily === unit.familyCode}
+                          onClick={() => handleToggleUnitFreeze(unit, false)}
+                        >
+                          {freezingFamily === unit.familyCode
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Unlock className="h-4 w-4" />}
+                        </IconButton>
+                      ) : (
+                        <IconButton
+                          tooltip={t("admin.families.freezeAllCards")}
+                          size="sm" variant="destructive"
+                          disabled={freezingFamily === unit.familyCode || unit.children.length === 0}
+                          onClick={() => handleToggleUnitFreeze(unit, true)}
+                        >
+                          {freezingFamily === unit.familyCode
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Lock className="h-4 w-4" />}
+                        </IconButton>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Expanded children panel */}
+                  {isExpanded && (
+                    <div className="border-t bg-muted/20 px-4 pb-4 pt-3 space-y-2 rounded-b-lg">
+                      {/* Parent detail links */}
+                      <div className="flex flex-wrap gap-2 pb-1">
+                        {unit.parents.map((p) => (
+                          <Link
+                            key={p.userId}
+                            to={`/admin/users/${p.userId}`}
+                            className="text-xs text-primary underline-offset-2 hover:underline font-mono"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View {p.name} →
+                          </Link>
+                        ))}
+                      </div>
+
+                      {unit.children.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-2 text-center">No children linked.</p>
+                      ) : (
+                        unit.children.map((child) => {
+                          const isChildExpanded = expandedChild === child.customerId;
+                          const txs = child.walletId ? childTxs[child.walletId] : undefined;
+                          const isLoadingTxs = child.walletId === loadingTxs;
+
+                          return (
+                            <div key={child.customerId} className="rounded-md border bg-background">
+                              <div className="flex items-center gap-3 px-3 py-2.5">
+                                {/* Avatar */}
+                                {child.photoUrl ? (
+                                  <img src={child.photoUrl} alt={child.name} className="h-9 w-9 rounded-full object-cover shrink-0 border" />
+                                ) : (
+                                  <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-semibold text-muted-foreground">
+                                    {child.name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-medium text-sm">{child.name}</span>
+                                    {child.studentCode && (
+                                      <Badge variant="secondary" className="text-[10px]">{child.studentCode}</Badge>
+                                    )}
+                                    {child.grade && (
+                                      <Badge variant="outline" className="text-[10px]">{child.grade}</Badge>
+                                    )}
+                                    {child.cardFrozen && (
+                                      <Badge variant="destructive" className="text-[10px] gap-0.5">
+                                        <Lock className="h-2.5 w-2.5" /> {t("admin.families.frozenBadge")}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className={cn(
+                                      "text-sm font-mono tabular-nums font-semibold",
+                                      child.walletBalance < 0 ? "text-destructive" : "text-muted-foreground",
+                                    )}>
+                                      {formatTHB(child.walletBalance)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      via {child.links.map((l) => l.parentName).join(", ")}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Child actions */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button
+                                    size="sm" variant="ghost"
+                                    className="h-8 text-xs gap-1 text-muted-foreground"
+                                    disabled={!child.walletId}
+                                    onClick={() => handleToggleTxs(child)}
+                                  >
+                                    {isChildExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                    Txs
+                                  </Button>
+                                  <IconButton
+                                    tooltip={child.cardFrozen ? t("admin.families.unfreezeThisCard") : t("admin.families.freezeThisCard")}
+                                    size="sm"
+                                    variant={child.cardFrozen ? "outline" : "ghost"}
+                                    disabled={freezingChild === child.customerId}
+                                    onClick={() => handleToggleChildFreeze(child)}
+                                  >
+                                    {freezingChild === child.customerId
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : child.cardFrozen
+                                        ? <Unlock className="h-3.5 w-3.5" />
+                                        : <Lock className="h-3.5 w-3.5" />}
+                                  </IconButton>
+                                  {child.links.map((link) => (
+                                    <IconButton
+                                      key={link.linkId}
+                                      tooltip={`Unlink from ${link.parentName}`}
+                                      size="sm" variant="ghost"
+                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => setDeleteLinkTarget({
+                                        linkId: link.linkId,
+                                        childName: child.name,
+                                        parentName: link.parentName,
+                                      })}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </IconButton>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Inline transaction history */}
+                              {isChildExpanded && (
+                                <div className="border-t px-3 pb-3 pt-2">
+                                  {isLoadingTxs ? (
+                                    <div className="flex items-center justify-center py-4">
+                                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                    </div>
+                                  ) : !child.walletId ? (
+                                    <p className="text-xs text-muted-foreground text-center py-3">{t("admin.families.noWallet")}</p>
+                                  ) : txs && txs.length > 0 ? (
+                                    <div className="space-y-0.5">
+                                      {txs.map((tx) => (
+                                        <div key={tx.id} className="flex items-center justify-between text-xs py-1.5 border-b last:border-b-0">
+                                          <div className="min-w-0 flex-1">
+                                            <p className="font-medium truncate">{tx.description || tx.transaction_type}</p>
+                                            <p className="text-muted-foreground">
+                                              {fmtDateTime(tx.created_at)}{tx.shop_name ? ` · ${tx.shop_name}` : ""}
+                                            </p>
+                                          </div>
+                                          <div className="text-right shrink-0 ml-3">
+                                            <p className={cn("font-mono tabular-nums font-medium", tx.amount < 0 ? "text-destructive" : "text-emerald-600")}>
+                                              {tx.amount >= 0 ? "+" : ""}{formatTHB(tx.amount)}
+                                            </p>
+                                            <p className="text-muted-foreground tabular-nums">{formatTHB(tx.balance_after)}</p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground text-center py-3">{t("admin.families.noTransactions")}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div>
               {t("admin.families.pageInfo", {
                 from: (currentPage - 1) * pageSize + 1,
-                to: Math.min(currentPage * pageSize, sortedFamilies.length),
-                total: sortedFamilies.length,
+                to: Math.min(currentPage * pageSize, sortedUnits.length),
+                total: sortedUnits.length,
               })}
             </div>
             {totalPages > 1 && (
@@ -689,11 +877,7 @@ export default function FamilyLinks() {
                         <span key={p} className="flex items-center">
                           {showEllipsis && <span className="px-2 text-muted-foreground">…</span>}
                           <PaginationItem>
-                            <PaginationLink
-                              isActive={p === currentPage}
-                              className="cursor-pointer"
-                              onClick={() => setPage(p)}
-                            >
+                            <PaginationLink isActive={p === currentPage} className="cursor-pointer" onClick={() => setPage(p)}>
                               {p}
                             </PaginationLink>
                           </PaginationItem>
@@ -726,9 +910,7 @@ export default function FamilyLinks() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <p className="text-xs text-muted-foreground">
-              {t("admin.families.reconciliation.description")}
-            </p>
+            <p className="text-xs text-muted-foreground">{t("admin.families.reconciliation.description")}</p>
 
             {orphans.parents_no_children.length > 0 && (
               <div>
@@ -737,15 +919,10 @@ export default function FamilyLinks() {
                 </p>
                 <div className="space-y-1.5">
                   {orphans.parents_no_children.map((p) => {
-                    const matchCount = p.family_code
-                      ? students.filter((s) => s.family_code === p.family_code).length
-                      : 0;
+                    const matchCount = p.family_code ? students.filter((s) => s.family_code === p.family_code).length : 0;
                     const usernameLooksLikeEmail = p.username.includes("@");
                     return (
-                      <div
-                        key={p.user_id}
-                        className="flex items-center justify-between gap-3 rounded-md border bg-background p-2"
-                      >
+                      <div key={p.user_id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium truncate">{p.full_name}</span>
@@ -761,16 +938,13 @@ export default function FamilyLinks() {
                           </div>
                         </div>
                         <Button
-                          size="sm"
-                          variant="outline"
+                          size="sm" variant="outline"
                           onClick={() => {
                             setParentId(String(p.user_id));
                             if (matchCount === 1 && p.family_code) {
                               const only = students.find((s) => s.family_code === p.family_code);
                               if (only) setChildId(String(only.id));
-                            } else {
-                              setChildId("");
-                            }
+                            } else { setChildId(""); }
                             setDialogOpen(true);
                           }}
                         >
@@ -792,14 +966,9 @@ export default function FamilyLinks() {
                 </p>
                 <div className="space-y-1.5">
                   {orphans.students_no_parents.map((s) => {
-                    const matchCount = s.family_code
-                      ? parents.filter((p) => p.family_code === s.family_code).length
-                      : 0;
+                    const matchCount = s.family_code ? parents.filter((p) => p.family_code === s.family_code).length : 0;
                     return (
-                      <div
-                        key={s.customer_id}
-                        className="flex items-center justify-between gap-3 rounded-md border bg-background p-2"
-                      >
+                      <div key={s.customer_id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium truncate">{s.name}</span>
@@ -818,16 +987,13 @@ export default function FamilyLinks() {
                           </div>
                         </div>
                         <Button
-                          size="sm"
-                          variant="outline"
+                          size="sm" variant="outline"
                           onClick={() => {
                             setChildId(String(s.customer_id));
                             if (matchCount === 1 && s.family_code) {
                               const only = parents.find((p) => p.family_code === s.family_code);
                               if (only) setParentId(String(only.id));
-                            } else {
-                              setParentId("");
-                            }
+                            } else { setParentId(""); }
                             setDialogOpen(true);
                           }}
                         >
@@ -845,128 +1011,7 @@ export default function FamilyLinks() {
         </Card>
       )}
 
-      {/* Detail drawer */}
-      <Sheet open={selectedFamily !== null} onOpenChange={(o) => !o && setSelectedParentId(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          {selectedFamily && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <UserCircle2 className="h-6 w-6 text-muted-foreground" />
-                  {selectedFamily.parentName}
-                </SheetTitle>
-                <SheetDescription>
-                  @{selectedFamily.parentUsername} · parent_id={selectedFamily.parentId}
-                  {" · "}{t("admin.families.childrenCount", { count: selectedFamily.children.length })}
-                  {" · "}{t("admin.families.totalBalance", { amount: formatTHB(selectedFamily.totalBalance) })}
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="mt-6 space-y-3">
-                {selectedFamily.children.map((c) => {
-                  const isExpanded = expandedChild === c.customerId;
-                  const txs = c.walletId ? childTxs[c.walletId] : undefined;
-                  const isLoadingTxs = c.walletId === loadingTxs;
-                  return (
-                    <Card key={c.linkId} className="p-3 space-y-3">
-                      <div className="flex items-start gap-3">
-                        {c.photoUrl ? (
-                          <img src={c.photoUrl} alt={c.name} className="h-12 w-12 rounded-full object-cover" />
-                        ) : (
-                          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                            <UserCircle2 className="h-7 w-7 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold">{c.name}</span>
-                            {c.studentCode && <Badge variant="secondary" className="text-xs">{c.studentCode}</Badge>}
-                            {c.grade && <Badge variant="outline" className="text-xs">{c.grade}</Badge>}
-                            {c.cardFrozen && (
-                              <Badge variant="destructive" className="text-xs gap-0.5">
-                                <Lock className="h-3 w-3" /> {t("admin.families.frozenBadge")}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{c.relation}</p>
-                          <p className={`text-2xl font-bold tabular-nums mt-1 ${c.walletBalance < 0 ? "text-destructive" : ""}`}>
-                            {formatTHB(c.walletBalance)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleToggleTxs(c)}
-                          disabled={!c.walletId}
-                        >
-                          {isExpanded ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-                          {t("admin.families.viewTransactions")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={c.cardFrozen ? "outline" : "destructive"}
-                          disabled={freezingChild === c.customerId}
-                          onClick={() => handleToggleChildFreeze(c)}
-                        >
-                          {c.cardFrozen ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
-                          {c.cardFrozen ? t("admin.families.unfreezeThisCard") : t("admin.families.freezeThisCard")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteLinkTarget({ linkId: c.linkId, childName: c.name, parentName: selectedFamily?.parentName ?? "" })}
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          {t("admin.families.unlink")}
-                        </Button>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="border-t pt-3">
-                          {isLoadingTxs ? (
-                            <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                            </div>
-                          ) : !c.walletId ? (
-                            <p className="text-sm text-muted-foreground text-center py-4">{t("admin.families.noWallet")}</p>
-                          ) : txs && txs.length > 0 ? (
-                            <div className="space-y-1.5">
-                              {txs.map((tx) => (
-                                <div key={tx.id} className="flex items-center justify-between text-xs border-b last:border-b-0 py-1.5">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-medium truncate">{tx.description || tx.transaction_type}</p>
-                                    <p className="text-muted-foreground">
-                                      {fmtDateTime(tx.created_at)}
-                                      {tx.shop_name ? ` · ${tx.shop_name}` : ""}
-                                    </p>
-                                  </div>
-                                  <div className="text-right shrink-0 ml-2">
-                                    <p className={`font-mono tabular-nums font-medium ${tx.amount < 0 ? "text-destructive" : "text-emerald-600"}`}>
-                                      {tx.amount >= 0 ? "+" : ""}{formatTHB(tx.amount)}
-                                    </p>
-                                    <p className="text-muted-foreground tabular-nums">{formatTHB(tx.balance_after)}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">{t("admin.families.noTransactions")}</p>
-                          )}
-                        </div>
-                      )}
-                    </Card>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
-
+      {/* Unlink confirmation */}
       <AlertDialog open={!!deleteLinkTarget} onOpenChange={(open) => !open && setDeleteLinkTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
