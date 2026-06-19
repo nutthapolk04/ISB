@@ -290,14 +290,19 @@ const Returns = () => {
   const [returnResult, setReturnResult] = useState<ReturnResult | null>(null);
   const [isCreditNoteDialogOpen, setIsCreditNoteDialogOpen] = useState(false);
 
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case "student": return t('returns.studentCard');
-      case "qr": return t('returns.qrPromptpay');
-      case "cash": return t('returns.cash');
-      case "department": return t('returns.departmentCard');
-      default: return method;
-    }
+  const getPaymentMethodLabel = (method: string | null | undefined) => {
+    if (!method) return "—";
+    // Backend may send uppercase ("WALLET", "EDC") or lowercase ("qr_promptpay").
+    // Normalize, then fall back to legacy Returns-specific labels for backward compatibility.
+    const m = method.toLowerCase();
+    const legacy: Record<string, string> = {
+      student: t('returns.studentCard'),
+      qr: t('returns.qrPromptpay'),
+      cash: t('returns.cash'),
+      department: t('returns.departmentCard'),
+    };
+    if (legacy[m]) return legacy[m];
+    return t(`common.paymentMethods.${m}`, method);
   };
 
   // ── No-receipt handlers ──────────────────────────────────────────────────
@@ -1380,7 +1385,7 @@ const Returns = () => {
                       <td className="p-3">{(r as any).date}</td>
                       <td className="p-3 font-mono">{r.id}</td>
                       <td className="p-3">{(r as any).payer?.label || "—"}</td>
-                      <td className="p-3">{(r as any).paymentMethod}</td>
+                      <td className="p-3">{getPaymentMethodLabel((r as any).paymentMethod)}</td>
                       <td className="p-3 text-right">฿{Number((r as any).total).toFixed(2)}</td>
                       <td className="p-3">
                         <Button size="sm" onClick={() => pickSearchResult(r)}>
@@ -1666,7 +1671,7 @@ const Returns = () => {
                     <TableCell className="font-mono font-medium">{r.receipt_number}</TableCell>
                     <TableCell className="text-sm">{r.payer_label ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">{r.payment_method}</Badge>
+                      <Badge variant="outline" className="text-xs">{getPaymentMethodLabel(r.payment_method)}</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">
                       ฿{r.total.toFixed(2)}

@@ -17,7 +17,7 @@ const t = {
   EN: {
     title: 'Top-up',
     sub: 'Select payment method',
-    promptpay: 'PromptPay',
+    promptpay: 'QR Code',
     cash: 'Cash',
     back: 'Back',
     scan: 'Scan the QR code below to top-up',
@@ -60,7 +60,7 @@ const t = {
   TH: {
     title: 'เติมเงิน',
     sub: 'เลือกช่องทางการเติมเงิน',
-    promptpay: 'พร้อมเพย์',
+    promptpay: 'QR Code',
     cash: 'เงินสด',
     back: 'กลับ',
     scan: 'สแกน QR Code ด้านล่างเพื่อเติมเงิน',

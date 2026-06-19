@@ -120,7 +120,7 @@ export default function CanteenShopDetail() {
   function printSlip(summary: CloseDaySummary) {
     const paymentRows = Object.entries(summary.payment_breakdown)
       .map(([method, amount]) => {
-        const label = t(`canteen.paymentMethod_${method}`, { defaultValue: method });
+        const label = t(`canteen.paymentMethod_${method.toLowerCase()}`, { defaultValue: method });
         return `<tr><td style="padding:4px 8px">${label}</td><td style="padding:4px 8px;text-align:right">฿${(amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td></tr>`;
       })
       .join("");
@@ -352,7 +352,7 @@ export default function CanteenShopDetail() {
                     {Object.entries(closeDaySummary.payment_breakdown).map(([method, amount]) => (
                       <TableRow key={method}>
                         <TableCell>
-                          {t(`canteen.paymentMethod_${method}`, { defaultValue: method })}
+                          {t(`canteen.paymentMethod_${method.toLowerCase()}`, { defaultValue: method })}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {(amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}

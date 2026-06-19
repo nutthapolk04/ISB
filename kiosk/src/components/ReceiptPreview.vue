@@ -36,7 +36,12 @@ const t = {
     shopName: 'Shop / Branch',
     pmWallet: 'Wallet',
     pmCash: 'Cash',
-    pmQr: 'QR PromptPay',
+    pmQr: 'QR Code',
+    pmEdc: 'EDC',
+    pmCardTap: 'Member Card',
+    pmDepartment: 'Department charge',
+    pmCredit: 'Credit / Debit Card',
+    pmBank: 'Bank Transfer',
   },
   TH: {
     title: 'ใบเสร็จ',
@@ -61,20 +66,37 @@ const t = {
     shopName: 'ร้าน / สาขา',
     pmWallet: 'กระเป๋าเงิน',
     pmCash: 'เงินสด',
-    pmQr: 'QR PromptPay',
+    pmQr: 'QR Code',
+    pmEdc: 'EDC',
+    pmCardTap: 'บัตรสมาชิก',
+    pmDepartment: 'เบิกจากแผนก',
+    pmCredit: 'บัตรเครดิต / เดบิต',
+    pmBank: 'โอนเงิน',
   }
 };
 
 const paymentMethodLabel = computed(() => {
   const pm = props.transaction.payment_method;
   if (!pm) return null;
+  // Backend sends mixed casing — POS purchase uppercase ("WALLET", "EDC", "CASH"),
+  // topup/QR lowercase ("bay_qr", "qr_promptpay"). Normalize before lookup.
+  const m = String(pm).toLowerCase();
   const map: Record<string, keyof typeof t.EN> = {
     wallet: 'pmWallet',
+    card_tap: 'pmCardTap',
     cash: 'pmCash',
     qr: 'pmQr',
     promptpay: 'pmQr',
+    qr_promptpay: 'pmQr',
+    bay_qr: 'pmQr',
+    edc: 'pmEdc',
+    credit_card: 'pmCredit',
+    debit_card: 'pmCredit',
+    bay_easypay: 'pmCredit',
+    department: 'pmDepartment',
+    bank_transfer: 'pmBank',
   };
-  const key = map[pm];
+  const key = map[m];
   return key ? currT.value[key] : pm;
 });
 

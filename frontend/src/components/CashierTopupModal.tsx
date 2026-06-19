@@ -336,7 +336,7 @@ export function CashierTopupModal({
             {t("topup.title", "Top-up")}
             {step === "qr" && (
               <Badge variant="secondary" className="ml-1">
-                {t("topup.methodBayQr", "BAY PromptPay QR")}
+                {t("topup.methodBayQr", "QR Code")}
               </Badge>
             )}
           </DialogTitle>
@@ -525,7 +525,7 @@ export function CashierTopupModal({
                   )}
                 >
                   <QrCode className="h-4 w-4" />
-                  {t("topup.methodBayQr", "BAY PromptPay QR")}
+                  {t("topup.methodBayQr", "QR Code")}
                 </button>
               </div>
             </div>

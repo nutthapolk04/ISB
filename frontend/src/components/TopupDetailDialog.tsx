@@ -66,7 +66,13 @@ function parsePaymentMethod(
 
   const lower = description.toLowerCase();
 
-  // "via ..." pattern
+  // QR variants — show "QR Code" for any QR-style method
+  if (lower.includes("promptpay") || lower.includes("qr")) return "QR Code";
+
+  // EDC
+  if (lower.includes("edc")) return "EDC";
+
+  // "via ..." pattern (after QR/EDC overrides above)
   const viaMatch = description.match(/\bvia\s+([^(]+?)(?:\s*\(|$)/i);
   if (viaMatch) return viaMatch[1].trim();
 
@@ -74,11 +80,9 @@ function parsePaymentMethod(
   if (lower.includes("family transfer") || lower.includes("transfer")) return "Family transfer";
 
   // Common keywords
-  if (lower.includes("promptpay")) return "PromptPay";
   if (lower.includes("credit") || lower.includes("card")) return "Credit/Debit Card";
   if (lower.includes("cashier")) return "Cashier";
   if (lower.includes("cash")) return "Cash";
-  if (lower.includes("qr")) return "QR Code";
 
   return transactionType;
 }

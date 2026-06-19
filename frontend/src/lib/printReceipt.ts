@@ -91,9 +91,11 @@ export const PAYMENT_LABELS: Record<string, string> = {
   debit_card: "บัตรเดบิต",
   wallet: "Wallet",
   bank_transfer: "โอนเงิน",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
-  edc: "EDC (บัตรเครดิต/เดบิต)",
+  qr: "QR Code",
+  qr_promptpay: "QR Code",
+  bay_qr: "QR Code",
+  bay_easypay: "บัตรเครดิต / เดบิต",
+  edc: "EDC",
   department: "ตัดงบหน่วยงาน",
   other: "อื่นๆ",
 };
@@ -106,8 +108,10 @@ const PAYMENT_LABELS_EN: Record<string, string> = {
   debit_card: "Debit Card",
   edc: "EDC",
   bank_transfer: "Bank Transfer",
-  qr: "QR PromptPay",
-  qr_promptpay: "QR PromptPay",
+  qr: "QR Code",
+  qr_promptpay: "QR Code",
+  bay_qr: "QR Code",
+  bay_easypay: "Credit / Debit Card",
   department: "Budget Deduction",
   other: "Other",
 };
@@ -173,8 +177,8 @@ export function buildReceiptHtml(
   const isEn = !lang.startsWith("th");
   const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
   const paymentLabel = isEn
-    ? (PAYMENT_LABELS_EN[r.payment_method] ?? r.payment_method)
-    : (PAYMENT_LABELS[r.payment_method] ?? r.payment_method);
+    ? (PAYMENT_LABELS_EN[(r.payment_method ?? "").toLowerCase()] ?? r.payment_method)
+    : (PAYMENT_LABELS[(r.payment_method ?? "").toLowerCase()] ?? r.payment_method);
   const dateStr = fmtDateTime(r.transaction_date);
 
   const itemRows = r.items.map((item) => {

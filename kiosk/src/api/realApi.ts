@@ -336,7 +336,7 @@ export const realApi = {
     return requestPost(`/wallets/${walletId}/topup`, {
       amount,
       payment_method: 'bay_qr',
-      remark: 'Kiosk top-up via PromptPay',
+      remark: 'Kiosk top-up via QR Code',
     });
   },
 
