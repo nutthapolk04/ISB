@@ -294,8 +294,11 @@ const Receipts = () => {
   const fetchMonthlyStats = useCallback(async () => {
     try {
       const now = new Date();
-      const dateFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      const dateTo = now.toISOString().slice(0, 10);
+      // Use local-time dates so Bangkok-timezone users get a full calendar month
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      const dateFrom = startOfMonth.toISOString();
+      const dateTo = endOfToday.toISOString();
       const sep = queryParams.includes("?") ? "&" : "?";
       const params = `${queryParams}${sep}date_from=${dateFrom}&date_to=${dateTo}&page_size=500`;
       const data = await api.get<ReceiptApi[]>(`/pos/receipt${params}`);
