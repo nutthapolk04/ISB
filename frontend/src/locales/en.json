@@ -2488,6 +2488,7 @@
       "filterTitle": "Date filter",
       "dateRange": "Date range",
       "filter": "Filter",
+      "clearFilter": "Clear",
       "listTitle": "Transactions ({{count}})",
       "noResults": "No transactions in the selected period",
       "colDate": "Date",

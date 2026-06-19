@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Download, History } from "lucide-react";
+import { Download, History, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
@@ -185,8 +185,19 @@ export default function TransactionHistory() {
     void isCredit;
   };
 
+  const hasFilter = !!(dateFrom || dateTo);
+
   const handleFilter = () => {
     if (profile?.wallet_id) loadTransactions(profile.wallet_id);
+  };
+
+  const handleClearFilter = () => {
+    setDateFrom("");
+    setDateTo("");
+    if (profile?.wallet_id) {
+      const path = `/wallets/${profile.wallet_id}/transactions`;
+      api.get<Transaction[]>(path).then(setTxs).catch(() => {});
+    }
   };
 
   const handleExportPDF = () => {
@@ -283,7 +294,7 @@ export default function TransactionHistory() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
             <div>
               <Label htmlFor="dateRange" className="text-xs text-orange-500 font-medium">
                 {t("parent.transactions.dateRange")}
@@ -298,6 +309,14 @@ export default function TransactionHistory() {
             </div>
             <Button onClick={handleFilter} className="h-10 bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
               {t("parent.transactions.filter")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleClearFilter}
+              disabled={!hasFilter}
+              className="h-10 border-orange-300 text-orange-600 hover:bg-orange-50 disabled:opacity-40"
+            >
+              <X className="h-4 w-4 mr-1" /> {t("parent.transactions.clearFilter", "Clear")}
             </Button>
             <Button
               variant="outline"
