@@ -139,7 +139,7 @@ const RECEIPT_LABELS = {
   },
   en: {
     subtitle: "Receipt",
-    receiptNo: "Receipt No.",
+    receiptNo: "Receipt No",
     date: "Date / Time",
     cashier: "Cashier",
     payer: "Payer",
