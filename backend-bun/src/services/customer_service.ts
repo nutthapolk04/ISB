@@ -31,6 +31,8 @@ export interface StudentProfileDTO {
   daily_limit: number | null;
   daily_limit_canteen: number | null;
   daily_limit_store: number | null;
+  spent_today_canteen: number | null;
+  spent_today_store: number | null;
   negative_credit_limit: number | null;
   external_id: string | null;
   family_code: string | null;
@@ -72,6 +74,7 @@ async function walletByUserIds(ids: number[]): Promise<Map<number, { id: number;
 function customerToProfile(
   c: typeof customers.$inferSelect,
   wallet: { id: number; balance: number } | undefined,
+  spentToday?: { canteen: number; store: number },
 ): StudentProfileDTO {
   return {
     id: c.id,
@@ -93,6 +96,8 @@ function customerToProfile(
     daily_limit: pgNumber(c.dailyLimit),
     daily_limit_canteen: pgNumber(c.dailyLimitCanteen),
     daily_limit_store: pgNumber(c.dailyLimitStore),
+    spent_today_canteen: spentToday?.canteen ?? null,
+    spent_today_store: spentToday?.store ?? null,
     negative_credit_limit: pgNumber(c.negativeCreditLimit),
     external_id: c.externalId ?? null,
     family_code: c.familyCode ?? null,
@@ -100,6 +105,15 @@ function customerToProfile(
     wallet_balance: wallet?.balance ?? null,
     user_id: null,
   };
+}
+
+async function spentTodayForWallet(walletId: number | undefined): Promise<{ canteen: number; store: number }> {
+  if (!walletId) return { canteen: 0, store: 0 };
+  const [canteen, store] = await Promise.all([
+    todayDeductedByModule(walletId, "canteen"),
+    todayDeductedByModule(walletId, "store"),
+  ]);
+  return { canteen, store };
 }
 
 function userToProfile(
@@ -127,6 +141,8 @@ function userToProfile(
     daily_limit: null,
     daily_limit_canteen: null,
     daily_limit_store: null,
+    spent_today_canteen: null,
+    spent_today_store: null,
     negative_credit_limit: null,
     external_id: u.externalId ?? null,
     family_code: u.familyCode ?? null,
@@ -227,8 +243,10 @@ export async function getCustomerByCard(uid: string): Promise<StudentProfileDTO 
 export async function getCustomer(id: number): Promise<StudentProfileDTO | null> {
   const rows = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
   if (!rows[0]) return null;
-  const wallets = await walletByCustomerIds([id]);
-  return customerToProfile(rows[0], wallets.get(id));
+  const ws = await walletByCustomerIds([id]);
+  const wallet = ws.get(id);
+  const spent = await spentTodayForWallet(wallet?.id);
+  return customerToProfile(rows[0], wallet, spent);
 }
 
 export interface ListCustomersParams {
@@ -246,7 +264,9 @@ async function profileForCustomerId(id: number): Promise<StudentProfileDTO> {
     throw err;
   }
   const ws = await walletByCustomerIds([id]);
-  return customerToProfile(rows[0], ws.get(id));
+  const wallet = ws.get(id);
+  const spent = await spentTodayForWallet(wallet?.id);
+  return customerToProfile(rows[0], wallet, spent);
 }
 
 /** Permission gate for customer mutations: admin/manager/cashier bypass; otherwise must own a parent_child_link. */

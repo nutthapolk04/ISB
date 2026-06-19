@@ -101,6 +101,14 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE`,
     label: "customers.withdraw_date",
   },
+  {
+    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_canteen NUMERIC(10,2)`,
+    label: "customers.daily_limit_canteen",
+  },
+  {
+    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_store NUMERIC(10,2)`,
+    label: "customers.daily_limit_store",
+  },
   // ── Close Month: monthly stock period closes ──────────────────────────────
   {
     sql: `CREATE TABLE IF NOT EXISTS stock_period_closes (
