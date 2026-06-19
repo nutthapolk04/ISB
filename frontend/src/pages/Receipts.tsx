@@ -31,7 +31,6 @@ import { toast } from "@/components/ui/sonner";
 type ModuleScope = "canteen" | "store";
 const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
 const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
-type StoreShopPick = "all" | (typeof STORE_SHOPS)[number];
 
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
@@ -88,6 +87,8 @@ interface ReceiptApi {
   payer_label?: string | null;
   payer_detail?: PayerDetail | null;
   created_by_name?: string | null;
+  shop_id?: string | null;
+  shop_name?: string | null;
   subtotal: number;
   discount: number;
   tax: number;
@@ -231,26 +232,45 @@ const Receipts = () => {
       setVoidLoading(false);
     }
   };
-  // Admin-only picker for store scope (coop / sports / bookstore / all)
-  const [pickedStoreShop, setPickedStoreShop] = useState<StoreShopPick>("all");
+  // Admin-only picker for store scope (dynamic) / canteen scope (dynamic)
+  const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
+  const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
+  const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
+  const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!user?.shopId) {
+      if (moduleScope === "canteen") {
+        api.get<{ id: string; name: string }[]>("/shops?module=canteen")
+          .then(setCanteenStalls)
+          .catch(() => {});
+      } else {
+        api.get<{ id: string; name: string }[]>("/shops?module=store")
+          .then(setStoreShops)
+          .catch(() => {});
+      }
+    }
+  }, [moduleScope, user?.shopId]);
 
   // ── Build shop-scope query params ───────────────────────────────────────
   const queryParams = useMemo(() => {
     if (moduleScope === "canteen") {
-      // manager / cashier on a specific kitchen: lock to their own shop
       if (user?.shopId) return `?shop_id=${user.shopId}`;
-      // admin / superuser: aggregate all canteen kitchens
+      if (pickedCanteenShop !== "all") return `?shop_id=${pickedCanteenShop}`;
       return `?shop_ids=${CANTEEN_SHOPS.join(",")}`;
     }
     // Store scope
-    if (user?.role === "admin") {
+    if (!user?.shopId) {
+      const ids = storeShops.length > 0
+        ? storeShops.map((s) => s.id).join(",")
+        : STORE_SHOPS.join(",");
       return pickedStoreShop === "all"
-        ? `?shop_ids=${STORE_SHOPS.join(",")}`
+        ? `?shop_ids=${ids}`
         : `?shop_id=${pickedStoreShop}`;
     }
     // manager / cashier on store: lock to their own shop
-    return user?.shopId ? `?shop_id=${user.shopId}` : "";
-  }, [moduleScope, user, pickedStoreShop]);
+    return `?shop_id=${user.shopId}`;
+  }, [moduleScope, user, pickedStoreShop, pickedCanteenShop, storeShops]);
 
   // ── Fetch receipts from API ─────────────────────────────────────────────
   const fetchReceipts = useCallback(async () => {
@@ -348,19 +368,29 @@ const Receipts = () => {
                 ? t("receipts.scopeCanteen")
                 : t("receipts.scopeStore")}
             </Badge>
-            {moduleScope === "store" && user?.role === "admin" && (
-              <Select
-                value={pickedStoreShop}
-                onValueChange={(v) => setPickedStoreShop(v as StoreShopPick)}
-              >
+            {moduleScope === "canteen" && !user?.shopId && canteenStalls.length > 0 && (
+              <Select value={pickedCanteenShop} onValueChange={setPickedCanteenShop}>
                 <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("receipts.storeShopAll")}</SelectItem>
-                  <SelectItem value="coop">{t("receipts.storeShopCoop")}</SelectItem>
-                  <SelectItem value="sports">{t("receipts.storeShopSports")}</SelectItem>
-                  <SelectItem value="bookstore">{t("receipts.storeShopBookstore")}</SelectItem>
+                  <SelectItem value="all">All Canteen Shops</SelectItem>
+                  {canteenStalls.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {moduleScope === "store" && !user?.shopId && storeShops.length > 0 && (
+              <Select value={pickedStoreShop} onValueChange={setPickedStoreShop}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Store Shops</SelectItem>
+                  {storeShops.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -466,13 +496,9 @@ const Receipts = () => {
                   <SelectItem value="all">{t("receipts.searchPanel.allTypes", "All")}</SelectItem>
                   <SelectItem value="wallet">{t("common.paymentMethods.wallet")}</SelectItem>
                   <SelectItem value="cash">{t("common.paymentMethods.cash")}</SelectItem>
-                  <SelectItem value="qr">{t("common.paymentMethods.qr")}</SelectItem>
                   <SelectItem value="qr_promptpay">{t("common.paymentMethods.qr_promptpay")}</SelectItem>
-                  <SelectItem value="credit_card">{t("common.paymentMethods.credit_card")}</SelectItem>
-                  <SelectItem value="debit_card">{t("common.paymentMethods.debit_card")}</SelectItem>
                   <SelectItem value="edc">{t("common.paymentMethods.edc")}</SelectItem>
-                  <SelectItem value="bank_transfer">{t("common.paymentMethods.bank_transfer")}</SelectItem>
-                  <SelectItem value="other">{t("common.paymentMethods.other")}</SelectItem>
+                  <SelectItem value="department">{t("common.paymentMethods.department")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -553,6 +579,9 @@ const Receipts = () => {
                 <TableRow>
                   <TableHead>{t("receipts.receiptId")}</TableHead>
                   <TableHead>{t("receipts.dateTime")}</TableHead>
+                  {!user?.shopId && (
+                    <TableHead>{t("receipts.shop", "Shop")}</TableHead>
+                  )}
                   <TableHead>{t("receipts.seller")}</TableHead>
                   <TableHead>{t("receipts.paymentMethod")}</TableHead>
                   <TableHead>{t("receipts.buyer")}</TableHead>
@@ -566,6 +595,9 @@ const Receipts = () => {
                   <TableRow key={receipt.id}>
                     <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
                     <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
+                    {!user?.shopId && (
+                      <TableCell className="text-sm">{receipt.shop_name ?? receipt.shop_id ?? "—"}</TableCell>
+                    )}
                     <TableCell className="text-sm">{receipt.created_by_name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">

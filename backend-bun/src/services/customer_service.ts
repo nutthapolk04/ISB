@@ -19,6 +19,8 @@ export interface StudentProfileDTO {
   grade: string | null;
   school_type: string | null;
   customer_kind: string | null;
+  enroll_date: string | null;
+  withdraw_date: string | null;
   photo_url: string | null;
   email: string | null;
   phone: string | null;
@@ -84,6 +86,8 @@ function customerToProfile(
     grade: c.grade ?? null,
     school_type: c.schoolType ?? null,
     customer_kind: c.customerKind ?? null,
+    enroll_date: c.enrollDate ?? null,
+    withdraw_date: c.withdrawDate ?? null,
     photo_url: c.photoUrl ?? null,
     email: c.email ?? null,
     phone: c.phone ?? null,
@@ -129,6 +133,8 @@ function userToProfile(
     grade: null,
     school_type: null,
     customer_kind: u.role || "user",
+    enroll_date: null,
+    withdraw_date: null,
     photo_url: u.photoUrl ?? null,
     email: u.email ?? null,
     phone: null,

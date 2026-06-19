@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -388,17 +388,24 @@ export function RfidPaymentModal({
     : !!student;
   const confirmDisabled = !hasPayer || isFrozen || overLimit || confirming;
 
+  const pendingRef = useRef(false);
   const handleConfirm = async () => {
-    if (payerKind === "user" && userPayer) {
-      await onConfirm({ kind: "user", user: userPayer });
-      return;
-    }
-    if (payerKind === "department" && departmentPayer) {
-      await onConfirm({ kind: "department", department: departmentPayer });
-      return;
-    }
-    if (payerKind === "customer" && student) {
-      await onConfirm({ kind: "customer", student });
+    if (pendingRef.current || confirmDisabled) return;
+    pendingRef.current = true;
+    try {
+      if (payerKind === "user" && userPayer) {
+        await onConfirm({ kind: "user", user: userPayer });
+        return;
+      }
+      if (payerKind === "department" && departmentPayer) {
+        await onConfirm({ kind: "department", department: departmentPayer });
+        return;
+      }
+      if (payerKind === "customer" && student) {
+        await onConfirm({ kind: "customer", student });
+      }
+    } finally {
+      pendingRef.current = false;
     }
   };
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -41,6 +41,16 @@ export function CashPaymentModal({
   const change = receivedNum - total;
   const insufficient = receivedNum > 0 && change < 0;
   const canConfirm = receivedNum >= total && !confirming;
+  const pendingRef = useRef(false);
+  const handleConfirm = async () => {
+    if (pendingRef.current || !canConfirm) return;
+    pendingRef.current = true;
+    try {
+      await onConfirm(receivedNum);
+    } finally {
+      pendingRef.current = false;
+    }
+  };
 
   return (
     <Dialog
@@ -145,7 +155,7 @@ export function CashPaymentModal({
           </Button>
           <Button
             className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-            onClick={() => onConfirm(receivedNum)}
+            onClick={handleConfirm}
             disabled={!canConfirm}
           >
             {confirming ? (

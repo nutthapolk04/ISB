@@ -28,9 +28,12 @@ interface StudentProfile {
   id: number;
   customer_code: string;
   student_code?: string | null;
+  customer_kind?: string | null;
   name: string;
   grade?: string | null;
   school_type?: string | null;
+  enroll_date?: string | null;
+  withdraw_date?: string | null;
   photo_url?: string | null;
   email?: string | null;
   phone?: string | null;
@@ -452,6 +455,7 @@ export default function CustomerDetail() {
   }
 
   const initials = profile.name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  const isStudent = profile.customer_kind === "student";
 
   return (
     <div className="page-shell">
@@ -522,13 +526,15 @@ export default function CustomerDetail() {
                 {profile.card_frozen ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
                 {profile.card_frozen ? t("admin.customer.unfreezeCard") : t("admin.customer.freezeCard")}
               </Button>
-<Button
+{isStudent && (
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setGradDialogOpen(true)}
               >
                 <GraduationCap className="h-4 w-4 mr-1" /> {t("admin.customer.markGraduated")}
               </Button>
+            )}
             </div>
           </div>
         </CardContent>
@@ -580,23 +586,27 @@ export default function CustomerDetail() {
                   <Label className="text-xs">{t("admin.customer.basicName")}</Label>
                   <Input value={basicDraft.name} onChange={(e) => setBasicDraft({ ...basicDraft, name: e.target.value })} />
                 </div>
-                <div>
-                  <Label className="text-xs">{t("admin.customer.basicGrade")}</Label>
-                  <Input value={basicDraft.grade} onChange={(e) => setBasicDraft({ ...basicDraft, grade: e.target.value })} placeholder={t("admin.customer.basicGradePlaceholder")} />
-                </div>
-                <div>
-                  <Label className="text-xs">{t("admin.customer.basicSchoolType")}</Label>
-                  <Select value={basicDraft.school_type} onValueChange={(v) => setBasicDraft({ ...basicDraft, school_type: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("admin.customer.basicSchoolTypePlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ES Student">ES Student</SelectItem>
-                      <SelectItem value="MS Student">MS Student</SelectItem>
-                      <SelectItem value="HS Student">HS Student</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {isStudent && (
+                  <div>
+                    <Label className="text-xs">{t("admin.customer.basicGrade")}</Label>
+                    <Input value={basicDraft.grade} onChange={(e) => setBasicDraft({ ...basicDraft, grade: e.target.value })} placeholder={t("admin.customer.basicGradePlaceholder")} />
+                  </div>
+                )}
+                {isStudent && (
+                  <div>
+                    <Label className="text-xs">{t("admin.customer.basicSchoolType")}</Label>
+                    <Select value={basicDraft.school_type} onValueChange={(v) => setBasicDraft({ ...basicDraft, school_type: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("admin.customer.basicSchoolTypePlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ES Student">ES Student</SelectItem>
+                        <SelectItem value="MS Student">MS Student</SelectItem>
+                        <SelectItem value="HS Student">HS Student</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label className="text-xs">{t("admin.customer.basicEmail")}</Label>
                   <Input type="email" value={basicDraft.email} onChange={(e) => setBasicDraft({ ...basicDraft, email: e.target.value })} />
@@ -624,14 +634,30 @@ export default function CustomerDetail() {
                   <p className="text-xs text-muted-foreground">{t("admin.customer.basicName")}</p>
                   <p className="text-sm font-medium">{profile.name}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicGrade")}</p>
-                  <p className="text-sm">{profile.grade || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("admin.customer.basicSchoolType")}</p>
-                  <p className="text-sm">{profile.school_type || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
-                </div>
+                {isStudent && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("admin.customer.basicGrade")}</p>
+                    <p className="text-sm">{profile.grade || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                  </div>
+                )}
+                {isStudent && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("admin.customer.basicSchoolType")}</p>
+                    <p className="text-sm">{profile.school_type || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                  </div>
+                )}
+                {isStudent && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("admin.customer.enrollDate", "Enroll date")}</p>
+                    <p className="text-sm">{profile.enroll_date ? formatDate(profile.enroll_date, i18n.language) : <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
+                  </div>
+                )}
+                {isStudent && profile.withdraw_date && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("admin.customer.withdrawDate", "Withdraw date")}</p>
+                    <p className="text-sm text-destructive font-medium">{formatDate(profile.withdraw_date, i18n.language)}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-muted-foreground">{t("admin.customer.basicEmail")}</p>
                   <p className="text-sm">{profile.email || <span className="text-muted-foreground italic">{t("admin.customer.noData")}</span>}</p>
@@ -776,54 +802,56 @@ export default function CustomerDetail() {
           </CardContent>
         </Card>
 
-        {/* Family links */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4" /> {t("admin.customer.familyTitle")}
-              </span>
-              <Button variant="outline" size="sm" onClick={openLinkParentDialog} className="h-7 px-2 text-xs">
-                <Plus className="h-3.5 w-3.5 mr-1" /> {t("admin.customer.linkParent", "Link Parent")}
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {parents.length === 0 && <p className="text-sm text-muted-foreground italic">{t("admin.customer.noParents")}</p>}
-            {parents.map((l) => (
-              <div key={l.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-                <div>
-                  <p className="font-medium">{l.parent_full_name || l.parent_username}</p>
-                  <p className="text-xs text-muted-foreground">@{l.parent_username} · {l.relation}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => handleUnlinkParent(l.id)}
-                  disabled={unlinkingId === l.id}
-                  title={t("admin.customer.unlinkParent", "Unlink parent")}
-                >
-                  {unlinkingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+        {/* Family links — students only */}
+        {isStudent && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4" /> {t("admin.customer.familyTitle")}
+                </span>
+                <Button variant="outline" size="sm" onClick={openLinkParentDialog} className="h-7 px-2 text-xs">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("admin.customer.linkParent", "Link Parent")}
                 </Button>
-              </div>
-            ))}
-            {siblings.length > 0 && (
-              <>
-                <Separator className="my-2" />
-                <p className="text-xs text-muted-foreground">{t("admin.customer.siblingsCount", { count: siblings.length })}</p>
-                {siblings.map((s) => (
-                  <Link key={s.id} to={`/admin/customer/${s.id}`} className="flex items-center justify-between rounded-md border p-2 text-sm hover:bg-muted/50">
-                    <div>
-                      <p className="font-medium">{s.name}</p>
-                      {s.student_code && <p className="text-xs text-muted-foreground">{s.student_code}</p>}
-                    </div>
-                  </Link>
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {parents.length === 0 && <p className="text-sm text-muted-foreground italic">{t("admin.customer.noParents")}</p>}
+              {parents.map((l) => (
+                <div key={l.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                  <div>
+                    <p className="font-medium">{l.parent_full_name || l.parent_username}</p>
+                    <p className="text-xs text-muted-foreground">@{l.parent_username} · {l.relation}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleUnlinkParent(l.id)}
+                    disabled={unlinkingId === l.id}
+                    title={t("admin.customer.unlinkParent", "Unlink parent")}
+                  >
+                    {unlinkingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              ))}
+              {siblings.length > 0 && (
+                <>
+                  <Separator className="my-2" />
+                  <p className="text-xs text-muted-foreground">{t("admin.customer.siblingsCount", { count: siblings.length })}</p>
+                  {siblings.map((s) => (
+                    <Link key={s.id} to={`/admin/customer/${s.id}`} className="flex items-center justify-between rounded-md border p-2 text-sm hover:bg-muted/50">
+                      <div>
+                        <p className="font-medium">{s.name}</p>
+                        {s.student_code && <p className="text-xs text-muted-foreground">{s.student_code}</p>}
+                      </div>
+                    </Link>
+                  ))}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent transactions */}
         <Card>

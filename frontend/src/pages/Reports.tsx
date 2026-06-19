@@ -224,6 +224,25 @@ const Reports = () => {
   // /admin/reports get every report.
   const location = useLocation();
   const isCanteenReportsPage = location.pathname.startsWith("/canteen/");
+
+  const REPORT_ID_MAP: Record<string, string> = isCanteenReportsPage
+    ? {
+        salesReport:          "ISB001",
+        topSellingReport:     "ISB002",
+        salesByPaymentReport: "ISB003",
+        salesSummaryReport:   "ISB004",
+        salesByItemReport:    "ISB005",
+      }
+    : {
+        salesReport:          "ISB006",
+        topSellingReport:     "ISB007",
+        salesByPaymentReport: "ISB008",
+        salesSummaryReport:   "ISB009",
+        salesByItemReport:    "ISB010",
+        stockReport:          "ISB011",
+        returnReport:         "ISB012",
+        stockCardReport:      "ISB013",
+      };
   const visibleReports = useMemo(
     () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
     [isCanteenReportsPage],
@@ -454,6 +473,7 @@ const Reports = () => {
         title: `Stockcard Report From ${date_from} To ${date_to}`,
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
+        reportId: REPORT_ID_MAP["stockCardReport"],
         filters: filterLines,
       },
       columns,
@@ -589,6 +609,7 @@ const Reports = () => {
         title: "Sales Summary Report",
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
+        reportId: REPORT_ID_MAP["salesSummaryReport"],
         filters: buildSalesSummaryFilterLines(),
       },
       columns,
@@ -728,6 +749,7 @@ const Reports = () => {
         title: "Sales by Item Report",
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
+        reportId: REPORT_ID_MAP["salesByItemReport"],
         filters: buildSalesByItemFilterLines(),
       },
       columns,
@@ -802,6 +824,7 @@ const Reports = () => {
             title: t(`reports.${selectedReportType}`),
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
+            reportId: REPORT_ID_MAP[selectedReportType],
             filters,
           },
           columns: [
@@ -839,6 +862,7 @@ const Reports = () => {
             title: t("reports.salesByPaymentReport"),
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
+            reportId: REPORT_ID_MAP["salesByPaymentReport"],
             filters,
           },
           columns: [
@@ -862,6 +886,7 @@ const Reports = () => {
             title: t("reports.stockReport"),
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
+            reportId: REPORT_ID_MAP["stockReport"],
             filters: [],
           },
           columns: [
@@ -886,6 +911,7 @@ const Reports = () => {
             title: t("reports.returnReport"),
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
+            reportId: REPORT_ID_MAP["returnReport"],
             filters,
           },
           columns: [

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -81,12 +81,19 @@ export function EdcPaymentModal({
 
   const canConfirm = approvalCode.trim().length > 0 && !confirming;
 
+  const pendingRef = useRef(false);
   const handleConfirm = async () => {
-    await onConfirm({
-      approval_code: approvalCode.trim(),
-      terminal_ref: terminalRef.trim() || undefined,
-      masked_card: maskedCard.trim() || undefined,
-    });
+    if (pendingRef.current || !canConfirm) return;
+    pendingRef.current = true;
+    try {
+      await onConfirm({
+        approval_code: approvalCode.trim(),
+        terminal_ref: terminalRef.trim() || undefined,
+        masked_card: maskedCard.trim() || undefined,
+      });
+    } finally {
+      pendingRef.current = false;
+    }
   };
 
   return (

@@ -33,9 +33,10 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import ShopPicker from "@/components/ShopPicker";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft,
-  Edit2,
+  Edit3,
   History as HistoryIcon,
   Users,
   AlertTriangle,
@@ -129,10 +130,12 @@ export default function UserDetail() {
 
   const [user, setUser] = useState<UserDetailData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
+  const [editingBasic, setEditingBasic] = useState(false);
+  const [editingHealth, setEditingHealth] = useState(false);
   const [form, setForm] = useState<Partial<UserDetailData>>({});
   const [extIdReason, setExtIdReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingHealth, setSavingHealth] = useState(false);
 
   // RFID bind dialog
   const [cardOpen, setCardOpen] = useState(false);
@@ -208,13 +211,12 @@ export default function UserDetail() {
         external_id: form.external_id || null,
         family_code: form.family_code || null,
         status: form.status,
-        allergies: form.allergies || null,
         shop_id: form.shop_id || null,
       };
       if (extIdChanged) body.external_id_change_reason = extIdReason.trim();
       const updated = await api.patch<UserDetailData>(`/users-admin/${user.id}`, body);
       setUser(updated);
-      setEditMode(false);
+      setEditingBasic(false);
       setExtIdReason("");
       toast({ title: t("admin.users.saveSuccess") });
     } catch (e) {
@@ -225,6 +227,27 @@ export default function UserDetail() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveHealth = async () => {
+    if (!user) return;
+    setSavingHealth(true);
+    try {
+      const updated = await api.patch<UserDetailData>(`/users-admin/${user.id}`, {
+        allergies: form.allergies || null,
+      });
+      setUser(updated);
+      setEditingHealth(false);
+      toast({ title: t("admin.users.saveSuccess") });
+    } catch (e) {
+      toast({
+        title: t("admin.users.saveError"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingHealth(false);
     }
   };
 
@@ -409,54 +432,41 @@ export default function UserDetail() {
   if (loading) return <div className="page-shell"><p className="text-muted-foreground">{t("admin.users.loading")}</p></div>;
   if (!user) return <div className="page-shell"><p className="text-destructive">{t("admin.users.notFound")}</p></div>;
 
-  const extIdChanged = editMode && (form.external_id || null) !== (user.external_id || null);
+  const initials = user.full_name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  const extIdChanged = editingBasic && (form.external_id || null) !== (user.external_id || null);
 
   return (
     <div className="page-shell">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.users.back")}
-        </Button>
-        {editMode ? (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setEditMode(false); load(); setExtIdReason(""); }}>
-              {t("admin.users.cancel")}
-            </Button>
-            <Button size="sm" onClick={save} disabled={saving}>
-              <Save className="h-4 w-4 mr-1" /> {saving ? t("admin.users.saving") : t("admin.users.save")}
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" onClick={() => setEditMode(true)}>
-            <Edit2 className="h-4 w-4 mr-1" /> {t("admin.users.edit")}
-          </Button>
-        )}
-      </div>
+      <div className="space-y-4 sm:space-y-6">
+      <Button variant="ghost" size="sm" className="w-fit" onClick={() => navigate(-1)}>
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.users.back")}
+      </Button>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Profile */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5" /> {t("admin.users.profileTitle")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-4">
-              {user.photo_url ? (
-                <img src={user.photo_url} alt="" className="h-20 w-20 rounded-full object-cover border" />
-              ) : (
-                <div className="h-20 w-20 rounded-full bg-muted grid place-items-center text-lg font-semibold text-muted-foreground">
-                  {user.full_name.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-lg">{user.full_name}</span>
+      {/* ── Hero card ─────────────────────────────────────────────────────── */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start">
+            <Avatar className="h-24 w-24 shrink-0">
+              {user.photo_url && <AvatarImage src={user.photo_url} alt={user.full_name} />}
+              <AvatarFallback className="text-xl">{initials}</AvatarFallback>
+            </Avatar>
+
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <h1 className="text-2xl font-bold">{user.full_name}</h1>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {user.role && <Badge variant="outline" className="capitalize">{user.role}</Badge>}
+                  <Badge className={`border-0 ${user.is_active ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-600 hover:bg-red-100"}`}>
+                    {user.is_active ? "Active" : "Inactive"}
+                  </Badge>
                   {user.customer_type && (
                     <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100 gap-1">
-                      <UserCircle2 className="h-3 w-3" />
-                      PS: {user.customer_type}
+                      <UserCircle2 className="h-3 w-3" /> PS: {user.customer_type}
+                    </Badge>
+                  )}
+                  {user.staff_type && (
+                    <Badge className={`border ${user.staff_type === "Classified Staff" ? "bg-blue-100 text-blue-700 border-blue-300" : "bg-violet-100 text-violet-700 border-violet-300"}`}>
+                      {user.staff_type === "Classified Staff" ? "Classified" : "Certified"}
                     </Badge>
                   )}
                   {user.has_children && (
@@ -464,68 +474,82 @@ export default function UserDetail() {
                       <Users2 className="h-3 w-3" /> {t("admin.users.hasChildren")}
                     </Badge>
                   )}
-                  {user.staff_type && (
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
-                      user.staff_type === "Classified Staff"
-                        ? "bg-blue-100 text-blue-700 border-blue-300"
-                        : "bg-violet-100 text-violet-700 border-violet-300"
-                    }`}>
-                      {user.staff_type === "Classified Staff" ? "Classified" : "Certified"}
-                    </span>
-                  )}
                 </div>
-                <div className="text-sm text-muted-foreground">@{user.username}</div>
-                {user.ps_department && (
-                  <div className="text-xs text-muted-foreground mt-0.5">{user.ps_department}</div>
-                )}
-                <div className="text-xs text-muted-foreground mt-1">
-                  Last synced: {user.last_synced_at ? new Date(user.last_synced_at).toLocaleString() : "never"}
+                <div className="text-sm text-muted-foreground mt-1">@{user.username}</div>
+                {user.ps_department && <div className="text-xs text-muted-foreground">{user.ps_department}</div>}
+                <div className="text-xs text-muted-foreground">
+                  {t("admin.users.lastSynced", "Last synced")}: {user.last_synced_at ? new Date(user.last_synced_at).toLocaleString() : "never"}
                 </div>
               </div>
             </div>
 
-            {/* RFID card binding */}
-            <div className="rounded-md border bg-muted/30 p-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">{t("admin.users.rfidSmartCard")}</div>
-                  <div className="font-mono text-sm">
-                    {user.card_uid || <span className="text-muted-foreground">{t("admin.users.cardNotBound")}</span>}
-                  </div>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => { setCardInput(user.card_uid || ""); setCardOpen(true); }}>
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setCardInput(user.card_uid || ""); setCardOpen(true); }}
+              >
+                <CreditCard className="h-4 w-4 mr-1" />
                 {user.card_uid ? t("admin.users.rebind") : t("admin.users.bindCard")}
               </Button>
+              {user.card_uid && (
+                <p className="text-xs text-muted-foreground font-mono text-center">{user.card_uid}</p>
+              )}
             </div>
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* ── 2-col info cards ─────────────────────────────────────────────── */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" /> {t("admin.users.profileTitle")}
+            </CardTitle>
+            {!editingBasic ? (
+              <Button variant="ghost" size="sm" onClick={() => setEditingBasic(true)}>
+                <Edit3 className="h-4 w-4" />
+              </Button>
+            ) : (
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" onClick={() => { setEditingBasic(false); load(); setExtIdReason(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button size="sm" onClick={save} disabled={saving}>
+                  <Save className="h-4 w-4 mr-1" /> {saving ? t("admin.users.saving") : t("admin.users.save")}
+                </Button>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>{t("admin.users.fullName")}</Label>
-                {editMode ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.fullName")}</p>
+                {editingBasic ? (
                   <Input value={form.full_name || ""} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
                 ) : (
-                  <p className="text-sm py-2">{user.full_name}</p>
+                  <p className="text-sm">{user.full_name}</p>
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t("admin.users.email")}</Label>
-                {editMode ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.email")}</p>
+                {editingBasic ? (
                   <Input type="email" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 ) : (
-                  <p className="text-sm py-2">{user.email}</p>
+                  <p className="text-sm">{user.email || <span className="text-muted-foreground italic">—</span>}</p>
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t("admin.users.role")}</Label>
-                {editMode ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.role")}</p>
+                {editingBasic ? (
                   <Select value={form.role || ""} onValueChange={(v) => setForm({ ...form, role: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["admin", "manager", "cashier", "staff"].map((r) => (
+                      {["admin", "manager", "cashier", "staff", "teacher", "parent"].map((r) => (
                         <SelectItem key={r} value={r}>{r}</SelectItem>
                       ))}
                     </SelectContent>
@@ -535,24 +559,26 @@ export default function UserDetail() {
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t("admin.users.status")}</Label>
-                {editMode ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.status")}</p>
+                {editingBasic ? (
                   <Select value={form.status || "active"} onValueChange={(v) => setForm({ ...form, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">active</SelectItem>
-                      <SelectItem value="inactive">inactive</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Badge variant={user.is_active ? "default" : "destructive"} className="w-fit capitalize">{user.status}</Badge>
+                  <Badge className={`w-fit capitalize border-0 ${user.is_active ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-600 hover:bg-red-100"}`}>
+                    {user.status}
+                  </Badge>
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t("admin.users.externalId")}</Label>
-                {editMode ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.externalId")}</p>
+                {editingBasic ? (
                   <Input
                     value={form.external_id || ""}
                     onChange={(e) => setForm({ ...form, external_id: e.target.value })}
@@ -560,15 +586,15 @@ export default function UserDetail() {
                     className="font-mono"
                   />
                 ) : (
-                  <p className="text-sm py-2 font-mono">
-                    {user.external_id || <span className="text-muted-foreground">not linked</span>}
+                  <p className="text-sm font-mono">
+                    {user.external_id || <span className="text-muted-foreground italic">not linked</span>}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t("admin.users.familyCode")}</Label>
-                {editMode ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.familyCode")}</p>
+                {editingBasic ? (
                   <Input
                     value={form.family_code || ""}
                     onChange={(e) => setForm({ ...form, family_code: e.target.value })}
@@ -576,18 +602,16 @@ export default function UserDetail() {
                     className="font-mono"
                   />
                 ) : (
-                  user.family_code ? <Badge variant="secondary" className="w-fit font-mono">{user.family_code}</Badge> : <p className="text-sm py-2 text-muted-foreground">—</p>
+                  user.family_code
+                    ? <Badge variant="secondary" className="w-fit font-mono">{user.family_code}</Badge>
+                    : <p className="text-sm text-muted-foreground italic">—</p>
                 )}
               </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>{t("admin.users.shopAssignment")}</Label>
-                {editMode ? (
-                  <ShopPicker
-                    value={form.shop_id || null}
-                    onChange={(id) => setForm({ ...form, shop_id: id })}
-                    allowNone
-                  />
+              <div className="space-y-1 sm:col-span-2">
+                <p className="text-xs text-muted-foreground">{t("admin.users.shopAssignment")}</p>
+                {editingBasic ? (
+                  <ShopPicker value={form.shop_id || null} onChange={(id) => setForm({ ...form, shop_id: id })} allowNone />
                 ) : (
                   user.shop_id ? (
                     <Link to={`/store/management/${user.shop_id}`}>
@@ -597,12 +621,9 @@ export default function UserDetail() {
                       </Badge>
                     </Link>
                   ) : (
-                    <p className="text-sm py-2 text-muted-foreground italic">— {t("admin.users.noShop")} —</p>
+                    <p className="text-sm text-muted-foreground italic">— {t("admin.users.noShop")} —</p>
                   )
                 )}
-                <p className="text-xs text-muted-foreground">
-                  {t("admin.users.shopHint")}
-                </p>
               </div>
             </div>
 
@@ -622,31 +643,45 @@ export default function UserDetail() {
           </CardContent>
         </Card>
 
-        {/* Health / Allergy override */}
+        {/* Health / Allergy */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" /> {t("admin.users.healthProfile")}
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" /> {t("admin.users.healthProfile")}
             </CardTitle>
+            {!editingHealth ? (
+              <Button variant="ghost" size="sm" onClick={() => setEditingHealth(true)}>
+                <Edit3 className="h-4 w-4" />
+              </Button>
+            ) : (
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" onClick={() => { setEditingHealth(false); setForm({ ...form, allergies: user.allergies ?? "" }); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button size="sm" onClick={saveHealth} disabled={savingHealth}>
+                  <Save className="h-4 w-4 mr-1" /> {savingHealth ? t("admin.users.saving") : t("admin.users.save")}
+                </Button>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>{t("admin.users.allergiesSynced")}</Label>
-              {editMode ? (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">{t("admin.users.allergiesSynced")}</p>
+              {editingHealth ? (
                 <Textarea
                   value={form.allergies || ""}
                   onChange={(e) => setForm({ ...form, allergies: e.target.value })}
                   placeholder="peanut, dairy, ..."
-                  rows={3}
+                  rows={4}
                 />
               ) : (
-                <p className="text-sm py-2 whitespace-pre-wrap">
-                  {user.allergies || <span className="text-muted-foreground">{t("admin.users.noAllergies")}</span>}
+                <p className="text-sm whitespace-pre-wrap">
+                  {user.allergies || <span className="text-muted-foreground italic">{t("admin.users.noAllergies")}</span>}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                {t("admin.users.allergyOverrideHint")}
-              </p>
+              {!editingHealth && (
+                <p className="text-xs text-muted-foreground">{t("admin.users.allergyOverrideHint")}</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1037,6 +1072,7 @@ export default function UserDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }
