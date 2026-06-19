@@ -300,6 +300,7 @@ export function buildReceiptHtml(
 </style>
 </head>
 <body>
+  <!-- Header: Logo / School name / Address -->
   <div class="logo-wrap">${logoHtml}</div>
   <h1>${school.name}</h1>
   ${addressLine}
@@ -308,14 +309,23 @@ export function buildReceiptHtml(
   ${shopHeaderLine}
   <p class="doc-type">${lbl.subtitle}</p>
   ${voidedSection}
+
+  <!-- Block 1: Receipt No / Date / Cashier -->
   <hr/>
   <div class="row"><span>${lbl.receiptNo}</span><span>${r.receipt_number}</span></div>
   <div class="row small"><span>${lbl.date}</span><span>${dateStr}</span></div>
-  ${payerSection}
   ${cashierSection}
+
+  <!-- Block 2: Payer / Payment Type -->
+  <hr/>
+  ${payerSection}
   <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
+
+  <!-- Block 3: Items -->
   <hr/>
   ${itemRows}
+
+  <!-- Block 4: Totals -->
   <hr/>
   ${balanceBeforeSection}
   <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
@@ -324,10 +334,11 @@ export function buildReceiptHtml(
   <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
   ${balanceAfterSection}
   ${r.payment_method.toLowerCase() === "cash" && r.cash_received != null ? `
-  <hr/>
   <div class="row small"><span>Cash received</span><span>฿${Number(r.cash_received).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>
   <div class="row small" style="font-weight:bold;color:#000"><span>Change</span><span>฿${Math.max(0, Number(r.cash_received) - r.total).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span></div>` : ""}
   ${notesSection}
+
+  <!-- Footer -->
   <hr/>
   <p class="center sub">${footerText || lbl.thanks}</p>
 </body>
