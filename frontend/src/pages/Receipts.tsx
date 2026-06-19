@@ -323,7 +323,7 @@ const Receipts = () => {
     const txDate = fmtDateOnly(r.transaction_date);
     if (dateFrom && txDate < dateFrom) return false;
     if (dateTo && txDate > dateTo) return false;
-    if (paymentType !== "all" && r.payment_method !== paymentType) return false;
+    if (paymentType !== "all" && r.payment_method.toLowerCase() !== paymentType) return false;
     return true;
   });
 
