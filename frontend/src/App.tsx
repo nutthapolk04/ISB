@@ -166,14 +166,16 @@ function AppShell() {
                       <Monitor className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setPwOpen(true)}
-                    title={t("account.changePassword")}
-                  >
-                    <KeyRound className="h-4 w-4" />
-                  </Button>
+                  {hasRole("admin", "manager", "cashier", "kitchen") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setPwOpen(true)}
+                      title={t("account.changePassword")}
+                    >
+                      <KeyRound className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
