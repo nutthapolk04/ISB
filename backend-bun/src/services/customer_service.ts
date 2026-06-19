@@ -332,16 +332,14 @@ export async function setDailyLimits(
   limits: { daily_limit_canteen?: number | null; daily_limit_store?: number | null },
 ): Promise<StudentProfileDTO> {
   await assertCustomerAccess(caller, customerId);
-  const updates: Record<string, string | null> = {};
-  if ("daily_limit_canteen" in limits) {
-    updates.dailyLimitCanteen = limits.daily_limit_canteen !== null && limits.daily_limit_canteen !== undefined
-      ? String(limits.daily_limit_canteen) : null;
-  }
-  if ("daily_limit_store" in limits) {
-    updates.dailyLimitStore = limits.daily_limit_store !== null && limits.daily_limit_store !== undefined
-      ? String(limits.daily_limit_store) : null;
-  }
-  const rows = await db.update(customers).set(updates).where(eq(customers.id, customerId)).returning();
+  const rows = await db.update(customers).set({
+    ...("daily_limit_canteen" in limits && {
+      dailyLimitCanteen: limits.daily_limit_canteen != null ? String(limits.daily_limit_canteen) : null,
+    }),
+    ...("daily_limit_store" in limits && {
+      dailyLimitStore: limits.daily_limit_store != null ? String(limits.daily_limit_store) : null,
+    }),
+  }).where(eq(customers.id, customerId)).returning();
   if (!rows[0]) {
     const err = new Error("Customer not found");
     (err as { status?: number }).status = 404;
