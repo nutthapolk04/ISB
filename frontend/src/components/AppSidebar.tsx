@@ -160,6 +160,9 @@ export function AppSidebar() {
   const activeRole = user?.activeRole ?? user?.role;
   const allRoles = user?.allRoles ?? (user ? [user.role] : []);
   const isRefundOnlyMode = activeRole === "refund_officer" && allRoles.length === 1;
+  // Parent-like: pure parent OR staff who also has parent role (has children)
+  // These users go straight to /parent/dashboard — Home Hub adds no value for them
+  const isParentLike = activeRole === "parent" || (activeRole === "staff" && allRoles.includes("parent"));
 
   /** Group visibility: admin sees everything non-parent; otherwise filter by module */
   const groupVisible = (g: MenuGroup): boolean => {
@@ -223,8 +226,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Home Hub — visible to all authenticated users so they can always navigate back */}
-        {!isRefundOnlyMode && user && (
+        {/* Home Hub — hidden for parent-like users who go straight to /parent/dashboard */}
+        {!isRefundOnlyMode && user && !isParentLike && (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0">
