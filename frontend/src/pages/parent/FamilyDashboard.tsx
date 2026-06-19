@@ -383,16 +383,12 @@ export default function FamilyDashboard() {
               <span className="text-3xl font-extrabold text-white tabular-nums">{formatTHB(studentWallet.balance)}</span>
             </div>
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              {(studentWallet.student_code ?? studentWallet.customer_code) && (
-                <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.idNumber", "ID Number")}: {studentWallet.student_code ?? studentWallet.customer_code}
-                </span>
-              )}
-              {studentWallet.card_uid && (
-                <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.card", "Card")}: {studentWallet.card_uid}
-                </span>
-              )}
+              <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                {t("parent.dashboard.idNumber", "ID Number")}: {studentWallet.student_code ?? studentWallet.customer_code ?? "—"}
+              </span>
+              <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                {t("parent.dashboard.idCard", "ID Card")}: {studentWallet.card_uid ?? "—"}
+              </span>
             </div>
           </div>
         </div>
@@ -505,16 +501,12 @@ export default function FamilyDashboard() {
                   </div>
 
                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {card.code && (
-                      <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                        {t("parent.dashboard.idNumber", "ID Number")}: {card.code}
-                      </span>
-                    )}
-                    {card.cardUid && (
-                      <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                        {t("parent.dashboard.card", "Card")}: {card.cardUid}
-                      </span>
-                    )}
+                    <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                      {t("parent.dashboard.idNumber", "ID Number")}: {card.code || "—"}
+                    </span>
+                    <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                      {t("parent.dashboard.idCard", "ID Card")}: {card.cardUid ?? "—"}
+                    </span>
                   </div>
                 </div>
 
