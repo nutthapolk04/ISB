@@ -60,7 +60,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     {
       query: t.Object({
         active_only: t.Optional(t.Nullable(t.String())),
-        module: t.Optional(t.Union([t.Literal("canteen"), t.Literal("store")])),
+        module: t.Optional(t.Nullable(t.String())),
       }),
       detail: {
         summary: "List shops",
