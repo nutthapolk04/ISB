@@ -82,6 +82,7 @@ interface FamilyCard {
   name: string;
   balance: number | null;
   code: string;
+  customerCode?: string | null;
   role: string;          // display label e.g. "Parent / Guardian"
   userRole: string;      // raw role for color lookup: parent/staff/student/admin
   photoUrl: string | null;
@@ -273,6 +274,7 @@ export default function FamilyDashboard() {
       name: ch.name,
       balance: ch.wallet_balance ?? 0,
       code: ch.student_code ?? ch.customer_code,
+      customerCode: ch.customer_code,
       role: t("roles.student", "Student"),
       userRole: "student",
       photoUrl: ch.photo_url ?? null,
@@ -378,12 +380,12 @@ export default function FamilyDashboard() {
             <div className="flex items-center justify-center gap-2 flex-wrap">
               {user?.username && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.empId", "Employee ID")}: {maskData(user.username)}
+                  {t("parent.dashboard.idNumber", "ID Number")}: {user.username}
                 </span>
               )}
               {studentWallet.username && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.cardId", "Card ID")}: {maskData(studentWallet.username)}
+                  {t("parent.dashboard.cardId", "Card")}: {studentWallet.username}
                 </span>
               )}
             </div>
@@ -498,14 +500,14 @@ export default function FamilyDashboard() {
                   </div>
 
                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {user?.username && (
-                      <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                        {t("parent.dashboard.empId", "Employee ID")}: {maskData(user.username)}
-                      </span>
-                    )}
                     {card.code && (
                       <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                        {t("parent.dashboard.cardId", "Card ID")}: {maskData(card.code)}
+                        {t("parent.dashboard.idNumber", "ID Number")}: {card.code}
+                      </span>
+                    )}
+                    {card.customerCode && card.customerCode !== card.code && (
+                      <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
+                        {t("parent.dashboard.cardId", "Card")}: {card.customerCode}
                       </span>
                     )}
                   </div>
