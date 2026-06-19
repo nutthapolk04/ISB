@@ -267,11 +267,17 @@ export default function GuidePage() {
   const effectiveRole = (user?.activeRole ?? user?.role ?? "cashier") as UserRole;
   // cashier has no dedicated guide — map to canteen or store based on shop module
   const guideRole = useMemo(() => {
-    // cashier / staff / kitchen have no dedicated guide — map to canteen or store
-    if (effectiveRole === "cashier" || effectiveRole === "staff" || effectiveRole === "kitchen") {
+    // cashier / kitchen → map to their shop module's guide
+    if (effectiveRole === "cashier" || effectiveRole === "kitchen") {
       const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
       return mod === "canteen" ? "canteen" : "store";
     }
+    // staff with a shop assignment → same mapping as cashier
+    if (effectiveRole === "staff" && (user?.shopModule || user?.shopId)) {
+      const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
+      return mod === "canteen" ? "canteen" : "store";
+    }
+    // staff without shop (e.g. teacher) → no dedicated guide, fallback shows all
     return effectiveRole;
   }, [effectiveRole, user]);
 
