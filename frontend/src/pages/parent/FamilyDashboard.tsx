@@ -378,14 +378,14 @@ export default function FamilyDashboard() {
               <span className="text-3xl font-extrabold text-white tabular-nums">{formatTHB(studentWallet.balance)}</span>
             </div>
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              {user?.username && (
+              {user?.username && user.username !== studentWallet.username && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
                   {t("parent.dashboard.idNumber", "ID Number")}: {user.username}
                 </span>
               )}
               {studentWallet.username && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.cardId", "Card")}: {studentWallet.username}
+                  {t("parent.dashboard.card", "Card")}: {studentWallet.username}
                 </span>
               )}
             </div>
@@ -500,14 +500,14 @@ export default function FamilyDashboard() {
                   </div>
 
                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {card.code && (
+                    {card.code && card.customerCode && card.code !== card.customerCode && (
                       <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
                         {t("parent.dashboard.idNumber", "ID Number")}: {card.code}
                       </span>
                     )}
-                    {card.customerCode && card.customerCode !== card.code && (
+                    {(card.customerCode ?? card.code) && (
                       <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                        {t("parent.dashboard.cardId", "Card")}: {card.customerCode}
+                        {t("parent.dashboard.card", "Card")}: {card.customerCode ?? card.code}
                       </span>
                     )}
                   </div>
