@@ -163,6 +163,7 @@ export function AppSidebar() {
   // Parent-like: pure parent OR staff who also has parent role (has children)
   // These users go straight to /parent/dashboard — Home Hub adds no value for them
   const isParentLike = activeRole === "parent" || (activeRole === "staff" && allRoles.includes("parent"));
+  const isAdmin = activeRole === "admin";
 
   /** Group visibility: admin sees everything non-parent; otherwise filter by module */
   const groupVisible = (g: MenuGroup): boolean => {
@@ -226,8 +227,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Home Hub — hidden for parent-like users who go straight to /parent/dashboard */}
-        {!isRefundOnlyMode && user && !isParentLike && (
+        {/* Home Hub — hidden for admin (has Dashboard) and parent-like users */}
+        {!isRefundOnlyMode && user && !isParentLike && !isAdmin && (
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0">
