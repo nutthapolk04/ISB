@@ -595,23 +595,8 @@ export default function FamilyDashboard() {
           {/* Recent transactions */}
           {activeCard?.walletId && (
             <div className="mt-5">
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3">
                 <p className="text-base font-semibold text-slate-800">{t("parent.dashboard.recentActivity", "Recent activity")}</p>
-                {activeCard.kind === "child" && activeCard.customerId && (
-                  <Link to={`/parent/transactions/${activeCard.customerId}`} className="text-sm text-blue-600">
-                    {t("parent.dashboard.viewAll", "View all")}
-                  </Link>
-                )}
-                {activeCard.kind === "self" && (
-                  <Link to="/parent/transactions/own" className="text-sm text-blue-600">
-                    {t("parent.dashboard.viewAll", "View all")}
-                  </Link>
-                )}
-                {activeCard.kind === "coparent" && activeCard.walletId && (
-                  <Link to={`/parent/transactions/wallet-${activeCard.walletId}`} className="text-sm text-blue-600">
-                    {t("parent.dashboard.viewAll", "View all")}
-                  </Link>
-                )}
               </div>
 
               <Card>
