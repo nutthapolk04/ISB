@@ -316,9 +316,34 @@ export default function GuidePage() {
         </div>
       </div>
 
+      {/* Mobile role tabs — only when multiple guides exist (e.g. admin) */}
+      {visibleGuides.length > 1 && (
+        <div className="sm:hidden flex gap-1 overflow-x-auto border-b bg-muted/30 px-3 py-2 shrink-0">
+          {visibleGuides.map((role) => {
+            const Icon = role.icon;
+            const isActive = role.id === activeRole;
+            return (
+              <button
+                key={role.id}
+                onClick={() => setActiveRole(role.id)}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  isActive
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:bg-background/60"
+                )}
+              >
+                <Icon className={cn("h-3.5 w-3.5 shrink-0", isActive ? role.color : "")} />
+                {t(role.labelKey)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar — role tabs */}
-        <aside className="w-64 shrink-0 border-r bg-muted/30 p-4 space-y-1 overflow-y-auto">
+        {/* Sidebar — hidden on mobile, visible sm+ */}
+        <aside className="hidden sm:block w-56 shrink-0 border-r bg-muted/30 p-4 space-y-1 overflow-y-auto">
           <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("guide.selectRole")}
           </p>
@@ -336,9 +361,7 @@ export default function GuidePage() {
                     : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
                 )}
               >
-                <Icon
-                  className={cn("h-4 w-4 shrink-0", isActive ? role.color : "")}
-                />
+                <Icon className={cn("h-4 w-4 shrink-0", isActive ? role.color : "")} />
                 <span className="flex-1 truncate">{t(role.labelKey)}</span>
                 {isActive && (
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -349,36 +372,29 @@ export default function GuidePage() {
         </aside>
 
         {/* Content — steps */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Role header */}
-          <div className="mb-6 flex items-start gap-4">
-            <div
-              className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                "bg-muted"
-              )}
-            >
-              <activeGuide.icon
-                className={cn("h-6 w-6", activeGuide.color)}
-              />
+          <div className="mb-5 flex items-start gap-3">
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-muted">
+              <activeGuide.icon className={cn("h-5 w-5 sm:h-6 sm:w-6", activeGuide.color)} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-foreground">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground leading-tight">
                   {t(activeGuide.labelKey)}
                 </h2>
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs shrink-0">
                   {t("guide.stepsCount", { count: activeGuide.steps.length })}
                 </Badge>
               </div>
-              <p className="mt-0.5 text-sm text-muted-foreground">
+              <p className="mt-0.5 text-sm text-muted-foreground leading-snug">
                 {t(activeGuide.descKey)}
               </p>
             </div>
           </div>
 
           {/* Steps */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {activeGuide.steps.map((step, index) => {
               const StepIcon = step.icon;
               return (
@@ -386,31 +402,19 @@ export default function GuidePage() {
                   key={index}
                   className="border border-border/60 shadow-none transition-shadow hover:shadow-sm"
                 >
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="flex items-center gap-3 text-base font-medium">
-                      {/* Step number badge */}
-                      <span
-                        className={cn(
-                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                          "bg-primary text-primary-foreground"
-                        )}
-                      >
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <CardTitle className="flex items-center gap-2.5 text-sm sm:text-base font-medium">
+                      <span className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold bg-primary text-primary-foreground">
                         {index + 1}
                       </span>
-                      {/* Step icon */}
-                      <span
-                        className={cn(
-                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                          "bg-muted"
-                        )}
-                      >
-                        <StepIcon className={cn("h-4 w-4", activeGuide.color)} />
+                      <span className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <StepIcon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", activeGuide.color)} />
                       </span>
                       {t(step.titleKey)}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pb-4 pt-0">
-                    <p className="text-sm text-muted-foreground leading-relaxed pl-[3.5rem]">
+                  <CardContent className="pb-3 pt-0 px-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed sm:pl-[3.25rem]">
                       {t(step.descKey)}
                     </p>
                   </CardContent>
