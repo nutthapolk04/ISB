@@ -271,12 +271,15 @@ const Reports = () => {
   const [stockCardShops, setStockCardShops] = useState<ShopOption[]>([]);
   const [stockCardCategories, setStockCardCategories] = useState<string[]>([]);
 
-  // Admin needs a shop dropdown — fetch active shops filtered by current module.
+  // Admin needs a shop dropdown — fetch when Stock Card panel is opened.
   useEffect(() => {
-    if (user?.role !== "admin") return;
+    if (selectedReportType !== "stockCardReport") return;
+    if (!user) return;
     const module = isCanteenReportsPage ? "canteen" : "store";
-    api.get<ShopOption[]>(`/shops?active_only=true&module=${module}`).then(setStockCardShops).catch(() => {});
-  }, [user?.role, isCanteenReportsPage]);
+    api.get<ShopOption[]>(`/shops?active_only=true&module=${module}`)
+      .then(setStockCardShops)
+      .catch((e) => console.error("[Reports] shop fetch failed:", e));
+  }, [selectedReportType, user, isCanteenReportsPage]);
 
   // Fetch distinct category names for the current shop so the dropdown shows
   // only categories that actually have products. Resets when the shop
