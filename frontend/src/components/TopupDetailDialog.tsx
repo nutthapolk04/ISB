@@ -29,6 +29,7 @@ export interface TopupTransaction {
   description?: string | null;
   reference_type?: string | null;
   reference_id?: number | null;
+  shop_name?: string | null;
   created_at: string;
 }
 
@@ -153,6 +154,14 @@ export function TopupDetailDialog({ transaction, onClose }: TopupDetailDialogPro
               <span className="text-muted-foreground">{t("topup.detail.method", "Method")}</span>
               <span className="font-semibold">{paymentMethod}</span>
             </div>
+
+            {/* Source shop (kiosk / cashier shop / store) */}
+            {transaction.shop_name && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">{t("topup.detail.source", "Source")}</span>
+                <span className="font-medium">{transaction.shop_name}</span>
+              </div>
+            )}
 
             {/* Reference code */}
             {refCode && (

@@ -292,8 +292,39 @@ export async function listTransactions(
     rows.forEach((r) => shopMap.set(r.rid, { shopId: r.shopId, shopName: r.shopName }));
   }
 
+  // For non-receipt transactions (topup, adjustment, transfer): enrich with
+  // the creator user's shop so the frontend can show "Top-up at <Shop>" or "Kiosk".
+  const creatorShopMap = new Map<number, string | null>(); // userId -> shopName
+  const nonReceiptCreatorIds = [
+    ...new Set(
+      txs
+        .filter((t) => t.referenceType !== "receipt" && t.referenceType !== "receipt_void")
+        .map((t) => t.createdBy),
+    ),
+  ];
+  if (nonReceiptCreatorIds.length > 0) {
+    const userShopRows = await db
+      .select({ userId: users.id, shopId: users.shopId })
+      .from(users)
+      .where(inArray(users.id, nonReceiptCreatorIds));
+    const creatorShopIds = [...new Set(userShopRows.map((u) => u.shopId).filter((s): s is string => !!s))];
+    const shopNameMap = new Map<string, string>();
+    if (creatorShopIds.length > 0) {
+      const shopRows = await db
+        .select({ id: shops.id, name: shops.name })
+        .from(shops)
+        .where(inArray(shops.id, creatorShopIds));
+      shopRows.forEach((s) => shopNameMap.set(s.id, s.name ?? ""));
+    }
+    userShopRows.forEach((u) => {
+      creatorShopMap.set(u.userId, u.shopId ? (shopNameMap.get(u.shopId) ?? null) : null);
+    });
+  }
+
   return txs.map((t) => {
-    const shop = t.referenceId !== null ? shopMap.get(t.referenceId) : undefined;
+    const isReceiptTx = t.referenceType === "receipt" || t.referenceType === "receipt_void";
+    const receiptShop = isReceiptTx && t.referenceId !== null ? shopMap.get(t.referenceId) : undefined;
+    const creatorShopName = isReceiptTx ? null : (creatorShopMap.get(t.createdBy) ?? null);
     return {
       id: t.id,
       wallet_id: t.walletId,
@@ -304,8 +335,8 @@ export async function listTransactions(
       reference_type: t.referenceType ?? null,
       reference_id: t.referenceId ?? null,
       description: t.description ?? null,
-      shop_id: shop?.shopId ?? null,
-      shop_name: shop?.shopName ?? null,
+      shop_id: receiptShop?.shopId ?? null,
+      shop_name: receiptShop?.shopName ?? creatorShopName,
       created_at: pgToIso(t.createdAt)!,
     };
   });
