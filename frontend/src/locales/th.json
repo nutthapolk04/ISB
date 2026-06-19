@@ -2486,7 +2486,7 @@
       "filterTitle": "ตัวกรองช่วงเวลา",
       "dateRange": "ช่วงวันที่",
       "filter": "กรอง",
-      "clearFilter": "ล้าง",
+      "clearFilter": "Clear Filter",
       "listTitle": "รายการ ({{count}})",
       "noResults": "ไม่มีรายการในช่วงเวลาที่เลือก",
       "colDate": "วันที่",
