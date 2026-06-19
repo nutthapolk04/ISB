@@ -271,11 +271,12 @@ const Reports = () => {
   const [stockCardShops, setStockCardShops] = useState<ShopOption[]>([]);
   const [stockCardCategories, setStockCardCategories] = useState<string[]>([]);
 
-  // Admin needs a shop dropdown — fetch active shops once.
+  // Admin needs a shop dropdown — fetch active shops filtered by current module.
   useEffect(() => {
     if (user?.role !== "admin") return;
-    api.get<ShopOption[]>("/shops/?active_only=true").then(setStockCardShops).catch(() => {});
-  }, [user?.role]);
+    const module = isCanteenReportsPage ? "canteen" : "store";
+    api.get<ShopOption[]>(`/shops?active_only=true&module=${module}`).then(setStockCardShops).catch(() => {});
+  }, [user?.role, isCanteenReportsPage]);
 
   // Fetch distinct category names for the current shop so the dropdown shows
   // only categories that actually have products. Resets when the shop
@@ -588,20 +589,20 @@ const Reports = () => {
     // helper are tight on 6.5pt font (see reportExport.ts); short strings
     // keep them readable. Widths sum to ~770pt (table width budget).
     const columns: ReportColumn[] = [
-      { header: "Seq",        key: "seq",              format: "number",   align: "right", width: 26  },
-      { header: "Date/Time",  key: "transaction_date", format: "datetime", width: 90  },
-      { header: "Receipt",    key: "receipt_number",   width: 70  },
-      { header: "ID",         key: "customer_id",      width: 55  },
-      { header: "Name",       key: "customer_name",    width: 100 },
-      { header: "Receive",    key: "amt_receive",      format: "currency", width: 50 },
-      { header: "Change",     key: "amt_change",       format: "currency", width: 45 },
-      { header: "Billing",    key: "amt_billing",      format: "currency", width: 45 },
-      { header: "Cash",       key: "amt_cash",         format: "currency", width: 45 },
-      { header: "Campus",     key: "amt_campus_card",  format: "currency", width: 48 },
-      { header: "Credit",     key: "amt_credit_card",  format: "currency", width: 45 },
-      { header: "QR",         key: "amt_qr_code",      format: "currency", width: 42 },
-      { header: "Other",      key: "amt_other",        format: "currency", width: 42 },
-      { header: "Remark",     key: "remark",           width: 75  },
+      { header: "Seq.",              key: "seq",              format: "number",   align: "right", width: 26  },
+      { header: "Date/Time",        key: "transaction_date", format: "datetime", width: 90  },
+      { header: "Receipt NO.",       key: "receipt_number",   width: 70  },
+      { header: "ID.",               key: "customer_id",      width: 55  },
+      { header: "Name",             key: "customer_name",    width: 100 },
+      { header: "Amt. Receive",     key: "amt_receive",      format: "currency", width: 55 },
+      { header: "Amt. Change",      key: "amt_change",       format: "currency", width: 50 },
+      { header: "Amt. Billing",     key: "amt_billing",      format: "currency", width: 50 },
+      { header: "Amt. Cash",        key: "amt_cash",         format: "currency", width: 50 },
+      { header: "Amt. Campus card", key: "amt_campus_card",  format: "currency", width: 58 },
+      { header: "Amt. Credit card", key: "amt_credit_card",  format: "currency", width: 58 },
+      { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
+      { header: "Amt. Other",       key: "amt_other",        format: "currency", width: 48 },
+      { header: "Remark",           key: "remark",           width: 75  },
     ];
 
     return {
@@ -732,17 +733,17 @@ const Reports = () => {
     // ≈ 770pt (table budget). Header strings kept short to avoid the
     // vertical-stack wrapping bug seen at narrower defaults.
     const columns: ReportColumn[] = [
-      { header: "Seq",       key: "seq",              format: "number",   align: "right", width: 28  },
-      { header: "Date/Time", key: "transaction_date", format: "datetime", width: 95  },
-      { header: "Item NO.",  key: "item_no",          width: 70  },
-      { header: "Item Name", key: "item_name",        width: 130 },
-      { header: "Receipt",   key: "receipt_number",   width: 85  },
-      { header: "ID",        key: "customer_id",      width: 68  },
-      { header: "Name",      key: "customer_name",    width: 77  },
-      { header: "Qty",       key: "sales_qty",        format: "number",   align: "right", width: 38 },
-      { header: "Amount",    key: "sales_amt",        format: "currency", align: "right", width: 60 },
-      { header: "Receive",   key: "receive_type",     width: 60  },
-      { header: "Remark",    key: "remark",           width: 60  },
+      { header: "Seq.",         key: "seq",              format: "number",   align: "right", width: 28  },
+      { header: "Date/Time",  key: "transaction_date", format: "datetime", width: 95  },
+      { header: "Item NO.",   key: "item_no",          width: 70  },
+      { header: "Item Name",  key: "item_name",        width: 130 },
+      { header: "Receipt NO.", key: "receipt_number",  width: 85  },
+      { header: "ID.",         key: "customer_id",     width: 68  },
+      { header: "Name",        key: "customer_name",   width: 77  },
+      { header: "Sales Qty.",  key: "sales_qty",       format: "number",   align: "right", width: 42 },
+      { header: "Sales AMT.",  key: "sales_amt",       format: "currency", align: "right", width: 60 },
+      { header: "Receive Type", key: "receive_type",   width: 65  },
+      { header: "Remark",      key: "remark",          width: 60  },
     ];
     return {
       meta: {
@@ -1321,19 +1322,19 @@ const Reports = () => {
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50 whitespace-nowrap">
                         <tr>
-                          <th className="px-2 py-2 text-right">Seq</th>
+                          <th className="px-2 py-2 text-right">Seq.</th>
                           <th className="px-2 py-2 text-left">Date/Time</th>
                           <th className="px-2 py-2 text-left">Receipt NO.</th>
-                          <th className="px-2 py-2 text-left">ID</th>
+                          <th className="px-2 py-2 text-left">ID.</th>
                           <th className="px-2 py-2 text-left">Name</th>
-                          <th className="px-2 py-2 text-right">Receive</th>
-                          <th className="px-2 py-2 text-right">Change</th>
-                          <th className="px-2 py-2 text-right">Billing</th>
-                          <th className="px-2 py-2 text-right">Cash</th>
-                          <th className="px-2 py-2 text-right">Campus</th>
-                          <th className="px-2 py-2 text-right">Credit</th>
-                          <th className="px-2 py-2 text-right">QR</th>
-                          <th className="px-2 py-2 text-right">Other</th>
+                          <th className="px-2 py-2 text-right">Amt. Receive</th>
+                          <th className="px-2 py-2 text-right">Amt. Change</th>
+                          <th className="px-2 py-2 text-right">Amt. Billing</th>
+                          <th className="px-2 py-2 text-right">Amt. Cash</th>
+                          <th className="px-2 py-2 text-right">Amt. Campus card</th>
+                          <th className="px-2 py-2 text-right">Amt. Credit card</th>
+                          <th className="px-2 py-2 text-right">Amt. QR Code</th>
+                          <th className="px-2 py-2 text-right">Amt. Other</th>
                           <th className="px-2 py-2 text-left">Remark</th>
                         </tr>
                       </thead>
@@ -1485,15 +1486,15 @@ const Reports = () => {
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50 whitespace-nowrap">
                         <tr>
-                          <th className="px-2 py-2 text-right">Seq</th>
+                          <th className="px-2 py-2 text-right">Seq.</th>
                           <th className="px-2 py-2 text-left">Date/Time</th>
                           <th className="px-2 py-2 text-left">Item NO.</th>
                           <th className="px-2 py-2 text-left">Item Name</th>
                           <th className="px-2 py-2 text-left">Receipt NO.</th>
-                          <th className="px-2 py-2 text-left">ID</th>
+                          <th className="px-2 py-2 text-left">ID.</th>
                           <th className="px-2 py-2 text-left">Name</th>
-                          <th className="px-2 py-2 text-right">Sales Qty</th>
-                          <th className="px-2 py-2 text-right">Sales AMT</th>
+                          <th className="px-2 py-2 text-right">Sales Qty.</th>
+                          <th className="px-2 py-2 text-right">Sales AMT.</th>
                           <th className="px-2 py-2 text-left">Receive Type</th>
                           <th className="px-2 py-2 text-left">Remark</th>
                         </tr>
