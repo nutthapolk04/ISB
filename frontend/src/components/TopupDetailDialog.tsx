@@ -80,10 +80,10 @@ function parsePaymentMethod(
   // Family transfer
   if (lower.includes("family transfer") || lower.includes("transfer")) return "Family transfer";
 
-  // Common keywords
+  // Cash must be checked before "credit" to avoid "Admin credit adjustment" false-positive
+  if (lower.includes("cash")) return "Cash";
   if (lower.includes("credit") || lower.includes("card")) return "Credit/Debit Card";
   if (lower.includes("cashier")) return "Cashier";
-  if (lower.includes("cash")) return "Cash";
 
   return transactionType;
 }
