@@ -9,6 +9,7 @@ export interface ChildSummaryDTO {
   customer_id: number;
   customer_code: string;
   student_code: string | null;
+  card_uid: string | null;
   name: string;
   grade: string | null;
   photo_url: string | null;
@@ -92,6 +93,7 @@ export async function myChildren(parentUserId: number): Promise<ChildSummaryDTO[
       customer_id: c.id,
       customer_code: c.customerCode,
       student_code: c.studentCode ?? null,
+      card_uid: c.cardUid ?? null,
       name: c.name,
       grade: c.grade ?? null,
       photo_url: c.photoUrl ?? null,

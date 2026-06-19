@@ -31,6 +31,7 @@ interface ChildSummary {
   customer_id: number;
   customer_code: string;
   student_code?: string | null;
+  card_uid?: string | null;
   name: string;
   grade?: string | null;
   photo_url?: string | null;
@@ -50,6 +51,7 @@ interface OwnWallet {
   username: string | null;
   customer_code: string | null;
   student_code: string | null;
+  card_uid: string | null;
   role: string | null;
   photo_url: string | null;
 }
@@ -84,7 +86,7 @@ interface FamilyCard {
   name: string;
   balance: number | null;
   code: string;
-  customerCode?: string | null;
+  cardUid?: string | null;
   role: string;          // display label e.g. "Parent / Guardian"
   userRole: string;      // raw role for color lookup: parent/staff/student/admin
   photoUrl: string | null;
@@ -254,7 +256,8 @@ export default function FamilyDashboard() {
           kind: "self" as const,
           name: ownWallet.name ?? user?.username ?? "",
           balance: ownWallet.balance,
-          code: ownWallet.username ?? "",
+          code: ownWallet.student_code ?? ownWallet.customer_code ?? ownWallet.username ?? "",
+          cardUid: ownWallet.card_uid,
           role: roleLabel(user?.role),
           userRole: user?.role ?? "parent",
           photoUrl: ownWallet.photo_url,
@@ -276,7 +279,7 @@ export default function FamilyDashboard() {
       name: ch.name,
       balance: ch.wallet_balance ?? 0,
       code: ch.student_code ?? ch.customer_code,
-      customerCode: ch.customer_code,
+      cardUid: ch.card_uid,
       role: t("roles.student", "Student"),
       userRole: "student",
       photoUrl: ch.photo_url ?? null,
@@ -380,14 +383,14 @@ export default function FamilyDashboard() {
               <span className="text-3xl font-extrabold text-white tabular-nums">{formatTHB(studentWallet.balance)}</span>
             </div>
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              {studentWallet.student_code && (
+              {(studentWallet.student_code ?? studentWallet.customer_code) && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.idNumber", "ID Number")}: {studentWallet.student_code}
+                  {t("parent.dashboard.idNumber", "ID Number")}: {studentWallet.student_code ?? studentWallet.customer_code}
                 </span>
               )}
-              {studentWallet.customer_code && (
+              {studentWallet.card_uid && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.card", "Card")}: {studentWallet.customer_code}
+                  {t("parent.dashboard.card", "Card")}: {studentWallet.card_uid}
                 </span>
               )}
             </div>
@@ -502,14 +505,14 @@ export default function FamilyDashboard() {
                   </div>
 
                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {card.code && (card.kind !== "child" || !card.customerCode || card.code !== card.customerCode) && (
+                    {card.code && (
                       <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
                         {t("parent.dashboard.idNumber", "ID Number")}: {card.code}
                       </span>
                     )}
-                    {(card.customerCode ?? card.code) && (
+                    {card.cardUid && (
                       <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                        {t("parent.dashboard.card", "Card")}: {card.customerCode ?? card.code}
+                        {t("parent.dashboard.card", "Card")}: {card.cardUid}
                       </span>
                     )}
                   </div>

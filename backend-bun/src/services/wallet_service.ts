@@ -28,6 +28,7 @@ export interface WalletResponseDTO {
   photo_url: string | null;
   customer_code: string | null;
   student_code: string | null;
+  card_uid: string | null;
   grade: string | null;
   card_frozen: boolean | null;
   daily_limit: number | null;
@@ -65,6 +66,7 @@ async function enrichWallet(w: WalletRow): Promise<WalletResponseDTO> {
     photo_url: null as string | null,
     customer_code: null as string | null,
     student_code: null as string | null,
+    card_uid: null as string | null,
     grade: null as string | null,
     card_frozen: null as boolean | null,
     daily_limit: null as number | null,
@@ -83,6 +85,7 @@ async function enrichWallet(w: WalletRow): Promise<WalletResponseDTO> {
       name: u?.fullName ?? null,
       photo_url: u?.photoUrl ?? null,
       username: u?.username ?? null,
+      card_uid: u?.cardUid ?? null,
       role: u?.role ?? null,
     };
   }
@@ -108,6 +111,7 @@ async function enrichWallet(w: WalletRow): Promise<WalletResponseDTO> {
       photo_url: c?.photoUrl ?? null,
       customer_code: c?.customerCode ?? null,
       student_code: c?.studentCode ?? null,
+      card_uid: c?.cardUid ?? null,
       grade: c?.grade ?? null,
       card_frozen: c?.cardFrozen ?? null,
       daily_limit: c ? pgNumber(c.dailyLimit) : null,
