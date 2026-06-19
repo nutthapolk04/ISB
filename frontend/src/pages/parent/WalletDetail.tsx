@@ -428,7 +428,24 @@ export default function WalletDetail() {
                 variant="tip"
                 title={t("parent.wallet.topupFlowTitle")}
               >
-                {t("parent.wallet.topupFlowBody")}
+                <div className="mt-1.5 grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+                  <div>
+                    <p className="font-semibold mb-1">PromptPay</p>
+                    <ol className="space-y-1 list-decimal list-inside leading-snug">
+                      <li>{t("parent.wallet.topupStep.enterAmount", "Enter amount")}</li>
+                      <li>{t("parent.wallet.topupStep.tapTopup", "Tap \"Top up\" → scan QR")}</li>
+                      <li>{t("parent.wallet.topupStep.confirmTransfer", "Tap \"Confirm transfer\"")}</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <p className="font-semibold mb-1">Credit / Debit</p>
+                    <ol className="space-y-1 list-decimal list-inside leading-snug">
+                      <li>{t("parent.wallet.topupStep.enterAmount", "Enter amount")}</li>
+                      <li>{t("parent.wallet.topupStep.tapTopupCard", "Tap \"Top up\"")}</li>
+                      <li>{t("parent.wallet.topupStep.bankProcess", "Bank processes 2–3s → credited instantly")} <span className="opacity-70">(3% {t("parent.wallet.topupStep.fee", "fee")})</span></li>
+                    </ol>
+                  </div>
+                </div>
               </InfoCallout>
 
               <div className="space-y-1.5">

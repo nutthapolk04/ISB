@@ -2410,6 +2410,14 @@
       "topUpTitle": "Top Up",
       "topupFlowTitle": "Top-up process",
       "topupFlowBody": "PromptPay: enter amount → click \"Top up\" → scan QR → click \"Confirm transfer\" · Credit/Debit: enter amount → click \"Top up\" → bank processes 2-3s → wallet credited instantly (3% fee)",
+      "topupStep": {
+        "enterAmount": "Enter amount",
+        "tapTopup": "Tap \"Top up\" → scan QR",
+        "confirmTransfer": "Tap \"Confirm transfer\"",
+        "tapTopupCard": "Tap \"Top up\"",
+        "bankProcess": "Bank processes 2–3s → credited instantly",
+        "fee": "fee"
+      },
       "paymentChannel": "Payment method",
       "creditCard": "Credit/Debit",
       "creditFee": "3% fee",
