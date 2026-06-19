@@ -37,22 +37,26 @@ export default function ChildSettings() {
   const [canteenLimit, setCanteenLimit] = useState("");
   const [storeLimit, setStoreLimit] = useState("");
 
-  useEffect(() => {
+  const load = async () => {
     if (!customerId) return;
-    api.get<ChildProfile>(`/customers/${customerId}`)
-      .then((p) => {
-        setProfile(p);
-        setCanteenLimit(p.daily_limit_canteen != null ? String(p.daily_limit_canteen) : "");
-        setStoreLimit(p.daily_limit_store != null ? String(p.daily_limit_store) : "");
-      })
-      .catch((e) => {
-        toast({
-          title: t("parent.childSettings.loadFailed", "Failed to load data"),
-          description: e instanceof ApiError ? e.detail : "Unknown error",
-          variant: "destructive",
-        });
-      })
-      .finally(() => setLoading(false));
+    try {
+      const p = await api.get<ChildProfile>(`/customers/${customerId}`);
+      setProfile(p);
+      setCanteenLimit(p.daily_limit_canteen != null ? String(p.daily_limit_canteen) : "");
+      setStoreLimit(p.daily_limit_store != null ? String(p.daily_limit_store) : "");
+    } catch (e) {
+      toast({
+        title: t("parent.childSettings.loadFailed", "Failed to load data"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
   }, [customerId]);
 
   const handleSave = async () => {
