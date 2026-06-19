@@ -48,6 +48,8 @@ interface OwnWallet {
   balance: number;
   name: string | null;
   username: string | null;
+  customer_code: string | null;
+  student_code: string | null;
   role: string | null;
   photo_url: string | null;
 }
@@ -378,14 +380,14 @@ export default function FamilyDashboard() {
               <span className="text-3xl font-extrabold text-white tabular-nums">{formatTHB(studentWallet.balance)}</span>
             </div>
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              {user?.username && user.username !== studentWallet.username && (
+              {studentWallet.student_code && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.idNumber", "ID Number")}: {user.username}
+                  {t("parent.dashboard.idNumber", "ID Number")}: {studentWallet.student_code}
                 </span>
               )}
-              {studentWallet.username && (
+              {studentWallet.customer_code && (
                 <span className="bg-white/20 text-white/90 text-[0.65rem] rounded-full px-2.5 py-0.5">
-                  {t("parent.dashboard.card", "Card")}: {studentWallet.username}
+                  {t("parent.dashboard.card", "Card")}: {studentWallet.customer_code}
                 </span>
               )}
             </div>
