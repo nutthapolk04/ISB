@@ -129,8 +129,8 @@ const RECEIPT_LABELS = {
     tax: "ภาษี",
     subtotal: "ยอดรวม",
     grandTotal: "รวมสุทธิ",
-    balanceBefore: "ยอดก่อนการซื้อครั้งนี้",
-    balanceAfter: "ยอดหลังการซื้อครั้งนี้",
+    balanceBefore: "ยอดก่อนซื้อครั้งนี้",
+    balanceAfter: "ยอดหลังซื้อครั้งนี้",
     voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
     thanks: "ขอบคุณที่ใช้บริการ / Thank you",
     taxId: "เลขภาษี",
@@ -149,8 +149,8 @@ const RECEIPT_LABELS = {
     tax: "Tax",
     subtotal: "Subtotal",
     grandTotal: "Grand Total",
-    balanceBefore: "Balance Before This Sale",
-    balanceAfter: "Balance After This Sale",
+    balanceBefore: "Bal. Before This Sale",
+    balanceAfter: "Bal. After This Sale",
     voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
     thanks: "Thank you for your purchase",
     taxId: "Tax ID",
@@ -292,7 +292,7 @@ export function buildReceiptHtml(
   .small span:last-child { font-weight: 700; }
   .total { font-size: 22px; font-weight: 800; margin-top: 5px; }
   .total span { font-weight: 800; }
-  .balance-after { font-size: 20px; font-weight: 800; color: #000; margin-top: 7px; }
+  .balance-after { font-size: 15px; font-weight: 800; color: #000; margin-top: 4px; }
   .voided { text-align: center; color: #000; font-weight: 800;
              font-size: 16px; margin: 7px 0; border: 2px solid #000; padding: 5px; }
   .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
