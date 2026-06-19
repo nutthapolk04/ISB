@@ -277,7 +277,8 @@ export default function GuidePage() {
       const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
       return mod === "canteen" ? "canteen" : "store";
     }
-    // staff without shop (e.g. teacher) → no dedicated guide, fallback shows all
+    // staff without shop (e.g. teacher) → wallet user like parent
+    if (effectiveRole === "staff") return "parent";
     return effectiveRole;
   }, [effectiveRole, user]);
 
