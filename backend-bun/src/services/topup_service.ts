@@ -100,6 +100,12 @@ export async function userCanAccessWallet(
         .limit(1);
       return cRows[0] ? cRows[0].id === w.customerId : false;
     }
+    // POS terminal (cashier/manager) can facilitate top-up for any customer
+    // wallet — no shop scope. Audit trail lives on the resulting payment
+    // intent via created_by.
+    if (caller.roles.includes("cashier") || caller.roles.includes("manager")) {
+      return true;
+    }
     // Parent / staff → must have parent_child_links row
     const lRows = await db
       .select({ id: parentChildLinks.id })

@@ -218,6 +218,12 @@ async function userCanAccessWallet(
         .limit(1);
       return c[0]?.id === wallet.customerId;
     }
+    // POS terminal (cashier/manager) can view any customer wallet —
+    // mirrors topup_service.userCanAccessWallet so balance/history lookups
+    // succeed after a cashier-initiated top-up.
+    if (caller.roles.includes("cashier") || caller.roles.includes("manager")) {
+      return true;
+    }
     const link = await db
       .select()
       .from(parentChildLinks)
