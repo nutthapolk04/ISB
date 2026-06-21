@@ -19,6 +19,7 @@ export interface ShopRow {
   spending_group_id: number | null;
   receipt_header: string | null;
   receipt_footer: string | null;
+  void_shortcuts: string[];
 }
 
 export interface ListShopsFilters {
@@ -276,5 +277,34 @@ function toShopResponse(row: typeof shops.$inferSelect): ShopRow {
     spending_group_id: row.spendingGroupId ?? null,
     receipt_header: row.receiptHeader ?? null,
     receipt_footer: row.receiptFooter ?? null,
+    void_shortcuts: Array.isArray(row.voidShortcuts) ? row.voidShortcuts : [],
   };
+}
+
+const MAX_SHORTCUTS = 24;
+const MAX_SHORTCUT_LEN = 60;
+
+export async function updateVoidShortcuts(shopId: string, shortcuts: string[]): Promise<ShopRow> {
+  const cleaned: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of shortcuts) {
+    if (typeof raw !== "string") continue;
+    const v = raw.trim();
+    if (!v || v.length > MAX_SHORTCUT_LEN) continue;
+    if (seen.has(v)) continue;
+    seen.add(v);
+    cleaned.push(v);
+    if (cleaned.length >= MAX_SHORTCUTS) break;
+  }
+  const updated = await db
+    .update(shops)
+    .set({ voidShortcuts: cleaned, updatedAt: new Date().toISOString() })
+    .where(eq(shops.id, shopId))
+    .returning();
+  if (!updated[0]) {
+    const err = new Error("Shop not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  return toShopResponse(updated[0]);
 }

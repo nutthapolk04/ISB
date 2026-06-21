@@ -147,6 +147,11 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_close_items_close_id ON stock_period_close_items(close_id)`,
     label: "idx stock_period_close_items.close_id",
   },
+  // ── Per-shop void receipt reason shortcuts ────────────────────────────────
+  {
+    sql: `ALTER TABLE shops ADD COLUMN IF NOT EXISTS void_shortcuts JSONB NOT NULL DEFAULT '[]'::jsonb`,
+    label: "shops.void_shortcuts",
+  },
 ];
 
 export async function ensureSchema(): Promise<void> {

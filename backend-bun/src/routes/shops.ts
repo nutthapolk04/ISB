@@ -8,6 +8,7 @@ import {
   deleteShop,
   shopStats,
   listLowStock,
+  updateVoidShortcuts,
 } from "@/services/shop_service";
 import {
   listShopProducts,
@@ -163,6 +164,27 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     {
       params: t.Object({ shopId: t.String() }),
       detail: { summary: "Delete a shop (soft if receipts exist)" },
+    },
+  )
+  .put(
+    "/:shopId/void-shortcuts",
+    async ({ params, body, user, set }) => {
+      const isAdmin = user.is_superuser || hasRole(user.roles, "admin");
+      const isManagerOfShop =
+        hasRole(user.roles, "manager") && user.shop_id === params.shopId;
+      if (!isAdmin && !isManagerOfShop) {
+        set.status = 403;
+        return { detail: "Only the shop's manager (or admin) can edit void shortcuts" };
+      }
+      try { return await updateVoidShortcuts(params.shopId, body.shortcuts); }
+      catch (e) { return handleErr(set, e); }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      body: t.Object({
+        shortcuts: t.Array(t.String({ maxLength: 60 }), { maxItems: 24 }),
+      }),
+      detail: { summary: "Set per-shop void receipt reason shortcuts (manager/admin)" },
     },
   )
   .get(

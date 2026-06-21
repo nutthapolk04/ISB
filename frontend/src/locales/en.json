@@ -532,7 +532,13 @@
       "irreversible": "⚠ This action cannot be undone",
       "confirm": "Confirm Void",
       "successToast": "Voided {{number}} — refund processed",
-      "failToast": "Failed to void receipt"
+      "failToast": "Failed to void receipt",
+      "addShortcut": "Add",
+      "addShortcutTitle": "Add reason shortcut",
+      "addShortcutDesc": "Manager-only. Shared with all cashiers in this shop.",
+      "shortcutPlaceholder": "e.g. Wrong department",
+      "removeShortcut": "Remove shortcut",
+      "shortcutSaveFailed": "Could not save shortcut"
     },
     "download": "Download Receipt",
     "productList": "Product List",

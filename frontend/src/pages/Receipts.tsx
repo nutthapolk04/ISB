@@ -190,8 +190,56 @@ const Receipts = () => {
   const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [voidLoading, setVoidLoading] = useState(false);
+  // Per-shop custom reason shortcuts. Cashier sees them, manager/admin edit.
+  const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
+  const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
+  const [newShortcutText, setNewShortcutText] = useState("");
+  const canEditShortcuts =
+    !!user?.shopId && (user?.role === "manager" || user?.role === "admin");
 
   const canVoid = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
+
+  useEffect(() => {
+    if (!user?.shopId) {
+      setCustomShortcuts([]);
+      return;
+    }
+    api.get<{ void_shortcuts?: string[] }>(`/shops/${user.shopId}`)
+      .then((s) => setCustomShortcuts(Array.isArray(s.void_shortcuts) ? s.void_shortcuts : []))
+      .catch(() => setCustomShortcuts([]));
+  }, [user?.shopId]);
+
+  const saveCustomShortcuts = async (next: string[]) => {
+    if (!user?.shopId) return;
+    const prev = customShortcuts;
+    setCustomShortcuts(next);
+    try {
+      const res = await api.put<{ void_shortcuts?: string[] }>(
+        `/shops/${user.shopId}/void-shortcuts`,
+        { shortcuts: next },
+      );
+      if (Array.isArray(res.void_shortcuts)) setCustomShortcuts(res.void_shortcuts);
+    } catch (e) {
+      setCustomShortcuts(prev);
+      toast.error(
+        e instanceof ApiError
+          ? e.detail
+          : t("receipts.voidDialog.shortcutSaveFailed", "Could not save shortcut"),
+      );
+    }
+  };
+
+  const addCustomShortcut = async () => {
+    const text = newShortcutText.trim();
+    setShortcutDialogOpen(false);
+    setNewShortcutText("");
+    if (!text || customShortcuts.includes(text)) return;
+    await saveCustomShortcuts([...customShortcuts, text]);
+  };
+
+  const removeCustomShortcut = async (text: string) => {
+    await saveCustomShortcuts(customShortcuts.filter((s) => s !== text));
+  };
 
   const handleVoidConfirm = async () => {
     if (!voidTarget) return;
@@ -767,7 +815,7 @@ const Receipts = () => {
           <div className="space-y-3 py-2">
             <div>
               <label className="text-sm font-medium">{t("receipts.voidDialog.reasonLabel")}</label>
-              {/* Preset reason chips */}
+              {/* Preset reason chips + per-shop custom chips */}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {([
                   "incorrect_transaction",
@@ -792,6 +840,44 @@ const Receipts = () => {
                     {t(`receipts.voidDialog.reasons.${key}`)}
                   </button>
                 ))}
+                {customShortcuts.map((text) => (
+                  <span key={text} className="inline-flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      disabled={voidLoading}
+                      onClick={() => setVoidReason(text)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs transition",
+                        voidReason === text
+                          ? "border-destructive bg-destructive/10 text-destructive font-semibold"
+                          : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
+                      )}
+                    >
+                      {text}
+                    </button>
+                    {canEditShortcuts && (
+                      <button
+                        type="button"
+                        disabled={voidLoading}
+                        aria-label={t("receipts.voidDialog.removeShortcut", "Remove shortcut")}
+                        onClick={() => removeCustomShortcut(text)}
+                        className="rounded-full border border-border bg-muted/50 px-1.5 py-1 text-xs text-muted-foreground hover:border-destructive/50 hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))}
+                {canEditShortcuts && customShortcuts.length < 24 && (
+                  <button
+                    type="button"
+                    disabled={voidLoading}
+                    onClick={() => setShortcutDialogOpen(true)}
+                    className="rounded-full border border-dashed border-orange-400 px-3 py-1 text-xs text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                  >
+                    + {t("receipts.voidDialog.addShortcut", "Add")}
+                  </button>
+                )}
               </div>
               <Textarea
                 value={voidReason}
@@ -823,6 +909,55 @@ const Receipts = () => {
             >
               {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("receipts.voidDialog.confirm")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add custom shortcut dialog */}
+      <Dialog
+        open={shortcutDialogOpen}
+        onOpenChange={(v) => {
+          setShortcutDialogOpen(v);
+          if (!v) setNewShortcutText("");
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {t("receipts.voidDialog.addShortcutTitle", "Add reason shortcut")}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                "receipts.voidDialog.addShortcutDesc",
+                "Manager-only. Shared with all cashiers in this shop.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={newShortcutText}
+            onChange={(e) => setNewShortcutText(e.target.value)}
+            placeholder={t("receipts.voidDialog.shortcutPlaceholder", "e.g. Wrong department")}
+            maxLength={60}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newShortcutText.trim()) addCustomShortcut();
+            }}
+          />
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShortcutDialogOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={addCustomShortcut}
+              disabled={!newShortcutText.trim()}
+            >
+              {t("common.save", "Save")}
             </Button>
           </div>
         </DialogContent>
