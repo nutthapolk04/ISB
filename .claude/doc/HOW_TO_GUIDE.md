@@ -1,7 +1,19 @@
 # Schooney POS — How-To Guide
 
 > คู่มือการใช้งานระบบ ISB Schooney POS
-> Last updated: 2026-05-19
+> Last updated: 2026-06-22
+
+---
+
+## What's New (2026-06-22)
+
+| การเปลี่ยนแปลง | ผลต่อผู้ใช้ | section ที่เกี่ยวข้อง |
+|---|---|---|
+| Cashier ออก QR PromptPay เติมเงินให้ลูกค้าได้ | เดิม cashier กด "เติมเงิน → QR" แล้วขึ้น "Failed to create QR" (403). แก้แล้ว — cashier ของทุกร้านสร้าง QR ให้นักเรียน/พนักงานคนใดก็ได้ | §5 "Cashier เติมเงินที่ POS" |
+| ยกเลิกปุ่ม "Mark as Paid" ใน Cashier Top-Up | Cashier **ห้าม** กดยืนยันการเติมเงินเอง — ระบบจะยืนยันอัตโนมัติเมื่อ BAY callback กลับมา (หลังลูกค้าโอนจริง) | §5 "Cashier เติมเงินที่ POS" |
+| Manager สร้าง shortcut เหตุผล Void เองได้ | Manager ของแต่ละร้านเพิ่ม/ลบ chip เหตุผลยกเลิกใบเสร็จได้เอง (เฉพาะร้านตัวเอง). Cashier เห็น chip ใช้งานได้แต่แก้ไม่ได้. Admin แก้ได้ทุกร้าน | §7 "Void Receipt" |
+| BAY QR / EASYPay พร้อมใช้งานบน production | ลูกค้าเติมเงินผ่าน QR PromptPay หรือ EASYPay (รูดบัตรบนหน้าเว็บธนาคาร) ได้จริง | §5 |
+| EDC BAY (Newland N950S) ยัง manual | คนคิดเงินต้องรูดบัตรที่เครื่อง EDC ของ Bay แล้วพิมพ์ approval code กลับเข้าระบบเอง — ยังไม่ auto-fetch | §3 "EDC" |
 
 ---
 
@@ -81,8 +93,26 @@
 #### เงินสด
 1. เลือก **Cash** → กรอกจำนวนเงินที่รับมา → กด **Confirm**
 
-#### QR/PromptPay
-1. เลือก **QR** → QR code จะแสดง → ลูกค้าสแกน → กด **Confirm**
+#### QR/PromptPay (BAY)
+1. เลือก **QR** → QR code จาก BAY gateway จะแสดง
+2. ลูกค้าสแกนด้วยแอปธนาคาร → จ่ายเงิน
+3. **ระบบยืนยันอัตโนมัติ** เมื่อ BAY callback กลับมา — ไม่ต้องกดอะไรเพิ่ม
+4. ปุ่ม "Cancel" ใช้กรณีลูกค้าไม่จ่าย (ยกเลิก QR แล้วเลือกวิธีอื่น)
+
+#### EDC — รูด/แตะบัตรที่เครื่อง EDC ของ Bay
+1. เลือก **EDC** ใน Charge dialog
+2. รูดบัตร / แตะบัตร contactless / สแกน QR ของลูกค้า **ที่เครื่อง EDC ของ Bay** (ไม่ใช่ใน POS)
+3. รอเครื่อง EDC อนุมัติ — slip จะออกจากเครื่อง
+4. กลับมาที่ POS → กรอก **Approval Code** จาก slip (จำเป็น)
+   - Terminal Reference + Masked Card → optional แต่แนะนำใส่เพื่อ audit
+5. กด **Confirm charge**
+
+> **หมายเหตุ EDC:** ตอนนี้ระบบยังไม่เชื่อมกับเครื่อง EDC โดยตรง — cashier ต้องกรอก approval code เองจาก slip กระดาษ. ปุ่ม "Fetch from terminal (mock)" ในเครื่อง dev จะกรอก mock data ให้ — production ห้ามใช้ปุ่มนี้
+
+#### BAY EASYPay (กรอกข้อมูลบัตรบนหน้าเว็บธนาคาร)
+1. เลือก **EASYPay** ใน payment picker (ปกติใช้กับ wallet top-up)
+2. ระบบ redirect ไปหน้าธนาคารกรุงศรี → ลูกค้ากรอกข้อมูลบัตรเครดิต/เดบิต
+3. หลังจ่ายเสร็จ ธนาคาร redirect กลับมาที่ ISB → ระบบ confirm อัตโนมัติ
 
 #### แผนก (Department Charge)
 1. เลือก **Department** จาก payment picker → เลือกแผนกจาก dropdown
@@ -124,8 +154,28 @@
 3. กด **Confirm**
 
 ### Cashier เติมเงินที่ POS (Cashier Top-Up)
-1. Canteen POS → กดปุ่ม **เติมเงิน** (Wallet icon บนขวา)
-2. ค้นหาสมาชิก → กรอกจำนวน → Confirm
+
+**Cashier ของทุกร้าน** เติมเงินให้นักเรียน/ผู้ปกครอง/พนักงานคนไหนก็ได้ (ไม่จำกัด shop scope)
+
+#### A. เติมเงินสด (Cash Top-Up)
+1. Canteen/Store POS → กดปุ่ม **เติมเงิน** (Wallet icon บนขวา)
+2. ค้นหาสมาชิก (ชื่อ/รหัส) → เลือก
+3. เลือก **Cash** → กรอกจำนวน → กด **Confirm**
+4. ยอดเงินเพิ่มทันที (cashier เก็บเงินสดเข้ามือ — ไม่ผ่าน gateway)
+
+#### B. เติมเงินผ่าน QR PromptPay (BAY)
+1. Canteen/Store POS → กดปุ่ม **เติมเงิน** → ค้นหาสมาชิก → เลือก
+2. เลือก **QR** → กรอกจำนวน → ระบบสร้าง QR PromptPay จาก BAY
+3. โชว์ QR ให้ลูกค้าสแกนด้วยแอปธนาคาร
+4. **รอ** — เมื่อลูกค้าโอนเงินเสร็จ BAY จะยิง callback มาที่ระบบและ confirm อัตโนมัติ ยอดเงิน wallet จะเพิ่มเอง
+5. ถ้าลูกค้าไม่จ่าย → กด **Cancel** เพื่อยกเลิก QR แล้วลองวิธีอื่น
+
+> ⚠️ **ห้าม cashier กดยืนยันการจ่าย QR เอง** — ระบบไม่มีปุ่ม "Mark as Paid" แล้ว เพื่อป้องกันการเติมเงินโดยไม่มีการชำระจริง. ถ้า callback ไม่มา (BAY ล่ม) ให้ Admin manual adjust แทน
+
+#### C. เติมเงินผ่าน EDC ของ Bay
+1. เลือก **EDC** ตอนเติมเงิน → กรอกจำนวน
+2. รูด/แตะบัตรที่เครื่อง EDC → ได้ slip
+3. พิมพ์ Approval Code กลับเข้าระบบ → Confirm
 
 ### เติมเงิน Department Wallet
 1. Admin → **Department Adjust** (เมนู Cardholders)
@@ -153,10 +203,40 @@
 
 ## 7. แก้ไขใบเสร็จ / Void (Cancel / Void Receipt)
 
+### ขั้นตอนการ Void
 1. Store/Canteen → **Receipts** → ค้นหาใบเสร็จ
 2. กดที่ใบเสร็จ → **Void Receipt**
-3. ใส่เหตุผล → ยืนยัน
-4. สต็อกจะกลับคืน + ยอดเงิน wallet จะ refund อัตโนมัติ
+3. เลือกเหตุผลจาก chip preset (เช่น "Incorrect Transaction", "Customer Changed Mind") **หรือ** chip ที่ manager สร้างเอง **หรือ** พิมพ์เองในช่อง textarea
+4. กด **Confirm Void**
+5. สต็อกจะกลับคืน + ยอดเงิน wallet จะ refund อัตโนมัติ (ถ้าจ่ายผ่าน wallet)
+
+### Chip เหตุผล (Preset 6 อันมาตรฐาน)
+ทุกร้านจะเห็น chip ครบทั้ง 6:
+- Incorrect Transaction / ทำรายการผิด
+- Customer Changed Mind / ลูกค้าเปลี่ยนใจ
+- Out of Stock / สินค้าหมด
+- Incorrect Price / ราคาไม่ถูกต้อง
+- Duplicate Payment / ชำระเงินซ้ำ
+- Test Transaction / ทดสอบระบบ
+
+### Custom Shortcut (Manager แต่ละร้านสร้างเองได้)
+
+**Manager** ของร้านจะเห็นปุ่ม **+ Add** สีส้มที่ท้ายแถว chip
+
+**เพิ่ม shortcut:**
+1. ใน Void Receipt dialog → กดปุ่ม **+ Add**
+2. พิมพ์เหตุผล (เช่น "ผิดแผนก", "Wrong dept", "ลูกค้าให้ผัดไทยใส่ไข่ทอด") — ยาวไม่เกิน 60 ตัวอักษร
+3. กด **Save** → chip ใหม่จะขึ้นมาที่ท้ายแถวพร้อมปุ่ม × สำหรับลบ
+4. **Cashier และ Manager ทุกคนของร้านนี้** จะเห็น chip นี้ทันที (shared)
+
+**ลบ shortcut:** Manager กดปุ่ม **×** ข้าง chip → ลบทันที (ไม่มี undo)
+
+**ข้อจำกัด:**
+- Cashier: เห็น chip แต่กดเพิ่ม/ลบไม่ได้ (ปุ่ม + Add / × ไม่แสดง)
+- Manager: แก้ได้เฉพาะร้านตัวเอง (Manager Coop แก้ chip ของ Sports ไม่ได้)
+- Admin: แก้ได้ทุกร้าน
+- Max 24 chips ต่อร้าน, ยาวไม่เกิน 60 char/chip
+- Chip ของแต่ละร้านแยกขาดกัน ไม่ shared ข้ามร้าน
 
 ---
 
@@ -190,3 +270,8 @@ Receipt dialog แสดง:
 | ยอดเงิน wallet ไม่อัปเดต | Refresh หน้า หรือรอ auto-refresh |
 | Login ไม่ได้ | ตรวจสอบ username/password — Admin ใช้ `admin` / `admin1234` |
 | Canteen POS ค้นหาสมาชิกแล้วหน้าช้า | ระบบ search debounce 300ms — รอสักครู่ |
+| Cashier เปิดเติมเงิน QR แล้ว "Failed to create QR" | ฟ้องว่า 403 = bug เก่า ก่อน 2026-06-21. **แก้แล้ว** — ถ้ายังเจอ ให้ clear cache + reload, หรือเช็คว่า role ของ user เป็น cashier/manager จริง |
+| QR เติมเงินผ่านแล้วยอดไม่เข้า | รอ BAY callback (อาจ 30-60 วินาที). ถ้านานกว่านี้ → Admin ดู Railway log ของ `/api/v1/bay/callback` หรือกด **Inquiry** ที่ POS เพื่อบังคับเช็คกับ BAY |
+| Cashier หาปุ่ม "Mark as Paid" ใน QR top-up modal ไม่เจอ | ปุ่มถูกลบในวันที่ 2026-06-22 เพื่อป้องกันการเติมเงินโดยไม่จ่ายจริง — รอ BAY callback อัตโนมัติแทน. ถ้า BAY ล่ม → Admin manual adjust |
+| Manager กด + Add chip แล้วบันทึกไม่ติด | เช็คว่า manager นี้ assigned ให้ shop ที่กำลังดูจริงๆ (manager ของร้านอื่นไม่มีสิทธิ์), และเช็คว่าไม่เกิน 24 chips/ร้าน |
+| Manager Coop ไม่เห็น chip ของ Manager Sports | ตามดีไซน์ — chip แยกขาดต่อร้าน ไม่ shared ข้ามร้าน |
