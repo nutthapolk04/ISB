@@ -307,19 +307,6 @@ export function CashierTopupModal({
     setStep("topup");
   };
 
-  const handleMarkPaid = async () => {
-    if (!intent) return;
-    setConfirming(true);
-    try {
-      await api.post(`/wallets/topup/${intent.ref_code}/parent-confirm`, {});
-      // Polling effect will detect "confirmed" on next tick and route to success.
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed"));
-    } finally {
-      setConfirming(false);
-    }
-  };
-
   const handleClose = () => {
     onOpenChange(false);
   };
@@ -699,25 +686,6 @@ export function CashierTopupModal({
               >
                 {t("topup.cancel", "Cancel")}
               </Button>
-              {qrStatus === "waiting" && (
-                <Button
-                  onClick={handleMarkPaid}
-                  disabled={confirming}
-                  className="flex-1 h-11 bg-emerald-500 hover:bg-emerald-600"
-                >
-                  {confirming ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                      {t("topup.processing", "Processing...")}
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-1.5" />
-                      {t("topup.markPaid", "Mark as Paid")}
-                    </>
-                  )}
-                </Button>
-              )}
             </div>
           </div>
         )}

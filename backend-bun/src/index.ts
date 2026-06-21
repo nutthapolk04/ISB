@@ -2203,7 +2203,11 @@ const phase2Routes = new Elysia({ name: "phase-2" })
   .post(
     "/wallets/topup/:refCode/parent-confirm",
     async ({ params, user, set }) => {
-      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "kitchen", "student")) {
+      // Self-confirm is for the payer only. POS roles (cashier/manager) must
+      // not confirm an intent they created — real money confirms via the BAY
+      // webhook callback. Without this gate a cashier could create a top-up
+      // intent and immediately confirm it, crediting any wallet for free.
+      if (!hasRole(user.roles, "parent", "staff", "kitchen", "student")) {
         set.status = 403; return { detail: "Forbidden" };
       }
       try {
