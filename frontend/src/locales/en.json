@@ -2675,7 +2675,7 @@
       },
       "step3": {
         "title": "View Receipts & Void",
-        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view full details — shop name, cashier, payer account, and the balance remaining at the time of purchase. Cashiers can void receipts for their own canteen stall directly from this page — click the void (ban) icon, select a reason, and confirm. The wallet balance is refunded automatically."
+        "desc": "Go to Canteen Receipts to see today's sales. Filter by date, payment method, or receipt ID. Click a receipt to view full details — shop name, cashier, payer account, and the balance remaining at the time of purchase. Cashiers can void receipts for their own canteen stall directly from this page — click the void (ban) icon, pick a reason chip (the 6 built-in presets plus any custom shortcuts your manager has added for this stall), or type your own, then confirm. The wallet balance is refunded automatically. Cashiers can use the chips but cannot add or remove them."
       },
       "step4": {
         "title": "Daily Sales Summary",
@@ -2688,6 +2688,10 @@
       "step6": {
         "title": "Department Charge",
         "desc": "Two ways to charge a department: (1) Wallet flow — enter the department code (e.g. D0001) in the RFID modal and press Search. (2) Department flow — tap Charge → Change payment method → Department, then select the department from the dropdown. Note: the shop must have Allow Department Charge enabled by an admin."
+      },
+      "step7": {
+        "title": "Top Up a Customer's Wallet",
+        "desc": "Tap the Top-Up (wallet) icon at the top right of the POS. Search for the student / staff / parent and pick them. Choose Cash for in-person cash top-ups (balance is credited immediately). Choose QR for PromptPay top-ups — show the on-screen QR to the customer, they scan it from their banking app, and the wallet is credited automatically when the bank confirms the payment. Do not press anything else after the QR appears — there is no manual 'Mark as Paid' shortcut. If the customer cannot pay, press Cancel and try another method."
       }
     },
     "store": {
@@ -2697,7 +2701,7 @@
       },
       "step2": {
         "title": "Process Payment",
-        "desc": "Payment methods: Member Card (RFID tap), QR PromptPay, Cash, or Department charge (employee code or card required). For cash, enter the amount received and the system calculates change."
+        "desc": "Payment methods: Member Card (RFID tap), QR PromptPay (BAY — auto-confirms when the bank callback arrives), EDC (swipe / tap / scan QR on the Bay terminal, then type the approval code from the slip back into the modal), Cash (enter amount received and the system calculates change), or Department charge (employee code or card required)."
       },
       "step3": {
         "title": "Handle Returns",
@@ -2709,7 +2713,11 @@
       },
       "step5": {
         "title": "View Receipts & Void",
-        "desc": "Go to Store Receipts to see all sales. Filter by shop, date, or payment method. Cashiers can void receipts for their own shop directly from this page — click the void (ban) icon, select a reason, and confirm. Voiding is irreversible; stock is restored and wallet balance is refunded automatically."
+        "desc": "Go to Store Receipts to see all sales. Filter by shop, date, or payment method. Cashiers can void receipts for their own shop directly from this page — click the void (ban) icon, pick a reason chip (the 6 built-in presets plus any custom shortcuts your manager added for this shop), or type your own, then confirm. Voiding is irreversible; stock is restored and wallet balance is refunded automatically. Cashiers can use the chips but cannot add or remove them."
+      },
+      "step6": {
+        "title": "Top Up a Customer's Wallet",
+        "desc": "Tap the Top-Up (wallet) icon at the top right of the POS. Search for the customer and pick them. Choose Cash for cash top-ups (credited immediately). Choose QR for BAY PromptPay — show the QR to the customer, they scan from their banking app, and the wallet credits automatically once the bank callback arrives. There is no manual 'Mark as Paid' button; if the customer cannot pay, press Cancel."
       }
     },
     "manager": {
@@ -2736,6 +2744,10 @@
       "step6": {
         "title": "Bulk Import Products / Stock from Excel",
         "desc": "Go to Shop Management → your shop → tab Inventory. Click Download template for a sample .xlsx with two sheets. Fill it in, then Import data → pick Products or Stock receipt → choose the file. The system runs a Preview showing would-create / would-update counts plus errors. Click Confirm import to save. You can only import into your own shop."
+      },
+      "step7": {
+        "title": "Customise Void Reason Shortcuts",
+        "desc": "Open Receipts → start a Void on any receipt to see your shop's reason chips. The orange + Add button creates a custom chip (max 60 characters, up to 24 per shop) that all cashiers in your shop can use instantly. Use × next to a custom chip to remove it. The 6 built-in presets are always there. Managers only see this button for their own shop; admins can edit any shop."
       }
     }
   },

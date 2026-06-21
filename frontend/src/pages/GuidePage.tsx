@@ -175,6 +175,11 @@ const roleGuides: RoleGuide[] = [
         descKey: "guide.canteen.step6.desc",
         icon: Building2,
       },
+      {
+        titleKey: "guide.canteen.step7.title",
+        descKey: "guide.canteen.step7.desc",
+        icon: Wallet,
+      },
     ],
   },
   {
@@ -208,6 +213,11 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.store.step5.title",
         descKey: "guide.store.step5.desc",
         icon: FileText,
+      },
+      {
+        titleKey: "guide.store.step6.title",
+        descKey: "guide.store.step6.desc",
+        icon: Wallet,
       },
     ],
   },
@@ -247,6 +257,11 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.manager.step6.title",
         descKey: "guide.manager.step6.desc",
         icon: Upload,
+      },
+      {
+        titleKey: "guide.manager.step7.title",
+        descKey: "guide.manager.step7.desc",
+        icon: FileText,
       },
     ],
   },
