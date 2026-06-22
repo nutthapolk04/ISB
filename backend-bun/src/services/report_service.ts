@@ -553,6 +553,7 @@ export async function stockCardReport(args: {
     throw err;
   }
 
+  console.log("[stockCard] productSearch=", args.productSearch, "category=", args.category, "includeEmpty=", args.includeEmpty);
   const productConds = [eq(shopProducts.shopId, effectiveShopId)];
   if (args.productVariantId !== undefined) productConds.push(eq(shopProducts.id, args.productVariantId));
   if (args.productSearch) {
@@ -568,6 +569,13 @@ export async function stockCardReport(args: {
     .orderBy(asc(shopProducts.name));
 
   let products = await Promise.all(productsRows.map((p) => buildProductBlock(p, args.dateFrom, args.dateTo)));
+  // In-memory fallback filter (in case DB ILIKE didn't apply)
+  if (args.productSearch) {
+    const term = args.productSearch.toLowerCase();
+    products = products.filter((b) =>
+      b.product_code.toLowerCase().includes(term) || b.product_name.toLowerCase().includes(term),
+    );
+  }
   if (!args.includeEmpty) {
     products = products.filter((b) => b.rows.length > 2);
   }

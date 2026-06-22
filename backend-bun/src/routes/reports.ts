@@ -129,8 +129,8 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
           dateTo: query.date_to,
           shopId: query.shop_id,
           productVariantId: query.product_variant_id ? Number(query.product_variant_id) : undefined,
-          productSearch: query.product_search ?? undefined,
-          category: query.category ?? undefined,
+          productSearch: query.product_search || undefined,
+          category: query.category || undefined,
           includeEmpty: query.include_empty === "true",
         });
       } catch (e) {
@@ -143,8 +143,8 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
         date_to: t.String(),
         shop_id: t.Optional(t.Nullable(t.String())),
         product_variant_id: t.Optional(t.Nullable(t.String())),
-        product_search: t.Optional(t.Nullable(t.String())),
-        category: t.Optional(t.Nullable(t.String())),
+        product_search: t.Optional(t.String()),
+        category: t.Optional(t.String()),
         include_empty: t.Optional(t.String()),
       }),
       detail: {
