@@ -553,7 +553,6 @@ export async function stockCardReport(args: {
     throw err;
   }
 
-  console.log("[stockCard] productSearch=", args.productSearch, "category=", args.category, "includeEmpty=", args.includeEmpty);
   const productConds = [eq(shopProducts.shopId, effectiveShopId)];
   if (args.productVariantId !== undefined) productConds.push(eq(shopProducts.id, args.productVariantId));
   if (args.productSearch) {
