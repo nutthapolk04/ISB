@@ -450,6 +450,7 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                               <Input
                                 type="text"
                                 placeholder="—"
+                                maxLength={25}
                                 value={baseShortNameDrafts[p.id] ?? ""}
                                 onChange={(e) =>
                                   setBaseShortNameDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
@@ -647,6 +648,7 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                                       <TableCell>
                                         <Input
                                           type="text" placeholder="—" value={snDraft}
+                                          maxLength={25}
                                           onChange={(e) =>
                                             setShortNameDrafts((p) => ({
                                               ...p,
