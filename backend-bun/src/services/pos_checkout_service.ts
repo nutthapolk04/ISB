@@ -73,19 +73,17 @@ export interface CheckoutInput {
 
 async function generateReceiptNumber(sqlTx: typeof pgClient, shopId?: string | null): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const prefix = `R-${today}-`;
-  const rows = shopId
-    ? await sqlTx<Array<{ receipt_number: string }>>`
-        SELECT receipt_number FROM receipts
-        WHERE receipt_number LIKE ${prefix + "%"}
-        AND shop_id = ${shopId}
-        ORDER BY id DESC LIMIT 1
-      `
-    : await sqlTx<Array<{ receipt_number: string }>>`
-        SELECT receipt_number FROM receipts
-        WHERE receipt_number LIKE ${prefix + "%"}
-        ORDER BY id DESC LIMIT 1
-      `;
+  // Include a 3-char shop code so each shop has its own sequence and
+  // receipt numbers from different shops can never collide in the unique index.
+  const shopCode = shopId
+    ? shopId.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase()
+    : "GEN";
+  const prefix = `R-${shopCode}-${today}-`;
+  const rows = await sqlTx<Array<{ receipt_number: string }>>`
+    SELECT receipt_number FROM receipts
+    WHERE receipt_number LIKE ${prefix + "%"}
+    ORDER BY id DESC LIMIT 1
+  `;
   let seq = 1;
   if (rows[0]) {
     const tail = rows[0].receipt_number.split("-").pop();
