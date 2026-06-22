@@ -172,7 +172,22 @@ export default function TransactionHistory() {
       try {
         const { profile: p, walletId } = await resolveProfile();
         setProfile(p);
-        if (walletId) await loadTodayTransactions(walletId);
+        if (walletId) {
+          await loadTodayTransactions(walletId);
+          // Auto-load last 30 days so transactions are visible without needing to filter
+          const today = new Date();
+          const from = new Date(today);
+          from.setDate(from.getDate() - 30);
+          const fmt = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+          const autoFrom = fmt(from);
+          const autoTo = fmt(today);
+          setDateFrom(autoFrom);
+          setDateTo(autoTo);
+          const qs = `date_from=${autoFrom}&date_to=${autoTo}`;
+          const data = await api.get<Transaction[]>(`/wallets/${walletId}/transactions?${qs}`);
+          setTxs(data);
+          setFiltered(true);
+        }
       } catch (e) {
         toast({
           title: t("parent.transactions.loadFailed"),
