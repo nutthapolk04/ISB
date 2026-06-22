@@ -120,13 +120,6 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
-    labelKey: "nav.groupShopManagement",
-    module: "store",
-    items: [
-      { titleKey: "nav.storeManagement",  url: "/store/management",     icon: Building2,   roles: ["manager", "admin"], matchPrefix: true },
-    ],
-  },
-  {
     labelKey: "nav.groupSystem",
     module: null,
     items: [
