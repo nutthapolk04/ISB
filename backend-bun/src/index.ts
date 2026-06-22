@@ -74,6 +74,7 @@ import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCar
 import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback, inquireTopupFromGateway } from "@/services/topup_service";
 import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
 import { runSync } from "@/services/powerschool_sync";
+import { processStaffBatch, processFamilyBatch, processDepartmentBatch } from "@/services/isb_sync_service";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
 
 function handle(set: { status?: number }) {
@@ -1067,6 +1068,133 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       body: t.Object({
         sync_type: t.Optional(t.Union([t.Literal("full"), t.Literal("delta")])),
         target_roles: t.Optional(t.Array(t.String())),
+      }),
+    },
+  )
+  // ── ISB Vendor Sync API (x-api-key auth) ─────────────────────────────────
+  .post(
+    "/sync/staffs",
+    async ({ body, headers, set }) => {
+      const apiKey = process.env.ISB_SYNC_API_KEY;
+      if (!apiKey || (headers as Record<string, string>)["x-api-key"] !== apiKey) {
+        set.status = 401;
+        return { status: "FAILED", code: "401", message: "Invalid or missing API key (expected header 'x-api-key')." };
+      }
+      try {
+        const result = await processStaffBatch(body.staffs as any[]);
+        return {
+          status: "SUCCESS", code: "200", message: "Accepted",
+          ...(result.errors.length > 0 && { warnings: result.errors }),
+        };
+      } catch (e) {
+        set.status = 500;
+        return { status: "FAILED", code: "500", message: (e as Error).message };
+      }
+    },
+    {
+      body: t.Object({
+        staffs: t.Array(t.Object({
+          customerId: t.Number(),
+          customerType: t.Literal("Staff"),
+          staffType: t.String(),
+          department: t.String(),
+          familyCode: t.Number(),
+          firstName: t.String(),
+          lastName: t.String(),
+          hasChildren: t.Boolean(),
+          profileImage: t.String(),
+          smartCard: t.Object({ cardNumber: t.String() }),
+          login: t.Object({ loginId: t.String(), email: t.String() }),
+        })),
+      }),
+    },
+  )
+  .post(
+    "/sync/families",
+    async ({ body, headers, set }) => {
+      const apiKey = process.env.ISB_SYNC_API_KEY;
+      if (!apiKey || (headers as Record<string, string>)["x-api-key"] !== apiKey) {
+        set.status = 401;
+        return { status: "FAILED", code: "401", message: "Invalid or missing API key (expected header 'x-api-key')." };
+      }
+      try {
+        const result = await processFamilyBatch(body.families as any[]);
+        return {
+          status: "SUCCESS", code: "200", message: "Accepted",
+          ...(result.errors.length > 0 && { warnings: result.errors }),
+        };
+      } catch (e) {
+        set.status = 500;
+        return { status: "FAILED", code: "500", message: (e as Error).message };
+      }
+    },
+    {
+      body: t.Object({
+        families: t.Array(t.Object({
+          familyCode: t.Number(),
+          notificationEmails: t.Array(t.String()),
+          mainParent: t.Object({
+            customerId: t.Number(),
+            customerType: t.Union([t.Literal("Parent"), t.Literal("Staff")]),
+            firstName: t.String(),
+            lastName: t.String(),
+            profileImage: t.String(),
+            login: t.String(),
+            smartCard: t.Object({ cardNumber: t.String() }),
+          }),
+          secondaryParent: t.Nullable(t.Object({
+            customerId: t.Number(),
+            customerType: t.Union([t.Literal("Parent"), t.Literal("Staff")]),
+            firstName: t.String(),
+            lastName: t.String(),
+            profileImage: t.String(),
+            login: t.String(),
+            smartCard: t.Object({ cardNumber: t.String() }),
+          })),
+          students: t.Array(t.Object({
+            customerId: t.Number(),
+            customerType: t.Literal("Student"),
+            firstName: t.String(),
+            lastName: t.String(),
+            grade: t.String(),
+            schoolType: t.String(),
+            profileImage: t.String(),
+            smartCard: t.Object({ cardNumber: t.String() }),
+          })),
+        })),
+      }),
+    },
+  )
+  .post(
+    "/sync/departments",
+    async ({ body, headers, set }) => {
+      const apiKey = process.env.ISB_SYNC_API_KEY;
+      if (!apiKey || (headers as Record<string, string>)["x-api-key"] !== apiKey) {
+        set.status = 401;
+        return { status: "FAILED", code: "401", message: "Invalid or missing API key (expected header 'x-api-key')." };
+      }
+      try {
+        const result = await processDepartmentBatch(body.departments as any[]);
+        return {
+          status: "SUCCESS", code: "200", message: "Accepted",
+          ...(result.errors.length > 0 && { warnings: result.errors }),
+        };
+      } catch (e) {
+        set.status = 500;
+        return { status: "FAILED", code: "500", message: (e as Error).message };
+      }
+    },
+    {
+      body: t.Object({
+        departments: t.Array(t.Object({
+          departmentId: t.Number(),
+          customerType: t.Literal("Department"),
+          departmentDescription: t.String(),
+          login: t.Optional(t.Nullable(t.Object({
+            loginId: t.String(),
+            email: t.String(),
+          }))),
+        })),
       }),
     },
   )

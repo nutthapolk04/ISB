@@ -153,7 +153,7 @@ async function emitAudit(args: {
 
 // ── Internal CustomerType ─────────────────────────────────────────────────
 
-async function getInternalTypeId(): Promise<number> {
+export async function getInternalTypeId(): Promise<number> {
   // pg enum value is UPPERCASE — "Internal" would fail the enum check.
   const rows = await db.select().from(customerTypes).where(eq(customerTypes.typeName, "INTERNAL")).limit(1);
   if (rows[0]) return rows[0].id;
@@ -167,7 +167,7 @@ async function getInternalTypeId(): Promise<number> {
 
 // ── Upserts ───────────────────────────────────────────────────────────────
 
-interface StaffPayload {
+export interface StaffPayload {
   customerId: number | string;
   customerType?: string;
   familyCode: number | string;
@@ -180,7 +180,7 @@ interface StaffPayload {
   hasChildren?: boolean;
 }
 
-async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
+export async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
   const extId = String(payload.customerId);
   const email = (payload.login?.email ?? "").trim().toLowerCase();
   const username = (payload.login?.loginId ?? "").split("@")[0].trim().toLowerCase();
@@ -239,7 +239,7 @@ async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<ty
   return userRow;
 }
 
-async function upsertParent(payload: StaffPayload, familyCode: string, loginHint: string | null, syncLogId: number): Promise<typeof users.$inferSelect> {
+export async function upsertParent(payload: StaffPayload, familyCode: string, loginHint: string | null, syncLogId: number): Promise<typeof users.$inferSelect> {
   const extId = String(payload.customerId);
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
   const cardUid = payload.smartCard?.cardNumber ?? null;
@@ -288,7 +288,7 @@ async function upsertParent(payload: StaffPayload, familyCode: string, loginHint
   return userRow;
 }
 
-async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number): Promise<typeof users.$inferSelect> {
+export async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number): Promise<typeof users.$inferSelect> {
   const extId = String(payload.customerId);
   let existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
   const created = !existing;
@@ -329,7 +329,7 @@ async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, s
   return userRow;
 }
 
-interface StudentPayload {
+export interface StudentPayload {
   customerId: number | string;
   firstName: string;
   lastName: string;
@@ -338,7 +338,7 @@ interface StudentPayload {
   smartCard?: { cardNumber?: string };
 }
 
-async function upsertStudent(payload: StudentPayload, familyCode: string, internalTypeId: number, syncLogId: number): Promise<typeof customers.$inferSelect> {
+export async function upsertStudent(payload: StudentPayload, familyCode: string, internalTypeId: number, syncLogId: number): Promise<typeof customers.$inferSelect> {
   const extId = String(payload.customerId);
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
   const grade = payload.grade ?? null;
@@ -412,7 +412,7 @@ async function upsertStudent(payload: StudentPayload, familyCode: string, intern
   return custRow;
 }
 
-async function upsertFamilyProfile(familyCode: string, notificationEmails: string[], loginIds: string[]): Promise<void> {
+export async function upsertFamilyProfile(familyCode: string, notificationEmails: string[], loginIds: string[]): Promise<void> {
   const existing = (await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, familyCode)).limit(1))[0];
   if (existing) {
     await db.update(familyProfiles).set({
@@ -427,7 +427,7 @@ async function upsertFamilyProfile(familyCode: string, notificationEmails: strin
   }
 }
 
-async function upsertLink(parentId: number, childId: number, parentRank: string, relation = "guardian"): Promise<void> {
+export async function upsertLink(parentId: number, childId: number, parentRank: string, relation = "guardian"): Promise<void> {
   const existing = (await db.select().from(parentChildLinks).where(
     and(
       eq(parentChildLinks.parentUserId, parentId),
