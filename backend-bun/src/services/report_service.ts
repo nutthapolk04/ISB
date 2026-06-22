@@ -531,6 +531,9 @@ export async function stockCardReport(args: {
   dateTo: string;
   shopId?: string;
   productVariantId?: number;
+  productSearch?: string;
+  category?: string;
+  includeEmpty?: boolean;
 }): Promise<StockCardReportDTO> {
   const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
   if (!effectiveShopId) {
@@ -552,13 +555,22 @@ export async function stockCardReport(args: {
 
   const productConds = [eq(shopProducts.shopId, effectiveShopId)];
   if (args.productVariantId !== undefined) productConds.push(eq(shopProducts.id, args.productVariantId));
+  if (args.productSearch) {
+    const like = `%${args.productSearch}%`;
+    productConds.push(or(ilike(shopProducts.name, like), ilike(shopProducts.productCode, like))!);
+  }
+  if (args.category) productConds.push(eq(shopProducts.category, args.category));
+
   const productsRows = await db
     .select()
     .from(shopProducts)
     .where(and(...productConds))
     .orderBy(asc(shopProducts.name));
 
-  const products = await Promise.all(productsRows.map((p) => buildProductBlock(p, args.dateFrom, args.dateTo)));
+  let products = await Promise.all(productsRows.map((p) => buildProductBlock(p, args.dateFrom, args.dateTo)));
+  if (!args.includeEmpty) {
+    products = products.filter((b) => b.rows.length > 2);
+  }
 
   return {
     shop_id: effectiveShopId,
