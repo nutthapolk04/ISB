@@ -229,28 +229,6 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Home Hub — hidden for admin (has Dashboard) and parent-like users */}
-        {!isRefundOnlyMode && user && !isParentLike && !isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={t("nav.home")}
-                    isActive={location.pathname === "/"}
-                    className="text-base p-3 h-auto"
-                  >
-                    <NavLink to="/" className="h-auto min-h-fit">
-                      <Home className="h-5 w-5" />
-                      <span>{t("nav.home")}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
 
         {/* Nav groups */}
         {!isRefundOnlyMode && menuGroups.map((group) => {
