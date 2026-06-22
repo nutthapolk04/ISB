@@ -610,55 +610,61 @@ export default function FamilyDashboard() {
                 )}
               </div>
 
-              <Card>
-                <CardContent className="p-0">
-                  {txLoading && (
-                    <div className="space-y-px">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 px-4 py-3">
-                          <div className="h-9 w-9 rounded-full bg-slate-100 animate-pulse shrink-0" />
-                          <div className="flex-1 space-y-1.5">
-                            <div className="h-3.5 w-24 rounded bg-slate-100 animate-pulse" />
-                            <div className="h-3 w-32 rounded bg-slate-100 animate-pulse" />
-                          </div>
-                          <div className="h-4 w-16 rounded bg-slate-100 animate-pulse" />
-                        </div>
-                      ))}
+              <div className="space-y-2.5">
+                {txLoading && (
+                  [...Array(3)].map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-slate-100 animate-pulse shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 w-24 rounded bg-slate-100 animate-pulse" />
+                        <div className="h-3 w-32 rounded bg-slate-100 animate-pulse" />
+                      </div>
+                      <div className="h-4 w-16 rounded bg-slate-100 animate-pulse" />
                     </div>
-                  )}
+                  ))
+                )}
 
-                  {!txLoading && txs.length === 0 && (
-                    <p className="px-4 py-6 text-center text-sm text-slate-400">
-                      {t("parent.dashboard.noTx", "No transactions yet")}
-                    </p>
-                  )}
+                {!txLoading && txs.length === 0 && (
+                  <p className="py-4 text-center text-sm text-slate-400">
+                    {t("parent.dashboard.noTx", "No transactions yet")}
+                  </p>
+                )}
 
-                  {!txLoading && txs.map((tx, i) => {
-                    const isCredit = tx.balance_after > tx.balance_before;
-                    const typeLabel = tx.transaction_type === "topup" || isCredit
-                      ? t("parent.transactions.txTopup", "top-up")
-                      : tx.transaction_type === "refund"
-                      ? t("parent.transactions.txRefund", "refund")
-                      : t("parent.transactions.txDeduction", "purchase");
-                    const shopLabel = tx.description || tx.shop_name || typeLabel;
-                    return (
-                      <div
-                        key={tx.id}
-                        className={cn("flex items-center gap-3 px-4 py-3.5", i < txs.length - 1 && "border-b border-slate-100")}
-                      >
+                {!txLoading && txs.map((tx) => {
+                  const isCredit = tx.balance_after > tx.balance_before;
+                  const typeLabel = tx.transaction_type === "topup" || isCredit
+                    ? t("parent.transactions.txTopup", "Top up")
+                    : tx.transaction_type === "refund"
+                    ? t("parent.transactions.txRefund", "Refund")
+                    : t("parent.transactions.txDeduction", "Purchase");
+                  const shopName = tx.shop_name;
+                  const desc = tx.description;
+                  const time = fmtTime(tx.created_at);
+                  return (
+                    <div
+                      key={tx.id}
+                      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4"
+                    >
+                      <div className="flex items-start gap-3">
                         <TxIcon isCredit={isCredit} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate">{shopLabel}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{fmtDate(tx.created_at)} · {fmtTime(tx.created_at)}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-bold text-gray-900 leading-tight">
+                              {typeLabel}
+                              {shopName && <span className="font-normal text-gray-400"> — {shopName}</span>}
+                            </p>
+                            <span className={cn("text-base font-bold tabular-nums shrink-0 leading-tight", isCredit ? "text-emerald-600" : "text-red-500")}>
+                              {isCredit ? "+" : "-"}฿{Math.abs(tx.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          {desc && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{desc}</p>}
+                          <p className="text-xs text-gray-400 mt-1">{time}</p>
                         </div>
-                        <p className={cn("text-sm font-bold tabular-nums shrink-0", isCredit ? "text-green-600" : "text-red-500")}>
-                          {isCredit ? "+" : ""}{formatTHB(Math.abs(tx.amount))}
-                        </p>
                       </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>

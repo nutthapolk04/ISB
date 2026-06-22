@@ -174,10 +174,9 @@ export default function TransactionHistory() {
         setProfile(p);
         if (walletId) {
           await loadTodayTransactions(walletId);
-          // Auto-load last 30 days so transactions are visible without needing to filter
+          // Auto-load current month so transactions are visible without needing to filter
           const today = new Date();
-          const from = new Date(today);
-          from.setDate(from.getDate() - 30);
+          const from = new Date(today.getFullYear(), today.getMonth(), 1);
           const fmt = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
           const autoFrom = fmt(from);
           const autoTo = fmt(today);
