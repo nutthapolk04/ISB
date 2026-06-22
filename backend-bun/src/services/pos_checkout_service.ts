@@ -71,14 +71,21 @@ export interface CheckoutInput {
   userId: number;
 }
 
-async function generateReceiptNumber(sqlTx: typeof pgClient): Promise<string> {
+async function generateReceiptNumber(sqlTx: typeof pgClient, shopId?: string | null): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const prefix = `R-${today}-`;
-  const rows = await sqlTx<Array<{ receipt_number: string }>>`
-    SELECT receipt_number FROM receipts
-    WHERE receipt_number LIKE ${prefix + "%"}
-    ORDER BY id DESC LIMIT 1
-  `;
+  const rows = shopId
+    ? await sqlTx<Array<{ receipt_number: string }>>`
+        SELECT receipt_number FROM receipts
+        WHERE receipt_number LIKE ${prefix + "%"}
+        AND shop_id = ${shopId}
+        ORDER BY id DESC LIMIT 1
+      `
+    : await sqlTx<Array<{ receipt_number: string }>>`
+        SELECT receipt_number FROM receipts
+        WHERE receipt_number LIKE ${prefix + "%"}
+        ORDER BY id DESC LIMIT 1
+      `;
   let seq = 1;
   if (rows[0]) {
     const tail = rows[0].receipt_number.split("-").pop();
@@ -327,7 +334,7 @@ export async function checkout(input: CheckoutInput) {
   // Run the actual mutation under one DB transaction.
   let postCheckoutCustomerData: { customerId: number; balanceAfter: number } | null = null;
   const newReceiptId = await pgClient.begin(async (sqlTx) => {
-    const receiptNumber = await generateReceiptNumber(sqlTx);
+    const receiptNumber = await generateReceiptNumber(sqlTx, effectiveShopId);
 
     let subtotal = 0;
     const movementType = transactionMode === "INTERNAL_ISSUE" ? "internal_use" : "sale";

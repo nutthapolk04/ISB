@@ -41,7 +41,7 @@
   @media (min-width: 1024px) {
     .canteen-grid {
       gap: 0.5rem;
-      grid-template-columns: repeat(10, minmax(0, 1fr));
+      grid-template-columns: repeat(7, minmax(0, 1fr));
     }
   }
 

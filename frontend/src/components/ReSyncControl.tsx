@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,6 +58,8 @@ function relativeTime(iso: string | null | undefined, t: (k: string, opts?: Reco
 
 export function ReSyncControl() {
   const { t } = useTranslation();
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("admin");
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("form");
   const [lastLog, setLastLog] = useState<SyncLogItem | null>(null);
@@ -64,6 +67,7 @@ export function ReSyncControl() {
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   const loadLastLog = async () => {
+    if (!isAdmin) return;
     try {
       const logs = await api.get<SyncLogItem[]>("/sync/logs?limit=1");
       setLastLog(logs[0] ?? null);
@@ -74,7 +78,7 @@ export function ReSyncControl() {
 
   useEffect(() => {
     void loadLastLog();
-  }, []);
+  }, [isAdmin]);
 
   const handleOpen = () => {
     setPhase("form");

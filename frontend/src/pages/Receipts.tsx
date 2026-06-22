@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -126,7 +126,7 @@ function fmtDateOnly(iso: string): string {
 // matches what auto-print produces at sale time. School is international so
 // the paper receipt is always rendered in English.
 
-import { printReceipt as printReceiptShared, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
+import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -699,7 +699,7 @@ const Receipts = () => {
                         </IconButton>
                         <IconButton
                           tooltip={t("receipts.tooltip.download")}
-                          onClick={() => printReceiptShared(receipt as unknown as LibReceiptApi, schoolInfo, user?.shopName, "en")}
+                          onClick={() => downloadReceiptHtml(receipt as unknown as LibReceiptApi, schoolInfo, receipt.shop_name ?? user?.shopName, "en")}
                         >
                           <Download className="h-4 w-4" />
                         </IconButton>
@@ -975,226 +975,193 @@ const Receipts = () => {
               {t("receipts.receiptId")}: {selectedReceipt?.receipt_number}
             </DialogDescription>
           </DialogHeader>
-          {selectedReceipt && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">{t("receipts.dateTime")}:</span>
-                  <span className="text-sm font-medium">{fmtDate(selectedReceipt.transaction_date)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">{t("receipts.paymentMethod")}:</span>
-                  <span className="text-sm font-semibold">
-                    {t(`common.paymentMethods.${(selectedReceipt.payment_method ?? "").toLowerCase()}`, selectedReceipt.payment_method)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">{t("receipts.status", "Status")}:</span>
-                  <Badge variant={selectedReceipt.status === "active" ? "success" : "destructive"}>
-                    {selectedReceipt.status === "active" ? "Active" : "Voided"}
-                  </Badge>
-                </div>
-                {selectedReceipt.created_by_name && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">{t("receipts.cashier", "Cashier")}:</span>
-                    <span className="text-sm font-medium">{selectedReceipt.created_by_name}</span>
-                  </div>
-                )}
-                {selectedReceipt.notes && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Notes:</span>
-                    <span className="text-sm">{selectedReceipt.notes}</span>
-                  </div>
-                )}
-                {selectedReceipt.voided_reason && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Void reason:</span>
-                    <span className="text-sm text-destructive">{selectedReceipt.voided_reason}</span>
-                  </div>
-                )}
+          {selectedReceipt && (() => {
+            const isWallet = selectedReceipt.payment_method.toLowerCase() === "wallet";
+            const walletBalanceAfter = selectedReceipt.payer_detail?.wallet_balance ?? null;
+            const balanceBefore = isWallet && walletBalanceAfter !== null ? walletBalanceAfter + selectedReceipt.total : null;
+            const row = (label: string, value: React.ReactNode, bold = false) => (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">{label}</span>
+                <span className={bold ? "font-semibold" : ""}>{value}</span>
               </div>
-              <Separator />
-
-              {/* ── Buyer card (wallet payment only) ───────────────────── */}
-              {selectedReceipt.payer_detail && (
-                <>
-                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
-                    {/* Photo */}
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
-                      {selectedReceipt.payer_detail.photo_url ? (
-                        <img
-                          src={selectedReceipt.payer_detail.photo_url}
-                          alt={selectedReceipt.payer_detail.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xl text-blue-400 font-bold">
-                          {selectedReceipt.payer_detail.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-sm truncate">
-                        {selectedReceipt.payer_detail.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground space-y-0.5">
-                        {selectedReceipt.payer_detail.code && (
-                          <div>{t("receipts.searchPanel.detailCode")}: <span className="font-mono">{selectedReceipt.payer_detail.code}</span></div>
-                        )}
-                        {selectedReceipt.payer_detail.grade && (
-                          <div>
-                            {selectedReceipt.payer_detail.role === "student" ? `${t("receipts.searchPanel.detailGrade")}: ` : `${t("receipts.searchPanel.detailDept")}: `}
-                            {selectedReceipt.payer_detail.grade}
-                          </div>
-                        )}
-                        <div className="capitalize text-blue-600 font-medium">
-                          {selectedReceipt.payer_detail.role}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Wallet balance */}
-                    <div className="text-right shrink-0">
-                      <div className="text-[10px] text-muted-foreground">{t("receipts.balance", "Balance")}</div>
-                      <div className={cn(
-                        "text-base font-bold tabular-nums",
-                        (selectedReceipt.payer_detail.wallet_balance ?? 0) < 0
-                          ? "text-destructive"
-                          : "text-emerald-600",
-                      )}>
-                        {selectedReceipt.payer_detail.wallet_balance !== null
-                          ? `฿${selectedReceipt.payer_detail.wallet_balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                          : "—"}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">{t("receipts.afterPayment", "After payment")}</div>
-                    </div>
+            );
+            return (
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                {selectedReceipt.status !== "active" && (
+                  <div className="rounded border-2 border-destructive bg-destructive/10 p-2 text-center text-xs font-bold text-destructive">
+                    *** THIS RECEIPT HAS BEEN VOIDED ***
                   </div>
-                  <Separator />
-                </>
-              )}
+                )}
 
-              <div className="space-y-2">
-                <h4 className="font-semibold">{t("receipts.productList")}</h4>
-                {selectedReceipt.items.map((item) => {
-                  const gross = item.line_total;
-                  const hasItemDiscount = item.discount > 0;
-                  const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
-                  const isBundle = opts?.is_bundle === true;
-                  const displayName = isBundle
-                    ? (opts?.bundle_name ?? "Bundle")
-                    : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
-                  return (
-                    <div key={item.id} className="text-sm">
-                      <div className="flex justify-between">
-                        <span>
-                          {displayName} ×{item.quantity}
-                        </span>
-                        <span className="data-number">฿{gross.toLocaleString()}</span>
+                {/* Block 1: Receipt No / Date / Cashier */}
+                <div className="space-y-1.5">
+                  {row(t("receipts.receiptNo", "Receipt No"), <span className="font-mono font-semibold">{selectedReceipt.receipt_number}</span>)}
+                  {row(t("receipts.dateTime"), fmtDate(selectedReceipt.transaction_date))}
+                  {selectedReceipt.created_by_name && row(t("receipts.cashier", "Cashier"), selectedReceipt.created_by_name, true)}
+                  {selectedReceipt.shop_name && row(t("receipts.shop", "Shop"), selectedReceipt.shop_name)}
+                </div>
+
+                <Separator />
+
+                {/* Block 2: Payer / Payment Type / Status */}
+                <div className="space-y-1.5">
+                  {selectedReceipt.payer_detail && (
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
+                        {selectedReceipt.payer_detail.photo_url ? (
+                          <img src={selectedReceipt.payer_detail.photo_url} alt={selectedReceipt.payer_detail.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-lg text-blue-400 font-bold">{selectedReceipt.payer_detail.name.charAt(0).toUpperCase()}</span>
+                        )}
                       </div>
-                      <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
-                        Unit price: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        {" · "}
-                        Total: ฿{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </div>
-                      {!isBundle && opts?.groups && opts.groups.length > 0 && (
-                        <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
-                          {opts.groups.flatMap((g: any) =>
-                            g.options.map((o: any) => (
-                              <div
-                                key={`${g.group_id}-${o.option_id}`}
-                                className="flex justify-between"
-                              >
-                                <span>
-                                  + {o.name}
-                                  {o.quantity > 1 && ` ×${o.quantity}`}
-                                </span>
-                                {o.price_delta > 0 && (
-                                  <span className="data-number">
-                                    +฿{(o.price_delta * o.quantity).toLocaleString()}
-                                  </span>
-                                )}
-                              </div>
-                            )),
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-sm truncate">{selectedReceipt.payer_detail.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {selectedReceipt.payer_detail.code && <span className="font-mono">{selectedReceipt.payer_detail.code}</span>}
+                          {selectedReceipt.payer_detail.grade && (
+                            <span className="ml-1">
+                              {selectedReceipt.payer_detail.role === "student"
+                                ? `· ${t("receipts.searchPanel.detailGrade")} ${selectedReceipt.payer_detail.grade}`
+                                : `· ${selectedReceipt.payer_detail.grade}`}
+                            </span>
                           )}
                         </div>
-                      )}
-                      {hasItemDiscount && (
-                        <div className="flex justify-between text-destructive text-xs pl-4">
-                          <span>{t("receipts.itemDiscount", "ส่วนลด")}</span>
-                          <span className="data-number">-฿{item.discount.toLocaleString()}</span>
-                        </div>
-                      )}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-              <Separator />
+                  )}
+                  {!selectedReceipt.payer_detail && selectedReceipt.payer_label && row(t("receipts.payer", "Payer"), selectedReceipt.payer_label, true)}
+                  {row(t("receipts.paymentMethod"), t(`common.paymentMethods.${(selectedReceipt.payment_method ?? "").toLowerCase()}`, selectedReceipt.payment_method), true)}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{t("receipts.status", "Status")}</span>
+                    <Badge variant={selectedReceipt.status === "active" ? "success" : "destructive"}>
+                      {selectedReceipt.status === "active" ? "Active" : "Voided"}
+                    </Badge>
+                  </div>
+                </div>
 
-              {/* Totals breakdown */}
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("receipts.subtotal", "ยอดรวมก่อนส่วนลด")}</span>
-                  <span className="data-number">฿{selectedReceipt.subtotal.toLocaleString()}</span>
+                <Separator />
+
+                {/* Block 3: Items */}
+                <div className="space-y-2">
+                  {selectedReceipt.items.map((item) => {
+                    const gross = item.line_total;
+                    const hasItemDiscount = item.discount > 0;
+                    const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
+                    const isBundle = opts?.is_bundle === true;
+                    const displayName = isBundle
+                      ? (opts?.bundle_name ?? "Bundle")
+                      : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
+                    return (
+                      <div key={item.id} className="text-sm">
+                        <div className="flex justify-between">
+                          <span>{displayName} ×{item.quantity}</span>
+                          <span className="data-number">฿{gross.toLocaleString()}</span>
+                        </div>
+                        <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
+                          Unit price: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {" · "}
+                          Total: ฿{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </div>
+                        {!isBundle && opts?.groups && opts.groups.length > 0 && (
+                          <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
+                            {opts.groups.flatMap((g: any) =>
+                              g.options.map((o: any) => (
+                                <div key={`${g.group_id}-${o.option_id}`} className="flex justify-between">
+                                  <span>+ {o.name}{o.quantity > 1 && ` ×${o.quantity}`}</span>
+                                  {o.price_delta > 0 && <span className="data-number">+฿{(o.price_delta * o.quantity).toLocaleString()}</span>}
+                                </div>
+                              )),
+                            )}
+                          </div>
+                        )}
+                        {hasItemDiscount && (
+                          <div className="flex justify-between text-destructive text-xs pl-4">
+                            <span>{t("receipts.itemDiscount", "ส่วนลด")}</span>
+                            <span className="data-number">-฿{item.discount.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                {selectedReceipt.discount > 0 && (
-                  <div className="flex justify-between text-destructive">
-                    <span>{t("receipts.billDiscount", "ส่วนลดท้ายบิล")}</span>
-                    <span className="data-number">-฿{selectedReceipt.discount.toLocaleString()}</span>
+
+                <Separator />
+
+                {/* Block 4: Balance Before / Subtotal / Grand Total / Balance After */}
+                <div className="space-y-1.5">
+                  {balanceBefore !== null && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{t("receipts.balanceBefore", "Balance Before This Sale")}</span>
+                      <span className="data-number">฿{balanceBefore.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  {row(t("receipts.subtotal", "Subtotal"), `฿${selectedReceipt.subtotal.toLocaleString()}`)}
+                  {selectedReceipt.discount > 0 && (
+                    <div className="flex justify-between text-sm text-destructive">
+                      <span>{t("receipts.billDiscount", "Bill Discount")}</span>
+                      <span className="data-number">-฿{selectedReceipt.discount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {selectedReceipt.tax > 0 && row(t("receipts.tax", "Tax"), `฿${selectedReceipt.tax.toLocaleString()}`)}
+                  <div className="flex justify-between text-base font-bold">
+                    <span>{t("receipts.grandTotal")}</span>
+                    <span className="text-primary data-number">฿{selectedReceipt.total.toLocaleString()}</span>
                   </div>
-                )}
-                {selectedReceipt.tax > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("receipts.tax", "ภาษี")}</span>
-                    <span className="data-number">฿{selectedReceipt.tax.toLocaleString()}</span>
-                  </div>
-                )}
-              </div>
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>{t("receipts.grandTotal")}</span>
-                <span className="text-primary data-number">
-                  ฿{selectedReceipt.total.toLocaleString()}
-                </span>
-              </div>
-              {selectedReceipt.payment_method.toLowerCase() === "cash" && selectedReceipt.cash_received != null && (
-                <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
-                    <span className="data-number">
-                      ฿{selectedReceipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between font-semibold border-t pt-1.5">
-                    <span>{t("receipts.change", "Change")}</span>
-                    <span className="text-emerald-600 data-number">
-                      ฿{Math.max(0, selectedReceipt.cash_received - selectedReceipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                  {walletBalanceAfter !== null && (
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className="text-muted-foreground">{t("receipts.balanceAfter", "Balance After This Sale")}</span>
+                      <span className={cn("data-number", walletBalanceAfter < 0 ? "text-destructive" : "text-emerald-600")}>
+                        ฿{walletBalanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {selectedReceipt.payment_method.toLowerCase() === "cash" && selectedReceipt.cash_received != null && (
+                    <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5 mt-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
+                        <span className="data-number">฿{selectedReceipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold border-t pt-1.5">
+                        <span>{t("receipts.change", "Change")}</span>
+                        <span className="text-emerald-600 data-number">
+                          ฿{Math.max(0, selectedReceipt.cash_received - selectedReceipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedReceipt.notes && (
+                    <div className="pt-1 text-xs text-muted-foreground">
+                      <span className="font-semibold">{t("receipts.notes", "Note")}: </span>{selectedReceipt.notes}
+                    </div>
+                  )}
+                  {selectedReceipt.voided_reason && (
+                    <div className="text-xs text-destructive">
+                      <span className="font-semibold">{t("receipts.voidReason", "Void reason")}: </span>{selectedReceipt.voided_reason}
+                    </div>
+                  )}
                 </div>
-              )}
-              {/* Two-button grid mirrors ReceiptDetailDialog: a prominent
-                  "Print" (silent on POS stations launched with --kiosk-printing,
-                  print dialog elsewhere) and a quieter "Save PDF" for the
-                  admin laptop / parent flow. Both go through printReceipt() so
-                  the rendering stays single-source. */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                  onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, user?.shopName, "en")}
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  {t("receipts.print", "Print")}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, user?.shopName, "en")}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {t("receipts.download", "Save PDF")}
-                </Button>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                    onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    {t("receipts.print", "Print")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => downloadReceiptHtml(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {t("receipts.download", "Save PDF")}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

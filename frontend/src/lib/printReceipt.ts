@@ -149,8 +149,8 @@ const RECEIPT_LABELS = {
     tax: "Tax",
     subtotal: "Subtotal",
     grandTotal: "Grand Total",
-    balanceBefore: "Bal. Before",
-    balanceAfter: "Bal. After",
+    balanceBefore: "Balance Before This Sale",
+    balanceAfter: "Balance After This Sale",
     voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
     thanks: "Thank you for your purchase",
     taxId: "Tax ID",
@@ -275,7 +275,7 @@ export function buildReceiptHtml(
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Sarabun', 'Arial', sans-serif; font-size: 16px;
          font-weight: 500; line-height: 1.4;
-         width: 80mm; margin: 0 auto; padding: 10px; color: #000; }
+         width: 80mm; margin: 0 auto; padding: 8px 16px 8px 8px; color: #000; }
   .logo-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
   h1 { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 2px; line-height: 1.3; }
   .center { text-align: center; }
@@ -284,8 +284,8 @@ export function buildReceiptHtml(
   .doc-type { font-size: 11px; color: #777; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
   hr { border: none; border-top: 1.5px dashed #444; margin: 7px 0; }
   .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; }
-  .row span:first-child { font-weight: 600; min-width: 0; overflow: hidden; }
-  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; flex-shrink: 0; }
+  .row span:first-child { font-weight: 600; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; flex: 0 0 auto; }
   .opt { padding-left: 14px; font-size: 14px; color: #333; }
   .item-sub { padding-left: 14px; font-size: 13px; color: #555; margin-top: -2px; margin-bottom: 3px; }
   .disc { color: #000; font-size: 15px; font-weight: 600; }
@@ -293,8 +293,8 @@ export function buildReceiptHtml(
   .small span:last-child { font-weight: 700; }
   .total { font-size: 22px; font-weight: 800; margin-top: 5px; }
   .total span { font-weight: 800; }
-  .balance-after { font-size: 12px; font-weight: 800; color: #000; margin-top: 4px; }
-  .balance-before { font-size: 12px; color: #222; }
+  .balance-after { font-size: 14px; font-weight: 800; color: #000; margin-top: 4px; }
+  .balance-before { font-size: 14px; color: #222; }
   .balance-before span:last-child { font-weight: 700; }
   .voided { text-align: center; color: #000; font-weight: 800;
              font-size: 16px; margin: 7px 0; border: 2px solid #000; padding: 5px; }
@@ -411,4 +411,27 @@ export function printReceipt(
     // OS print dialog round-trip on stations without --kiosk-printing.
     setTimeout(() => iframe.remove(), 1500);
   }, 250);
+}
+
+/**
+ * Download the receipt as an HTML file. The browser can open it and
+ * print-to-PDF, or the user can keep it as a local archive.
+ */
+export function downloadReceiptHtml(
+  r: ReceiptApi,
+  school: SchoolInfo,
+  shopName?: string | null,
+  lang: string = "en",
+  shopOverrides?: { receiptHeader?: string | null; receiptFooter?: string | null },
+): void {
+  const html = buildReceiptHtml(r, school, shopName, lang, shopOverrides);
+  const blob = new Blob([html], { type: "text/html; charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `receipt-${r.receipt_number}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

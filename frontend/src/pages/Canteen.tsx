@@ -1129,13 +1129,13 @@ export default function Canteen() {
 
         {/* Panel tabs (replaces category tabs) */}
         {!reorderMode && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-2 pb-1">
             {/* All tab */}
             <button
               type="button"
               onClick={() => handlePanelChange(null)}
               className={cn(
-                "shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition-all border border-transparent",
+                "rounded-full px-5 py-2 text-sm font-semibold transition-all border border-transparent",
                 activePanelId === null
                   ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-300/40"
                   : "bg-card/80 text-muted-foreground border-amber-100 hover:bg-amber-50 hover:text-amber-700",
@@ -1160,7 +1160,7 @@ export default function Canteen() {
                   type="button"
                   onClick={() => handlePanelChange(panel.id)}
                   className={cn(
-                    "shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition-all border border-transparent",
+                    "rounded-full px-5 py-2 text-sm font-semibold transition-all border border-transparent",
                     isActive
                       ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md shadow-amber-300/40"
                       : "bg-card/80 text-muted-foreground border-amber-100 hover:bg-amber-50 hover:text-amber-700",

@@ -1866,13 +1866,13 @@ const Store = () => {
 
         {/* Panel selector — only shown for shop-scoped users with panels */}
         {user?.shopId && panels.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
+          <div className="flex items-center flex-wrap gap-2 pb-1">
             <span className="text-xs font-semibold text-muted-foreground shrink-0">{t("store.priceLabel")}</span>
             <button
               type="button"
               onClick={() => setActivePanelId(null)}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
+                "rounded-full border px-3 py-1 text-xs font-medium transition",
                 activePanelId === null
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input bg-background text-muted-foreground hover:border-muted-foreground",
@@ -1886,7 +1886,7 @@ const Store = () => {
                 type="button"
                 onClick={() => setActivePanelId(panel.id)}
                 className={cn(
-                  "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
+                  "rounded-full border px-3 py-1 text-xs font-medium transition",
                   activePanelId === panel.id
                     ? panel.color && panelColorClass[panel.color]
                       ? `border-2 ${panelColorClass[panel.color]} font-bold`
