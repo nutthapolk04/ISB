@@ -190,8 +190,8 @@ export function CashierTopupModal({
     }
 
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error(t("topup.invalidAmount", "Please enter a valid amount"));
+    if (isNaN(amountNum) || amountNum < 100 || amountNum > 50000) {
+      toast.error(t("topup.invalidAmount", "Amount must be between ฿100 and ฿50,000"));
       return;
     }
 
@@ -312,7 +312,7 @@ export function CashierTopupModal({
   };
 
   // Quick amount buttons
-  const quickAmounts = [100, 200, 500, 1000];
+  const quickAmounts = [500, 1000, 2000, 5000, 10000, 20000, 50000];
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -524,7 +524,8 @@ export function CashierTopupModal({
                 <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="number"
-                  min="1"
+                  min="100"
+                  max="50000"
                   step="any"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -588,7 +589,7 @@ export function CashierTopupModal({
             {/* Submit button */}
             <Button
               onClick={handleSubmitTopup}
-              disabled={submitting || !amount || parseFloat(amount) <= 0}
+              disabled={submitting || !amount || parseFloat(amount) < 100 || parseFloat(amount) > 50000}
               className="w-full h-12 text-base font-bold bg-emerald-500 hover:bg-emerald-600"
             >
               {submitting ? (

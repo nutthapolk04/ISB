@@ -22,6 +22,8 @@ interface ProductCardProps {
   onOpenColorEdit?: () => void;
   onCloseColorEdit?: () => void;
   onSaveColor?: (color: string | null) => void;
+  recentColors?: string[];
+  onAddRecentColor?: (color: string) => void;
 }
 
 const COLOR_SWATCHES = [
@@ -45,6 +47,8 @@ export function ProductCard({
   onOpenColorEdit,
   onCloseColorEdit,
   onSaveColor,
+  recentColors = [],
+  onAddRecentColor,
 }: ProductCardProps) {
   const { t } = useTranslation();
   const displayPrice =
@@ -54,9 +58,11 @@ export function ProductCard({
   const showColorPicker = !!onSaveColor;
 
   // Local draft color for the palette popover (reset every time it opens).
-  const [draftColor, setDraftColor] = useState<string>(product.color ?? "#4ade80");
+  const defaultDraft = product.color ?? recentColors[0] ?? "#4ade80";
+  const [draftColor, setDraftColor] = useState<string>(defaultDraft);
   useEffect(() => {
-    if (colorEditOpen) setDraftColor(product.color ?? "#4ade80");
+    if (colorEditOpen) setDraftColor(product.color ?? recentColors[0] ?? "#4ade80");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorEditOpen, product.color]);
 
   return (
@@ -154,6 +160,27 @@ export function ProductCard({
                     placeholder="#4ade80"
                   />
                 </div>
+                {recentColors.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">{t("canteen.productCard.recentColors", "Recent")}</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {recentColors.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setDraftColor(c)}
+                          className={cn(
+                            "h-6 w-6 rounded-full border-2 transition",
+                            draftColor === c
+                              ? "border-foreground scale-110"
+                              : "border-transparent hover:scale-105",
+                          )}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-1.5 flex-wrap">
                   {COLOR_SWATCHES.map((c) => (
                     <button
@@ -181,7 +208,7 @@ export function ProductCard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onSaveColor?.(draftColor)}
+                    onClick={() => { onAddRecentColor?.(draftColor); onSaveColor?.(draftColor); }}
                     disabled={colorSaving}
                     className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition"
                   >

@@ -58,6 +58,7 @@ import CanteenShopDetail from "./pages/canteen/CanteenShopDetail";
 import CanteenManagementOverview from "./pages/canteen/CanteenManagementOverview";
 import AuditLogList from "./pages/admin/AuditLogList";
 import SystemSettings from "./pages/admin/SystemSettings";
+import LowBalanceAlert from "./pages/admin/LowBalanceAlert";
 import CustomerDisplaySettings from "./pages/admin/CustomerDisplaySettings";
 import CustomerDisplay from "./pages/CustomerDisplay";
 import { openCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
@@ -337,6 +338,7 @@ const App = () => {
                   <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
                   <Route path="/admin/audit-logs" element={<AuditLogList />} />
                   <Route path="/admin/settings" element={<SystemSettings />} />
+                  <Route path="/admin/low-balance-alert" element={<LowBalanceAlert />} />
                   <Route path="/admin/customer-display" element={<CustomerDisplaySettings />} />
                   <Route path="/admin/spending-groups" element={<SpendingGroups />} />
                   <Route path="/admin/cards" element={<Navigate to="/users?tab=cards" replace />} />

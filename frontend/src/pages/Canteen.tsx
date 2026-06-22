@@ -83,6 +83,7 @@ import { Switch } from "@/components/ui/switch";
 import { Printer } from "lucide-react";
 import { SpendingLimitChip } from "@/components/SpendingLimitChip";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
+import { useRecentColors } from "@/hooks/useRecentColors";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -129,6 +130,7 @@ export default function Canteen() {
   }, []);
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
+  const { recentColors, addRecentColor } = useRecentColors(CANTEEN_SHOP_ID);
 
   // ── Per-shop receipt overrides ──────────────────────────────────────────
   const [shopReceipt, setShopReceipt] = useState<{
@@ -155,6 +157,7 @@ export default function Canteen() {
   const [reorderDirty, setReorderDirty] = useState(false);
   const [reorderSaving, setReorderSaving] = useState(false);
   const [productsOrderVersion, setProductsOrderVersion] = useState<number | null>(null);
+  const [reorderItems, setReorderItems] = useState<CanteenProduct[]>([]);
 
   // PointerSensor on its own dispatches via mouse + pen; touch events on
   // Windows POS terminals don't reliably trigger drag with it (browser
@@ -171,7 +174,7 @@ export default function Canteen() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setProducts((prev) => {
+    setReorderItems((prev) => {
       const oldIdx = prev.findIndex((p) => String(p.id) === String(active.id));
       const newIdx = prev.findIndex((p) => String(p.id) === String(over.id));
       if (oldIdx === -1 || newIdx === -1) return prev;
@@ -185,22 +188,45 @@ export default function Canteen() {
       const meta = await api.get<{ products_order_version?: number }>(`/shops/${CANTEEN_SHOP_ID}`);
       if (meta.products_order_version != null) setProductsOrderVersion(meta.products_order_version);
     } catch { /* use cached version */ }
+    const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
+    setReorderItems(panelIds ? products.filter((p) => panelIds.has(p.id)) : [...products]);
     setReorderMode(true);
   };
 
   const saveReorder = async () => {
     setReorderSaving(true);
     try {
+      const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
       const sortMap: Record<string, number> = {};
-      products.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
+      if (panelIds) {
+        const panelSlots: number[] = [];
+        products.forEach((p, idx) => { if (panelIds.has(p.id)) panelSlots.push(idx + 1); });
+        reorderItems.forEach((p, idx) => { sortMap[String(p.id)] = panelSlots[idx]; });
+      } else {
+        reorderItems.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
+      }
       const version = productsOrderVersion ?? 1;
       const res = await api.post<{ version: number; updated: number }>(
         `/shops/${CANTEEN_SHOP_ID}/products/reorder`,
         { version, sort_map: sortMap },
       );
       setProductsOrderVersion(res.version);
+      if (panelIds) {
+        setProducts((prev) => {
+          const result = [...prev];
+          const slots = prev
+            .map((p, idx) => ({ p, idx }))
+            .filter(({ p }) => panelIds.has(p.id))
+            .map(({ idx }) => idx);
+          slots.forEach((slot, i) => { result[slot] = reorderItems[i]; });
+          return result;
+        });
+      } else {
+        setProducts([...reorderItems]);
+      }
       setReorderDirty(false);
       setReorderMode(false);
+      setReorderItems([]);
       toast.success(t("canteen.reorder.saved"), { duration: 1500 });
     } catch (e: any) {
       if (e?.status === 409 || e?.detail?.current_version) {
@@ -1003,7 +1029,7 @@ export default function Canteen() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setReorderMode(false); setReorderDirty(false); }}
+                onClick={() => { setReorderMode(false); setReorderDirty(false); setReorderItems([]); }}
                 disabled={reorderSaving}
               >
                 {t("common.cancel")}
@@ -1172,9 +1198,9 @@ export default function Canteen() {
         <div className="flex-1 overflow-y-auto p-1 pb-24 lg:pb-2">
           {reorderMode ? (
             <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={products.map((p) => String(p.id))} strategy={rectSortingStrategy}>
+              <SortableContext items={reorderItems.map((p) => String(p.id))} strategy={rectSortingStrategy}>
                 <ProductGrid
-                  products={products}
+                  products={reorderItems}
                   lastAddedProductId={null}
                   onAdd={() => {}}
                   loading={productsLoading}
@@ -1193,9 +1219,11 @@ export default function Canteen() {
               shortNames={activePanelId != null ? panelShortNames[activePanelId] : undefined}
               colorEditId={colorEditId}
               colorSaving={colorSaving}
-              onOpenColorEdit={(id) => setColorEditId(id)}
+              onOpenColorEdit={hasRole("manager", "admin") ? (id) => setColorEditId(id) : undefined}
               onCloseColorEdit={() => setColorEditId(null)}
-              onSaveColor={saveProductColor}
+              onSaveColor={hasRole("manager", "admin") ? saveProductColor : undefined}
+              recentColors={recentColors}
+              onAddRecentColor={addRecentColor}
             />
           )}
         </div>

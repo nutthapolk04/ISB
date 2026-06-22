@@ -161,12 +161,14 @@ export default function CanteenCategories({ shopId }: Props) {
         open={addOpen}
         onOpenChange={setAddOpen}
         onSaved={invalidate}
+        existingNames={categories.map((c) => c.name)}
       />
       <CategoryFormDialog
         shopId={shopId}
         target={editTarget}
         onOpenChange={(v) => !v && setEditTarget(null)}
         onSaved={invalidate}
+        existingNames={categories.map((c) => c.name)}
       />
 
       <AlertDialog
@@ -205,6 +207,7 @@ interface FormDialogProps {
   target?: ShopCategory | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  existingNames?: string[];
 }
 
 function CategoryFormDialog({
@@ -213,6 +216,7 @@ function CategoryFormDialog({
   target,
   onOpenChange,
   onSaved,
+  existingNames = [],
 }: FormDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
@@ -230,6 +234,13 @@ function CategoryFormDialog({
     const trimmed = name.trim();
     if (!trimmed) {
       toast.error(t("canteen.nameRequired"));
+      return;
+    }
+    const isDuplicate = existingNames.some(
+      (n) => n.toLowerCase() === trimmed.toLowerCase() && n !== target?.name,
+    );
+    if (isDuplicate) {
+      toast.error(t("canteen.categoryDuplicate", `"${trimmed}" already exists`));
       return;
     }
     setSaving(true);

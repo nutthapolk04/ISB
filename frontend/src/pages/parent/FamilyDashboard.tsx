@@ -597,8 +597,17 @@ export default function FamilyDashboard() {
           {/* Recent transactions */}
           {activeCard?.walletId && (
             <div className="mt-5">
-              <div className="mb-3">
+              <div className="mb-3 flex items-center justify-between">
                 <p className="text-base font-semibold text-slate-800">{t("parent.dashboard.recentActivity", "Recent activity")}</p>
+                {activeCard.kind === "child" && activeCard.customerId && (
+                  <Link
+                    to={`/parent/transactions/${activeCard.customerId}`}
+                    className="flex items-center gap-0.5 text-xs font-medium text-orange-500 hover:text-orange-600"
+                  >
+                    {t("parent.dashboard.viewAll", "View all")}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
               </div>
 
               <Card>
@@ -631,7 +640,7 @@ export default function FamilyDashboard() {
                       : tx.transaction_type === "refund"
                       ? t("parent.transactions.txRefund", "refund")
                       : t("parent.transactions.txDeduction", "purchase");
-                    const shopLabel = tx.shop_name ?? tx.description ?? typeLabel;
+                    const shopLabel = tx.description || tx.shop_name || typeLabel;
                     return (
                       <div
                         key={tx.id}

@@ -820,8 +820,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
 
   const handleAddCategory = async () => {
     if (!catForm.trim() || !lockedShopId) { toast.error(t("inventory.fillCategoryName")); return; }
+    const trimmed = catForm.trim();
+    if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error(t("inventory.categoryDuplicate", `"${trimmed}" already exists`));
+      return;
+    }
     try {
-      await api.post(`/shops/${lockedShopId}/categories`, { name: catForm.trim() });
+      await api.post(`/shops/${lockedShopId}/categories`, { name: trimmed });
       toast.success(t("inventory.categoryAdded"));
       setIsAddCatOpen(false);
       setCatForm("");
@@ -833,8 +838,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
 
   const handleEditCategory = async () => {
     if (!editCat || !catForm.trim() || !lockedShopId) { toast.error(t("inventory.fillCategoryName")); return; }
+    const trimmed = catForm.trim();
+    if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase() && c.id !== editCat.id)) {
+      toast.error(t("inventory.categoryDuplicate", `"${trimmed}" already exists`));
+      return;
+    }
     try {
-      await api.patch(`/shops/${lockedShopId}/categories/${editCat.id}`, { name: catForm.trim() });
+      await api.patch(`/shops/${lockedShopId}/categories/${editCat.id}`, { name: trimmed });
       toast.success(t("inventory.categoryUpdated"));
       setEditCat(null);
       setCatForm("");

@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Layers,
   HandCoins,
+  BellRing,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -129,9 +130,10 @@ const menuGroups: MenuGroup[] = [
     labelKey: "nav.groupSystem",
     module: null,
     items: [
-      { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display", icon: Monitor,      roles: ["admin"] },
-      { titleKey: "nav.adminSpendingGroups",  url: "/admin/spending-groups",  icon: Layers,       roles: ["admin"] },
-      { titleKey: "nav.adminSettings",        url: "/admin/settings",         icon: SettingsIcon, roles: ["admin"] },
+      { titleKey: "nav.adminCustomerDisplay", url: "/admin/customer-display",    icon: Monitor,      roles: ["admin"] },
+      { titleKey: "nav.adminSpendingGroups",  url: "/admin/spending-groups",    icon: Layers,       roles: ["admin"] },
+      { titleKey: "nav.adminLowBalanceAlert", url: "/admin/low-balance-alert",  icon: BellRing,     roles: ["admin"] },
+      { titleKey: "nav.adminSettings",        url: "/admin/settings",           icon: SettingsIcon, roles: ["admin"] },
     ],
   },
   {

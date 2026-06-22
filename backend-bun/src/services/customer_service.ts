@@ -1,6 +1,6 @@
-import { eq, and, or, ilike, asc, inArray, sql, ne } from "drizzle-orm";
+import { eq, and, or, ilike, asc, inArray, sql, ne, isNotNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { customers, users, wallets, parentChildLinks, customerTypes, receipts } from "@/db/schema";
+import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
 import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
@@ -693,9 +693,9 @@ export interface SpendingGroupUsage {
   code: string;
   name_en: string;
   name_th: string;
-  daily_limit: number;
+  daily_limit: number | null;   // null = unlimited
   spent_today: number;
-  remaining: number;
+  remaining: number | null;
 }
 
 export async function getSpendingGroupsUsageToday(customerId: number): Promise<SpendingGroupUsage[]> {
@@ -709,43 +709,134 @@ export async function getSpendingGroupsUsageToday(customerId: number): Promise<S
     (err as { status?: number }).status = 404;
     throw err;
   }
-  const customer = cRows[0];
+  const { dailyLimitCanteen, dailyLimitStore } = cRows[0];
 
-  const wRows = await db
-    .select({ id: wallets.id })
-    .from(wallets)
-    .where(eq(wallets.customerId, customerId))
+  // Get all active spending groups with their module (via linked shops)
+  const groups = await db
+    .selectDistinct({
+      id: spendingGroups.id,
+      code: spendingGroups.code,
+      nameEn: spendingGroups.nameEn,
+      nameTh: spendingGroups.nameTh,
+      module: shops.module,
+    })
+    .from(spendingGroups)
+    .innerJoin(shops, eq(shops.spendingGroupId, spendingGroups.id))
+    .where(eq(spendingGroups.isActive, true));
+
+  if (groups.length === 0) return [];
+
+  // Sum today's receipts per spending group for this customer
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+  const spentRows = await db
+    .select({
+      groupId: receipts.spendingGroupId,
+      spent: sql<string>`COALESCE(SUM(${receipts.total}), '0')`,
+    })
+    .from(receipts)
+    .where(
+      and(
+        eq(receipts.customerId, customerId),
+        eq(receipts.transactionDate, today),
+        isNotNull(receipts.spendingGroupId),
+        sql`${receipts.status} = 'ACTIVE'`,
+      )
+    )
+    .groupBy(receipts.spendingGroupId);
+
+  const spentMap = new Map(spentRows.map((r) => [r.groupId, Number(r.spent)]));
+
+  return groups.map((g) => {
+    const isCanteen = g.module === "canteen";
+    const rawLimit = isCanteen ? dailyLimitCanteen : dailyLimitStore;
+    const effectiveLimit = rawLimit != null ? Number(rawLimit) : null;
+    const spent = spentMap.get(g.id) ?? 0;
+    return {
+      spending_group_id: g.id,
+      code: g.code,
+      name_en: g.nameEn,
+      name_th: g.nameTh,
+      daily_limit: effectiveLimit,
+      spent_today: spent,
+      remaining: effectiveLimit != null ? Math.max(0, effectiveLimit - spent) : null,
+    };
+  });
+}
+
+export async function getSpendingGroupUsageToday(
+  groupId: number,
+  customerId: number | null,
+  userId: number | null,
+): Promise<SpendingGroupUsage> {
+  const groupRows = await db
+    .selectDistinct({
+      id: spendingGroups.id,
+      code: spendingGroups.code,
+      nameEn: spendingGroups.nameEn,
+      nameTh: spendingGroups.nameTh,
+      module: shops.module,
+    })
+    .from(spendingGroups)
+    .innerJoin(shops, eq(shops.spendingGroupId, spendingGroups.id))
+    .where(eq(spendingGroups.id, groupId))
     .limit(1);
-  const walletId = wRows[0]?.id ?? null;
+  if (!groupRows[0]) {
+    const err = new Error("Spending group not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  const group = groupRows[0];
 
-  const canteenLimit = pgNumber(customer.dailyLimitCanteen) ?? DEFAULT_DAILY_LIMIT_CANTEEN;
-  const storeLimit = pgNumber(customer.dailyLimitStore) ?? DEFAULT_DAILY_LIMIT_STORE;
+  let effectiveLimit: number | null = null;
+  if (customerId) {
+    const cRows = await db
+      .select({ dailyLimitCanteen: customers.dailyLimitCanteen, dailyLimitStore: customers.dailyLimitStore })
+      .from(customers)
+      .where(eq(customers.id, customerId))
+      .limit(1);
+    if (!cRows[0]) {
+      const err = new Error("Customer not found");
+      (err as { status?: number }).status = 404;
+      throw err;
+    }
+    const raw = group.module === "canteen" ? cRows[0].dailyLimitCanteen : cRows[0].dailyLimitStore;
+    effectiveLimit = raw != null ? Number(raw) : null;
+    if (effectiveLimit === null) {
+      // No limit configured — 404 so SpendingLimitChip hides
+      const err = new Error("No limit configured");
+      (err as { status?: number }).status = 404;
+      throw err;
+    }
+  }
 
-  const [canteenSpent, storeSpent] = walletId
-    ? await Promise.all([
-        todayDeductedByModule(walletId, "canteen"),
-        todayDeductedByModule(walletId, "store"),
-      ])
-    : [0, 0];
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+  const cond = customerId
+    ? and(
+        eq(receipts.customerId, customerId),
+        eq(receipts.spendingGroupId, groupId),
+        eq(receipts.transactionDate, today),
+        sql`${receipts.status} = 'ACTIVE'`,
+      )
+    : and(
+        eq(receipts.payerUserId, userId!),
+        eq(receipts.spendingGroupId, groupId),
+        eq(receipts.transactionDate, today),
+        sql`${receipts.status} = 'ACTIVE'`,
+      );
 
-  return [
-    {
-      spending_group_id: 1,
-      code: "canteen",
-      name_en: "Canteen",
-      name_th: "โรงอาหาร",
-      daily_limit: canteenLimit,
-      spent_today: canteenSpent,
-      remaining: Math.max(0, canteenLimit - canteenSpent),
-    },
-    {
-      spending_group_id: 2,
-      code: "store",
-      name_en: "Store",
-      name_th: "ร้านค้า",
-      daily_limit: storeLimit,
-      spent_today: storeSpent,
-      remaining: Math.max(0, storeLimit - storeSpent),
-    },
-  ];
+  const spentRows = await db
+    .select({ spent: sql<string>`COALESCE(SUM(${receipts.total}), '0')` })
+    .from(receipts)
+    .where(cond);
+  const spent = Number(spentRows[0]?.spent ?? 0);
+
+  return {
+    spending_group_id: group.id,
+    code: group.code,
+    name_en: group.nameEn,
+    name_th: group.nameTh,
+    daily_limit: effectiveLimit!,
+    spent_today: spent,
+    remaining: Math.max(0, effectiveLimit! - spent),
+  };
 }

@@ -189,7 +189,7 @@ export default function WalletDetail() {
   const handleCreateTopup = async () => {
     if (!profile?.wallet_id) return;
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) {
+    if (!amt || amt < 100 || amt > MAX_TOPUP_THB) {
       toast({ title: t("parent.wallet.invalidAmount"), variant: "destructive" });
       return;
     }
@@ -489,7 +489,7 @@ export default function WalletDetail() {
                   <Input
                     id="amount"
                     type="number"
-                    min="1"
+                    min="100"
                     max={MAX_TOPUP_THB}
                     step="1"
                     value={amount}
@@ -533,8 +533,8 @@ export default function WalletDetail() {
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
-                {[100, 200, 500, 1000].map((v) => (
+              <div className="flex flex-wrap gap-2">
+                {[500, 1000, 2000, 5000, 10000, 20000, 50000].map((v) => (
                   <Button
                     key={v}
                     onClick={() => setAmount(String(v))}
@@ -551,32 +551,6 @@ export default function WalletDetail() {
               </div>
             </CardContent>
           </Card>
-
-        {/* View transaction history — links to TransactionHistory page */}
-        {(() => {
-          // Determine history URL:
-          // child customer → /parent/transactions/:customerId
-          // own wallet (effectiveId === "own") → /parent/transactions/own
-          // wallet-N (coparent/other user wallet) → /parent/transactions/wallet-N
-          const historyPath =
-            !profile.is_own_user_wallet
-              ? `/parent/transactions/${effectiveId}`
-              : effectiveId === "own"
-              ? `/parent/transactions/own`
-              : `/parent/transactions/${effectiveId}`; // e.g. wallet-17
-          return (
-            <Button
-              asChild
-              variant="outline"
-              className="w-full h-11 border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300 gap-2 font-semibold"
-            >
-              <Link to={historyPath}>
-                <History className="h-4 w-4" />
-                {t("parent.wallet.viewHistory", "View transaction history")}
-              </Link>
-            </Button>
-          );
-        })()}
 
         <KrungsriGatewayDialog
           open={gatewayOpen}

@@ -173,8 +173,8 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
     (err as { status?: number }).status = 404;
     throw err;
   }
-  if (input.amount <= 0) {
-    const err = new Error("Top-up amount must be positive");
+  if (input.amount < 100 || input.amount > 50000) {
+    const err = new Error("Top-up amount must be between ฿100 and ฿50,000");
     (err as { status?: number }).status = 400;
     throw err;
   }

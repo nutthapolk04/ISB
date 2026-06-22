@@ -18,6 +18,9 @@ export const KNOWN_FLAGS: Record<string, unknown> = {
   school_cover_url: "",
   school_receipt_footer: "",
   department_adjust_shortcuts: [],
+  low_balance_alert_enabled: false,
+  low_balance_threshold: 100,
+  low_balance_alert_send_time: "19:00",
 };
 
 export const SCHOOL_KEYS = new Set([

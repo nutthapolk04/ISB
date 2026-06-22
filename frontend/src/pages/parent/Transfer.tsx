@@ -117,7 +117,7 @@ export default function Transfer() {
   const sameWallet = fromKey && toKey && fromKey === toKey;
   const fromBalance = fromWallet?.balance ?? 0;
   const toBalance = toWallet?.balance ?? 0;
-  const canSubmit = fromWallet && toWallet && !sameWallet && amt > 0 && !submitting;
+  const canSubmit = fromWallet && toWallet && !sameWallet && amt >= 100 && amt <= 50000 && !submitting;
 
   const handleSubmit = async () => {
     if (!fromWallet || !toWallet) return;
@@ -245,14 +245,15 @@ export default function Transfer() {
             <Input
               id="amount"
               type="number"
-              min="0.01"
+              min="100"
+              max="50000"
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="100.00"
             />
-            <div className="grid grid-cols-4 gap-2 pt-1 sm:flex sm:flex-wrap">
-              {[100, 200, 500, 1000].map((v) => (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {[500, 1000, 2000, 5000, 10000, 20000, 50000].map((v) => (
                 <Button
                   key={v}
                   variant="outline"

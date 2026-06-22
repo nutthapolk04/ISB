@@ -16,6 +16,7 @@
     "adminSettings": "ตั้งค่าระบบ",
     "adminCustomerDisplay": "Customer Display",
     "adminSpendingGroups": "กลุ่มวงเงินใช้จ่าย",
+    "adminLowBalanceAlert": "แจ้งเตือนเงินเหลือน้อย",
     "systemTitle": "ISB",
     "home": "หน้าหลัก",
     "shopDashboard": "Dashboard ร้านค้า",

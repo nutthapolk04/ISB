@@ -713,7 +713,7 @@ export default function WalletTransfer() {
                 placeholder="100.00"
               />
               <div className="flex flex-wrap gap-2 pt-1">
-                {[100, 200, 500, 1000].map((v) => (
+                {[500, 1000, 2000, 5000, 10000, 20000, 50000].map((v) => (
                   <Button
                     key={v}
                     variant="outline"

@@ -129,8 +129,8 @@ const RECEIPT_LABELS = {
     tax: "ภาษี",
     subtotal: "ยอดรวม",
     grandTotal: "รวมสุทธิ",
-    balanceBefore: "ยอดก่อนซื้อครั้งนี้",
-    balanceAfter: "ยอดหลังซื้อครั้งนี้",
+    balanceBefore: "ยอดก่อนซื้อ",
+    balanceAfter: "ยอดหลังซื้อ",
     voided: "*** ใบเสร็จนี้ถูกยกเลิกแล้ว ***",
     thanks: "ขอบคุณที่ใช้บริการ / Thank you",
     taxId: "เลขภาษี",
@@ -149,8 +149,8 @@ const RECEIPT_LABELS = {
     tax: "Tax",
     subtotal: "Subtotal",
     grandTotal: "Grand Total",
-    balanceBefore: "Bal. Before This Sale",
-    balanceAfter: "Bal. After This Sale",
+    balanceBefore: "Bal. Before",
+    balanceAfter: "Bal. After",
     voided: "*** THIS RECEIPT HAS BEEN VOIDED ***",
     thanks: "Thank you for your purchase",
     taxId: "Tax ID",
@@ -238,11 +238,12 @@ export function buildReceiptHtml(
   const isWalletPayment = r.payment_method.toLowerCase() === "wallet";
   const balanceBeforeSection =
     isWalletPayment && walletBalanceAfter !== null
-      ? `<div class="row small"><span>${lbl.balanceBefore}</span><span>฿${(walletBalanceAfter + r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
+      ? `<div class="row balance-before"><span>${lbl.balanceBefore}</span><span>฿${(walletBalanceAfter + r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
       : "";
   const balanceAfterSection =
     isWalletPayment && walletBalanceAfter !== null
       ? `<div class="row balance-after"><span>${lbl.balanceAfter}</span><span>฿${walletBalanceAfter.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
+
       : "";
 
   const shopLine = shopName
@@ -283,8 +284,8 @@ export function buildReceiptHtml(
   .doc-type { font-size: 11px; color: #777; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
   hr { border: none; border-top: 1.5px dashed #444; margin: 7px 0; }
   .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; }
-  .row span:first-child { font-weight: 600; }
-  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; }
+  .row span:first-child { font-weight: 600; min-width: 0; overflow: hidden; }
+  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; flex-shrink: 0; }
   .opt { padding-left: 14px; font-size: 14px; color: #333; }
   .item-sub { padding-left: 14px; font-size: 13px; color: #555; margin-top: -2px; margin-bottom: 3px; }
   .disc { color: #000; font-size: 15px; font-weight: 600; }
@@ -292,7 +293,9 @@ export function buildReceiptHtml(
   .small span:last-child { font-weight: 700; }
   .total { font-size: 22px; font-weight: 800; margin-top: 5px; }
   .total span { font-weight: 800; }
-  .balance-after { font-size: 15px; font-weight: 800; color: #000; margin-top: 4px; }
+  .balance-after { font-size: 12px; font-weight: 800; color: #000; margin-top: 4px; }
+  .balance-before { font-size: 12px; color: #222; }
+  .balance-before span:last-child { font-weight: 700; }
   .voided { text-align: center; color: #000; font-weight: 800;
              font-size: 16px; margin: 7px 0; border: 2px solid #000; padding: 5px; }
   .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }

@@ -538,10 +538,21 @@ export async function adjustStock(args: {
 
 export async function createShopCategory(shopId: string, name: string): Promise<ShopCategoryDTO> {
   await shopOrThrow(shopId);
+  const trimmed = name.trim();
+  const [dup] = await db
+    .select({ id: shopCategories.id })
+    .from(shopCategories)
+    .where(and(eq(shopCategories.shopId, shopId), ilike(shopCategories.name, trimmed)))
+    .limit(1);
+  if (dup) {
+    const err = new Error(`Category "${trimmed}" already exists in this shop`);
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
   const id = `cat-${Date.now()}`;
   const [created] = await db
     .insert(shopCategories)
-    .values({ id, shopId, name: name.trim() })
+    .values({ id, shopId, name: trimmed })
     .returning();
   return {
     id: created.id,
@@ -552,9 +563,20 @@ export async function createShopCategory(shopId: string, name: string): Promise<
 }
 
 export async function updateShopCategory(shopId: string, categoryId: string, name: string): Promise<ShopCategoryDTO> {
+  const trimmed = name.trim();
+  const [dup] = await db
+    .select({ id: shopCategories.id })
+    .from(shopCategories)
+    .where(and(eq(shopCategories.shopId, shopId), ilike(shopCategories.name, trimmed), ne(shopCategories.id, categoryId)))
+    .limit(1);
+  if (dup) {
+    const err = new Error(`Category "${trimmed}" already exists in this shop`);
+    (err as { status?: number }).status = 409;
+    throw err;
+  }
   const rows = await db
     .update(shopCategories)
-    .set({ name: name.trim() })
+    .set({ name: trimmed })
     .where(and(eq(shopCategories.id, categoryId), eq(shopCategories.shopId, shopId)))
     .returning();
   if (!rows[0]) {

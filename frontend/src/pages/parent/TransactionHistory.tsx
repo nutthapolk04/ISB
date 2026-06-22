@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Download, History, X } from "lucide-react";
+import { Download, History, TrendingUp, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
@@ -64,10 +64,12 @@ const formatTHB = (n: number) =>
 export default function TransactionHistory() {
   // customerId can be a numeric string, "own", or "wallet-N"
   const { customerId } = useParams<{ customerId: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [todayTxsData, setTodayTxsData] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtered, setFiltered] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
@@ -119,6 +121,17 @@ export default function TransactionHistory() {
     }
   };
 
+  const loadTodayTransactions = async (walletId: number) => {
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+    const path = `/wallets/${walletId}/transactions?date_from=${today}&date_to=${today}`;
+    try {
+      const data = await api.get<Transaction[]>(path);
+      setTodayTxsData(data);
+    } catch {
+      // silently ignore — today summary is non-critical
+    }
+  };
+
   // Resolve profile + wallet from any supported customerId form
   const resolveProfile = async (): Promise<{ profile: StudentProfile; walletId: number | null }> => {
     if (!customerId) throw new Error("No customer ID");
@@ -159,7 +172,7 @@ export default function TransactionHistory() {
       try {
         const { profile: p, walletId } = await resolveProfile();
         setProfile(p);
-        if (walletId) await loadTransactions(walletId);
+        if (walletId) await loadTodayTransactions(walletId);
       } catch (e) {
         toast({
           title: t("parent.transactions.loadFailed"),
@@ -188,16 +201,17 @@ export default function TransactionHistory() {
   const hasFilter = !!(dateFrom || dateTo);
 
   const handleFilter = () => {
-    if (profile?.wallet_id) loadTransactions(profile.wallet_id);
+    if (profile?.wallet_id) {
+      loadTransactions(profile.wallet_id);
+      setFiltered(true);
+    }
   };
 
   const handleClearFilter = () => {
     setDateFrom("");
     setDateTo("");
-    if (profile?.wallet_id) {
-      const path = `/wallets/${profile.wallet_id}/transactions`;
-      api.get<Transaction[]>(path).then(setTxs).catch(() => {});
-    }
+    setTxs([]);
+    setFiltered(false);
   };
 
   const handleExportPDF = () => {
@@ -262,6 +276,31 @@ export default function TransactionHistory() {
   // Display role for gradient color: use profile.role for own/wallet-N, "student" for children
   const displayRole = profile?.is_own_wallet ? (profile.role ?? "staff") : "student";
   const headerStyle = getRoleStyle(displayRole);
+
+  // ── Today summary + per-day grouping ─────────────────────────────────────
+  const getTxDate = (tx: Transaction) =>
+    new Date(tx.created_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+  const TODAY = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+
+  const todayTxs = todayTxsData;
+  const totalDeducted = todayTxs
+    .filter((tx) => ["DEDUCTION", "ADJUSTMENT_DEBIT"].includes(tx.transaction_type.toUpperCase()))
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  const totalCredited = todayTxs
+    .filter((tx) => ["TOPUP", "REFUND", "ADJUSTMENT_CREDIT"].includes(tx.transaction_type.toUpperCase()))
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  const shopBreakdown: Record<string, number> = {};
+  todayTxs
+    .filter((tx) => tx.transaction_type.toUpperCase() === "DEDUCTION" && tx.shop_name)
+    .forEach((tx) => { shopBreakdown[tx.shop_name!] = (shopBreakdown[tx.shop_name!] ?? 0) + Math.abs(tx.amount); });
+
+  const groupedByDay = txs.reduce<Record<string, Transaction[]>>((acc, tx) => {
+    const d = getTxDate(tx);
+    (acc[d] ??= []).push(tx);
+    return acc;
+  }, {});
+  const sortedDates = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
+  const showDayGroups = hasFilter && sortedDates.length > 1;
 
   if (loading) return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
   if (!profile) return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
@@ -330,8 +369,56 @@ export default function TransactionHistory() {
         </CardContent>
       </Card>
 
+      {/* Today Summary card — always visible */}
+      <Card className="rounded-2xl shadow-md border-blue-100 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
+        <CardHeader className="bg-blue-50 border-b border-blue-100 pb-3">
+          <CardTitle className="text-base font-semibold text-blue-800 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-blue-600" />
+            {t("parent.transactions.todayTitle", "Today's Activity")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {todayTxs.length === 0 ? (
+            <p className="text-sm text-gray-400">{t("parent.transactions.noActivityToday", "No activity today")}</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-blue-100 overflow-hidden divide-y divide-blue-50">
+                {todayTxs.map((tx) => {
+                  const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+                  const label = tx.description || txTypeLabel(tx.transaction_type);
+                  const amtClass = txAmountClass(tx.transaction_type, isCredit);
+                  return (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between px-3 py-2.5 text-sm bg-white hover:bg-blue-50/50 cursor-pointer transition-colors"
+                      onClick={() => handleRowClick(tx)}
+                    >
+                      <div>
+                        <p className="font-medium text-slate-700">{label}</p>
+                        <p className="text-xs text-slate-400">{formatDate(tx.created_at)}</p>
+                      </div>
+                      <span className={`tabular-nums font-semibold ${amtClass}`}>
+                        {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {!filtered && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+          <History className="h-10 w-10 text-slate-300" />
+          <p className="font-medium">{t("parent.transactions.selectDatePrompt", "Select a date range and tap Filter to view transactions")}</p>
+        </div>
+      )}
+
       {/* Transaction list card — styled to match WalletDetail history tab */}
-      <Card className="overflow-hidden border border-amber-100 shadow-md">
+      {filtered && <Card className="overflow-hidden border border-amber-100 shadow-md">
         <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4 flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
             <History className="h-5 w-5 text-amber-600" />
@@ -350,6 +437,56 @@ export default function TransactionHistory() {
               <p className="text-center text-slate-400 font-medium">
                 {t("parent.transactions.noResults")}
               </p>
+            </div>
+          ) : showDayGroups ? (
+            <div>
+              {sortedDates.map((date) => {
+                const dayTxs = groupedByDay[date];
+                const dayNet = dayTxs.reduce((sum, tx) => {
+                  const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+                  return sum + (isCredit ? tx.amount : -Math.abs(tx.amount));
+                }, 0);
+                const dateLabel = new Date(date + "T12:00:00").toLocaleDateString(
+                  i18n.language === "th" ? "th-TH" : "en-US",
+                  { weekday: "short", day: "numeric", month: "short", year: "numeric" },
+                );
+                return (
+                  <div key={date} className="mb-4">
+                    <div className="flex items-center justify-between px-1 py-2 border-b border-amber-200 mb-2">
+                      <span className="text-xs font-semibold text-amber-800">{dateLabel}</span>
+                      <span className={`text-xs font-bold tabular-nums ${dayNet < 0 ? "text-red-500" : "text-emerald-600"}`}>
+                        {dayNet >= 0 ? "+" : ""}{formatTHB(dayNet)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {dayTxs.map((tx) => {
+                        const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+                        const label = tx.description || txTypeLabel(tx.transaction_type);
+                        return (
+                          <div
+                            key={tx.id}
+                            className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm cursor-pointer hover:bg-amber-50/80 hover:shadow-sm transition-colors"
+                            onClick={() => handleRowClick(tx)}
+                          >
+                            <div className="min-w-0 flex-1 pr-4">
+                              <p className="font-medium text-gray-800 leading-snug">{label}</p>
+                              <p className="text-xs text-amber-700/70 mt-0.5">{formatDate(tx.created_at)}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className={`font-bold tabular-nums ${txAmountClass(tx.transaction_type, isCredit)}`}>
+                                {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
+                              </p>
+                              <p className="text-xs text-amber-700/70 mt-0.5 tabular-nums">
+                                {t("parent.transactions.balanceAfter", { amount: formatTHB(tx.balance_after) })}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-2">
@@ -380,7 +517,7 @@ export default function TransactionHistory() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       <ReceiptDetailDialog
         receiptId={openReceiptId}

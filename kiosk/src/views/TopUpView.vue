@@ -25,7 +25,7 @@ const t = {
     demo: 'This is a demo screen',
     backToMenu: 'Back to methods',
     enterAmount: 'Enter top-up amount',
-    maxAmount: 'Max 5,000 Baht per transaction',
+    maxAmount: 'Max 50,000 Baht per transaction',
     confirm: 'Confirm',
     clear: 'C',
     baht: 'Baht',
@@ -43,7 +43,7 @@ const t = {
     failServerCode: 'Service Unavailable',
     retry: 'Try Again',
     close: 'Close',
-    minAmount: 'Minimum top-up: 1 Baht',
+    minAmount: 'Minimum top-up: 100 Baht',
     timeRemaining: 'Time remaining',
     qrExpired: 'QR Code has expired',
     qrExpiredSub: 'Please try again to generate a new QR code.',
@@ -68,7 +68,7 @@ const t = {
     demo: 'นี่คือหน้าจอตัวอย่าง',
     backToMenu: 'กลับเลือกช่องทาง',
     enterAmount: 'กรอกจำนวนเงินที่ต้องการเติม',
-    maxAmount: 'เติมได้สูงสุด 5,000 บาท / ครั้ง',
+    maxAmount: 'เติมได้สูงสุด 50,000 บาท / ครั้ง',
     confirm: 'ยืนยัน',
     clear: 'C',
     baht: 'บาท',
@@ -86,7 +86,7 @@ const t = {
     failServerCode: '503 Service Unavailable',
     retry: 'ลองอีกครั้ง',
     close: 'ปิด',
-    minAmount: 'เติมเงินขั้นต่ำ 1 บาท',
+    minAmount: 'เติมเงินขั้นต่ำ 100 บาท',
     timeRemaining: 'เวลาที่เหลือ',
     qrExpired: 'QR Code หมดอายุ',
     qrExpiredSub: 'กรุณาทำรายการใหม่อีกครั้ง',
@@ -120,8 +120,9 @@ const qrLoading = ref(false);
 const activeRefCode = ref<string | null>(null);
 let pollInterval: number | null = null;
 
-const MAX_AMOUNT = 5000;
-const SHORTCUTS = [50, 100, 200, 500, 1000];
+const MAX_AMOUNT = 50000;
+const MIN_AMOUNT = 100;
+const SHORTCUTS = [500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 const amountNumber = computed(() => {
   const n = parseFloat(enteredAmount.value);
@@ -129,7 +130,7 @@ const amountNumber = computed(() => {
 });
 
 const isAmountValid = computed(() => {
-  return amountNumber.value > 0 && amountNumber.value <= MAX_AMOUNT;
+  return amountNumber.value >= MIN_AMOUNT && amountNumber.value <= MAX_AMOUNT;
 });
 
 const formattedAmount = computed(() => {
@@ -735,25 +736,24 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
 /* Shortcuts */
 .shortcut-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   width: 100%;
   justify-content: stretch;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .shortcut-btn {
-  flex: 1;
-}
-
-.shortcut-btn {
-  padding: 0.75rem 1.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.65rem 0.5rem;
   border-radius: 2rem;
   border: 2px solid var(--text-muted);
   background: var(--card-bg);
   color: var(--text-color);
-  font-size: 1.6rem;
+  font-size: 1.15rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 .shortcut-btn.active,
 .shortcut-btn:active {

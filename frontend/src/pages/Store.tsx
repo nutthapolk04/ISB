@@ -90,6 +90,7 @@ import { CashierTopupModal } from "@/components/CashierTopupModal";
 import { Switch } from "@/components/ui/switch";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
 import { SpendingLimitChip } from "@/components/SpendingLimitChip";
+import { useRecentColors } from "@/hooks/useRecentColors";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -308,6 +309,7 @@ const Store = () => {
   const [colorEditId, setColorEditId] = useState<number | null>(null);
   const [colorEditValue, setColorEditValue] = useState("#e2e8f0");
   const [colorSaving, setColorSaving] = useState(false);
+  const { recentColors, addRecentColor } = useRecentColors(user?.shopId ?? "store");
 
   const saveProductColor = async (product: Product, color: string | null) => {
     setColorSaving(true);
@@ -333,6 +335,7 @@ const Store = () => {
   const [reorderDirty, setReorderDirty] = useState(false);
   const [sortVersions, setSortVersions] = useState<Record<string, number>>({});
   const [reorderSaving, setReorderSaving] = useState(false);
+  const [reorderItems, setReorderItems] = useState<Product[]>([]);
   const canManageOrder = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
 
   // PointerSensor on its own dispatches via mouse + pen; touch events on
@@ -350,15 +353,12 @@ const Store = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setAllProducts((prev) => {
-      const sid = user?.shopId;
-      const shopProds = sid ? prev.filter((p) => p.subMerchantId === sid) : prev;
-      const others = sid ? prev.filter((p) => p.subMerchantId !== sid) : [];
-      const oldIdx = shopProds.findIndex((p) => String(p.id) === String(active.id));
-      const newIdx = shopProds.findIndex((p) => String(p.id) === String(over.id));
+    setReorderItems((prev) => {
+      const oldIdx = prev.findIndex((p) => String(p.id) === String(active.id));
+      const newIdx = prev.findIndex((p) => String(p.id) === String(over.id));
       if (oldIdx === -1 || newIdx === -1) return prev;
       setReorderDirty(true);
-      return [...arrayMove(shopProds, oldIdx, newIdx), ...others];
+      return arrayMove(prev, oldIdx, newIdx);
     });
   };
 
@@ -371,6 +371,9 @@ const Store = () => {
         setSortVersions((prev) => ({ ...prev, [sid]: meta.products_order_version! }));
       }
     } catch { /* use cached version */ }
+    const panelIds = activePanelId !== null ? panelIncluded[activePanelId] : null;
+    const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
+    setReorderItems(panelIds ? shopProds.filter((p) => panelIds.has(p.id)) : shopProds);
     setReorderMode(true);
   };
 
@@ -379,12 +382,21 @@ const Store = () => {
     if (!sid) return;
     setReorderSaving(true);
     try {
+      const panelIds = activePanelId !== null ? panelIncluded[activePanelId] : null;
       const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
-      const prods = shopProds.filter((p) => !p.isBundle);
-      const bunds = shopProds.filter((p) => p.isBundle && p.bundleId != null);
+      const prods = reorderItems.filter((p) => !p.isBundle);
+      const bunds = reorderItems.filter((p) => p.isBundle && p.bundleId != null);
 
       const productSortMap: Record<string, number> = {};
-      prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
+      if (panelIds) {
+        const slots: number[] = [];
+        shopProds.filter((p) => !p.isBundle).forEach((p, idx) => {
+          if (panelIds.has(p.id)) slots.push(idx + 1);
+        });
+        prods.forEach((p, idx) => { productSortMap[String(p.id)] = slots[idx]; });
+      } else {
+        prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
+      }
       const version = sortVersions[sid] ?? 1;
       const result = await api.post<{ version: number; updated: number }>(
         `/shops/${sid}/products/reorder`,
@@ -394,12 +406,43 @@ const Store = () => {
 
       if (bunds.length > 0) {
         const bundleSortMap: Record<string, number> = {};
-        bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
+        if (panelIds) {
+          const bSlots: number[] = [];
+          shopProds.filter((p) => p.isBundle && p.bundleId != null).forEach((p, idx) => {
+            if (panelIds.has(p.id)) bSlots.push(idx + 1);
+          });
+          bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = bSlots[idx]; });
+        } else {
+          bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
+        }
         await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
       }
 
+      setAllProducts((prev) => {
+        const result = [...prev];
+        if (panelIds) {
+          const prodSlots = prev
+            .map((p, idx) => ({ p, idx }))
+            .filter(({ p }) => p.subMerchantId === sid && !p.isBundle && panelIds.has(p.id))
+            .map(({ idx }) => idx);
+          prodSlots.forEach((slot, i) => { result[slot] = prods[i]; });
+          if (bunds.length > 0) {
+            const bundSlots = prev
+              .map((p, idx) => ({ p, idx }))
+              .filter(({ p }) => p.subMerchantId === sid && p.isBundle && panelIds.has(p.id))
+              .map(({ idx }) => idx);
+            bundSlots.forEach((slot, i) => { result[slot] = bunds[i]; });
+          }
+        } else {
+          const others = prev.filter((p) => p.subMerchantId !== sid);
+          return [...reorderItems, ...others];
+        }
+        return result;
+      });
+
       setReorderMode(false);
       setReorderDirty(false);
+      setReorderItems([]);
       toast.success(t("store.orderSaved"));
     } catch (e: any) {
       if (e?.status === 409 || e?.detail?.current_version) {
@@ -1693,7 +1736,7 @@ const Store = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { setReorderMode(false); setReorderDirty(false); }}
+                    onClick={() => { setReorderMode(false); setReorderDirty(false); setReorderItems([]); }}
                     className="gap-1.5"
                   >
                     <X className="h-4 w-4" />
@@ -1862,7 +1905,7 @@ const Store = () => {
         {/* Browse grid */}
         {allProducts.length > 0 && (() => {
           const gridProducts = reorderMode
-            ? allProducts.filter((p) => !user?.shopId || p.subMerchantId === user.shopId)
+            ? reorderItems
             : activePanelId != null && panelIncluded[activePanelId]
               ? allProducts.filter((p) => panelIncluded[activePanelId].has(p.id))
               : allProducts;
@@ -1932,11 +1975,11 @@ const Store = () => {
                     p.color ? "text-zinc-900" : "text-primary",
                   )}>฿{displayPrice.toLocaleString()}</span>
                   <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                    {!reorderMode && (
+                    {!reorderMode && hasRole("manager", "admin") && (
                       <Popover
                         open={colorEditId === p.id}
                         onOpenChange={(open) => {
-                          if (open) { setColorEditId(p.id); setColorEditValue(p.color ?? "#4ade80"); }
+                          if (open) { setColorEditId(p.id); setColorEditValue(p.color ?? recentColors[0] ?? "#4ade80"); }
                           else { setColorEditId(null); }
                         }}
                       >
@@ -1964,6 +2007,19 @@ const Store = () => {
                             <input type="color" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0" />
                             <input type="text" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background" placeholder="#4ade80" />
                           </div>
+                          {recentColors.length > 0 && (
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-1">{t("store.recentColors", "Recent")}</p>
+                              <div className="flex gap-1.5 flex-wrap">
+                                {recentColors.map((c) => (
+                                  <button key={c} type="button" onClick={() => setColorEditValue(c)}
+                                    className={cn("h-6 w-6 rounded-full border-2 transition", colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
+                                    style={{ backgroundColor: c }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           <div className="flex gap-1.5 flex-wrap">
                             {["#f87171","#fb923c","#fbbf24","#4ade80","#34d399","#60a5fa","#a78bfa","#f472b6","#94a3b8"].map((c) => (
                               <button key={c} type="button" onClick={() => setColorEditValue(c)}
@@ -1974,7 +2030,7 @@ const Store = () => {
                           </div>
                           <div className="flex gap-2">
                             <button type="button" onClick={() => saveProductColor(p, null)} disabled={colorSaving} className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition">{t("store.clearColor")}</button>
-                            <button type="button" onClick={() => saveProductColor(p, colorEditValue)} disabled={colorSaving} className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition">{colorSaving ? "…" : t("store.saveColor")}</button>
+                            <button type="button" onClick={() => { addRecentColor(colorEditValue); saveProductColor(p, colorEditValue); }} disabled={colorSaving} className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition">{colorSaving ? "…" : t("store.saveColor")}</button>
                           </div>
                         </PopoverContent>
                       </Popover>

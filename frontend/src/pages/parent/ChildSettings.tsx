@@ -25,11 +25,22 @@ interface ChildProfile {
   spent_today_store?: number | null;
 }
 
+interface GroupUsage {
+  spending_group_id: number;
+  code: string;
+  name_en: string;
+  name_th: string;
+  daily_limit: number | null;
+  spent_today: number;
+  remaining: number | null;
+}
+
 export default function ChildSettings() {
   const { customerId } = useParams<{ customerId: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [profile, setProfile] = useState<ChildProfile | null>(null);
+  const [groupUsage, setGroupUsage] = useState<GroupUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +64,10 @@ export default function ChildSettings() {
     } finally {
       setLoading(false);
     }
+    try {
+      const groups = await api.get<GroupUsage[]>(`/spending-groups/usage-today/by-child?customer_id=${customerId}`);
+      setGroupUsage(groups);
+    } catch { /* non-critical */ }
   };
 
   useEffect(() => {
@@ -142,7 +157,32 @@ export default function ChildSettings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-4">
-            {(["canteen", "store"] as const).map((module) => {
+            {groupUsage.length > 0 ? groupUsage.map((g) => {
+              const name = i18n.language === "th" ? g.name_th : g.name_en;
+              const pct = g.daily_limit && g.daily_limit > 0 ? Math.min((g.spent_today / g.daily_limit) * 100, 100) : 0;
+              const atLimit = g.daily_limit != null && g.spent_today >= g.daily_limit;
+              const nearLimit = !atLimit && g.daily_limit != null && pct >= 80;
+              return (
+                <div key={g.spending_group_id} className="space-y-1.5">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium text-gray-700">{name}</span>
+                    <span className={`font-mono tabular-nums text-xs ${atLimit ? "text-red-600 font-bold" : nearLimit ? "text-amber-600 font-semibold" : "text-gray-500"}`}>
+                      ฿{g.spent_today.toLocaleString("th-TH", { minimumFractionDigits: 0 })}
+                      {g.daily_limit != null && ` / ฿${g.daily_limit.toLocaleString("th-TH", { minimumFractionDigits: 0 })}`}
+                    </span>
+                  </div>
+                  {g.daily_limit != null && g.daily_limit > 0 && (
+                    <Progress
+                      value={pct}
+                      className={`h-2 ${atLimit ? "[&>div]:bg-red-500" : nearLimit ? "[&>div]:bg-amber-400" : "[&>div]:bg-blue-400"}`}
+                    />
+                  )}
+                  {g.daily_limit == null && (
+                    <p className="text-xs text-gray-400">{t("parent.childSettings.noLimit", "No limit set")}</p>
+                  )}
+                </div>
+              );
+            }) : (["canteen", "store"] as const).map((module) => {
               const spent = module === "canteen" ? (profile.spent_today_canteen ?? 0) : (profile.spent_today_store ?? 0);
               const limit = module === "canteen" ? profile.daily_limit_canteen : profile.daily_limit_store;
               const pct = limit && limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;

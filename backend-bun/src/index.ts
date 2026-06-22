@@ -15,7 +15,7 @@ await ensureSchema();
 import { shopRoutes } from "@/routes/shops";
 import { productRoutes } from "@/routes/products";
 import { customerRoutes } from "@/routes/customers";
-import { freezeCard, setActive, setDailyLimit, setDailyLimits, updateAllergies, setNegativeCreditLimit, bindCard, createStudent, updateCustomerBasic, deleteCustomer, graduateStudent, getSpendingGroupsUsageToday } from "@/services/customer_service";
+import { freezeCard, setActive, setDailyLimit, setDailyLimits, updateAllergies, setNegativeCreditLimit, bindCard, createStudent, updateCustomerBasic, deleteCustomer, graduateStudent, getSpendingGroupsUsageToday, getSpendingGroupUsageToday } from "@/services/customer_service";
 import { createUser, updateUser, deleteUser } from "@/services/user_service";
 import { reportRoutes } from "@/routes/reports";
 import { jwtPlugin, requireAuth, hasRole } from "@/middleware/auth";
@@ -74,6 +74,7 @@ import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCar
 import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback, inquireTopupFromGateway } from "@/services/topup_service";
 import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
 import { runSync } from "@/services/powerschool_sync";
+import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
 
 function handle(set: { status?: number }) {
   return (e: unknown) => {
@@ -1282,6 +1283,32 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       catch (e) { return handle(set)(e); }
     },
     { query: t.Object({ customer_id: t.String() }) },
+  )
+  .get(
+    "/spending-groups/:id/usage-today",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "parent", "staff", "cashier", "manager", "admin")) {
+        set.status = 403; return { detail: "Forbidden" };
+      }
+      const groupId = Number(params.id);
+      if (!Number.isInteger(groupId) || groupId <= 0) {
+        set.status = 422; return { detail: "Invalid id" };
+      }
+      const customerIdRaw = query.payer_customer_id ? Number(query.payer_customer_id) : null;
+      const userIdRaw = query.payer_user_id ? Number(query.payer_user_id) : null;
+      if (!customerIdRaw && !userIdRaw) {
+        set.status = 422; return { detail: "payer_customer_id or payer_user_id required" };
+      }
+      try { return await getSpendingGroupUsageToday(groupId, customerIdRaw, userIdRaw); }
+      catch (e) { return handle(set)(e); }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      query: t.Object({
+        payer_customer_id: t.Optional(t.Nullable(t.String())),
+        payer_user_id: t.Optional(t.Nullable(t.String())),
+      }),
+    },
   )
   .get(
     "/spending-groups/",
@@ -2707,6 +2734,7 @@ const app = new Elysia()
 console.log(
   `🚀 ISB backend-bun listening on http://localhost:${config.port} (env=${config.nodeEnv})`,
 );
+startLowBalanceScheduler();
 console.log(`   Docs: http://localhost:${config.port}/docs`);
 console.log(`   Registered routes: ${app.routes.length}`);
 for (const r of app.routes) console.log(`     ${r.method} ${r.path}`);

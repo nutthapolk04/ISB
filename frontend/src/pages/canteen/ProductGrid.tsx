@@ -21,6 +21,8 @@ interface ProductGridProps {
   onOpenColorEdit?: (id: number) => void;
   onCloseColorEdit?: () => void;
   onSaveColor?: (product: CanteenProduct, color: string | null) => void;
+  recentColors?: string[];
+  onAddRecentColor?: (color: string) => void;
 }
 
 // Sortable wrapper — only used in reorder mode. Must live outside the main
@@ -67,6 +69,8 @@ export function ProductGrid({
   onOpenColorEdit,
   onCloseColorEdit,
   onSaveColor,
+  recentColors,
+  onAddRecentColor,
 }: ProductGridProps) {
   if (loading) {
     return (
@@ -125,6 +129,8 @@ export function ProductGrid({
             onOpenColorEdit={onOpenColorEdit ? () => onOpenColorEdit(p.id) : undefined}
             onCloseColorEdit={onCloseColorEdit}
             onSaveColor={onSaveColor ? (color) => onSaveColor(p, color) : undefined}
+            recentColors={recentColors}
+            onAddRecentColor={onAddRecentColor}
           />
         );
       })}
