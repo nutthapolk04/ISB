@@ -28,18 +28,21 @@ function num(v: string | number): number {
   return typeof v === "string" ? Number(v) : v;
 }
 
-/** Weighted average cost recompute for avg_cost shops + receive path. */
+/** Weighted average cost recompute for avg_cost shops + receive path.
+ *  Formula: (currentStock × currentAvgCost + newQty × newCostPerUnit) / (currentStock + newQty)
+ *  Applied for both positive receives and negative returns — stock is NOT clamped to 0
+ *  so that returns correctly unwind the value they added.
+ */
 export function calcNewAvgCost(
   currentStock: number,
   currentAvgCost: number,
   newQty: number,
   newCostPerUnit: number,
 ): number {
-  const safeStock = Math.max(currentStock, 0);
-  const totalValue = safeStock * currentAvgCost;
-  const totalQty = safeStock + newQty;
-  if (totalQty === 0) return newCostPerUnit;
-  return (totalValue + newQty * newCostPerUnit) / totalQty;
+  const totalValue = currentStock * currentAvgCost + newQty * newCostPerUnit;
+  const totalQty = currentStock + newQty;
+  if (totalQty <= 0) return currentAvgCost; // stock wiped out — keep last known avg
+  return totalValue / totalQty;
 }
 
 /** Display avg cost = weighted average across remaining lots. */

@@ -454,15 +454,16 @@ export async function receiveStock(args: {
       } else {
         const oldAvg = pgNumber(product.avg_cost) ?? 0;
         newStock = stockBefore + item.qty;
-        if (item.qty > 0) {
-          // Use calcNewAvgCost which clamps negative stock to 0 before weighting
-          newAvgRounded = Math.round(calcNewAvgCost(stockBefore, oldAvg, item.qty, item.cost_per_unit) * 10000) / 10000;
-        } else {
-          // Negative receive = return: avg_cost unchanged
-          newAvgRounded = Math.round(oldAvg * 10000) / 10000;
-        }
+        // Apply weighted-avg formula for all receives including negative returns.
+        newAvgRounded = Math.round(calcNewAvgCost(stockBefore, oldAvg, item.qty, item.cost_per_unit) * 10000) / 10000;
       }
-      await sqlTx`UPDATE shop_products SET stock = ${newStock}, avg_cost = ${newAvgRounded}, updated_at = NOW() WHERE id = ${product.id}`;
+      const avgChanged = newAvgRounded !== (pgNumber(product.avg_cost) ?? 0);
+      await sqlTx`UPDATE shop_products
+        SET stock = ${newStock},
+            avg_cost = ${newAvgRounded},
+            internal_price = CASE WHEN ${avgChanged} THEN ${newAvgRounded} ELSE internal_price END,
+            updated_at = NOW()
+        WHERE id = ${product.id}`;
       await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity,
@@ -516,11 +517,18 @@ export async function adjustStock(args: {
       newAvg = r.newAvgCost;
     } else {
       stockAfter = stockBefore + args.delta;
-      if (args.delta > 0 && args.costPerUnit !== null && args.costPerUnit !== undefined) {
+      if (args.delta !== 0 && args.costPerUnit !== null && args.costPerUnit !== undefined) {
         newAvg = Math.round(calcNewAvgCost(stockBefore, newAvg, args.delta, args.costPerUnit) * 10000) / 10000;
       }
     }
-    await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, avg_cost = ${newAvg}, updated_at = NOW() WHERE id = ${product.id}`;
+    const oldAvgForAdj = pgNumber(product.avg_cost) ?? 0;
+    const avgChangedAdj = newAvg !== oldAvgForAdj;
+    await sqlTx`UPDATE shop_products
+      SET stock = ${stockAfter},
+          avg_cost = ${newAvg},
+          internal_price = CASE WHEN ${avgChangedAdj} AND NOT ${isFifo} THEN ${newAvg} ELSE internal_price END,
+          updated_at = NOW()
+      WHERE id = ${product.id}`;
     await sqlTx`
       INSERT INTO shop_movements
         (date, product_id, product_name, shop_id, type, quantity,
