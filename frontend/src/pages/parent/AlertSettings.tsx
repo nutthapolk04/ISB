@@ -85,12 +85,21 @@ export default function AlertSettings() {
   };
 
   return (
-    <div className="page-shell">
-      <div className="flex items-center gap-3 mb-6">
-        <BackButton to="/parent/dashboard" />
-        <div>
-          <h1 className="text-lg font-bold text-slate-800">{t("parent.dashboard.alerts", "Alerts")}</h1>
-          {customer && <p className="text-sm text-slate-500">{customer.name}</p>}
+    <div className="page-shell space-y-4">
+      <div className="rounded-2xl px-6 py-5 shadow-lg text-white relative"
+        style={{ background: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)" }}>
+        <div className="absolute top-3 right-3 z-10">
+          <BackButton to="/parent/dashboard" />
+        </div>
+        <div className="pr-24">
+          <h1 className="text-2xl font-bold tracking-tight drop-shadow-sm">
+            {t("parent.dashboard.alerts", "Alerts")}
+          </h1>
+          {customer && (
+            <span className="mt-2 inline-block rounded-full bg-white/25 px-3 py-0.5 text-sm font-medium text-white">
+              {customer.name}
+            </span>
+          )}
         </div>
       </div>
 
