@@ -38,6 +38,7 @@ interface Transaction {
   description?: string | null;
   shop_id?: string | null;
   shop_name?: string | null;
+  confirmed_via?: string | null;
   created_at: string;
 }
 

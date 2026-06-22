@@ -30,6 +30,7 @@ export interface TopupTransaction {
   reference_type?: string | null;
   reference_id?: number | null;
   shop_name?: string | null;
+  confirmed_via?: string | null;
   created_at: string;
 }
 
@@ -116,8 +117,31 @@ export function TopupDetailDialog({ transaction, onClose }: TopupDetailDialogPro
     : t("topup.detail.titleGeneric", "Transaction Details");
 
   const subtitle = isTopup
-    ? t("topup.detail.subtitle", "รายละเอียดการเติมเงิน")
-    : t("topup.detail.subtitleGeneric", "รายละเอียดรายการ");
+    ? t("topup.detail.subtitle", "Top-up transaction details")
+    : t("topup.detail.subtitleGeneric", "Transaction details");
+
+  // Channel: where / how the top-up was initiated
+  function resolveChannel(): string | null {
+    const via = transaction.confirmed_via ?? "";
+    const shop = transaction.shop_name;
+    const method = paymentMethod.toLowerCase();
+
+    // Cashier or kiosk top-up — shop name known
+    if (shop) return shop;
+
+    // Online flows — derive from confirmed_via or method
+    if (via.includes("webhook") || via.includes("inquiry")) {
+      if (method.includes("qr") || method.includes("promptpay")) return t("topup.detail.channelParentApp", "Parent App (QR)");
+      if (method.includes("credit") || method.includes("card")) return t("topup.detail.channelOnlineCard", "Online (Credit Card)");
+      return t("topup.detail.channelOnline", "Online");
+    }
+    if (via === "cashier_manual" || via.includes("cashier")) return t("topup.detail.channelCashier", "Cashier");
+    if (method.includes("cash")) return t("topup.detail.channelCashier", "Cashier");
+    if (method.includes("qr") || method.includes("promptpay")) return t("topup.detail.channelParentApp", "Parent App (QR)");
+    if (method.includes("credit") || method.includes("card")) return t("topup.detail.channelOnlineCard", "Online (Credit Card)");
+    return null;
+  }
+  const channel = resolveChannel();
 
   return (
     <Dialog open={transaction !== null} onOpenChange={(open) => !open && onClose()}>
@@ -155,11 +179,11 @@ export function TopupDetailDialog({ transaction, onClose }: TopupDetailDialogPro
               <span className="font-semibold">{paymentMethod}</span>
             </div>
 
-            {/* Source shop (kiosk / cashier shop / store) */}
-            {transaction.shop_name && (
+            {/* Channel — where/how the top-up was done */}
+            {channel && (
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">{t("topup.detail.source", "Source")}</span>
-                <span className="font-medium">{transaction.shop_name}</span>
+                <span className="text-muted-foreground">{t("topup.detail.channel", "Channel")}</span>
+                <span className="font-medium">{channel}</span>
               </div>
             )}
 
@@ -171,8 +195,8 @@ export function TopupDetailDialog({ transaction, onClose }: TopupDetailDialogPro
               </div>
             )}
 
-            {/* Description (source / notes) when it adds context beyond method */}
-            {transaction.description && (
+            {/* Notes — show only when description adds unique info beyond method/ref */}
+            {transaction.description && !refCode && (
               <div className="flex justify-between items-start gap-4">
                 <span className="text-muted-foreground shrink-0">{t("topup.detail.notes", "Notes")}</span>
                 <span className="text-right text-xs text-slate-600 break-words max-w-[60%]">

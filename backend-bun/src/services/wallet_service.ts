@@ -9,6 +9,7 @@ import {
   parentChildLinks,
   receipts,
   shops,
+  paymentIntents,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/auth";
@@ -49,6 +50,7 @@ export interface WalletTransactionResponseDTO {
   description: string | null;
   shop_id: string | null;
   shop_name: string | null;
+  confirmed_via: string | null;
   created_at: string;
 }
 
@@ -298,6 +300,19 @@ export async function listTransactions(
     rows.forEach((r) => shopMap.set(r.rid, { shopId: r.shopId, shopName: r.shopName }));
   }
 
+  // For payment_intent-referenced topup rows: pull confirmed_via for channel display.
+  const paymentIntentIds = txs
+    .filter((t) => t.referenceType === "payment_intent" && t.referenceId !== null)
+    .map((t) => t.referenceId!) as number[];
+  const confirmedViaMap = new Map<number, string | null>(); // payment_intent.id -> confirmed_via
+  if (paymentIntentIds.length > 0) {
+    const piRows = await db
+      .select({ id: paymentIntents.id, confirmedVia: paymentIntents.confirmedVia })
+      .from(paymentIntents)
+      .where(inArray(paymentIntents.id, paymentIntentIds));
+    piRows.forEach((r) => confirmedViaMap.set(r.id, r.confirmedVia ?? null));
+  }
+
   // For non-receipt transactions (topup, adjustment, transfer): enrich with
   // the creator user's shop so the frontend can show "Top-up at <Shop>" or "Kiosk".
   const creatorShopMap = new Map<number, string | null>(); // userId -> shopName
@@ -343,6 +358,9 @@ export async function listTransactions(
       description: t.description ?? null,
       shop_id: receiptShop?.shopId ?? null,
       shop_name: receiptShop?.shopName ?? creatorShopName,
+      confirmed_via: t.referenceType === "payment_intent" && t.referenceId !== null
+        ? (confirmedViaMap.get(t.referenceId) ?? null)
+        : null,
       created_at: pgToIso(t.createdAt)!,
     };
   });
