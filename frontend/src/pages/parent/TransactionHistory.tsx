@@ -68,6 +68,7 @@ export default function TransactionHistory() {
   const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtered, setFiltered] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
@@ -164,11 +165,15 @@ export default function TransactionHistory() {
           setFiltered(true);
         }
       } catch (e) {
-        toast({
-          title: t("parent.transactions.loadFailed"),
-          description: e instanceof ApiError ? e.detail : "Unknown error",
-          variant: "destructive",
-        });
+        const err = e instanceof ApiError ? e : null;
+        const status = err?.status ?? 0;
+        if (status === 403) {
+          setLoadError(t("parent.transactions.accessDenied", "You don't have access to this wallet."));
+        } else if (status === 404) {
+          setLoadError(t("parent.transactions.walletNotFound", "Wallet not found."));
+        } else {
+          setLoadError(err?.detail ?? t("parent.transactions.loadFailed", "Failed to load transactions."));
+        }
       } finally {
         setLoading(false);
       }
@@ -281,7 +286,15 @@ export default function TransactionHistory() {
   const showDayGroups = hasFilter && sortedDates.length > 1;
 
   if (loading) return <div className="page-shell text-muted-foreground">{t("parent.common.loading")}</div>;
-  if (!profile) return <div className="page-shell text-destructive">{t("parent.common.notFound")}</div>;
+  if (loadError || !profile) return (
+    <div className="page-shell flex flex-col items-center justify-center gap-4 py-20 text-center">
+      <div className="rounded-full bg-red-50 p-5">
+        <History className="h-8 w-8 text-red-300" />
+      </div>
+      <p className="text-destructive font-medium">{loadError ?? t("parent.common.notFound", "Not found")}</p>
+      <BackButton to="/parent/dashboard" />
+    </div>
+  );
 
   return (
     <div className="page-shell space-y-4">
