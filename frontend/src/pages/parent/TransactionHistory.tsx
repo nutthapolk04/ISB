@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Download, History, TrendingUp, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, History, Receipt, TrendingUp, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
@@ -425,114 +425,110 @@ export default function TransactionHistory() {
         </CardContent>
       </Card>
 
-      {!filtered && (
+      {/* Transaction list — grouped by date, card per transaction */}
+      {!filtered ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
           <History className="h-10 w-10 text-slate-300" />
           <p className="font-medium">{t("parent.transactions.selectDatePrompt", "Select a date range and tap Filter to view transactions")}</p>
         </div>
-      )}
+      ) : txs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+          <History className="h-10 w-10 text-slate-300" />
+          <p className="font-medium">{t("parent.transactions.noResults")}</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {sortedDates.map((date) => {
+            const dayTxs = groupedByDay[date];
+            const isToday = date === TODAY;
+            const dateHeader = isToday
+              ? t("parent.transactions.today", "TODAY")
+              : new Date(date + "T12:00:00")
+                  .toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
+                    day: "numeric", month: "long", year: "numeric",
+                  })
+                  .toUpperCase();
 
-      {/* Transaction list card — styled to match WalletDetail history tab */}
-      {filtered && <Card className="overflow-hidden border border-amber-100 shadow-md">
-        <CardHeader className="bg-amber-50/60 border-b border-amber-100 pb-4 flex flex-row items-center justify-between gap-2">
-          <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
-            <History className="h-5 w-5 text-amber-600" />
-            {t("parent.wallet.recentTitle", "Recent transactions")}
-          </CardTitle>
-          <span className="text-sm text-amber-700 font-medium shrink-0">
-            {txs.length} {t("parent.transactions.entries", "entries")}
-          </span>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-4">
-          {txs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <div className="rounded-full bg-amber-50 p-5">
-                <History className="h-8 w-8 text-amber-300" />
-              </div>
-              <p className="text-center text-slate-400 font-medium">
-                {t("parent.transactions.noResults")}
-              </p>
-            </div>
-          ) : showDayGroups ? (
-            <div>
-              {sortedDates.map((date) => {
-                const dayTxs = groupedByDay[date];
-                const dayNet = dayTxs.reduce((sum, tx) => {
-                  const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-                  return sum + (isCredit ? tx.amount : -Math.abs(tx.amount));
-                }, 0);
-                const dateLabel = new Date(date + "T12:00:00").toLocaleDateString(
-                  i18n.language === "th" ? "th-TH" : "en-US",
-                  { weekday: "short", day: "numeric", month: "short", year: "numeric" },
-                );
-                return (
-                  <div key={date} className="mb-4">
-                    <div className="flex items-center justify-between px-1 py-2 border-b border-amber-200 mb-2">
-                      <span className="text-xs font-semibold text-amber-800">{dateLabel}</span>
-                      <span className={`text-xs font-bold tabular-nums ${dayNet < 0 ? "text-red-500" : "text-emerald-600"}`}>
-                        {dayNet >= 0 ? "+" : ""}{formatTHB(dayNet)}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {dayTxs.map((tx) => {
-                        const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-                        const label = tx.description || txTypeLabel(tx.transaction_type);
-                        return (
-                          <div
-                            key={tx.id}
-                            className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm cursor-pointer hover:bg-amber-50/80 hover:shadow-sm transition-colors"
-                            onClick={() => handleRowClick(tx)}
-                          >
-                            <div className="min-w-0 flex-1 pr-4">
-                              <p className="font-medium text-gray-800 leading-snug">{label}</p>
-                              <p className="text-xs text-amber-700/70 mt-0.5">{formatDate(tx.created_at)}</p>
+            return (
+              <div key={date}>
+                {/* Date header */}
+                <p className="text-xs font-bold tracking-widest text-slate-400 mb-2 px-1">
+                  {dateHeader}
+                </p>
+
+                {/* Cards for this day */}
+                <div className="space-y-2.5">
+                  {dayTxs.map((tx) => {
+                    const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
+                    const typeLabel = txTypeLabel(tx.transaction_type);
+                    const time = new Date(tx.created_at).toLocaleTimeString(
+                      i18n.language === "th" ? "th-TH" : "en-US",
+                      { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" },
+                    );
+                    const hasReceipt = tx.reference_type === "receipt" && tx.reference_id;
+
+                    return (
+                      <div
+                        key={tx.id}
+                        onClick={() => handleRowClick(tx)}
+                        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Icon */}
+                          <div className={`mt-0.5 w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isCredit ? "bg-emerald-100" : "bg-red-100"}`}>
+                            {isCredit
+                              ? <ArrowUp className="h-4 w-4 text-emerald-600" />
+                              : <ArrowDown className="h-4 w-4 text-red-500" />}
+                          </div>
+
+                          {/* Body */}
+                          <div className="flex-1 min-w-0">
+                            {/* Title row */}
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="font-bold text-gray-900 text-sm leading-tight">
+                                {typeLabel}
+                                {tx.shop_name && (
+                                  <span className="font-normal text-gray-400"> — {tx.shop_name}</span>
+                                )}
+                              </p>
+                              <span className={`font-bold tabular-nums text-base shrink-0 leading-tight ${isCredit ? "text-emerald-600" : "text-red-500"}`}>
+                                {isCredit ? "+" : "-"}฿{Math.abs(tx.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className={`font-bold tabular-nums ${txAmountClass(tx.transaction_type, isCredit)}`}>
-                                {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
+
+                            {/* Description */}
+                            {tx.description && (
+                              <p className="text-xs text-gray-500 mt-1 leading-snug line-clamp-2">
+                                {tx.description}
                               </p>
-                              <p className="text-xs text-amber-700/70 mt-0.5 tabular-nums">
-                                {t("parent.transactions.balanceAfter", { amount: formatTHB(tx.balance_after) })}
-                              </p>
+                            )}
+
+                            {/* Footer row */}
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-xs text-gray-400">
+                                {time}
+                                {tx.shop_name && !tx.description ? "" : ""}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400 tabular-nums">
+                                  {t("parent.transactions.balanceAfter", { amount: formatTHB(tx.balance_after) })}
+                                </span>
+                                {hasReceipt && (
+                                  <Receipt className="h-3.5 w-3.5 text-gray-300" />
+                                )}
+                              </div>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {txs.map((tx) => {
-                const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-                const label = tx.description || txTypeLabel(tx.transaction_type);
-                return (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 p-3 text-sm cursor-pointer hover:bg-amber-50/80 hover:shadow-sm transition-colors"
-                    onClick={() => handleRowClick(tx)}
-                  >
-                    <div className="min-w-0 flex-1 pr-4">
-                      <p className="font-medium text-gray-800 leading-snug">{label}</p>
-                      <p className="text-xs text-amber-700/70 mt-0.5">{formatDate(tx.created_at)}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={`font-bold tabular-nums ${txAmountClass(tx.transaction_type, isCredit)}`}>
-                        {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
-                      </p>
-                      <p className="text-xs text-amber-700/70 mt-0.5 tabular-nums">
-                        {t("parent.transactions.balanceAfter", { amount: formatTHB(tx.balance_after) })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <ReceiptDetailDialog
         receiptId={openReceiptId}
