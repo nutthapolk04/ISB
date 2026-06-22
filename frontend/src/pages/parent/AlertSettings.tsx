@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Bell, BellOff } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { getRoleStyle } from "@/lib/roleStyles";
 
 interface AlertConfig {
   child_customer_id: number;
@@ -87,7 +88,7 @@ export default function AlertSettings() {
   return (
     <div className="page-shell space-y-4">
       <div className="rounded-2xl px-6 py-5 shadow-lg text-white relative"
-        style={{ background: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)" }}>
+        style={getRoleStyle("student")}>
         <div className="absolute top-3 right-3 z-10">
           <BackButton to="/parent/dashboard" />
         </div>
