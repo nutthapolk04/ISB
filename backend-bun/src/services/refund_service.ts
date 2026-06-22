@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, sql, sqlNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql, sqlNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { customers, wallets } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
@@ -75,7 +75,7 @@ export async function listRefundCandidates(): Promise<RefundCandidateDTO[]> {
         active: sql<number>`count(*) FILTER (WHERE ${customers.isGraduated} = false AND ${customers.isActive} = true)::int`,
       })
       .from(customers)
-      .where(sql`${customers.familyCode} = ANY(${familyCodes})`)
+      .where(inArray(customers.familyCode, familyCodes))
       .groupBy(customers.familyCode);
     for (const c of counts) {
       if (c.familyCode) familyTotals.set(c.familyCode, { total: c.total, active: c.active });
