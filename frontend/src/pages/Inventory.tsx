@@ -2473,25 +2473,6 @@ function ProductFormFields({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>{t("inventory.subMerchant")}</Label>
-          <Select
-            value={form.subMerchantId}
-            onValueChange={(v) => !lockedShopId && setForm({ ...form, subMerchantId: v })}
-            disabled={!!lockedShopId}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SUB_MERCHANTS.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
       <div className="grid grid-cols-3 gap-4 items-end">
         <div>
