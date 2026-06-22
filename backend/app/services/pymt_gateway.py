@@ -85,7 +85,7 @@ def create_easypay(
 
     payload = {
         "amount": amount,
-        "orderRef": ref_code,
+        "orderRef": sanitize_ref(ref_code, 20),
         "successUrl": success_url,
         "failUrl": fail_url,
         "cancelUrl": cancel_url,

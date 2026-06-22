@@ -214,7 +214,7 @@ export async function createEasyPay(args: {
   if (!isPymtConfigured()) throw new PymtGatewayError("PYMT not configured", 503);
   const payload: Record<string, unknown> = {
     amount: args.amount,
-    orderRef: args.refCode,
+    orderRef: sanitizeRef(args.refCode, 20),
     successUrl: args.successUrl,
     failUrl: args.failUrl,
     cancelUrl: args.cancelUrl,
