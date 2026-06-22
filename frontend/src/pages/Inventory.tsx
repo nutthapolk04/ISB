@@ -69,7 +69,6 @@ import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
 import MonthlyStockReport from "./store/MonthlyStockReport";
-import { useUom, type UnitOfMeasure } from "@/hooks/useUom";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
 import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
 
@@ -100,9 +99,7 @@ interface Product {
   stock: number;
   minStock: number;
   color?: string | null;
-  uomId?: number | null;
-  uomCode?: string | null;
-  uomName?: string | null;
+
   extraBarcodes?: ExtraBarcode[];
 }
 
@@ -242,7 +239,7 @@ const emptyForm = {
   productCode: "", barcode: "", name: "", category: "",
   subMerchantId: "coop", externalPrice: "", internalPrice: "",
   vatPercent: "0", avgCost: "", stock: "", minStock: "", color: "",
-  uomId: "" as string | number,
+
 };
 
 
@@ -260,7 +257,6 @@ interface InventoryProps {
 const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: InventoryProps = {}) => {
   const { t } = useTranslation();
   const embedded = lockedShopId !== undefined;
-  const { uoms } = useUom();
 
   // ── State ───────────────────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([]);
@@ -381,7 +377,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             externalPrice: p.external_price, internalPrice: p.internal_price,
             vatPercent: p.vat_percent, avgCost: p.avg_cost, stock: p.stock, minStock: p.min_stock,
             color: p.color ?? null,
-            uomId: p.uom_id ?? null, uomCode: p.uom_code ?? null, uomName: p.uom_name ?? null,
             extraBarcodes: p.extra_barcodes ?? [],
           })));
         } catch { /* skip unavailable shop */ }
@@ -572,7 +567,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         stock: parseInt(newProduct.stock),
         min_stock: parseInt(newProduct.minStock) || 0,
         color: newProduct.color || null,
-        uom_id: newProduct.uomId ? Number(newProduct.uomId) : null,
       });
       toast.success(t("inventory.productAdded"));
       setIsAddOpen(false);
@@ -599,7 +593,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
       stock: product.stock.toString(),
       minStock: product.minStock.toString(),
       color: product.color ?? "",
-      uomId: product.uomId ?? "",
     });
   };
 
@@ -620,7 +613,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         vat_percent: parseFloat(editForm.vatPercent) || 0,
         min_stock: parseInt(editForm.minStock) || 0,
         color: editForm.color || null,
-        uom_id: editForm.uomId ? Number(editForm.uomId) : 0,  // 0 to clear
       });
       toast.success(t("inventory.productUpdated"));
       setEditingProduct(null);
@@ -2047,7 +2039,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             <DialogTitle>{t("inventory.addProductTitle")}</DialogTitle>
             <DialogDescription>{t("inventory.addProductDesc")}</DialogDescription>
           </DialogHeader>
-          <ProductFormFields form={newProduct} setForm={setNewProduct} isEdit={false} shopType={shopType} embedded={embedded} categories={categories} lockedShopId={lockedShopId} uoms={uoms} />
+          <ProductFormFields form={newProduct} setForm={setNewProduct} isEdit={false} shopType={shopType} embedded={embedded} categories={categories} lockedShopId={lockedShopId} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddOpen(false)}>
               {t("inventory.cancel")}
@@ -2067,7 +2059,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             <DialogTitle>{t("inventory.editProduct")}</DialogTitle>
             <DialogDescription>{t("inventory.editProductDesc")}</DialogDescription>
           </DialogHeader>
-          <ProductFormFields form={editForm} setForm={setEditForm} isEdit={true} shopType={shopType} embedded={embedded} categories={categories} lockedShopId={lockedShopId} uoms={uoms} />
+          <ProductFormFields form={editForm} setForm={setEditForm} isEdit={true} shopType={shopType} embedded={embedded} categories={categories} lockedShopId={lockedShopId} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingProduct(null)}>
               {t("inventory.cancel")}
@@ -2387,7 +2379,6 @@ interface ProductFormFieldsProps {
   embedded: boolean;
   categories: { id: string; name: string }[];
   lockedShopId?: string;
-  uoms: UnitOfMeasure[];
 }
 
 function ProductFormFields({
@@ -2398,7 +2389,6 @@ function ProductFormFields({
   embedded,
   categories,
   lockedShopId,
-  uoms,
 }: ProductFormFieldsProps) {
   const { t } = useTranslation();
 
@@ -2430,49 +2420,28 @@ function ProductFormFields({
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>{t("inventory.category")}</Label>
-          {embedded && categories.length > 0 ? (
-            <Select
-              value={form.category}
-              onValueChange={(v) => setForm({ ...form, category: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("inventory.selectCategory")} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.filter((c) => c.name).map((c) => (
-                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            />
-          )}
-        </div>
-        <div>
-          <Label>{t("inventory.uom", "หน่วยนับ")}</Label>
+      <div>
+        <Label>{t("inventory.category")}</Label>
+        {embedded && categories.length > 0 ? (
           <Select
-            value={form.uomId ? String(form.uomId) : "__none__"}
-            onValueChange={(v) => setForm({ ...form, uomId: v === "__none__" ? "" : parseInt(v) })}
+            value={form.category}
+            onValueChange={(v) => setForm({ ...form, category: v })}
           >
             <SelectTrigger>
-              <SelectValue placeholder={t("inventory.selectUom", "เลือกหน่วย")} />
+              <SelectValue placeholder={t("inventory.selectCategory")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">-</SelectItem>
-              {uoms.map((u) => (
-                <SelectItem key={u.id} value={String(u.id)}>
-                  {u.name} ({u.code})
-                </SelectItem>
+              {categories.filter((c) => c.name).map((c) => (
+                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        ) : (
+          <Input
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          />
+        )}
       </div>
       <div className="grid grid-cols-3 gap-4 items-end">
         <div>
