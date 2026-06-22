@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { ArrowDown, ArrowUp, Download, History, Receipt, TrendingUp, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, History, Receipt, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
@@ -68,7 +68,6 @@ export default function TransactionHistory() {
   const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
-  const [todayTxsData, setTodayTxsData] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtered, setFiltered] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
@@ -92,18 +91,6 @@ export default function TransactionHistory() {
     return map[type] ?? type;
   };
 
-  const txAmountClass = (type: string, isCredit: boolean): string => {
-    if (isCredit) return "text-emerald-600";
-    const upper = type.toUpperCase();
-    switch (upper) {
-      case "DEDUCTION": return "text-red-500";
-      case "REFUND":    return "text-blue-600";
-      case "ADJUSTMENT_CREDIT": return "text-purple-600";
-      case "ADJUSTMENT_DEBIT":  return "text-orange-600";
-      default:          return "text-red-500";
-    }
-  };
-
   const loadTransactions = async (walletId: number) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
@@ -119,17 +106,6 @@ export default function TransactionHistory() {
         description: e instanceof ApiError ? e.detail : "Unknown error",
         variant: "destructive",
       });
-    }
-  };
-
-  const loadTodayTransactions = async (walletId: number) => {
-    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
-    const path = `/wallets/${walletId}/transactions?date_from=${today}&date_to=${today}`;
-    try {
-      const data = await api.get<Transaction[]>(path);
-      setTodayTxsData(data);
-    } catch {
-      // silently ignore — today summary is non-critical
     }
   };
 
@@ -174,7 +150,6 @@ export default function TransactionHistory() {
         const { profile: p, walletId } = await resolveProfile();
         setProfile(p);
         if (walletId) {
-          await loadTodayTransactions(walletId);
           // Auto-load current month so transactions are visible without needing to filter
           const today = new Date();
           const from = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -292,22 +267,10 @@ export default function TransactionHistory() {
   const displayRole = profile?.is_own_wallet ? (profile.role ?? "staff") : "student";
   const headerStyle = getRoleStyle(displayRole);
 
-  // ── Today summary + per-day grouping ─────────────────────────────────────
+  // ── Per-day grouping ──────────────────────────────────────────────────────
   const getTxDate = (tx: Transaction) =>
     new Date(tx.created_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
   const TODAY = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
-
-  const todayTxs = todayTxsData;
-  const totalDeducted = todayTxs
-    .filter((tx) => ["DEDUCTION", "ADJUSTMENT_DEBIT"].includes(tx.transaction_type.toUpperCase()))
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-  const totalCredited = todayTxs
-    .filter((tx) => ["TOPUP", "REFUND", "ADJUSTMENT_CREDIT"].includes(tx.transaction_type.toUpperCase()))
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-  const shopBreakdown: Record<string, number> = {};
-  todayTxs
-    .filter((tx) => tx.transaction_type.toUpperCase() === "DEDUCTION" && tx.shop_name)
-    .forEach((tx) => { shopBreakdown[tx.shop_name!] = (shopBreakdown[tx.shop_name!] ?? 0) + Math.abs(tx.amount); });
 
   const groupedByDay = txs.reduce<Record<string, Transaction[]>>((acc, tx) => {
     const d = getTxDate(tx);
@@ -381,47 +344,6 @@ export default function TransactionHistory() {
               <Download className="h-4 w-4 mr-1" /> {t("parent.transactions.exportPdf", "PDF")}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Today Summary card — always visible */}
-      <Card className="rounded-2xl shadow-md border-blue-100 overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
-        <CardHeader className="bg-blue-50 border-b border-blue-100 pb-3">
-          <CardTitle className="text-base font-semibold text-blue-800 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-blue-600" />
-            {t("parent.transactions.todayTitle", "Today's Activity")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {todayTxs.length === 0 ? (
-            <p className="text-sm text-gray-400">{t("parent.transactions.noActivityToday", "No activity today")}</p>
-          ) : (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-blue-100 overflow-hidden divide-y divide-blue-50">
-                {todayTxs.map((tx) => {
-                  const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
-                  const label = tx.description || txTypeLabel(tx.transaction_type);
-                  const amtClass = txAmountClass(tx.transaction_type, isCredit);
-                  return (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between px-3 py-2.5 text-sm bg-white hover:bg-blue-50/50 cursor-pointer transition-colors"
-                      onClick={() => handleRowClick(tx)}
-                    >
-                      <div>
-                        <p className="font-medium text-slate-700">{label}</p>
-                        <p className="text-xs text-slate-400">{formatDate(tx.created_at)}</p>
-                      </div>
-                      <span className={`tabular-nums font-semibold ${amtClass}`}>
-                        {isCredit ? "+" : "-"}{formatTHB(Math.abs(tx.amount))}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
