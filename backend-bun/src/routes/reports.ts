@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t, type StatusMap } from "elysia";
 import { requireAuth } from "@/middleware/auth";
 import {
   salesReport,
@@ -10,7 +10,7 @@ import {
   salesByItemReport,
 } from "@/services/report_service";
 
-function handleScopeError(set: { status?: number }) {
+function handleScopeError(set: { status?: number | keyof StatusMap }) {
   return (e: unknown) => {
     const err = e as { status?: number; message?: string };
     if (err.status && err.status >= 400 && err.status < 500) {
@@ -31,8 +31,8 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
           user,
           dateFrom: query.date_from,
           dateTo: query.date_to,
-          shopId: query.shop_id,
-          module: query.module,
+          shopId: query.shop_id ?? undefined,
+          module: query.module ?? undefined,
         });
       } catch (e) {
         return handleScopeError(set)(e);
@@ -56,8 +56,8 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
           user,
           dateFrom: query.date_from,
           dateTo: query.date_to,
-          shopId: query.shop_id,
-          module: query.module,
+          shopId: query.shop_id ?? undefined,
+          module: query.module ?? undefined,
         });
       } catch (e) {
         return handleScopeError(set)(e);
@@ -79,8 +79,8 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
       try {
         return await stockReport({
           user,
-          shopId: query.shop_id,
-          module: query.module,
+          shopId: query.shop_id ?? undefined,
+          module: query.module ?? undefined,
         });
       } catch (e) {
         return handleScopeError(set)(e);
@@ -102,8 +102,8 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
           user,
           dateFrom: query.date_from,
           dateTo: query.date_to,
-          shopId: query.shop_id,
-          module: query.module,
+          shopId: query.shop_id ?? undefined,
+          module: query.module ?? undefined,
         });
       } catch (e) {
         return handleScopeError(set)(e);
@@ -127,10 +127,10 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
           user,
           dateFrom: query.date_from,
           dateTo: query.date_to,
-          shopId: query.shop_id,
+          shopId: query.shop_id ?? undefined,
           productVariantId: query.product_variant_id ? Number(query.product_variant_id) : undefined,
-          productSearch: query.product_search || undefined,
-          category: query.category || undefined,
+          productSearch: query.product_search ?? undefined,
+          category: query.category ?? undefined,
           includeEmpty: query.include_empty === "true",
         });
       } catch (e) {
@@ -159,16 +159,16 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
       try {
         return await salesSummaryReport({
           user,
-          dateFrom: query.date_from,
-          dateTo: query.date_to,
-          customerType: query.customer_type,
-          userName: query.user_name,
-          familyCode: query.family_code,
-          receiptNoFrom: query.receipt_no_from,
-          receiptNoTo: query.receipt_no_to,
-          receiveType: query.receive_type,
-          shopId: query.shop_id,
-          module: query.module,
+          dateFrom: query.date_from ?? undefined,
+          dateTo: query.date_to ?? undefined,
+          customerType: query.customer_type ?? undefined,
+          userName: query.user_name ?? undefined,
+          familyCode: query.family_code ?? undefined,
+          receiptNoFrom: query.receipt_no_from ?? undefined,
+          receiptNoTo: query.receipt_no_to ?? undefined,
+          receiveType: query.receive_type ?? undefined,
+          shopId: query.shop_id ?? undefined,
+          module: query.module ?? undefined,
         });
       } catch (e) {
         return handleScopeError(set)(e);
@@ -196,16 +196,16 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
       try {
         return await salesByItemReport({
           user,
-          dateFrom: query.date_from,
-          dateTo: query.date_to,
-          customerType: query.customer_type,
-          userName: query.user_name,
-          familyCode: query.family_code,
-          receiptNoFrom: query.receipt_no_from,
-          receiptNoTo: query.receipt_no_to,
-          receiveType: query.receive_type,
-          shopId: query.shop_id,
-          module: query.module,
+          dateFrom: query.date_from ?? undefined,
+          dateTo: query.date_to ?? undefined,
+          customerType: query.customer_type ?? undefined,
+          userName: query.user_name ?? undefined,
+          familyCode: query.family_code ?? undefined,
+          receiptNoFrom: query.receipt_no_from ?? undefined,
+          receiptNoTo: query.receipt_no_to ?? undefined,
+          receiveType: query.receive_type ?? undefined,
+          shopId: query.shop_id ?? undefined,
+          module: query.module ?? undefined,
         });
       } catch (e) {
         return handleScopeError(set)(e);

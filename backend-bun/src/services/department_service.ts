@@ -13,7 +13,7 @@ export interface DepartmentSummaryDTO {
 }
 
 export async function listDepartments(args: {
-  q?: string;
+  q?: string | null;
   activeOnly?: boolean;
 } = {}): Promise<DepartmentSummaryDTO[]> {
   const conds = [];

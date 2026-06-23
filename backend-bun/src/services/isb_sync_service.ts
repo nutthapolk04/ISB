@@ -92,6 +92,9 @@ interface IsbStaff {
 }
 
 export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult> {
+  if (staffs.length === 0) {
+    return { success: 0, failed: 0, errors: [] };
+  }
   const logId = await createSyncLog("isb_staff");
   let success = 0, failed = 0;
   const errors: BatchResult["errors"] = [];
@@ -163,6 +166,9 @@ interface IsbFamily {
 }
 
 export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchResult> {
+  if (families.length === 0) {
+    return { success: 0, failed: 0, errors: [] };
+  }
   const logId = await createSyncLog("isb_family");
   const internalTypeId = await getInternalTypeId();
   let success = 0, failed = 0;
@@ -213,7 +219,6 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
         }
 
         parentRows.push({ userId: user.id, rank });
-        success++;
       }
 
       // Students
@@ -238,8 +243,9 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
         for (const { userId, rank } of parentRows) {
           await upsertLink(userId, customer.id, rank);
         }
-        success++;
       }
+
+      success++;
     } catch (e) {
       failed++;
       errors.push({ index: i, id: fam.familyCode, error: (e as Error).message });
@@ -260,6 +266,9 @@ interface IsbDepartment {
 }
 
 export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<BatchResult> {
+  if (depts.length === 0) {
+    return { success: 0, failed: 0, errors: [] };
+  }
   const logId = await createSyncLog("isb_department");
   let success = 0, failed = 0;
   const errors: BatchResult["errors"] = [];

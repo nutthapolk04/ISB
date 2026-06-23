@@ -1,0 +1,944 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ISB → Vendor Sync API",
+    "description": "\nISB pushes **Staff**, **Family**, and **Department** master data to the vendor as\nsequential JSON batches. **ISB owns this request contract; the vendor implements\nan API that accepts exactly these request bodies.**\n\n### Endpoints\n- `POST /v1/sync/staffs` — one Staff batch `{\"staffs\": [...]}`\n- `POST /v1/sync/families` — one Family batch `{\"families\": [...]}`\n- `POST /v1/sync/departments` — one Department batch `{\"departments\": [...]}`\n\n### Authentication\nEach request carries the API key in the **`x-api-key`** HTTP header. *(Please confirm your endpoints accept `x-api-key`.)*\n\n### Batching\n- One batch per request, sent **sequentially** (no parallel calls).\n- Staff counts staff members; Family counts **family objects**; Department counts departments.\n- Current batch size: **up to 500 records per request** (please confirm acceptable + any rate limit).\n\n### Response contract *(to be finalised with vendor)*\n- Success: **HTTP 200** + `{\"status\":\"SUCCESS\",\"code\":\"200\",\"message\":\"Accepted\"}`.\n- Failure: `{\"status\":\"FAILED\",\"code\":\"...\",\"message\":\"...\"}`; bad/missing key → **401**, body not matching this schema → **422**.\n\n### Key field rules\n- All ids (`customerId`, `familyCode`, `departmentId`) are **integers** — never `202468.0`.\n- **Staff `login` is an object** `{loginId, email}`; **family parent `login` is a string** — intentional.\n- `secondaryParent` is `null` for single-parent families (the key is always present).\n- `smartCard.cardNumber` is `\"\"` when a person has no card; the `smartCard` object is **never omitted** (ISB decision).\n- **Department** carries **no `smartCard`** today (charged per department, not per card); a department `smartCard` may be added later (optional, **not sent currently** — please design to accept it without a breaking change). Optional `login` is an **object** like Staff.\n- Idempotency: re-sending the same `customerId` is an **upsert**; on conflict use **last-write-wins**.\n- `notificationEmails` may contain malformed addresses — accept them, do not reject.\n",
+    "contact": {
+      "name": "ISB Ed-Tech Center"
+    },
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/sync/staffs": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "summary": "Receive a Staff batch",
+        "description": "POST one Staff batch `{\"staffs\": [...]}`. Staff `login` is an OBJECT.",
+        "operationId": "sync_staffs_v1_sync_staffs_post",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffBatch"
+              },
+              "examples": {
+                "staff_batch": {
+                  "summary": "Staff batch (2 records)",
+                  "description": "Note `login` is an object and `hasChildren` differs per record.",
+                  "value": {
+                    "staffs": [
+                      {
+                        "customerId": 202468,
+                        "customerType": "Staff",
+                        "staffType": "Classified Staff",
+                        "department": "ED-TECH CENTER",
+                        "familyCode": 202468,
+                        "firstName": "Jirawat",
+                        "lastName": "JIRACHAISOPIT",
+                        "hasChildren": false,
+                        "profileImage": "202468_SF.jpg",
+                        "smartCard": {
+                          "cardNumber": "D7F8F836"
+                        },
+                        "login": {
+                          "loginId": "jirawatj@isb.ac.th",
+                          "email": "jirawatj@isb.ac.th"
+                        }
+                      },
+                      {
+                        "customerId": 202301,
+                        "customerType": "Staff",
+                        "staffType": "Classified Staff",
+                        "department": "MARKETING & COMMUNICATION",
+                        "familyCode": 202301,
+                        "firstName": "Somchai",
+                        "lastName": "RAKDEE",
+                        "hasChildren": true,
+                        "profileImage": "202301_SF.jpg",
+                        "smartCard": {
+                          "cardNumber": "AA1100BB"
+                        },
+                        "login": {
+                          "loginId": "somchair@isb.ac.th",
+                          "email": "somchair@isb.ac.th"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSuccess"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "code": "200",
+                  "message": "Accepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid API key.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "FAILED",
+                  "code": "401",
+                  "message": "Invalid or missing API key (expected header 'x-api-key')."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Body does not match the contract.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "FAILED",
+                  "code": "422",
+                  "message": "Request body does not match the ISB->Vendor contract.",
+                  "errors": [
+                    {
+                      "type": "missing",
+                      "loc": [
+                        "body",
+                        "staffs",
+                        0,
+                        "customerId"
+                      ],
+                      "msg": "Field required"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sync/families": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "summary": "Receive a Family batch",
+        "description": "POST one Family batch `{\"families\": [...]}`. Parent `login` is a STRING; `secondaryParent` may be `null`.",
+        "operationId": "sync_families_v1_sync_families_post",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyBatch"
+              },
+              "examples": {
+                "two_parents": {
+                  "summary": "Two parents (secondary is also staff) + 2 students",
+                  "description": "Parent `login` is a STRING. `secondaryParent` here is a staff member.",
+                  "value": {
+                    "families": [
+                      {
+                        "familyCode": 70652,
+                        "notificationEmails": [
+                          "kritsada.suwan@gmail.com",
+                          "porntips@isb.ac.th"
+                        ],
+                        "mainParent": {
+                          "customerId": 70652,
+                          "customerType": "Parent",
+                          "firstName": "Kritsada",
+                          "lastName": "SUWAN",
+                          "profileImage": "70652_OT.jpg",
+                          "login": "70652@parents.isb.ac.th",
+                          "smartCard": {
+                            "cardNumber": "CC3300DD"
+                          }
+                        },
+                        "secondaryParent": {
+                          "customerId": 202306,
+                          "customerType": "Staff",
+                          "firstName": "Pornthip",
+                          "lastName": "SUWAN",
+                          "profileImage": "202306_SF.jpg",
+                          "login": "porntips@isb.ac.th",
+                          "smartCard": {
+                            "cardNumber": "CC3301DD"
+                          }
+                        },
+                        "students": [
+                          {
+                            "customerId": 35008,
+                            "customerType": "Student",
+                            "firstName": "Kao",
+                            "lastName": "SUWAN",
+                            "grade": "09",
+                            "schoolType": "HS Student",
+                            "profileImage": "35008_ST.jpg",
+                            "smartCard": {
+                              "cardNumber": "ST3001CC"
+                            }
+                          },
+                          {
+                            "customerId": 35009,
+                            "customerType": "Student",
+                            "firstName": "Pim",
+                            "lastName": "SUWAN",
+                            "grade": "06",
+                            "schoolType": "MS Student",
+                            "profileImage": "35009_ST.jpg",
+                            "smartCard": {
+                              "cardNumber": "ST3002CC"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "single_parent": {
+                  "summary": "Single parent (secondaryParent: null)",
+                  "description": "Shows the required-but-null `secondaryParent` key.",
+                  "value": {
+                    "families": [
+                      {
+                        "familyCode": 85003,
+                        "notificationEmails": [
+                          "pbtestacc04gmail.com"
+                        ],
+                        "mainParent": {
+                          "customerId": 85003,
+                          "customerType": "Parent",
+                          "firstName": "Brad",
+                          "lastName": "Pitt",
+                          "profileImage": "85003_OT.jpg",
+                          "login": "85003@parents.isb.ac.th",
+                          "smartCard": {
+                            "cardNumber": "9FAD7ED1"
+                          }
+                        },
+                        "students": [
+                          {
+                            "customerId": 35002,
+                            "customerType": "Student",
+                            "firstName": "TESTLNAME3",
+                            "lastName": "Student3",
+                            "grade": "04",
+                            "schoolType": "ES Student",
+                            "profileImage": "35002_ST.jpg",
+                            "smartCard": {
+                              "cardNumber": "EF307DD1"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSuccess"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "code": "200",
+                  "message": "Accepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid API key.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "FAILED",
+                  "code": "401",
+                  "message": "Invalid or missing API key (expected header 'x-api-key')."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Body does not match the contract.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "FAILED",
+                  "code": "422",
+                  "message": "Request body does not match the ISB->Vendor contract.",
+                  "errors": [
+                    {
+                      "type": "missing",
+                      "loc": [
+                        "body",
+                        "families",
+                        0,
+                        "familyCode"
+                      ],
+                      "msg": "Field required"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sync/departments": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "summary": "Receive a Department batch",
+        "description": "POST one Department batch `{\"departments\": [...]}`. No `smartCard`; optional `login` is an OBJECT like Staff.",
+        "operationId": "sync_departments_v1_sync_departments_post",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentBatch"
+              },
+              "examples": {
+                "departments": {
+                  "summary": "Departments (core + one with the future login)",
+                  "description": "No `smartCard`. `login` is optional/future and is an OBJECT like Staff.",
+                  "value": {
+                    "departments": [
+                      {
+                        "departmentId": 520,
+                        "customerType": "Department",
+                        "departmentDescription": "ED-TECH"
+                      },
+                      {
+                        "departmentId": 521,
+                        "customerType": "Department",
+                        "departmentDescription": "ADMISSIONS",
+                        "login": {
+                          "loginId": "admissions@isb.ac.th",
+                          "email": "admissions@isb.ac.th"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSuccess"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "code": "200",
+                  "message": "Accepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid API key.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "FAILED",
+                  "code": "401",
+                  "message": "Invalid or missing API key (expected header 'x-api-key')."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Body does not match the contract.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "FAILED",
+                  "code": "422",
+                  "message": "Request body does not match the ISB->Vendor contract.",
+                  "errors": [
+                    {
+                      "type": "missing",
+                      "loc": [
+                        "body",
+                        "departments",
+                        0,
+                        "departmentId"
+                      ],
+                      "msg": "Field required"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Department": {
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "title": "Departmentid",
+            "description": "Integer department id (never 520.0).",
+            "examples": [
+              520
+            ]
+          },
+          "customerType": {
+            "type": "string",
+            "const": "Department",
+            "title": "Customertype"
+          },
+          "departmentDescription": {
+            "type": "string",
+            "title": "Departmentdescription",
+            "description": "Department name.",
+            "examples": [
+              "ED-TECH"
+            ]
+          },
+          "login": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffLogin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional / future. An OBJECT {loginId, email} like Staff (NOT a string). A department has NO smartCard, so that key is rejected."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "departmentId",
+          "customerType",
+          "departmentDescription"
+        ],
+        "title": "Department"
+      },
+      "DepartmentBatch": {
+        "properties": {
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/Department"
+            },
+            "type": "array",
+            "title": "Departments",
+            "description": "1..batch_size departments."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "departments"
+        ],
+        "title": "DepartmentBatch",
+        "description": "One Department batch = one POST body. `batch_size` counts departments."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "FAILED",
+            "title": "Status",
+            "default": "FAILED"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "examples": [
+              "422"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "examples": [
+              "Request body does not match the ISB->Vendor contract."
+            ]
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors",
+            "description": "Validation details, when applicable."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse"
+      },
+      "Family": {
+        "properties": {
+          "familyCode": {
+            "type": "integer",
+            "title": "Familycode",
+            "description": "Equals the main parent's customerId.",
+            "examples": [
+              70652
+            ]
+          },
+          "notificationEmails": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notificationemails",
+            "description": "Contact e-mails (NOT the login). May be malformed in source data; not rejected.",
+            "examples": [
+              [
+                "kritsada.suwan@gmail.com",
+                "porntips@isb.ac.th"
+              ]
+            ]
+          },
+          "mainParent": {
+            "$ref": "#/components/schemas/Parent"
+          },
+          "secondaryParent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Parent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` for single-parent families. Key is always present."
+          },
+          "students": {
+            "items": {
+              "$ref": "#/components/schemas/Student"
+            },
+            "type": "array",
+            "title": "Students",
+            "description": "1..N students in the family."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "familyCode",
+          "notificationEmails",
+          "mainParent",
+          "secondaryParent",
+          "students"
+        ],
+        "title": "Family"
+      },
+      "FamilyBatch": {
+        "properties": {
+          "families": {
+            "items": {
+              "$ref": "#/components/schemas/Family"
+            },
+            "type": "array",
+            "title": "Families"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "families"
+        ],
+        "title": "FamilyBatch",
+        "description": "One Family batch = one POST body. `batch_size` counts FAMILIES, not rows."
+      },
+      "Parent": {
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid",
+            "examples": [
+              70652
+            ]
+          },
+          "customerType": {
+            "type": "string",
+            "enum": [
+              "Parent",
+              "Staff"
+            ],
+            "title": "Customertype",
+            "description": "'Parent', or 'Staff' when the parent is also an ISB staff member."
+          },
+          "firstName": {
+            "type": "string",
+            "title": "Firstname",
+            "examples": [
+              "Kritsada"
+            ]
+          },
+          "lastName": {
+            "type": "string",
+            "title": "Lastname",
+            "examples": [
+              "SUWAN"
+            ]
+          },
+          "profileImage": {
+            "type": "string",
+            "title": "Profileimage",
+            "examples": [
+              "70652_OT.jpg"
+            ]
+          },
+          "login": {
+            "type": "string",
+            "title": "Login",
+            "description": "Family parent login is a STRING (contrast: staff login is an object).",
+            "examples": [
+              "70652@parents.isb.ac.th"
+            ]
+          },
+          "smartCard": {
+            "$ref": "#/components/schemas/SmartCard"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "customerId",
+          "customerType",
+          "firstName",
+          "lastName",
+          "profileImage",
+          "login",
+          "smartCard"
+        ],
+        "title": "Parent"
+      },
+      "SmartCard": {
+        "properties": {
+          "cardNumber": {
+            "type": "string",
+            "title": "Cardnumber",
+            "description": "Smart-card UID. Empty string when the person has no card — ISB sends `\"\"`, it does NOT omit the object.",
+            "examples": [
+              "D7F8F836",
+              ""
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cardNumber"
+        ],
+        "title": "SmartCard"
+      },
+      "Staff": {
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid",
+            "description": "Integer customer id (never 202468.0).",
+            "examples": [
+              202468
+            ]
+          },
+          "customerType": {
+            "type": "string",
+            "const": "Staff",
+            "title": "Customertype"
+          },
+          "staffType": {
+            "type": "string",
+            "title": "Stafftype",
+            "description": "e.g. 'Classified Staff', 'Certified Staff'.",
+            "examples": [
+              "Classified Staff"
+            ]
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "examples": [
+              "ED-TECH CENTER"
+            ]
+          },
+          "familyCode": {
+            "type": "integer",
+            "title": "Familycode",
+            "examples": [
+              202468
+            ]
+          },
+          "firstName": {
+            "type": "string",
+            "title": "Firstname",
+            "examples": [
+              "Jirawat"
+            ]
+          },
+          "lastName": {
+            "type": "string",
+            "title": "Lastname",
+            "examples": [
+              "JIRACHAISOPIT"
+            ]
+          },
+          "hasChildren": {
+            "type": "boolean",
+            "title": "Haschildren",
+            "examples": [
+              false
+            ]
+          },
+          "profileImage": {
+            "type": "string",
+            "title": "Profileimage",
+            "examples": [
+              "202468_SF.jpg"
+            ]
+          },
+          "smartCard": {
+            "$ref": "#/components/schemas/SmartCard"
+          },
+          "login": {
+            "$ref": "#/components/schemas/StaffLogin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "customerId",
+          "customerType",
+          "staffType",
+          "department",
+          "familyCode",
+          "firstName",
+          "lastName",
+          "hasChildren",
+          "profileImage",
+          "smartCard",
+          "login"
+        ],
+        "title": "Staff"
+      },
+      "StaffBatch": {
+        "properties": {
+          "staffs": {
+            "items": {
+              "$ref": "#/components/schemas/Staff"
+            },
+            "type": "array",
+            "title": "Staffs",
+            "description": "1..batch_size staff members."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "staffs"
+        ],
+        "title": "StaffBatch",
+        "description": "One Staff batch = one POST body. `batch_size` counts staff members."
+      },
+      "StaffLogin": {
+        "properties": {
+          "loginId": {
+            "type": "string",
+            "title": "Loginid",
+            "examples": [
+              "jirawatj@isb.ac.th"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "examples": [
+              "jirawatj@isb.ac.th"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "loginId",
+          "email"
+        ],
+        "title": "StaffLogin",
+        "description": "Staff login is an OBJECT (family parent login is a string — on purpose)."
+      },
+      "Student": {
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "title": "Customerid",
+            "examples": [
+              35008
+            ]
+          },
+          "customerType": {
+            "type": "string",
+            "const": "Student",
+            "title": "Customertype"
+          },
+          "firstName": {
+            "type": "string",
+            "title": "Firstname",
+            "examples": [
+              "Kao"
+            ]
+          },
+          "lastName": {
+            "type": "string",
+            "title": "Lastname",
+            "examples": [
+              "SUWAN"
+            ]
+          },
+          "grade": {
+            "type": "string",
+            "title": "Grade",
+            "description": "Zero-padded 2-digit grade, e.g. '09'.",
+            "examples": [
+              "09"
+            ]
+          },
+          "schoolType": {
+            "type": "string",
+            "title": "Schooltype",
+            "description": "One of 'ES Student' / 'MS Student' / 'HS Student'.",
+            "examples": [
+              "HS Student"
+            ]
+          },
+          "profileImage": {
+            "type": "string",
+            "title": "Profileimage",
+            "examples": [
+              "35008_ST.jpg"
+            ]
+          },
+          "smartCard": {
+            "$ref": "#/components/schemas/SmartCard"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "customerId",
+          "customerType",
+          "firstName",
+          "lastName",
+          "grade",
+          "schoolType",
+          "profileImage",
+          "smartCard"
+        ],
+        "title": "Student"
+      },
+      "SyncSuccess": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "SUCCESS",
+            "title": "Status",
+            "default": "SUCCESS"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "200"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "Accepted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SyncSuccess",
+        "description": "Success envelope — the canonical contract: `status` + `code` + `message`."
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Sync",
+      "description": "Staff / Family / Department master-data sync endpoints."
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ]
+}

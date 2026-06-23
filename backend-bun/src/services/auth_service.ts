@@ -86,7 +86,7 @@ interface RefreshClaims {
   type: "refresh";
 }
 
-function encodeJwt(payload: Record<string, unknown>): string {
+function encodeJwt(payload: object): string {
   const header = { alg: "HS256", typ: "JWT" };
   const body = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
   const sig = signHs256(body, config.jwtSecret);
@@ -383,7 +383,7 @@ export async function googleSso(accessToken: string): Promise<TokenResponseDTO> 
       (err as { status?: number }).status = 401;
       throw err;
     }
-    userinfo = await resp.json();
+    userinfo = (await resp.json()) as { email?: string; email_verified?: boolean };
   } catch (e) {
     if ((e as { status?: number }).status) throw e;
     const err = new Error("Cannot reach Google authentication service");

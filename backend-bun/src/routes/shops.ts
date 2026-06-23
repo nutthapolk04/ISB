@@ -79,7 +79,13 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
       }
       try {
         set.status = 201;
-        return await createShop(body);
+        return await createShop({
+          ...body,
+          description: body.description ?? undefined,
+          allow_department_charge: body.allow_department_charge ?? undefined,
+          uses_dual_pricing: body.uses_dual_pricing ?? undefined,
+          spending_group_id: body.spending_group_id ?? undefined,
+        });
       } catch (e) {
         return handleErr(set, e);
       }
@@ -203,8 +209,8 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     async ({ params, query, set }) => {
       try {
         return await listShopProducts(params.shopId, {
-          search: query.search,
-          category: query.category,
+          search: query.search ?? undefined,
+          category: query.category ?? undefined,
           includeInactive: query.include_inactive === "true",
         });
       } catch (e) {
@@ -320,7 +326,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
       try {
         return await listShopMovements(params.shopId, {
           productId: query.product_id ? Number(query.product_id) : undefined,
-          type: query.type,
+          type: query.type ?? undefined,
           limit: query.limit ? Math.min(Math.max(Number(query.limit), 1), 1000) : undefined,
         });
       } catch (e) { return handleErr(set, e); }
@@ -340,7 +346,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     async ({ params, query, set }) => {
       try {
         return await listShopAuditLogs(params.shopId, {
-          action: query.action,
+          action: query.action ?? undefined,
           limit: query.limit ? Math.min(Math.max(Number(query.limit), 1), 200) : undefined,
           offset: query.offset ? Math.max(Number(query.offset), 0) : undefined,
         });

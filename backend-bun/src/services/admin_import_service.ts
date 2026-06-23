@@ -725,9 +725,9 @@ export async function buildTemplate(shopId: string): Promise<Response> {
     sheetName = "Store";
     aoa = [
       ["product_code", "name", "barcode", "price", "cost_price", "category", "uom", "shop_id",
-       "quantity", "cost_per_unit", "notes", "reference"],
+        "quantity", "cost_per_unit", "notes", "reference"],
       ["BK-001", "หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sampleShopId,
-       50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
+        50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
     ];
   }
 

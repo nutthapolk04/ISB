@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t, type StatusMap } from "elysia";
 import { requireAuth } from "@/middleware/auth";
 import {
   listUsers,
@@ -8,7 +8,7 @@ import {
   familyLookup,
 } from "@/services/user_service";
 
-function handle(set: { status?: number }) {
+function handle(set: { status?: number | keyof StatusMap }) {
   return (e: unknown) => {
     const err = e as { status?: number; message?: string };
     if (err.status && err.status >= 400 && err.status < 500) {

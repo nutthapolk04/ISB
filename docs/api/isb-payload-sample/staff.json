@@ -1,0 +1,220 @@
+{
+  "staffs": [
+    {
+      "customerId": 202468,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ED-TECH CENTER",
+      "familyCode": 202468,
+      "firstName": "Jirawat",
+      "lastName": "JIRACHAISOPIT",
+      "hasChildren": false,
+      "profileImage": "202468_SF.jpg",
+      "smartCard": {
+        "cardNumber": "D7F8F836"
+      },
+      "login": {
+        "loginId": "jirawatj@isb.ac.th",
+        "email": "jirawatj@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 202266,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ED-TECH CENTER",
+      "familyCode": 202266,
+      "firstName": "Phatthara",
+      "lastName": "BUNLUESIN",
+      "hasChildren": false,
+      "profileImage": "202266_SF.jpg",
+      "smartCard": {
+        "cardNumber": "558CEC3A"
+      },
+      "login": {
+        "loginId": "phatthab@isb.ac.th",
+        "email": "phatthab@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 201210,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ED-TECH CENTER",
+      "familyCode": 201210,
+      "firstName": "Angkana",
+      "lastName": "PROMESIRISAN",
+      "hasChildren": false,
+      "profileImage": "201210_SF.jpg",
+      "smartCard": {
+        "cardNumber": "E4BA5338"
+      },
+      "login": {
+        "loginId": "angkanan@isb.ac.th",
+        "email": "angkanan@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 201450,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ED-TECH CENTER",
+      "familyCode": 201450,
+      "firstName": "Chad Crawford",
+      "lastName": "BATES",
+      "hasChildren": false,
+      "profileImage": "201450_SF.jpg",
+      "smartCard": {
+        "cardNumber": "6516703A"
+      },
+      "login": {
+        "loginId": "chadb@isb.ac.th",
+        "email": "chadb@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 201208,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "MARKETING & COMMUNICATION",
+      "familyCode": 201208,
+      "firstName": "Narin",
+      "lastName": "ONGARTHACHAT",
+      "hasChildren": false,
+      "profileImage": "201208_SF.jpg",
+      "smartCard": {
+        "cardNumber": "4598473A"
+      },
+      "login": {
+        "loginId": "narino@isb.ac.th",
+        "email": "narino@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 201274,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "LDC/CURRICULUM OFFICE",
+      "familyCode": 201274,
+      "firstName": "Sathaporn",
+      "lastName": "SOMCHIT",
+      "hasChildren": false,
+      "profileImage": "201274_SF.jpg",
+      "smartCard": {
+        "cardNumber": "776A6355"
+      },
+      "login": {
+        "loginId": "tua@isb.ac.th",
+        "email": "tua@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 201213,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 201213,
+      "firstName": "Suttinee",
+      "lastName": "AVUSOSAKUL",
+      "hasChildren": false,
+      "profileImage": "201213_SF.jpg",
+      "smartCard": {
+        "cardNumber": "0789FE2A"
+      },
+      "login": {
+        "loginId": "suttinel@isb.ac.th",
+        "email": "suttinel@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 200990,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "EWC-EnvironmentWildernessCamp",
+      "familyCode": 200990,
+      "firstName": "Thitaphong",
+      "lastName": "PISITSIRIKUL",
+      "hasChildren": false,
+      "profileImage": "200990_SF.jpg",
+      "smartCard": {
+        "cardNumber": "45BF313A"
+      },
+      "login": {
+        "loginId": "thitaphp@isb.ac.th",
+        "email": "thitaphp@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 202301,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "MARKETING & COMMUNICATION",
+      "familyCode": 202301,
+      "firstName": "Somchai",
+      "lastName": "RAKDEE",
+      "hasChildren": true,
+      "profileImage": "202301_SF.jpg",
+      "smartCard": {
+        "cardNumber": "AA1100BB"
+      },
+      "login": {
+        "loginId": "somchair@isb.ac.th",
+        "email": "somchair@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 202303,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "Admissions",
+      "familyCode": 202303,
+      "firstName": "Prasit",
+      "lastName": "JAIDEE",
+      "hasChildren": true,
+      "profileImage": "202303_SF.jpg",
+      "smartCard": {
+        "cardNumber": "BB2200CC"
+      },
+      "login": {
+        "loginId": "prasitj@isb.ac.th",
+        "email": "prasitj@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 202304,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "GOVERNMENT LIAISON OFFICE",
+      "familyCode": 202303,
+      "firstName": "Wanida",
+      "lastName": "JAIDEE",
+      "hasChildren": true,
+      "profileImage": "202304_SF.jpg",
+      "smartCard": {
+        "cardNumber": "BB2201CC"
+      },
+      "login": {
+        "loginId": "wanidaj@isb.ac.th",
+        "email": "wanidaj@isb.ac.th"
+      }
+    },
+    {
+      "customerId": 202306,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "K-12 ARTS AND ACTIVITIES",
+      "familyCode": 70652,
+      "firstName": "Pornthip",
+      "lastName": "SUWAN",
+      "hasChildren": true,
+      "profileImage": "202306_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CC3301DD"
+      },
+      "login": {
+        "loginId": "porntips@isb.ac.th",
+        "email": "porntips@isb.ac.th"
+      }
+    }
+  ]
+}
