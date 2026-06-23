@@ -71,9 +71,7 @@ function todayStr() {
 }
 
 function monthStartStr() {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit" })
-    .format(new Date()).split("-");
-  return `${parts[0]}-${parts[1]}-01`;
+  return new Date().toLocaleDateString("en-CA", { timeZone: TZ }).slice(0, 7) + "-01";
 }
 
 function todayLabel() {
