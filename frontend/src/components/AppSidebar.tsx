@@ -241,6 +241,8 @@ export function AppSidebar() {
             if (hasRole(...item.roles)) return true;
             // staff+shopId bypasses role check only for module-specific POS groups (canteen/store), not Users/Admin
             if (staffWithShop && group.module !== null && item.roles.some((r) => (["cashier", "manager"] as string[]).includes(r))) return true;
+            // staff who also has parent role (isParentLike) should see parent nav items
+            if (isParentLike && item.roles.includes("parent")) return true;
             return false;
           });
           if (visibleItems.length === 0) return null;
