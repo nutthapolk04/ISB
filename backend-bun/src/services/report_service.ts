@@ -561,11 +561,15 @@ export async function stockCardReport(args: {
   }
   if (args.category) productConds.push(eq(shopProducts.category, args.category));
 
+  process.stdout.write(`[SC] productSearch=${JSON.stringify(args.productSearch)} conds=${productConds.length}\n`);
+
   const productsRows = await db
     .select()
     .from(shopProducts)
     .where(and(...productConds))
     .orderBy(asc(shopProducts.name));
+
+  process.stdout.write(`[SC] db returned ${productsRows.length} rows\n`);
 
   let products = await Promise.all(productsRows.map((p) => buildProductBlock(p, args.dateFrom, args.dateTo)));
   // In-memory fallback filter (in case DB ILIKE didn't apply)
@@ -574,6 +578,7 @@ export async function stockCardReport(args: {
     products = products.filter((b) =>
       b.product_code.toLowerCase().includes(term) || b.product_name.toLowerCase().includes(term),
     );
+    process.stdout.write(`[SC] after in-memory filter: ${products.length} products (term=${JSON.stringify(term)})\n`);
   }
   if (!args.includeEmpty) {
     products = products.filter((b) => b.rows.length > 2);

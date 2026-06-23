@@ -304,6 +304,10 @@ const Reports = () => {
     setStockCardCategory("all");
   }, [stockCardShopId, user?.role, user?.shopId]);
 
+  useEffect(() => {
+    setStockCardData(null);
+  }, [stockCardShopId]);
+
   // ── Sales Summary state ─────────────────────────────────────────────────
   // Every filter is optional. Strings start empty (untouched), dropdown
   // selects default to "all".
@@ -363,6 +367,7 @@ const Reports = () => {
       return;
     }
     setStockCardLoading(true);
+    setStockCardData(null);
     try {
       const params = new URLSearchParams({
         shop_id: effectiveShopId,
@@ -954,6 +959,22 @@ const Reports = () => {
     }
   };
 
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const result = await buildDialogReportPayload();
+      if (!result) return;
+      await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
+      toast.success(t("reports.exportSuccess"));
+      setIsDatePickerOpen(false);
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
+      toast.error(detail);
+    } finally {
+      setExporting(false);
+    }
+  };
+
 
   return (
     <div className="page-shell">
@@ -1025,8 +1046,8 @@ const Reports = () => {
                     id="scDateRange"
                     startDate={stockCardFrom}
                     endDate={stockCardTo}
-                    onStartChange={setStockCardFrom}
-                    onEndChange={setStockCardTo}
+                    onStartChange={(v) => { setStockCardFrom(v); setStockCardData(null); }}
+                    onEndChange={(v) => { setStockCardTo(v); setStockCardData(null); }}
                   />
                 </div>
               </div>
@@ -1038,7 +1059,11 @@ const Reports = () => {
                   <Input
                     id="scProductSearch"
                     value={stockCardProductSearch}
-                    onChange={(e) => setStockCardProductSearch(e.target.value)}
+                    onChange={(e) => {
+                      setStockCardProductSearch(e.target.value);
+                      setStockCardData(null);
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleLoadStockCard(); }}
                     placeholder={t(
                       "reports.stockCard.productSearchPlaceholder",
                       "Search by code, name, or barcode",
@@ -1049,7 +1074,7 @@ const Reports = () => {
                   <Label htmlFor="scCategory">
                     {t("reports.stockCard.category", "Category")}
                   </Label>
-                  <Select value={stockCardCategory} onValueChange={setStockCardCategory}>
+                  <Select value={stockCardCategory} onValueChange={(v) => { setStockCardCategory(v); setStockCardData(null); }}>
                     <SelectTrigger id="scCategory">
                       <SelectValue
                         placeholder={t("reports.stockCard.allCategories", "All categories")}
@@ -1619,6 +1644,10 @@ const Reports = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDatePickerOpen(false)} disabled={exporting}>
               {t("common.cancel")}
+            </Button>
+            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+              {t("reports.exportPdf", "Export PDF")}
             </Button>
             <Button onClick={handleExportExcel} disabled={exporting}>
               {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
