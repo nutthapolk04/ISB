@@ -11,20 +11,20 @@
 |------|--------|
 | **System Name** | Schooney POS — ISB Cooperative Payment System |
 | **Purpose** | Point of Sale system for international school cooperatives, supporting multiple shops |
-| **Architecture** | Monorepo: React SPA (`frontend/`) + FastAPI REST API (`backend/`) + PostgreSQL |
-| **Deployment** | Vercel (frontend) + Railway (backend + PostgreSQL) |
+| **Architecture** | Monorepo: React SPA (`frontend/`) + Elysia API (`backend-bun/`) + PostgreSQL |
+| **Deployment** | Vercel (frontend) + Railway (backend-bun + PostgreSQL) |
 | **Frontend URL** | https://isb-beta.vercel.app |
 | **Backend URL** | https://okontek-isb-project-prototype-production.up.railway.app |
-| **API Docs** | `{backend_url}/docs` (Swagger UI auto-generated) |
+| **API Docs** | `{backend_url}/docs` (Elysia Swagger) |
 
 ### Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router v6 |
-| Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic |
+| Backend | Bun, Elysia, Drizzle ORM, postgres-js |
 | Database | PostgreSQL 15+ |
-| Auth | JWT (python-jose) + bcrypt |
+| Auth | JWT (`@elysiajs/jwt`, HS256) |
 | i18n | react-i18next (EN / TH) |
 
 ---
