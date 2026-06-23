@@ -80,7 +80,7 @@ import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
 function handle(set: { status?: number }) {
   return (e: unknown) => {
     const err = e as { status?: number; message?: string };
-    if (err.status && err.status >= 400 && err.status < 500) {
+    if (err.status && err.status >= 400 && err.status < 600) {
       set.status = err.status;
       return { detail: err.message ?? "Bad request" };
     }
@@ -776,7 +776,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         return await checkout({ ...(body as Omit<CheckoutInput, "userId">), userId: Number(user.sub) });
       } catch (e) {
         const err = e as { status?: number; message?: string; code?: string };
-        if (err.status && err.status >= 400 && err.status < 500) {
+        if (err.status && err.status >= 400 && err.status < 600) {
           set.status = err.status;
           return err.code
             ? { detail: err.message ?? "Bad request", code: err.code }
