@@ -57,7 +57,8 @@ async function postWithTimeout(url: string, body: unknown, headers: Record<strin
       signal: ctrl.signal,
     });
   } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError") {
+    // Bun may throw Error (not DOMException) on abort — check name to cover both runtimes.
+    if (e instanceof Error && e.name === "AbortError") {
       throw new PymtGatewayError("PYMT gateway timeout (30s)", 504);
     }
     throw new PymtGatewayError(
