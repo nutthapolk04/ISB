@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const FIXTURE_DIR = join(import.meta.dir, "../../docs/api/isb-payload-sample");
-const TEST_API_KEY = "test-isb-sync-key";
+const TEST_API_KEY = process.env.ISB_SYNC_API_KEY ?? "test-api-key";
 const REQUIRED_DB_TEST = !!process.env.DATABASE_URL;
 
 function loadFixture(name: string): unknown {
