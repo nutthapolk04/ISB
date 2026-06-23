@@ -57,8 +57,13 @@ def create_qr_payment(
     }
 
     url = f"{settings.PYMT_BASE_URL}/api/v1/bay/qr"
-    with httpx.Client(timeout=30.0) as client:
-        resp = client.post(url, json=payload, headers=_headers("bay.qrPayment"))
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(url, json=payload, headers=_headers("bay.qrPayment"))
+    except httpx.TimeoutException:
+        raise PymtGatewayError("PYMT gateway timeout (30s)", 504)
+    except httpx.RequestError as e:
+        raise PymtGatewayError(f"PYMT gateway connection error: {e}", 502)
 
     if resp.status_code != 200:
         raise PymtGatewayError(f"PYMT QR error {resp.status_code}: {resp.text}", resp.status_code)
@@ -95,8 +100,13 @@ def create_easypay(
     }
 
     url = f"{settings.PYMT_BASE_URL}/api/v1/bay/easypay"
-    with httpx.Client(timeout=30.0) as client:
-        resp = client.post(url, json=payload, headers=_headers("bay.easypay"))
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(url, json=payload, headers=_headers("bay.easypay"))
+    except httpx.TimeoutException:
+        raise PymtGatewayError("PYMT gateway timeout (30s)", 504)
+    except httpx.RequestError as e:
+        raise PymtGatewayError(f"PYMT gateway connection error: {e}", 502)
 
     if resp.status_code != 200:
         raise PymtGatewayError(f"PYMT EASYPay error {resp.status_code}: {resp.text}", resp.status_code)

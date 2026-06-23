@@ -56,6 +56,14 @@ async function postWithTimeout(url: string, body: unknown, headers: Record<strin
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new PymtGatewayError("PYMT gateway timeout (30s)", 504);
+    }
+    throw new PymtGatewayError(
+      `PYMT gateway connection error: ${e instanceof Error ? e.message : String(e)}`,
+      502,
+    );
   } finally {
     clearTimeout(tid);
   }
