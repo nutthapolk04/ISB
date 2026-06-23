@@ -80,9 +80,13 @@ function RequireAuth() {
  *  without needing the cashier role explicitly. */
 function RequireRole({ roles }: { roles: UserRole[] }) {
   const { user } = useAuth();
-  const activeRole = (user?.activeRole ?? user?.role) as UserRole | undefined;
-  const staffWithShop = user?.role === "staff" && !!user?.shopId;
-  if ((!activeRole || !roles.includes(activeRole)) && !staffWithShop) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/" replace />;
+  // Capability-based check (allRoles), not mode-based (activeRole).
+  // A hybrid manager+parent user must reach /store even while activeRole=parent.
+  const allRoles = user.allRoles ?? [user.role];
+  const staffWithShop = user.role === "staff" && !!user.shopId;
+  const hasCapability = roles.some((r) => allRoles.includes(r));
+  if (!hasCapability && !staffWithShop) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 

@@ -909,7 +909,7 @@ const Store = () => {
         if (existing) {
           return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
         }
-        return [...prev, { ...product, quantity: 1, priceOverride: panelPrice }];
+        return [{ ...product, quantity: 1, priceOverride: panelPrice }, ...prev];
       });
       setLastAddedId(product.id);
     },

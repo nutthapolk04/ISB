@@ -1,44 +1,37 @@
-import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { fmtDateTime } from "@/lib/dateFormat";
-import { api } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/sonner";
 import { InfoCallout } from "@/components/InfoCallout";
+import { PricePanelManager } from "@/components/PricePanelManager";
+import { ShopImportPanel } from "@/components/ShopImportPanel";
 import CanteenProducts from "./CanteenProducts";
 import CanteenCategories from "./CanteenCategories";
 
-interface AuditLogEntry {
-  id: number;
-  entity_type: string;
-  entity_id: number | null;
-  entity_name: string | null;
-  action: string;
-  changes: Record<string, unknown> | null;
-  created_at: string;
-  user_username: string | null;
-  user_full_name: string | null;
+interface Shop {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  receipt_header?: string | null;
+  receipt_footer?: string | null;
 }
 
-/**
- * Manager-facing canteen menu page (/canteen/products).
- * Wraps CanteenProducts in tabs so managers can also manage categories + view audit log.
- */
 export default function CanteenMenuPage() {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const shopId = user?.shopId ?? "canteen";
 
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [auditLoading, setAuditLoading] = useState(false);
-
-  // Shared product query (same key as CanteenProducts — react-query dedupes).
-  // Used to compute per-category item counts for the Categories tab.
   const { data: products = [] } = useQuery({
     queryKey: ["canteen-products", shopId],
     queryFn: () =>
@@ -57,17 +50,46 @@ export default function CanteenMenuPage() {
     return counts;
   }, [products]);
 
-  const fetchAuditLogs = useCallback(async () => {
-    setAuditLoading(true);
-    try {
-      const data = await api.get<AuditLogEntry[]>(`/shops/${shopId}/audit-logs`);
-      setAuditLogs(data);
-    } catch {
-      /* silently ignore */
-    } finally {
-      setAuditLoading(false);
+  const { data: shop } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => api.get<Shop>(`/shops/${shopId}`),
+    enabled: !!shopId,
+  });
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [receiptHeader, setReceiptHeader] = useState("");
+  const [receiptFooter, setReceiptFooter] = useState("");
+
+  useEffect(() => {
+    if (shop) {
+      setName(shop.name);
+      setDescription(shop.description ?? "");
+      setIsActive(shop.is_active);
+      setReceiptHeader(shop.receipt_header ?? "");
+      setReceiptFooter(shop.receipt_footer ?? "");
     }
-  }, [shopId]);
+  }, [shop]);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      api.patch(`/shops/${shopId}`, {
+        name: name.trim(),
+        description: description.trim() || null,
+        is_active: isActive,
+        receipt_header: receiptHeader.trim() || null,
+        receipt_footer: receiptFooter.trim() || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shop", shopId] });
+      qc.invalidateQueries({ queryKey: ["shops"] });
+      toast.success(t("canteen.shopUpdated"));
+    },
+    onError: (e) => {
+      toast.error(e instanceof ApiError ? e.detail : t("canteen.shopUpdateFailed"));
+    },
+  });
 
   return (
     <div className="page-shell">
@@ -88,10 +110,14 @@ export default function CanteenMenuPage() {
         <TabsList>
           <TabsTrigger value="menu">{t("canteen.tabMenu")}</TabsTrigger>
           <TabsTrigger value="categories">{t("canteen.tabCategories")}</TabsTrigger>
-          <TabsTrigger value="audit" onClick={fetchAuditLogs}>{t("auditLog.title")}</TabsTrigger>
+          <TabsTrigger value="panels">{t("canteen.tabPanels", "Price Panels")}</TabsTrigger>
+          <TabsTrigger value="info">{t("canteen.tabInfo")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="menu" className="mt-4">
+        <TabsContent value="menu" className="mt-4 space-y-4">
+          {(hasRole("admin") || hasRole("manager")) && (
+            <ShopImportPanel shopId={shopId} showStockReceive={false} />
+          )}
           <CanteenProducts shopId={shopId} embedded />
         </TabsContent>
 
@@ -99,81 +125,67 @@ export default function CanteenMenuPage() {
           <CanteenCategories shopId={shopId} itemCounts={categoryItemCounts} />
         </TabsContent>
 
-        <TabsContent value="audit" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {auditLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <TabsContent value="panels" className="mt-4">
+          <PricePanelManager shopId={shopId} autoLoad />
+        </TabsContent>
+
+        <TabsContent value="info" className="mt-4">
+          <Card className="max-w-lg">
+            <CardHeader>
+              <CardTitle>{t("canteen.tabInfo")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>{t("management.shopId", "Shop ID")}</Label>
+                <div className="rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                  {shopId}
                 </div>
-              ) : (
-                <Table>
-                  {(() => {
-                    const hasDetail = auditLogs.some(
-                      (log) => log.changes && (log.action === "UPDATE_PRICE" || log.action === "DELETE_PRODUCT"),
-                    );
-                    return (
-                      <>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{t("auditLog.date")}</TableHead>
-                            <TableHead>{t("auditLog.user")}</TableHead>
-                            <TableHead>{t("auditLog.action")}</TableHead>
-                            <TableHead>{t("auditLog.product")}</TableHead>
-                            {hasDetail && <TableHead>{t("auditLog.detail")}</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {auditLogs.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={hasDetail ? 5 : 4} className="h-24 text-center text-muted-foreground">
-                                {t("auditLog.noLogs")}
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            auditLogs.map((log) => (
-                              <TableRow key={log.id}>
-                                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                                  {log.created_at ? fmtDateTime(log.created_at) : "-"}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {log.user_full_name || log.user_username || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={log.action === "DELETE_PRODUCT" ? "destructive" : "secondary"}
-                                    className="text-xs"
-                                  >
-                                    {log.action === "UPDATE_PRICE"
-                                      ? t("auditLog.actionUpdatePrice")
-                                      : log.action === "DELETE_PRODUCT"
-                                      ? t("auditLog.actionDeleteProduct")
-                                      : log.action}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-medium">{log.entity_name || "-"}</TableCell>
-                                {hasDetail && (
-                                  <TableCell className="text-sm text-muted-foreground">
-                                    {log.action === "UPDATE_PRICE" && log.changes ? (
-                                      <span>
-                                        {t("auditLog.oldPrice")}: ฿{(log.changes as {old: {external_price: number}}).old?.external_price ?? "-"}
-                                        {" → "}
-                                        {t("auditLog.newPrice")}: ฿{(log.changes as {new: {external_price: number}}).new?.external_price ?? "-"}
-                                      </span>
-                                    ) : log.action === "DELETE_PRODUCT" && log.changes ? (
-                                      <span>฿{(log.changes as {snapshot: {external_price: number}}).snapshot?.external_price ?? "-"}</span>
-                                    ) : "-"}
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </>
-                    );
-                  })()}
-                </Table>
-              )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("canteen.shopName")}</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("canteen.shopDescription")}</Label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t("canteen.descriptionPlaceholder")}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch checked={isActive} onCheckedChange={setIsActive} />
+                <Label>{isActive ? t("canteen.statusActive") : t("canteen.statusInactive")}</Label>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("management.receiptHeader", "Receipt Header")}</Label>
+                <Textarea
+                  value={receiptHeader}
+                  onChange={(e) => setReceiptHeader(e.target.value)}
+                  placeholder={t("management.receiptHeaderPlaceholder", "e.g. Shop Building A, 2nd Floor")}
+                  maxLength={200}
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">{t("management.receiptHeaderHint", "Shown below shop name on receipt")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("management.receiptFooter", "Receipt Footer")}</Label>
+                <Textarea
+                  value={receiptFooter}
+                  onChange={(e) => setReceiptFooter(e.target.value)}
+                  placeholder={t("management.receiptFooterPlaceholder", "e.g. Thank you for shopping with us!")}
+                  maxLength={200}
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">{t("management.receiptFooterHint", "Overrides school footer. Leave blank to use school default.")}</p>
+              </div>
+              <Button
+                onClick={() => saveMut.mutate()}
+                disabled={saveMut.isPending}
+                className="bg-amber-500 hover:bg-amber-600"
+              >
+                {saveMut.isPending ? t("canteen.saving") : t("canteen.save")}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

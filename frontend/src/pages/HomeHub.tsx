@@ -107,7 +107,6 @@ export default function HomeHub() {
 
   if (hasFamilyRole) {
     const kidCount = children.length;
-    const totalBalance = children.reduce((s, c) => s + (c.wallet_balance ?? 0), 0);
     // Hide the family tile for staff-with-shop who have no children — they don't need it
     const hideFamily = staffWithShop && kidCount === 0;
     if (!hideFamily) {
@@ -116,10 +115,9 @@ export default function HomeHub() {
         title: t("home.tileFamily", "Family"),
         status:
           kidCount > 0
-            ? t("home.tileFamilyStatus", {
+            ? t("home.tileFamilyCount", {
                 count: kidCount,
-                balance: formatTHB(totalBalance),
-                defaultValue: "{{count}} child(ren) · total {{balance}}",
+                defaultValue: "{{count}} child(ren)",
               })
             : t("home.tileFamilyEmpty", "No children linked"),
         icon: UsersIcon,
@@ -240,14 +238,14 @@ export default function HomeHub() {
                 <tile.icon className="h-14 w-14 text-foreground/70" strokeWidth={1.3} />
               </div>
               <div className="text-center space-y-1">
-                <h2 className="text-xl font-medium tracking-tight">{tile.title}</h2>
+                <h2 className="text-xl font-semibold">{tile.title}</h2>
                 {tile.status && (
-                  <p className="text-sm text-muted-foreground tabular-nums">
+                  <p className="text-sm text-muted-foreground">
                     {tile.status}
                   </p>
                 )}
                 {tile.switchTo && (
-                  <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground/60 pt-2">
+                  <p className="text-xs text-muted-foreground/70 pt-2">
                     {t(`roles.${tile.switchTo}`, tile.switchTo)}
                   </p>
                 )}

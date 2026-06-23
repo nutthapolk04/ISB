@@ -124,7 +124,6 @@ export function useCanteenCart(): CanteenCartState {
         const lineId = generateLineId();
         flashLine(lineId);
         return [
-          ...prev,
           {
             ...product,
             cartLineId: lineId,
@@ -132,6 +131,7 @@ export function useCanteenCart(): CanteenCartState {
             selectedOptions: [],
             optionsTotal: 0,
           },
+          ...prev,
         ];
       });
     },
@@ -144,7 +144,6 @@ export function useCanteenCart(): CanteenCartState {
       const lineId = generateLineId();
       flashLine(lineId);
       setItems((prev) => [
-        ...prev,
         {
           ...product,
           cartLineId: lineId,
@@ -153,6 +152,7 @@ export function useCanteenCart(): CanteenCartState {
           optionsTotal: 0,
           priceOverride: price,
         },
+        ...prev,
       ]);
     },
     [flashLine],
@@ -187,7 +187,6 @@ export function useCanteenCart(): CanteenCartState {
         const lineId = generateLineId();
         flashLine(lineId);
         return [
-          ...prev,
           {
             ...product,
             cartLineId: lineId,
@@ -195,6 +194,7 @@ export function useCanteenCart(): CanteenCartState {
             selectedOptions,
             optionsTotal,
           },
+          ...prev,
         ];
       });
     },
