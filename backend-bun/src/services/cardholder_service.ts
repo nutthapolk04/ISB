@@ -298,6 +298,8 @@ export interface CreateCardholderInput {
   initial_credit?: number | null;
   phone?: string | null;
   with_wallet?: boolean | null;
+  /** Employee/Student/Visitor ID — stored as external_id on users/customers. Not applicable to parent or department. */
+  external_id?: string | null;
 }
 
 function badRequest(msg: string): never {
@@ -345,10 +347,11 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
       const cins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO customers
           (customer_code, name, student_code, grade, school_type, family_code,
-           card_uid, customer_type_id, customer_kind, customer_type, is_active, card_frozen)
+           card_uid, customer_type_id, customer_kind, customer_type, is_active, card_frozen, external_id)
         VALUES (${input.customer_code}, ${input.name}, ${input.student_code ?? null},
                 ${input.grade ?? null}, ${input.school_type ?? null}, ${input.family_code ?? null},
-                ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true, false)
+                ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true, false,
+                ${input.external_id ?? null})
         RETURNING id
       `;
       custId = cins[0].id;
@@ -410,10 +413,11 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
     await pgClient.begin(async (sqlTx) => {
       const uins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO users (username, email, full_name, hashed_password, role, shop_id, family_code,
-                           card_uid, is_active, is_superuser, status)
+                           card_uid, is_active, is_superuser, status, external_id)
         VALUES (${input.username}, ${input.email || `${input.username}@isb-coop.local`},
                 ${input.name}, ${hash}, ${role}, ${input.shop_id ?? null}, ${input.family_code ?? null},
-                ${input.card_uid ?? null}, true, false, 'active')
+                ${input.card_uid ?? null}, true, false, 'active',
+                ${kind === "staff" ? (input.external_id ?? null) : null})
         RETURNING id
       `;
       uid = uins[0].id;
@@ -471,9 +475,9 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
     await pgClient.begin(async (sqlTx) => {
       const cins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO customers
-          (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active, card_frozen)
+          (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active, card_frozen, external_id)
         VALUES (${code}, ${input.name}, ${input.email ?? null}, ${input.phone ?? null},
-                ${ctId}, 'other', 'Other', true, false)
+                ${ctId}, 'other', 'Other', true, false, ${input.external_id ?? null})
         RETURNING id
       `;
       custId = cins[0].id;

@@ -89,6 +89,8 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   // Other
   const [phone, setPhone] = useState("");
   const [withWallet, setWithWallet] = useState(false);
+  // ID number (external_id) — student, staff, other; not parent, not department
+  const [externalId, setExternalId] = useState("");
 
   const reset = () => {
     setStep("pick");
@@ -100,6 +102,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
     setStaffRole("staff"); setShopId("");
     setDeptCode(""); setDeptName(""); setInitialCredit("0");
     setPhone(""); setWithWallet(false);
+    setExternalId("");
   };
 
   const close = () => { onOpenChange(false); reset(); };
@@ -174,6 +177,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
           grade: grade || null, school_type: schoolType,
           family_code: familyCode || null, card_uid: cardUid || null,
           initial_balance: parseFloat(initialBalance) || 0,
+          external_id: externalId.trim() || null,
         });
       } else if (kind === "parent" || kind === "staff") {
         Object.assign(body, {
@@ -183,6 +187,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
         if (kind === "staff") {
           body.role = staffRole;
           body.shop_id = shopId || null;
+          body.external_id = externalId.trim() || null;
         }
       } else if (kind === "department") {
         Object.assign(body, {
@@ -194,6 +199,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
           name, customer_code: customerCode || null,
           email: email || null, phone: phone || null,
           card_uid: cardUid || null, with_wallet: withWallet,
+          external_id: externalId.trim() || null,
         });
       }
       await api.post("/admin/cardholders", body);
@@ -267,6 +273,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                   </Field>
                 </div>
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
+                <Field label="ID Number"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} placeholder="MIFARE hex" /></Field>
                 <Field label="Initial balance (THB)"><Input type="number" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field>
               </>
@@ -380,6 +387,11 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                     )}
                   </>
                 )}
+                {kind === "staff" && (
+                  <Field label="Employee ID">
+                    <Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. EMP-001" />
+                  </Field>
+                )}
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
               </>
@@ -402,6 +414,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 <Field label="Visitor code (Customer code)"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="auto if blank" /></Field>
                 <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
                 <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
+                <Field label="ID Number"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={withWallet} onCheckedChange={(v) => setWithWallet(!!v)} />
