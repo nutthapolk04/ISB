@@ -273,7 +273,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                   </Field>
                 </div>
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
-                <Field label="ID Number"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
+                <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} placeholder="MIFARE hex" /></Field>
                 <Field label="Initial balance (THB)"><Input type="number" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field>
               </>
@@ -401,7 +401,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
 
             {kind === "department" && (
               <>
-                <Field label="Department code *"><Input value={deptCode} onChange={e => setDeptCode(e.target.value)} placeholder="DEPT-XXX" /></Field>
+                <Field label="Department ID *"><Input value={deptCode} onChange={e => setDeptCode(e.target.value)} placeholder="DEPT-XXX" /></Field>
                 <Field label="Department name *"><Input value={deptName} onChange={e => setDeptName(e.target.value)} /></Field>
                 <Field label="Initial credit (THB)"><Input type="number" value={initialCredit} onChange={e => setInitialCredit(e.target.value)} /></Field>
                 <p className="text-xs text-muted-foreground">
@@ -416,7 +416,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 <Field label="Visitor code (Customer code)"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="auto if blank" /></Field>
                 <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
                 <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
-                <Field label="ID Number"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
+                <Field label="Other ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={withWallet} onCheckedChange={(v) => setWithWallet(!!v)} />
