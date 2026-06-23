@@ -152,6 +152,11 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `ALTER TABLE shops ADD COLUMN IF NOT EXISTS void_shortcuts JSONB NOT NULL DEFAULT '[]'::jsonb`,
     label: "shops.void_shortcuts",
   },
+  // ── confirmed_via on payment_intents (used by wallet transaction channel display)
+  {
+    sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS confirmed_via VARCHAR(30)`,
+    label: "payment_intents.confirmed_via",
+  },
 ];
 
 export async function ensureSchema(): Promise<void> {
