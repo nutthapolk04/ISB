@@ -348,7 +348,7 @@ const Login = () => {
             <img src="/isb-logo.svg" alt="ISB" className="h-16 w-16 rounded-xl object-contain" />
             <div className="text-center">
               <h1 className="text-2xl font-bold tracking-tight">Schooney</h1>
-              <p className="text-sm text-muted-foreground">ISB Cooperative Payment System</p>
+              <p className="text-sm text-muted-foreground">ISB SCHOONEY SYSTEM</p>
             </div>
           </div>
 
