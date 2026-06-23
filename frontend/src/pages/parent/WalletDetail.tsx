@@ -478,7 +478,7 @@ export default function WalletDetail() {
                       <CreditCard className="h-4 w-4" />
                       {t("parent.wallet.creditCard")}
                     </span>
-                    <span className="text-[10px] font-normal opacity-80">{t("parent.wallet.creditFee")}</span>
+                    <span className="text-xs font-semibold opacity-90">{t("parent.wallet.creditFee")}</span>
                   </button>
                 </div>
               </div>
