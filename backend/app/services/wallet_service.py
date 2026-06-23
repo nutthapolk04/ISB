@@ -19,6 +19,7 @@ from app.models.customer import Customer
 from app.models.parent_child_link import ParentChildLink
 from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
 from app.models.user import User
+from app.models.audit_log import AuditLog, AuditAction
 from app.core.errors import BusinessRuleError
 from app.core.config import settings
 from app.services import pymt_gateway
@@ -407,6 +408,30 @@ class WalletService:
         intent.confirmed_via = confirmed_via
         if notes:
             intent.notes = (intent.notes or "") + f"\n{notes}"
+
+        # Determine wallet owner for audit context.
+        owner_type = "user" if wallet.user_id else ("customer" if wallet.customer_id else "department")
+        owner_id = wallet.user_id or wallet.customer_id or wallet.department_id
+
+        audit = AuditLog(
+            entity_type="wallet",
+            entity_id=wallet.id,
+            action=AuditAction.UPDATE_BALANCE,
+            user_id=confirmer_user_id or intent.created_by or 0,
+            changes_json={
+                "event": "topup_confirmed",
+                "amount": float(amount),
+                "balance_before": float(balance_before),
+                "balance_after": float(wallet.balance),
+                "payment_method": intent.payment_method,
+                "channel": confirmed_via or intent.payment_method,
+                "ref_code": ref_code,
+                "wallet_owner_type": owner_type,
+                "wallet_owner_id": owner_id,
+                "topup_initiated_by": intent.created_by,
+            },
+        )
+        db.add(audit)
 
         db.commit()
         db.refresh(tx)

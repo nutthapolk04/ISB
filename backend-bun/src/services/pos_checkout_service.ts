@@ -511,6 +511,8 @@ export async function checkout(input: CheckoutInput) {
       balanceAfter: number;
       amount: number;
     } | null = null;
+    let payerLabel: string | null = null;
+    let payerEntityId: number | null = null;
 
     if (isDepartmentPayment) {
       if (!input.payer_department_id) {
@@ -537,6 +539,8 @@ export async function checkout(input: CheckoutInput) {
       const balanceAfter = balanceBefore - total; // dept allows negative
       await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${walletId}`;
       walletDeductData = { walletId, balanceBefore, balanceAfter, amount: total };
+      payerEntityId = input.payer_department_id ?? null;
+      // dept name fetched lazily below if needed — skip to keep tx fast
     } else if (isWalletPayment && payerKind === "user" && input.payer_user_id !== null && input.payer_user_id !== undefined) {
       const wRows = await sqlTx<Array<{ id: number; balance: string }>>`
         SELECT id, balance FROM wallets WHERE user_id = ${input.payer_user_id} FOR UPDATE
@@ -565,6 +569,9 @@ export async function checkout(input: CheckoutInput) {
       }
       await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
       walletDeductData = { walletId, balanceBefore, balanceAfter: projected, amount: total };
+      payerEntityId = input.payer_user_id ?? null;
+      const uRows = await sqlTx<Array<{ full_name: string | null; username: string }>>`SELECT full_name, username FROM users WHERE id = ${input.payer_user_id} LIMIT 1`;
+      payerLabel = uRows[0]?.full_name ?? uRows[0]?.username ?? null;
     } else if (isWalletPayment && input.customer_id !== null && input.customer_id !== undefined) {
       const cRows = await sqlTx<Array<{ id: number; name: string; card_frozen: boolean; daily_limit: string | null; daily_limit_canteen: string | null; daily_limit_store: string | null; negative_credit_limit: string | null }>>`
         SELECT id, name, card_frozen, daily_limit, daily_limit_canteen, daily_limit_store, negative_credit_limit
@@ -631,6 +638,8 @@ export async function checkout(input: CheckoutInput) {
       }
       await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
       walletDeductData = { walletId, balanceBefore, balanceAfter: projected, amount: total };
+      payerLabel = customer.name;
+      payerEntityId = input.customer_id ?? null;
       if (input.customer_id) {
         postCheckoutCustomerData = { customerId: input.customer_id, balanceAfter: projected };
       }
@@ -692,6 +701,9 @@ export async function checkout(input: CheckoutInput) {
                 total,
                 items: prepared.length,
                 products: auditLines,
+                payer_kind: payerKind,
+                payer_label: payerLabel,
+                payer_id: payerEntityId,
               })}::jsonb)
     `;
 
