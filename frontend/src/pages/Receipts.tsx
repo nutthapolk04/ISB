@@ -25,6 +25,8 @@ import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
+import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 
 // ── Scope constants ──────────────────────────────────────────────────────────
 
@@ -107,8 +109,6 @@ interface ReceiptApi {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
-
 function fmtDate(iso: string, _locale?: string): string {
   return fmtDateTimeShared(iso);
 }
@@ -125,8 +125,6 @@ function fmtDateOnly(iso: string): string {
 // Receipt print uses the shared builder in lib/printReceipt so the layout
 // matches what auto-print produces at sale time. School is international so
 // the paper receipt is always rendered in English.
-
-import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 
 // ── Component ────────────────────────────────────────────────────────────────
 

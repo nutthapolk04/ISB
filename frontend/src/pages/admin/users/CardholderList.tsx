@@ -435,7 +435,7 @@ export default function CardholderList() {
           <Table>
             <TableHeader>
               <TableRow className="text-xs">
-                <TableHead className="min-w-[160px]">Name</TableHead>
+                <TableHead className="w-48">Name</TableHead>
                 <TableHead className="w-24">Type</TableHead>
                 <TableHead className="w-44">ID Number</TableHead>
                 <TableHead className="w-28">Family Code</TableHead>

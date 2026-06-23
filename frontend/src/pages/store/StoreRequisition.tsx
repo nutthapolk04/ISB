@@ -311,6 +311,14 @@ export default function StoreRequisition() {
                 <span className="text-muted-foreground">{t("requisition.referenceTotal", "Reference total")}</span>
                 <span className="font-semibold">฿{cartTotal.toFixed(2)}</span>
               </div>
+              <Button
+                variant="outline"
+                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                onClick={() => setCart([])}
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                {t("requisition.clearCart", "Clear all")}
+              </Button>
               <Button className="w-full" onClick={openCheckout} disabled={cart.length === 0}>
                 {t("requisition.proceed", "Issue / Checkout")}
               </Button>
