@@ -238,11 +238,8 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
       paymentPageUrl = r.payment_page_url;
       paymentFormParams = r.payment_form_params;
       await db.update(paymentIntents).set({ txnNo }).where(eq(paymentIntents.id, created.id));
-    } else if (PYMT_METHODS.has(paymentMethod) && !pymtConfigured) {
-      // PYMT method requested but gateway not configured — cancel intent + 503
-      await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, created.id));
-      throw new PymtGatewayError("PYMT not configured", 503);
-    }
+    // When PYMT is not configured, fall back to mock QR payload (already set as initialQrPayload).
+    // This mirrors Python backend behaviour and allows local-dev testing without real PYMT credentials.
   } catch (e) {
     if (e instanceof PymtGatewayError) {
       await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, created.id));

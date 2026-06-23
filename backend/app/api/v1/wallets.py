@@ -150,7 +150,7 @@ def create_topup(
     payload: TopupRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("parent", "staff", "admin", "cashier", "manager", "kitchen", "student")
+        require_role("parent", "staff", "admin", "cashier", "manager", "kitchen", "student", "kiosk")
     ),
 ):
     """Create a pending top-up intent. Authorised for any wallet the caller can access."""
@@ -186,7 +186,7 @@ def get_topup_status(
     ref_code: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("parent", "staff", "admin", "cashier", "manager", "kitchen", "student")
+        require_role("parent", "staff", "admin", "cashier", "manager", "kitchen", "student", "kiosk")
     ),
 ):
     """Read-only intent status for the success-page poller."""
