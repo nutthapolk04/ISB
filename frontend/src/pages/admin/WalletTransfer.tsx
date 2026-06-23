@@ -230,7 +230,7 @@ export default function WalletTransfer() {
         // Parent/staff: fetch their children
         setLoadingChildren(true);
         try {
-          const ch = await api.get<ChildSummary[]>(`/family/by-user/${p.user_id}`);
+          const { children: ch } = await api.get<{ children: ChildSummary[]; coparents: unknown[] }>(`/family/by-user/${p.user_id}`);
           setChildren(ch);
         } finally {
           setLoadingChildren(false);
@@ -314,10 +314,10 @@ export default function WalletTransfer() {
       // Re-fetch updated balances
       const [updatedParent, updatedChildren] = await Promise.all([
         api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(parent.username)}`),
-        api.get<ChildSummary[]>(`/family/by-user/${parent.user_id}`),
+        api.get<{ children: ChildSummary[]; coparents: unknown[] }>(`/family/by-user/${parent.user_id}`),
       ]);
       setParent(updatedParent);
-      setChildren(updatedChildren);
+      setChildren(updatedChildren.children);
       setTarget(null);
       setAmount("");
       setNote("");
