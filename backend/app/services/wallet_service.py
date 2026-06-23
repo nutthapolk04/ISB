@@ -7,6 +7,10 @@ from datetime import date, datetime
 from typing import List, Optional
 from decimal import Decimal
 
+# Credit/debit card surcharge passed to the customer for BAY EASYPay top-ups.
+# Set to 0.0 to absorb the fee on the ISB side.
+EASYPAY_FEE_RATE = 0.03
+
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func as sqlfunc
 
@@ -341,7 +345,10 @@ class WalletService:
                 success_url = f"{settings.FRONTEND_BASE_URL}/payment/bay/success?ref={ref}"
                 fail_url = f"{settings.FRONTEND_BASE_URL}/payment/bay/fail?ref={ref}"
                 cancel_url = f"{settings.FRONTEND_BASE_URL}/payment/bay/cancel?ref={ref}"
-                result = pymt_gateway.create_easypay(amount, ref, success_url, fail_url, cancel_url)
+                # BAY charges the fee-inclusive amount; wallet is credited with
+                # the original `amount` (fee is the customer's cost of using card).
+                charged_amount = round(amount * (1 + EASYPAY_FEE_RATE), 2)
+                result = pymt_gateway.create_easypay(charged_amount, ref, success_url, fail_url, cancel_url)
                 intent.txn_no = result.txn_no
                 db.commit()
                 _payment_page_url = result.payment_page_url
