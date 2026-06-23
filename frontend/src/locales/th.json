@@ -540,8 +540,7 @@
       "addShortcutDesc": "เฉพาะ Manager — แชร์กับ Cashier ทุกคนในร้านนี้",
       "shortcutPlaceholder": "เช่น ผิดแผนก",
       "removeShortcut": "ลบ shortcut",
-      "shortcutSaveFailed": "บันทึก shortcut ไม่สำเร็จ",
-      "pickShopHint": "เลือกร้านจาก filter ด้านบนเพื่อจัดการ shortcut"
+      "shortcutSaveFailed": "บันทึก shortcut ไม่สำเร็จ"
     },
     "download": "ดาวน์โหลดใบเสร็จ",
     "productList": "รายการสินค้า",

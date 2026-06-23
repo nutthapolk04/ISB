@@ -540,8 +540,7 @@
       "addShortcutDesc": "Manager-only. Shared with all cashiers in this shop.",
       "shortcutPlaceholder": "e.g. Wrong department",
       "removeShortcut": "Remove shortcut",
-      "shortcutSaveFailed": "Could not save shortcut",
-      "pickShopHint": "Pick a specific shop in the filter above to manage shortcuts"
+      "shortcutSaveFailed": "Could not save shortcut"
     },
     "download": "Download Receipt",
     "productList": "Product List",
