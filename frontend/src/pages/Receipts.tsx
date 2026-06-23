@@ -194,28 +194,34 @@ const Receipts = () => {
   const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
   const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
   const [newShortcutText, setNewShortcutText] = useState("");
+  // Effective shop for shortcut management: own shopId > picked filter shop
+  const effectiveShortcutShopId = user?.shopId
+    ?? (moduleScope === "canteen" && pickedCanteenShop !== "all" ? pickedCanteenShop : null)
+    ?? (moduleScope === "store" && pickedStoreShop !== "all" ? pickedStoreShop : null);
+
   const canEditShortcuts =
-    !!user?.shopId && (user?.role === "manager" || user?.role === "admin");
+    !!effectiveShortcutShopId && (user?.role === "manager" || user?.role === "admin");
 
   const canVoid = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
 
   useEffect(() => {
-    if (!user?.shopId) {
+    if (!effectiveShortcutShopId) {
       setCustomShortcuts([]);
       return;
     }
-    api.get<{ void_shortcuts?: string[] }>(`/shops/${user.shopId}`)
+    api.get<{ void_shortcuts?: string[] }>(`/shops/${effectiveShortcutShopId}`)
       .then((s) => setCustomShortcuts(Array.isArray(s.void_shortcuts) ? s.void_shortcuts : []))
       .catch(() => setCustomShortcuts([]));
-  }, [user?.shopId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveShortcutShopId]);
 
   const saveCustomShortcuts = async (next: string[]) => {
-    if (!user?.shopId) return;
+    if (!effectiveShortcutShopId) return;
     const prev = customShortcuts;
     setCustomShortcuts(next);
     try {
       const res = await api.put<{ void_shortcuts?: string[] }>(
-        `/shops/${user.shopId}/void-shortcuts`,
+        `/shops/${effectiveShortcutShopId}/void-shortcuts`,
         { shortcuts: next },
       );
       if (Array.isArray(res.void_shortcuts)) setCustomShortcuts(res.void_shortcuts);
@@ -888,6 +894,11 @@ const Receipts = () => {
                 disabled={voidLoading}
               />
             </div>
+            {!voidReason.trim() && (
+              <p className="text-xs text-destructive font-medium">
+                {t("receipts.voidDialog.reasonRequired")}
+              </p>
+            )}
             <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
               {t("receipts.voidDialog.irreversible")}
             </div>
@@ -905,7 +916,7 @@ const Receipts = () => {
               variant="destructive"
               className="flex-1"
               onClick={handleVoidConfirm}
-              disabled={voidLoading}
+              disabled={voidLoading || !voidReason.trim()}
             >
               {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("receipts.voidDialog.confirm")}

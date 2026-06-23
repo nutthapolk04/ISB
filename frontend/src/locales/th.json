@@ -520,7 +520,8 @@
     "voidDialog": {
       "title": "ยกเลิกใบเสร็จ",
       "walletRefundNote": "หากชำระด้วย Wallet เงินจะคืนเข้ากระเป๋าอัตโนมัติ",
-      "reasonLabel": "เหตุผลการยกเลิก (ไม่บังคับ)",
+      "reasonLabel": "เหตุผลการยกเลิก *",
+      "reasonRequired": "กรุณาเลือกหรือพิมพ์เหตุผลก่อนยกเลิก",
       "reasons": {
         "incorrect_transaction": "ทำรายการผิด",
         "customer_changed_mind": "ลูกค้าเปลี่ยนใจ",

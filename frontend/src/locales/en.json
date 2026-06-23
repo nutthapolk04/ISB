@@ -520,7 +520,8 @@
     "voidDialog": {
       "title": "Void Receipt",
       "walletRefundNote": "If paid via Wallet, the amount will be refunded automatically",
-      "reasonLabel": "Cancellation Reason (Optional)",
+      "reasonLabel": "Cancellation Reason *",
+      "reasonRequired": "Please select or enter a reason before voiding.",
       "reasons": {
         "incorrect_transaction": "Incorrect Transaction",
         "customer_changed_mind": "Customer Changed Mind",
