@@ -499,10 +499,15 @@ export async function deleteUser(caller: AccessTokenPayload, userId: number): Pr
     (err as { status?: number }).status = 400;
     throw err;
   }
-  const rows = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+  const rows = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
   if (!rows[0]) {
     const err = new Error("User not found");
     (err as { status?: number }).status = 404;
+    throw err;
+  }
+  if (rows[0].role === "admin") {
+    const err = new Error("Cannot delete a system admin account");
+    (err as { status?: number }).status = 403;
     throw err;
   }
   await db.delete(users).where(eq(users.id, userId));

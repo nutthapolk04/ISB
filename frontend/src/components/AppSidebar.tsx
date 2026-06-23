@@ -171,9 +171,11 @@ export function AppSidebar() {
 
   /** Group visibility: admin sees everything non-parent; otherwise filter by module */
   const groupVisible = (g: MenuGroup): boolean => {
+    // Multi-role hub: hide all nav until user selects a role from hub tiles
+    if (location.pathname === "/" && allRoles.length > 1) return false;
     if (g.module === null) return true; // gated at per-item role level
     if (!user) return false;
-    if (user.role === "admin") return true;
+    if (activeRole === "admin") return true;
     // Hide shop/canteen nav when user is on Hub or parent/wallet pages
     if (location.pathname === "/" || location.pathname.startsWith("/parent")) return false;
     return (user.shopModule ?? moduleOf(user.shopId)) === g.module;
@@ -240,7 +242,9 @@ export function AppSidebar() {
           const staffWithShop = user?.role === "staff" && !!user?.shopId;
           const visibleItems = group.items.filter((item) => {
             if (!item.roles) return true;
-            if (hasRole(...item.roles)) return true;
+            // For multi-role users, only show menu items that match the currently active role.
+            // Single-role users: activeRole === allRoles[0], so behaviour is unchanged.
+            if (item.roles.includes(activeRole as UserRole)) return true;
             // staff+shopId bypasses role check only for module-specific POS groups (canteen/store), not Users/Admin
             if (staffWithShop && group.module !== null && item.roles.some((r) => (["cashier", "manager"] as string[]).includes(r))) return true;
             // staff who also has parent role (isParentLike) should see parent nav items

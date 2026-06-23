@@ -3,11 +3,8 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth, moduleOf, type UserRole } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
-  ArrowRight,
   ChefHat,
   GraduationCap,
   ShieldCheck,
@@ -204,35 +201,29 @@ export default function HomeHub() {
   }
 
   return (
-    <div className="page-shell max-w-5xl mx-auto">
-      <div className="page-header space-y-1">
-        <h1 className="page-title">
-          {t("home.greeting", { name: user.fullName, defaultValue: "Hi, {{name}}" })}
-        </h1>
-        <p className="page-description">
-          {t("home.subtitle", "Pick a role to get started")}
+    <div className="page-shell max-w-4xl mx-auto">
+      <div className="text-center space-y-3 mb-16 pt-8">
+        <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground/70">
+          {t("home.welcome", "Welcome back")}
         </p>
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {allRoles.map((r) => (
-            <Badge key={r} variant="secondary" className="text-xs capitalize">
-              {t(`roles.${r}`, r)}
-            </Badge>
-          ))}
-        </div>
+        <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
+          {user.fullName}
+        </h1>
+        <div className="w-10 h-px bg-border/70 mx-auto !mt-6" />
       </div>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+        <div className="grid gap-10 sm:grid-cols-2 max-w-2xl mx-auto">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="aspect-square w-full rounded-2xl" />
           ))}
         </div>
       ) : tiles.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-center text-muted-foreground text-sm">
           {t("home.noShopAssigned", "Your account has not been assigned to a shop yet. Please contact your administrator.")}
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-10 sm:grid-cols-2 max-w-2xl mx-auto">
           {tiles.map((tile) => (
             <button
               key={tile.key}
@@ -243,28 +234,24 @@ export default function HomeHub() {
                 }
                 navigate(tile.to);
               }}
-              className="group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+              className="group flex flex-col items-center gap-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl"
             >
-              <Card
-                className={`h-full overflow-hidden border bg-gradient-to-br ${tile.accent} transition group-hover:shadow-md group-hover:-translate-y-0.5`}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="rounded-md bg-white/70 p-2 shadow-sm">
-                      <tile.icon className="h-5 w-5 text-foreground/80" />
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-foreground" />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-1">
-                  <CardTitle className="text-lg">{tile.title}</CardTitle>
-                  {tile.status && (
-                    <p className="text-sm text-muted-foreground tabular-nums truncate">
-                      {tile.status}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="w-full aspect-square max-w-[220px] rounded-2xl bg-muted/40 group-hover:bg-muted/70 flex items-center justify-center transition-all duration-300 group-hover:scale-[1.03]">
+                <tile.icon className="h-14 w-14 text-foreground/70" strokeWidth={1.3} />
+              </div>
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-medium tracking-tight">{tile.title}</h2>
+                {tile.status && (
+                  <p className="text-sm text-muted-foreground tabular-nums">
+                    {tile.status}
+                  </p>
+                )}
+                {tile.switchTo && (
+                  <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground/60 pt-2">
+                    {t(`roles.${tile.switchTo}`, tile.switchTo)}
+                  </p>
+                )}
+              </div>
             </button>
           ))}
         </div>

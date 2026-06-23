@@ -1441,8 +1441,16 @@
       "identityHistory": "Identity history",
       "rfidSmartCard": "RFID / Smart Card",
       "cardNotBound": "Not bound",
-      "rebind": "Rebind",
+      "rebind": "Change card",
       "bindCard": "Bind card",
+      "walletBalance": "Balance",
+      "deleteUser": "Delete user",
+      "deleteConfirm": "Are you sure you want to delete",
+      "deleteWarning": "This action cannot be undone.",
+      "deleteSuccess": "User deleted",
+      "deleteError": "Failed to delete user",
+      "deleting": "Deleting…",
+      "confirmDelete": "Delete",
       "cardUidHex": "Card UID (hex)",
       "user": "User",
       "profileTitle": "Profile",
@@ -2599,6 +2607,8 @@
       "canteenDesc": "Accept orders, process payments, and close daily sales",
       "store": "Cashier (Store)",
       "storeDesc": "Sell products, handle returns, and manage inventory",
+      "staff": "Staff / Teacher",
+      "staffDesc": "Manage your wallet, top up, and view spending history",
       "manager": "Manager",
       "managerDesc": "View sales overview, manage products, staff, and reports"
     },
@@ -2664,6 +2674,24 @@
       "step4": {
         "title": "Manage Card Settings",
         "desc": "Click Profile for a child. You can freeze or unfreeze their RFID card and set a daily spending limit (leave blank for unlimited). Changes take effect immediately at the POS."
+      }
+    },
+    "staff": {
+      "step1": {
+        "title": "Check Your Wallet Balance",
+        "desc": "Go to My Wallet in the sidebar. You will see your current balance and RFID card status. Your wallet is used at the canteen and cooperative store."
+      },
+      "step2": {
+        "title": "Top Up Your Wallet",
+        "desc": "Click Top Up on your wallet page. PromptPay shows a QR code to scan from your banking app. Credit/Debit redirects to the secure bank-hosted payment page (Krungsri EASYPay) — you enter your card on the bank's site, not inside ISB. Maximum ฿50,000 per transaction; credit card fee is 3%."
+      },
+      "step3": {
+        "title": "View Transaction History",
+        "desc": "Go to My Wallet → History. Filter by date range to see all purchases, top-ups, refunds, and adjustments. Click any row to view the full receipt."
+      },
+      "step4": {
+        "title": "Pay at the Canteen or Store",
+        "desc": "Tap your RFID card at the POS, or give the cashier your staff username to look you up. The cashier presses Search and deducts from your wallet balance."
       }
     },
     "canteen": {

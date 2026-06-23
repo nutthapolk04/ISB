@@ -79,9 +79,10 @@ function RequireAuth() {
  *  Special case: staff with a shop_id assigned can access POS routes
  *  without needing the cashier role explicitly. */
 function RequireRole({ roles }: { roles: UserRole[] }) {
-  const { hasRole, user } = useAuth();
+  const { user } = useAuth();
+  const activeRole = (user?.activeRole ?? user?.role) as UserRole | undefined;
   const staffWithShop = user?.role === "staff" && !!user?.shopId;
-  if (!hasRole(...roles) && !staffWithShop) return <Navigate to="/" replace />;
+  if ((!activeRole || !roles.includes(activeRole)) && !staffWithShop) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -138,7 +139,7 @@ function AppShell() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigate("/select-role")}
+                      onClick={() => navigate("/")}
                       title={t("rolePicker.switchRole")}
                       className="h-7 gap-1 text-xs text-muted-foreground px-2"
                     >

@@ -24,6 +24,7 @@ import {
   Layers,
   Upload,
   History as HistoryIcon,
+  GraduationCap,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,35 @@ const roleGuides: RoleGuide[] = [
         titleKey: "guide.parent.step4.title",
         descKey: "guide.parent.step4.desc",
         icon: CreditCard,
+      },
+    ],
+  },
+  {
+    id: "staff",
+    labelKey: "guide.roles.staff",
+    descKey: "guide.roles.staffDesc",
+    icon: GraduationCap,
+    color: "text-teal-600",
+    steps: [
+      {
+        titleKey: "guide.staff.step1.title",
+        descKey: "guide.staff.step1.desc",
+        icon: Wallet,
+      },
+      {
+        titleKey: "guide.staff.step2.title",
+        descKey: "guide.staff.step2.desc",
+        icon: CreditCard,
+      },
+      {
+        titleKey: "guide.staff.step3.title",
+        descKey: "guide.staff.step3.desc",
+        icon: FileText,
+      },
+      {
+        titleKey: "guide.staff.step4.title",
+        descKey: "guide.staff.step4.desc",
+        icon: ShoppingCart,
       },
     ],
   },
@@ -267,48 +297,63 @@ const roleGuides: RoleGuide[] = [
   },
 ];
 
+function roleToGuideId(
+  role: UserRole,
+  shopModule: string | null,
+  shopId: string | null,
+): string {
+  if (role === "cashier" || role === "kitchen") {
+    const mod = shopModule ?? (shopId?.startsWith("canteen") ? "canteen" : "store");
+    return mod === "canteen" ? "canteen" : "store";
+  }
+  if (role === "staff" && (shopModule || shopId)) {
+    const mod = shopModule ?? (shopId?.startsWith("canteen") ? "canteen" : "store");
+    return mod === "canteen" ? "canteen" : "store";
+  }
+  if (role === "staff") return "staff";
+  return role;
+}
+
 export default function GuidePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  // Filter the role guides to only the role the signed-in user actually
-  // plays. Admin sees every role (so support staff who need to coach a
-  // cashier can still flip through their guide). Everyone else sees just
-  // their own role's steps — no point in a cashier reading admin docs and
-  // wondering where the menu items are.
-  //
-  // Effective role = the user's activeRole (multi-role users pick it on the
-  // Role Picker) and falls back to their primary user.role.
   const effectiveRole = (user?.activeRole ?? user?.role ?? "cashier") as UserRole;
-  // cashier has no dedicated guide — map to canteen or store based on shop module
-  const guideRole = useMemo(() => {
-    // cashier / kitchen → map to their shop module's guide
-    if (effectiveRole === "cashier" || effectiveRole === "kitchen") {
-      const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
-      return mod === "canteen" ? "canteen" : "store";
-    }
-    // staff with a shop assignment → same mapping as cashier
-    if (effectiveRole === "staff" && (user?.shopModule || user?.shopId)) {
-      const mod = user?.shopModule ?? (user?.shopId?.startsWith("canteen") ? "canteen" : "store");
-      return mod === "canteen" ? "canteen" : "store";
-    }
-    // staff without shop (e.g. teacher) → wallet user like parent
-    if (effectiveRole === "staff") return "parent";
-    return effectiveRole;
-  }, [effectiveRole, user]);
+
+  // Show all roles when the user hasn't explicitly switched (activeRole === primary role).
+  // Once the user picks a role via Role Picker, show only that role's guide.
+  const hasExplicitlySelectedRole =
+    user?.activeRole != null && user.activeRole !== user?.role;
 
   const visibleGuides = useMemo(() => {
-    if (guideRole === "admin") return roleGuides;
-    const matched = roleGuides.filter((g) => g.id === guideRole);
-    // Fallback: unknown role → show all guides rather than silently defaulting to admin
-    return matched.length > 0 ? matched : roleGuides;
-  }, [guideRole]);
+    const roles: UserRole[] =
+      !hasExplicitlySelectedRole && user?.allRoles && user.allRoles.length > 1
+        ? user.allRoles
+        : [effectiveRole];
 
-  // Initial selection — first visible guide. If the user only sees one
-  // role, the sidebar collapses to that single tab (still useful as a
-  // visual anchor showing which role's docs they're reading).
+    if (roles.includes("admin" as UserRole)) return roleGuides;
+
+    const guideIds = [
+      ...new Set(
+        roles.map((r) =>
+          roleToGuideId(r, user?.shopModule ?? null, user?.shopId ?? null),
+        ),
+      ),
+    ];
+    const matched = roleGuides.filter((g) => guideIds.includes(g.id));
+    return matched.length > 0 ? matched : roleGuides;
+  }, [effectiveRole, hasExplicitlySelectedRole, user]);
+
+  // Initial tab = the guide matching the user's current active role.
+  const initialGuideId = roleToGuideId(
+    effectiveRole,
+    user?.shopModule ?? null,
+    user?.shopId ?? null,
+  );
   const [activeRole, setActiveRole] = useState<string>(
-    visibleGuides[0]?.id ?? roleGuides[0].id,
+    visibleGuides.find((g) => g.id === initialGuideId)?.id ??
+      visibleGuides[0]?.id ??
+      roleGuides[0].id,
   );
 
   const activeGuide =

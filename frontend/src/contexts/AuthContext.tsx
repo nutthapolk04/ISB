@@ -39,9 +39,9 @@ export interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithMockSSO: (email: string, fullName?: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (accessToken: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
+  loginWithMockSSO: (email: string, fullName?: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
+  loginWithGoogle: (accessToken: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
   logout: () => void;
   hasRole: (...roles: UserRole[]) => boolean;
   hasShopAccess: (shopId: ShopId) => boolean;
@@ -87,6 +87,8 @@ const MOCK_USERS: (AuthUser & { password: string })[] = [
   { id: 85003,  username: "85003",     password: "parent", fullName: "Brad Pitt",                role: "parent", allRoles: ["parent"], activeRole: "parent", shopId: null, shopName: null, shopModule: null },
   { id: 70652,  username: "70652",     password: "parent", fullName: "Kritsada SUWAN",           role: "parent", allRoles: ["parent"], activeRole: "parent", shopId: null, shopName: null, shopModule: null },
   { id: 70699,  username: "70699",     password: "parent", fullName: "Malee RAKDEE",             role: "parent", allRoles: ["parent"], activeRole: "parent", shopId: null, shopName: null, shopModule: null },
+  // Hybrid parent+manager
+  { id: 85100, username: "john_smith99", password: "parent", fullName: "John Smith",             role: "parent", allRoles: ["parent", "manager"], activeRole: "parent", shopId: "coop", shopName: "Coop Shop", shopModule: "store", familyCode: "FAM85100" },
 ];
 
 /**
@@ -152,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (
     username: string,
     password: string,
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
@@ -185,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             res.status,
             "(prototype demo mode)",
           );
-          return { success: true };
+          return { success: true, allRoles: authUser.allRoles };
         }
         return { success: false, error: detail };
       }
@@ -214,6 +216,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const secondaryRoles: UserRole[] = (backendUser.roles ?? [])
           .map((r: { name: string }) => r.name as UserRole)
           .filter((r: UserRole) => r !== resolvedRole);
+        const familyCode = backendUser.family_code ?? null;
+        // If user has a family_code they are also a parent/guardian — infer the role
+        // even when the backend omits it from the secondary roles list.
+        if (familyCode && !secondaryRoles.includes("parent" as UserRole) && resolvedRole !== "parent") {
+          secondaryRoles.push("parent" as UserRole);
+        }
+        // If a non-shop user has a shop_id assigned in the backend, they also operate
+        // that shop — infer manager role so the Role Picker and User Guide reflect it.
+        const SHOP_ROLES: UserRole[] = ["manager", "cashier", "kitchen", "canteen_owner"];
+        const hasShopRole = SHOP_ROLES.includes(resolvedRole) || secondaryRoles.some(r => SHOP_ROLES.includes(r));
+        if (backendUser.shop_id && !hasShopRole) {
+          secondaryRoles.push("manager" as UserRole);
+        }
         const allRoles: UserRole[] = [...new Set([resolvedRole, ...secondaryRoles])];
         const shopId = backendUser.shop_id ?? mockMatch?.shopId ?? null;
         // shop_module from backend wins; fall back to mock match or heuristic
@@ -228,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           shopId,
           shopName: mockMatch?.shopName ?? null,
           shopModule: backendModule ?? mockMatch?.shopModule ?? moduleOf(shopId),
-          familyCode: backendUser.family_code ?? null,
+          familyCode,
         };
         // Always fetch shop metadata when user has a shopId to get the real shop name.
         // Only update shopModule when backend didn't already provide it.
@@ -259,7 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(authUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
-      return { success: true };
+      return { success: true, allRoles: authUser.allRoles };
     } catch {
       // Offline mock fallback (prototype demo) — backend unreachable
       const found = MOCK_USERS.find(
@@ -273,7 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn(
           "[AuthContext] offline mock fallback — backend unreachable (prototype demo mode)",
         );
-        return { success: true };
+        return { success: true, allRoles: authUser.allRoles };
       }
       return { success: false, error: "Cannot reach server. Please try again." };
     }
@@ -282,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithMockSSO = async (
     email: string,
     fullName?: string,
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/sso/mock`, {
         method: "POST",
@@ -341,7 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
           .catch(() => {});
       }
-      return { success: true };
+      return { success: true, allRoles };
     } catch (e: any) {
       return { success: false, error: e?.message ?? "SSO unavailable" };
     }
@@ -349,7 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async (
     accessToken: string,
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/sso/google`, {
         method: "POST",
@@ -405,7 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
           .catch(() => {});
       }
-      return { success: true };
+      return { success: true, allRoles };
     } catch (e: any) {
       return { success: false, error: e?.message ?? "Google login unavailable" };
     }

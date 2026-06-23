@@ -162,6 +162,16 @@ const REF_SLIDES: RefSlide[] = [
     footer: "กระเป๋าของฉัน ฿800",
   },
   {
+    id: "hybrid",
+    title: "Hybrid (Multi-role)",
+    icon: ArrowLeftRight,
+    color: "bg-purple-100 text-purple-700",
+    rows: [
+      { label: "John Smith", user: "john_smith99", pwd: "parent", note: "Parent + Manager" },
+    ],
+    footer: "เลือก Role ได้ที่ Role Picker หลัง login",
+  },
+  {
     id: "others",
     title: "Others",
     icon: UserPlus,
