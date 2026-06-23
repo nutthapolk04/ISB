@@ -549,7 +549,7 @@ export function CashierTopupModal({
                       amount === String(qa) && "border-emerald-500 bg-emerald-50"
                     )}
                   >
-                    ฿{qa}
+                    ฿{qa.toLocaleString()}
                   </Button>
                 ))}
               </div>

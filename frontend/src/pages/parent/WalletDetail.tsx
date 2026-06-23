@@ -545,7 +545,7 @@ export default function WalletDetail() {
                         : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300",
                     )}
                   >
-                    ฿{v}
+                    ฿{v.toLocaleString()}
                   </Button>
                 ))}
               </div>

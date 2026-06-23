@@ -260,7 +260,7 @@ export default function Transfer() {
                   onClick={() => setAmount(String(v))}
                   className="h-10 text-sm tabular-nums"
                 >
-                  ฿{v}
+                  ฿{v.toLocaleString()}
                 </Button>
               ))}
             </div>

@@ -721,7 +721,7 @@ export default function WalletTransfer() {
                     onClick={() => setAmount(String(v))}
                     className="h-8 tabular-nums"
                   >
-                    ฿{v}
+                    ฿{v.toLocaleString()}
                   </Button>
                 ))}
               </div>
