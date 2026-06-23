@@ -26,6 +26,25 @@ const TERMINAL_DWELL_MS = 5000;
 export default function CustomerDisplay() {
   const display = useDisplayState();
   const [forceStandby, setForceStandby] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Browsers gate Fullscreen API behind a user gesture; the cashier just
+  // has to tap the screen once after dragging the window to the second
+  // monitor. We then suppress the hint and stay fullscreen until the OS
+  // or browser exits.
+  useEffect(() => {
+    const enter = () => {
+      if (document.fullscreenElement) return;
+      document.documentElement.requestFullscreen().catch(() => {});
+    };
+    document.addEventListener("click", enter);
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("click", enter);
+      document.removeEventListener("fullscreenchange", onChange);
+    };
+  }, []);
 
   // Whenever a fresh non-terminal state arrives, clear the "force standby"
   // override so the next transaction is rendered normally.
@@ -45,48 +64,62 @@ export default function CustomerDisplay() {
     return () => window.clearTimeout(id);
   }, [display]);
 
-  if (forceStandby) return <StandbyScreen />;
+  const fsHint = !isFullscreen ? (
+    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm pointer-events-none">
+      Tap anywhere to enter fullscreen
+    </div>
+  ) : null;
 
-  switch (display.state) {
-    case "review":
-      return (
-        <OrderReviewScreen
-          items={display.items}
-          total={display.total}
-          payer={display.payer}
-        />
-      );
-    case "qr":
-      return (
-        <QRScreen
-          items={display.items}
-          total={display.total}
-          qrPayload={display.qrPayload}
-          expiresAt={display.expiresAt}
-        />
-      );
-    case "processing":
-      return (
-        <ProcessingScreen
-          items={display.items}
-          total={display.total}
-          payer={display.payer}
-          method={display.method}
-        />
-      );
-    case "success":
-      return (
-        <SuccessScreen
-          total={display.total}
-          payer={display.payer}
-          method={display.method}
-          receiptNumber={display.receiptNumber}
-        />
-      );
-    case "failed":
-      return <FailedScreen reason={display.reason} />;
-    case "standby":
-    default:
-      return <StandbyScreen />;
-  }
+  const screen = (() => {
+    if (forceStandby) return <StandbyScreen />;
+    switch (display.state) {
+      case "review":
+        return (
+          <OrderReviewScreen
+            items={display.items}
+            total={display.total}
+            payer={display.payer}
+          />
+        );
+      case "qr":
+        return (
+          <QRScreen
+            items={display.items}
+            total={display.total}
+            qrPayload={display.qrPayload}
+            expiresAt={display.expiresAt}
+          />
+        );
+      case "processing":
+        return (
+          <ProcessingScreen
+            items={display.items}
+            total={display.total}
+            payer={display.payer}
+            method={display.method}
+          />
+        );
+      case "success":
+        return (
+          <SuccessScreen
+            total={display.total}
+            payer={display.payer}
+            method={display.method}
+            receiptNumber={display.receiptNumber}
+          />
+        );
+      case "failed":
+        return <FailedScreen reason={display.reason} />;
+      case "standby":
+      default:
+        return <StandbyScreen />;
+    }
+  })();
+
+  return (
+    <>
+      {screen}
+      {fsHint}
+    </>
+  );
 }
