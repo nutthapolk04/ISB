@@ -31,8 +31,6 @@ import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptAp
 // ── Scope constants ──────────────────────────────────────────────────────────
 
 type ModuleScope = "canteen" | "store";
-const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
-const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
 
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
@@ -133,6 +131,10 @@ const Receipts = () => {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const schoolInfo = useSchoolInfo();
+
+  // Defined inside component to avoid module-level TDZ issues in bundled output
+  const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
+  const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
 
   // ── Module scope detection (from URL) ───────────────────────────────────
   const moduleScope: ModuleScope = pathname.startsWith("/canteen")
