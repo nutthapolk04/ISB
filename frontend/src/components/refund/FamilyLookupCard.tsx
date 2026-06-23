@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { fmtDate } from "@/lib/dateFormat";
 
 interface FamilyLookupCardProps {
   /** Called when the user clicks "Refund" on a family member. */
@@ -52,8 +53,6 @@ interface FamilyLookupCardProps {
 
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
-
-import { fmtDate } from "@/lib/dateFormat";
 
 const formatDate = (iso: string | null): string => fmtDate(iso);
 

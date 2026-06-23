@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, downloadReceiptHtml } from "@/lib/printReceipt";
 import type { ReceiptApi } from "@/lib/printReceipt";
+import { fmtDateTime } from "@/lib/dateFormat";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,8 +100,6 @@ export interface ReceiptDetailData {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-import { fmtDateTime } from "@/lib/dateFormat";
 
 function fmtDate(iso: string): string {
   return fmtDateTime(iso);
