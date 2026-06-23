@@ -32,6 +32,8 @@ type ModuleScope = "canteen" | "store";
 const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
 const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
 
+
+
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
 interface ReceiptOptionsSnapshotApi {
@@ -135,7 +137,8 @@ const Receipts = () => {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const schoolInfo = useSchoolInfo();
-
+  const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
+  const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
   // ── Module scope detection (from URL) ───────────────────────────────────
   const moduleScope: ModuleScope = pathname.startsWith("/canteen")
     ? "canteen"
@@ -289,8 +292,6 @@ const Receipts = () => {
     }
   };
   // Admin-only picker for store scope (dynamic) / canteen scope (dynamic)
-  const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
-  const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
   const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
   const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
 
