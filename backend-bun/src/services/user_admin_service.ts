@@ -88,9 +88,9 @@ async function shopNameMap(): Promise<Map<string, string>> {
 }
 
 export interface ListAdminUsersParams {
-  role?: string;
-  q?: string;
-  status?: string;
+  role?: string | null;
+  q?: string | null;
+  status?: string | null;
 }
 
 export async function listAdminUsers(p: ListAdminUsersParams = {}): Promise<UserListItemDTO[]> {
@@ -147,8 +147,8 @@ export async function listAdminUsers(p: ListAdminUsersParams = {}): Promise<User
 }
 
 export async function listStaffForPicker(args: {
-  q?: string;
-  roles?: string;
+  q?: string | null;
+  roles?: string | null;
 }): Promise<StaffPickerItemDTO[]> {
   const roleList = (
     args.roles?.split(",").map((s) => s.trim()).filter(Boolean) ?? [
@@ -185,7 +185,7 @@ export async function listStaffForPicker(args: {
   }));
 }
 
-export async function listStudentsForLink(q?: string): Promise<StudentPickerItemDTO[]> {
+export async function listStudentsForLink(q?: string | null): Promise<StudentPickerItemDTO[]> {
   const conds = [isNotNull(customers.studentCode)];
   if (q?.trim()) {
     const pat = `%${q.trim().toLowerCase()}%`;
@@ -438,11 +438,11 @@ async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
     identityHistory("user", u.id),
     u.shopId
       ? db
-          .select({ name: shops.name })
-          .from(shops)
-          .where(eq(shops.id, u.shopId))
-          .limit(1)
-          .then((rs) => rs[0]?.name ?? null)
+        .select({ name: shops.name })
+        .from(shops)
+        .where(eq(shops.id, u.shopId))
+        .limit(1)
+        .then((rs) => rs[0]?.name ?? null)
       : Promise.resolve(null),
   ]);
 

@@ -114,10 +114,10 @@ async function loadItems(receiptId: number): Promise<ReceiptItemDTO[]> {
     created_at: pgToIso(item.createdAt)!,
     product_variant: product
       ? {
-          sku: product.productCode ?? null,
-          variant_name: product.name ?? null,
-          barcode: product.barcode ?? null,
-        }
+        sku: product.productCode ?? null,
+        variant_name: product.name ?? null,
+        barcode: product.barcode ?? null,
+      }
       : null,
   }));
 }
@@ -164,20 +164,20 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
       : Promise.resolve([] as Array<typeof departments.$inferSelect>),
     receipt.requesterUserId !== null
       ? db
-          .select({ fullName: users.fullName })
-          .from(users)
-          .where(eq(users.id, receipt.requesterUserId))
-          .limit(1)
+        .select({ fullName: users.fullName })
+        .from(users)
+        .where(eq(users.id, receipt.requesterUserId))
+        .limit(1)
       : Promise.resolve([] as Array<{ fullName: string }>),
   ]);
 
   const payer_kind: "customer" | "user" | "department" | null = receipt.payerDepartmentId
     ? "department"
     : receipt.payerUserId
-    ? "user"
-    : receipt.customerId
-    ? "customer"
-    : null;
+      ? "user"
+      : receipt.customerId
+        ? "customer"
+        : null;
 
   let payer_label: string | null = null;
   let payer_detail: PayerDetailDTO | null = null;
@@ -309,7 +309,9 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ReceiptDTO[]>
       conds.push(or(inArray(receipts.shopId, ids), isNull(receipts.shopId))!);
     }
   }
-  if (p.transactionMode) conds.push(eq(receipts.transactionMode, p.transactionMode));
+  if (p.transactionMode) {
+    conds.push(eq(receipts.transactionMode, p.transactionMode as typeof receipts.$inferSelect.transactionMode));
+  }
   if (p.requesterUserId !== undefined) conds.push(eq(receipts.requesterUserId, p.requesterUserId));
   if (p.dateFrom) conds.push(gte(receipts.transactionDate, p.dateFrom));
   if (p.dateTo) conds.push(lte(receipts.transactionDate, p.dateTo));

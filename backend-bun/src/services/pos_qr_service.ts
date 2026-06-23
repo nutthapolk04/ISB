@@ -128,7 +128,7 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
       .update(paymentIntents)
       .set({ status: "cancelled" })
       .where(eq(paymentIntents.id, inserted.id))
-      .catch(() => {});
+      .catch(() => { });
     throw e;
   }
 }

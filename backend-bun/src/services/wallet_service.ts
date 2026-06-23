@@ -433,11 +433,11 @@ export async function adjustBalance(args: {
       VALUES ('wallet', ${walletId}, ${"wallet#" + walletId}, NULL, 'UPDATE',
               ${adminUserId},
               ${JSON.stringify({
-                reason,
-                amount,
-                balance_before: balanceBefore,
-                balance_after: balanceAfter,
-              })}::jsonb)
+      reason,
+      amount,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+    })}::jsonb)
     `;
     return txRows[0];
   });
@@ -454,6 +454,7 @@ export async function adjustBalance(args: {
     description: result.description ?? null,
     shop_id: null,
     shop_name: null,
+    confirmed_via: null,
     created_at: pgToIso(result.created_at)!,
   };
 }
@@ -611,6 +612,7 @@ export async function listDepartmentTransactions(args: {
       description: t.description ?? null,
       shop_id: null,
       shop_name: null,
+      confirmed_via: null,
       created_at: pgToIso(t.createdAt)!,
     })),
   };
@@ -734,6 +736,7 @@ export async function transferWithinFamily(args: {
       description: row.description ?? null,
       shop_id: null,
       shop_name: null,
+      confirmed_via: null,
       created_at: pgToIso(row.created_at)!,
     });
 

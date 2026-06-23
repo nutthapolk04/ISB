@@ -33,6 +33,15 @@ const TOPUP_LABEL_BY_METHOD: Record<string, string> = {
 
 const PYMT_METHODS = new Set(["bay_qr", "bay_easypay"]);
 
+function requireIntentWalletId(walletId: number | null, refCode: string): number {
+  if (walletId == null) {
+    const err = new Error(`Top-up intent ${refCode} has no wallet_id`);
+    (err as { status?: number }).status = 500;
+    throw err;
+  }
+  return walletId;
+}
+
 export interface TopupIntentDTO {
   ref_code: string;
   wallet_id: number;
@@ -255,7 +264,7 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
 
   return {
     ref_code: created.refCode,
-    wallet_id: created.walletId,
+    wallet_id: created.walletId ?? input.walletId,
     amount: pgNumber(created.amount) ?? 0,
     qr_payload: qrPayload,
     status: created.status,
@@ -301,7 +310,7 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
     // No gateway txnNo yet — nothing to inquire. Return current local state.
     return {
       ref_code: intent.refCode,
-      wallet_id: intent.walletId,
+      wallet_id: requireIntentWalletId(intent.walletId, refCode),
       status: intent.status,
       gateway: {
         status: "pending",
@@ -324,7 +333,7 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
     // Non-BAY method (e.g. mock qr_promptpay) — gateway has nothing to say.
     return {
       ref_code: intent.refCode,
-      wallet_id: intent.walletId,
+      wallet_id: requireIntentWalletId(intent.walletId, refCode),
       status: intent.status,
       gateway: {
         status: "pending",
@@ -360,7 +369,7 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
 
   return {
     ref_code: intent.refCode,
-    wallet_id: intent.walletId,
+    wallet_id: requireIntentWalletId(intent.walletId, refCode),
     status: after[0]?.status ?? intent.status,
     gateway: result,
   };
@@ -383,7 +392,7 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
       amount: pgNumber(intent.amount) ?? 0,
       payment_method: intent.paymentMethod,
     },
-    walletId: intent.walletId,
+    walletId: requireIntentWalletId(intent.walletId, refCode),
   };
 }
 

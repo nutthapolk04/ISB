@@ -339,6 +339,9 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
     const ctId = await ensureCustomerTypeId("INTERNAL");
     const initBalance = input.initial_balance ?? 0;
 
+    const customerCode = input.customer_code!;
+    const studentName = input.name!;
+
     let custId = 0;
     let walletId = 0;
     await pgClient.begin(async (sqlTx) => {
@@ -346,7 +349,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
         INSERT INTO customers
           (customer_code, name, student_code, grade, school_type, family_code,
            card_uid, customer_type_id, customer_kind, customer_type, is_active, card_frozen)
-        VALUES (${input.customer_code}, ${input.name}, ${input.student_code ?? null},
+        VALUES (${customerCode}, ${studentName}, ${input.student_code ?? null},
                 ${input.grade ?? null}, ${input.school_type ?? null}, ${input.family_code ?? null},
                 ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true, false)
         RETURNING id
@@ -358,15 +361,16 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
       walletId = wins[0].id;
       // Optional student user login
       if (input.student_code) {
-        const exists = await sqlTx<Array<{ id: number }>>`SELECT id FROM users WHERE username = ${input.student_code}`;
+        const studentCode = input.student_code;
+        const exists = await sqlTx<Array<{ id: number }>>`SELECT id FROM users WHERE username = ${studentCode}`;
         if (!exists[0]) {
           const hash = await Bun.password.hash("parent", { algorithm: "bcrypt", cost: 12 });
           await sqlTx`
             INSERT INTO users (username, email, full_name, hashed_password, is_active, is_superuser,
                                role, status, customer_type, external_id, family_code)
-            VALUES (${input.student_code}, ${`${input.student_code}@students.isb.ac.th`},
-                    ${input.name}, ${hash}, true, false, 'student', 'active', 'Student',
-                    ${input.student_code}, ${input.family_code ?? null})
+            VALUES (${studentCode}, ${`${studentCode}@students.isb.ac.th`},
+                    ${studentName}, ${hash}, true, false, 'student', 'active', 'Student',
+                    ${studentCode}, ${input.family_code ?? null})
           `;
         }
       }
@@ -402,6 +406,8 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
       const sr = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, input.shop_id)).limit(1);
       if (!sr[0]) badRequest(`Shop ${input.shop_id} not found`);
     }
+    const username = input.username!;
+    const displayName = input.name!;
     const hash = await Bun.password.hash(pw, { algorithm: "bcrypt", cost: 12 });
 
     let uid = 0;
@@ -411,8 +417,8 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
       const uins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO users (username, email, full_name, hashed_password, role, shop_id, family_code,
                            card_uid, is_active, is_superuser, status)
-        VALUES (${input.username}, ${input.email || `${input.username}@isb-coop.local`},
-                ${input.name}, ${hash}, ${role}, ${input.shop_id ?? null}, ${input.family_code ?? null},
+        VALUES (${username}, ${input.email ?? `${username}@isb-coop.local`},
+                ${displayName}, ${hash}, ${role}, ${input.shop_id ?? null}, ${input.family_code ?? null},
                 ${input.card_uid ?? null}, true, false, 'active')
         RETURNING id
       `;
@@ -464,6 +470,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
   if (kind === "other") {
     if (!input.name) badRequest("name required for other");
     const ctId = await ensureCustomerTypeId("PUBLIC");
+    const otherName = input.name!;
     const code = input.customer_code || `OTH-${Math.floor(Date.now() / 1000)}`;
     let custId = 0;
     let walletId: number | null = null;
@@ -472,7 +479,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
       const cins = await sqlTx<Array<{ id: number }>>`
         INSERT INTO customers
           (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active, card_frozen)
-        VALUES (${code}, ${input.name}, ${input.email ?? null}, ${input.phone ?? null},
+        VALUES (${code}, ${otherName}, ${input.email ?? null}, ${input.phone ?? null},
                 ${ctId}, 'other', 'Other', true, false)
         RETURNING id
       `;

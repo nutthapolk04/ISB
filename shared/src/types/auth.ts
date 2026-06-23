@@ -8,7 +8,8 @@ export type UserRole =
   | "teacher"
   | "kitchen"
   | "canteen_owner"
-  | "refund_officer";
+  | "refund_officer"
+  | "kiosk";
 
 export type ShopId = string;
 

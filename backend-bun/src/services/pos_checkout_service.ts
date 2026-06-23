@@ -1,3 +1,4 @@
+import type { SqlTx } from "@/lib/sql_tx";
 import { and, eq, sql, desc, like, inArray } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
@@ -71,7 +72,7 @@ export interface CheckoutInput {
   userId: number;
 }
 
-async function generateReceiptNumber(sqlTx: typeof pgClient, shopId?: string | null): Promise<string> {
+async function generateReceiptNumber(sqlTx: SqlTx, shopId?: string | null): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   // Include a 3-char shop code so each shop has its own sequence and
   // receipt numbers from different shops can never collide in the unique index.
@@ -688,11 +689,11 @@ export async function checkout(input: CheckoutInput) {
       VALUES ('receipt', ${receiptId}, ${receiptNumber}, ${effectiveShopId}, 'CREATE',
               ${input.userId},
               ${JSON.stringify({
-                payment_method: paymentMethod.toLowerCase(),
-                total,
-                items: prepared.length,
-                products: auditLines,
-              })}::jsonb)
+      payment_method: paymentMethod.toLowerCase(),
+      total,
+      items: prepared.length,
+      products: auditLines,
+    })}::jsonb)
     `;
 
     return receiptId;
@@ -702,7 +703,7 @@ export async function checkout(input: CheckoutInput) {
   // Fire-and-forget — never block checkout response
   const notifyData = postCheckoutCustomerData as { customerId: number; balanceAfter: number } | null;
   if (notifyData) {
-    checkAndSendLowBalanceAlerts(notifyData.customerId, notifyData.balanceAfter).catch(() => {});
+    checkAndSendLowBalanceAlerts(notifyData.customerId, notifyData.balanceAfter).catch(() => { });
   }
   return receipt;
 }

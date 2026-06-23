@@ -590,14 +590,16 @@ export async function stockCardReport(args: {
 
 // ── /sales-summary + /sales-by-item ────────────────────────────────────────
 
-const RECEIVE_TYPE_GROUPS: Record<string, string[]> = {
+const RECEIVE_TYPE_GROUPS = {
   cash: ["CASH"],
   wallet: ["WALLET", "CARD_TAP"],
   credit: ["CREDIT_CARD", "DEBIT_CARD", "EDC"],
   qr: ["BANK_TRANSFER"],
   department: ["DEPARTMENT"],
   other: ["OTHER"],
-};
+} as const satisfies Record<string, readonly (typeof receipts.$inferSelect.paymentMethod)[]>;
+
+type ReceiveTypeKey = keyof typeof RECEIVE_TYPE_GROUPS;
 
 function amountColumnFor(method: string): string {
   if (method === "CASH") return "amt_cash";
@@ -685,8 +687,8 @@ export async function salesSummaryReport(args: {
   if (args.receiptNoFrom) conds.push(gte(receipts.receiptNumber, args.receiptNoFrom));
   if (args.receiptNoTo) conds.push(lte(receipts.receiptNumber, args.receiptNoTo));
   if (args.receiveType && args.receiveType !== "all") {
-    const methods = RECEIVE_TYPE_GROUPS[args.receiveType];
-    if (methods) conds.push(inArray(receipts.paymentMethod, methods));
+    const methods = RECEIVE_TYPE_GROUPS[args.receiveType as ReceiveTypeKey];
+    if (methods) conds.push(inArray(receipts.paymentMethod, [...methods]));
   }
 
   // Use a single query with left-joins so optional customer filters work without
@@ -770,7 +772,9 @@ export async function salesSummaryReport(args: {
 
     totals.amt_receive += amtReceive;
     totals.amt_change += amtChange;
-    (totals as Record<string, number>)[col] += amtReceive;
+    if (col !== "amt_receive" && col !== "amt_change") {
+      totals[col] += amtReceive;
+    }
   });
 
   return {
@@ -839,8 +843,8 @@ export async function salesByItemReport(args: {
   if (args.receiptNoFrom) conds.push(gte(receipts.receiptNumber, args.receiptNoFrom));
   if (args.receiptNoTo) conds.push(lte(receipts.receiptNumber, args.receiptNoTo));
   if (args.receiveType && args.receiveType !== "all") {
-    const methods = RECEIVE_TYPE_GROUPS[args.receiveType];
-    if (methods) conds.push(inArray(receipts.paymentMethod, methods));
+    const methods = RECEIVE_TYPE_GROUPS[args.receiveType as ReceiveTypeKey];
+    if (methods) conds.push(inArray(receipts.paymentMethod, [...methods]));
   }
   if (args.familyCode) conds.push(eq(customers.familyCode, args.familyCode));
   if (args.userName) {

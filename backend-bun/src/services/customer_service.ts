@@ -812,17 +812,17 @@ export async function getSpendingGroupUsageToday(
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
   const cond = customerId
     ? and(
-        eq(receipts.customerId, customerId),
-        eq(receipts.spendingGroupId, groupId),
-        eq(receipts.transactionDate, today),
-        sql`${receipts.status} = 'ACTIVE'`,
-      )
+      eq(receipts.customerId, customerId),
+      eq(receipts.spendingGroupId, groupId),
+      eq(receipts.transactionDate, today),
+      sql`${receipts.status} = 'ACTIVE'`,
+    )
     : and(
-        eq(receipts.payerUserId, userId!),
-        eq(receipts.spendingGroupId, groupId),
-        eq(receipts.transactionDate, today),
-        sql`${receipts.status} = 'ACTIVE'`,
-      );
+      eq(receipts.payerUserId, userId!),
+      eq(receipts.spendingGroupId, groupId),
+      eq(receipts.transactionDate, today),
+      sql`${receipts.status} = 'ACTIVE'`,
+    );
 
   const spentRows = await db
     .select({ spent: sql<string>`COALESCE(SUM(${receipts.total}), '0')` })

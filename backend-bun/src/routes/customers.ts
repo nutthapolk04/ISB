@@ -75,7 +75,7 @@ export const customerRoutes = new Elysia({ name: "customers", prefix: "/customer
       return await listCustomers({
         skip: query.skip ? Number(query.skip) : undefined,
         limit: query.limit ? Number(query.limit) : undefined,
-        search: query.search,
+        search: query.search ?? undefined,
         isActive:
           query.is_active === "true" ? true : query.is_active === "false" ? false : undefined,
       });

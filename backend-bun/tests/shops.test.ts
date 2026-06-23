@@ -33,8 +33,6 @@ function mintToken(secret: string, payload: Record<string, unknown>): string {
 
 describe("GET /api/v1/shops contract", () => {
   it.if(REQUIRED_DB_TEST)("returns array of ShopResponse-shaped objects", async () => {
-    const { default: indexModule } = await import("../src/index");
-    void indexModule;
     const { Elysia } = await import("elysia");
     const { shopRoutes } = await import("../src/routes/shops");
     const app = new Elysia({ prefix: "/api/v1" }).use(shopRoutes);
@@ -78,9 +76,9 @@ describe("GET /api/v1/shops contract", () => {
     expect(Object.keys(shop).sort()).toEqual(expectedKeys);
     expect(typeof shop.id).toBe("string");
     expect(typeof shop.name).toBe("string");
-    expect(["avg_cost", "fifo"]).toContain(shop.shop_type);
+    expect(["avg_cost", "fifo"]).toContain(shop.shop_type as string);
     expect(typeof shop.is_active).toBe("boolean");
-    expect(["canteen", "store"]).toContain(shop.module);
+    expect(["canteen", "store"]).toContain(shop.module as string);
     expect(typeof shop.products_order_version).toBe("number");
 
     // ISO 8601 datetime with timezone, microsecond-precision allowed
