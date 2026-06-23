@@ -263,6 +263,7 @@ interface IsbDepartment {
   customerType: "Department";
   departmentDescription: string;
   login?: { loginId: string; email: string } | null;
+  smartCard?: { cardNumber: string };
 }
 
 export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<BatchResult> {
