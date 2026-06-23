@@ -100,6 +100,13 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
+    labelKey: "nav.groupCanteenManagement",
+    module: null,
+    items: [
+      { titleKey: "nav.canteenManagement", url: "/canteen/management", icon: Building2, roles: ["admin"], matchPrefix: true },
+    ],
+  },
+  {
     labelKey: "nav.groupStore",
     module: "store",
     items: [
