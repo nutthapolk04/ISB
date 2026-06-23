@@ -478,7 +478,9 @@ export default function WalletDetail() {
                       <CreditCard className="h-4 w-4" />
                       {t("parent.wallet.creditCard")}
                     </span>
-                    <span className="text-xs font-semibold opacity-90">{t("parent.wallet.creditFee")}</span>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600 ring-1 ring-red-300">
+                      {t("parent.wallet.creditFee")}
+                    </span>
                   </button>
                 </div>
               </div>
