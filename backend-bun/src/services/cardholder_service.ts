@@ -416,8 +416,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
                            card_uid, is_active, is_superuser, status, external_id)
         VALUES (${input.username}, ${input.email || `${input.username}@isb-coop.local`},
                 ${input.name}, ${hash}, ${role}, ${input.shop_id ?? null}, ${input.family_code ?? null},
-                ${input.card_uid ?? null}, true, false, 'active',
-                ${kind === "staff" ? (input.external_id ?? null) : null})
+                ${input.card_uid ?? null}, true, false, 'active', ${input.external_id ?? null})
         RETURNING id
       `;
       uid = uins[0].id;

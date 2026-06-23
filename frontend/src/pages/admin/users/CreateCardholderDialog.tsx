@@ -187,8 +187,8 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
         if (kind === "staff") {
           body.role = staffRole;
           body.shop_id = shopId || null;
-          body.external_id = externalId.trim() || null;
         }
+        body.external_id = externalId.trim() || null;
       } else if (kind === "department") {
         Object.assign(body, {
           department_code: deptCode, department_name: deptName,
@@ -387,11 +387,13 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                     )}
                   </>
                 )}
-                {kind === "staff" && (
-                  <Field label="Employee ID">
-                    <Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. EMP-001" />
-                  </Field>
-                )}
+                <Field label={kind === "staff" ? "Employee ID" : "Parent ID"}>
+                  <Input
+                    value={externalId}
+                    onChange={e => setExternalId(e.target.value)}
+                    placeholder={kind === "staff" ? "e.g. EMP-001" : "e.g. P-001"}
+                  />
+                </Field>
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
               </>
