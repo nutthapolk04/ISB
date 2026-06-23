@@ -162,9 +162,11 @@ export function AppSidebar() {
   const activeRole = user?.activeRole ?? user?.role;
   const allRoles = user?.allRoles ?? (user ? [user.role] : []);
   const isRefundOnlyMode = activeRole === "refund_officer" && allRoles.length === 1;
-  // Parent-like: pure parent OR staff who also has parent role (has children)
-  // These users go straight to /parent/dashboard — Home Hub adds no value for them
-  const isParentLike = activeRole === "parent" || (activeRole === "staff" && allRoles.includes("parent"));
+  // Parent-like: pure parent OR staff/teacher who has a family_code (linked children)
+  // Also catches staff with explicit "parent" in allRoles (RBAC path)
+  const isParentLike =
+    activeRole === "parent" ||
+    (["staff", "teacher"].includes(activeRole ?? "") && (allRoles.includes("parent") || !!user?.familyCode));
   const isAdmin = activeRole === "admin";
 
   /** Group visibility: admin sees everything non-parent; otherwise filter by module */

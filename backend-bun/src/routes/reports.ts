@@ -123,7 +123,6 @@ export const reportRoutes = new Elysia({ name: "reports", prefix: "/reports" })
     "/stock-card",
     async ({ query, user, set }) => {
       try {
-        console.log("[SC route] raw query=", JSON.stringify(query));
         return await stockCardReport({
           user,
           dateFrom: query.date_from,

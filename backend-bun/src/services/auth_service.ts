@@ -29,6 +29,7 @@ export interface UserResponseDTO {
   roles: RoleResponseDTO[];
   shop_id: string | null;
   shop_module: string | null;
+  family_code: string | null;
 }
 
 export interface MeResponseDTO {
@@ -335,6 +336,7 @@ export async function me(userId: number): Promise<MeResponseDTO> {
         : (user.role ? [{ id: 0, name: user.role, description: null }] : []),
       shop_id: user.shopId ?? null,
       shop_module: shopModule,
+      family_code: user.familyCode ?? null,
     },
     permissions: perms,
   };

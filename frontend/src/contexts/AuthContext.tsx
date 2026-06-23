@@ -32,6 +32,8 @@ export interface AuthUser {
   shopName: string | null;
   /** Derived from the shop's `module` column at login; null for admins or users without shop. */
   shopModule: AppModule | null;
+  /** Non-null when this user is linked as a parent/guardian (has children). */
+  familyCode?: string | null;
 }
 
 interface AuthContextValue {
@@ -66,10 +68,10 @@ const MOCK_USERS: (AuthUser & { password: string })[] = [
   // Refund officer (handles refund requests across shops)
   { id: 17, username: "refund_officer",          password: "refund",    fullName: "Refund Officer",                role: "refund_officer", allRoles: ["refund_officer"], activeRole: "refund_officer", shopId: null, shopName: null, shopModule: null },
   // PowerSchool staff (has_children=true — demo: staff + parent dual-role)
-  { id: 202301, username: "somchair",  password: "parent", fullName: "Somchai RAKDEE",           role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
-  { id: 202303, username: "prasitj",   password: "parent", fullName: "Prasit JAIDEE",            role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
-  { id: 202304, username: "wanidaj",   password: "parent", fullName: "Wanida JAIDEE",            role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
-  { id: 202306, username: "porntips",  password: "parent", fullName: "Pornthip SUWAN",           role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
+  { id: 202301, username: "somchair",  password: "parent", fullName: "Somchai RAKDEE",           role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null, familyCode: "FAM202301" },
+  { id: 202303, username: "prasitj",   password: "parent", fullName: "Prasit JAIDEE",            role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null, familyCode: "FAM202303" },
+  { id: 202304, username: "wanidaj",   password: "parent", fullName: "Wanida JAIDEE",            role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null, familyCode: "FAM202304" },
+  { id: 202306, username: "porntips",  password: "parent", fullName: "Pornthip SUWAN",           role: "staff", allRoles: ["staff", "parent"], activeRole: "staff", shopId: null, shopName: null, shopModule: null, familyCode: "FAM202306" },
   // PowerSchool staff (no children — single role)
   { id: 202468, username: "jirawatj",  password: "parent", fullName: "Jirawat JIRACHAISOPIT",    role: "staff", allRoles: ["staff"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
   { id: 202266, username: "phatthab",  password: "parent", fullName: "Phatthara BUNLUESIN",      role: "staff", allRoles: ["staff"], activeRole: "staff", shopId: null, shopName: null, shopModule: null },
@@ -226,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           shopId,
           shopName: mockMatch?.shopName ?? null,
           shopModule: backendModule ?? mockMatch?.shopModule ?? moduleOf(shopId),
+          familyCode: backendUser.family_code ?? null,
         };
         // Always fetch shop metadata when user has a shopId to get the real shop name.
         // Only update shopModule when backend didn't already provide it.
