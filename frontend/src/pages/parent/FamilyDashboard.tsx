@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { fmtDate, fmtTime } from "@/lib/dateFormat";
 import {
   AlertCircle, ArrowUpCircle, ArrowDownCircle, Bell,
-  ChevronRight, GraduationCap, Lock,
+  ChevronLeft, ChevronRight, GraduationCap, Lock,
   Settings, UserRound, Wallet as WalletIcon,
 } from "lucide-react";
 
@@ -452,7 +452,27 @@ export default function FamilyDashboard() {
       {!loading && !error && cards.length > 0 && (
         <>
           {/* Peek carousel — overflow-hidden wrapper prevents page-width blowout */}
-          <div className="overflow-hidden">
+          <div className="relative overflow-hidden">
+          {cards.length > 1 && activeIdx > 0 && (
+            <button
+              type="button"
+              onClick={() => scrollTo(activeIdx - 1)}
+              aria-label={t("parent.dashboard.prevCard", "Previous card")}
+              className="absolute left-1 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur hover:bg-white"
+            >
+              <ChevronLeft className="h-5 w-5 text-slate-700" />
+            </button>
+          )}
+          {cards.length > 1 && activeIdx < cards.length - 1 && (
+            <button
+              type="button"
+              onClick={() => scrollTo(activeIdx + 1)}
+              aria-label={t("parent.dashboard.nextCard", "Next card")}
+              className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur hover:bg-white"
+            >
+              <ChevronRight className="h-5 w-5 text-slate-700" />
+            </button>
+          )}
           <div
             ref={scrollRef}
             onScroll={handleScroll}
