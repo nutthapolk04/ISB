@@ -97,12 +97,12 @@ function userIsManager(u: AccessTokenPayload): boolean {
 
 export interface ListUsersParams {
   caller: AccessTokenPayload & { shop_id?: string | null };
-  q?: string;
-  shopId?: string;
-  role?: string;
-  unassigned?: boolean;
-  page?: number;
-  pageSize?: number;
+  q?: string | null;
+  shopId?: string | null;
+  role?: string | null;
+  unassigned?: boolean | null;
+  page?: number | null;
+  pageSize?: number | null;
 }
 
 export async function listUsers(p: ListUsersParams): Promise<UserListResponseDTO> {

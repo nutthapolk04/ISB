@@ -74,10 +74,11 @@ import { listCardholders, getSyncLog, listSyncStatuses, listSyncAudit, createCar
 import { createTopupIntent, getTopupStatus, confirmTopup, userCanAccessWallet, handleBayCallback, inquireTopupFromGateway } from "@/services/topup_service";
 import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
 import { runSync } from "@/services/powerschool_sync";
-import { processStaffBatch, processFamilyBatch, processDepartmentBatch } from "@/services/isb_sync_service";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
+import { isbSyncRoutes } from "@/routes/isb_sync";
+import { StatusMap } from "elysia";
 
-function handle(set: { status?: number }) {
+function handle(set: { status?: number | keyof StatusMap }) {
   return (e: unknown) => {
     const err = e as { status?: number; message?: string };
     if (err.status && err.status >= 400 && err.status < 600) {
@@ -94,6 +95,7 @@ function handle(set: { status?: number }) {
 // .group() callback get listed in app.routes but never match at request
 // time. Bundling Phase 2 as a single Elysia plugin sidesteps that.
 const phase2Routes = new Elysia({ name: "phase-2" })
+  .use(requireAuth)
   .get(
     "/departments/",
     async ({ query }) => listDepartments({ q: query.q, activeOnly: query.active_only !== "false" }),
@@ -422,8 +424,8 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         return await listTransactions(
           user as typeof user & { shop_id?: string | null; family_code?: string | null },
           id,
-          query.date_from,
-          query.date_to,
+          query.date_from ?? undefined,
+          query.date_to ?? undefined,
         );
       } catch (e) { return handle(set)(e); }
     },
@@ -444,7 +446,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           amount: body.amount,
           adminUserId: Number(user.sub),
           reason: body.reason,
-          referenceTicket: body.reference_ticket,
+          referenceTicket: body.reference_ticket ?? undefined,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -468,7 +470,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           initiatorUserId: Number(user.sub),
           initiatorIsAdmin: hasRole(user.roles, "admin") || user.is_superuser,
           initiatorRoles: user.roles,
-          note: body.note,
+          note: body.note ?? undefined,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -488,10 +490,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       try {
         return await listReceipts({
           caller: user as typeof user & { shop_id?: string | null },
-          q: query.q,
-          shopId: query.shop_id,
-          shopIds: query.shop_ids,
-          transactionMode: query.transaction_mode,
+          q: query.q ?? undefined,
+          shopId: query.shop_id ?? undefined,
+          shopIds: query.shop_ids ?? undefined,
+          transactionMode: query.transaction_mode ?? undefined,
           requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : undefined,
           dateFrom: query.date_from ?? undefined,
           dateTo: query.date_to ?? undefined,
@@ -1071,133 +1073,6 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       }),
     },
   )
-  // ── ISB Vendor Sync API (x-api-key auth) ─────────────────────────────────
-  .post(
-    "/sync/staffs",
-    async ({ body, headers, set }) => {
-      const apiKey = process.env.ISB_SYNC_API_KEY;
-      if (!apiKey || (headers as Record<string, string>)["x-api-key"] !== apiKey) {
-        set.status = 401;
-        return { status: "FAILED", code: "401", message: "Invalid or missing API key (expected header 'x-api-key')." };
-      }
-      try {
-        const result = await processStaffBatch(body.staffs as any[]);
-        return {
-          status: "SUCCESS", code: "200", message: "Accepted",
-          ...(result.errors.length > 0 && { warnings: result.errors }),
-        };
-      } catch (e) {
-        set.status = 500;
-        return { status: "FAILED", code: "500", message: (e as Error).message };
-      }
-    },
-    {
-      body: t.Object({
-        staffs: t.Array(t.Object({
-          customerId: t.Number(),
-          customerType: t.Literal("Staff"),
-          staffType: t.String(),
-          department: t.String(),
-          familyCode: t.Number(),
-          firstName: t.String(),
-          lastName: t.String(),
-          hasChildren: t.Boolean(),
-          profileImage: t.String(),
-          smartCard: t.Object({ cardNumber: t.String() }),
-          login: t.Object({ loginId: t.String(), email: t.String() }),
-        })),
-      }),
-    },
-  )
-  .post(
-    "/sync/families",
-    async ({ body, headers, set }) => {
-      const apiKey = process.env.ISB_SYNC_API_KEY;
-      if (!apiKey || (headers as Record<string, string>)["x-api-key"] !== apiKey) {
-        set.status = 401;
-        return { status: "FAILED", code: "401", message: "Invalid or missing API key (expected header 'x-api-key')." };
-      }
-      try {
-        const result = await processFamilyBatch(body.families as any[]);
-        return {
-          status: "SUCCESS", code: "200", message: "Accepted",
-          ...(result.errors.length > 0 && { warnings: result.errors }),
-        };
-      } catch (e) {
-        set.status = 500;
-        return { status: "FAILED", code: "500", message: (e as Error).message };
-      }
-    },
-    {
-      body: t.Object({
-        families: t.Array(t.Object({
-          familyCode: t.Number(),
-          notificationEmails: t.Array(t.String()),
-          mainParent: t.Object({
-            customerId: t.Number(),
-            customerType: t.Union([t.Literal("Parent"), t.Literal("Staff")]),
-            firstName: t.String(),
-            lastName: t.String(),
-            profileImage: t.String(),
-            login: t.String(),
-            smartCard: t.Object({ cardNumber: t.String() }),
-          }),
-          secondaryParent: t.Nullable(t.Object({
-            customerId: t.Number(),
-            customerType: t.Union([t.Literal("Parent"), t.Literal("Staff")]),
-            firstName: t.String(),
-            lastName: t.String(),
-            profileImage: t.String(),
-            login: t.String(),
-            smartCard: t.Object({ cardNumber: t.String() }),
-          })),
-          students: t.Array(t.Object({
-            customerId: t.Number(),
-            customerType: t.Literal("Student"),
-            firstName: t.String(),
-            lastName: t.String(),
-            grade: t.String(),
-            schoolType: t.String(),
-            profileImage: t.String(),
-            smartCard: t.Object({ cardNumber: t.String() }),
-          })),
-        })),
-      }),
-    },
-  )
-  .post(
-    "/sync/departments",
-    async ({ body, headers, set }) => {
-      const apiKey = process.env.ISB_SYNC_API_KEY;
-      if (!apiKey || (headers as Record<string, string>)["x-api-key"] !== apiKey) {
-        set.status = 401;
-        return { status: "FAILED", code: "401", message: "Invalid or missing API key (expected header 'x-api-key')." };
-      }
-      try {
-        const result = await processDepartmentBatch(body.departments as any[]);
-        return {
-          status: "SUCCESS", code: "200", message: "Accepted",
-          ...(result.errors.length > 0 && { warnings: result.errors }),
-        };
-      } catch (e) {
-        set.status = 500;
-        return { status: "FAILED", code: "500", message: (e as Error).message };
-      }
-    },
-    {
-      body: t.Object({
-        departments: t.Array(t.Object({
-          departmentId: t.Number(),
-          customerType: t.Literal("Department"),
-          departmentDescription: t.String(),
-          login: t.Optional(t.Nullable(t.Object({
-            loginId: t.String(),
-            email: t.String(),
-          }))),
-        })),
-      }),
-    },
-  )
   .get(
     "/admin/sync-logs",
     async ({ query, user, set }) => {
@@ -1461,7 +1336,10 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       if (!user.is_superuser && !hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
       try {
         set.status = 201;
-        return await createSpendingGroup(body);
+        return await createSpendingGroup({
+          ...body,
+          is_active: body.is_active ?? undefined,
+        });
       } catch (e) { return handle(set)(e); }
     },
     {
@@ -1556,7 +1434,12 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       if (!hasRole(user.roles, "admin", "manager")) { set.status = 403; return { detail: "Forbidden" }; }
       try {
         set.status = 201;
-        return await createUom(body);
+        return await createUom({
+          ...body,
+          name_en: body.name_en ?? undefined,
+          base_uom_id: body.base_uom_id ?? undefined,
+          conversion_factor: body.conversion_factor ?? undefined,
+        });
       } catch (e) { return handle(set)(e); }
     },
     {
@@ -1999,7 +1882,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
       try {
         return await listReturns({
-          q: query.filter,
+          q: query.filter ?? undefined,
           shopId: hasRole(user.roles, "admin") || user.is_superuser
             ? null
             : (user as typeof user & { shop_id?: string | null }).shop_id ?? null,
@@ -2040,7 +1923,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
       if (!hasRole(user.roles, "admin", "manager", "cashier")) { set.status = 403; return { detail: "Forbidden" }; }
       try {
         return await getReturnHistory({
-          q: query.filter,
+          q: query.filter ?? undefined,
           shopId: hasRole(user.roles, "admin") || user.is_superuser
             ? null
             : (user as typeof user & { shop_id?: string | null }).shop_id ?? null,
@@ -2412,7 +2295,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           walletId: id,
           amount: body.amount,
           cashierUserId: Number(user.sub),
-          notes: body.notes,
+          notes: body.notes ?? undefined,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -2436,7 +2319,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
           amount: body.amount,
           adminUserId: Number(user.sub),
           reason: body.reason,
-          referenceTicket: body.reference_ticket,
+          referenceTicket: body.reference_ticket ?? undefined,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -2459,8 +2342,8 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         return await listDepartmentTransactions({
           departmentId: id,
           limit: query.limit ? Number(query.limit) : undefined,
-          dateFrom: query.date_from,
-          dateTo: query.date_to,
+          dateFrom: query.date_from ?? undefined,
+          dateTo: query.date_to ?? undefined,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -2571,7 +2454,7 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         return await createLink({
           parentUserId: body.parent_user_id,
           childCustomerId: body.child_customer_id,
-          relation: body.relation,
+          relation: body.relation ?? undefined,
         });
       } catch (e) { return handle(set)(e); }
     },
@@ -2651,6 +2534,8 @@ const app = new Elysia()
     return { detail: error instanceof Error ? error.message : "Internal error" };
   })
   .use(healthRoutes)
+  // ISB vendor sync — public, x-api-key only (no JWT)
+  .use(isbSyncRoutes)
   // ── Phase 7: Auth (public — no Bearer needed) ──────────────────────────
   .post(
     "/api/v1/auth/login",

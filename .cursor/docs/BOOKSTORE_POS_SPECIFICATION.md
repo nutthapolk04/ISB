@@ -1,5 +1,7 @@
 # BOOKSTORE POS SYSTEM - TECHNICAL SPECIFICATION
 
+> **Implementation note:** Production backend is `backend-bun/` (Bun + Elysia + Drizzle). This document is the **original requirement baseline** — references to Python/FastAPI/Alembic describe the spec intent, not the current stack.
+
 ## PROJECT OVERVIEW
 
 You are a senior software architect and full-stack engineer tasked with designing and implementing a production-grade BOOKSTORE POS SYSTEM. This system must be designed as a scalable POS solution suitable for schools and educational institutions.

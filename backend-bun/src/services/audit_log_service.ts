@@ -24,14 +24,14 @@ export interface AuditLogListResponseDTO {
 }
 
 export interface ListAuditLogsParams {
-  entityType?: string;
-  action?: string;
-  userId?: number;
-  shopId?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  page?: number;
-  pageSize?: number;
+  entityType?: string | null;
+  action?: string | null;
+  userId?: number | null;
+  shopId?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  page?: number | null;
+  pageSize?: number | null;
   callerIsAdmin: boolean;
   callerShopId?: string | null;
 }
@@ -50,8 +50,8 @@ export async function listAuditLogs(p: ListAuditLogsParams): Promise<AuditLogLis
   const conds = [];
   if (shopId) conds.push(eq(auditLogs.shopId, shopId));
   if (p.entityType) conds.push(eq(auditLogs.entityType, p.entityType));
-  if (p.action) conds.push(eq(auditLogs.action, p.action));
-  if (p.userId !== undefined) conds.push(eq(auditLogs.userId, p.userId));
+  if (p.action) conds.push(eq(auditLogs.action, p.action as typeof auditLogs.$inferSelect.action));
+  if (p.userId != null) conds.push(eq(auditLogs.userId, p.userId));
   if (p.dateFrom) conds.push(gte(auditLogs.createdAt, `${p.dateFrom}T00:00:00+07:00`));
   if (p.dateTo) conds.push(lte(auditLogs.createdAt, `${p.dateTo}T23:59:59.999999+07:00`));
 

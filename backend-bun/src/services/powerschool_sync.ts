@@ -418,7 +418,7 @@ export async function upsertFamilyProfile(familyCode: string, notificationEmails
     await db.update(familyProfiles).set({
       notificationEmails, loginIds,
       lastSyncedAt: new Date().toISOString(),
-    }).where(eq(familyProfiles.id, existing.id));
+    }).where(eq(familyProfiles.familyCode, familyCode));
   } else {
     await db.insert(familyProfiles).values({
       familyCode, notificationEmails, loginIds,

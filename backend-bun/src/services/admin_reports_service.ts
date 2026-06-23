@@ -102,8 +102,8 @@ export async function adjustmentReport(args: {
       const wanted = args.typeFilter.trim().toLowerCase();
       const bucket = entityType === "student" ? "student"
         : entityType === "department" ? "department"
-        : entityType === "unknown" ? "other"
-        : "staff";
+          : entityType === "unknown" ? "other"
+            : "staff";
       if (wanted !== bucket) continue;
     }
 

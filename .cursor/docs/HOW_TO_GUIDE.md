@@ -1,6 +1,6 @@
 # Schooney POS — How-To Guide
 
-> คู่มือการใช้งานระบบ ISB Schooney POS
+> คู่มือการใช้งานระบบ ISB Schooney POS (end-user guide — ไม่ใช่ dev docs; ดู `AGENTS.md` สำหรับ developer guidelines)
 > Last updated: 2026-06-22
 
 ---

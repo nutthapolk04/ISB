@@ -1,0 +1,18 @@
+{
+  "departments": [
+    {
+      "departmentId": 520,
+      "customerType": "Department",
+      "departmentDescription": "ED-TECH"
+    },
+    {
+      "departmentId": 521,
+      "customerType": "Department",
+      "departmentDescription": "ADMISSIONS",
+      "login": {
+        "loginId": "admissions@isb.ac.th",
+        "email": "admissions@isb.ac.th"
+      }
+    }
+  ]
+}

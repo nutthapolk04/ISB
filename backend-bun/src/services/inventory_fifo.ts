@@ -15,11 +15,7 @@ import {
   type FifoLotIn,
   type FifoLotOut,
 } from "@/lib/fifo";
-
-// postgres-js tagged-template signature
-type SqlTx = {
-  <T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>;
-};
+import type { SqlTx } from "@/lib/sql_tx";
 
 interface LotRow {
   id: string;

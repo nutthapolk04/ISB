@@ -235,6 +235,7 @@ export async function studentFamilyContext(studentCode: string): Promise<Student
         customer_id: sib.id,
         customer_code: sib.customerCode,
         student_code: sib.studentCode ?? null,
+        card_uid: sib.cardUid ?? null,
         name: sib.name,
         grade: sib.grade ?? null,
         photo_url: sib.photoUrl ?? null,
