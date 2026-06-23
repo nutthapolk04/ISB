@@ -886,6 +886,13 @@ const Receipts = () => {
                     + {t("receipts.voidDialog.addShortcut", "Add")}
                   </button>
                 )}
+                {!canEditShortcuts
+                  && !user?.shopId
+                  && (user?.role === "admin" || user?.role === "manager") && (
+                    <span className="text-xs italic text-muted-foreground self-center">
+                      {t("receipts.voidDialog.pickShopHint")}
+                    </span>
+                  )}
               </div>
               <Textarea
                 value={voidReason}
