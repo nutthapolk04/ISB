@@ -57,101 +57,14 @@ const studentSchema = t.Object({
   smartCard: smartCardSchema,
 });
 
-const DEPARTMENT_ALLOWED_KEYS = new Set([
-  "departmentId",
-  "customerType",
-  "departmentDescription",
-  "login",
-]);
-
-function parseDepartmentBatchBody(raw: unknown): {
-  ok: true;
-  departments: Array<{
-    departmentId: number;
-    customerType: "Department";
-    departmentDescription: string;
-    login?: { loginId: string; email: string } | null;
-  }>;
-} | {
-  ok: false;
-  errors: Array<Record<string, unknown>>;
-} {
-  const errors: Array<Record<string, unknown>> = [];
-  if (!raw || typeof raw !== "object" || !("departments" in raw)) {
-    return {
-      ok: false,
-      errors: [{ type: "missing", loc: ["body", "departments"], msg: "Field required" }],
-    };
-  }
-  const departments = (raw as { departments: unknown }).departments;
-  if (!Array.isArray(departments)) {
-    return {
-      ok: false,
-      errors: [{ type: "type_error", loc: ["body", "departments"], msg: "Expected array" }],
-    };
-  }
-
-  const parsed: Array<{
-    departmentId: number;
-    customerType: "Department";
-    departmentDescription: string;
-    login?: { loginId: string; email: string } | null;
-  }> = [];
-
-  for (let i = 0; i < departments.length; i++) {
-    const item = departments[i];
-    let itemHasError = false;
-    if (!item || typeof item !== "object") {
-      errors.push({ type: "type_error", loc: ["body", "departments", i], msg: "Expected object" });
-      continue;
-    }
-    const rec = item as Record<string, unknown>;
-    for (const key of Object.keys(rec)) {
-      if (!DEPARTMENT_ALLOWED_KEYS.has(key)) {
-        errors.push({
-          type: "extra_forbidden",
-          loc: ["body", "departments", i, key],
-          msg: `Unexpected field '${key}'`,
-        });
-        itemHasError = true;
-      }
-    }
-    if (typeof rec.departmentId !== "number" || !Number.isInteger(rec.departmentId)) {
-      errors.push({ type: "missing", loc: ["body", "departments", i, "departmentId"], msg: "Field required" });
-      itemHasError = true;
-    }
-    if (rec.customerType !== "Department") {
-      errors.push({ type: "literal_error", loc: ["body", "departments", i, "customerType"], msg: "Expected 'Department'" });
-      itemHasError = true;
-    }
-    if (typeof rec.departmentDescription !== "string") {
-      errors.push({ type: "missing", loc: ["body", "departments", i, "departmentDescription"], msg: "Field required" });
-      itemHasError = true;
-    }
-    if (rec.login !== undefined && rec.login !== null) {
-      const login = rec.login as Record<string, unknown>;
-      if (typeof login.loginId !== "string" || typeof login.email !== "string") {
-        errors.push({ type: "type_error", loc: ["body", "departments", i, "login"], msg: "Invalid login object" });
-        itemHasError = true;
-      }
-    }
-    if (itemHasError) continue;
-
-    parsed.push({
-      departmentId: rec.departmentId as number,
-      customerType: "Department",
-      departmentDescription: rec.departmentDescription as string,
-      login: rec.login === undefined
-        ? undefined
-        : rec.login === null
-          ? null
-          : rec.login as { loginId: string; email: string },
-    });
-  }
-
-  if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, departments: parsed };
-}
+const departmentItemSchema = t.Object(
+  {
+    departmentId: t.Number(),
+    customerType: t.Literal("Department"),
+    departmentDescription: t.String(),
+    login: t.Optional(t.Nullable(staffLoginSchema)),
+    smartCard: t.Optional(smartCardSchema),
+  });
 
 async function handleBatchResult(
   set: SyncSet,
@@ -231,24 +144,12 @@ export const isbSyncRoutes = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
   )
   .post(
     "/sync/departments",
-    async ({ request, headers, set }) => {
+    async ({ body, headers, set }) => {
       if (!checkApiKey(headers as Record<string, string | undefined>)) {
         return syncAuthFailed(set);
       }
-      let raw: unknown;
       try {
-        raw = await request.json();
-      } catch {
-        return syncValidationFailed(set, [
-          { type: "json_invalid", loc: ["body"], msg: "Invalid JSON body" },
-        ]);
-      }
-      const parsed = parseDepartmentBatchBody(raw);
-      if (!parsed.ok) {
-        return syncValidationFailed(set, parsed.errors);
-      }
-      try {
-        const result = await processDepartmentBatch(parsed.departments);
+        const result = await processDepartmentBatch(body.departments);
         return await handleBatchResult(set, result);
       } catch (e) {
         set.status = 500;
@@ -258,5 +159,10 @@ export const isbSyncRoutes = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
           message: (e as Error).message,
         };
       }
+    },
+    {
+      body: t.Object({
+        departments: t.Array(departmentItemSchema),
+      }),
     },
   );

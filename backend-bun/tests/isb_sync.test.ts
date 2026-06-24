@@ -101,7 +101,7 @@ describe("ISB sync API — validation", () => {
     expect(Array.isArray(body.errors)).toBe(true);
   });
 
-  it("returns 422 FAILED when department includes smartCard", async () => {
+  it("returns 422 FAILED when department body is missing departmentId", async () => {
     const app = await getApp();
     const res = await post(
       app,
@@ -109,10 +109,8 @@ describe("ISB sync API — validation", () => {
       {
         departments: [
           {
-            departmentId: 999,
             customerType: "Department",
             departmentDescription: "TEST",
-            smartCard: { cardNumber: "ABC" },
           },
         ],
       },
@@ -123,12 +121,45 @@ describe("ISB sync API — validation", () => {
     expect(body.status).toBe("FAILED");
     expect(body.code).toBe("422");
   });
+
+  it("accepts department with optional smartCard (not 422)", async () => {
+    const app = await getApp();
+    const res = await post(
+      app,
+      "/api/v1/sync/departments",
+      {
+        departments: [
+          {
+            departmentId: 999001,
+            customerType: "Department",
+            departmentDescription: "TEST",
+            smartCard: { cardNumber: "ABC" },
+          },
+        ],
+      },
+      TEST_API_KEY,
+    );
+    expect(res.status).not.toBe(422);
+  });
 });
 
 describe("ISB sync API — success envelope", () => {
   it("empty staffs array returns 200 SUCCESS with exactly 3 keys", async () => {
     const app = await getApp();
     const res = await post(app, "/api/v1/sync/staffs", { staffs: [] }, TEST_API_KEY);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body).toEqual({
+      status: "SUCCESS",
+      code: "200",
+      message: "Accepted",
+    });
+    expect(Object.keys(body)).toHaveLength(3);
+  });
+
+  it("empty departments array returns 200 SUCCESS with exactly 3 keys", async () => {
+    const app = await getApp();
+    const res = await post(app, "/api/v1/sync/departments", { departments: [] }, TEST_API_KEY);
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body).toEqual({
