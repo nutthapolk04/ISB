@@ -3,7 +3,7 @@
  * Lets the customer verify line items and total before committing.
  */
 import { cn } from "@/lib/utils";
-import type { DisplayItem, DisplayPayer } from "@/hooks/useDisplayBroadcast";
+import type { DisplayItem, DisplayPayer, SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 
 interface Props {
   items: DisplayItem[];
@@ -11,7 +11,50 @@ interface Props {
   payer: DisplayPayer | null;
 }
 
+function LimitCard({ title, sl }: { title: string; sl: SpendingLimitData }) {
+  const pct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
+  const atLimit = pct >= 100;
+  const nearLimit = pct >= 80 && !atLimit;
+  const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
+  const remainColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-600";
+  return (
+    <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-5">
+      <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-3">{title}</div>
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="text-center">
+          <div className="text-[11px] text-zinc-500 mb-0.5">Daily Limit</div>
+          <div className="text-xl font-bold tabular-nums text-zinc-800">
+            ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="text-[11px] text-zinc-500 mb-0.5">Spent Today</div>
+          <div className="text-xl font-bold tabular-nums text-orange-500">
+            ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="text-[11px] text-zinc-500 mb-0.5">Remaining</div>
+          <div className={cn("text-xl font-bold tabular-nums", remainColor)}>
+            ฿{sl.remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+      </div>
+      <div className="w-full h-2.5 rounded-full bg-zinc-100 overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex justify-end mt-1">
+        <span className="text-[11px] text-zinc-400 tabular-nums">{Math.round(pct)}% used</span>
+      </div>
+    </div>
+  );
+}
+
 export function OrderReviewScreen({ items, total, payer }: Props) {
+  const canteen = payer?.canteenLimit && payer.canteenLimit.daily_limit > 0 ? payer.canteenLimit : null;
+  const store = payer?.storeLimit && payer.storeLimit.daily_limit > 0 ? payer.storeLimit : null;
+  const hasLimits = canteen || store;
+
   return (
     <div className="h-screen w-screen bg-gradient-to-br from-amber-50/50 via-white to-orange-50/40 flex flex-col">
       {/* Header */}
@@ -58,51 +101,15 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
         </div>
       </main>
 
-      {/* Daily Spending Limit box — shown when payer has a personal limit */}
-      {payer?.spendingLimit && payer.spendingLimit.daily_limit > 0 && (() => {
-        const sl = payer.spendingLimit!;
-        const pct = Math.min((sl.spent_today / sl.daily_limit) * 100, 100);
-        const atLimit = pct >= 100;
-        const nearLimit = pct >= 80 && !atLimit;
-        const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
-        const remainColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-600";
-        return (
-          <div className="px-12 pb-4">
-            <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-amber-100 shadow-sm p-6">
-              <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-4">
-                Daily Spending Limit
-              </div>
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="text-center">
-                  <div className="text-xs text-zinc-500 mb-1">Daily Limit</div>
-                  <div className="text-2xl font-bold tabular-nums text-zinc-800">
-                    ฿{sl.daily_limit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-zinc-500 mb-1">Spent Today</div>
-                  <div className="text-2xl font-bold tabular-nums text-orange-500">
-                    ฿{sl.spent_today.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-zinc-500 mb-1">Remaining</div>
-                  <div className={cn("text-2xl font-bold tabular-nums", remainColor)}>
-                    ฿{sl.remaining.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </div>
-                </div>
-              </div>
-              <div className="w-full h-3 rounded-full bg-zinc-100 overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
-              </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-zinc-400">{sl.group_name}</span>
-                <span className="text-xs text-zinc-400 tabular-nums">{Math.round(pct)}% used</span>
-              </div>
-            </div>
+      {/* Daily Spending Limits — show both Canteen + Store side-by-side */}
+      {hasLimits && (
+        <div className="px-12 pb-4">
+          <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-3">
+            {canteen && <LimitCard title="Daily Canteen Limit" sl={canteen} />}
+            {store && <LimitCard title="Daily Store Limit" sl={store} />}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* Total bar — hero metric */}
       <footer className="bg-amber-500 text-white px-12 py-8">

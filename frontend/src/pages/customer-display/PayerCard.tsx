@@ -6,7 +6,7 @@
  */
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
+import type { DisplayPayer, SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 
 interface Props {
   payer: DisplayPayer;
@@ -30,10 +30,42 @@ function fmtInt(amount: number): string {
   return "฿" + amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+function LimitBlock({ title, sl }: { title: string; sl: SpendingLimitData }) {
+  const slPct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
+  const slAtLimit = slPct >= 100;
+  const slNearLimit = slPct >= 80 && !slAtLimit;
+  const slBarColor = slAtLimit ? "bg-red-500" : slNearLimit ? "bg-amber-500" : "bg-emerald-500";
+  const slRemainingColor = slAtLimit ? "text-red-600 font-bold" : slNearLimit ? "text-amber-600 font-semibold" : "text-emerald-600 font-bold";
+  return (
+    <div>
+      <SectionLabel>{title}</SectionLabel>
+      <div className="space-y-3 pt-3">
+        <Row label="Daily Limit" value={fmtInt(sl.daily_limit)} />
+        <Row label="Spent Today" value={fmtInt(sl.spent_today)} negative />
+        <Row label="Remaining" value={fmtInt(sl.remaining)} valueClass={cn("tabular-nums font-bold", slRemainingColor)} bold />
+      </div>
+      <div className="mt-3">
+        <div className="w-full h-2.5 rounded-full bg-zinc-100 overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-all", slBarColor)}
+            style={{ width: `${slPct}%` }}
+          />
+        </div>
+        <div className="flex justify-end mt-1">
+          <span className={cn("text-xs tabular-nums", slAtLimit ? "text-red-500 font-semibold" : "text-zinc-400")}>
+            {Math.round(slPct)}% used
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PayerCard({ payer, total, successful = false }: Props) {
   const showBalance = payer.balanceBefore !== null;
-  const sl = payer.spendingLimit ?? null;
-  const showSpendingLimit = sl !== null && payer.kind !== "department";
+  const canteen = payer.canteenLimit && payer.canteenLimit.daily_limit > 0 ? payer.canteenLimit : null;
+  const store = payer.storeLimit && payer.storeLimit.daily_limit > 0 ? payer.storeLimit : null;
+  const showLimits = payer.kind !== "department" && (canteen || store);
 
   const afterClass = cn(
     "tabular-nums font-bold",
@@ -43,12 +75,6 @@ export function PayerCard({ payer, total, successful = false }: Props) {
         ? "text-red-600"
         : "text-zinc-900",
   );
-
-  const slPct = sl && sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
-  const slAtLimit = slPct >= 100;
-  const slNearLimit = slPct >= 80 && !slAtLimit;
-  const slBarColor = slAtLimit ? "bg-red-500" : slNearLimit ? "bg-amber-500" : "bg-emerald-500";
-  const slRemainingColor = slAtLimit ? "text-red-600 font-bold" : slNearLimit ? "text-amber-600 font-semibold" : "text-emerald-600 font-bold";
 
   return (
     <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-8 max-w-xl mx-auto">
@@ -74,30 +100,11 @@ export function PayerCard({ payer, total, successful = false }: Props) {
         </div>
       )}
 
-      {/* Daily Spending Limit section */}
-      {showSpendingLimit && sl && (
-        <div className={cn(showBalance ? "mt-6" : "")}>
-          <SectionLabel>Daily Spending Limit</SectionLabel>
-          <div className="space-y-3 pt-3">
-            <Row label="Daily Limit" value={fmtInt(sl.daily_limit)} />
-            <Row label="Spent Today" value={fmtInt(sl.spent_today)} negative />
-            <Row label="Remaining" value={fmtInt(sl.remaining)} valueClass={cn("tabular-nums font-bold", slRemainingColor)} bold />
-          </div>
-          {/* Progress bar */}
-          <div className="mt-3">
-            <div className="w-full h-2.5 rounded-full bg-zinc-100 overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all", slBarColor)}
-                style={{ width: `${slPct}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs text-zinc-400">{sl.group_name}</span>
-              <span className={cn("text-xs tabular-nums", slAtLimit ? "text-red-500 font-semibold" : "text-zinc-400")}>
-                {Math.round(slPct)}% used
-              </span>
-            </div>
-          </div>
+      {/* Daily Spending Limit sections — Canteen + Store side-by-side */}
+      {showLimits && (
+        <div className={cn(showBalance ? "mt-6" : "", "grid grid-cols-1 gap-6")}>
+          {canteen && <LimitBlock title="Daily Canteen Limit" sl={canteen} />}
+          {store && <LimitBlock title="Daily Store Limit" sl={store} />}
         </div>
       )}
     </div>

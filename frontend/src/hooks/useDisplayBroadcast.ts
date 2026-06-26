@@ -37,7 +37,11 @@ export interface DisplayPayer {
   role: string | null; // e.g. "Student · Grade 6"
   balanceBefore: number | null;
   balanceAfter: number | null;
+  /** The active shop's limit — used by the cashier-side confirm dialog. */
   spendingLimit?: SpendingLimitData | null;
+  /** Both limits surfaced to the customer-display so the student sees a full picture. */
+  canteenLimit?: SpendingLimitData | null;
+  storeLimit?: SpendingLimitData | null;
 }
 
 export type PaymentMethod =

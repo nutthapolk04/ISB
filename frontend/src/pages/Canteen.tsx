@@ -832,7 +832,7 @@ export default function Canteen() {
         });
         display.success({
           total: amount,
-          payer: afterPaymentPayer(displayPayer, amount),
+          payer: afterPaymentPayer(displayPayer, amount, "canteen"),
           method: "wallet",
           receiptNumber: res.receipt_number,
         });
@@ -854,7 +854,7 @@ export default function Canteen() {
       });
       display.success({
         total: amount,
-        payer: afterPaymentPayer(displayPayer, amount),
+        payer: afterPaymentPayer(displayPayer, amount, "canteen"),
         method: "wallet",
         receiptNumber: res.receipt_number,
       });
@@ -981,7 +981,7 @@ export default function Canteen() {
         );
         display.success({
           total: amount,
-          payer: afterPaymentPayer(displayPayer, amount),
+          payer: afterPaymentPayer(displayPayer, amount, "canteen"),
           method: "wallet",
           receiptNumber: res.receipt_number,
         });

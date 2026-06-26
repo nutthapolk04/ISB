@@ -1226,7 +1226,7 @@ const Store = () => {
       // to Standby 5 s after this success message.
       display.success({
         total: receipt.total,
-        payer: ["wallet"].includes(method) ? afterPaymentPayer(displayPayer, receipt.total) : displayPayer,
+        payer: ["wallet"].includes(method) ? afterPaymentPayer(displayPayer, receipt.total, "store") : displayPayer,
         method: displayMethod,
         receiptNumber: receipt.receipt_number,
       });
