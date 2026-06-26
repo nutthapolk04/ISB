@@ -81,6 +81,7 @@ export type DisplayState =
       state: "failed";
       reason: string;
       method: PaymentMethod;
+      payer?: DisplayPayer | null;
     };
 
 const STORAGE_KEY = "pos-display-state";

@@ -1245,7 +1245,7 @@ const Store = () => {
         err instanceof ApiError
           ? err.detail
           : err?.message ?? "Payment could not be completed.";
-      display.failed({ reason: String(reason), method: displayMethod });
+      display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
       // QR modal was closed immediately on confirm — reopen so cashier can retry
       if (method === "qr") setQrOpen(true);
     } finally {

@@ -871,7 +871,7 @@ export default function Canteen() {
       } as StudentLookupResult, res as unknown as ReceiptApi);
     } catch (e) {
       const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
-      display.failed({ reason: String(reason), method: displayMethod });
+      display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
       if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(e.detail);
       } else {
@@ -995,7 +995,7 @@ export default function Canteen() {
         setPreSelectedMember(null);
       } catch (e) {
         const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
-        display.failed({ reason: String(reason), method: displayMethod });
+        display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
         if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
           setWalletLimitError(e.detail);
         } else {
