@@ -790,7 +790,7 @@ const Reports = () => {
           const qa = qtyByItem.get(a.item_no ?? "") ?? 0;
           const qb = qtyByItem.get(b.item_no ?? "") ?? 0;
           if (qb !== qa) return qb - qa;
-          return a.transaction_date.localeCompare(b.transaction_date);
+          return b.transaction_date.localeCompare(a.transaction_date);
         });
         data.rows.forEach((r, i) => { r.seq = i + 1; });
       }
