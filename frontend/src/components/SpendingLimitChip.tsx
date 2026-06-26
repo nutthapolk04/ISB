@@ -37,8 +37,8 @@ interface ShopData {
   spending_group_id: number | null;
 }
 
-const formatTHB = (n: number) =>
-  "฿" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const formatTHB = (n: number | null | undefined) =>
+  "฿" + (n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 export function SpendingLimitChip({ shopId, payerId, refreshKey = 0, onUsageChange }: Props) {
   const { t, i18n } = useTranslation();
