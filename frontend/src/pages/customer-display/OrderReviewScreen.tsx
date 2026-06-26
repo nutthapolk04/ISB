@@ -2,6 +2,7 @@
  * Order Review — shown the moment the cashier opens the payment modal.
  * Lets the customer verify line items and total before committing.
  */
+import { cn } from "@/lib/utils";
 import type { DisplayItem, DisplayPayer } from "@/hooks/useDisplayBroadcast";
 
 interface Props {
@@ -57,6 +58,52 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
         </div>
       </main>
 
+      {/* Daily Spending Limit box — shown when payer has a personal limit */}
+      {payer?.spendingLimit && payer.spendingLimit.daily_limit > 0 && (() => {
+        const sl = payer.spendingLimit!;
+        const pct = Math.min((sl.spent_today / sl.daily_limit) * 100, 100);
+        const atLimit = pct >= 100;
+        const nearLimit = pct >= 80 && !atLimit;
+        const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
+        const remainColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-600";
+        return (
+          <div className="px-12 pb-4">
+            <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-amber-100 shadow-sm p-6">
+              <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-4">
+                Daily Spending Limit
+              </div>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-xs text-zinc-500 mb-1">Daily Limit</div>
+                  <div className="text-2xl font-bold tabular-nums text-zinc-800">
+                    ฿{sl.daily_limit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-zinc-500 mb-1">Spent Today</div>
+                  <div className="text-2xl font-bold tabular-nums text-orange-500">
+                    ฿{sl.spent_today.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-zinc-500 mb-1">Remaining</div>
+                  <div className={cn("text-2xl font-bold tabular-nums", remainColor)}>
+                    ฿{sl.remaining.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              </div>
+              <div className="w-full h-3 rounded-full bg-zinc-100 overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className="text-xs text-zinc-400">{sl.group_name}</span>
+                <span className="text-xs text-zinc-400 tabular-nums">{Math.round(pct)}% used</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Total bar — hero metric */}
       <footer className="bg-amber-500 text-white px-12 py-8">
         <div className="max-w-3xl mx-auto flex items-baseline justify-between">
@@ -70,13 +117,8 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
           </span>
         </div>
         {payer && (
-          <div className="max-w-3xl mx-auto mt-3 text-amber-50 text-sm flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="max-w-3xl mx-auto mt-3 text-amber-50 text-sm">
             <span>Paying as <b>{payer.name}</b>{payer.role ? ` · ${payer.role}` : ""}</span>
-            {payer.spendingLimit && payer.spendingLimit.daily_limit > 0 && (
-              <span className="bg-amber-400/40 rounded-full px-3 py-0.5 text-xs font-medium tabular-nums">
-                Remaining ฿{payer.spendingLimit.remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ฿{payer.spendingLimit.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })} today
-              </span>
-            )}
           </div>
         )}
       </footer>
