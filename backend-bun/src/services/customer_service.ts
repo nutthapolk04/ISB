@@ -220,8 +220,19 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
     walletByUserIds(userRows.map((r) => r.id)),
   ]);
 
+  // Populate spent_today_* for each customer so the search-result detail
+  // view can show daily limit usage without an extra round-trip.
+  const custSpent = await Promise.all(
+    customerRows.map(async (c) => {
+      const w = custWallets.get(c.id);
+      const s = await spentTodayForWallet(w?.id);
+      return [c.id, s] as const;
+    }),
+  );
+  const custSpentMap = new Map(custSpent);
+
   const combined: StudentProfileDTO[] = [
-    ...customerRows.map((c) => customerToProfile(c, custWallets.get(c.id))),
+    ...customerRows.map((c) => customerToProfile(c, custWallets.get(c.id), custSpentMap.get(c.id))),
     ...userRows.map((u) => userToProfile(u, userWallets.get(u.id))),
   ];
   combined.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
