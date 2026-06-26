@@ -76,10 +76,16 @@ const MONTH_LABELS_TH = ["มกราคม", "กุมภาพันธ์",
 
 // ── Component ───────────────────────────────────────────────────────────
 
-export default function BalanceFileReport() {
+interface Props {
+  /** When provided (embedded inside Inventory tab), skip shop selector + Receive Stock nav button. */
+  lockedShopId?: string;
+}
+
+export default function BalanceFileReport({ lockedShopId }: Props = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const embedded = !!lockedShopId;
   const isAdmin = user?.role === "admin";
 
   const now = new Date();
@@ -87,7 +93,7 @@ export default function BalanceFileReport() {
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
 
   const [shops, setShops] = useState<ShopOption[]>([]);
-  const [shopId, setShopId] = useState<string>("");
+  const [shopId, setShopId] = useState<string>(lockedShopId ?? "");
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [productId, setProductId] = useState<string>("all");
 
@@ -95,8 +101,9 @@ export default function BalanceFileReport() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Load shops list (admin only); non-admin uses own shopId
+  // Load shops list (admin only, non-embedded); embedded uses lockedShopId; non-admin uses own shopId
   useEffect(() => {
+    if (embedded) return;
     if (isAdmin) {
       api.get<ShopOption[]>("/shops?active_only=true&module=store")
         .then((rows) => {
@@ -108,7 +115,7 @@ export default function BalanceFileReport() {
       setShopId(user.shopId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, user?.shopId]);
+  }, [embedded, isAdmin, user?.shopId]);
 
   // Load products when shop changes
   useEffect(() => {
@@ -197,16 +204,18 @@ export default function BalanceFileReport() {
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div className="page-shell space-y-4">
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2">
-          <BookOpen className="h-6 w-6" />
-          {t("balanceFile.title", "Balance File")}
-        </h1>
-        <p className="page-description">
-          {t("balanceFile.subtitle", "Inventory ledger using Average Cost method — monthly breakdown linked to Receive Stock data.")}
-        </p>
-      </div>
+    <div className={embedded ? "space-y-4" : "page-shell space-y-4"}>
+      {!embedded && (
+        <div className="page-header">
+          <h1 className="page-title flex items-center gap-2">
+            <BookOpen className="h-6 w-6" />
+            {t("balanceFile.title", "Balance File")}
+          </h1>
+          <p className="page-description">
+            {t("balanceFile.subtitle", "Inventory ledger using Average Cost method — monthly breakdown linked to Receive Stock data.")}
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -215,7 +224,7 @@ export default function BalanceFileReport() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
-            {isAdmin && (
+            {isAdmin && !embedded && (
               <div className="space-y-1">
                 <Label>{t("balanceFile.shop", "Shop")}</Label>
                 <Select value={shopId} onValueChange={setShopId}>
@@ -282,10 +291,12 @@ export default function BalanceFileReport() {
               {t("balanceFile.exportExcel", "Export Excel")}
             </Button>
 
-            <Button variant="secondary" onClick={goReceiveStock} className="ml-auto">
-              <PackagePlus className="h-4 w-4 mr-1" />
-              {t("balanceFile.goReceive", "Receive Stock")}
-            </Button>
+            {!embedded && (
+              <Button variant="secondary" onClick={goReceiveStock} className="ml-auto">
+                <PackagePlus className="h-4 w-4 mr-1" />
+                {t("balanceFile.goReceive", "Receive Stock")}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

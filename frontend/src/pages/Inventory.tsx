@@ -63,12 +63,14 @@ import {
   Printer,
   Barcode,
   CalendarCheck,
+  BookOpen,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
 import MonthlyStockReport from "./store/MonthlyStockReport";
+import BalanceFileReport from "./store/BalanceFileReport";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
 import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
 
@@ -1139,6 +1141,12 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             </TabsTrigger>
           )}
           {embedded && (
+            <TabsTrigger value="balance-file" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Balance File
+            </TabsTrigger>
+          )}
+          {embedded && (
             <TabsTrigger value="categories" className="gap-2">
               <Tag className="h-4 w-4" />
               {t("inventory.tabCategories")}
@@ -1652,6 +1660,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         <TabsContent value="monthly-report">
           {embedded && lockedShopId && (
             <MonthlyStockReport shopId={lockedShopId} />
+          )}
+        </TabsContent>
+
+        {/* ── Tab: Balance File (Average Cost) ───────────────────────────── */}
+        <TabsContent value="balance-file">
+          {embedded && lockedShopId && (
+            <BalanceFileReport lockedShopId={lockedShopId} />
           )}
         </TabsContent>
 
