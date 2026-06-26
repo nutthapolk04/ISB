@@ -43,6 +43,10 @@ export interface StudentLookupResult {
   allergy_override_note?: string | null;
   card_frozen?: boolean;
   daily_limit?: number | null;
+  daily_limit_canteen?: number | null;
+  daily_limit_store?: number | null;
+  spent_today_canteen?: number | null;
+  spent_today_store?: number | null;
   negative_credit_limit?: number | null;
   wallet_balance?: number | null;
   wallet_id?: number | null;

@@ -49,7 +49,8 @@ import {
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
-import type { DisplayPayer, SpendingLimitData } from "@/hooks/useDisplayBroadcast";
+import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
+import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -275,6 +276,17 @@ export default function Canteen() {
     display.standby();
   }, [display]);
 
+  const canteenSpendingLimit = (s: { daily_limit_canteen?: number | null; spent_today_canteen?: number | null } | null): SpendingLimitData | null => {
+    if (!s || s.daily_limit_canteen == null) return null;
+    const spent = s.spent_today_canteen ?? 0;
+    return {
+      daily_limit: s.daily_limit_canteen,
+      spent_today: spent,
+      remaining: Math.max(0, s.daily_limit_canteen - spent),
+      group_name: "Daily Canteen Limit",
+    };
+  };
+
   const buildDisplayItems = () =>
     cartToDisplayItems(
       cart.items.map((i) => ({
@@ -303,7 +315,6 @@ export default function Canteen() {
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
   // Increment to trigger spending chip refresh after successful checkout
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
-  const [spendingUsage, setSpendingUsage] = useState<SpendingLimitData | null>(null);
 
   // ── Departments (for department payment option) ──────────────────────────
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
@@ -787,8 +798,8 @@ export default function Canteen() {
       payer.kind === "department"
         ? payerForDepartment(payer.department, amount)
         : payer.kind === "customer"
-          ? payerForCustomer({ ...payer.student, spendingLimit: spendingUsage }, amount)
-          : payerForUser({ ...payer.user, spendingLimit: spendingUsage }, amount);
+          ? payerForCustomer({ ...payer.student, spendingLimit: canteenSpendingLimit(payer.student) }, amount)
+          : payerForUser(payer.user, amount);
     const displayMethod = payer.kind === "department" ? "department" : "wallet";
     display.processing({
       items: buildDisplayItems(),
@@ -933,7 +944,7 @@ export default function Canteen() {
     if (preSelectedMember) {
       // Direct charge for pre-selected member (wallet or department)
       const amount = cart.total;
-      const displayPayer = payerForCustomer({ ...preSelectedMember, spendingLimit: spendingUsage }, amount);
+      const displayPayer = payerForCustomer({ ...preSelectedMember, spendingLimit: canteenSpendingLimit(preSelectedMember) }, amount);
       const displayMethod =
         preSelectedMember.customer_kind === "department" ? "department" : "wallet";
       display.processing({
@@ -1191,7 +1202,6 @@ export default function Canteen() {
                   : { kind: "customer", id: preSelectedMember.id }
               }
               refreshKey={chipRefreshKey}
-              onUsageChange={(u) => setSpendingUsage(u ? { daily_limit: u.daily_limit, spent_today: u.spent_today, remaining: u.remaining, group_name: u.name_en } : null)}
             />
           </div>
         )}

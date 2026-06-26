@@ -4,6 +4,7 @@
  * department transactions. Customer photo is intentionally omitted
  * (privacy in a queue).
  */
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
 
@@ -103,7 +104,7 @@ export function PayerCard({ payer, total, successful = false }: Props) {
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center gap-2 border-t border-amber-100 pt-5">
       <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{children}</span>

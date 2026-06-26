@@ -52,6 +52,12 @@ import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
+
+function storeSpendingLimit(s: { daily_limit_store?: number | null; spent_today_store?: number | null } | null): SpendingLimitData | null {
+  if (!s || s.daily_limit_store == null) return null;
+  const spent = s.spent_today_store ?? 0;
+  return { daily_limit: s.daily_limit_store, spent_today: spent, remaining: Math.max(0, s.daily_limit_store - spent), group_name: "Daily Store Limit" };
+}
 import {
   cartToDisplayItems,
   payerForCustomer,
@@ -657,7 +663,7 @@ const Store = () => {
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
   // Increment after each successful checkout to refresh the SpendingLimitChip
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
-  const [spendingUsage, setSpendingUsage] = useState<SpendingLimitData | null>(null);
+
 
   // ── RFID centered notification ────────────────────────────────────────────
   const [rfidNotif, setRfidNotif] = useState<{
@@ -1017,10 +1023,10 @@ const Store = () => {
     const displayPayer =
       method === "wallet" && ctx.payer
         ? ctx.payer.kind === "customer"
-          ? payerForCustomer({ ...ctx.payer.student, spendingLimit: spendingUsage }, total)
+          ? payerForCustomer({ ...ctx.payer.student, spendingLimit: storeSpendingLimit(ctx.payer.student) }, total)
           : ctx.payer.kind === "department"
             ? payerForDepartment(ctx.payer.department, total)
-            : payerForUser({ ...ctx.payer.user, spendingLimit: spendingUsage }, total)
+            : payerForUser({ ...ctx.payer.user, spendingLimit: storeSpendingLimit(ctx.payer.user) }, total)
         : method === "department" && ctx.deptId
           ? (() => {
               const d = departmentOptions.find((x) => x.id === ctx.deptId);
@@ -1261,7 +1267,7 @@ const Store = () => {
       total,
       payer:
         preSelectedMember != null
-          ? payerForCustomer({ ...preSelectedMember, spendingLimit: spendingUsage }, total)
+          ? payerForCustomer({ ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) }, total)
           : null,
     });
 
@@ -1674,7 +1680,6 @@ const Store = () => {
                   : { kind: "customer", id: preSelectedMember.id }
               }
               refreshKey={chipRefreshKey}
-              onUsageChange={(u) => setSpendingUsage(u ? { daily_limit: u.daily_limit, spent_today: u.spent_today, remaining: u.remaining, group_name: u.name_en } : null)}
             />
           )}
 
