@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import {
+  afterPaymentPayer,
   cartToDisplayItems,
   payerForCustomer,
   payerForDepartment,
@@ -831,7 +832,7 @@ export default function Canteen() {
         });
         display.success({
           total: amount,
-          payer: displayPayer,
+          payer: afterPaymentPayer(displayPayer, amount),
           method: "wallet",
           receiptNumber: res.receipt_number,
         });
@@ -853,7 +854,7 @@ export default function Canteen() {
       });
       display.success({
         total: amount,
-        payer: displayPayer,
+        payer: afterPaymentPayer(displayPayer, amount),
         method: "wallet",
         receiptNumber: res.receipt_number,
       });
@@ -980,7 +981,7 @@ export default function Canteen() {
         );
         display.success({
           total: amount,
-          payer: displayPayer,
+          payer: afterPaymentPayer(displayPayer, amount),
           method: "wallet",
           receiptNumber: res.receipt_number,
         });

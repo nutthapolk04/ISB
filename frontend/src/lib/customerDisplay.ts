@@ -117,6 +117,20 @@ export function payerForDepartment(
   };
 }
 
+/** Update a DisplayPayer's spending limit after a successful payment. */
+export function afterPaymentPayer(payer: DisplayPayer | null, amount: number): DisplayPayer | null {
+  if (!payer || !payer.spendingLimit) return payer;
+  const sl = payer.spendingLimit;
+  return {
+    ...payer,
+    spendingLimit: {
+      ...sl,
+      spent_today: sl.spent_today + amount,
+      remaining: Math.max(0, sl.remaining - amount),
+    },
+  };
+}
+
 // ── Backend payment_method → display PaymentMethod ──────────────────────
 
 export function paymentMethodForDisplay(method: string): PaymentMethod {

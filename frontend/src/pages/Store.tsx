@@ -59,6 +59,7 @@ function storeSpendingLimit(s: { daily_limit_store?: number | null; spent_today_
   return { daily_limit: s.daily_limit_store, spent_today: spent, remaining: Math.max(0, s.daily_limit_store - spent), group_name: "Daily Store Limit" };
 }
 import {
+  afterPaymentPayer,
   cartToDisplayItems,
   payerForCustomer,
   payerForDepartment,
@@ -1225,7 +1226,7 @@ const Store = () => {
       // to Standby 5 s after this success message.
       display.success({
         total: receipt.total,
-        payer: displayPayer,
+        payer: ["wallet"].includes(method) ? afterPaymentPayer(displayPayer, receipt.total) : displayPayer,
         method: displayMethod,
         receiptNumber: receipt.receipt_number,
       });
