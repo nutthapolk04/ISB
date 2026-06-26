@@ -54,7 +54,7 @@
     "offline": "Offline"
   },
   "resync": {
-    "trigger": "Resync",
+    "trigger": "Sync",
     "title": "Sync data from PowerSchool",
     "description": "Pull the latest staff / parent / student records from the school system.",
     "info": {
