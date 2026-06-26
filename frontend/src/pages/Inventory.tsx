@@ -71,6 +71,7 @@ import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
 import MonthlyStockReport from "./store/MonthlyStockReport";
 import BalanceFileReport from "./store/BalanceFileReport";
+import { useAuth } from "@/contexts/AuthContext";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
 import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
 
@@ -258,7 +259,9 @@ interface InventoryProps {
 
 const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: InventoryProps = {}) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const embedded = lockedShopId !== undefined;
+  const canSeeBalanceFile = user?.role !== "admin";
 
   // ── State ───────────────────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([]);
@@ -1130,7 +1133,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             <ArrowDownToLine className="h-4 w-4" />
             {t("inventory.tabReceive")}
           </TabsTrigger>
-          {embedded && (
+          {embedded && canSeeBalanceFile && (
             <TabsTrigger value="balance-file" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Balance File
@@ -1665,7 +1668,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
 
         {/* ── Tab: Balance File (Average Cost) ───────────────────────────── */}
         <TabsContent value="balance-file">
-          {embedded && lockedShopId && (
+          {embedded && lockedShopId && canSeeBalanceFile && (
             <BalanceFileReport lockedShopId={lockedShopId} />
           )}
         </TabsContent>
