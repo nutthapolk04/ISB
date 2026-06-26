@@ -235,15 +235,19 @@ export async function getCustomerByCode(code: string): Promise<StudentProfileDTO
     .where(or(ilike(customers.studentCode, code), ilike(customers.customerCode, code)))
     .limit(1);
   if (!rows[0]) return null;
-  const wallets = await walletByCustomerIds([rows[0].id]);
-  return customerToProfile(rows[0], wallets.get(rows[0].id));
+  const ws = await walletByCustomerIds([rows[0].id]);
+  const wallet = ws.get(rows[0].id);
+  const spent = await spentTodayForWallet(wallet?.id);
+  return customerToProfile(rows[0], wallet, spent);
 }
 
 export async function getCustomerByCard(uid: string): Promise<StudentProfileDTO | null> {
   const rows = await db.select().from(customers).where(eq(customers.cardUid, uid)).limit(1);
   if (!rows[0]) return null;
-  const wallets = await walletByCustomerIds([rows[0].id]);
-  return customerToProfile(rows[0], wallets.get(rows[0].id));
+  const ws = await walletByCustomerIds([rows[0].id]);
+  const wallet = ws.get(rows[0].id);
+  const spent = await spentTodayForWallet(wallet?.id);
+  return customerToProfile(rows[0], wallet, spent);
 }
 
 export async function getCustomer(id: number): Promise<StudentProfileDTO | null> {
