@@ -2,7 +2,7 @@ import { eq, and, or, ilike, asc, inArray, sql, ne, isNotNull } from "drizzle-or
 import { db, pgClient } from "@/db/client";
 import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
-import type { AccessTokenPayload } from "@/middleware/auth";
+import type { AccessTokenPayload } from "@/middleware/AuthUtils";
 import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
 import { todayDeductedByModule, DEFAULT_DAILY_LIMIT_CANTEEN, DEFAULT_DAILY_LIMIT_STORE } from "@/services/pos_checkout_service";
 

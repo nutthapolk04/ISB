@@ -22,9 +22,8 @@ beforeAll(() => {
 });
 
 async function getApp() {
-  const { Elysia } = await import("elysia");
-  const { isbSyncRoutes } = await import("../src/routes/isb_sync");
-  return new Elysia().use(isbSyncRoutes);
+  const { createTestApp } = await import("./helpers");
+  return createTestApp();
 }
 
 function post(

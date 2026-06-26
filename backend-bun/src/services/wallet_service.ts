@@ -12,7 +12,7 @@ import {
   paymentIntents,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
-import type { AccessTokenPayload } from "@/middleware/auth";
+import type { AccessTokenPayload } from "@/middleware/AuthUtils";
 
 const MAX_WALLET_BALANCE = 50_000;
 const WALLET_USER_ROLES = new Set(["parent", "staff", "cashier", "manager", "kitchen", "admin"]);

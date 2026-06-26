@@ -33,9 +33,8 @@ function mintToken(secret: string, payload: Record<string, unknown>): string {
 
 describe("GET /api/v1/shops contract", () => {
   it.if(REQUIRED_DB_TEST)("returns array of ShopResponse-shaped objects", async () => {
-    const { Elysia } = await import("elysia");
-    const { shopRoutes } = await import("../src/routes/shops");
-    const app = new Elysia({ prefix: "/api/v1" }).use(shopRoutes);
+    const { createTestApp } = await import("./helpers");
+    const app = createTestApp();
 
     const token = mintToken(process.env.JWT_SECRET!, {
       sub: "1",
@@ -88,9 +87,8 @@ describe("GET /api/v1/shops contract", () => {
   });
 
   it.if(REQUIRED_DB_TEST)("filters by module=canteen", async () => {
-    const { Elysia } = await import("elysia");
-    const { shopRoutes } = await import("../src/routes/shops");
-    const app = new Elysia({ prefix: "/api/v1" }).use(shopRoutes);
+    const { createTestApp } = await import("./helpers");
+    const app = createTestApp();
 
     const token = mintToken(process.env.JWT_SECRET!, {
       sub: "1",
@@ -113,9 +111,8 @@ describe("GET /api/v1/shops contract", () => {
   });
 
   it("rejects request without token", async () => {
-    const { Elysia } = await import("elysia");
-    const { shopRoutes } = await import("../src/routes/shops");
-    const app = new Elysia({ prefix: "/api/v1" }).use(shopRoutes);
+    const { createTestApp } = await import("./helpers");
+    const app = createTestApp();
     const res = await app.handle(
       new Request("http://localhost/api/v1/shops/"),
     );

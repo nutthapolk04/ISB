@@ -18,9 +18,8 @@ function mintToken(secret: string, payload: Record<string, unknown>): string {
 }
 
 async function buildApp() {
-  const { Elysia } = await import("elysia");
-  const { shopRoutes } = await import("../src/routes/shops");
-  return new Elysia({ prefix: "/api/v1" }).use(shopRoutes);
+  const { createTestApp } = await import("./helpers");
+  return createTestApp();
 }
 
 function token() {
