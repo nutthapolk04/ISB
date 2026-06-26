@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, FileDown, Loader2, PackagePlus } from "lucide-react";
+import { BookOpen, FileDown, FileText, Loader2, PackagePlus } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
@@ -71,8 +71,21 @@ const fmtNum = (v: number | null, dp = 2) =>
 const fmtQty = (v: number | null) =>
   v === null || v === undefined ? DASH : v.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const MONTH_LABELS_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+function getMonthLabel(monthIndex: number, lang: string) {
+  const date = new Date(2000, monthIndex, 1);
+  return date.toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { month: "long" });
+}
+
+function formatYear(adYear: number, lang: string) {
+  return lang === "th" ? `${adYear} / ${adYear + 543}` : String(adYear);
+}
+
+function formatPeriod(month: number, adYear: number, lang: string) {
+  const label = getMonthLabel(month - 1, lang);
+  return lang === "th"
+    ? `${String(month).padStart(2, "0")}/${adYear + 543} — ${label}`
+    : `${label} ${adYear}`;
+}
 
 // ── Component ───────────────────────────────────────────────────────────
 
@@ -82,7 +95,8 @@ interface Props {
 }
 
 export default function BalanceFileReport({ lockedShopId }: Props = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { user } = useAuth();
   const navigate = useNavigate();
   const embedded = !!lockedShopId;
@@ -201,6 +215,127 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     else navigate("/store/management");
   };
 
+  const exportPdf = () => {
+    if (!data || data.blocks.length === 0) return;
+
+    const periodLabel = formatPeriod(data.month, data.year, lang);
+    const shopLabel = data.shop_name ?? shopId;
+    const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US");
+
+    const colIn  = t("balanceFile.col.in");
+    const colOut = t("balanceFile.col.out");
+    const colBal = t("balanceFile.col.balance");
+
+    const blocksHtml = data.blocks.map((block) => {
+      const heading = block.product_code
+        ? `${block.product_code} — ${block.product_name}`
+        : block.product_name;
+
+      const rows = block.rows.map((r, idx) => {
+        const isOpening = idx === 0;
+        const isSummary = idx === block.rows.length - 1;
+        const dateCell = r.date ?? (isOpening ? t("balanceFile.opening") : isSummary ? t("balanceFile.summary") : "—");
+        const cls = isOpening ? 'class="opening"' : isSummary ? 'class="summary"' : "";
+        return `<tr ${cls}>
+          <td>${dateCell}</td>
+          <td>${r.description}</td>
+          <td class="mono">${r.doc_no ?? "—"}</td>
+          <td class="num">${fmtQty(r.in_qty)}</td>
+          <td class="num">${fmtNum(r.in_unit_cost)}</td>
+          <td class="num">${fmtNum(r.in_amount)}</td>
+          <td class="num">${fmtQty(r.out_qty)}</td>
+          <td class="num">${fmtNum(r.out_avg_cost, 4)}</td>
+          <td class="num">${fmtNum(r.out_amount)}</td>
+          <td class="num">${fmtQty(r.bal_qty)}</td>
+          <td class="num">${fmtNum(r.bal_avg_cost, 4)}</td>
+          <td class="num">${fmtNum(r.bal_total_value)}</td>
+          <td>${r.note ?? "—"}</td>
+        </tr>`;
+      }).join("");
+
+      return `
+        <div class="block">
+          <div class="block-heading">${heading}</div>
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2">${t("balanceFile.col.date")}</th>
+                <th rowspan="2">${t("balanceFile.col.desc")}</th>
+                <th rowspan="2">${t("balanceFile.col.doc")}</th>
+                <th colspan="3" class="group-in">${colIn}</th>
+                <th colspan="3" class="group-out">${colOut}</th>
+                <th colspan="3" class="group-bal">${colBal}</th>
+                <th rowspan="2">${t("balanceFile.col.note")}</th>
+              </tr>
+              <tr>
+                <th class="group-in num">Qty</th>
+                <th class="group-in num">Unit Cost</th>
+                <th class="group-in num">Amount</th>
+                <th class="group-out num">Qty</th>
+                <th class="group-out num">Avg Cost</th>
+                <th class="group-out num">Amount</th>
+                <th class="group-bal num">Qty</th>
+                <th class="group-bal num">Avg Cost</th>
+                <th class="group-bal num">Total Value</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+<meta charset="UTF-8"/>
+<title>Balance File — ${periodLabel}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Sarabun", "Noto Sans Thai", Arial, sans-serif; font-size: 8pt; color: #111; }
+  .report-header { text-align: center; margin-bottom: 10px; }
+  .report-header h1 { font-size: 13pt; margin: 0 0 2px; }
+  .report-header h2 { font-size: 10pt; margin: 0 0 2px; font-weight: normal; }
+  .report-header .meta { font-size: 8pt; color: #555; }
+  .block { margin-bottom: 14px; page-break-inside: avoid; }
+  .block-heading { font-size: 9pt; font-weight: bold; margin-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+  th, td { border: 1px solid #ccc; padding: 2px 4px; white-space: nowrap; }
+  th { background: #f3f4f6; font-weight: 600; text-align: center; }
+  .group-in  { background: #dcfce7 !important; }
+  .group-out { background: #ffedd5 !important; }
+  .group-bal { background: #dbeafe !important; }
+  .num { text-align: right; }
+  .mono { font-family: monospace; font-size: 7pt; }
+  tr.opening { background: #fefce8; font-weight: 600; }
+  tr.summary { background: #f4f4f5; font-weight: 700; border-top: 2px solid #888; }
+  .footer { text-align: right; font-size: 7pt; color: #888; margin-top: 6px; }
+  @media print {
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="report-header">
+  <h1>International School Bangkok</h1>
+  <h2>Balance File Report</h2>
+  <div class="meta">${t("balanceFile.period")}: ${periodLabel} &nbsp;·&nbsp; Shop: ${shopLabel}</div>
+</div>
+${blocksHtml}
+<div class="footer">${t("common.generatedAt", "Generated")}: ${generatedAt}</div>
+<script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast({ title: "Popup blocked — please allow popups for this site.", variant: "destructive" });
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+  };
+
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
@@ -258,9 +393,9 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
               <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {MONTH_LABELS_TH.map((label, i) => (
+                  {Array.from({ length: 12 }, (_, i) => (
                     <SelectItem key={i + 1} value={String(i + 1)}>
-                      {String(i + 1).padStart(2, "0")} — {label}
+                      {String(i + 1).padStart(2, "0")} — {getMonthLabel(i, lang)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -274,7 +409,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
                 <SelectContent>
                   {yearOptions.map((y) => (
                     <SelectItem key={y} value={String(y)}>
-                      {y} / {y + 543}
+                      {formatYear(y, lang)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -289,6 +424,11 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
             <Button variant="outline" onClick={exportExcel} disabled={exporting || !data || data.blocks.length === 0}>
               {exporting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileDown className="h-4 w-4 mr-1" />}
               {t("balanceFile.exportExcel", "Export Excel")}
+            </Button>
+
+            <Button variant="outline" onClick={exportPdf} disabled={!data || data.blocks.length === 0}>
+              <FileText className="h-4 w-4 mr-1" />
+              {t("balanceFile.exportPdf", "Export PDF")}
             </Button>
 
             {!embedded && (
@@ -310,7 +450,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
               {block.product_name}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              {t("balanceFile.period", "Period")}: {String(data.month).padStart(2, "0")}/{data.year + 543}
+              {t("balanceFile.period", "Period")}: {formatPeriod(data.month, data.year, lang)}
               {data.shop_name && ` · ${data.shop_name}`}
             </p>
           </CardHeader>
@@ -318,19 +458,19 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="bg-muted/40">
-                  <TableHead rowSpan={2}>{t("balanceFile.col.date", "วันที่ / Date")}</TableHead>
-                  <TableHead rowSpan={2}>{t("balanceFile.col.desc", "รายการ / Description")}</TableHead>
-                  <TableHead rowSpan={2}>{t("balanceFile.col.doc", "เลขที่เอกสาร / Doc No.")}</TableHead>
+                  <TableHead rowSpan={2}>{t("balanceFile.col.date")}</TableHead>
+                  <TableHead rowSpan={2}>{t("balanceFile.col.desc")}</TableHead>
+                  <TableHead rowSpan={2}>{t("balanceFile.col.doc")}</TableHead>
                   <TableHead colSpan={3} className="text-center bg-green-50">
-                    {t("balanceFile.col.in", "รับเข้า (Stock In)")}
+                    {t("balanceFile.col.in")}
                   </TableHead>
                   <TableHead colSpan={3} className="text-center bg-orange-50">
-                    {t("balanceFile.col.out", "จ่ายออก (Stock Out)")}
+                    {t("balanceFile.col.out")}
                   </TableHead>
                   <TableHead colSpan={3} className="text-center bg-blue-50">
-                    {t("balanceFile.col.balance", "คงเหลือ (Balance)")}
+                    {t("balanceFile.col.balance")}
                   </TableHead>
-                  <TableHead rowSpan={2}>{t("balanceFile.col.note", "หมายเหตุ / Note")}</TableHead>
+                  <TableHead rowSpan={2}>{t("balanceFile.col.note")}</TableHead>
                 </TableRow>
                 <TableRow className="bg-muted/40">
                   <TableHead className="bg-green-50 text-right">Qty</TableHead>
@@ -353,7 +493,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
                       isOpening && "bg-amber-50/60 font-semibold",
                       isSummary && "bg-zinc-100 font-semibold border-t-2",
                     )}>
-                      <TableCell>{r.date ?? (isOpening ? "ยอดยกมา" : isSummary ? "สรุปรวม" : DASH)}</TableCell>
+                      <TableCell>{r.date ?? (isOpening ? t("balanceFile.opening") : isSummary ? t("balanceFile.summary") : DASH)}</TableCell>
                       <TableCell>{r.description}</TableCell>
                       <TableCell className="font-mono">{r.doc_no ?? DASH}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQty(r.in_qty)}</TableCell>

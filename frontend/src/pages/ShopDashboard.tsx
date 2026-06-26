@@ -226,12 +226,12 @@ export default function ShopDashboard() {
     ...LIVE_OPTS,
   });
 
-  // Recent transactions — last 5 receipts of this shop, refreshed live.
+  // Recent transactions — last 5 receipts of this shop for the selected date, refreshed live.
   const { data: recentReceipts } = useQuery<RecentReceipt[]>({
-    queryKey: ["shop-dashboard", effectiveShopId, "recent"],
+    queryKey: ["shop-dashboard", effectiveShopId, "recent", today],
     queryFn: () =>
       api.get<RecentReceipt[]>(
-        `/pos/receipt?page=1&page_size=5${effectiveShopId ? `&shop_id=${encodeURIComponent(effectiveShopId)}` : ""}`,
+        `/pos/receipt?page=1&page_size=10&date_from=${today}&date_to=${today}${effectiveShopId ? `&shop_id=${encodeURIComponent(effectiveShopId)}` : ""}`,
       ),
     enabled: !!effectiveShopId || !isAdmin,
     ...LIVE_OPTS,

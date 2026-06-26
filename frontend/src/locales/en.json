@@ -1446,7 +1446,7 @@
       "bindCard": "Bind card",
       "walletBalance": "Balance",
       "deleteUser": "Delete user",
-      "deleteConfirm": "Are you sure you want to delete",
+      "deleteConfirm": "Delete user",
       "deleteWarning": "This action cannot be undone.",
       "deleteSuccess": "User deleted",
       "deleteError": "Failed to delete user",
@@ -1514,12 +1514,10 @@
       "roleRemoveFailed": "Could not remove role",
       "roleRemoved": "Role removed",
       "selectRoleToAdd": "Choose role to add",
-      "deleteSuccess": "User deleted",
       "deleteFailed": "Failed to delete user",
       "deleteTitle": "Delete user",
       "deleteConfirmTitle": "Confirm user deletion",
-      "deleteConfirmDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
-      "deleteConfirm": "Delete user"
+      "deleteConfirmDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone."
     }
   },
   "canteen": {
@@ -3161,5 +3159,35 @@
         "zeroBalance": "Zero balance"
       }
     }
+  },
+  "balanceFile": {
+    "title": "Balance File",
+    "subtitle": "Inventory ledger using Average Cost method — monthly breakdown linked to Receive Stock data.",
+    "filters": "Filters",
+    "shop": "Shop",
+    "product": "Product",
+    "allProducts": "All products",
+    "month": "Month",
+    "year": "Year",
+    "load": "Load",
+    "exportExcel": "Export Excel",
+    "goReceive": "Receive Stock",
+    "selectShop": "Please select a shop",
+    "empty": "No data for the selected period.",
+    "loadFailed": "Failed to load balance file",
+    "exportFailed": "Excel export failed",
+    "period": "Period",
+    "opening": "Opening Balance",
+    "summary": "Summary Balance",
+    "col": {
+      "date": "Date",
+      "desc": "Description",
+      "doc": "Doc No.",
+      "in": "Stock In",
+      "out": "Stock Out",
+      "balance": "Balance",
+      "note": "Note"
+    },
+    "exportPdf": "Export PDF"
   }
 }

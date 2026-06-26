@@ -318,7 +318,7 @@ const App = () => {
                     <Route path="/store/reports" element={<Reports />} />
                     <Route path="/store/audit-logs" element={<AuditLogList />} />
                   </Route>
-                  <Route element={<RequireRole roles={["admin", "manager", "cashier"]} />}>
+                  <Route element={<RequireRole roles={["admin"]} />}>
                     <Route path="/store/balance-file" element={<BalanceFileReport />} />
                   </Route>
 
