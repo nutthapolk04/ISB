@@ -504,8 +504,8 @@ const Store = () => {
               productCode: p.product_code,
               barcode: p.barcode ?? "",
               name: p.name,
-              price: p.external_price,
-              internalPrice: p.internal_price,
+              price: Number(p.external_price ?? 0),
+              internalPrice: p.internal_price != null ? Number(p.internal_price) : undefined,
               stock: p.stock,
               category: p.category,
               subMerchantId: p.shop_id,
@@ -527,8 +527,8 @@ const Store = () => {
               productCode: b.bundle_code,
               barcode: b.bundle_code,
               name: b.name,
-              price: b.external_price,
-              internalPrice: b.internal_price ?? b.external_price,
+              price: Number(b.external_price ?? 0),
+              internalPrice: Number(b.internal_price ?? b.external_price ?? 0),
               // Bundles don't have a single stock counter — use a large sentinel
               // so the "out of stock" badge never triggers for bundles.
               stock: 9999,
