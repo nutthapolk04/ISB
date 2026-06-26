@@ -2127,6 +2127,7 @@ const Store = () => {
         open={walletOpen}
         onOpenChange={setWalletOpen}
         total={total}
+        shopKind="store"
         onBack={handleBackToPicker}
         onConfirm={handleConfirmWallet}
         confirming={confirming}

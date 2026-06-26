@@ -95,6 +95,8 @@ interface RfidPaymentModalProps {
   onBack: () => void;
   onConfirm: (payer: WalletPayer) => Promise<void>;
   confirming: boolean;
+  /** "canteen" uses daily_limit_canteen; "store" uses daily_limit_store */
+  shopKind?: "canteen" | "store";
   /** Pre-selected member from search (skips to identity stage) */
   preSelectedMember?: StudentLookupResult | null;
   /** Clear the pre-selected member after use */
@@ -132,6 +134,7 @@ export function RfidPaymentModal({
   onBack,
   onConfirm,
   confirming,
+  shopKind = "canteen",
   preSelectedMember,
   onClearPreSelected,
 }: RfidPaymentModalProps) {
@@ -367,9 +370,15 @@ export function RfidPaymentModal({
   const allowedFloor = negLimit !== null ? -Number(negLimit) : 0;
   const isFrozen = payerKind === "customer" && student?.card_frozen === true;
   const dailyLimitVal =
-    payerKind === "customer" && student?.daily_limit
-      ? Number(student.daily_limit)
+    payerKind === "customer"
+      ? (shopKind === "store" ? (student?.daily_limit_store ?? null) : (student?.daily_limit_canteen ?? null))
       : null;
+  const dailySpentVal =
+    payerKind === "customer"
+      ? (shopKind === "store" ? (student?.spent_today_store ?? null) : (student?.spent_today_canteen ?? null))
+      : null;
+  const dailyRemainingVal =
+    dailyLimitVal != null ? Math.max(0, dailyLimitVal - (dailySpentVal ?? 0)) : null;
 
   // Overdraft policy:
   //   - customer wallet: allowed up to negative_credit_limit (0 if null)
@@ -733,12 +742,43 @@ export function RfidPaymentModal({
                   ฿{remaining.toFixed(2)}
                 </span>
               </div>
-              {dailyLimitVal && (
-                <div className="pt-1 text-[11px] text-muted-foreground">
-                  {r("dailyLimit")}: ฿{dailyLimitVal.toFixed(2)}
-                </div>
-              )}
             </div>
+
+            {/* Daily Spending Limit */}
+            {dailyLimitVal != null && (
+              <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  {shopKind === "store" ? "Daily Store Limit" : "Daily Canteen Limit"}
+                </div>
+                <div className="border-t border-border" />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Daily Limit</span>
+                  <span className="tabular-nums font-semibold">฿{dailyLimitVal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Spent Today</span>
+                  <span className="tabular-nums font-semibold text-orange-600">฿{(dailySpentVal ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold">
+                  <span>Remaining</span>
+                  <span className={cn(
+                    "tabular-nums",
+                    dailyRemainingVal === 0 ? "text-destructive" : dailyRemainingVal != null && dailyRemainingVal < dailyLimitVal * 0.2 ? "text-amber-600" : "text-emerald-600"
+                  )}>
+                    ฿{(dailyRemainingVal ?? 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      dailyRemainingVal === 0 ? "bg-red-500" : dailyRemainingVal != null && dailyRemainingVal < dailyLimitVal * 0.2 ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    style={{ width: `${Math.min(((dailySpentVal ?? 0) / dailyLimitVal) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Warning banners */}
             {overLimit && (
