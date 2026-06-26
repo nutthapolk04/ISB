@@ -51,6 +51,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
+import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 import {
   cartToDisplayItems,
   payerForCustomer,
@@ -656,6 +657,7 @@ const Store = () => {
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
   // Increment after each successful checkout to refresh the SpendingLimitChip
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
+  const [spendingUsage, setSpendingUsage] = useState<SpendingLimitData | null>(null);
 
   // ── RFID centered notification ────────────────────────────────────────────
   const [rfidNotif, setRfidNotif] = useState<{
@@ -1015,10 +1017,10 @@ const Store = () => {
     const displayPayer =
       method === "wallet" && ctx.payer
         ? ctx.payer.kind === "customer"
-          ? payerForCustomer(ctx.payer.student, total)
+          ? payerForCustomer({ ...ctx.payer.student, spendingLimit: spendingUsage }, total)
           : ctx.payer.kind === "department"
             ? payerForDepartment(ctx.payer.department, total)
-            : payerForUser(ctx.payer.user, total)
+            : payerForUser({ ...ctx.payer.user, spendingLimit: spendingUsage }, total)
         : method === "department" && ctx.deptId
           ? (() => {
               const d = departmentOptions.find((x) => x.id === ctx.deptId);
@@ -1259,7 +1261,7 @@ const Store = () => {
       total,
       payer:
         preSelectedMember != null
-          ? payerForCustomer(preSelectedMember, total)
+          ? payerForCustomer({ ...preSelectedMember, spendingLimit: spendingUsage }, total)
           : null,
     });
 
@@ -1672,6 +1674,7 @@ const Store = () => {
                   : { kind: "customer", id: preSelectedMember.id }
               }
               refreshKey={chipRefreshKey}
+              onUsageChange={(u) => setSpendingUsage(u ? { daily_limit: u.daily_limit, spent_today: u.spent_today, remaining: u.remaining, group_name: u.name_en } : null)}
             />
           )}
 

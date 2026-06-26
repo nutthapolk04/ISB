@@ -70,9 +70,13 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
           </span>
         </div>
         {payer && (
-          <div className="max-w-3xl mx-auto mt-3 text-amber-50 text-sm">
-            Paying as <b>{payer.name}</b>
-            {payer.role ? ` · ${payer.role}` : ""}
+          <div className="max-w-3xl mx-auto mt-3 text-amber-50 text-sm flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>Paying as <b>{payer.name}</b>{payer.role ? ` · ${payer.role}` : ""}</span>
+            {payer.spendingLimit && payer.spendingLimit.daily_limit > 0 && (
+              <span className="bg-amber-400/40 rounded-full px-3 py-0.5 text-xs font-medium tabular-nums">
+                Remaining ฿{payer.spendingLimit.remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ฿{payer.spendingLimit.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })} today
+              </span>
+            )}
           </div>
         )}
       </footer>

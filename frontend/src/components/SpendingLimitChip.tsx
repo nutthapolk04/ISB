@@ -20,6 +20,7 @@ interface Props {
   shopId: string;
   payerId: { kind: "customer" | "user"; id: number } | null;
   refreshKey?: number;
+  onUsageChange?: (usage: UsageData | null) => void;
 }
 
 interface UsageData {
@@ -39,7 +40,7 @@ interface ShopData {
 const formatTHB = (n: number) =>
   "฿" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-export function SpendingLimitChip({ shopId, payerId, refreshKey = 0 }: Props) {
+export function SpendingLimitChip({ shopId, payerId, refreshKey = 0, onUsageChange }: Props) {
   const { t, i18n } = useTranslation();
   const [groupId, setGroupId] = useState<number | null | undefined>(undefined);
   const [usage, setUsage] = useState<UsageData | null>(null);
@@ -57,6 +58,7 @@ export function SpendingLimitChip({ shopId, payerId, refreshKey = 0 }: Props) {
   useEffect(() => {
     if (!payerId || groupId == null || groupId === null) {
       setUsage(null);
+      onUsageChange?.(null);
       return;
     }
     setLoading(true);
@@ -66,8 +68,8 @@ export function SpendingLimitChip({ shopId, payerId, refreshKey = 0 }: Props) {
         : `payer_user_id=${payerId.id}`;
     api
       .get<UsageData>(`/spending-groups/${groupId}/usage-today?${params}`)
-      .then((data) => setUsage(data))
-      .catch(() => setUsage(null))
+      .then((data) => { setUsage(data); onUsageChange?.(data); })
+      .catch(() => { setUsage(null); onUsageChange?.(null); })
       .finally(() => setLoading(false));
   }, [groupId, payerId, refreshKey]);
 

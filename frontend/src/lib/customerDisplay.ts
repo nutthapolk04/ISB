@@ -10,6 +10,7 @@ import type {
   DisplayItem,
   DisplayPayer,
   PaymentMethod,
+  SpendingLimitData,
 } from "@/hooks/useDisplayBroadcast";
 
 // ── Cart line → DisplayItem ─────────────────────────────────────────────
@@ -42,6 +43,7 @@ interface CustomerLike {
   grade?: string | null;
   customer_kind?: string | null;
   wallet_balance?: number | null;
+  spendingLimit?: SpendingLimitData | null;
 }
 
 interface UserLike {
@@ -49,6 +51,7 @@ interface UserLike {
   username: string;
   role: string;
   wallet_balance?: number | null;
+  spendingLimit?: SpendingLimitData | null;
 }
 
 interface DepartmentLike {
@@ -76,6 +79,7 @@ export function payerForCustomer(
     role: formatRoleForCustomer(c),
     balanceBefore: before,
     balanceAfter: before === null ? null : Math.round((before - total) * 100) / 100,
+    spendingLimit: c.spendingLimit ?? null,
   };
 }
 
@@ -94,6 +98,7 @@ export function payerForUser(u: UserLike, total: number): DisplayPayer {
     role,
     balanceBefore: before,
     balanceAfter: before === null ? null : Math.round((before - total) * 100) / 100,
+    spendingLimit: u.spendingLimit ?? null,
   };
 }
 

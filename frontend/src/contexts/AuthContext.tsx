@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { API_BASE_URL } from "@/lib/constants";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
+// Set to true to re-enable the multi-role / Switch role feature
+const MULTI_ROLE_ENABLED = false;
+
 export type UserRole =
   | "admin"
   | "manager"
@@ -115,8 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!stored) return null;
       const parsed: AuthUser = JSON.parse(stored);
       // Backward compat: old sessions lack allRoles/activeRole
-      if (!parsed.allRoles) parsed.allRoles = [parsed.role];
-      if (!parsed.activeRole) parsed.activeRole = parsed.role;
+      parsed.allRoles = MULTI_ROLE_ENABLED ? (parsed.allRoles ?? [parsed.role]) : [parsed.role];
+      parsed.activeRole = MULTI_ROLE_ENABLED ? (parsed.activeRole ?? parsed.role) : parsed.role;
       return parsed;
     } catch {
       return null;
@@ -174,12 +177,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Prototype mock fallback — lets demo accounts login even if backend
         // is stale/down. Safe because mock credentials are well-known (docs).
         const found = MOCK_USERS.find(
-          (u) => u.username === username && u.password === password,
+          (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password,
         );
         if (found) {
           const { password: _pw, ...authUser } = found;
           // Reset activeRole to primary on each fresh login
           authUser.activeRole = authUser.role;
+          if (!MULTI_ROLE_ENABLED) authUser.allRoles = [authUser.role];
           setUser(authUser);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
           console.warn(
@@ -207,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const meData = await meRes.json();
         const backendUser = meData.user ?? meData;
         const backendRole = backendUser.role as UserRole | undefined;
-        const mockMatch = MOCK_USERS.find((u) => u.username === username);
+        const mockMatch = MOCK_USERS.find((u) => u.username.toLowerCase() === username.toLowerCase());
         const resolvedRole: UserRole =
           backendRole ??
           mockMatch?.role ??
@@ -229,7 +233,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (backendUser.shop_id && !hasShopRole) {
           secondaryRoles.push("manager" as UserRole);
         }
-        const allRoles: UserRole[] = [...new Set([resolvedRole, ...secondaryRoles])];
+        const allRoles: UserRole[] = MULTI_ROLE_ENABLED
+          ? [...new Set([resolvedRole, ...secondaryRoles])]
+          : [resolvedRole];
         const shopId = backendUser.shop_id ?? mockMatch?.shopId ?? null;
         // shop_module from backend wins; fall back to mock match or heuristic
         const backendModule = (backendUser.shop_module as AppModule | undefined) ?? null;
@@ -262,11 +268,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch { /* keep inferred values */ }
         }
       } else {
-        const mockMatch = MOCK_USERS.find((u) => u.username === username);
+        const mockMatch = MOCK_USERS.find((u) => u.username.toLowerCase() === username.toLowerCase());
         authUser = mockMatch
           ? {
               id: mockMatch.id, username: mockMatch.username, fullName: mockMatch.fullName,
-              role: mockMatch.role, allRoles: mockMatch.allRoles, activeRole: mockMatch.role,
+              role: mockMatch.role, allRoles: MULTI_ROLE_ENABLED ? mockMatch.allRoles : [mockMatch.role], activeRole: mockMatch.role,
               shopId: mockMatch.shopId, shopName: mockMatch.shopName, shopModule: mockMatch.shopModule,
             }
           : { id: 0, username, fullName: username, role: "cashier", allRoles: ["cashier"], activeRole: "cashier", shopId: null, shopName: null, shopModule: null };
@@ -278,11 +284,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Offline mock fallback (prototype demo) — backend unreachable
       const found = MOCK_USERS.find(
-        (u) => u.username === username && u.password === password,
+        (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password,
       );
       if (found) {
         const { password: _pw, ...authUser } = found;
         authUser.activeRole = authUser.role;
+        if (!MULTI_ROLE_ENABLED) authUser.allRoles = [authUser.role];
         setUser(authUser);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
         console.warn(
@@ -326,7 +333,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const secondaryRoles: UserRole[] = (backendUser.roles ?? [])
         .map((r: { name: string }) => r.name as UserRole)
         .filter((r: UserRole) => r !== resolvedRole);
-      const allRoles: UserRole[] = [...new Set([resolvedRole, ...secondaryRoles])];
+      const allRoles: UserRole[] = MULTI_ROLE_ENABLED
+        ? [...new Set([resolvedRole, ...secondaryRoles])]
+        : [resolvedRole];
       const shopId = backendUser.shop_id ?? null;
       const backendModule = (backendUser.shop_module as AppModule | undefined) ?? null;
       const authUser: AuthUser = {
@@ -390,7 +399,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const secondaryRoles: UserRole[] = (backendUser.roles ?? [])
         .map((r: { name: string }) => r.name as UserRole)
         .filter((r: UserRole) => r !== resolvedRole);
-      const allRoles: UserRole[] = [...new Set([resolvedRole, ...secondaryRoles])];
+      const allRoles: UserRole[] = MULTI_ROLE_ENABLED
+        ? [...new Set([resolvedRole, ...secondaryRoles])]
+        : [resolvedRole];
       const shopId = backendUser.shop_id ?? null;
       const backendModule = (backendUser.shop_module as AppModule | undefined) ?? null;
       const authUser: AuthUser = {
@@ -448,7 +459,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user?.role === "admin" || user?.shopId === shopId;
 
   const setActiveRole = (role: UserRole) => {
-    if (!user) return;
+    if (!user || !MULTI_ROLE_ENABLED) return;
     const updated: AuthUser = { ...user, activeRole: role };
     setUser(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));

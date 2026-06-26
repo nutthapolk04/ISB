@@ -1072,7 +1072,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
               <div>
                 <p className="kpi-label">{t("inventory.kpiStockValue")}</p>
                 <p className="kpi-value">
-                  ฿{totalStockValue.toLocaleString("en", { maximumFractionDigits: 0 })}
+                  ฿{totalStockValue.toLocaleString("en", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>

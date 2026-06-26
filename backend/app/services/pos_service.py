@@ -188,10 +188,18 @@ def _deduct_product_stock(
     db.add(movement)
 
 
-def _generate_receipt_number(db: Session) -> str:
-    """Generate a unique receipt number: R-YYYYMMDD-NNN"""
+def _generate_receipt_number(db: Session, shop_id: str | None = None) -> str:
+    """Generate a unique receipt number: R-{S|N}{SSSSS}-YYYYMMDD-NNN"""
     today_str = date.today().strftime("%Y%m%d")
-    prefix = f"R-{today_str}-"
+    module_code = "S"
+    shop_num = 0
+    if shop_id:
+        shop_row = db.query(Shop).filter(Shop.id == shop_id).first()
+        if shop_row:
+            module_code = "N" if getattr(shop_row, "module", "store") == "canteen" else "S"
+            shop_num = getattr(shop_row, "shop_number", None) or 0
+    shop_code5 = f"{shop_num:05d}"
+    prefix = f"R-{module_code}{shop_code5}-{today_str}-"
     last = (
         db.query(Receipt)
         .filter(Receipt.receipt_number.like(f"{prefix}%"))
@@ -265,7 +273,7 @@ class POSService:
                     f"(only coop shops can issue goods on department budget)"
                 )
 
-        receipt_number = _generate_receipt_number(db)
+        receipt_number = _generate_receipt_number(db, target_shop_id)
 
         subtotal = 0.0
         receipt_items: List[ReceiptItem] = []

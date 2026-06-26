@@ -2,12 +2,17 @@
 Auth Pydantic Schemas
 """
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+    @field_validator("username")
+    @classmethod
+    def normalise_username(cls, v: str) -> str:
+        return v.strip().lower()
 
 
 class RefreshRequest(BaseModel):

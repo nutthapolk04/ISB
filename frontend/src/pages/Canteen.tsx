@@ -49,7 +49,7 @@ import {
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
-import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
+import type { DisplayPayer, SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -303,6 +303,7 @@ export default function Canteen() {
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
   // Increment to trigger spending chip refresh after successful checkout
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
+  const [spendingUsage, setSpendingUsage] = useState<SpendingLimitData | null>(null);
 
   // ── Departments (for department payment option) ──────────────────────────
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
@@ -786,8 +787,8 @@ export default function Canteen() {
       payer.kind === "department"
         ? payerForDepartment(payer.department, amount)
         : payer.kind === "customer"
-          ? payerForCustomer(payer.student, amount)
-          : payerForUser(payer.user, amount);
+          ? payerForCustomer({ ...payer.student, spendingLimit: spendingUsage }, amount)
+          : payerForUser({ ...payer.user, spendingLimit: spendingUsage }, amount);
     const displayMethod = payer.kind === "department" ? "department" : "wallet";
     display.processing({
       items: buildDisplayItems(),
@@ -932,7 +933,7 @@ export default function Canteen() {
     if (preSelectedMember) {
       // Direct charge for pre-selected member (wallet or department)
       const amount = cart.total;
-      const displayPayer = payerForCustomer(preSelectedMember, amount);
+      const displayPayer = payerForCustomer({ ...preSelectedMember, spendingLimit: spendingUsage }, amount);
       const displayMethod =
         preSelectedMember.customer_kind === "department" ? "department" : "wallet";
       display.processing({
@@ -1190,6 +1191,7 @@ export default function Canteen() {
                   : { kind: "customer", id: preSelectedMember.id }
               }
               refreshKey={chipRefreshKey}
+              onUsageChange={(u) => setSpendingUsage(u ? { daily_limit: u.daily_limit, spent_today: u.spent_today, remaining: u.remaining, group_name: u.name_en } : null)}
             />
           </div>
         )}
@@ -1242,6 +1244,7 @@ export default function Canteen() {
                 : null
             }
             refreshKey={chipRefreshKey}
+            onUsageChange={(u) => setSpendingUsage(u ? { daily_limit: u.daily_limit, spent_today: u.spent_today, remaining: u.remaining, group_name: u.name_en } : null)}
           />
         }
         items={cart.items}

@@ -23,6 +23,13 @@ export interface DisplayItem {
   price: number; // line total in THB
 }
 
+export interface SpendingLimitData {
+  daily_limit: number;
+  spent_today: number;
+  remaining: number;
+  group_name: string;
+}
+
 export interface DisplayPayer {
   kind: "customer" | "user" | "department" | "guest";
   name: string;
@@ -30,6 +37,7 @@ export interface DisplayPayer {
   role: string | null; // e.g. "Student · Grade 6"
   balanceBefore: number | null;
   balanceAfter: number | null;
+  spendingLimit?: SpendingLimitData | null;
 }
 
 export type PaymentMethod =
