@@ -1254,7 +1254,6 @@ export default function Canteen() {
                 : null
             }
             refreshKey={chipRefreshKey}
-            onUsageChange={(u) => setSpendingUsage(u ? { daily_limit: u.daily_limit, spent_today: u.spent_today, remaining: u.remaining, group_name: u.name_en } : null)}
           />
         }
         items={cart.items}
