@@ -779,6 +779,7 @@ export async function getSpendingGroupUsageToday(
       nameEn: spendingGroups.nameEn,
       nameTh: spendingGroups.nameTh,
       module: shops.module,
+      groupDailyLimit: spendingGroups.dailyLimit,
     })
     .from(spendingGroups)
     .innerJoin(shops, eq(shops.spendingGroupId, spendingGroups.id))
@@ -790,8 +791,9 @@ export async function getSpendingGroupUsageToday(
     throw err;
   }
   const group = groupRows[0];
+  const groupDefault = group.groupDailyLimit != null ? Number(group.groupDailyLimit) : 0;
 
-  let effectiveLimit: number | null = null;
+  let effectiveLimit: number;
   if (customerId) {
     const cRows = await db
       .select({ dailyLimitCanteen: customers.dailyLimitCanteen, dailyLimitStore: customers.dailyLimitStore })
@@ -804,13 +806,12 @@ export async function getSpendingGroupUsageToday(
       throw err;
     }
     const raw = group.module === "canteen" ? cRows[0].dailyLimitCanteen : cRows[0].dailyLimitStore;
-    effectiveLimit = raw != null ? Number(raw) : null;
-    if (effectiveLimit === null) {
-      // No limit configured — 404 so SpendingLimitChip hides
-      const err = new Error("No limit configured");
-      (err as { status?: number }).status = 404;
-      throw err;
-    }
+    // Customer's personal limit takes priority. Fall back to the group's default
+    // when the customer has no override configured (null) — keeps the chip useful
+    // even when limits aren't tuned per student.
+    effectiveLimit = raw != null ? Number(raw) : groupDefault;
+  } else {
+    effectiveLimit = groupDefault;
   }
 
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
@@ -839,8 +840,8 @@ export async function getSpendingGroupUsageToday(
     code: group.code,
     name_en: group.nameEn,
     name_th: group.nameTh,
-    daily_limit: effectiveLimit!,
+    daily_limit: effectiveLimit,
     spent_today: spent,
-    remaining: Math.max(0, effectiveLimit! - spent),
+    remaining: Math.max(0, effectiveLimit - spent),
   };
 }
