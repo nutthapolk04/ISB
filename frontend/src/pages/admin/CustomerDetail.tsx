@@ -19,6 +19,7 @@ import {
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
+import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 import {
   ArrowLeft, Camera, CreditCard, GraduationCap, Lock, Unlock, Upload, User as UserIcon,
   AlertTriangle, Edit3, Save, X, Wifi, ShieldAlert, Plus, Trash2, Loader2,
@@ -80,8 +81,6 @@ interface ParentUser {
 
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
-
-import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 
 const formatDate = (iso: string, _lang: string) => fmtDateTimeShared(iso);
 

@@ -909,7 +909,7 @@ const Store = () => {
         if (existing) {
           return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
         }
-        return [...prev, { ...product, quantity: 1, priceOverride: panelPrice }];
+        return [{ ...product, quantity: 1, priceOverride: panelPrice }, ...prev];
       });
       setLastAddedId(product.id);
     },
@@ -1016,7 +1016,9 @@ const Store = () => {
       method === "wallet" && ctx.payer
         ? ctx.payer.kind === "customer"
           ? payerForCustomer(ctx.payer.student, total)
-          : payerForUser(ctx.payer.user, total)
+          : ctx.payer.kind === "department"
+            ? payerForDepartment(ctx.payer.department, total)
+            : payerForUser(ctx.payer.user, total)
         : method === "department" && ctx.deptId
           ? (() => {
               const d = departmentOptions.find((x) => x.id === ctx.deptId);
@@ -1051,6 +1053,12 @@ const Store = () => {
           studentNameForReceipt = ctx.payer.student.name;
           studentPhotoForReceipt = ctx.payer.student.photo_url ?? undefined;
           studentGradeForReceipt = ctx.payer.student.grade ?? undefined;
+        } else if (ctx.payer.kind === "department") {
+          // Department account tapped via RFID — treat as department charge
+          backendMethod = "department";
+          payerKind = "department";
+          payer_department_id = ctx.payer.department.id;
+          studentNameForReceipt = ctx.payer.department.department_name;
         } else {
           backendMethod = "wallet";
           payerKind = "user";

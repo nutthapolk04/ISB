@@ -17,11 +17,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { toast } from "@/hooks/use-toast";
-import { Building2, ArrowDownCircle, ArrowUpCircle, History, Loader2, Plus, X, FileText, FileSpreadsheet } from "lucide-react";
+import { Building2, ArrowDownCircle, ArrowUpCircle, History, Loader2, Plus, X, FileText, FileSpreadsheet, Trash2 } from "lucide-react";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { exportToPDF, exportToExcel, type ReportColumn, type ReportPayload } from "@/lib/reportExport";
 
@@ -78,8 +78,30 @@ export default function DepartmentAdjust() {
   // Date filter for the transaction history + exports.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const QUICK_REASONS = useMemo(() => [...DEFAULT_REASONS, ...customShortcuts], [DEFAULT_REASONS, customShortcuts]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/admin/departments/${deleteTarget.id}`);
+      toast({ title: t("cardholders.deptAdjust.deleteSuccess", "Department deleted") });
+      setDepartments((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      if (selectedId === deleteTarget.id) setSelectedId(null);
+      setDeleteTarget(null);
+    } catch (e) {
+      toast({
+        title: t("cardholders.deptAdjust.deleteError", "Failed to delete department"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const loadCustomShortcuts = async () => {
     try {
@@ -312,24 +334,33 @@ export default function DepartmentAdjust() {
               const balance = Number(d.wallet_balance ?? 0);
               const isNeg = balance < 0;
               return (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => setSelectedId(d.id)}
-                  className={`w-full text-left rounded-md p-2 transition ${
-                    selectedId === d.id
-                      ? "bg-primary/10 border-2 border-primary"
-                      : "hover:bg-muted border-2 border-transparent"
-                  }`}
-                >
-                  <div className="text-sm font-medium truncate">{d.department_name}</div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <span className="font-mono text-[10px] text-muted-foreground">{d.department_code}</span>
-                    <span className={`text-sm font-semibold tabular-nums ${isNeg ? "text-red-600" : "text-emerald-700"}`}>
-                      {formatTHB(balance)}
-                    </span>
-                  </div>
-                </button>
+                <div key={d.id} className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(d.id)}
+                    className={`w-full text-left rounded-md p-2 transition ${
+                      selectedId === d.id
+                        ? "bg-primary/10 border-2 border-primary"
+                        : "hover:bg-muted border-2 border-transparent"
+                    }`}
+                  >
+                    <div className="text-sm font-medium truncate pr-6">{d.department_name}</div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="font-mono text-[10px] text-muted-foreground">{d.department_code}</span>
+                      <span className={`text-sm font-semibold tabular-nums ${isNeg ? "text-red-600" : "text-emerald-700"}`}>
+                        {formatTHB(balance)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); }}
+                    className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 text-muted-foreground transition"
+                    title={t("cardholders.deptAdjust.deleteDept", "Delete department")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               );
             })}
           </CardContent>
@@ -605,6 +636,31 @@ export default function DepartmentAdjust() {
             </Button>
             <Button onClick={addShortcut} disabled={!newShortcutText.trim()}>
               {t("cardholders.deptAdjust.shortcutDialogSave", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete department confirm dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> {t("cardholders.deptAdjust.deleteDept", "Delete department")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("cardholders.deptAdjust.deleteConfirm", "Are you sure you want to delete")}{" "}
+              <strong>{deleteTarget?.department_name}</strong>?{" "}
+              {t("cardholders.deptAdjust.deleteWarning", "This action cannot be undone. Balance must be zero.")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              {t("cardholders.deptAdjust.cancel", "Cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              {deleting ? t("cardholders.deptAdjust.deleting", "Deleting…") : t("cardholders.deptAdjust.confirmDelete", "Delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

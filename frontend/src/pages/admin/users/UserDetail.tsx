@@ -110,6 +110,7 @@ interface UserDetailData {
   shop_name: string | null;
   staff_type?: string | null;
   ps_department?: string | null;
+  wallet_balance: number | null;
 }
 
 interface StudentOption {
@@ -122,6 +123,9 @@ interface StudentOption {
   school_type: string | null;
   card_uid: string | null;
 }
+
+const formatTHB = (n: number) =>
+  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export default function UserDetail() {
   const { t } = useTranslation();
@@ -475,12 +479,15 @@ export default function UserDetail() {
                     </Badge>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground mt-1">@{user.username}</div>
-                {user.ps_department && <div className="text-xs text-muted-foreground">{user.ps_department}</div>}
-                <div className="text-xs text-muted-foreground">
-                  {t("admin.users.lastSynced", "Last synced")}: {user.last_synced_at ? new Date(user.last_synced_at).toLocaleString() : "never"}
-                </div>
               </div>
+              {user.wallet_balance !== null && user.wallet_balance !== undefined && (
+                <div className="rounded-md bg-primary/5 p-4">
+                  <p className="text-xs text-muted-foreground">{t("admin.users.walletBalance")}</p>
+                  <p className={`text-3xl font-bold font-mono ${Number(user.wallet_balance) < 0 ? "text-destructive" : "text-primary"}`}>
+                    {formatTHB(Number(user.wallet_balance))}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 w-full sm:w-auto">
@@ -606,6 +613,18 @@ export default function UserDetail() {
                     ? <Badge variant="secondary" className="w-fit font-mono">{user.family_code}</Badge>
                     : <p className="text-sm text-muted-foreground italic">—</p>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.username", "Username")}</p>
+                <p className="text-sm font-mono">@{user.username}</p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{t("admin.users.lastSynced", "Last synced")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {user.last_synced_at ? new Date(user.last_synced_at).toLocaleString() : "never"}
+                </p>
               </div>
 
               <div className="space-y-1 sm:col-span-2">
@@ -1072,6 +1091,7 @@ export default function UserDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
     </div>
   );

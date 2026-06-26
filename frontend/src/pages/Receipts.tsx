@@ -25,14 +25,12 @@ import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
+import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 
 // ── Scope constants ──────────────────────────────────────────────────────────
 
 type ModuleScope = "canteen" | "store";
-const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
-const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
-
-
 
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
@@ -109,8 +107,6 @@ interface ReceiptApi {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
-
 function fmtDate(iso: string, _locale?: string): string {
   return fmtDateTimeShared(iso);
 }
@@ -128,8 +124,6 @@ function fmtDateOnly(iso: string): string {
 // matches what auto-print produces at sale time. School is international so
 // the paper receipt is always rendered in English.
 
-import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 const Receipts = () => {
@@ -137,8 +131,11 @@ const Receipts = () => {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const schoolInfo = useSchoolInfo();
-  const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
-  const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
+
+  // Defined inside component to avoid module-level TDZ issues in bundled output
+  const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
+  const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
+
   // ── Module scope detection (from URL) ───────────────────────────────────
   const moduleScope: ModuleScope = pathname.startsWith("/canteen")
     ? "canteen"
@@ -197,6 +194,13 @@ const Receipts = () => {
   const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
   const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
   const [newShortcutText, setNewShortcutText] = useState("");
+  // Admin-only picker for store scope (dynamic) / canteen scope (dynamic).
+  // Declared above effectiveShortcutShopId so the const eval doesn't hit TDZ
+  // on the picked* refs during the first render.
+  const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
+  const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
+  const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
+  const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
   // Effective shop for shortcut management: own shopId > picked filter shop
   const effectiveShortcutShopId = user?.shopId
     ?? (moduleScope === "canteen" && pickedCanteenShop !== "all" ? pickedCanteenShop : null)
@@ -291,9 +295,6 @@ const Receipts = () => {
       setVoidLoading(false);
     }
   };
-  // Admin-only picker for store scope (dynamic) / canteen scope (dynamic)
-  const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
-  const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!user?.shopId) {

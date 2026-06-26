@@ -382,6 +382,23 @@ export async function voidReceipt(args: {
     .leftJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
     .where(eq(receiptItems.receiptId, receiptId));
 
+  // Resolve payer label for void audit.
+  let voidPayerLabel: string | null = null;
+  let voidPayerKind: string | null = null;
+  if (receipt.customerId) {
+    voidPayerKind = "customer";
+    const cRows = await db.select({ name: customers.name }).from(customers).where(eq(customers.id, receipt.customerId)).limit(1);
+    voidPayerLabel = cRows[0]?.name ?? null;
+  } else if (receipt.payerUserId) {
+    voidPayerKind = "user";
+    const uRows = await db.select({ fullName: users.fullName, username: users.username }).from(users).where(eq(users.id, receipt.payerUserId)).limit(1);
+    voidPayerLabel = uRows[0]?.fullName ?? uRows[0]?.username ?? null;
+  } else if (receipt.payerDepartmentId) {
+    voidPayerKind = "department";
+    const dRows = await db.select({ name: departments.departmentName }).from(departments).where(eq(departments.id, receipt.payerDepartmentId)).limit(1);
+    voidPayerLabel = dRows[0]?.name ?? null;
+  }
+
   // Pre-load bundle item rows for any bundle line.
   const bundleIds = items
     .map(({ item }) => {
@@ -527,7 +544,14 @@ export async function voidReceipt(args: {
       INSERT INTO audit_logs (entity_type, entity_id, entity_name, shop_id, action, user_id, changes_json)
       VALUES ('receipt', ${receiptId}, ${receipt.receiptNumber}, ${receipt.shopId}, 'VOID',
               ${callerId},
-              ${JSON.stringify({ reason, total: pgNumber(receipt.total) ?? 0, products: voidLines })}::jsonb)
+              ${JSON.stringify({
+                reason,
+                total: pgNumber(receipt.total) ?? 0,
+                products: voidLines,
+                payer_kind: voidPayerKind,
+                payer_label: voidPayerLabel,
+                payer_id: receipt.customerId ?? receipt.payerUserId ?? receipt.payerDepartmentId ?? null,
+              })}::jsonb)
     `;
   });
 

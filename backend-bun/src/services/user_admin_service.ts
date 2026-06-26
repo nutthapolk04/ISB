@@ -277,6 +277,7 @@ export interface UserDetailDTO {
   identity_history: IdentityHistoryDTO[];
   shop_id: string | null;
   shop_name: string | null;
+  wallet_balance: number | null;
 }
 
 async function parentRankMap(family_code: string | null): Promise<Map<number, string>> {
@@ -413,7 +414,7 @@ async function getFamilyProfile(family_code: string | null): Promise<FamilyProfi
 
 async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
   const fcode = u.familyCode ?? null;
-  const [withKids, familyProfile, familyMembers, linkedChildren, history, shopName] = await Promise.all([
+  const [withKids, familyProfile, familyMembers, linkedChildren, history, shopName, walletRow] = await Promise.all([
     fcode ? familiesWithChildren(new Set([fcode])) : Promise.resolve(new Set<string>()),
     getFamilyProfile(fcode),
     resolveFamily(fcode),
@@ -444,6 +445,12 @@ async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
         .limit(1)
         .then((rs) => rs[0]?.name ?? null)
       : Promise.resolve(null),
+    db
+      .select({ balance: wallets.balance })
+      .from(wallets)
+      .where(eq(wallets.userId, u.id))
+      .limit(1)
+      .then((rs) => rs[0]?.balance ?? null),
   ]);
 
   // Merge: add linked children not already in family_members (by id)
@@ -494,6 +501,7 @@ async function buildDetail(u: UserRow): Promise<UserDetailDTO> {
     identity_history: history,
     shop_id: u.shopId ?? null,
     shop_name: shopName,
+    wallet_balance: walletRow !== null ? parseFloat(walletRow) : null,
   };
 }
 

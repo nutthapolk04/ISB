@@ -434,16 +434,16 @@ export default function CardholderList() {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>{t("cardholders.colName")}</TableHead>
-                <TableHead>{t("cardholders.colKind")}</TableHead>
-                <TableHead>{t("cardholders.colIdentifier")}</TableHead>
-                <TableHead>{t("cardholders.colFamily")}</TableHead>
-                <TableHead>{t("cardholders.colCard")}</TableHead>
-                <TableHead className="text-right">{t("cardholders.colBalance")}</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>{t("cardholders.colLastSync")}</TableHead>
-                <TableHead className="w-12"></TableHead>
+              <TableRow className="text-xs">
+                <TableHead className="w-48">Name</TableHead>
+                <TableHead className="w-24">Type</TableHead>
+                <TableHead className="w-44">ID Number</TableHead>
+                <TableHead className="w-28">Family Code</TableHead>
+                <TableHead className="w-28">Card UID</TableHead>
+                <TableHead className="w-28 text-right">Wallet Balance</TableHead>
+                <TableHead className="w-20">Status</TableHead>
+                <TableHead className="w-24">Last Synced</TableHead>
+                <TableHead className="w-28"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -476,52 +476,63 @@ export default function CardholderList() {
 
                 const mainRow = (
                   <TableRow key={c.key} className={isExpanded ? "border-b-0" : ""}>
+                    {/* Name + avatar */}
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         {c.photo_url ? (
                           <img
                             src={c.photo_url}
                             alt={c.name}
-                            className="h-8 w-8 rounded-full object-cover border border-border bg-background"
+                            className="h-8 w-8 shrink-0 rounded-full object-cover border border-border bg-muted"
                           />
                         ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                             <UserCircle2 className="h-5 w-5" />
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-sm truncate">{c.name}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-sm leading-tight truncate block max-w-[180px]">{c.name}</span>
                             {c.allergies && (
-                              <span title={c.allergies} className="text-amber-600">
+                              <span title={c.allergies} className="shrink-0 text-amber-600">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                               </span>
                             )}
                           </div>
-                          {c.role && (
-                            <div className="text-xs text-muted-foreground capitalize">{c.role}</div>
-                          )}
-                          {c.grade && (
-                            <div className="text-xs text-muted-foreground">
-                              {c.grade}{c.school_type ? ` · ${c.school_type}` : ""}
-                            </div>
-                          )}
+                          <div className="text-[11px] text-muted-foreground leading-tight">
+                            {c.role && <span className="capitalize">{c.role}</span>}
+                            {c.grade && <span>{c.grade}{c.school_type ? ` · ${c.school_type}` : ""}</span>}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
+                    {/* Type badge */}
                     <TableCell>
-                      <Badge className={cn("text-[10px] font-medium", KIND_BADGE[c.kind])}>
+                      <Badge className={cn("text-[10px] font-medium whitespace-nowrap", KIND_BADGE[c.kind])}>
                         {t(KIND_BADGE_KEY[c.kind])}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{c.identifier}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.family_code ?? "—"}</TableCell>
+                    {/* Username / Code */}
+                    <TableCell className="font-mono text-xs max-w-[176px]">
+                      <span className="block truncate" title={c.identifier}>{c.identifier}</span>
+                    </TableCell>
+                    {/* Family Code */}
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {c.family_code ?? "—"}
+                    </TableCell>
+                    {/* Card UID */}
                     <TableCell className="font-mono text-xs">
-                      {c.card_uid ?? <span className="text-muted-foreground">—</span>}
+                      {c.card_uid
+                        ? <span className="tracking-wide">{c.card_uid}</span>
+                        : <span className="text-muted-foreground">—</span>}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {c.wallet_id ? formatTHB(Number(c.wallet_balance ?? 0)) : "—"}
+                    {/* Wallet Balance */}
+                    <TableCell className="text-right tabular-nums text-sm font-medium">
+                      {c.wallet_id
+                        ? <span className={Number(c.wallet_balance ?? 0) === 0 ? "text-muted-foreground" : ""}>{formatTHB(Number(c.wallet_balance ?? 0))}</span>
+                        : <span className="text-muted-foreground">—</span>}
                     </TableCell>
+                    {/* Status */}
                     <TableCell>
                       {c.is_active
                         ? <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 bg-emerald-50">Active</Badge>
@@ -529,7 +540,8 @@ export default function CardholderList() {
                           ? <Badge variant="outline" className="text-[10px] text-blue-700 border-blue-300 bg-blue-50">Graduated</Badge>
                           : <Badge variant="outline" className="text-[10px] text-muted-foreground">Inactive</Badge>}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    {/* Last Synced */}
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {relativeTime(c.synced_at)}
                     </TableCell>
                     <TableCell>
