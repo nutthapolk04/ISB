@@ -228,7 +228,7 @@ def get_customer_by_code(
         WalletService.ensure_wallet_for_customer(db, c.id)
         db.commit()
         db.refresh(c)
-    return _to_profile(c)
+    return _to_profile(c, db)
 
 
 @router.get("/by-card/{uid}", response_model=StudentProfileResponse)
@@ -250,7 +250,7 @@ def get_customer_by_card(
         WalletService.ensure_wallet_for_customer(db, c.id)
         db.commit()
         db.refresh(c)
-    return _to_profile(c)
+    return _to_profile(c, db)
 
 
 @router.get("/{customer_id}", response_model=StudentProfileResponse)
