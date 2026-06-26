@@ -388,6 +388,13 @@ export function RfidPaymentModal({
   const dailyRemainingVal =
     dailyLimitVal != null ? Math.max(0, dailyLimitVal - (dailySpentVal ?? 0)) : null;
 
+  // Both-shop limits for compact "Canteen ฿X/฿Y · Store ฿X/฿Y" display.
+  const canteenDailyLimit = payerKind === "customer" ? (student?.daily_limit_canteen ?? null) : null;
+  const canteenSpent = payerKind === "customer" ? (student?.spent_today_canteen ?? 0) : 0;
+  const storeDailyLimit = payerKind === "customer" ? (student?.daily_limit_store ?? null) : null;
+  const storeSpent = payerKind === "customer" ? (student?.spent_today_store ?? 0) : 0;
+  const hasAnyDailyLimit = canteenDailyLimit != null || storeDailyLimit != null;
+
   // Overdraft policy:
   //   - customer wallet: allowed up to negative_credit_limit (0 if null)
   //   - user wallet (parent/staff): NEVER allowed to go negative from the
@@ -752,39 +759,41 @@ export function RfidPaymentModal({
               </div>
             </div>
 
-            {/* Daily Spending Limit */}
-            {dailyLimitVal != null && (
+            {/* Daily Spending Limit — compact: Canteen / Store on one line each */}
+            {hasAnyDailyLimit && (
               <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                  {shopKind === "store" ? "Daily Store Limit" : "Daily Canteen Limit"}
+                  Daily Spending Limit
                 </div>
                 <div className="border-t border-border" />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Daily Limit</span>
-                  <span className="tabular-nums font-semibold">฿{dailyLimitVal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Spent Today</span>
-                  <span className="tabular-nums font-semibold text-orange-600">฿{(dailySpentVal ?? 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-base font-bold">
-                  <span>Remaining</span>
-                  <span className={cn(
-                    "tabular-nums",
-                    dailyRemainingVal === 0 ? "text-destructive" : dailyRemainingVal != null && dailyRemainingVal < dailyLimitVal * 0.2 ? "text-amber-600" : "text-emerald-600"
-                  )}>
-                    ฿{(dailyRemainingVal ?? 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      dailyRemainingVal === 0 ? "bg-red-500" : dailyRemainingVal != null && dailyRemainingVal < dailyLimitVal * 0.2 ? "bg-amber-500" : "bg-emerald-500"
-                    )}
-                    style={{ width: `${Math.min(((dailySpentVal ?? 0) / dailyLimitVal) * 100, 100)}%` }}
-                  />
-                </div>
+                {canteenDailyLimit != null && (() => {
+                  const pct = canteenDailyLimit > 0 ? (canteenSpent / canteenDailyLimit) * 100 : 0;
+                  const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
+                  return (
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-muted-foreground font-medium">Canteen</span>
+                      <span className={cn("text-base font-bold tabular-nums", color)}>
+                        ฿{canteenSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        <span className="text-muted-foreground font-normal"> / </span>
+                        ฿{canteenDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  );
+                })()}
+                {storeDailyLimit != null && (() => {
+                  const pct = storeDailyLimit > 0 ? (storeSpent / storeDailyLimit) * 100 : 0;
+                  const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
+                  return (
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-muted-foreground font-medium">Store</span>
+                      <span className={cn("text-base font-bold tabular-nums", color)}>
+                        ฿{storeSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        <span className="text-muted-foreground font-normal"> / </span>
+                        ฿{storeDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

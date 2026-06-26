@@ -11,41 +11,19 @@ interface Props {
   payer: DisplayPayer | null;
 }
 
-function LimitCard({ title, sl }: { title: string; sl: SpendingLimitData }) {
-  const pct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
+function LimitRow({ label, sl }: { label: string; sl: SpendingLimitData }) {
+  const pct = sl.daily_limit > 0 ? (sl.spent_today / sl.daily_limit) * 100 : 0;
   const atLimit = pct >= 100;
   const nearLimit = pct >= 80 && !atLimit;
-  const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
-  const remainColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-600";
+  const color = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
   return (
-    <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-5">
-      <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-3">{title}</div>
-      <div className="grid grid-cols-3 gap-3 mb-3">
-        <div className="text-center">
-          <div className="text-[11px] text-zinc-500 mb-0.5">Daily Limit</div>
-          <div className="text-xl font-bold tabular-nums text-zinc-800">
-            ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-[11px] text-zinc-500 mb-0.5">Spent Today</div>
-          <div className="text-xl font-bold tabular-nums text-orange-500">
-            ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-[11px] text-zinc-500 mb-0.5">Remaining</div>
-          <div className={cn("text-xl font-bold tabular-nums", remainColor)}>
-            ฿{sl.remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </div>
-        </div>
-      </div>
-      <div className="w-full h-2.5 rounded-full bg-zinc-100 overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
-      </div>
-      <div className="flex justify-end mt-1">
-        <span className="text-[11px] text-zinc-400 tabular-nums">{Math.round(pct)}% used</span>
-      </div>
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-base font-medium text-zinc-700">{label}</span>
+      <span className={cn("text-lg font-bold tabular-nums", color)}>
+        ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        <span className="text-zinc-400 font-normal"> / </span>
+        ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </span>
     </div>
   );
 }
@@ -101,12 +79,15 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
         </div>
       </main>
 
-      {/* Daily Spending Limits — show both Canteen + Store side-by-side */}
+      {/* Daily Spending Limits — compact: Canteen ฿spent/฿limit / Store ฿spent/฿limit */}
       {hasLimits && (
         <div className="px-12 pb-4">
-          <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-3">
-            {canteen && <LimitCard title="Daily Canteen Limit" sl={canteen} />}
-            {store && <LimitCard title="Daily Store Limit" sl={store} />}
+          <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-amber-100 shadow-sm p-5 space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+              Daily Spending Limit
+            </div>
+            {canteen && <LimitRow label="Canteen" sl={canteen} />}
+            {store && <LimitRow label="Store" sl={store} />}
           </div>
         </div>
       )}

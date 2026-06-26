@@ -26,37 +26,19 @@ function fmt(amount: number | null): string {
   );
 }
 
-function fmtInt(amount: number): string {
-  return "฿" + amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function LimitBlock({ title, sl }: { title: string; sl: SpendingLimitData }) {
-  const slPct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
-  const slAtLimit = slPct >= 100;
-  const slNearLimit = slPct >= 80 && !slAtLimit;
-  const slBarColor = slAtLimit ? "bg-red-500" : slNearLimit ? "bg-amber-500" : "bg-emerald-500";
-  const slRemainingColor = slAtLimit ? "text-red-600 font-bold" : slNearLimit ? "text-amber-600 font-semibold" : "text-emerald-600 font-bold";
+function LimitLine({ label, sl }: { label: string; sl: SpendingLimitData }) {
+  const pct = sl.daily_limit > 0 ? (sl.spent_today / sl.daily_limit) * 100 : 0;
+  const atLimit = pct >= 100;
+  const nearLimit = pct >= 80 && !atLimit;
+  const color = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
   return (
-    <div>
-      <SectionLabel>{title}</SectionLabel>
-      <div className="space-y-3 pt-3">
-        <Row label="Daily Limit" value={fmtInt(sl.daily_limit)} />
-        <Row label="Spent Today" value={fmtInt(sl.spent_today)} negative />
-        <Row label="Remaining" value={fmtInt(sl.remaining)} valueClass={cn("tabular-nums font-bold", slRemainingColor)} bold />
-      </div>
-      <div className="mt-3">
-        <div className="w-full h-2.5 rounded-full bg-zinc-100 overflow-hidden">
-          <div
-            className={cn("h-full rounded-full transition-all", slBarColor)}
-            style={{ width: `${slPct}%` }}
-          />
-        </div>
-        <div className="flex justify-end mt-1">
-          <span className={cn("text-xs tabular-nums", slAtLimit ? "text-red-500 font-semibold" : "text-zinc-400")}>
-            {Math.round(slPct)}% used
-          </span>
-        </div>
-      </div>
+    <div className="flex items-baseline justify-between">
+      <span className="text-zinc-700 font-medium">{label}</span>
+      <span className={cn("text-xl font-bold tabular-nums", color)}>
+        ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        <span className="text-zinc-400 font-normal"> / </span>
+        ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </span>
     </div>
   );
 }
@@ -100,11 +82,14 @@ export function PayerCard({ payer, total, successful = false }: Props) {
         </div>
       )}
 
-      {/* Daily Spending Limit sections — Canteen + Store side-by-side */}
+      {/* Daily Spending Limit — compact lines */}
       {showLimits && (
-        <div className={cn(showBalance ? "mt-6" : "", "grid grid-cols-1 gap-6")}>
-          {canteen && <LimitBlock title="Daily Canteen Limit" sl={canteen} />}
-          {store && <LimitBlock title="Daily Store Limit" sl={store} />}
+        <div className={cn(showBalance ? "mt-6" : "")}>
+          <SectionLabel>Daily Spending Limit</SectionLabel>
+          <div className="space-y-3 pt-3">
+            {canteen && <LimitLine label="Canteen" sl={canteen} />}
+            {store && <LimitLine label="Store" sl={store} />}
+          </div>
         </div>
       )}
     </div>
