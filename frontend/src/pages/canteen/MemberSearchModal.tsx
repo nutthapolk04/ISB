@@ -339,17 +339,22 @@ export function MemberSearchModal({
                 const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
                 const atLimit = pct >= 100;
                 const nearLimit = pct >= 80 && !atLimit;
+                const remaining = Math.max(limit - spent, 0);
                 const txtColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
                 const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
+                const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
                 return (
                   <div className="space-y-1.5">
                     <div className="flex items-baseline justify-between">
                       <span className="text-muted-foreground font-medium">{label}</span>
-                      <span className={cn("text-base font-bold tabular-nums", txtColor)}>
-                        ฿{spent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        <span className="text-muted-foreground font-normal"> / </span>
-                        ฿{limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </span>
+                      <div className="text-right">
+                        <span className={cn("text-base font-bold tabular-nums", txtColor)}>
+                          เหลือ {fmt(remaining)}
+                        </span>
+                        <div className="text-xs text-muted-foreground tabular-nums">
+                          ใช้ไป {fmt(spent)} จาก {fmt(limit)}
+                        </div>
+                      </div>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
