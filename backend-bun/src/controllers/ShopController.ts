@@ -54,44 +54,56 @@ export const ShopController = {
 	list: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { query } = reqContext;
-		const activeOnly = query.active_only !== "false";
-		const module =
-			query.module === "canteen" || query.module === "store" ? query.module : undefined;
-		return successResponse(
-			reqContext,
-			await listShopsService({ activeOnly, module }),
-			ResponseStatus.OK,
-		);
+		logger.info(`[${reqContext.requestId} (SH-01)] ShopController.list() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (SH-01)] ShopController.list() calling listShopsService().`);
+			const activeOnly = query.active_only !== "false";
+			const module =
+				query.module === "canteen" || query.module === "store" ? query.module : undefined;
+			const result = await listShopsService({ activeOnly, module });
+			logger.info(`[${reqContext.requestId} (SH-01)] ShopController.list() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-01)] ShopController.list() error:`, e);
+			return errorFromService(reqContext, e);
+		}
 	},
 
 	create: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-02)] ShopController.create() called.`);
 		if (!user.is_superuser) {
+			logger.warn(`[${reqContext.requestId} (SH-02)] ShopController.create() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(
-				reqContext,
-				await createShopService({
-					...body,
-					description: body.description ?? undefined,
-					allow_department_charge: body.allow_department_charge ?? undefined,
-					uses_dual_pricing: body.uses_dual_pricing ?? undefined,
-					spending_group_id: body.spending_group_id ?? undefined,
-				}),
-				ResponseStatus.CREATED,
-			);
+			logger.info(`[${reqContext.requestId} (SH-02)] ShopController.create() calling createShopService().`);
+			const result = await createShopService({
+				...body,
+				description: body.description ?? undefined,
+				allow_department_charge: body.allow_department_charge ?? undefined,
+				uses_dual_pricing: body.uses_dual_pricing ?? undefined,
+				spending_group_id: body.spending_group_id ?? undefined,
+			});
+			logger.info(`[${reqContext.requestId} (SH-02)] ShopController.create() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-02)] ShopController.create() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
 
 	listLowStock: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
+		logger.info(`[${reqContext.requestId} (SH-03)] ShopController.listLowStock() called.`);
 		try {
-			return successResponse(reqContext, await listLowStockService(), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-03)] ShopController.listLowStock() calling listLowStockService().`);
+			const result = await listLowStockService();
+			logger.info(`[${reqContext.requestId} (SH-03)] ShopController.listLowStock() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-03)] ShopController.listLowStock() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -99,20 +111,34 @@ export const ShopController = {
 	get: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params } = reqContext;
-		const shop = await getShopService(params.shopId);
-		if (!shop) return errorResponse(reqContext, "Shop not found", ResponseStatus.NOT_FOUND);
-		return successResponse(reqContext, shop, ResponseStatus.OK);
+		logger.info(`[${reqContext.requestId} (SH-04)] ShopController.get() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (SH-04)] ShopController.get() calling getShopService().`);
+			const shop = await getShopService(params.shopId);
+			if (!shop) return errorResponse(reqContext, "Shop not found", ResponseStatus.NOT_FOUND);
+			logger.info(`[${reqContext.requestId} (SH-04)] ShopController.get() completed.`);
+			return successResponse(reqContext, shop, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-04)] ShopController.get() error:`, e);
+			return errorFromService(reqContext, e);
+		}
 	},
 
 	update: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-05)] ShopController.update() called.`);
 		if (!user.is_superuser) {
+			logger.warn(`[${reqContext.requestId} (SH-05)] ShopController.update() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(reqContext, await updateShopService(params.shopId, body), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-05)] ShopController.update() calling updateShopService().`);
+			const result = await updateShopService(params.shopId, body);
+			logger.info(`[${reqContext.requestId} (SH-05)] ShopController.update() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-05)] ShopController.update() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -120,12 +146,18 @@ export const ShopController = {
 	delete: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-06)] ShopController.delete() called.`);
 		if (!user.is_superuser) {
+			logger.warn(`[${reqContext.requestId} (SH-06)] ShopController.delete() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(reqContext, await deleteShopService(params.shopId), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-06)] ShopController.delete() calling deleteShopService().`);
+			const result = await deleteShopService(params.shopId);
+			logger.info(`[${reqContext.requestId} (SH-06)] ShopController.delete() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-06)] ShopController.delete() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -133,10 +165,12 @@ export const ShopController = {
 	updateVoidShortcuts: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() called.`);
 		const isAdmin = user.is_superuser || hasRole(user.roles, "admin");
 		const isManagerOfShop =
 			hasRole(user.roles, "manager") && user.shop_id === params.shopId;
 		if (!isAdmin && !isManagerOfShop) {
+			logger.warn(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() forbidden.`);
 			return errorResponse(
 				reqContext,
 				"Only the shop's manager (or admin) can edit void shortcuts",
@@ -144,12 +178,12 @@ export const ShopController = {
 			);
 		}
 		try {
-			return successResponse(
-				reqContext,
-				await updateVoidShortcutsService(params.shopId, body.shortcuts),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() calling updateVoidShortcutsService().`);
+			const result = await updateVoidShortcutsService(params.shopId, body.shortcuts);
+			logger.info(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -157,9 +191,14 @@ export const ShopController = {
 	stats: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-08)] ShopController.stats() called.`);
 		try {
-			return successResponse(reqContext, await shopStatsService(params.shopId), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-08)] ShopController.stats() calling shopStatsService().`);
+			const result = await shopStatsService(params.shopId);
+			logger.info(`[${reqContext.requestId} (SH-08)] ShopController.stats() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-08)] ShopController.stats() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -167,17 +206,18 @@ export const ShopController = {
 	listProducts: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-09)] ShopController.listProducts() called.`);
 		try {
-			return successResponse(
-				reqContext,
-				await listShopProductsService(params.shopId, {
-					search: query.search ?? undefined,
-					category: query.category ?? undefined,
-					includeInactive: query.include_inactive === "true",
-				}),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (SH-09)] ShopController.listProducts() calling listShopProductsService().`);
+			const result = await listShopProductsService(params.shopId, {
+				search: query.search ?? undefined,
+				category: query.category ?? undefined,
+				includeInactive: query.include_inactive === "true",
+			});
+			logger.info(`[${reqContext.requestId} (SH-09)] ShopController.listProducts() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-09)] ShopController.listProducts() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -185,9 +225,14 @@ export const ShopController = {
 	listCategories: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-10)] ShopController.listCategories() called.`);
 		try {
-			return successResponse(reqContext, await listShopCategoriesService(params.shopId), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-10)] ShopController.listCategories() calling listShopCategoriesService().`);
+			const result = await listShopCategoriesService(params.shopId);
+			logger.info(`[${reqContext.requestId} (SH-10)] ShopController.listCategories() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-10)] ShopController.listCategories() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -195,11 +240,16 @@ export const ShopController = {
 	listBarcodes: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-11)] ShopController.listBarcodes() called.`);
 		const pid = parseIntParam(params.productId, "product id", reqContext.set);
 		if (pid === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
 		try {
-			return successResponse(reqContext, await listProductBarcodesService(params.shopId, pid), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-11)] ShopController.listBarcodes() calling listProductBarcodesService().`);
+			const result = await listProductBarcodesService(params.shopId, pid);
+			logger.info(`[${reqContext.requestId} (SH-11)] ShopController.listBarcodes() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-11)] ShopController.listBarcodes() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -207,23 +257,25 @@ export const ShopController = {
 	addBarcode: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-12)] ShopController.addBarcode() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-12)] ShopController.addBarcode() forbidden.`);
 			return errorResponse(reqContext, "Insufficient role", ResponseStatus.FORBIDDEN);
 		}
 		const pid = parseIntParam(params.productId, "product id", reqContext.set);
 		if (pid === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
 		try {
-			return successResponse(
-				reqContext,
-				await addProductBarcodeService({
-					shopId: params.shopId,
-					productId: pid,
-					barcode: body.barcode,
-					label: body.label ?? null,
-				}),
-				ResponseStatus.CREATED,
-			);
+			logger.info(`[${reqContext.requestId} (SH-12)] ShopController.addBarcode() calling addProductBarcodeService().`);
+			const result = await addProductBarcodeService({
+				shopId: params.shopId,
+				productId: pid,
+				barcode: body.barcode,
+				label: body.label ?? null,
+			});
+			logger.info(`[${reqContext.requestId} (SH-12)] ShopController.addBarcode() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-12)] ShopController.addBarcode() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -231,7 +283,9 @@ export const ShopController = {
 	deleteBarcode: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-13)] ShopController.deleteBarcode() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-13)] ShopController.deleteBarcode() forbidden.`);
 			return errorResponse(reqContext, "Insufficient role", ResponseStatus.FORBIDDEN);
 		}
 		const pid = parseIntParam(params.productId, "product id", reqContext.set);
@@ -240,9 +294,12 @@ export const ShopController = {
 			return errorResponse(reqContext, "Invalid id", ResponseStatus.UNPROCESSABLE);
 		}
 		try {
+			logger.info(`[${reqContext.requestId} (SH-13)] ShopController.deleteBarcode() calling deleteProductBarcodeService().`);
 			await deleteProductBarcodeService({ shopId: params.shopId, productId: pid, barcodeId: bid });
+			logger.info(`[${reqContext.requestId} (SH-13)] ShopController.deleteBarcode() completed.`);
 			return successResponse(reqContext, undefined, ResponseStatus.NO_CONTENT);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-13)] ShopController.deleteBarcode() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -250,11 +307,16 @@ export const ShopController = {
 	listFifoLots: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-14)] ShopController.listFifoLots() called.`);
 		const pid = parseIntParam(params.productId, "product id", reqContext.set);
 		if (pid === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
 		try {
-			return successResponse(reqContext, await listFifoLotsService(params.shopId, pid), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-14)] ShopController.listFifoLots() calling listFifoLotsService().`);
+			const result = await listFifoLotsService(params.shopId, pid);
+			logger.info(`[${reqContext.requestId} (SH-14)] ShopController.listFifoLots() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-14)] ShopController.listFifoLots() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -262,17 +324,18 @@ export const ShopController = {
 	listMovements: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-15)] ShopController.listMovements() called.`);
 		try {
-			return successResponse(
-				reqContext,
-				await listShopMovementsService(params.shopId, {
-					productId: query.product_id ? Number(query.product_id) : undefined,
-					type: query.type ?? undefined,
-					limit: query.limit ? Math.min(Math.max(Number(query.limit), 1), 1000) : undefined,
-				}),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (SH-15)] ShopController.listMovements() calling listShopMovementsService().`);
+			const result = await listShopMovementsService(params.shopId, {
+				productId: query.product_id ? Number(query.product_id) : undefined,
+				type: query.type ?? undefined,
+				limit: query.limit ? Math.min(Math.max(Number(query.limit), 1), 1000) : undefined,
+			});
+			logger.info(`[${reqContext.requestId} (SH-15)] ShopController.listMovements() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-15)] ShopController.listMovements() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -280,17 +343,18 @@ export const ShopController = {
 	listAuditLogs: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-16)] ShopController.listAuditLogs() called.`);
 		try {
-			return successResponse(
-				reqContext,
-				await listShopAuditLogsService(params.shopId, {
-					action: query.action ?? undefined,
-					limit: query.limit ? Math.min(Math.max(Number(query.limit), 1), 200) : undefined,
-					offset: query.offset ? Math.max(Number(query.offset), 0) : undefined,
-				}),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (SH-16)] ShopController.listAuditLogs() calling listShopAuditLogsService().`);
+			const result = await listShopAuditLogsService(params.shopId, {
+				action: query.action ?? undefined,
+				limit: query.limit ? Math.min(Math.max(Number(query.limit), 1), 200) : undefined,
+				offset: query.offset ? Math.max(Number(query.offset), 0) : undefined,
+			});
+			logger.info(`[${reqContext.requestId} (SH-16)] ShopController.listAuditLogs() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-16)] ShopController.listAuditLogs() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -298,7 +362,9 @@ export const ShopController = {
 	requisition: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-17)] ShopController.requisition() called.`);
 		try {
+			logger.info(`[${reqContext.requestId} (SH-17)] ShopController.requisition() calling getShopService().`);
 			const shop = await getShopService(params.shopId);
 			if (!shop) return errorResponse(reqContext, "Shop not found", ResponseStatus.NOT_FOUND);
 
@@ -387,24 +453,24 @@ export const ShopController = {
 				payerDepartmentId = null;
 			}
 
-			return successResponse(
-				reqContext,
-				await checkout({
-					transaction_mode: "INTERNAL_ISSUE",
-					payment_method: paymentMethod,
-					items,
-					userId: Number(user.sub),
-					customer_id: null,
-					payer_kind: payerKind,
-					payer_user_id: payerUserId,
-					payer_department_id: payerDepartmentId,
-					requester_user_id: body.requester_user_id,
-					notes: body.notes ?? null,
-					shop_id: params.shopId,
-				}),
-				ResponseStatus.CREATED,
-			);
+			logger.info(`[${reqContext.requestId} (SH-17)] ShopController.requisition() calling checkout().`);
+			const result = await checkout({
+				transaction_mode: "INTERNAL_ISSUE",
+				payment_method: paymentMethod,
+				items,
+				userId: Number(user.sub),
+				customer_id: null,
+				payer_kind: payerKind,
+				payer_user_id: payerUserId,
+				payer_department_id: payerDepartmentId,
+				requester_user_id: body.requester_user_id,
+				notes: body.notes ?? null,
+				shop_id: params.shopId,
+			});
+			logger.info(`[${reqContext.requestId} (SH-17)] ShopController.requisition() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-17)] ShopController.requisition() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -412,74 +478,83 @@ export const ShopController = {
 	reorderProducts: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-18)] ShopController.reorderProducts() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-18)] ShopController.reorderProducts() forbidden.`);
 			return errorResponse(reqContext, "Admin/manager only", ResponseStatus.FORBIDDEN);
 		}
+		try {
+			const shop = await db
+				.select({ id: shopsTable.id, productsOrderVersion: shopsTable.productsOrderVersion })
+				.from(shopsTable)
+				.where(eq(shopsTable.id, params.shopId))
+				.limit(1);
+			if (!shop[0]) return errorResponse(reqContext, "Shop not found", ResponseStatus.NOT_FOUND);
 
-		const shop = await db
-			.select({ id: shopsTable.id, productsOrderVersion: shopsTable.productsOrderVersion })
-			.from(shopsTable)
-			.where(eq(shopsTable.id, params.shopId))
-			.limit(1);
-		if (!shop[0]) return errorResponse(reqContext, "Shop not found", ResponseStatus.NOT_FOUND);
+			const currentVersion = shop[0].productsOrderVersion ?? 0;
+			if (body.version !== currentVersion) {
+				const products = await db
+					.select({ id: shopProducts.id, sort_order: shopProducts.sortOrder, name: shopProducts.name })
+					.from(shopProducts)
+					.where(eq(shopProducts.shopId, params.shopId));
+				products.sort(
+					(a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name),
+				);
+				return successResponse(
+					reqContext,
+					{
+						current_version: currentVersion,
+						products: products.map((p) => ({ id: p.id, sort_order: p.sort_order, name: p.name })),
+					},
+					ResponseStatus.CONFLICT,
+				);
+			}
 
-		const currentVersion = shop[0].productsOrderVersion ?? 0;
-		if (body.version !== currentVersion) {
-			const products = await db
-				.select({ id: shopProducts.id, sort_order: shopProducts.sortOrder, name: shopProducts.name })
-				.from(shopProducts)
-				.where(eq(shopProducts.shopId, params.shopId));
-			products.sort(
-				(a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name),
-			);
-			return successResponse(
-				reqContext,
-				{
-					current_version: currentVersion,
-					products: products.map((p) => ({ id: p.id, sort_order: p.sort_order, name: p.name })),
-				},
-				ResponseStatus.CONFLICT,
-			);
+			const sortMap: Record<string, number> = body.sort_map;
+			const productIds = Object.keys(sortMap)
+				.map(Number)
+				.filter((n) => !Number.isNaN(n));
+			let updated = 0;
+			for (const pid of productIds) {
+				const newOrder = sortMap[String(pid)];
+				const result = await db
+					.update(shopProducts)
+					.set({ sortOrder: newOrder })
+					.where(eq(shopProducts.id, pid));
+				if (result.count > 0) updated++;
+			}
+
+			const nextVersion = currentVersion + 1;
+			await db
+				.update(shopsTable)
+				.set({ productsOrderVersion: nextVersion })
+				.where(eq(shopsTable.id, params.shopId));
+
+			await db
+				.insert(productOrderHistory)
+				.values({
+					shopId: params.shopId,
+					version: nextVersion,
+					sortMap: sortMap as Record<string, number>,
+					changedBy: Number(user.sub),
+					source: body.source ?? "drag",
+				})
+				.catch(() => {});
+
+			logger.info(`[${reqContext.requestId} (SH-18)] ShopController.reorderProducts() completed.`);
+			return successResponse(reqContext, { version: nextVersion, updated }, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-18)] ShopController.reorderProducts() error:`, e);
+			return errorFromService(reqContext, e);
 		}
-
-		const sortMap: Record<string, number> = body.sort_map;
-		const productIds = Object.keys(sortMap)
-			.map(Number)
-			.filter((n) => !Number.isNaN(n));
-		let updated = 0;
-		for (const pid of productIds) {
-			const newOrder = sortMap[String(pid)];
-			const result = await db
-				.update(shopProducts)
-				.set({ sortOrder: newOrder })
-				.where(eq(shopProducts.id, pid));
-			if (result.count > 0) updated++;
-		}
-
-		const nextVersion = currentVersion + 1;
-		await db
-			.update(shopsTable)
-			.set({ productsOrderVersion: nextVersion })
-			.where(eq(shopsTable.id, params.shopId));
-
-		await db
-			.insert(productOrderHistory)
-			.values({
-				shopId: params.shopId,
-				version: nextVersion,
-				sortMap: sortMap as Record<string, number>,
-				changedBy: Number(user.sub),
-				source: body.source ?? "drag",
-			})
-			.catch(() => {});
-
-		return successResponse(reqContext, { version: nextVersion, updated }, ResponseStatus.OK);
 	},
 
 	monthlyStockReport: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-19)] ShopController.monthlyStockReport() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-19)] ShopController.monthlyStockReport() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const { start_date, end_date } = query;
@@ -487,13 +562,12 @@ export const ShopController = {
 			return errorResponse(reqContext, "Invalid date range", ResponseStatus.UNPROCESSABLE);
 		}
 		try {
-			return successResponse(
-				reqContext,
-				await getMonthlyStockReport(params.shopId, start_date, end_date),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (SH-19)] ShopController.monthlyStockReport() calling getMonthlyStockReport().`);
+			const result = await getMonthlyStockReport(params.shopId, start_date, end_date);
+			logger.info(`[${reqContext.requestId} (SH-19)] ShopController.monthlyStockReport() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error("[monthly-stock-report] error:", e);
+			logger.error(`[${reqContext.requestId} (SH-19)] ShopController.monthlyStockReport() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -501,7 +575,9 @@ export const ShopController = {
 	exportMonthlyStockReport: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-20)] ShopController.exportMonthlyStockReport() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-20)] ShopController.exportMonthlyStockReport() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const { start_date, end_date } = query;
@@ -509,7 +585,9 @@ export const ShopController = {
 			return errorResponse(reqContext, "Invalid date range", ResponseStatus.UNPROCESSABLE);
 		}
 		try {
+			logger.info(`[${reqContext.requestId} (SH-20)] ShopController.exportMonthlyStockReport() calling exportMonthlyStockReport().`);
 			const buffer = await exportMonthlyStockReport(params.shopId, start_date, end_date);
+			logger.info(`[${reqContext.requestId} (SH-20)] ShopController.exportMonthlyStockReport() completed.`);
 			return new Response(buffer, {
 				headers: {
 					"Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -517,6 +595,7 @@ export const ShopController = {
 				},
 			});
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-20)] ShopController.exportMonthlyStockReport() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -524,12 +603,18 @@ export const ShopController = {
 	listCloseMonth: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-21)] ShopController.listCloseMonth() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-21)] ShopController.listCloseMonth() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(reqContext, await listCloses(params.shopId), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-21)] ShopController.listCloseMonth() calling listCloses().`);
+			const result = await listCloses(params.shopId);
+			logger.info(`[${reqContext.requestId} (SH-21)] ShopController.listCloseMonth() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-21)] ShopController.listCloseMonth() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -537,16 +622,18 @@ export const ShopController = {
 	createCloseMonth: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-22)] ShopController.createCloseMonth() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-22)] ShopController.createCloseMonth() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(
-				reqContext,
-				await createClose(params.shopId, body.period_year, body.period_month),
-				ResponseStatus.CREATED,
-			);
+			logger.info(`[${reqContext.requestId} (SH-22)] ShopController.createCloseMonth() calling createClose().`);
+			const result = await createClose(params.shopId, body.period_year, body.period_month);
+			logger.info(`[${reqContext.requestId} (SH-22)] ShopController.createCloseMonth() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-22)] ShopController.createCloseMonth() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -554,16 +641,21 @@ export const ShopController = {
 	getCloseMonth: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-23)] ShopController.getCloseMonth() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-23)] ShopController.getCloseMonth() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.closeId, "close id", reqContext.set);
 		if (id === null) return errorResponse(reqContext, "Invalid close id", ResponseStatus.UNPROCESSABLE);
 		try {
+			logger.info(`[${reqContext.requestId} (SH-23)] ShopController.getCloseMonth() calling getClose().`);
 			const { error, close } = await assertCloseForShop(id, params.shopId, reqContext);
 			if (error) return error;
+			logger.info(`[${reqContext.requestId} (SH-23)] ShopController.getCloseMonth() completed.`);
 			return successResponse(reqContext, close!, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-23)] ShopController.getCloseMonth() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -571,7 +663,9 @@ export const ShopController = {
 	patchCloseMonthItems: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-24)] ShopController.patchCloseMonthItems() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-24)] ShopController.patchCloseMonthItems() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.closeId, "close id", reqContext.set);
@@ -579,9 +673,12 @@ export const ShopController = {
 		try {
 			const { error } = await assertCloseForShop(id, params.shopId, reqContext);
 			if (error) return error;
+			logger.info(`[${reqContext.requestId} (SH-24)] ShopController.patchCloseMonthItems() calling bulkUpdateItems().`);
 			await bulkUpdateItems(id, body.updates);
+			logger.info(`[${reqContext.requestId} (SH-24)] ShopController.patchCloseMonthItems() completed.`);
 			return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-24)] ShopController.patchCloseMonthItems() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -589,7 +686,9 @@ export const ShopController = {
 	importCloseMonthExcel: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-25)] ShopController.importCloseMonthExcel() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-25)] ShopController.importCloseMonthExcel() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.closeId, "close id", reqContext.set);
@@ -597,9 +696,13 @@ export const ShopController = {
 		try {
 			const { error } = await assertCloseForShop(id, params.shopId, reqContext);
 			if (error) return error;
+			logger.info(`[${reqContext.requestId} (SH-25)] ShopController.importCloseMonthExcel() calling importExcel().`);
 			const buffer = await body.file.arrayBuffer();
-			return successResponse(reqContext, await importExcel(id, buffer), ResponseStatus.OK);
+			const result = await importExcel(id, buffer);
+			logger.info(`[${reqContext.requestId} (SH-25)] ShopController.importCloseMonthExcel() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-25)] ShopController.importCloseMonthExcel() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -607,7 +710,9 @@ export const ShopController = {
 	exportCloseMonthExcel: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-26)] ShopController.exportCloseMonthExcel() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-26)] ShopController.exportCloseMonthExcel() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.closeId, "close id", reqContext.set);
@@ -615,7 +720,9 @@ export const ShopController = {
 		try {
 			const { error } = await assertCloseForShop(id, params.shopId, reqContext);
 			if (error) return error;
+			logger.info(`[${reqContext.requestId} (SH-26)] ShopController.exportCloseMonthExcel() calling exportExcel().`);
 			const buffer = await exportExcel(id);
+			logger.info(`[${reqContext.requestId} (SH-26)] ShopController.exportCloseMonthExcel() completed.`);
 			return new Response(buffer, {
 				headers: {
 					"Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -623,6 +730,7 @@ export const ShopController = {
 				},
 			});
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-26)] ShopController.exportCloseMonthExcel() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -630,7 +738,9 @@ export const ShopController = {
 	confirmCloseMonth: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-27)] ShopController.confirmCloseMonth() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-27)] ShopController.confirmCloseMonth() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.closeId, "close id", reqContext.set);
@@ -638,8 +748,12 @@ export const ShopController = {
 		try {
 			const { error } = await assertCloseForShop(id, params.shopId, reqContext);
 			if (error) return error;
-			return successResponse(reqContext, await confirmClose(id, Number(user.sub)), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SH-27)] ShopController.confirmCloseMonth() calling confirmClose().`);
+			const result = await confirmClose(id, Number(user.sub));
+			logger.info(`[${reqContext.requestId} (SH-27)] ShopController.confirmCloseMonth() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-27)] ShopController.confirmCloseMonth() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

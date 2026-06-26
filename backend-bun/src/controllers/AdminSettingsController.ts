@@ -12,7 +12,7 @@ import {
     setValue,
 } from "@/services/settings_service";
 import { sendEmail } from "@/services/email_service";
-import { errorResponse, successResponse } from "@/utils/ResponseUtil";
+import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
 export const AdminSettingsController = {
@@ -23,8 +23,15 @@ export const AdminSettingsController = {
             logger.warn(`[${reqContext.requestId} (AS-01)] AdminSettingsController.listKnown() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
-        logger.info(`[${reqContext.requestId} (AS-01)] AdminSettingsController.listKnown() calling listKnown().`);
-        return successResponse(reqContext, await listKnown(), ResponseStatus.OK);
+        try {
+            logger.info(`[${reqContext.requestId} (AS-01)] AdminSettingsController.listKnown() calling listKnown().`);
+            const result = await listKnown();
+            logger.info(`[${reqContext.requestId} (AS-01)] AdminSettingsController.listKnown() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AS-01)] AdminSettingsController.listKnown() error:`, e);
+            return errorFromService(reqContext, e);
+        }
     },
 
     getSchoolSettings: async (ctx: any) => {
@@ -34,8 +41,15 @@ export const AdminSettingsController = {
             logger.warn(`[${reqContext.requestId} (AS-02)] AdminSettingsController.getSchoolSettings() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
-        logger.info(`[${reqContext.requestId} (AS-02)] AdminSettingsController.getSchoolSettings() calling getSchoolSettings().`);
-        return successResponse(reqContext, await getSchoolSettings(), ResponseStatus.OK);
+        try {
+            logger.info(`[${reqContext.requestId} (AS-02)] AdminSettingsController.getSchoolSettings() calling getSchoolSettings().`);
+            const result = await getSchoolSettings();
+            logger.info(`[${reqContext.requestId} (AS-02)] AdminSettingsController.getSchoolSettings() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AS-02)] AdminSettingsController.getSchoolSettings() error:`, e);
+            return errorFromService(reqContext, e);
+        }
     },
 
     setSchoolSettings: async (ctx: any) => {
@@ -47,8 +61,15 @@ export const AdminSettingsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const userId = Number(user.sub);
-        logger.info(`[${reqContext.requestId} (AS-03)] AdminSettingsController.setSchoolSettings() calling setSchoolSettings().`);
-        return successResponse(reqContext, await setSchoolSettings(body, userId), ResponseStatus.OK);
+        try {
+            logger.info(`[${reqContext.requestId} (AS-03)] AdminSettingsController.setSchoolSettings() calling setSchoolSettings().`);
+            const result = await setSchoolSettings(body, userId);
+            logger.info(`[${reqContext.requestId} (AS-03)] AdminSettingsController.setSchoolSettings() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AS-03)] AdminSettingsController.setSchoolSettings() error:`, e);
+            return errorFromService(reqContext, e);
+        }
     },
 
     setValue: async (ctx: any) => {
@@ -65,10 +86,15 @@ export const AdminSettingsController = {
             return errorResponse(reqContext, `Unknown setting key '${key}'`, ResponseStatus.NOT_FOUND);
         }
         const userId = Number(user.sub);
-        logger.info(`[${reqContext.requestId} (AS-04)] AdminSettingsController.setValue() calling setValue().`);
-        const newValue = await setValue(key, body.value, userId);
-        logger.info(`[${reqContext.requestId} (AS-04)] AdminSettingsController.setValue() completed.`);
-        return successResponse(reqContext, { key, value: newValue }, ResponseStatus.OK);
+        try {
+            logger.info(`[${reqContext.requestId} (AS-04)] AdminSettingsController.setValue() calling setValue().`);
+            const newValue = await setValue(key, body.value, userId);
+            logger.info(`[${reqContext.requestId} (AS-04)] AdminSettingsController.setValue() completed.`);
+            return successResponse(reqContext, { key, value: newValue }, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AS-04)] AdminSettingsController.setValue() error:`, e);
+            return errorFromService(reqContext, e);
+        }
     },
 
     testEmail: async (ctx: any) => {
@@ -91,6 +117,7 @@ export const AdminSettingsController = {
                 "ISB — Test Email",
                 `<p>Test email sent successfully at ${new Date().toISOString()}</p>`,
             );
+            logger.info(`[${reqContext.requestId} (AS-05)] AdminSettingsController.testEmail() completed.`);
             return successResponse(reqContext, { sent: true, to }, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AS-05)] AdminSettingsController.testEmail() error:`, e);

@@ -18,16 +18,14 @@ export const AdminReportsController = {
         }
         try {
             logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() calling adjustmentReport().`);
-            return successResponse(
-                reqContext,
-                await adjustmentReport({
-                    dateFrom: query.date_from ?? null,
-                    dateTo: query.date_to ?? null,
-                    direction: query.direction ?? null,
-                    typeFilter: query.type ?? null,
-                }),
-                ResponseStatus.OK,
-            );
+            const result = await adjustmentReport({
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+                direction: query.direction ?? null,
+                typeFilter: query.type ?? null,
+            });
+            logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() error:`, e);
             return errorFromService(reqContext, e);
@@ -43,19 +41,17 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        logger.info(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() calling transferReport().`);
         const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 200) : 20;
         try {
-            return successResponse(
-                reqContext,
-                await transferReport({
-                    dateFrom: query.date_from ?? null,
-                    dateTo: query.date_to ?? null,
-                    page,
-                    pageSize,
-                }),
-                ResponseStatus.OK,
-            );
+            logger.info(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() calling transferReport().`);
+            const result = await transferReport({
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+                page,
+                pageSize,
+            });
+            logger.info(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() error:`, e);
             return errorFromService(reqContext, e);

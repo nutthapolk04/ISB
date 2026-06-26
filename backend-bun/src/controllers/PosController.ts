@@ -14,6 +14,7 @@ import {
 import { qrInquiry as bayQrInquiry } from "@/services/pymt_gateway";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
+import { logger } from "@/logger";
 
 type PosUser = AccessTokenPayload & { shop_id?: string | null };
 
@@ -23,24 +24,25 @@ export const PosController = {
 	listReceipts: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-01)] PosController.listReceipts() called.`);
 		try {
-			return successResponse(
-				reqContext,
-				await listReceipts({
-					caller: user as PosUser,
-					q: query.q ?? undefined,
-					shopId: query.shop_id ?? undefined,
-					shopIds: query.shop_ids ?? undefined,
-					transactionMode: query.transaction_mode ?? undefined,
-					requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : undefined,
-					dateFrom: query.date_from ?? undefined,
-					dateTo: query.date_to ?? undefined,
-					page: query.page ? Number(query.page) : undefined,
-					pageSize: query.page_size ? Number(query.page_size) : undefined,
-				}),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (PC-01)] PosController.listReceipts() calling listReceipts().`);
+			const result = await listReceipts({
+				caller: user as PosUser,
+				q: query.q ?? undefined,
+				shopId: query.shop_id ?? undefined,
+				shopIds: query.shop_ids ?? undefined,
+				transactionMode: query.transaction_mode ?? undefined,
+				requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : undefined,
+				dateFrom: query.date_from ?? undefined,
+				dateTo: query.date_to ?? undefined,
+				page: query.page ? Number(query.page) : undefined,
+				pageSize: query.page_size ? Number(query.page_size) : undefined,
+			});
+			logger.info(`[${reqContext.requestId} (PC-01)] PosController.listReceipts() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-01)] PosController.listReceipts() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -48,11 +50,19 @@ export const PosController = {
 	getReceipt: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-02)] PosController.getReceipt() called.`);
 		const id = parseIntParam(params.id, "receipt id", reqContext.set);
-		if (id === null) return errorResponse(reqContext, "Invalid receipt id", ResponseStatus.UNPROCESSABLE);
+		if (id === null) {
+			logger.warn(`[${reqContext.requestId} (PC-02)] PosController.getReceipt() invalid receipt id.`);
+			return errorResponse(reqContext, "Invalid receipt id", ResponseStatus.UNPROCESSABLE);
+		}
 		try {
-			return successResponse(reqContext, await getReceipt(id), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (PC-02)] PosController.getReceipt() calling getReceipt().`);
+			const result = await getReceipt(id);
+			logger.info(`[${reqContext.requestId} (PC-02)] PosController.getReceipt() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-02)] PosController.getReceipt() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -60,46 +70,46 @@ export const PosController = {
 	checkout: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-03)] PosController.checkout() called.`);
 		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-03)] PosController.checkout() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(
-				reqContext,
-				await checkout({ ...(body as Omit<CheckoutInput, "userId">), userId: Number(user.sub) }),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (PC-03)] PosController.checkout() calling checkout().`);
+			const result = await checkout({ ...(body as Omit<CheckoutInput, "userId">), userId: Number(user.sub) });
+			logger.info(`[${reqContext.requestId} (PC-03)] PosController.checkout() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			const err = e as { status?: number; message?: string; code?: string };
-			if (err.status && err.status >= 400 && err.status < 600) {
-				reqContext.set.status = err.status;
-				return err.code
-					? { detail: err.message ?? "Bad request", code: err.code }
-					: { detail: err.message ?? "Bad request" };
-			}
-			throw e;
+			logger.error(`[${reqContext.requestId} (PC-03)] PosController.checkout() error:`, e);
+			return errorFromService(reqContext, e);
 		}
 	},
 
 	voidReceipt: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-04)] PosController.voidReceipt() called.`);
 		if (!hasRole(user.roles, "admin", "manager", "cashier")) {
+			logger.warn(`[${reqContext.requestId} (PC-04)] PosController.voidReceipt() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.id, "receipt id", reqContext.set);
-		if (id === null) return errorResponse(reqContext, "Invalid receipt id", ResponseStatus.UNPROCESSABLE);
+		if (id === null) {
+			logger.warn(`[${reqContext.requestId} (PC-04)] PosController.voidReceipt() invalid receipt id.`);
+			return errorResponse(reqContext, "Invalid receipt id", ResponseStatus.UNPROCESSABLE);
+		}
 		try {
-			return successResponse(
-				reqContext,
-				await voidReceipt({
-					caller: user as PosUser,
-					receiptId: id,
-					reason: body?.reason ?? null,
-				}),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (PC-04)] PosController.voidReceipt() calling voidReceipt().`);
+			const result = await voidReceipt({
+				caller: user as PosUser,
+				receiptId: id,
+				reason: body?.reason ?? null,
+			});
+			logger.info(`[${reqContext.requestId} (PC-04)] PosController.voidReceipt() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-04)] PosController.voidReceipt() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -107,20 +117,22 @@ export const PosController = {
 	createQrIntent: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() called.`);
 		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(
-				reqContext,
-				await createPosQrIntent({
-					cart: { ...(body.cart as Omit<CheckoutInput, "payment_method">), userId: Number(user.sub) },
-					cashierUserId: Number(user.sub),
-					amount: body.amount,
-				}),
-				ResponseStatus.OK,
-			);
+			logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() calling createPosQrIntent().`);
+			const result = await createPosQrIntent({
+				cart: { ...(body.cart as Omit<CheckoutInput, "payment_method">), userId: Number(user.sub) },
+				cashierUserId: Number(user.sub),
+				amount: body.amount,
+			});
+			logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -128,12 +140,18 @@ export const PosController = {
 	getQrIntentStatus: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() called.`);
 		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			return successResponse(reqContext, await getPosQrIntent(params.refCode), ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() calling getPosQrIntent().`);
+			const result = await getPosQrIntent(params.refCode);
+			logger.info(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -141,22 +159,30 @@ export const PosController = {
 	inquireQrIntent: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() called.`);
 		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
+			logger.info(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() calling getPosQrIntent().`);
 			const local = await getPosQrIntent(params.refCode);
 			if (local.status !== "pending" || !local.txn_no) {
+				logger.info(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() completed.`);
 				return successResponse(reqContext, local, ResponseStatus.OK);
 			}
+			logger.info(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() calling bayQrInquiry().`);
 			const inq = await bayQrInquiry({ transactionNo: local.txn_no });
 			if (inq.status === "confirmed") {
 				await confirmPosQrSale(params.refCode);
 			} else if (inq.status === "cancelled") {
 				await cancelPosQrIntent(params.refCode);
 			}
-			return successResponse(reqContext, await getPosQrIntent(params.refCode), ResponseStatus.OK);
+			const result = await getPosQrIntent(params.refCode);
+			logger.info(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-07)] PosController.inquireQrIntent() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -164,13 +190,19 @@ export const PosController = {
 	cancelQrIntent: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() called.`);
 		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
+			logger.info(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() calling cancelPosQrIntent().`);
 			await cancelPosQrIntent(params.refCode);
-			return successResponse(reqContext, await getPosQrIntent(params.refCode), ResponseStatus.OK);
+			const result = await getPosQrIntent(params.refCode);
+			logger.info(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
