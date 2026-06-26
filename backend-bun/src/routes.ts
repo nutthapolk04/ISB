@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { requireAuth } from "@/middleware/AuthUtils";
+import { requireAuth } from "@/middleware/AuthMiddleware";
 import { authRateLimit } from "@/middleware/RateLimitMiddleware";
 import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_response";
 import { HealthController } from "@/controllers/HealthController";
@@ -254,7 +254,6 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     .get("/admin/sync-logs", SyncController.listSyncLogs, SyncSchema.syncListStatuses)
     .get("/admin/sync-logs/:syncLogId", SyncController.getSyncLog, SyncSchema.syncGetLog)
     .get("/admin/sync-audit/:syncLogId", SyncController.syncAudit, SyncSchema.syncAudit)
-    .post("/canteen/:shopId/close-day", CanteenController.closeDay, CanteenSchema.canteenCloseDay)
     .post("/canteen/:shopId/close-day", CanteenController.closeDay, CanteenSchema.canteenCloseDay)
     // ── Spending groups ─────────────────────────────────────────────────────
     .get("/spending-groups/usage-today/by-child", SpendingGroupController.usageTodayByChild, SpendingGroupSchema.spendingGroupUsageTodayByChild)

@@ -12,7 +12,7 @@ import {
   users,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
-import type { AccessTokenPayload } from "@/middleware/AuthUtils";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
 /**
  * Match the FastAPI helper: admins query any shop, others are clamped to

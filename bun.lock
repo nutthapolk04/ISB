@@ -17,6 +17,7 @@
         "drizzle-orm": "^0.44.6",
         "elysia": "1.4.22",
         "elysia-ip": "^1.1.1",
+        "jose": "^6.2.3",
         "nodemailer": "^9.0.0",
         "postgres": "^3.4.7",
         "winston": "^3.19.0",

@@ -35,7 +35,7 @@ describe("JWT middleware", () => {
   it("rejects request without Bearer token", async () => {
     process.env.JWT_SECRET = "test-secret-not-for-prod-32chars!!";
     const { Elysia } = await import("elysia");
-    const { requireAuth } = await import("../src/middleware/AuthUtils");
+    const { requireAuth } = await import("../src/middleware/AuthMiddleware");
     const app = new Elysia().use(requireAuth).get("/secure", () => "ok");
     const res = await app.handle(new Request("http://localhost/secure"));
     expect(res.status).toBe(401);

@@ -1,18 +1,13 @@
 import type { Context, StatusMap } from "elysia";
-import type { AccessTokenPayload } from "@/middleware/AuthUtils";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
+import type { AuthedRequestContext } from "@/interfaces/ServiceRequest";
 
-/** Elysia context after route schemas + optional requireAuth derive */
-export type HandlerContext = Context & {
-    user: AccessTokenPayload;
-    body: any;
-    query: Record<string, any>;
-    params: Record<string, string>;
-};
-
-export type PublicHandlerContext = Context & {
-    body: any;
-    query: Record<string, any>;
-    params: Record<string, string>;
+/** @deprecated Use `Context` + `authedCtx()` — JWT on `store.user`. */
+export type HandlerContext = AuthedRequestContext & {
+	user: AccessTokenPayload;
+	body: any;
+	query: Record<string, any>;
+	params: Record<string, string>;
 };
 
 export type SetStatus = { status?: number | keyof StatusMap };

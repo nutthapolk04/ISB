@@ -1,31 +1,36 @@
-import type { HandlerContext } from "@/controllers/types";
-import { hasRole } from "@/middleware/AuthUtils";
+/**
+ * Admin audit logs — GET /admin/audit-logs
+ * Auth: admin | manager | cashier (managers/cashiers scoped to shop_id)
+ */
+import { authedCtx } from "@/interfaces/ServiceRequest";
+import ResponseStatus from "@/constants/ResponseStatus";
+import { logger } from "@/logger";
+import { hasRole } from "@/middleware/AuthMiddleware";
 import { listAuditLogs } from "@/services/audit_log_service";
-import { forbidden } from "@/utils/ResponseUtil";
-
-interface CallerWithShop {
-	shop_id?: string | null;
-}
+import { errorResponse, successResponse } from "@/utils/ResponseUtil";
 
 export const AdminAuditController = {
-	listAuditLogs: async (ctx: any) => {
-		const { query, user, set } = ctx;
-		if (!hasRole(user.roles, "admin", "manager", "cashier")) {
-			return forbidden(set);
-		}
-		const callerIsAdmin = hasRole(user.roles, "admin") || user.is_superuser;
-		const caller = user as unknown as CallerWithShop;
-		return await listAuditLogs({
-			entityType: query.entity_type,
-			action: query.action,
-			userId: query.user_id ? Number(query.user_id) : undefined,
-			shopId: query.shop_id,
-			dateFrom: query.date_from,
-			dateTo: query.date_to,
-			page: query.page ? Number(query.page) : undefined,
-			pageSize: query.page_size ? Number(query.page_size) : undefined,
-			callerIsAdmin,
-			callerShopId: caller.shop_id ?? null,
-		});
-	},
+    listAuditLogs: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { query } = reqContext;
+        logger.info(`[${reqContext.requestId} (AA-01)] AdminAuditController.listAuditLogs() called.`);
+        if (!hasRole(user.roles, "admin", "manager", "cashier")) {
+            logger.warn(`[${reqContext.requestId} (AA-01)] AdminAuditController.listAuditLogs() forbidden.`);
+            return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+        }
+        const callerIsAdmin = hasRole(user.roles, "admin") || user.is_superuser;
+        const data = await listAuditLogs({
+            entityType: query.entity_type,
+            action: query.action,
+            userId: query.user_id ? Number(query.user_id) : undefined,
+            shopId: query.shop_id,
+            dateFrom: query.date_from,
+            dateTo: query.date_to,
+            page: query.page ? Number(query.page) : undefined,
+            pageSize: query.page_size ? Number(query.page_size) : undefined,
+            callerIsAdmin,
+            callerShopId: user.shop_id ?? null,
+        });
+        return successResponse(reqContext, data, ResponseStatus.OK);
+    },
 };

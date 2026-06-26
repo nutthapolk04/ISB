@@ -1,84 +1,107 @@
-import type { HandlerContext } from "@/controllers/types";
-import { hasRole } from "@/middleware/AuthUtils";
+/** Units of measure — CRUD /seed (auth; write: admin | manager) */
+import type { Context } from "elysia";
+import { authedCtx } from "@/interfaces/ServiceRequest";
+import ResponseStatus from "@/constants/ResponseStatus";
+import { hasRole } from "@/middleware/AuthMiddleware";
 import {
-    listUoms,
-    getUom,
-    createUom,
-    updateUom,
-    deleteUom,
-    seedDefaultUoms,
+	listUoms,
+	getUom,
+	createUom,
+	updateUom,
+	deleteUom,
+	seedDefaultUoms,
 } from "@/services/uom_service";
-import { handleServiceError, forbidden, adminOnly } from "@/utils/ResponseUtil";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
+import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 
 export const UomController = {
-    list: async (ctx: any) => {
-        const { query, set } = ctx;
-        try {
-            return await listUoms(query.active_only !== "false");
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	list: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { query } = reqContext;
+		try {
+			return successResponse(
+				reqContext,
+				await listUoms(query.active_only !== "false"),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    getById: async (ctx: any) => {
-        const { params, set } = ctx;
-        const id = parseIntParam(params.id, "id", set);
-        if (id === null) return { detail: "Invalid id" };
-        try {
-            return await getUom(id);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	getById: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		const id = parseIntParam(params.id, "id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await getUom(id), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    create: async (ctx: any) => {
-        const { body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return forbidden(set);
-        try {
-            set.status = 201;
-            return await createUom({
-                ...body,
-                name_en: body.name_en ?? undefined,
-                base_uom_id: body.base_uom_id ?? undefined,
-                conversion_factor: body.conversion_factor ?? undefined,
-            });
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	create: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await createUom({
+					...body,
+					name_en: body.name_en ?? undefined,
+					base_uom_id: body.base_uom_id ?? undefined,
+					conversion_factor: body.conversion_factor ?? undefined,
+				}),
+				ResponseStatus.CREATED,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    update: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return forbidden(set);
-        const id = parseIntParam(params.id, "id", set);
-        if (id === null) return { detail: "Invalid id" };
-        try {
-            return await updateUom(id, body);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	update: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.id, "id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await updateUom(id, body), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    remove: async (ctx: any) => {
-        const { params, user, set } = ctx;
-        if (!hasRole(user.roles, "admin")) return adminOnly(set);
-        const id = parseIntParam(params.id, "id", set);
-        if (id === null) return { detail: "Invalid id" };
-        try {
-            return await deleteUom(id);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	remove: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		if (!hasRole(user.roles, "admin")) {
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.id, "id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await deleteUom(id), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    seedDefaults: async (ctx: any) => {
-        const { user, set } = ctx;
-        if (!hasRole(user.roles, "admin")) return adminOnly(set);
-        try {
-            return await seedDefaultUoms();
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	seedDefaults: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		if (!hasRole(user.roles, "admin")) {
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(reqContext, await seedDefaultUoms(), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 };

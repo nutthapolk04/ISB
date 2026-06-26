@@ -3,9 +3,17 @@ import type { Context, StatusMap } from "elysia";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import type { AccessTokenPayload } from "@/middleware/AuthUtils";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
-type AuthContext = Context & { user?: AccessTokenPayload; userId?: string };
+type AuthContext = Context & {
+	store?: { user?: AccessTokenPayload };
+	user?: AccessTokenPayload;
+	userId?: string;
+};
+
+function jwtPayload(ctx: AuthContext): AccessTokenPayload | undefined {
+	return ctx.store?.user ?? ctx.user;
+}
 
 export function parseIntParam(
 	value: string,
@@ -20,9 +28,9 @@ export function parseIntParam(
 	return n;
 }
 
-/** Numeric user id from JWT (`sub` claim) on an authenticated request. */
+/** Numeric user id from JWT (`sub` claim). Prefer `store.user` after requireAuth. */
 export function resolveActorId(ctx: AuthContext, fallback?: string): number | null {
-	const sub = ctx.user?.sub ?? ctx.userId ?? fallback;
+	const sub = jwtPayload(ctx)?.sub ?? ctx.userId ?? fallback;
 	if (!sub) return null;
 	const n = Number(sub);
 	return Number.isInteger(n) ? n : null;

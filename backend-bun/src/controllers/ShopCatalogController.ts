@@ -1,296 +1,390 @@
-import type { SetStatus } from "@/controllers/types";
-import { hasRole } from "@/middleware/AuthUtils";
+/** Shop catalog — bundles, price panels, products, stock, categories (auth; write: admin | manager) */
+import { authedCtx } from "@/interfaces/ServiceRequest";
+import ResponseStatus from "@/constants/ResponseStatus";
+import { hasRole } from "@/middleware/AuthMiddleware";
 import {
-    listBundles,
-    getBundle,
-    checkBundleStock,
-    createBundle,
-    updateBundle,
-    deleteBundle,
-    reorderBundles,
+	listBundles,
+	getBundle,
+	checkBundleStock,
+	createBundle,
+	updateBundle,
+	deleteBundle,
+	reorderBundles,
 } from "@/services/bundle_service";
 import {
-    createShopProduct,
-    updateShopProduct,
-    deleteShopProduct,
-    receiveStock,
-    adjustStock,
-    createShopCategory,
-    updateShopCategory,
-    deleteShopCategory,
+	createShopProduct,
+	updateShopProduct,
+	deleteShopProduct,
+	receiveStock,
+	adjustStock,
+	createShopCategory,
+	updateShopCategory,
+	deleteShopCategory,
 } from "@/services/shop_product_service";
 import {
-    listPanels,
-    createPanel,
-    updatePanel,
-    deletePanel,
-    getPanelItems,
-    setItemPrice,
-    setBundleItemPrice,
+	listPanels,
+	createPanel,
+	updatePanel,
+	deletePanel,
+	getPanelItems,
+	setItemPrice,
+	setBundleItemPrice,
 } from "@/services/price_panel_service";
-import { forbidden, handleServiceError } from "@/utils/ResponseUtil";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
-
-function managerOrAdmin(set: SetStatus) {
-    return forbidden(set, "Forbidden");
-}
+import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 
 export const ShopCatalogController = {
-    listBundles: async ({ params, query, set }: any) => {
-        try {
-            return await listBundles(params.shopId, query.include_inactive === "true");
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	listBundles: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params, query } = reqContext;
+		try {
+			return successResponse(
+				reqContext,
+				await listBundles(params.shopId, query.include_inactive === "true"),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    getBundle: async ({ params, set }: any) => {
-        const id = parseIntParam(params.bundleId, "bundle id", set);
-        if (id === null) return { detail: "Invalid bundle id" };
-        try {
-            return await getBundle(params.shopId, id);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	getBundle: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		const id = parseIntParam(params.bundleId, "bundle id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid bundle id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await getBundle(params.shopId, id), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    createBundle: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            set.status = 201;
-            return await createBundle(params.shopId, body as Parameters<typeof createBundle>[1]);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	createBundle: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await createBundle(params.shopId, body as Parameters<typeof createBundle>[1]),
+				ResponseStatus.CREATED,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    updateBundle: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        const id = parseIntParam(params.bundleId, "bundle id", set);
-        if (id === null) return { detail: "Invalid bundle id" };
-        try {
-            return await updateBundle(params.shopId, id, body);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	updateBundle: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.bundleId, "bundle id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid bundle id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await updateBundle(params.shopId, id, body), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    deleteBundle: async (ctx: any) => {
-        const { params, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        const id = parseIntParam(params.bundleId, "bundle id", set);
-        if (id === null) return { detail: "Invalid bundle id" };
-        try {
-            return await deleteBundle(params.shopId, id);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	deleteBundle: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.bundleId, "bundle id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid bundle id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await deleteBundle(params.shopId, id), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    reorderBundles: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager", "cashier")) return managerOrAdmin(set);
-        try {
-            return await reorderBundles(params.shopId, body.sort_map);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	reorderBundles: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager", "cashier")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(reqContext, await reorderBundles(params.shopId, body.sort_map), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    checkBundleStock: async ({ params, set }: any) => {
-        const id = parseIntParam(params.bundleId, "bundle id", set);
-        if (id === null) return { detail: "Invalid bundle id" };
-        try {
-            return await checkBundleStock(params.shopId, id);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	checkBundleStock: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		const id = parseIntParam(params.bundleId, "bundle id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid bundle id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await checkBundleStock(params.shopId, id), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    listPricePanels: async ({ params, set }: any) => {
-        try {
-            return await listPanels(params.shopId);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	listPricePanels: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		try {
+			return successResponse(reqContext, await listPanels(params.shopId), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    createPricePanel: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            set.status = 201;
-            return await createPanel(params.shopId, body.name, body.color ?? null);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	createPricePanel: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await createPanel(params.shopId, body.name, body.color ?? null),
+				ResponseStatus.CREATED,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    updatePricePanel: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        const id = parseIntParam(params.panelId, "panel id", set);
-        if (id === null) return { detail: "Invalid panel id" };
-        try {
-            return await updatePanel(params.shopId, id, body);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	updatePricePanel: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.panelId, "panel id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid panel id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await updatePanel(params.shopId, id, body), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    deletePricePanel: async (ctx: any) => {
-        const { params, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        const id = parseIntParam(params.panelId, "panel id", set);
-        if (id === null) return { detail: "Invalid panel id" };
-        try {
-            await deletePanel(params.shopId, id);
-            set.status = 204;
-            return null;
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	deletePricePanel: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.panelId, "panel id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid panel id", ResponseStatus.UNPROCESSABLE);
+		try {
+			await deletePanel(params.shopId, id);
+			return successResponse(reqContext, undefined, ResponseStatus.NO_CONTENT);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    getPricePanelItems: async ({ params, set }: any) => {
-        const id = parseIntParam(params.panelId, "panel id", set);
-        if (id === null) return { detail: "Invalid panel id" };
-        try {
-            return await getPanelItems(params.shopId, id);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	getPricePanelItems: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		const id = parseIntParam(params.panelId, "panel id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid panel id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await getPanelItems(params.shopId, id), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    setPricePanelItemPrice: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager", "cashier")) return managerOrAdmin(set);
-        const panelId = parseIntParam(params.panelId, "panel id", set);
-        const productId = parseIntParam(params.productId, "product id", set);
-        if (panelId === null || productId === null) return { detail: "Invalid id" };
-        try {
-            return await setItemPrice(params.shopId, panelId, productId, body);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	setPricePanelItemPrice: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager", "cashier")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const panelId = parseIntParam(params.panelId, "panel id", reqContext.set);
+		const productId = parseIntParam(params.productId, "product id", reqContext.set);
+		if (panelId === null || productId === null) {
+			return errorResponse(reqContext, "Invalid id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await setItemPrice(params.shopId, panelId, productId, body),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    setPricePanelBundleItemPrice: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager", "cashier")) return managerOrAdmin(set);
-        const panelId = parseIntParam(params.panelId, "panel id", set);
-        const bundleId = parseIntParam(params.bundleId, "bundle id", set);
-        if (panelId === null || bundleId === null) return { detail: "Invalid id" };
-        try {
-            return await setBundleItemPrice(params.shopId, panelId, bundleId, body);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	setPricePanelBundleItemPrice: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager", "cashier")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const panelId = parseIntParam(params.panelId, "panel id", reqContext.set);
+		const bundleId = parseIntParam(params.bundleId, "bundle id", reqContext.set);
+		if (panelId === null || bundleId === null) {
+			return errorResponse(reqContext, "Invalid id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await setBundleItemPrice(params.shopId, panelId, bundleId, body),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    createProduct: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            set.status = 201;
-            return await createShopProduct(
-                params.shopId,
-                body as Parameters<typeof createShopProduct>[1],
-                Number(user.sub),
-            );
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	createProduct: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await createShopProduct(
+					params.shopId,
+					body as Parameters<typeof createShopProduct>[1],
+					Number(user.sub),
+				),
+				ResponseStatus.CREATED,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    updateProduct: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        const id = parseIntParam(params.productId, "product id", set);
-        if (id === null) return { detail: "Invalid product id" };
-        try {
-            return await updateShopProduct(user, params.shopId, id, body);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	updateProduct: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		const id = parseIntParam(params.productId, "product id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
+		try {
+			return successResponse(reqContext, await updateShopProduct(user, params.shopId, id, body), ResponseStatus.OK);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    deleteProduct: async (ctx: any) => {
-        const { params, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        const id = parseIntParam(params.productId, "product id", set);
-        if (id === null) return { detail: "Invalid product id" };
-        try {
-            await deleteShopProduct(user, params.shopId, id);
-            set.status = 204;
-            return null;
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	deleteProduct: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.productId, "product id", reqContext.set);
+		if (id === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
+		try {
+			await deleteShopProduct(user, params.shopId, id);
+			return successResponse(reqContext, undefined, ResponseStatus.NO_CONTENT);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    receiveStock: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            return await receiveStock({
-                shopId: params.shopId,
-                items: body.items as Parameters<typeof receiveStock>[0]["items"],
-                userId: Number(user.sub),
-            });
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	receiveStock: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await receiveStock({
+					shopId: params.shopId,
+					items: body.items as Parameters<typeof receiveStock>[0]["items"],
+					userId: Number(user.sub),
+				}),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    adjustStock: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            return await adjustStock({
-                shopId: params.shopId,
-                productId: body.product_id,
-                delta: body.delta,
-                reason: body.reason,
-                costPerUnit: body.cost_per_unit ?? null,
-                userId: Number(user.sub),
-            });
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	adjustStock: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await adjustStock({
+					shopId: params.shopId,
+					productId: body.product_id,
+					delta: body.delta,
+					reason: body.reason,
+					costPerUnit: body.cost_per_unit ?? null,
+					userId: Number(user.sub),
+				}),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    createCategory: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            set.status = 201;
-            return await createShopCategory(params.shopId, body.name);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	createCategory: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await createShopCategory(params.shopId, body.name),
+				ResponseStatus.CREATED,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    updateCategory: async (ctx: any) => {
-        const { params, body, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            return await updateShopCategory(params.shopId, params.categoryId, body.name);
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	updateCategory: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			return successResponse(
+				reqContext,
+				await updateShopCategory(params.shopId, params.categoryId, body.name),
+				ResponseStatus.OK,
+			);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 
-    deleteCategory: async (ctx: any) => {
-        const { params, user, set } = ctx;
-        if (!hasRole(user.roles, "admin", "manager")) return managerOrAdmin(set);
-        try {
-            await deleteShopCategory(params.shopId, params.categoryId);
-            set.status = 204;
-            return null;
-        } catch (e) {
-            return handleServiceError(set)(e);
-        }
-    },
+	deleteCategory: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		if (!hasRole(user.roles, "admin", "manager")) {
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			await deleteShopCategory(params.shopId, params.categoryId);
+			return successResponse(reqContext, undefined, ResponseStatus.NO_CONTENT);
+		} catch (e) {
+			return errorFromService(reqContext, e);
+		}
+	},
 };

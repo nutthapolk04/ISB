@@ -10,7 +10,7 @@ import { and, desc, eq, like } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
-import type { AccessTokenPayload } from "@/middleware/AuthUtils";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import {
   createQrPayment,
   createEasyPay,

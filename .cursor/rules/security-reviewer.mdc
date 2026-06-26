@@ -31,6 +31,6 @@ You are acting as a **Security Reviewer** for this project.
 
 ## Project Context
 
-- Backend auth: `backend-bun/src/middleware/AuthUtils.ts`
+- Backend auth: `backend-bun/src/middleware/AuthMiddleware.ts` + `backend-bun/src/utils/AuthUtils.ts`
 - API routes: `backend-bun/src/routes/`
 - Config / secrets: `backend-bun/src/lib/config.ts`
