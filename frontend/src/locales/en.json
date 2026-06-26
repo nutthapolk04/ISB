@@ -34,6 +34,7 @@
     "storeManagement": "Store Management",
     "storeUsers": "Store Users",
     "storeReports": "Store Reports",
+    "storeBalanceFile": "Balance File",
     "adminDashboard": "Dashboard",
     "users": "Users",
     "adminUsers": "User Management",
@@ -1157,14 +1158,14 @@
       "invalidAmount": "Please enter a valid amount",
       "reasonRequired": "Reason is required",
       "directionType": "Type",
-      "directionCredit": "Credit (Add)",
+      "directionCredit": "+",
       "info": {
         "auditReason": {
           "title": "Reason is required",
           "body": "Every adjustment is recorded in the audit log together with the admin's name and reason — use a clear reason so it can be traced later (e.g. 'Fix wrong balance from incident #123')."
         }
       },
-      "directionDebit": "Debit (Deduct)",
+      "directionDebit": "−",
       "amountLabel": "Amount (THB)",
       "reasonLabel": "Reason",
       "reasonPlaceholder": "e.g. Refund void error, compensate system error",

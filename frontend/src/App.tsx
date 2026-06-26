@@ -26,6 +26,7 @@ import RefundList from "./pages/refund/RefundList";
 import ReturnHistory from "./pages/ReturnHistory";
 import Receipts from "./pages/Receipts";
 import Reports from "./pages/Reports";
+import BalanceFileReport from "./pages/store/BalanceFileReport";
 import ShopManagement from "./pages/ShopManagement";
 import StoreRequisition from "./pages/store/StoreRequisition";
 import ShopDetail from "./pages/ShopDetail";
@@ -316,6 +317,9 @@ const App = () => {
                   <Route element={<RequireRole roles={["admin", "manager", "cashier"]} />}>
                     <Route path="/store/reports" element={<Reports />} />
                     <Route path="/store/audit-logs" element={<AuditLogList />} />
+                  </Route>
+                  <Route element={<RequireRole roles={["admin", "manager"]} />}>
+                    <Route path="/store/balance-file" element={<BalanceFileReport />} />
                   </Route>
 
                 </Route>

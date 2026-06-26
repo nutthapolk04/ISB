@@ -34,6 +34,7 @@
     "storeManagement": "Store Management",
     "storeUsers": "ผู้ใช้ร้านค้า",
     "storeReports": "รายงานสหกรณ์",
+    "storeBalanceFile": "Balance File",
     "adminDashboard": "แดชบอร์ด",
     "users": "ผู้ใช้งาน",
     "adminUsers": "จัดการผู้ใช้",
@@ -1157,14 +1158,14 @@
       "invalidAmount": "ระบุจำนวนเงินให้ถูกต้อง",
       "reasonRequired": "ต้องระบุเหตุผล",
       "directionType": "ประเภท",
-      "directionCredit": "เพิ่มยอด (Credit)",
+      "directionCredit": "+",
       "info": {
         "auditReason": {
           "title": "ต้องระบุเหตุผลทุกครั้ง",
           "body": "ทุกการปรับยอดจะถูกบันทึกในระบบ audit log พร้อมชื่อ admin + เหตุผล — ใช้เหตุผลที่ชัดเจนเพื่อให้ตรวจสอบย้อนหลังได้ (เช่น 'แก้ยอดผิดจาก incident #123')"
         }
       },
-      "directionDebit": "หักยอด (Debit)",
+      "directionDebit": "−",
       "amountLabel": "จำนวนเงิน (บาท)",
       "reasonLabel": "เหตุผล",
       "reasonPlaceholder": "เช่น คืนเงินผิดพลาดจากการ void, ชดเชยระบบผิดพลาด",

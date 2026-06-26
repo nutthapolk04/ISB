@@ -31,6 +31,7 @@ import {
   confirmClose,
 } from "@/services/close_month_service";
 import { getMonthlyStockReport, exportMonthlyStockReport } from "@/services/monthly_stock_service";
+import { getBalanceFile, exportBalanceFile } from "@/services/balance_file_service";
 import { db } from "@/db/client";
 import { users, shops as shopsTable, shopProducts, productOrderHistory } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -607,6 +608,84 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
     {
       params: t.Object({ shopId: t.String() }),
       query: t.Object({ start_date: t.Optional(t.String()), end_date: t.Optional(t.String()) }),
+    },
+  )
+
+  // ─── Balance File (Average Cost) ────────────────────────────────────────────
+
+  .get(
+    "/:shopId/balance-file",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      const year = Number(query.year);
+      const month = Number(query.month);
+      const productId = query.product_id ? Number(query.product_id) : null;
+      if (!Number.isInteger(year) || year < 2000 || year > 2999) {
+        set.status = 422;
+        return { detail: "Invalid year" };
+      }
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        set.status = 422;
+        return { detail: "Invalid month (1-12)" };
+      }
+      try {
+        return await getBalanceFile(params.shopId, year, month, productId);
+      } catch (e) {
+        console.error("[balance-file] error:", e);
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      query: t.Object({
+        year: t.String(),
+        month: t.String(),
+        product_id: t.Optional(t.Nullable(t.String())),
+      }),
+    },
+  )
+
+  .get(
+    "/:shopId/balance-file/export",
+    async ({ params, query, user, set }) => {
+      if (!hasRole(user.roles, "admin", "manager")) {
+        set.status = 403;
+        return { detail: "Forbidden" };
+      }
+      const year = Number(query.year);
+      const month = Number(query.month);
+      const productId = query.product_id ? Number(query.product_id) : null;
+      if (!Number.isInteger(year) || year < 2000 || year > 2999) {
+        set.status = 422;
+        return { detail: "Invalid year" };
+      }
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        set.status = 422;
+        return { detail: "Invalid month (1-12)" };
+      }
+      try {
+        const buffer = await exportBalanceFile(params.shopId, year, month, productId);
+        const mm = String(month).padStart(2, "0");
+        return new Response(buffer, {
+          headers: {
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition": `attachment; filename="balance-file-${year}-${mm}.xlsx"`,
+          },
+        });
+      } catch (e) {
+        return handleErr(set, e);
+      }
+    },
+    {
+      params: t.Object({ shopId: t.String() }),
+      query: t.Object({
+        year: t.String(),
+        month: t.String(),
+        product_id: t.Optional(t.Nullable(t.String())),
+      }),
     },
   )
 
