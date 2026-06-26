@@ -1,26 +1,28 @@
 import type { Context, StatusMap } from "elysia";
 import ResponseStatus from "@/constants/ResponseStatus";
+import { logger } from "@/logger";
+import { RequestContext } from "@/interfaces/ServiceRequest";
 
 type StatusSetter = { status?: number | keyof StatusMap };
 
 export function successResponse<T>(
-	ctx: Context,
-	body: T,
-	statusCode?: number,
+    ctx: Context,
+    body: T,
+    statusCode?: number,
 ): T;
 export function successResponse(
-	ctx: Context,
-	body?: undefined,
-	statusCode?: number,
+    ctx: Context,
+    body?: undefined,
+    statusCode?: number,
 ): undefined;
 export function successResponse(
-	ctx: Context,
-	body?: unknown,
-	statusCode: number = ResponseStatus.OK,
+    ctx: Context,
+    body?: unknown,
+    statusCode: number = ResponseStatus.OK,
 ) {
-	ctx.set.status = statusCode;
-	if (body === undefined) return undefined;
-	return body;
+    ctx.set.status = statusCode;
+    if (body === undefined) return undefined;
+    return body;
 }
 
 export function errorResponse(
@@ -36,11 +38,14 @@ export function errorResponse(
 }
 
 export function errorFromService(ctx: Context, e: unknown) {
-	const err = e as { status?: number; message?: string };
-	if (err.status && err.status >= 400 && err.status < 600) {
-		return errorResponse(ctx, err.message ?? "Bad request", err.status);
-	}
-	throw e;
+    const reqContext = ctx as RequestContext;
+    const err = e as { status?: number; message?: string };
+    if (err.status && err.status >= 400 && err.status < 600) {
+        logger.error(`[${reqContext.requestId}] Error from service: ${err.message}`, { status: err.status });
+        return errorResponse(ctx, err.message ?? "Bad request", err.status);
+    }
+    logger.error(`[${reqContext.requestId}] Error from service: ${err.message}`, { status: err.status });
+    throw e;
 }
 
 export function detailError(set: StatusSetter, message: string, statusCode: number) {
