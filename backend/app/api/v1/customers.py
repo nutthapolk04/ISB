@@ -38,7 +38,7 @@ def _spent_today_by_module(db: Session, customer_id: int) -> Dict[str, float]:
         FROM receipts r
         JOIN shops s ON s.id = r.shop_id
         WHERE r.customer_id = :cid
-          AND r.status = 'active'
+          AND UPPER(r.status) = 'ACTIVE'
           AND (r.transaction_date AT TIME ZONE 'Asia/Bangkok')::date
               = (now() AT TIME ZONE 'Asia/Bangkok')::date
         GROUP BY s.module
