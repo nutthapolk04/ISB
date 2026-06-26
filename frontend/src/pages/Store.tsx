@@ -1696,16 +1696,8 @@ const Store = () => {
           </div>
 
           {/* Spending limit chip — shown when a member is pre-selected */}
-          {user?.shopId && preSelectedMember && (
-            <SpendingLimitChip
-              shopId={user.shopId}
-              payerId={
-                preSelectedMember.user_id != null
-                  ? { kind: "user", id: preSelectedMember.user_id }
-                  : { kind: "customer", id: preSelectedMember.id }
-              }
-              refreshKey={chipRefreshKey}
-            />
+          {preSelectedMember && preSelectedMember.customer_kind !== "department" && (
+            <SpendingLimitChip member={preSelectedMember} refreshKey={chipRefreshKey} />
           )}
 
           {/* Total */}

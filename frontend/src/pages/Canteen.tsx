@@ -1218,17 +1218,9 @@ export default function Canteen() {
         )}
 
         {/* Today's spending limit — shown when member is scanned */}
-        {preSelectedMember && (
+        {preSelectedMember && preSelectedMember.customer_kind !== "department" && (
           <div className="px-1 lg:hidden">
-            <SpendingLimitChip
-              shopId={CANTEEN_SHOP_ID}
-              payerId={
-                preSelectedMember.user_id != null
-                  ? { kind: "user", id: preSelectedMember.user_id }
-                  : { kind: "customer", id: preSelectedMember.id }
-              }
-              refreshKey={chipRefreshKey}
-            />
+            <SpendingLimitChip member={preSelectedMember} refreshKey={chipRefreshKey} />
           </div>
         )}
 
@@ -1271,14 +1263,7 @@ export default function Canteen() {
       <CanteenCart
         headerSlot={
           <SpendingLimitChip
-            shopId={CANTEEN_SHOP_ID}
-            payerId={
-              preSelectedMember
-                ? preSelectedMember.user_id != null
-                  ? { kind: "user", id: preSelectedMember.user_id }
-                  : { kind: "customer", id: preSelectedMember.id }
-                : null
-            }
+            member={preSelectedMember && preSelectedMember.customer_kind !== "department" ? preSelectedMember : null}
             refreshKey={chipRefreshKey}
           />
         }
