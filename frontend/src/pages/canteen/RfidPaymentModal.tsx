@@ -767,30 +767,42 @@ export function RfidPaymentModal({
                 </div>
                 <div className="border-t border-border" />
                 {canteenDailyLimit != null && (() => {
-                  const pct = canteenDailyLimit > 0 ? (canteenSpent / canteenDailyLimit) * 100 : 0;
+                  const pct = canteenDailyLimit > 0 ? Math.min((canteenSpent / canteenDailyLimit) * 100, 100) : 0;
                   const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
+                  const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
                   return (
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-muted-foreground font-medium">Canteen</span>
-                      <span className={cn("text-base font-bold tabular-nums", color)}>
-                        ฿{canteenSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        <span className="text-muted-foreground font-normal"> / </span>
-                        ฿{canteenDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-muted-foreground font-medium">Canteen</span>
+                        <span className={cn("text-base font-bold tabular-nums", color)}>
+                          ฿{canteenSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          <span className="text-muted-foreground font-normal"> / </span>
+                          ฿{canteenDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
                   );
                 })()}
                 {storeDailyLimit != null && (() => {
-                  const pct = storeDailyLimit > 0 ? (storeSpent / storeDailyLimit) * 100 : 0;
+                  const pct = storeDailyLimit > 0 ? Math.min((storeSpent / storeDailyLimit) * 100, 100) : 0;
                   const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
+                  const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
                   return (
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-muted-foreground font-medium">Store</span>
-                      <span className={cn("text-base font-bold tabular-nums", color)}>
-                        ฿{storeSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        <span className="text-muted-foreground font-normal"> / </span>
-                        ฿{storeDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-muted-foreground font-medium">Store</span>
+                        <span className={cn("text-base font-bold tabular-nums", color)}>
+                          ฿{storeSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          <span className="text-muted-foreground font-normal"> / </span>
+                          ฿{storeDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
                   );
                 })()}

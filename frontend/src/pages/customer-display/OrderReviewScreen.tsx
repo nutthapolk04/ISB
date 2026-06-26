@@ -12,18 +12,24 @@ interface Props {
 }
 
 function LimitRow({ label, sl }: { label: string; sl: SpendingLimitData }) {
-  const pct = sl.daily_limit > 0 ? (sl.spent_today / sl.daily_limit) * 100 : 0;
+  const pct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
   const atLimit = pct >= 100;
   const nearLimit = pct >= 80 && !atLimit;
   const color = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
+  const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className="text-base font-medium text-zinc-700">{label}</span>
-      <span className={cn("text-lg font-bold tabular-nums", color)}>
-        ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-        <span className="text-zinc-400 font-normal"> / </span>
-        ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-      </span>
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-base font-medium text-zinc-700">{label}</span>
+        <span className={cn("text-lg font-bold tabular-nums", color)}>
+          ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <span className="text-zinc-400 font-normal"> / </span>
+          ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
