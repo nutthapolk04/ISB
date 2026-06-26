@@ -19,7 +19,7 @@ import { freezeCard, setActive, setDailyLimit, setDailyLimits, updateAllergies, 
 import { createUser, updateUser, deleteUser } from "@/services/user_service";
 import { reportRoutes } from "@/routes/reports";
 import { jwtPlugin, requireAuth, hasRole } from "@/middleware/auth";
-import { listDepartments } from "@/services/department_service";
+import { listDepartments, deleteDepartment } from "@/services/department_service";
 import { listUsers, getUser, getUserPayerByUsername, getUserPayerByCard, familyLookup } from "@/services/user_service";
 import {
   listAdminUsers,
@@ -2355,6 +2355,20 @@ const phase2Routes = new Elysia({ name: "phase-2" })
         date_to: t.Optional(t.Nullable(t.String())),
       }),
     },
+  )
+  .delete(
+    "/admin/departments/:department_id",
+    async ({ params, user, set }) => {
+      if (!hasRole(user.roles, "admin")) { set.status = 403; return { detail: "Admin only" }; }
+      const id = Number(params.department_id);
+      if (!Number.isInteger(id)) { set.status = 422; return { detail: "Invalid department id" }; }
+      try {
+        await deleteDepartment(id);
+        set.status = 204;
+        return null;
+      } catch (e) { return handle(set)(e); }
+    },
+    { params: t.Object({ department_id: t.String() }) },
   )
   // ── Phase 6: Family / Parent portal (read-only) ────────────────────────
   .get(

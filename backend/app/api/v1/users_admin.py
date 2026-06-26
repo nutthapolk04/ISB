@@ -26,6 +26,7 @@ from app.models.identity_mapping import IdentityMapping
 from app.models.parent_child_link import ParentChildLink
 from app.models.shop import Shop
 from app.models.user import User
+from app.models.wallet import Wallet
 from app.schemas.user_admin import (
     FamilyMember,
     FamilyProfileItem,
@@ -194,6 +195,7 @@ def _build_detail(db: Session, u: User) -> UserDetail:
     if shop_id:
         shop = db.query(Shop).filter(Shop.id == shop_id).first()
         shop_name = shop.name if shop else None
+    wallet = db.query(Wallet).filter(Wallet.user_id == u.id).first()
     return UserDetail(
         id=u.id,
         username=u.username,
@@ -217,6 +219,7 @@ def _build_detail(db: Session, u: User) -> UserDetail:
         identity_history=_identity_history(db, "user", u.id),
         shop_id=shop_id,
         shop_name=shop_name,
+        wallet_balance=wallet.balance if wallet else None,
     )
 
 

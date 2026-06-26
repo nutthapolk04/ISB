@@ -112,6 +112,8 @@ export interface ReportMeta {
    * "RPT-YYYYMMDD-HHmmss-XXXX" when omitted.
    */
   reportId?: string;
+  /** Name of the user who ran the report. Rendered as "· By: <name>" next to Report ID. */
+  runByName?: string;
 }
 
 /** Generate a sequential Report ID: ISB001, ISB002, … Counter persisted in localStorage. */
@@ -281,7 +283,10 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(130);
-  doc.text(`Report ID: ${reportId}`, marginX, 20, { align: "left" });
+  const reportIdLine = meta.runByName
+    ? `Report ID: ${reportId} · By: ${meta.runByName}`
+    : `Report ID: ${reportId}`;
+  doc.text(reportIdLine, marginX, 20, { align: "left" });
   doc.text(`Printed: ${printDateTime}`, pageWidth - marginX, 20, { align: "right" });
   doc.setTextColor(0);
 
@@ -505,7 +510,9 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
   const aoa: (string | number)[][] = [];
   aoa.push([meta.schoolName]);
   aoa.push([meta.title]);
-  aoa.push([`Report ID: ${reportId}`]);
+  aoa.push([
+    meta.runByName ? `Report ID: ${reportId} · By: ${meta.runByName}` : `Report ID: ${reportId}`,
+  ]);
   aoa.push([`Printed: ${formatDateTime(generatedAt)}`]);
   if (meta.filters && meta.filters.length > 0) {
     aoa.push([`Filters: ${meta.filters.join(" · ")}`]);

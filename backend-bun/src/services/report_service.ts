@@ -65,6 +65,8 @@ export interface SalesRow {
   product_name: string;
   quantity: number;
   total: number;
+  shop_id: string;
+  shop_name: string | null;
 }
 
 export interface SalesReport {
@@ -113,12 +115,15 @@ export async function salesReport(args: {
         name: shopProducts.name,
         qty: sql<string>`SUM(${receiptItems.quantity})`,
         total: sql<string>`SUM(${receiptItems.lineTotal})`,
+        shop_id: shopProducts.shopId,
+        shop_name: shops.name,
       })
       .from(receiptItems)
       .innerJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
+      .innerJoin(shops, eq(shops.id, shopProducts.shopId))
       .where(inArray(receiptItems.receiptId, receiptIds))
-      .groupBy(shopProducts.name)
-      .orderBy(sql`SUM(${receiptItems.lineTotal}) DESC`);
+      .groupBy(shopProducts.shopId, shops.name, shopProducts.name)
+      .orderBy(asc(shops.name), sql`SUM(${receiptItems.lineTotal}) DESC`);
     rows = agg.map((r) => {
       const total = pgNumber(r.total) ?? 0;
       grandTotal += total;
@@ -126,6 +131,8 @@ export async function salesReport(args: {
         product_name: r.name,
         quantity: Number(r.qty) || 0,
         total,
+        shop_id: r.shop_id,
+        shop_name: r.shop_name,
       };
     });
   }
@@ -146,6 +153,8 @@ export interface SalesByPaymentRow {
   payment_method: string;
   receipt_count: number;
   total: number;
+  shop_id: string;
+  shop_name: string | null;
 }
 
 export interface SalesByPaymentReport {
@@ -188,11 +197,14 @@ export async function salesByPaymentReport(args: {
       payment_method: receipts.paymentMethod,
       receipt_count: sql<string>`COUNT(${receipts.id})`,
       total: sql<string>`SUM(${receipts.total})`,
+      shop_id: receipts.shopId,
+      shop_name: shops.name,
     })
     .from(receipts)
+    .innerJoin(shops, eq(shops.id, receipts.shopId))
     .where(and(...conds))
-    .groupBy(receipts.paymentMethod)
-    .orderBy(sql`SUM(${receipts.total}) DESC`);
+    .groupBy(receipts.shopId, shops.name, receipts.paymentMethod)
+    .orderBy(asc(shops.name), sql`SUM(${receipts.total}) DESC`);
 
   let grand = 0;
   let totalRec = 0;
@@ -210,7 +222,13 @@ export async function salesByPaymentReport(args: {
     } else {
       retail += total;
     }
-    return { payment_method: r.payment_method, receipt_count: count, total };
+    return {
+      payment_method: r.payment_method,
+      receipt_count: count,
+      total,
+      shop_id: r.shop_id ?? "",
+      shop_name: r.shop_name,
+    };
   });
 
   return {
@@ -642,6 +660,8 @@ export interface SalesSummaryRow {
   amt_qr_code: number;
   amt_other: number;
   remark: string | null;
+  shop_id: string;
+  shop_name: string | null;
 }
 
 export interface SalesSummaryTotals {
@@ -703,10 +723,12 @@ export async function salesSummaryReport(args: {
       receipt: receipts,
       customer: customers,
       payer: users,
+      shop: shops,
     })
     .from(receipts)
     .leftJoin(customers, eq(customers.id, receipts.customerId))
-    .leftJoin(users, eq(users.id, receipts.payerUserId));
+    .leftJoin(users, eq(users.id, receipts.payerUserId))
+    .leftJoin(shops, eq(shops.id, receipts.shopId));
 
   const filterConds = [...conds];
   if (args.customerType && args.customerType !== "all") {
@@ -720,7 +742,9 @@ export async function salesSummaryReport(args: {
     filterConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
   }
 
-  const allRows = await baseQuery.where(and(...filterConds)).orderBy(asc(receipts.transactionDate), asc(receipts.id));
+  const allRows = await baseQuery
+    .where(and(...filterConds))
+    .orderBy(asc(shops.name), asc(receipts.transactionDate), asc(receipts.id));
 
   const rows: SalesSummaryRow[] = [];
   const totals: SalesSummaryTotals = {
@@ -734,7 +758,7 @@ export async function salesSummaryReport(args: {
     amt_other: 0,
   };
 
-  allRows.forEach(({ receipt: r, customer, payer }, idx) => {
+  allRows.forEach(({ receipt: r, customer, payer, shop }, idx) => {
     const amtReceive = pgNumber(r.total) ?? 0;
     let amtChange = 0;
     if (r.paymentMethod === "CASH" && r.cashReceived !== null) {
@@ -753,7 +777,10 @@ export async function salesSummaryReport(args: {
     }
 
     const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
-    const buckets: Omit<SalesSummaryRow, "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark"> = {
+    const buckets: Omit<
+      SalesSummaryRow,
+      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name"
+    > = {
       amt_billing: 0,
       amt_cash: 0,
       amt_campus_card: 0,
@@ -772,6 +799,8 @@ export async function salesSummaryReport(args: {
       amt_receive: amtReceive,
       amt_change: amtChange,
       remark: r.notes ?? null,
+      shop_id: r.shopId ?? "",
+      shop_name: shop?.name ?? null,
       ...buckets,
     });
 

@@ -39,7 +39,13 @@ import {
 
 interface CanteenShop { id: string; name: string; }
 
-interface SalesRow { product_name: string; quantity: number; total: number; }
+interface SalesRow {
+  product_name: string;
+  quantity: number;
+  total: number;
+  shop_id: string;
+  shop_name: string | null;
+}
 interface SalesReportData { rows: SalesRow[]; grand_total: number; receipt_count: number; }
 
 interface StockRow { product_code: string | null; product_name: string; stock_qty: number; shop_id: string; shop_name: string | null; }
@@ -52,7 +58,13 @@ interface ReturnRow {
 }
 interface ReturnReportData { rows: ReturnRow[]; total_refund: number; total_exchange: number; }
 
-interface SalesByPaymentRow { payment_method: string; receipt_count: number; total: number; }
+interface SalesByPaymentRow {
+  payment_method: string;
+  receipt_count: number;
+  total: number;
+  shop_id: string;
+  shop_name: string | null;
+}
 interface SalesByPaymentReportData {
   rows: SalesByPaymentRow[];
   grand_total: number;
@@ -114,6 +126,8 @@ interface SalesSummaryRow {
   amt_qr_code: number;
   amt_other: number;
   remark: string | null;
+  shop_id: string;
+  shop_name: string | null;
 }
 
 interface SalesSummaryTotals {
@@ -208,6 +222,49 @@ const CUSTOMER_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "guest",   label: "Guest" },
 ];
 
+/**
+ * Group rows by vendor for admin / multi-shop views. Returns the input rows
+ * unchanged when only one shop appears (vendor user, or admin filtered to a
+ * single shop) — the caller is then expected to surface the vendor name via
+ * a "Shop: …" filter line instead. When multiple shops appear, inserts a
+ * SECTION_KEY header row before each shop's rows and an EMPHASIS_KEY
+ * "subtotal" row after, using `buildSubtotal` to fill the numeric columns.
+ */
+function buildVendorSections<T extends { shop_id: string; shop_name: string | null }>(
+  rows: T[],
+  buildSubtotal: (shopRows: T[]) => Record<string, unknown>,
+): Record<string, unknown>[] {
+  const uniqueShops = new Set(rows.map((r) => r.shop_id));
+  if (uniqueShops.size <= 1) {
+    return rows as unknown as Record<string, unknown>[];
+  }
+
+  const byShop = new Map<string, { name: string | null; rows: T[] }>();
+  for (const r of rows) {
+    const entry = byShop.get(r.shop_id);
+    if (entry) entry.rows.push(r);
+    else byShop.set(r.shop_id, { name: r.shop_name, rows: [r] });
+  }
+
+  const out: Record<string, unknown>[] = [];
+  for (const [shopId, { name, rows: shopRows }] of byShop) {
+    out.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
+    for (const r of shopRows) out.push(r as unknown as Record<string, unknown>);
+    out.push({ [EMPHASIS_KEY]: "subtotal" as const, ...buildSubtotal(shopRows) });
+  }
+  return out;
+}
+
+/** True when the result spans more than one shop (admin / canteen-area-mgr "all"). */
+function isMultiVendor<T extends { shop_id: string }>(rows: T[]): boolean {
+  if (rows.length < 2) return false;
+  const first = rows[0].shop_id;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].shop_id !== first) return true;
+  }
+  return false;
+}
+
 
 const Reports = () => {
   const { t } = useTranslation();
@@ -248,15 +305,21 @@ const Reports = () => {
     [isCanteenReportsPage],
   );
 
-  // Canteen area manager: null shopId but shopModule=canteen → show stall selector
-  const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && user?.role !== "admin";
+  // Shop selector visibility:
+  //  - admin: pick any shop in the current module (canteen vs store)
+  //  - canteen area manager (no shopId, shopModule=canteen): pick a canteen stall
+  //  - other shop users: locked to their own shop (no selector)
+  const isAdmin = user?.role === "admin";
+  const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && !isAdmin;
+  const needsShopSelector = isAdmin || isCanteenAreaMgr;
   const [canteenStalls, setCanteenStalls] = useState<CanteenShop[]>([]);
   const [selectedStall, setSelectedStall] = useState<string>("all");
 
   useEffect(() => {
-    if (!isCanteenAreaMgr) return;
-    api.get<CanteenShop[]>("/shops?module=canteen").then(setCanteenStalls).catch(() => {});
-  }, [isCanteenAreaMgr]);
+    if (!needsShopSelector) return;
+    const module = isCanteenReportsPage ? "canteen" : "store";
+    api.get<CanteenShop[]>(`/shops?module=${module}`).then(setCanteenStalls).catch(() => {});
+  }, [needsShopSelector, isCanteenReportsPage]);
 
   // Stock Card state. Multi-product mode requires shop_id; admins pick the
   // shop, single-shop users (manager/cashier) auto-use their own.
@@ -533,10 +596,10 @@ const Reports = () => {
     if (ssReceiptNoTo.trim()) params.set("receipt_no_to", ssReceiptNoTo.trim());
     if (ssReceiveType && ssReceiveType !== "all") params.set("receive_type", ssReceiveType);
 
-    // Honour the canteen-area-manager stall selector when present, otherwise
-    // fall back to the user's own shop scope (handled server-side).
-    if (isCanteenAreaMgr) {
-      if (selectedStall === "all") params.set("module", "canteen");
+    // Admin + canteen-area-manager pick a shop from the dropdown; other shop
+    // users are locked to their own shop scope (handled server-side).
+    if (needsShopSelector) {
+      if (selectedStall === "all") params.set("module", isCanteenReportsPage ? "canteen" : "store");
       else params.set("shop_id", selectedStall);
     } else if (user?.shopId) {
       params.set("shop_id", user.shopId);
@@ -583,7 +646,7 @@ const Reports = () => {
       const label = RECEIVE_TYPE_OPTIONS.find((o) => o.value === ssReceiveType)?.label ?? ssReceiveType;
       lines.push(`Receive Type: ${label}`);
     }
-    if (isCanteenAreaMgr && selectedStall !== "all") {
+    if (needsShopSelector && selectedStall !== "all") {
       const stall = canteenStalls.find((s) => s.id === selectedStall);
       if (stall) lines.push(`Shop: ${stall.name}`);
     }
@@ -613,16 +676,39 @@ const Reports = () => {
       { header: "Remark",           key: "remark",           width: 75  },
     ];
 
+    const multi = isMultiVendor(ssData.rows);
+    const filterLines = buildSalesSummaryFilterLines();
+    let bodyRows: Record<string, unknown>[];
+    if (multi) {
+      bodyRows = buildVendorSections(ssData.rows, (shopRows) => ({
+        customer_name: "Subtotal",
+        amt_receive:      shopRows.reduce((s, r) => s + r.amt_receive,     0),
+        amt_change:       shopRows.reduce((s, r) => s + r.amt_change,      0),
+        amt_billing:      shopRows.reduce((s, r) => s + r.amt_billing,     0),
+        amt_cash:         shopRows.reduce((s, r) => s + r.amt_cash,        0),
+        amt_campus_card:  shopRows.reduce((s, r) => s + r.amt_campus_card, 0),
+        amt_credit_card:  shopRows.reduce((s, r) => s + r.amt_credit_card, 0),
+        amt_qr_code:      shopRows.reduce((s, r) => s + r.amt_qr_code,     0),
+        amt_other:        shopRows.reduce((s, r) => s + r.amt_other,       0),
+      }));
+    } else {
+      bodyRows = ssData.rows as unknown as Record<string, unknown>[];
+      if (ssData.rows.length > 0) {
+        filterLines.push(`Shop: ${ssData.rows[0].shop_name ?? ssData.rows[0].shop_id}`);
+      }
+    }
+
     return {
       meta: {
         title: "Sales Summary Report",
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
         reportId: REPORT_ID_MAP["salesSummaryReport"],
-        filters: buildSalesSummaryFilterLines(),
+        filters: filterLines,
+        runByName: user?.fullName ?? user?.username,
       },
       columns,
-      rows: ssData.rows as unknown as Record<string, unknown>[],
+      rows: bodyRows,
       totals: {
         amt_receive: ssData.totals.amt_receive,
         amt_change: ssData.totals.amt_change,
@@ -672,8 +758,8 @@ const Reports = () => {
     if (siCategoryCode.trim()) params.set("category_code", siCategoryCode.trim());
     if (siItemNoFrom.trim()) params.set("item_no_from", siItemNoFrom.trim());
     if (siItemNoTo.trim()) params.set("item_no_to", siItemNoTo.trim());
-    if (isCanteenAreaMgr) {
-      if (selectedStall === "all") params.set("module", "canteen");
+    if (needsShopSelector) {
+      if (selectedStall === "all") params.set("module", isCanteenReportsPage ? "canteen" : "store");
       else params.set("shop_id", selectedStall);
     } else if (user?.shopId) {
       params.set("shop_id", user.shopId);
@@ -728,7 +814,7 @@ const Reports = () => {
     if (siItemNoFrom.trim() || siItemNoTo.trim()) {
       lines.push(`Item NO: ${siItemNoFrom.trim() || "—"} → ${siItemNoTo.trim() || "—"}`);
     }
-    if (isCanteenAreaMgr && selectedStall !== "all") {
+    if (needsShopSelector && selectedStall !== "all") {
       const stall = canteenStalls.find((s) => s.id === selectedStall);
       if (stall) lines.push(`Shop: ${stall.name}`);
     }
@@ -798,11 +884,11 @@ const Reports = () => {
 
   // Build scope query param
   const shopParam = (() => {
-    if (user?.role === "admin") return "";
-    if (isCanteenAreaMgr) {
-      return selectedStall === "all"
-        ? "&module=canteen"
-        : `&shop_id=${encodeURIComponent(selectedStall)}`;
+    if (needsShopSelector) {
+      if (selectedStall === "all") {
+        return `&module=${isCanteenReportsPage ? "canteen" : "store"}`;
+      }
+      return `&shop_id=${encodeURIComponent(selectedStall)}`;
     }
     return user?.shopId ? `&shop_id=${encodeURIComponent(user.shopId)}` : "";
   })();
@@ -824,9 +910,27 @@ const Reports = () => {
       const data = await api.get<SalesReportData>(
         `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
       );
-      const rows = selectedReportType === "topSellingReport"
+      const isTopSelling = selectedReportType === "topSellingReport";
+      const sortedRows = isTopSelling
         ? [...data.rows].sort((a, b) => b.quantity - a.quantity)
         : data.rows;
+
+      // Group by vendor only for the plain Sales Report when the result spans
+      // more than one shop. Top Selling is a single global ranking by design.
+      const multi = !isTopSelling && isMultiVendor(sortedRows);
+      const bodyRows = multi
+        ? buildVendorSections(sortedRows, (shopRows) => ({
+            product_name: "Subtotal",
+            quantity: shopRows.reduce((s, r) => s + r.quantity, 0),
+            total: shopRows.reduce((s, r) => s + r.total, 0),
+          }))
+        : (sortedRows as unknown as Record<string, unknown>[]);
+
+      const reportFilters = [...filters];
+      if (!multi && sortedRows.length > 0) {
+        reportFilters.push(`Shop: ${sortedRows[0].shop_name ?? sortedRows[0].shop_id}`);
+      }
+
       return {
         payload: {
           meta: {
@@ -834,17 +938,18 @@ const Reports = () => {
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
             reportId: REPORT_ID_MAP[selectedReportType],
-            filters,
+            filters: reportFilters,
+            runByName: user?.fullName ?? user?.username,
           },
           columns: [
             { header: t("reports.colProduct"),  key: "product_name", width: 45 },
             { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
             { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
           ],
-          rows: rows as unknown as Record<string, unknown>[],
+          rows: bodyRows,
           totals: { total: data.grand_total },
         },
-        baseFilename: `${selectedReportType === "topSellingReport" ? "TopSelling" : "SalesReport"}${dateLabel}`,
+        baseFilename: `${isTopSelling ? "TopSelling" : "SalesReport"}${dateLabel}`,
       };
     }
 
@@ -852,19 +957,56 @@ const Reports = () => {
       const data = await api.get<SalesByPaymentReportData>(
         `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
       );
-      const retailRows = data.rows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
-      const deptRow   = data.rows.find((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
-      const bodyRows: Record<string, unknown>[] = [
-        ...retailRows.map((r) => ({
-          payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
-          receipt_count: r.receipt_count,
-          total: r.total,
-        })),
-        { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
-        ...(deptRow
-          ? [{ payment_method: "Department Use", receipt_count: deptRow.receipt_count, total: deptRow.total }]
-          : []),
-      ];
+
+      // Helper: render a single shop's rows (retail block → Department
+      // sub-section → optional dept row). Reused for both single-vendor and
+      // multi-vendor admin layouts.
+      const renderShopBlock = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
+        const retail = shopRows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
+        const dept = shopRows.find((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
+        const block: Record<string, unknown>[] = [
+          ...retail.map((r) => ({
+            payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
+            receipt_count: r.receipt_count,
+            total: r.total,
+          })),
+          { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
+        ];
+        if (dept) {
+          block.push({ payment_method: "Department Use", receipt_count: dept.receipt_count, total: dept.total });
+        }
+        return block;
+      };
+
+      const multi = isMultiVendor(data.rows);
+      let bodyRows: Record<string, unknown>[];
+      const reportFilters = [...filters];
+
+      if (multi) {
+        const byShop = new Map<string, { name: string | null; rows: SalesByPaymentRow[] }>();
+        for (const r of data.rows) {
+          const e = byShop.get(r.shop_id);
+          if (e) e.rows.push(r);
+          else byShop.set(r.shop_id, { name: r.shop_name, rows: [r] });
+        }
+        bodyRows = [];
+        for (const [shopId, { name, rows: shopRows }] of byShop) {
+          bodyRows.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
+          bodyRows.push(...renderShopBlock(shopRows));
+          bodyRows.push({
+            [EMPHASIS_KEY]: "subtotal" as const,
+            payment_method: "Subtotal",
+            receipt_count: shopRows.reduce((s, r) => s + r.receipt_count, 0),
+            total: shopRows.reduce((s, r) => s + r.total, 0),
+          });
+        }
+      } else {
+        bodyRows = renderShopBlock(data.rows);
+        if (data.rows.length > 0) {
+          reportFilters.push(`Shop: ${data.rows[0].shop_name ?? data.rows[0].shop_id}`);
+        }
+      }
+
       return {
         payload: {
           meta: {
@@ -872,7 +1014,8 @@ const Reports = () => {
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
             reportId: REPORT_ID_MAP["salesByPaymentReport"],
-            filters,
+            filters: reportFilters,
+            runByName: user?.fullName ?? user?.username,
           },
           columns: [
             { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
@@ -1300,13 +1443,13 @@ const Reports = () => {
                   </Select>
                 </div>
 
-                {isCanteenAreaMgr && (
+                {needsShopSelector && (
                   <div className="space-y-2">
                     <Label htmlFor="ssShop">Shop</Label>
                     <Select value={selectedStall} onValueChange={setSelectedStall}>
                       <SelectTrigger id="ssShop"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All canteen stalls</SelectItem>
+                        <SelectItem value="all">{isCanteenReportsPage ? "All canteen stalls" : "All shops"}</SelectItem>
                         {canteenStalls.map((s) => (
                           <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                         ))}
@@ -1464,13 +1607,13 @@ const Reports = () => {
                   <Input id="siItemNoTo" placeholder="SKU upper bound"
                     value={siItemNoTo} onChange={(e) => setSiItemNoTo(e.target.value)} />
                 </div>
-                {isCanteenAreaMgr && (
+                {needsShopSelector && (
                   <div className="space-y-2">
                     <Label htmlFor="siShop">Shop</Label>
                     <Select value={selectedStall} onValueChange={setSelectedStall}>
                       <SelectTrigger id="siShop"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All canteen stalls</SelectItem>
+                        <SelectItem value="all">{isCanteenReportsPage ? "All canteen stalls" : "All shops"}</SelectItem>
                         {canteenStalls.map((s) => (
                           <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                         ))}
@@ -1585,7 +1728,7 @@ const Reports = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {isCanteenAreaMgr && (
+            {needsShopSelector && (
               <div className="space-y-2">
                 <Label>{t("reports.canteenScope")}</Label>
                 <Select value={selectedStall} onValueChange={setSelectedStall}>
@@ -1593,7 +1736,7 @@ const Reports = () => {
                     <SelectValue placeholder={t("reports.canteenScopeAll")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">{t("reports.canteenScopeAll")}</SelectItem>
+                    <SelectItem value="all">{isCanteenReportsPage ? t("reports.canteenScopeAll") : "All shops"}</SelectItem>
                     {canteenStalls.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}

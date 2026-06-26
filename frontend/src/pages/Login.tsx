@@ -162,6 +162,16 @@ const REF_SLIDES: RefSlide[] = [
     footer: "กระเป๋าของฉัน ฿800",
   },
   {
+    id: "hybrid",
+    title: "Hybrid (Multi-role)",
+    icon: ArrowLeftRight,
+    color: "bg-purple-100 text-purple-700",
+    rows: [
+      { label: "John Smith", user: "john_smith99", pwd: "parent", note: "Parent + Manager" },
+    ],
+    footer: "เลือก Role ได้ที่ Role Picker หลัง login",
+  },
+  {
     id: "others",
     title: "Others",
     icon: UserPlus,
@@ -338,7 +348,7 @@ const Login = () => {
             <img src="/isb-logo.svg" alt="ISB" className="h-16 w-16 rounded-xl object-contain" />
             <div className="text-center">
               <h1 className="text-2xl font-bold tracking-tight">Schooney</h1>
-              <p className="text-sm text-muted-foreground">ISB Cooperative Payment System</p>
+              <p className="text-sm text-muted-foreground">ISB SCHOONEY SYSTEM</p>
             </div>
           </div>
 

@@ -95,13 +95,14 @@ const ShopManagement = () => {
   const { user, hasRole } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const activeRole = user?.activeRole ?? user?.role;
 
   // Manager → redirect immediately to their shop
   useEffect(() => {
-    if (hasRole("manager") && user?.shopId) {
+    if (activeRole === "manager" && user?.shopId) {
       navigate(`/store/management/${user.shopId}`, { replace: true });
     }
-  }, [hasRole, user, navigate]);
+  }, [activeRole, user, navigate]);
 
   const [shops, setShops] = useState<Shop[]>([]);
   const [spendingGroups, setSpendingGroups] = useState<SpendingGroupOption[]>([]);

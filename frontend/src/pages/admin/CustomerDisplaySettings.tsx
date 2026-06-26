@@ -272,8 +272,8 @@ export default function CustomerDisplaySettings() {
             Images ({images.length} / {MAX_IMAGES})
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Recommended size: 1920×1080 · JPG / PNG · max {MAX_MB} MB each ·
-            drag the handle to reorder.
+            Landscape only · 1920×1080 (16:9) recommended · JPG / PNG · max {MAX_MB} MB ·
+            portrait images will be cropped. Drag the handle to reorder.
           </p>
         </CardHeader>
         <CardContent>

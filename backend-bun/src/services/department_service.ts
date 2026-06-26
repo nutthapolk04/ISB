@@ -81,3 +81,34 @@ export async function createDepartment(args: {
   });
   return { id: deptId, code: args.code, name: args.name, walletId, walletBalance: credit };
 }
+
+export async function deleteDepartment(deptId: number): Promise<void> {
+  const rows = await db
+    .select({ id: departments.id, walletId: wallets.id, balance: wallets.balance })
+    .from(departments)
+    .leftJoin(wallets, eq(wallets.departmentId, departments.id))
+    .where(eq(departments.id, deptId))
+    .limit(1);
+
+  if (!rows[0]) {
+    const err = new Error("Department not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+
+  const { walletId, balance } = rows[0];
+  const bal = balance !== null ? Number(balance) : 0;
+  if (bal !== 0) {
+    const err = new Error(`Cannot delete department with non-zero balance (${bal}). Please zero the balance first.`);
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+
+  await pgClient.begin(async (sql) => {
+    if (walletId !== null) {
+      await sql`DELETE FROM wallet_transactions WHERE wallet_id = ${walletId}`;
+      await sql`DELETE FROM wallets WHERE id = ${walletId}`;
+    }
+    await sql`DELETE FROM departments WHERE id = ${deptId}`;
+  });
+}

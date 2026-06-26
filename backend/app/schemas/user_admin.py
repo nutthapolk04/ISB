@@ -3,6 +3,7 @@ Pydantic schemas for User Management Module (Phase 3.5 + 3.5b PS alignment).
 """
 from typing import Optional, List
 from datetime import datetime
+from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
@@ -104,6 +105,8 @@ class UserDetail(BaseModel):
     # Shop assignment (multi-canteen)
     shop_id: Optional[str] = None
     shop_name: Optional[str] = None
+    # Wallet balance (only populated for wallet-eligible roles)
+    wallet_balance: Optional[Decimal] = None
 
     class Config:
         from_attributes = True

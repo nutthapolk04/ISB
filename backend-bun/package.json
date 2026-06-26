@@ -19,8 +19,11 @@
     "@isb/shared": "workspace:*",
     "drizzle-orm": "^0.44.6",
     "elysia": "1.4.22",
+    "elysia-ip": "^1.1.1",
     "nodemailer": "^9.0.0",
     "postgres": "^3.4.7",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

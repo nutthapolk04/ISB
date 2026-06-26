@@ -184,6 +184,13 @@ export async function createTokens(user: typeof users.$inferSelect): Promise<Tok
   const roleNames = roleNamesFromRbac.length > 0
     ? roleNamesFromRbac
     : (user.role ? [user.role] : []);
+  // Derive shop capability from shop_id: a user assigned to a shop must be
+  // able to operate that shop's POS even when their primary RBAC role is
+  // something else (e.g. a parent who is also a shop manager).
+  const SHOP_ROLES = ["manager", "cashier", "kitchen", "canteen_owner"];
+  if (user.shopId && !roleNames.some((r) => SHOP_ROLES.includes(r))) {
+    roleNames.push("manager");
+  }
   const now = Math.floor(Date.now() / 1000);
   const accessClaims: AccessTokenClaims = {
     sub: String(user.id),

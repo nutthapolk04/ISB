@@ -153,33 +153,16 @@ const shopBadgeVariant = (
   shopMap: Record<string, string> = {},
 ): { className: string; label: string } => {
   const id = (shopId ?? "").toLowerCase();
-  switch (id) {
-    case "canteen":
-      return {
-        className: "border-amber-300 bg-amber-100 text-amber-800",
-        label: shopMap[id] ?? t("admin.dashboard.shopCanteen"),
-      };
-    case "coop":
-      return {
-        className: "border-orange-300 bg-orange-100 text-orange-800",
-        label: shopMap[id] ?? t("admin.dashboard.shopCoop"),
-      };
-    case "sports":
-      return {
-        className: "border-emerald-300 bg-emerald-100 text-emerald-800",
-        label: shopMap[id] ?? t("admin.dashboard.shopSports"),
-      };
-    case "bookstore":
-      return {
-        className: "border-indigo-300 bg-indigo-100 text-indigo-800",
-        label: shopMap[id] ?? t("admin.dashboard.shopBookstore"),
-      };
-    default:
-      return {
-        className: "border-muted-foreground/20 bg-muted text-muted-foreground",
-        label: shopMap[id] ?? shopId ?? "—",
-      };
-  }
+  const labelMap: Record<string, string> = {
+    canteen: t("admin.dashboard.shopCanteen"),
+    coop: t("admin.dashboard.shopCoop"),
+    sports: t("admin.dashboard.shopSports"),
+    bookstore: t("admin.dashboard.shopBookstore"),
+  };
+  return {
+    className: "border-muted-foreground/20 bg-muted text-muted-foreground",
+    label: shopMap[id] ?? labelMap[id] ?? shopId ?? "—",
+  };
 };
 
 // Guess canteen/store bucket from a receipt for the Recent Activity badge
