@@ -317,6 +317,31 @@ export default function Canteen() {
   // Increment to trigger spending chip refresh after successful checkout
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
 
+  // ── Live-broadcast cart to the customer display ─────────────────────────────
+  // Pushes the order to the second screen as soon as the cashier scans items or
+  // picks a member, so the student can preview before any payment modal opens.
+  // Skip while a payment dialog is on (modal owns the display state then).
+  const paymentModalOpen =
+    methodPickerOpen || rfidOpen || cashOpen || qrOpen || edcOpen || deptOpen;
+  useEffect(() => {
+    if (paymentModalOpen) return;
+    if (cart.items.length === 0 && !preSelectedMember) {
+      display.standby();
+      return;
+    }
+    display.review({
+      items: buildDisplayItems(),
+      total: cart.total,
+      payer: preSelectedMember
+        ? payerForCustomer(
+            { ...preSelectedMember, spendingLimit: canteenSpendingLimit(preSelectedMember) },
+            cart.total,
+          )
+        : null,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.items, cart.total, preSelectedMember, paymentModalOpen]);
+
   // ── Departments (for department payment option) ──────────────────────────
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
   const [shopAllowsDept, setShopAllowsDept] = useState(false);

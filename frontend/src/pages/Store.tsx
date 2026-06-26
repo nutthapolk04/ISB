@@ -898,6 +898,30 @@ const Store = () => {
   // the cashier owes that amount back to the customer.
   const total = subtotal - billDiscountAmount;
 
+  // ── Live-broadcast cart to the customer display ─────────────────────────────
+  // Mirrors the Canteen behaviour: as the cashier builds the cart or picks a
+  // member, the second screen previews the order before any payment modal opens.
+  const paymentModalOpen =
+    methodPickerOpen || walletOpen || cashOpen || qrOpen || edcOpen || deptOpen;
+  useEffect(() => {
+    if (paymentModalOpen) return;
+    if (cart.length === 0 && !preSelectedMember) {
+      display.standby();
+      return;
+    }
+    display.review({
+      items: buildDisplayItems(),
+      total,
+      payer: preSelectedMember
+        ? payerForCustomer(
+            { ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) },
+            total,
+          )
+        : null,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, total, preSelectedMember, paymentModalOpen]);
+
   // ── Cart actions ────────────────────────────────────────────────────────
   const addToCart = useCallback(
     (product: Product) => {
