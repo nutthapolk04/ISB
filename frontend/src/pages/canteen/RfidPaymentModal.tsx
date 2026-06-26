@@ -97,6 +97,8 @@ interface RfidPaymentModalProps {
   confirming: boolean;
   /** "canteen" uses daily_limit_canteen; "store" uses daily_limit_store */
   shopKind?: "canteen" | "store";
+  /** Called whenever a payer is identified (student scan/search) so the caller can update the second screen */
+  onPayerIdentified?: (student: StudentLookupResult | null) => void;
   /** Pre-selected member from search (skips to identity stage) */
   preSelectedMember?: StudentLookupResult | null;
   /** Clear the pre-selected member after use */
@@ -135,6 +137,7 @@ export function RfidPaymentModal({
   onConfirm,
   confirming,
   shopKind = "canteen",
+  onPayerIdentified,
   preSelectedMember,
   onClearPreSelected,
 }: RfidPaymentModalProps) {
@@ -156,6 +159,11 @@ export function RfidPaymentModal({
   const [familyResult, setFamilyResult] = useState<FamilyLookupResult | null>(null);
   const [familyLoading, setFamilyLoading] = useState(false);
   const [familyError, setFamilyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onPayerIdentified?.(student);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student]);
 
   useEffect(() => {
     if (open) {

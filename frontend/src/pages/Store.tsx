@@ -2131,6 +2131,13 @@ const Store = () => {
         onBack={handleBackToPicker}
         onConfirm={handleConfirmWallet}
         confirming={confirming}
+        onPayerIdentified={(s) => {
+          display.review({
+            items: buildDisplayItems(),
+            total,
+            payer: s ? payerForCustomer({ ...s, spendingLimit: storeSpendingLimit(s) }, total) : null,
+          });
+        }}
       />
 
       {/* Cash */}

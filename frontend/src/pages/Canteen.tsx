@@ -1366,6 +1366,13 @@ export default function Canteen() {
         }}
         onConfirm={handleConfirmWallet}
         confirming={confirming}
+        onPayerIdentified={(s) => {
+          display.review({
+            items: buildDisplayItems(),
+            total: cart.total,
+            payer: s ? payerForCustomer({ ...s, spendingLimit: canteenSpendingLimit(s) }, cart.total) : null,
+          });
+        }}
         preSelectedMember={preSelectedMember}
         onClearPreSelected={() => setPreSelectedMember(null)}
       />
