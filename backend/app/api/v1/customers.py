@@ -32,14 +32,20 @@ router = APIRouter()
 
 
 def _spent_today_by_module(db: Session, customer_id: int) -> Dict[str, float]:
-    """Return today's total spend per shop module for a customer (Thailand timezone)."""
+    """Return today's total spend per shop module for a customer (Thailand timezone).
+
+    Uses wallet_transactions (same source as Bun checkout engine) to avoid
+    case-mismatch issues on the receipts.status column.
+    """
     rows = db.execute(text("""
-        SELECT s.module, COALESCE(SUM(r.total), 0)
-        FROM receipts r
+        SELECT s.module, COALESCE(SUM(wt.amount), 0)
+        FROM wallet_transactions wt
+        JOIN wallets w ON w.id = wt.wallet_id
+        JOIN receipts r ON r.id = wt.reference_id AND wt.reference_type = 'receipt'
         JOIN shops s ON s.id = r.shop_id
-        WHERE r.customer_id = :cid
-          AND UPPER(r.status) = 'ACTIVE'
-          AND (r.transaction_date AT TIME ZONE 'Asia/Bangkok')::date
+        WHERE w.customer_id = :cid
+          AND wt.transaction_type = 'DEDUCTION'
+          AND (wt.created_at AT TIME ZONE 'Asia/Bangkok')::date
               = (now() AT TIME ZONE 'Asia/Bangkok')::date
         GROUP BY s.module
     """), {"cid": customer_id}).fetchall()
