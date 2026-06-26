@@ -621,13 +621,13 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         return { detail: "Forbidden" };
       }
       const year = Number(query.year);
-      const month = Number(query.month);
+      const month = query.month ? Number(query.month) : null;
       const productId = query.product_id ? Number(query.product_id) : null;
       if (!Number.isInteger(year) || year < 2000 || year > 2999) {
         set.status = 422;
         return { detail: "Invalid year" };
       }
-      if (!Number.isInteger(month) || month < 1 || month > 12) {
+      if (month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) {
         set.status = 422;
         return { detail: "Invalid month (1-12)" };
       }
@@ -642,7 +642,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
       params: t.Object({ shopId: t.String() }),
       query: t.Object({
         year: t.String(),
-        month: t.String(),
+        month: t.Optional(t.Nullable(t.String())),
         product_id: t.Optional(t.Nullable(t.String())),
       }),
     },
@@ -656,23 +656,23 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
         return { detail: "Forbidden" };
       }
       const year = Number(query.year);
-      const month = Number(query.month);
+      const month = query.month ? Number(query.month) : null;
       const productId = query.product_id ? Number(query.product_id) : null;
       if (!Number.isInteger(year) || year < 2000 || year > 2999) {
         set.status = 422;
         return { detail: "Invalid year" };
       }
-      if (!Number.isInteger(month) || month < 1 || month > 12) {
+      if (month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) {
         set.status = 422;
         return { detail: "Invalid month (1-12)" };
       }
       try {
         const buffer = await exportBalanceFile(params.shopId, year, month, productId);
-        const mm = String(month).padStart(2, "0");
+        const suffix = month !== null ? `-${String(month).padStart(2, "0")}` : "";
         return new Response(buffer, {
           headers: {
             "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "Content-Disposition": `attachment; filename="balance-file-${year}-${mm}.xlsx"`,
+            "Content-Disposition": `attachment; filename="balance-file-${year}${suffix}.xlsx"`,
           },
         });
       } catch (e) {
@@ -683,7 +683,7 @@ export const shopRoutes = new Elysia({ name: "shops", prefix: "/shops" })
       params: t.Object({ shopId: t.String() }),
       query: t.Object({
         year: t.String(),
-        month: t.String(),
+        month: t.Optional(t.Nullable(t.String())),
         product_id: t.Optional(t.Nullable(t.String())),
       }),
     },

@@ -3186,6 +3186,10 @@
       "balance": "คงเหลือ (Balance)",
       "note": "หมายเหตุ"
     },
-    "exportPdf": "ส่งออก PDF"
+    "exportPdf": "ส่งออก PDF",
+    "viewMode": "มุมมอง",
+    "monthly": "รายเดือน",
+    "yearly": "รายปี",
+    "closingBalance": "ยอดคงเหลือสุดท้าย"
   }
 }

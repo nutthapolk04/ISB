@@ -39,7 +39,7 @@ export interface BalanceFileReport {
   shop_id: string;
   shop_name: string | null;
   year: number;
-  month: number;
+  month: number | null;
   blocks: BalanceFileBlock[];
 }
 
@@ -109,17 +109,21 @@ function lastDayOfMonth(year: number, month: number): string {
 export async function getBalanceFile(
   shopId: string,
   year: number,
-  month: number,
+  month: number | null,
   productId?: number | null,
 ): Promise<BalanceFileReport> {
-  if (month < 1 || month > 12) {
+  if (month !== null && (month < 1 || month > 12)) {
     const err = new Error("month must be 1-12");
     (err as { status?: number }).status = 400;
     throw err;
   }
 
-  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-  const monthEnd = lastDayOfMonth(year, month);
+  const monthStart = month !== null
+    ? `${year}-${String(month).padStart(2, "0")}-01`
+    : `${year}-01-01`;
+  const monthEnd = month !== null
+    ? lastDayOfMonth(year, month)
+    : `${year}-12-31`;
 
   // Shop info (for header / sheet title)
   const shopRows = await pgClient<Array<{ name: string }>>`
@@ -285,7 +289,7 @@ export async function getBalanceFile(
     });
   }
 
-  return { shop_id: shopId, shop_name: shopName, year, month, blocks };
+  return { shop_id: shopId, shop_name: shopName, year, month: month ?? null, blocks };
 }
 
 // ── Excel Export ─────────────────────────────────────────────────────────
@@ -299,16 +303,19 @@ function cell(v: number | null): number | string {
 export async function exportBalanceFile(
   shopId: string,
   year: number,
-  month: number,
+  month: number | null,
   productId?: number | null,
 ): Promise<Buffer> {
   const report = await getBalanceFile(shopId, year, month, productId);
   const wb = XLSX.utils.book_new();
+  const periodLabel = month !== null
+    ? `${String(month).padStart(2, "0")}/${year + 543}`
+    : String(year + 543);
 
   for (const block of report.blocks) {
     const aoa: (string | number | null)[][] = [
       ["BALANCE FILE - AVERAGE COST METHOD"],
-      [`${report.shop_name ?? "Store"} | Period: ${String(month).padStart(2, "0")}/${year + 543}`],
+      [`${report.shop_name ?? "Store"} | Period: ${periodLabel}`],
       [`Product: ${block.product_name}${block.product_code ? ` (${block.product_code})` : ""}`],
       [],
       [

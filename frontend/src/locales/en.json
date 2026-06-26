@@ -3188,6 +3188,10 @@
       "balance": "Balance",
       "note": "Note"
     },
-    "exportPdf": "Export PDF"
+    "exportPdf": "Export PDF",
+    "viewMode": "View",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "closingBalance": "Closing Balance"
   }
 }

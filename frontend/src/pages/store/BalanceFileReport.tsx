@@ -56,7 +56,7 @@ interface BalanceFileReportData {
   shop_id: string;
   shop_name: string | null;
   year: number;
-  month: number;
+  month: number | null;
   blocks: BalanceFileBlock[];
 }
 
@@ -80,7 +80,8 @@ function formatYear(adYear: number, lang: string) {
   return lang === "th" ? `${adYear} / ${adYear + 543}` : String(adYear);
 }
 
-function formatPeriod(month: number, adYear: number, lang: string) {
+function formatPeriod(month: number | null, adYear: number, lang: string) {
+  if (month === null) return lang === "th" ? `ปี ${adYear + 543}` : `Year ${adYear}`;
   const label = getMonthLabel(month - 1, lang);
   return lang === "th"
     ? `${String(month).padStart(2, "0")}/${adYear + 543} — ${label}`
@@ -103,6 +104,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
   const isAdmin = user?.role === "admin";
 
   const now = new Date();
+  const [viewMode, setViewMode] = useState<"monthly" | "yearly">("monthly");
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
 
@@ -158,7 +160,8 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     }
     setLoading(true);
     try {
-      const params = new URLSearchParams({ year: String(year), month: String(month) });
+      const params = new URLSearchParams({ year: String(year) });
+      if (viewMode === "monthly") params.set("month", String(month));
       if (productId !== "all") params.set("product_id", productId);
       const res = await api.get<BalanceFileReportData>(
         `/shops/${shopId}/balance-file?${params.toString()}`,
@@ -182,7 +185,8 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     if (!shopId) return;
     setExporting(true);
     try {
-      const params = new URLSearchParams({ year: String(year), month: String(month) });
+      const params = new URLSearchParams({ year: String(year) });
+      if (viewMode === "monthly") params.set("month", String(month));
       if (productId !== "all") params.set("product_id", productId);
       const token = localStorage.getItem("access_token");
       const res = await fetch(
@@ -194,7 +198,8 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `balance-file-${year}-${String(month).padStart(2, "0")}.xlsx`;
+      const suffix = viewMode === "monthly" ? `-${String(month).padStart(2, "0")}` : "";
+      a.download = `balance-file-${year}${suffix}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -359,6 +364,37 @@ ${blocksHtml}
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
+            {/* View mode toggle */}
+            <div className="space-y-1">
+              <Label>{t("balanceFile.viewMode", "View")}</Label>
+              <div className="flex rounded-md border border-input overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("monthly")}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium transition-colors",
+                    viewMode === "monthly"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {t("balanceFile.monthly", "Monthly")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("yearly")}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium transition-colors border-l border-input",
+                    viewMode === "yearly"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {t("balanceFile.yearly", "Yearly")}
+                </button>
+              </div>
+            </div>
+
             {isAdmin && !embedded && (
               <div className="space-y-1">
                 <Label>{t("balanceFile.shop", "Shop")}</Label>
@@ -388,19 +424,21 @@ ${blocksHtml}
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label>{t("balanceFile.month", "Month")}</Label>
-              <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={String(i + 1)}>
-                      {String(i + 1).padStart(2, "0")} — {getMonthLabel(i, lang)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {viewMode === "monthly" && (
+              <div className="space-y-1">
+                <Label>{t("balanceFile.month", "Month")}</Label>
+                <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {String(i + 1).padStart(2, "0")} — {getMonthLabel(i, lang)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label>{t("balanceFile.year", "Year")}</Label>
@@ -494,7 +532,7 @@ ${blocksHtml}
                       isSummary && "bg-zinc-100 font-semibold border-t-2",
                     )}>
                       <TableCell>{r.date ?? (isOpening ? t("balanceFile.opening") : isSummary ? t("balanceFile.summary") : DASH)}</TableCell>
-                      <TableCell>{r.description}</TableCell>
+                      <TableCell>{isOpening ? t("balanceFile.opening") : isSummary ? t("balanceFile.summary") : r.description}</TableCell>
                       <TableCell className="font-mono">{r.doc_no ?? DASH}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtQty(r.in_qty)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtNum(r.in_unit_cost)}</TableCell>
@@ -505,7 +543,7 @@ ${blocksHtml}
                       <TableCell className="text-right tabular-nums">{fmtQty(r.bal_qty)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtNum(r.bal_avg_cost, 4)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtNum(r.bal_total_value)}</TableCell>
-                      <TableCell>{r.note ?? DASH}</TableCell>
+                      <TableCell>{isOpening ? t("balanceFile.opening") : isSummary ? t("balanceFile.closingBalance", "Closing Balance") : (r.note ?? DASH)}</TableCell>
                     </TableRow>
                   );
                 })}
