@@ -135,7 +135,7 @@ function AppShell() {
                       {user.activeRole ?? user.role}
                     </span>
                     {user.shopName && (
-                      <span className="hidden sm:inline rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      <span className="hidden sm:inline rounded bg-blue-100 border border-blue-300 px-2.5 py-1 text-sm font-bold text-blue-700">
                         {user.shopName}
                       </span>
                     )}

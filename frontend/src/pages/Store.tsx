@@ -1968,11 +1968,6 @@ const Store = () => {
               </div>
             )}
           </div>
-          {user?.shopName && (
-            <Badge variant="outline" className="text-base font-bold px-4 py-1.5 shrink-0 border-2">
-              {user.shopName}
-            </Badge>
-          )}
         </div>
 
 

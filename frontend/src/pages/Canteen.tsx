@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -1157,12 +1156,6 @@ export default function Canteen() {
                 aria-label={t("pos.autoPrint", "Auto-print")}
               />
             </label>
-            <Badge
-              variant="outline"
-              className="px-3 py-1 text-sm font-semibold"
-            >
-              {shopDisplayName ?? user?.shopName ?? user?.shopId ?? "Canteen"}
-            </Badge>
           </div>
         </div>
 
