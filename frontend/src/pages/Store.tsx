@@ -282,9 +282,6 @@ const Store = () => {
   const { user, hasRole } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`store:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
-  useEffect(() => {
-    if (!document.fullscreenElement) void document.documentElement.requestFullscreen().catch(() => {});
-  }, []);
 
   // Pop the customer display once when entering the POS, on desktop only.
   // Multi-role users (manager+parent, etc.) reach the store via the Hub

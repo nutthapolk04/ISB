@@ -113,9 +113,6 @@ export default function Canteen() {
   const { user, hasRole } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`canteen:${user?.shopId ?? "default"}`, false);
   const schoolInfo = useSchoolInfo();
-  useEffect(() => {
-    if (!document.fullscreenElement) void document.documentElement.requestFullscreen().catch(() => {});
-  }, []);
 
   // Pop the customer display once when entering the POS, on desktop only.
   // Multi-role users (manager+parent, etc.) reach the canteen via the Hub
