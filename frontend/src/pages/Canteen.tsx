@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet, ArrowUpDown, Check as CheckIcon, Maximize2, Minimize2 } from "lucide-react";
+import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet, ArrowUpDown, Check as CheckIcon } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -113,16 +113,9 @@ export default function Canteen() {
   const { user, hasRole } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`canteen:${user?.shopId ?? "default"}`, false);
   const schoolInfo = useSchoolInfo();
-  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    if (!document.fullscreenElement) void document.documentElement.requestFullscreen().catch(() => {});
   }, []);
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) void document.documentElement.requestFullscreen();
-    else void document.exitFullscreen();
-  };
 
   // Pop the customer display once when entering the POS, on desktop only.
   // Multi-role users (manager+parent, etc.) reach the canteen via the Hub
@@ -1166,15 +1159,6 @@ export default function Canteen() {
                 aria-label={t("pos.autoPrint", "Auto-print")}
               />
             </label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-              className="gap-1.5 shrink-0"
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
           </div>
         </div>
 

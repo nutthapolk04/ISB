@@ -29,8 +29,6 @@ import {
   Printer,
   Loader2,
   MessageSquare,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 import {
   DndContext,
@@ -284,16 +282,9 @@ const Store = () => {
   const { user, hasRole } = useAuth();
   const [autoPrint, setAutoPrint] = useAutoPrint(`store:${user?.shopId ?? "default"}`);
   const schoolInfo = useSchoolInfo();
-  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    if (!document.fullscreenElement) void document.documentElement.requestFullscreen().catch(() => {});
   }, []);
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) void document.documentElement.requestFullscreen();
-    else void document.exitFullscreen();
-  };
 
   // Pop the customer display once when entering the POS, on desktop only.
   // Multi-role users (manager+parent, etc.) reach the store via the Hub
@@ -1904,15 +1895,6 @@ const Store = () => {
                 aria-label={t("pos.autoPrint", "Auto-print")}
               />
             </label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-              className="gap-1.5 shrink-0"
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
           </div>
           <div ref={dropdownRef} className="relative flex-1 min-w-48">
             <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none z-10" />
