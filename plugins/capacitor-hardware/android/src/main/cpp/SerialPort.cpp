@@ -59,22 +59,35 @@ speed_t getBaudrate(jint baudrate) {
     }
 }
 
+jint getFileDescriptorInt(JNIEnv* env, jobject fileDescriptor) {
+    jclass fdClass = env->GetObjectClass(fileDescriptor);
+    jfieldID field = env->GetFieldID(fdClass, "descriptor", "I");
+    if (field == nullptr) {
+        env->ExceptionClear();
+        field = env->GetFieldID(fdClass, "fd", "I");
+    }
+    if (field == nullptr) {
+        env->ExceptionClear();
+        return -1;
+    }
+    return env->GetIntField(fileDescriptor, field);
+}
+
 } // namespace
 
-JNIEXPORT jobject JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_open
-  (JNIEnv *env, jclass /*thiz*/, jstring path, jint baudrate, jint flags)
+static jint openSerialPort(JNIEnv* env, jstring path, jint baudrate, jint flags)
 {
     const speed_t speed = getBaudrate(baudrate);
     if (speed == static_cast<speed_t>(-1)) {
         LOGE("Invalid baudrate");
         throwIOException(env, "Invalid baudrate");
-        return nullptr;
+        return -1;
     }
 
     JStringUtf pathUtf(env, path);
     if (!pathUtf.valid()) {
         throwIOException(env, "Invalid path");
-        return nullptr;
+        return -1;
     }
 
     LOGD("Opening serial port %s", pathUtf.c_str());
@@ -82,7 +95,7 @@ JNIEXPORT jobject JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_op
     if (fd == -1) {
         LOGE("Cannot open port");
         throwIOException(env, "Cannot open port");
-        return nullptr;
+        return -1;
     }
 
     termios cfg {};
@@ -90,7 +103,7 @@ JNIEXPORT jobject JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_op
         LOGE("tcgetattr() failed");
         ::close(fd);
         throwIOException(env, "tcgetattr() failed");
-        return nullptr;
+        return -1;
     }
 
     cfmakeraw(&cfg);
@@ -107,44 +120,61 @@ JNIEXPORT jobject JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_op
         LOGE("tcsetattr() failed");
         ::close(fd);
         throwIOException(env, "tcsetattr() failed");
-        return nullptr;
+        return -1;
     }
 
-    jclass cFileDescriptor = env->FindClass("java/io/FileDescriptor");
-    jmethodID iFileDescriptor = env->GetMethodID(cFileDescriptor, "<init>", "()V");
-    jfieldID descriptorID = env->GetFieldID(cFileDescriptor, "fd", "I");
-    jobject mFileDescriptor = env->NewObject(cFileDescriptor, iFileDescriptor);
-    env->SetIntField(mFileDescriptor, descriptorID, static_cast<jint>(fd));
-    return mFileDescriptor;
+    return static_cast<jint>(fd);
 }
 
-JNIEXPORT void JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_closeNative
-  (JNIEnv *env, jobject thiz)
+static void closeSerialPort(JNIEnv* env, jobject thiz)
 {
     jclass serialPortClass = env->GetObjectClass(thiz);
-    jclass fileDescriptorClass = env->FindClass("java/io/FileDescriptor");
-
     jfieldID mFdID = env->GetFieldID(serialPortClass, "mFd", "Ljava/io/FileDescriptor;");
-    jfieldID descriptorID = env->GetFieldID(fileDescriptorClass, "fd", "I");
 
     jobject mFd = env->GetObjectField(thiz, mFdID);
-    jint descriptor = env->GetIntField(mFd, descriptorID);
+    const jint descriptor = getFileDescriptorInt(env, mFd);
+    if (descriptor < 0) {
+        LOGE("close: invalid FileDescriptor");
+        return;
+    }
 
     LOGD("close(fd = %d)", descriptor);
     ::close(descriptor);
 }
 
-JNIEXPORT void JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_flushNative
-  (JNIEnv *env, jobject thiz)
+static void flushSerialPort(JNIEnv* env, jobject thiz)
 {
     jclass serialPortClass = env->GetObjectClass(thiz);
-    jclass fileDescriptorClass = env->FindClass("java/io/FileDescriptor");
-
     jfieldID mFdID = env->GetFieldID(serialPortClass, "mFd", "Ljava/io/FileDescriptor;");
-    jfieldID descriptorID = env->GetFieldID(fileDescriptorClass, "fd", "I");
 
     jobject mFd = env->GetObjectField(thiz, mFdID);
-    jint descriptor = env->GetIntField(mFd, descriptorID);
+    const jint descriptor = getFileDescriptorInt(env, mFd);
+    if (descriptor < 0) {
+        LOGE("flush: invalid FileDescriptor");
+        return;
+    }
 
     tcflush(descriptor, TCIOFLUSH);
 }
+
+extern "C" {
+
+JNIEXPORT jint JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_openNative
+  (JNIEnv *env, jclass /*thiz*/, jstring path, jint baudrate, jint flags)
+{
+    return openSerialPort(env, path, baudrate, flags);
+}
+
+JNIEXPORT void JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_closeNative
+  (JNIEnv *env, jobject thiz)
+{
+    closeSerialPort(env, thiz);
+}
+
+JNIEXPORT void JNICALL Java_com_okontek_plugins_hardware_native_SerialPort_flushNative
+  (JNIEnv *env, jobject thiz)
+{
+    flushSerialPort(env, thiz);
+}
+
+} // extern "C"

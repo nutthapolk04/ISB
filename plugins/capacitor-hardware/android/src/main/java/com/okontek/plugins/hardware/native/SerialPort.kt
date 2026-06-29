@@ -20,7 +20,6 @@ class SerialPort(
 
     init {
         mFd = open(device.absolutePath, baudRate, flags)
-            ?: throw IOException("Cannot open serial port: ${device.absolutePath}")
         inputStream = FileInputStream(mFd)
         outputStream = FileOutputStream(mFd)
     }
@@ -42,11 +41,30 @@ class SerialPort(
             System.loadLibrary("okontek_serial")
         }
 
+        private fun open(path: String, baudRate: Int, flags: Int): FileDescriptor {
+            val fd = openNative(path, baudRate, flags)
+            if (fd < 0) {
+                throw IOException("Cannot open serial port: $path")
+            }
+            return wrapFileDescriptor(fd)
+        }
+
+        /**
+         * Android hides FileDescriptor.fd; the internal field is "descriptor".
+         */
+        private fun wrapFileDescriptor(fd: Int): FileDescriptor {
+            val fileDescriptor = FileDescriptor()
+            val field = FileDescriptor::class.java.getDeclaredField("descriptor")
+            field.isAccessible = true
+            field.setInt(fileDescriptor, fd)
+            return fileDescriptor
+        }
+
         @JvmStatic
-        private external fun open(
+        private external fun openNative(
             path: String,
             baudRate: Int,
             flags: Int
-        ): FileDescriptor?
+        ): Int
     }
 }
