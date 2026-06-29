@@ -25,7 +25,6 @@ import { toast } from "@/hooks/use-toast";
 import {
   Search,
   Plus,
-  RefreshCw,
   GraduationCap,
   Users as UsersIcon,
   UtensilsCrossed,
@@ -358,10 +357,6 @@ export default function CardholderList() {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSyncOpen(true)}>
-            <RefreshCw className="h-4 w-4 mr-1.5" />
-            {t("cardholders.syncNow")}
-          </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" />
             {t("cardholders.create")}

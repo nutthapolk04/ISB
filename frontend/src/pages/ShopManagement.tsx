@@ -58,6 +58,7 @@ interface ShopApiResponse {
   module: ShopModule;
   allow_department_charge: boolean;
   spending_group_id: number | null;
+  shop_number: number | null;
 }
 
 interface ShopStats {
@@ -76,6 +77,7 @@ interface Shop {
   module: ShopModule;
   allowDepartmentCharge: boolean;
   spendingGroupId: number | null;
+  shopNumber: number | null;
 }
 
 const emptyShopForm = {
@@ -87,6 +89,7 @@ const emptyShopForm = {
   module: "store" as ShopModule,
   allowDepartmentCharge: true,
   spendingGroupId: "" as string,
+  shopNumber: "" as string,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -143,6 +146,7 @@ const ShopManagement = () => {
             module: s.module ?? "store",
             allowDepartmentCharge: s.allow_department_charge ?? false,
             spendingGroupId: s.spending_group_id ?? null,
+            shopNumber: s.shop_number ?? null,
           };
         }),
       );
@@ -175,6 +179,7 @@ const ShopManagement = () => {
         module: shopForm.module,
         allow_department_charge: shopForm.allowDepartmentCharge,
         spending_group_id: shopForm.spendingGroupId ? parseInt(shopForm.spendingGroupId) : null,
+        shop_number: shopForm.shopNumber ? parseInt(shopForm.shopNumber) : null,
       });
       toast.success(t("management.shopAdded"));
       setIsAddOpen(false);
@@ -200,6 +205,7 @@ const ShopManagement = () => {
       module: shop.module,
       allowDepartmentCharge: shop.allowDepartmentCharge,
       spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
+      shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
     });
   };
 
@@ -217,6 +223,7 @@ const ShopManagement = () => {
         description: editForm.description.trim() || null,
         is_active: editForm.isActive === "active",
         spending_group_id: newGroupId,
+        shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
       });
       // Warn when spending group changes
       if (groupChanged && editTarget.spendingGroupId !== null) {
@@ -328,11 +335,12 @@ const ShopManagement = () => {
               <Label>{t("management.shopId", "Shop ID")} *</Label>
               <Input
                 value={shopForm.id}
-                onChange={(e) => setShopForm({ ...shopForm, id: e.target.value })}
-                placeholder="e.g. new_shop"
+                maxLength={5}
+                onChange={(e) => setShopForm({ ...shopForm, id: e.target.value.slice(0, 5) })}
+                placeholder="e.g. coop1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopIdHint", "Unique code, lowercase, no spaces")}
+                {t("management.shopIdHint", "Unique code, max 5 chars, lowercase")}
               </p>
             </div>
             <div>
@@ -385,6 +393,21 @@ const ShopManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>{t("management.shopNumber", "Shop Number")}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99999}
+                placeholder="00001"
+                value={shopForm.shopNumber}
+                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
+                onChange={(e) => setShopForm({ ...shopForm, shopNumber: e.target.value.slice(0, 5) })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-S00001-...)")}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -575,6 +598,20 @@ const ShopManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>{t("management.shopNumber", "Shop Number")}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99999}
+                placeholder="00001"
+                value={editForm.shopNumber}
+                onChange={(e) => setEditForm({ ...editForm, shopNumber: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-S00001-...)")}
+              </p>
             </div>
           </div>
           <DialogFooter>

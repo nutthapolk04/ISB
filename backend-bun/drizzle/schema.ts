@@ -121,6 +121,7 @@ export const shops = pgTable("shops", {
 	receiptHeader: varchar("receipt_header", { length: 500 }),
 	receiptFooter: varchar("receipt_footer", { length: 500 }),
 	voidShortcuts: jsonb("void_shortcuts").$type<string[]>().default([]).notNull(),
+	shopNumber: integer("shop_number"),
 }, (table) => [
 	index("ix_shops_spending_group").using("btree", table.spendingGroupId.asc().nullsLast().op("int4_ops")),
 	foreignKey({

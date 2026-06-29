@@ -10,6 +10,7 @@ import type {
   DisplayItem,
   DisplayPayer,
   PaymentMethod,
+  SpendingLimitData,
 } from "@/hooks/useDisplayBroadcast";
 
 // ── Cart line → DisplayItem ─────────────────────────────────────────────
@@ -42,6 +43,11 @@ interface CustomerLike {
   grade?: string | null;
   customer_kind?: string | null;
   wallet_balance?: number | null;
+  spendingLimit?: SpendingLimitData | null;
+  daily_limit_canteen?: number | null;
+  spent_today_canteen?: number | null;
+  daily_limit_store?: number | null;
+  spent_today_store?: number | null;
 }
 
 interface UserLike {
@@ -49,6 +55,26 @@ interface UserLike {
   username: string;
   role: string;
   wallet_balance?: number | null;
+  spendingLimit?: SpendingLimitData | null;
+  daily_limit_canteen?: number | null;
+  spent_today_canteen?: number | null;
+  daily_limit_store?: number | null;
+  spent_today_store?: number | null;
+}
+
+function buildLimit(
+  dailyLimit: number | null | undefined,
+  spentToday: number | null | undefined,
+  groupName: string,
+): SpendingLimitData | null {
+  if (dailyLimit == null) return null;
+  const spent = spentToday ?? 0;
+  return {
+    daily_limit: dailyLimit,
+    spent_today: spent,
+    remaining: Math.max(0, dailyLimit - spent),
+    group_name: groupName,
+  };
 }
 
 interface DepartmentLike {
@@ -76,6 +102,9 @@ export function payerForCustomer(
     role: formatRoleForCustomer(c),
     balanceBefore: before,
     balanceAfter: before === null ? null : Math.round((before - total) * 100) / 100,
+    spendingLimit: c.spendingLimit ?? null,
+    canteenLimit: buildLimit(c.daily_limit_canteen, c.spent_today_canteen, "Daily Canteen Limit"),
+    storeLimit: buildLimit(c.daily_limit_store, c.spent_today_store, "Daily Store Limit"),
   };
 }
 
@@ -94,6 +123,9 @@ export function payerForUser(u: UserLike, total: number): DisplayPayer {
     role,
     balanceBefore: before,
     balanceAfter: before === null ? null : Math.round((before - total) * 100) / 100,
+    spendingLimit: u.spendingLimit ?? null,
+    canteenLimit: buildLimit(u.daily_limit_canteen, u.spent_today_canteen, "Daily Canteen Limit"),
+    storeLimit: buildLimit(u.daily_limit_store, u.spent_today_store, "Daily Store Limit"),
   };
 }
 
@@ -109,6 +141,30 @@ export function payerForDepartment(
     role: "Department Budget",
     balanceBefore: before,
     balanceAfter: before === null ? null : Math.round((before - total) * 100) / 100,
+  };
+}
+
+function bump(sl: SpendingLimitData | null | undefined, amount: number): SpendingLimitData | null {
+  if (!sl) return sl ?? null;
+  return {
+    ...sl,
+    spent_today: sl.spent_today + amount,
+    remaining: Math.max(0, sl.remaining - amount),
+  };
+}
+
+/** Update a DisplayPayer's spending limit (both the primary + the shop-specific ones) after a successful payment. */
+export function afterPaymentPayer(
+  payer: DisplayPayer | null,
+  amount: number,
+  shopKind?: "canteen" | "store",
+): DisplayPayer | null {
+  if (!payer) return null;
+  return {
+    ...payer,
+    spendingLimit: bump(payer.spendingLimit, amount),
+    canteenLimit: shopKind === "canteen" ? bump(payer.canteenLimit, amount) : payer.canteenLimit,
+    storeLimit: shopKind === "store" ? bump(payer.storeLimit, amount) : payer.storeLimit,
   };
 }
 

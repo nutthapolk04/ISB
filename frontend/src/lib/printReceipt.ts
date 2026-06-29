@@ -280,7 +280,7 @@ export function buildReceiptHtml(
   h1 { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 2px; line-height: 1.3; }
   .center { text-align: center; }
   .sub { font-size: 12px; color: #555; text-align: center; margin-bottom: 2px; }
-  .shop-name { font-size: 14px; font-weight: 700; color: #111; text-align: center; margin-bottom: 2px; letter-spacing: 0.2px; }
+  .shop-name { font-size: 16px; font-weight: 900; color: #000; text-align: center; margin-bottom: 2px; letter-spacing: 0.3px; }
   .doc-type { font-size: 11px; color: #777; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
   hr { border: none; border-top: 1.5px dashed #444; margin: 7px 0; }
   .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; }

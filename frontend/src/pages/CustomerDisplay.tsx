@@ -109,7 +109,7 @@ export default function CustomerDisplay() {
           />
         );
       case "failed":
-        return <FailedScreen reason={display.reason} />;
+        return <FailedScreen reason={display.reason} payer={display.payer ?? null} />;
       case "standby":
       default:
         return <StandbyScreen />;

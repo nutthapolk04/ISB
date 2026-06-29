@@ -51,7 +51,15 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
+import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
+
+function storeSpendingLimit(s: { daily_limit_store?: number | null; spent_today_store?: number | null } | null): SpendingLimitData | null {
+  if (!s || s.daily_limit_store == null) return null;
+  const spent = s.spent_today_store ?? 0;
+  return { daily_limit: s.daily_limit_store, spent_today: spent, remaining: Math.max(0, s.daily_limit_store - spent), group_name: "Daily Store Limit" };
+}
 import {
+  afterPaymentPayer,
   cartToDisplayItems,
   payerForCustomer,
   payerForDepartment,
@@ -496,8 +504,8 @@ const Store = () => {
               productCode: p.product_code,
               barcode: p.barcode ?? "",
               name: p.name,
-              price: p.external_price,
-              internalPrice: p.internal_price,
+              price: Number(p.external_price ?? 0),
+              internalPrice: p.internal_price != null ? Number(p.internal_price) : undefined,
               stock: p.stock,
               category: p.category,
               subMerchantId: p.shop_id,
@@ -519,8 +527,8 @@ const Store = () => {
               productCode: b.bundle_code,
               barcode: b.bundle_code,
               name: b.name,
-              price: b.external_price,
-              internalPrice: b.internal_price ?? b.external_price,
+              price: Number(b.external_price ?? 0),
+              internalPrice: Number(b.internal_price ?? b.external_price ?? 0),
               // Bundles don't have a single stock counter — use a large sentinel
               // so the "out of stock" badge never triggers for bundles.
               stock: 9999,
@@ -656,6 +664,7 @@ const Store = () => {
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
   // Increment after each successful checkout to refresh the SpendingLimitChip
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
+
 
   // ── RFID centered notification ────────────────────────────────────────────
   const [rfidNotif, setRfidNotif] = useState<{
@@ -889,6 +898,30 @@ const Store = () => {
   // the cashier owes that amount back to the customer.
   const total = subtotal - billDiscountAmount;
 
+  // ── Live-broadcast cart to the customer display ─────────────────────────────
+  // Mirrors the Canteen behaviour: as the cashier builds the cart or picks a
+  // member, the second screen previews the order before any payment modal opens.
+  const paymentModalOpen =
+    methodPickerOpen || walletOpen || cashOpen || qrOpen || edcOpen || deptOpen;
+  useEffect(() => {
+    if (paymentModalOpen) return;
+    if (cart.length === 0 && !preSelectedMember) {
+      display.standby();
+      return;
+    }
+    display.review({
+      items: buildDisplayItems(),
+      total,
+      payer: preSelectedMember
+        ? payerForCustomer(
+            { ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) },
+            total,
+          )
+        : null,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, total, preSelectedMember, paymentModalOpen]);
+
   // ── Cart actions ────────────────────────────────────────────────────────
   const addToCart = useCallback(
     (product: Product) => {
@@ -1015,10 +1048,10 @@ const Store = () => {
     const displayPayer =
       method === "wallet" && ctx.payer
         ? ctx.payer.kind === "customer"
-          ? payerForCustomer(ctx.payer.student, total)
+          ? payerForCustomer({ ...ctx.payer.student, spendingLimit: storeSpendingLimit(ctx.payer.student) }, total)
           : ctx.payer.kind === "department"
             ? payerForDepartment(ctx.payer.department, total)
-            : payerForUser(ctx.payer.user, total)
+            : payerForUser({ ...ctx.payer.user, spendingLimit: storeSpendingLimit(ctx.payer.user) }, total)
         : method === "department" && ctx.deptId
           ? (() => {
               const d = departmentOptions.find((x) => x.id === ctx.deptId);
@@ -1217,7 +1250,7 @@ const Store = () => {
       // to Standby 5 s after this success message.
       display.success({
         total: receipt.total,
-        payer: displayPayer,
+        payer: ["wallet"].includes(method) ? afterPaymentPayer(displayPayer, receipt.total, "store") : displayPayer,
         method: displayMethod,
         receiptNumber: receipt.receipt_number,
       });
@@ -1236,7 +1269,7 @@ const Store = () => {
         err instanceof ApiError
           ? err.detail
           : err?.message ?? "Payment could not be completed.";
-      display.failed({ reason: String(reason), method: displayMethod });
+      display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
       // QR modal was closed immediately on confirm — reopen so cashier can retry
       if (method === "qr") setQrOpen(true);
     } finally {
@@ -1259,7 +1292,7 @@ const Store = () => {
       total,
       payer:
         preSelectedMember != null
-          ? payerForCustomer(preSelectedMember, total)
+          ? payerForCustomer({ ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) }, total)
           : null,
     });
 
@@ -1663,16 +1696,8 @@ const Store = () => {
           </div>
 
           {/* Spending limit chip — shown when a member is pre-selected */}
-          {user?.shopId && preSelectedMember && (
-            <SpendingLimitChip
-              shopId={user.shopId}
-              payerId={
-                preSelectedMember.user_id != null
-                  ? { kind: "user", id: preSelectedMember.user_id }
-                  : { kind: "customer", id: preSelectedMember.id }
-              }
-              refreshKey={chipRefreshKey}
-            />
+          {preSelectedMember && preSelectedMember.customer_kind !== "department" && (
+            <SpendingLimitChip member={preSelectedMember} refreshKey={chipRefreshKey} />
           )}
 
           {/* Total */}
@@ -1709,7 +1734,7 @@ const Store = () => {
       <div className="canteen-content">
         {/* Header */}
         <div className="page-header flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -1787,87 +1812,85 @@ const Store = () => {
               />
             </label>
           </div>
+          <div ref={dropdownRef} className="relative flex-1 min-w-48">
+            <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none z-10" />
+            <Input
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setDropdownOpen(e.target.value.trim().length > 0);
+                setHighlightedIndex(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              onFocus={() => searchTerm.trim() && setDropdownOpen(true)}
+              placeholder={t("store.searchPlaceholder")}
+              className="pl-9 font-mono text-sm h-11 text-amber-500 placeholder:text-amber-400/70"
+              autoComplete="off"
+            />
+
+            {dropdownOpen && suggestions.length > 0 && (
+              <div
+                role="listbox"
+                className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
+              >
+                {suggestions.map((p, i) => (
+                  <div
+                    key={p.id}
+                    role="option"
+                    aria-selected={i === highlightedIndex}
+                    onMouseEnter={() => setHighlightedIndex(i)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      commitSuggestion(p);
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors",
+                      i === highlightedIndex
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-accent/50",
+                    )}
+                  >
+                    {p.photoUrl ? (
+                      <img
+                        src={p.photoUrl}
+                        alt=""
+                        className="h-10 w-10 rounded-md object-cover border shrink-0"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md bg-muted border flex items-center justify-center shrink-0">
+                        <Package className="h-5 w-5 text-muted-foreground/60" />
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="font-medium text-sm truncate">{p.name}</span>
+                      <span className="text-xs text-muted-foreground font-mono">{p.barcode}</span>
+                    </div>
+                    <div className="text-right ml-2 shrink-0">
+                      <p className="font-bold text-primary text-sm tabular-nums">
+                        ฿{(priceMode === "internal"
+                          ? p.internalPrice ?? p.price
+                          : getPrice(p)
+                        ).toLocaleString()}
+                      </p>
+                      <Badge variant="outline" className="text-xs">{p.category}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {dropdownOpen && searchTerm.trim() && suggestions.length === 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover px-4 py-3 text-sm text-muted-foreground shadow-lg">
+                {t("store.productNotFound")}
+              </div>
+            )}
+          </div>
           {user?.shopName && (
             <Badge variant="outline" className="text-base font-bold px-4 py-1.5 shrink-0 border-2">
               {user.shopName}
             </Badge>
-          )}
-        </div>
-
-        {/* Search with suggestion dropdown */}
-        <div ref={dropdownRef} className="relative">
-          <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none z-10" />
-          <Input
-            ref={searchInputRef}
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setDropdownOpen(e.target.value.trim().length > 0);
-              setHighlightedIndex(0);
-            }}
-            onKeyDown={handleSearchKeyDown}
-            onFocus={() => searchTerm.trim() && setDropdownOpen(true)}
-            placeholder={t("store.searchPlaceholder")}
-            className="pl-9 font-mono text-sm h-11 text-amber-500 placeholder:text-amber-400/70"
-            autoComplete="off"
-          />
-
-          {dropdownOpen && suggestions.length > 0 && (
-            <div
-              role="listbox"
-              className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
-            >
-              {suggestions.map((p, i) => (
-                <div
-                  key={p.id}
-                  role="option"
-                  aria-selected={i === highlightedIndex}
-                  onMouseEnter={() => setHighlightedIndex(i)}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    commitSuggestion(p);
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors",
-                    i === highlightedIndex
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent/50",
-                  )}
-                >
-                  {p.photoUrl ? (
-                    <img
-                      src={p.photoUrl}
-                      alt=""
-                      className="h-10 w-10 rounded-md object-cover border shrink-0"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-md bg-muted border flex items-center justify-center shrink-0">
-                      <Package className="h-5 w-5 text-muted-foreground/60" />
-                    </div>
-                  )}
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-medium text-sm truncate">{p.name}</span>
-                    <span className="text-xs text-muted-foreground font-mono">{p.barcode}</span>
-                  </div>
-                  <div className="text-right ml-2 shrink-0">
-                    <p className="font-bold text-primary text-sm tabular-nums">
-                      ฿{(priceMode === "internal"
-                        ? p.internalPrice ?? p.price
-                        : getPrice(p)
-                      ).toLocaleString()}
-                    </p>
-                    <Badge variant="outline" className="text-xs">{p.category}</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {dropdownOpen && searchTerm.trim() && suggestions.length === 0 && (
-            <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover px-4 py-3 text-sm text-muted-foreground shadow-lg">
-              {t("store.productNotFound")}
-            </div>
           )}
         </div>
 
@@ -2119,9 +2142,17 @@ const Store = () => {
         open={walletOpen}
         onOpenChange={setWalletOpen}
         total={total}
+        shopKind="store"
         onBack={handleBackToPicker}
         onConfirm={handleConfirmWallet}
         confirming={confirming}
+        onPayerIdentified={(s) => {
+          display.review({
+            items: buildDisplayItems(),
+            total,
+            payer: s ? payerForCustomer({ ...s, spendingLimit: storeSpendingLimit(s) }, total) : null,
+          });
+        }}
       />
 
       {/* Cash */}

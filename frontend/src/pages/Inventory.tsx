@@ -63,12 +63,15 @@ import {
   Printer,
   Barcode,
   CalendarCheck,
+  BookOpen,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import RequisitionDialog from "./store/RequisitionDialog";
 import MonthlyStockReport from "./store/MonthlyStockReport";
+import BalanceFileReport from "./store/BalanceFileReport";
+import { useAuth } from "@/contexts/AuthContext";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
 import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
 
@@ -256,7 +259,9 @@ interface InventoryProps {
 
 const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: InventoryProps = {}) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const embedded = lockedShopId !== undefined;
+  const canSeeBalanceFile = user?.role !== "admin";
 
   // ── State ───────────────────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([]);
@@ -1072,7 +1077,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
               <div>
                 <p className="kpi-label">{t("inventory.kpiStockValue")}</p>
                 <p className="kpi-value">
-                  ฿{totalStockValue.toLocaleString("en", { maximumFractionDigits: 0 })}
+                  ฿{totalStockValue.toLocaleString("en", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -1128,6 +1133,12 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             <ArrowDownToLine className="h-4 w-4" />
             {t("inventory.tabReceive")}
           </TabsTrigger>
+          {embedded && canSeeBalanceFile && (
+            <TabsTrigger value="balance-file" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Balance File
+            </TabsTrigger>
+          )}
           <TabsTrigger value="movements" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             {t("inventory.tabMovements")}
@@ -1652,6 +1663,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         <TabsContent value="monthly-report">
           {embedded && lockedShopId && (
             <MonthlyStockReport shopId={lockedShopId} />
+          )}
+        </TabsContent>
+
+        {/* ── Tab: Balance File (Average Cost) ───────────────────────────── */}
+        <TabsContent value="balance-file">
+          {embedded && lockedShopId && canSeeBalanceFile && (
+            <BalanceFileReport lockedShopId={lockedShopId} />
           )}
         </TabsContent>
 

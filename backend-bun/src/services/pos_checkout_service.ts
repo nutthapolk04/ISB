@@ -74,12 +74,19 @@ export interface CheckoutInput {
 
 async function generateReceiptNumber(sqlTx: SqlTx, shopId?: string | null): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  // Include a 3-char shop code so each shop has its own sequence and
-  // receipt numbers from different shops can never collide in the unique index.
-  const shopCode = shopId
-    ? shopId.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase()
-    : "GEN";
-  const prefix = `R-${shopCode}-${today}-`;
+  let moduleCode = "S";
+  let shopNum = 0;
+  if (shopId) {
+    const shopRow = await sqlTx<Array<{ module: string; shop_number: number | null }>>`
+      SELECT module, shop_number FROM shops WHERE id = ${shopId} LIMIT 1
+    `;
+    if (shopRow[0]) {
+      moduleCode = shopRow[0].module === "canteen" ? "N" : "S";
+      shopNum = shopRow[0].shop_number ?? 0;
+    }
+  }
+  const shopCode5 = String(shopNum).padStart(5, "0");
+  const prefix = `R-${moduleCode}${shopCode5}-${today}-`;
   const rows = await sqlTx<Array<{ receipt_number: string }>>`
     SELECT receipt_number FROM receipts
     WHERE receipt_number LIKE ${prefix + "%"}
@@ -562,7 +569,7 @@ export async function checkout(input: CheckoutInput) {
       const projected = balanceBefore - total;
       if (!allowNegUser && projected < 0) {
         const err = new Error(
-          `ยอดเงินใน wallet ไม่พอ. คงเหลือ ฿${balanceBefore.toFixed(2)}, ต้องชำระ ฿${total.toFixed(2)}`,
+          `Insufficient wallet balance. Available: ฿${balanceBefore.toFixed(2)}, Required: ฿${total.toFixed(2)}`,
         );
         (err as { status?: number; code?: string }).status = 400;
         (err as { code?: string }).code = "INSUFFICIENT_USER_WALLET";
@@ -615,9 +622,9 @@ export async function checkout(input: CheckoutInput) {
         const todaySpent = await todayDeductedByModule(walletId, effectiveShopModule);
         if (todaySpent + total > effectiveLimit) {
           const remaining = Math.max(0, effectiveLimit - todaySpent);
-          const groupName = isCanteen ? "โรงอาหาร" : "ร้านค้า";
+          const groupName = isCanteen ? "Canteen" : "Store";
           const err = new Error(
-            `วงเงินรายวัน${groupName}เกินกำหนด. วงเงิน: ฿${effectiveLimit.toFixed(2)}, ใช้ไปแล้ว: ฿${todaySpent.toFixed(2)}, คงเหลือ: ฿${remaining.toFixed(2)}`,
+            `Daily ${groupName} limit exceeded. Limit: ฿${effectiveLimit.toFixed(2)}, Spent: ฿${todaySpent.toFixed(2)}, Remaining: ฿${remaining.toFixed(2)}`,
           );
           (err as { status?: number }).status = 400;
           throw err;
@@ -630,7 +637,7 @@ export async function checkout(input: CheckoutInput) {
           : 0;
         if (projected < -maxOverdraft) {
           const err = new Error(
-            `ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿${balanceBefore.toFixed(2)}, ต้องชำระ ฿${total.toFixed(2)}, overdraft ที่อนุญาต ฿${maxOverdraft.toFixed(2)}`,
+            `Wallet would exceed negative credit limit. Available: ฿${balanceBefore.toFixed(2)}, Required: ฿${total.toFixed(2)}, Overdraft allowed: ฿${maxOverdraft.toFixed(2)}`,
           );
           (err as { status?: number; code?: string }).status = 400;
           (err as { code?: string }).code = "EXCEEDS_NEGATIVE_CREDIT_LIMIT";

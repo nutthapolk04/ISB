@@ -242,11 +242,13 @@ def sales_report(
                 ShopProduct.name.label("name"),
                 func.sum(ReceiptItem.quantity).label("qty"),
                 func.sum(ReceiptItem.line_total).label("total"),
+                func.max(Receipt.transaction_date).label("last_date"),
             )
             .join(ShopProduct, ShopProduct.id == ReceiptItem.product_variant_id)
+            .join(Receipt, Receipt.id == ReceiptItem.receipt_id)
             .filter(ReceiptItem.receipt_id.in_(receipt_ids))
             .group_by(ShopProduct.name)
-            .order_by(func.sum(ReceiptItem.line_total).desc())
+            .order_by(func.max(Receipt.transaction_date).desc(), func.sum(ReceiptItem.line_total).desc())
             .all()
         )
         for r in agg:
@@ -282,6 +284,7 @@ def sales_by_payment_report(
         Receipt.payment_method,
         func.count(Receipt.id).label("receipt_count"),
         func.sum(Receipt.total).label("total"),
+        func.max(Receipt.transaction_date).label("last_date"),
     ).filter(
         Receipt.transaction_date >= start,
         Receipt.transaction_date <= end,
@@ -295,7 +298,7 @@ def sales_by_payment_report(
         if module_shop_ids:
             q = q.filter(Receipt.shop_id.in_(module_shop_ids))
 
-    agg = q.group_by(Receipt.payment_method).order_by(func.sum(Receipt.total).desc()).all()
+    agg = q.group_by(Receipt.payment_method).order_by(func.max(Receipt.transaction_date).desc(), func.sum(Receipt.total).desc()).all()
 
     rows: List[SalesByPaymentRow] = []
     grand_total = 0.0
@@ -354,7 +357,7 @@ def stock_report(
         q = q.filter(Shop.module == effective_module)
 
     rows: List[StockRow] = []
-    for product, shop_name in q.order_by(ShopProduct.shop_id, ShopProduct.name).all():
+    for product, shop_name in q.order_by(ShopProduct.updated_at.desc().nullslast(), ShopProduct.shop_id, ShopProduct.name).all():
         rows.append(
             StockRow(
                 product_code=product.product_code,
@@ -818,7 +821,7 @@ def sales_summary_report(
             (Customer.name.ilike(f"%{user_name}%")) | (User.full_name.ilike(f"%{user_name}%"))
         )
 
-    receipts = q.order_by(Receipt.transaction_date.asc(), Receipt.id.asc()).all()
+    receipts = q.order_by(Receipt.transaction_date.desc(), Receipt.id.desc()).all()
 
     # ── Build rows + running totals ───────────────────────────────────────
     rows: List[SalesSummaryRow] = []
@@ -973,7 +976,7 @@ def sales_by_item_report(
     if item_no_to:
         q = q.filter(ShopProduct.product_code <= item_no_to)
 
-    rows_raw = q.order_by(Receipt.transaction_date.asc(), Receipt.id.asc(), ReceiptItem.id.asc()).all()
+    rows_raw = q.order_by(Receipt.transaction_date.desc(), Receipt.id.desc(), ReceiptItem.id.desc()).all()
 
     # ── Build rows + running totals ───────────────────────────────────────
     rows: List[SalesByItemRow] = []

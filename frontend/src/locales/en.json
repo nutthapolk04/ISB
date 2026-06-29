@@ -34,6 +34,7 @@
     "storeManagement": "Store Management",
     "storeUsers": "Store Users",
     "storeReports": "Store Reports",
+    "storeBalanceFile": "Balance File",
     "adminDashboard": "Dashboard",
     "users": "Users",
     "adminUsers": "User Management",
@@ -54,7 +55,7 @@
     "offline": "Offline"
   },
   "resync": {
-    "trigger": "Resync",
+    "trigger": "Sync",
     "title": "Sync data from PowerSchool",
     "description": "Pull the latest staff / parent / student records from the school system.",
     "info": {
@@ -1157,14 +1158,14 @@
       "invalidAmount": "Please enter a valid amount",
       "reasonRequired": "Reason is required",
       "directionType": "Type",
-      "directionCredit": "Credit (Add)",
+      "directionCredit": "+",
       "info": {
         "auditReason": {
           "title": "Reason is required",
           "body": "Every adjustment is recorded in the audit log together with the admin's name and reason — use a clear reason so it can be traced later (e.g. 'Fix wrong balance from incident #123')."
         }
       },
-      "directionDebit": "Debit (Deduct)",
+      "directionDebit": "−",
       "amountLabel": "Amount (THB)",
       "reasonLabel": "Reason",
       "reasonPlaceholder": "e.g. Refund void error, compensate system error",
@@ -1445,7 +1446,7 @@
       "bindCard": "Bind card",
       "walletBalance": "Balance",
       "deleteUser": "Delete user",
-      "deleteConfirm": "Are you sure you want to delete",
+      "deleteConfirm": "Delete user",
       "deleteWarning": "This action cannot be undone.",
       "deleteSuccess": "User deleted",
       "deleteError": "Failed to delete user",
@@ -1513,12 +1514,10 @@
       "roleRemoveFailed": "Could not remove role",
       "roleRemoved": "Role removed",
       "selectRoleToAdd": "Choose role to add",
-      "deleteSuccess": "User deleted",
       "deleteFailed": "Failed to delete user",
       "deleteTitle": "Delete user",
       "deleteConfirmTitle": "Confirm user deletion",
-      "deleteConfirmDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
-      "deleteConfirm": "Delete user"
+      "deleteConfirmDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone."
     }
   },
   "canteen": {
@@ -3160,5 +3159,39 @@
         "zeroBalance": "Zero balance"
       }
     }
+  },
+  "balanceFile": {
+    "title": "Balance File",
+    "subtitle": "Inventory ledger using Average Cost method — monthly breakdown linked to Receive Stock data.",
+    "filters": "Filters",
+    "shop": "Shop",
+    "product": "Product",
+    "allProducts": "All products",
+    "month": "Month",
+    "year": "Year",
+    "load": "Load",
+    "exportExcel": "Export Excel",
+    "goReceive": "Receive Stock",
+    "selectShop": "Please select a shop",
+    "empty": "No data for the selected period.",
+    "loadFailed": "Failed to load balance file",
+    "exportFailed": "Excel export failed",
+    "period": "Period",
+    "opening": "Opening Balance",
+    "summary": "Summary Balance",
+    "col": {
+      "date": "Date",
+      "desc": "Description",
+      "doc": "Doc No.",
+      "in": "Stock In",
+      "out": "Stock Out",
+      "balance": "Balance",
+      "note": "Note"
+    },
+    "exportPdf": "Export PDF",
+    "viewMode": "View",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "closingBalance": "Closing Balance"
   }
 }

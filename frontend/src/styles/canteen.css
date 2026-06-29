@@ -12,7 +12,7 @@
   }
 
   .canteen-content {
-    @apply flex-1 flex flex-col min-h-0 gap-4 p-4 sm:p-6;
+    @apply flex-1 flex flex-col min-h-0 gap-4 px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3;
   }
 
   /* Desktop: side panel ≥lg (pinned full-height). Below lg: hidden — use sheet instead. */

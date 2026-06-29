@@ -394,7 +394,7 @@ export default function DepartmentAdjust() {
                       }`}
                     >
                       <ArrowUpCircle className="h-4 w-4" />
-                      Credit (+)
+                      +
                     </button>
                     <button
                       type="button"
@@ -406,7 +406,7 @@ export default function DepartmentAdjust() {
                       }`}
                     >
                       <ArrowDownCircle className="h-4 w-4" />
-                      Debit (−)
+                      −
                     </button>
                   </div>
 

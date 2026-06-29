@@ -306,7 +306,6 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="cashier">Cashier</SelectItem>
                           <SelectItem value="staff">Staff (general)</SelectItem>
