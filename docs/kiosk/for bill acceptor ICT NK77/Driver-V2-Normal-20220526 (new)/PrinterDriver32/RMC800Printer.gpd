@@ -1,0 +1,1303 @@
+*GPDSpecVersion: "1.0"
+*GPDFileVersion: "1.0"
+*Include: "StdNames.gpd"
+*GPDFileName: "RMC800Printer.gpd"
+*ModelName: "RMC800Printer"
+*MasterUnits: PAIR(203, 203)
+*ResourceDLL: "RMC800RES.dll"
+*PrinterType: SERIAL
+*MaxCopies: 999
+*Command: CmdCR: ""
+*Command: CmdLF: ""
+*Command: CmdFF: ""
+
+*%
+*% Orientation
+*%
+*Feature: Orientation
+{
+	*rcNameID: =ORIENTATION_DISPLAY
+	*DefaultOption: PORTRAIT
+	*Option: PORTRAIT
+	{
+		*rcNameID: =PORTRAIT_DISPLAY
+		*Command: CmdSelect
+		{
+			*Order: DOC_SETUP.6
+			*Cmd: ""
+		}
+	}
+	*Option: LANDSCAPE_CC270
+	{
+		*rcNameID: =LANDSCAPE_DISPLAY
+		*Command: CmdSelect
+		{
+			*Order: DOC_SETUP.6
+			*Cmd: ""
+		}
+	}
+}
+ 
+
+
+*%Must be in front of
+*Feature: PaperSize
+{
+    *rcNameID: =PAPER_SIZE_DISPLAY
+	*DefaultOption: Option4
+
+    *Option: Option2
+    {
+        *%rcNameID: 359
+		*Name: "W58 x 297mm"
+        *PageDimensions: PAIR(463, 2373)
+        *PrintableArea: PAIR(384, 2373)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+	}
+    *Option: Option4
+    {
+        *%rcNameID: 361
+		*Name: "W80 x 297mm"
+        *PageDimensions: PAIR(639, 2373)
+        *PrintableArea: PAIR(576, 2373)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    }
+
+    *Option: Option6
+    {
+        *%rcNameID: 363
+		*Name: "W110 x 297mm"
+        *PageDimensions: PAIR(879, 2373)
+        *PrintableArea: PAIR(832, 2373)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    }   
+    *Option: Option7
+    {
+        *%rcNameID: 364
+		*Name: "W210 x 297mm"
+        *PageDimensions: PAIR(1678, 2373)
+        *PrintableArea: PAIR(1678, 2373)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    }  
+    *Option: Option8
+    {
+        *%rcNameID: 365
+		*Name: "W220 x 297mm"
+        *PageDimensions: PAIR(1758, 2373)
+        *PrintableArea: PAIR(1728, 2373)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    }  	
+	    
+	*Option: Option10
+    {
+		*%自定义纸张1
+        *%rcNameID: 401
+		*Name: "W58 x 2000mm"
+        *PageDimensions: PAIR(463, 15984)
+        *PrintableArea: PAIR(384, 15984)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    } 	
+    *Option: Option11
+    {
+		*%自定义纸张2
+        *%rcNameID: 402
+		*Name: "W80 x 2000mm"
+        *PageDimensions: PAIR(639, 15984)
+        *PrintableArea: PAIR(576, 15984)
+        *CursorOrigin: PAIR(0, 0)
+        *PrintableOrigin: PAIR(0, 0)
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    } 	
+
+    *Option: CUSTOMSIZE
+    {
+        *rcNameID: =USER_DEFINED_SIZE_DISPLAY
+        *MinSize: PAIR(0, 0)
+        *MaxSize: PAIR(1758, 32768)
+        *MaxPrintableWidth: 1758 
+        *% *MinLeftMargin: 16
+        *MinLeftMargin: 0 
+        *CenterPrintable?: FALSE		
+		*TopMargin: 0 
+		*BottomMargin: 0
+		*CursorOrigin: PAIR(0, 0) 
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }	
+    }   
+}
+
+*%
+*% Resolution
+*%
+*Feature: Resolution
+{
+    *rcNameID: =RESOLUTION_DISPLAY
+	*DefaultOption: Option1
+    *Option: Option1
+    {
+        *Name: "203 x 203 " =DOTS_PER_INCH
+        *DPI: PAIR(203, 203)
+        *TextDPI: PAIR(203, 203)
+        *MinStripBlankPixels: 0
+        EXTERN_GLOBAL: *StripBlanks: LIST(ENCLOSED,TRAILING)
+        *SpotDiameter: 1
+        *Command: CmdBeginRaster { *Cmd : "" }
+        *Command: CmdEndRaster { *Cmd : "" }
+        *Command: CmdSendBlockData { *Cmd : "" }
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.4
+            *Cmd: ""
+        }
+    }
+}
+*%
+*% Color mode
+*%
+*Feature: ColorMode
+{
+    *rcNameID: =COLOR_PRINTING_MODE_DISPLAY
+    *DefaultOption: MONO
+
+    *Option: MONO
+    {
+        *rcNameID: =MONO_DISPLAY
+        *DrvBPP: 1
+        *DevNumOfPlanes: 0
+        *DevBPP: 0
+        *IPCallbackID: 1
+        *Color?: FALSE
+    }
+}
+ 
+*Command: CmdStartDoc
+{
+    *Order: DOC_SETUP.1
+    *Cmd: ""
+} 
+
+*Command: CmdEndDoc
+{
+    *Order: JOB_FINISH.20
+    *Cmd: ""
+}
+ 
+*Command: CmdEndJob
+{
+    *Order: DOC_FINISH.23
+    *Cmd: ""
+}
+*Command: CmdEndPage
+{
+    *Order: PAGE_FINISH.23
+    *Cmd: ""
+}
+*Command: CmdStartPage
+{
+    *Order: PAGE_SETUP.1
+    *Cmd: ""
+}
+*Feature: BlackMarkSensor
+{
+    *%Name: "Black Mark Sensor"
+	*rcNameID: 116
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option1
+
+    *Option: Option1
+    {
+        *%Name: "Off"
+		*rcNameID: 103
+        *Command: CmdSelect
+        {
+            *CallbackID: 90
+            *Order: DOC_SETUP.20
+        }
+    }
+    *Option: Option2
+    {
+        *%Name: "On"
+		*rcNameID: 111
+        *Command: CmdSelect
+        {
+            *CallbackID: 91
+            *Order: DOC_SETUP.20
+        }
+    }
+}
+*Feature: FeedAtPageStarting
+{
+    *%Name: "Feed At Page Starting"
+	*rcNameID: 114
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option1
+
+    *Option: Option1
+    {
+        *%Name: "Off"
+		*rcNameID: 103
+        *Command: CmdSelect
+        {
+            *CallbackID: 120
+            *Order: DOC_SETUP.10
+        }
+    }
+   *Option: Option3
+    {
+        *Name: "1mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 121
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option4
+    {
+        *Name: "2mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 122
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option5
+    {
+        *Name: "3mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 123
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option6
+    {
+        *Name: "4mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 124
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option7
+    {
+        *Name: "5mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 125
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option8
+    {
+        *Name: "6mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 126
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option9
+    {
+        *Name: "7mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 127
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option10
+    {
+        *Name: "8mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 128
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option11
+    {
+        *Name: "9mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 129
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option12
+    {
+        *Name: "10mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 130
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option13
+    {
+        *Name: "11mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 131
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option14
+    {
+        *Name: "12mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 132
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option15
+    {
+        *Name: "13mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 133
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option16
+    {
+        *Name: "14mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 134
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option17
+    {
+        *Name: "15mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 135
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option18
+    {
+        *Name: "16mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 136
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option19
+    {
+        *Name: "17mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 137
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option20
+    {
+        *Name: "18mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 138
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option21
+    {
+        *Name: "19mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 139
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option22
+    {
+        *Name: "20mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 140
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option23
+    {
+        *Name: "21mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 141
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option24
+    {
+        *Name: "22mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 142
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option25
+    {
+        *Name: "23mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 143
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option26
+    {
+        *Name: "24mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 144
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option27
+    {
+        *Name: "25mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 145
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option28
+    {
+        *Name: "26mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 146
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option29
+    {
+        *Name: "27mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 147
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option30
+    {
+        *Name: "28mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 148
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option31
+    {
+        *Name: "29mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 149
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option32
+    {
+        *Name: "30mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 150
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option33
+    {
+        *Name: "-1mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 151
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option34
+    {
+        *Name: "-2mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 152
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option35
+    {
+        *Name: "-3mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 153
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option36
+    {
+        *Name: "-4mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 154
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option37
+    {
+        *Name: "-5mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 155
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option38
+    {
+        *Name: "-6mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 156
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option39
+    {
+        *Name: "-7mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 157
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option40
+    {
+        *Name: "-8mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 158
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option41
+    {
+        *Name: "-9mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 159
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option42
+    {
+        *Name: "-10mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 160
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option43
+    {
+        *Name: "-11mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 161
+            *Order: DOC_SETUP.10
+        }
+    }
+   *Option: Option44
+    {
+        *Name: "-12mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 162
+            *Order: DOC_SETUP.10
+        }
+    }  
+   *Option: Option45
+    {
+        *Name: "-13mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 163
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option46
+    {
+        *Name: "-14mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 164
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option47
+    {
+        *Name: "-15mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 165
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option48
+    {
+        *Name: "-16mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 166
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option49
+    {
+        *Name: "-17mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 167
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option50
+    {
+        *Name: "-18mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 168
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option51
+    {
+        *Name: "-19mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 169
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option52
+    {
+        *Name: "-20mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 170
+            *Order: DOC_SETUP.10
+        }
+    }   
+   *Option: Option53
+    {
+        *Name: "-21mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 171
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option54
+    {
+        *Name: "-22mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 172
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option55
+    {
+        *Name: "-23mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 173
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option56
+    {
+        *Name: "-24mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 174
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option57
+    {
+        *Name: "-25mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 175
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option58
+    {
+        *Name: "-26mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 176
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option59
+    {
+        *Name: "-27mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 177
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option60
+    {
+        *Name: "-28mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 178
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option61
+    {
+        *Name: "-29mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 179
+            *Order: DOC_SETUP.10
+        }
+    }     
+   *Option: Option62
+    {
+        *Name: "-30mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 180
+            *Order: DOC_SETUP.10
+        }
+    }    
+}
+*Feature: FeedAtPageEnding
+{
+    *%Name: "Feed At Page Ending"
+	*rcNameID: 113
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option1
+
+    *Option: Option1
+    {
+        *%Name: "Off"
+		*rcNameID: 103
+        *Command: CmdSelect
+        {
+            *CallbackID: 300
+            *Order: DOC_SETUP.10
+        }
+    }
+   *Option: Option3
+    {
+        *Name: "1mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 301
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option4
+    {
+        *Name: "2mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 302
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option5
+    {
+        *Name: "3mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 303
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option6
+    {
+        *Name: "4mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 304
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option7
+    {
+        *Name: "5mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 305
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option8
+    {
+        *Name: "6mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 306
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option9
+    {
+        *Name: "7mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 307
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option10
+    {
+        *Name: "8mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 308
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option11
+    {
+        *Name: "9mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 309
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option12
+    {
+        *Name: "10mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 310
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option13
+    {
+        *Name: "11mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 311
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option14
+    {
+        *Name: "12mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 312
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option15
+    {
+        *Name: "13mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 313
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option16
+    {
+        *Name: "14mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 314
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option17
+    {
+        *Name: "15mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 315
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option18
+    {
+        *Name: "16mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 316
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option19
+    {
+        *Name: "17mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 317
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option20
+    {
+        *Name: "18mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 318
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option21
+    {
+        *Name: "19mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 319
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option22
+    {
+        *Name: "20mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 320
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option23
+    {
+        *Name: "21mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 321
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option24
+    {
+        *Name: "22mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 322
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option25
+    {
+        *Name: "23mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 323
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option26
+    {
+        *Name: "24mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 324
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option27
+    {
+        *Name: "25mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 325
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option28
+    {
+        *Name: "26mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 326
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option29
+    {
+        *Name: "27mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 327
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option30
+    {
+        *Name: "28mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 328
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option31
+    {
+        *Name: "29mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 329
+            *Order: DOC_SETUP.10
+        }
+    }
+    *Option: Option32
+    {
+        *Name: "30mm"
+        *Command: CmdSelect
+        {
+            *CallbackID: 330
+            *Order: DOC_SETUP.10
+        }
+    }
+}
+*Feature: PageCutMode
+{
+    *%Name: "Page Cut Mode"
+	*rcNameID: 115
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option3
+
+    *Option: Option1
+    {
+        *%Name: "NoCut"
+		*rcNameID: 108
+        *Command: CmdSelect
+        {
+            *CallbackID: 92
+            *Order: DOC_SETUP.30
+        }
+    }
+    *Option: Option2
+    {
+        *%Name: "PartCut"
+		*rcNameID: 109
+        *Command: CmdSelect
+        {
+            *CallbackID: 93
+            *Order: DOC_SETUP.30
+        }
+    }
+   *Option: Option3
+    {
+        *%Name: "FullCut"
+		*rcNameID: 110
+        *Command: CmdSelect
+        {
+            *CallbackID: 94
+            *Order: DOC_SETUP.30
+        }
+    }
+}
+*Feature: DocCutMode
+{
+    *%Name: "Doc Cut Mode"
+	*rcNameID: 107
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option1
+
+    *Option: Option1
+    {
+        *%Name: "NoCut"
+		*rcNameID: 108
+        *Command: CmdSelect
+        {
+            *CallbackID: 200
+            *Order: DOC_SETUP.30
+        }
+    }
+    *Option: Option2
+    {
+        *%Name: "PartCut"
+		*rcNameID: 109
+		*Command: CmdSelect
+        {
+            *CallbackID: 201
+            *Order: DOC_SETUP.30
+        }
+    }
+   *Option: Option3
+    {
+        *%Name: "FullCut"
+		*rcNameID: 110
+		*Command: CmdSelect
+        {
+            *CallbackID: 202
+            *Order: DOC_SETUP.30
+        }
+    }    
+}
+
+*Feature: RotationMode
+{
+	*rcNameID: 106
+    *%Name: "Rotation Mode"
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option1
+
+    *Option: Option1
+    {
+        *%Name: "OFF"
+		*rcNameID: 103
+        *Command: CmdSelect
+        {
+            *CallbackID: 203
+            *Order: DOC_SETUP.30
+        }
+    }
+    *Option: Option2
+    {
+        *%Name: "180"
+		*rcNameID: 112
+        *Command: CmdSelect
+        {
+            *CallbackID: 204
+            *Order: DOC_SETUP.30
+        }
+    }
+}
+
+*Feature: PrintDocBlank
+{
+    *%Name: "Print End Doc Blank"
+	*rcNameID: 105
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption: Option1
+
+    *Option: Option1
+    {
+        *%Name: "ON"
+		*rcNameID: 111
+        *Command: CmdSelect
+        {
+            *CallbackID: 205
+            *Order: DOC_SETUP.30
+        }
+    }
+    *Option: Option2
+    {
+        *%Name: "OFF"
+		*rcNameID: 103
+        *Command: CmdSelect
+        {
+            *CallbackID: 206
+            *Order: DOC_SETUP.30
+        }
+    }
+}
+*Feature:MoneyBox
+{
+    *%Name: "Money Box"
+	*rcNameID: 104
+    *FeatureType: PRINTER_PROPERTY
+    *DefaultOption:Off
+    *Option:Off
+    {
+		*%Name:"Off"
+		*rcNameID: 103
+    }
+   *Option:After
+    {
+        *%Name: "After"
+		*rcNameID: 102
+        *Command: CmdSelect
+        {
+            *Order: DOC_FINISH.23
+            *Cmd: "<1B><70><00><50><50>"
+        }
+    } 
+   *Option:Before
+    {
+        *%Name: "Before"
+		*rcNameID: 101
+        *Command: CmdSelect
+        {
+            *Order: DOC_SETUP.1
+            *Cmd: "<1B><70><00><50><50>"
+        }
+    } 
+}
+*Feature: InputBin
+{
+    *rcNameID: =PAPER_SOURCE_DISPLAY
+    *DefaultOption: Option1
+    *Option: Option1
+    {
+        *rcNameID: =AUTO_DISPLAY
+    }
+}
+*%OptimizeLeftBound?: FALSE
+
+*RotateCoordinate?: FALSE
+*RotateRaster?: FALSE
+*RotateFont?: FALSE
+*switch: Orientation
+{
+    *case: PORTRAIT
+    {
+        *TextCaps: LIST(TC_OP_CHARACTER,TC_OP_STROKE)
+    }
+}

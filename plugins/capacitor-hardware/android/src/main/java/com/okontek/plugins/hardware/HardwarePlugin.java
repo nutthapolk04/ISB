@@ -8,6 +8,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 @CapacitorPlugin(name = "Hardware")
 public class HardwarePlugin extends Plugin {
+
     @PluginMethod
     public void getPlatform(PluginCall call) {
         JSObject ret = new JSObject();
