@@ -26,24 +26,11 @@ const TERMINAL_DWELL_MS = 5000;
 export default function CustomerDisplay() {
   const display = useDisplayState();
   const [forceStandby, setForceStandby] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Browsers gate Fullscreen API behind a user gesture; the cashier just
-  // has to tap the screen once after dragging the window to the second
-  // monitor. We then suppress the hint and stay fullscreen until the OS
-  // or browser exits.
   useEffect(() => {
-    const enter = () => {
-      if (document.fullscreenElement) return;
+    if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
-    };
-    document.addEventListener("click", enter);
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => {
-      document.removeEventListener("click", enter);
-      document.removeEventListener("fullscreenchange", onChange);
-    };
+    }
   }, []);
 
   // Whenever a fresh non-terminal state arrives, clear the "force standby"
@@ -63,18 +50,6 @@ export default function CustomerDisplay() {
     const id = window.setTimeout(() => setForceStandby(true), TERMINAL_DWELL_MS);
     return () => window.clearTimeout(id);
   }, [display]);
-
-  const fsHint = !isFullscreen ? (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer">
-      <div className="flex flex-col items-center gap-4 text-white text-center">
-        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
-        </svg>
-        <p className="text-3xl font-bold">แตะหน้าจอเพื่อเปิดเต็มจอ</p>
-        <p className="text-lg opacity-70">Tap to enter fullscreen</p>
-      </div>
-    </div>
-  ) : null;
 
   const screen = (() => {
     if (forceStandby) return <StandbyScreen />;
@@ -122,10 +97,5 @@ export default function CustomerDisplay() {
     }
   })();
 
-  return (
-    <>
-      {screen}
-      {fsHint}
-    </>
-  );
+  return screen;
 }
