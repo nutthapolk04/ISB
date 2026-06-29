@@ -60,6 +60,12 @@ import * as AdminImportSchema from "@/interfaces/routes/admin_import.schema";
 import * as AdminReportsSchema from "@/interfaces/routes/admin_reports.schema";
 import * as CanteenSchema from "@/interfaces/routes/canteen.schema";
 
+/** Build a BAY return location URL for the matching Vercel React page. */
+const bayReturnLocation = (outcome: "success" | "fail" | "cancel", url: string) => {
+    const ref = new URL(url).searchParams.get("ref") ?? "";
+    return `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/${outcome}?ref=${encodeURIComponent(ref)}`;
+};
+
 /** ISB vendor sync — public, x-api-key only (no JWT). */
 const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
     .onError(({ code, error, set }) => {
@@ -374,22 +380,38 @@ const router = (app: Elysia) =>
         // BAY EASYPay browser-return endpoints — BAY POST-redirects the user's
         // browser here after card payment. Backend 302 GET-redirects to the React
         // page because Vercel static hosting returns 405 for POST requests.
+        // BAY POSTs (form submit) for the happy-path redirect; the user's
+        // "Done" click on the BAY error page comes through as a plain GET.
+        // Register both verbs for every outcome so the customer always
+        // reaches the matching React page on Vercel instead of a 404.
         .post("/api/v1/payment/bay/return/success", ({ request, set }) => {
-            const ref = new URL(request.url).searchParams.get("ref") ?? "";
             set.status = 302;
-            set.headers["Location"] = `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/success?ref=${encodeURIComponent(ref)}`;
+            set.headers["Location"] = bayReturnLocation("success", request.url);
+            return null;
+        })
+        .get("/api/v1/payment/bay/return/success", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("success", request.url);
             return null;
         })
         .post("/api/v1/payment/bay/return/fail", ({ request, set }) => {
-            const ref = new URL(request.url).searchParams.get("ref") ?? "";
             set.status = 302;
-            set.headers["Location"] = `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/fail?ref=${encodeURIComponent(ref)}`;
+            set.headers["Location"] = bayReturnLocation("fail", request.url);
+            return null;
+        })
+        .get("/api/v1/payment/bay/return/fail", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("fail", request.url);
             return null;
         })
         .post("/api/v1/payment/bay/return/cancel", ({ request, set }) => {
-            const ref = new URL(request.url).searchParams.get("ref") ?? "";
             set.status = 302;
-            set.headers["Location"] = `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/cancel?ref=${encodeURIComponent(ref)}`;
+            set.headers["Location"] = bayReturnLocation("cancel", request.url);
+            return null;
+        })
+        .get("/api/v1/payment/bay/return/cancel", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("cancel", request.url);
             return null;
         })
         .get("/api/v1/customer-display/images", CustomerDisplayController.listPublic, CustomerDisplaySchema.customerDisplayListPublic)
