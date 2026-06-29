@@ -685,6 +685,8 @@ const Store = () => {
   // to type manually — focus returns to body on blur and RFID resumes.
   const rfidBuffer = useRef<string>("");
   const rfidLastKey = useRef<number>(0);
+  const allProductsRef = useRef<Product[]>([]);
+  const addToCartRef = useRef<((p: Product) => void) | null>(null);
 
   useEffect(() => {
     function userToStudent(u: UserPayerLookup): StudentLookupResult {
@@ -765,7 +767,17 @@ const Store = () => {
           const captured = rfidBuffer.current;
           rfidBuffer.current = "";
           rfidLastKey.current = 0;
-          void lookupAndSet(captured);
+          const scanned = captured.trim().toLowerCase();
+          const matchedProduct = allProductsRef.current.find(
+            (p) =>
+              p.barcode.toLowerCase() === scanned ||
+              (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase() === scanned),
+          );
+          if (matchedProduct) {
+            addToCartRef.current?.(matchedProduct);
+          } else {
+            void lookupAndSet(captured);
+          }
         } else {
           rfidBuffer.current = "";
         }
@@ -953,6 +965,10 @@ const Store = () => {
     },
     [t, activePanelId, panelPrices],
   );
+
+  // Keep refs in sync for the RFID/barcode keydown handler (which closes over stale values)
+  useEffect(() => { allProductsRef.current = allProducts; }, [allProducts]);
+  useEffect(() => { addToCartRef.current = addToCart; }, [addToCart]);
 
   const updateQuantity = (id: number, change: number) => {
     setCart((prev) =>
