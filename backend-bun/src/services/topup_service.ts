@@ -407,32 +407,34 @@ export async function handleBayCallback(body: {
   amount: number;
   status: "COMPLETED" | "FAILED";
 }): Promise<{ received: true }> {
-  // Locate intent: orderRef → txnNo → reference1
+  // Locate intent: orderRef (refCode → txnNo) → txnNo → reference1.
+  // EASYPay callbacks carry the sanitized orderRef we sent to PYMT, which
+  // matches paymentIntents.txnNo rather than refCode (refCode keeps the
+  // hyphens). Fall back to txnNo when refCode lookup misses.
+  const select = () => db
+    .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
+    .from(paymentIntents);
   let refCode: string | null = null;
   let currentStatus: string | null = null;
   let intentType: string | null = null;
 
+  const adopt = (row: { refCode: string; status: string; intentType: string | null } | undefined) => {
+    if (!row) return false;
+    refCode = row.refCode; currentStatus = row.status; intentType = row.intentType ?? null;
+    return true;
+  };
+
   if (body.orderRef) {
-    const rows = await db
-      .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
-      .from(paymentIntents)
-      .where(eq(paymentIntents.refCode, body.orderRef))
-      .limit(1);
-    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; intentType = rows[0].intentType ?? null; }
+    const byRef = await select().where(eq(paymentIntents.refCode, body.orderRef)).limit(1);
+    if (!adopt(byRef[0])) {
+      const byTxn = await select().where(eq(paymentIntents.txnNo, body.orderRef)).limit(1);
+      adopt(byTxn[0]);
+    }
   } else if (body.transactionNo) {
-    const rows = await db
-      .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
-      .from(paymentIntents)
-      .where(eq(paymentIntents.txnNo, body.transactionNo))
-      .limit(1);
-    if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; intentType = rows[0].intentType ?? null; }
-    else if (body.reference1) {
-      const rRows = await db
-        .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
-        .from(paymentIntents)
-        .where(eq(paymentIntents.refCode, body.reference1))
-        .limit(1);
-      if (rRows[0]) { refCode = rRows[0].refCode; currentStatus = rRows[0].status; intentType = rRows[0].intentType ?? null; }
+    const byTxn = await select().where(eq(paymentIntents.txnNo, body.transactionNo)).limit(1);
+    if (!adopt(byTxn[0]) && body.reference1) {
+      const byRef = await select().where(eq(paymentIntents.refCode, body.reference1)).limit(1);
+      adopt(byRef[0]);
     }
   }
 
