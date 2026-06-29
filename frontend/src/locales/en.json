@@ -2572,10 +2572,12 @@
     },
     "childSettings": {
       "title": "Daily Spending Limits",
+      "todayTitle": "Today's Spending",
       "canteenLabel": "Canteen daily limit",
       "storeLabel": "Store daily limit",
       "unlimitedPlaceholder": "Unlimited",
       "unlimitedHint": "Leave empty for unlimited",
+      "noLimit": "No limit set",
       "save": "Save limits",
       "saving": "Saving...",
       "saveSuccess": "Limits saved",

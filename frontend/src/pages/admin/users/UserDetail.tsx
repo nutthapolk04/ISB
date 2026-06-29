@@ -52,7 +52,9 @@ import {
   Building2,
   ShieldCheck,
   Plus,
+  KeyRound,
 } from "lucide-react";
+import { AdminChangePasswordDialog } from "@/components/AdminChangePasswordDialog";
 
 interface FamilyMember {
   entity_type: "user" | "customer";
@@ -144,6 +146,7 @@ export default function UserDetail() {
   // RFID bind dialog
   const [cardOpen, setCardOpen] = useState(false);
   const [cardInput, setCardInput] = useState("");
+  const [changePwOpen, setChangePwOpen] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
 
   // Notification emails editor
@@ -501,6 +504,16 @@ export default function UserDetail() {
               </Button>
               {user.card_uid && (
                 <p className="text-xs text-muted-foreground font-mono text-center">{user.card_uid}</p>
+              )}
+              {user.role !== "parent" && user.role !== "staff" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setChangePwOpen(true)}
+                >
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  Change Password
+                </Button>
               )}
             </div>
           </div>
@@ -1091,6 +1104,13 @@ export default function UserDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AdminChangePasswordDialog
+        open={changePwOpen}
+        onOpenChange={setChangePwOpen}
+        userId={user.id}
+        userName={user.full_name}
+      />
 
     </div>
     </div>

@@ -112,6 +112,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .patch("/family-profile/:family_code", UsersAdminController.updateFamilyProfile, UsersAdminSchema.updateFamilyProfile)
             .post("/:user_id/link-student", UsersAdminController.linkStudent, UsersAdminSchema.linkStudentToUser)
             .delete("/:user_id/link-student/:customer_id", UsersAdminController.unlinkStudent, UsersAdminSchema.unlinkStudent)
+            .patch("/:user_id/password", UsersAdminController.changePassword, UsersAdminSchema.changePassword)
     )
     // ── Admin audit & settings ──────────────────────────────────────────────
     .group("/admin", (app) => app

@@ -327,52 +327,6 @@ export function MemberSearchModal({
               </div>
             )}
 
-            {/* Daily Spending Limit — Canteen + Store */}
-            {selectedMember.customer_kind !== "department" && (() => {
-              const ct = selectedMember.daily_limit_canteen ?? null;
-              const ctSpent = selectedMember.spent_today_canteen ?? 0;
-              const st = selectedMember.daily_limit_store ?? null;
-              const stSpent = selectedMember.spent_today_store ?? 0;
-              if (ct == null && st == null) return null;
-              const row = (label: string, limit: number | null, spent: number) => {
-                if (limit == null) return null;
-                const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-                const atLimit = pct >= 100;
-                const nearLimit = pct >= 80 && !atLimit;
-                const remaining = Math.max(limit - spent, 0);
-                const txtColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
-                const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
-                const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                return (
-                  <div className="space-y-1.5">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-muted-foreground font-medium">{label}</span>
-                      <div className="text-right">
-                        <span className={cn("text-base font-bold tabular-nums", txtColor)}>
-                          เหลือ {fmt(remaining)}
-                        </span>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          ใช้ไป {fmt(spent)} จาก {fmt(limit)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              };
-              return (
-                <div className="rounded-2xl border border-border bg-card p-3 space-y-3 text-sm">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                    Daily Spending Limit
-                  </div>
-                  {row("Canteen", ct, ctSpent)}
-                  {row("Store", st, stSpent)}
-                </div>
-              );
-            })()}
-
             {/* Actions */}
             <div className="flex gap-2">
               <Button

@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/IconButton";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getCanteenImage, getCanteenFallback } from "./canteenImages";
 import type {
@@ -181,6 +182,8 @@ export function CanteenCart({
 }: CanteenCartProps) {
   const { t } = useTranslation();
   const isEmpty = items.length === 0;
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [localNote, setLocalNote] = useState("");
   const discountLabel =
     billDiscountValue > 0
       ? billDiscountMode === "percent"
@@ -225,40 +228,6 @@ export function CanteenCart({
       {/* Selected Member */}
       {selectedMember && (
         <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
-          {selectedMember.customer_kind !== "department" && selectedMember.user_id == null && (() => {
-            const ct = selectedMember.daily_limit_canteen ?? null;
-            const ctSpent = Number(selectedMember.spent_today_canteen ?? 0);
-            const st = selectedMember.daily_limit_store ?? null;
-            const stSpent = Number(selectedMember.spent_today_store ?? 0);
-            if (ct == null && st == null) return null;
-            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-            const chip = (label: string, limit: number, spent: number) => {
-              const remaining = Math.max(limit - spent, 0);
-              const usedPct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-              const remainPct = limit > 0 ? remaining / limit : 0;
-              const color = remaining === 0 ? "text-red-600" : remainPct <= 0.2 ? "text-amber-600" : "text-emerald-700";
-              const barColor = remaining === 0 ? "bg-red-500" : remainPct <= 0.2 ? "bg-amber-500" : "bg-emerald-500";
-              return (
-                <div key={label} className="w-full space-y-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className={cn("font-semibold tabular-nums", color)}>
-                      {fmt(remaining)}<span className="text-muted-foreground font-normal">/{fmt(limit)}</span>
-                    </span>
-                  </div>
-                  <div className="w-full h-1 rounded-full bg-amber-200 overflow-hidden">
-                    <div className={cn("h-full rounded-full", barColor)} style={{ width: `${usedPct}%` }} />
-                  </div>
-                </div>
-              );
-            };
-            return (
-              <div className="mb-2 pb-2 border-b border-amber-200 flex flex-col gap-1.5 text-xs">
-                {ct != null && chip("Canteen", Number(ct), ctSpent)}
-                {st != null && chip("Store", Number(st), stSpent)}
-              </div>
-            );
-          })()}
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
               {selectedMember.photo_url ? (
@@ -287,13 +256,51 @@ export function CanteenCart({
               <button
                 type="button"
                 onClick={onClearMember}
-                className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
+                className="shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
                 aria-label={t("canteen.cart.clearMemberAria")}
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
+          {/* Daily Spending Limit panel */}
+          {selectedMember.customer_kind !== "department" && selectedMember.user_id == null && (() => {
+            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            const rows: { label: string; limit: number; spent: number }[] = [];
+            if (selectedMember.daily_limit_canteen != null)
+              rows.push({ label: "Canteen", limit: Number(selectedMember.daily_limit_canteen), spent: Number(selectedMember.spent_today_canteen ?? 0) });
+            if (selectedMember.daily_limit_store != null)
+              rows.push({ label: "Store", limit: Number(selectedMember.daily_limit_store), spent: Number(selectedMember.spent_today_store ?? 0) });
+            if (rows.length === 0) return null;
+            return (
+              <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
+                <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                  Daily Spending Limit
+                </div>
+                {rows.map(({ label, limit, spent }) => {
+                  const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                  const over = spent >= limit;
+                  const warn = pct >= 80;
+                  const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
+                  const barColor = over ? "bg-red-500" : "bg-amber-500";
+                  return (
+                    <div key={label} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-foreground font-medium">{label}</span>
+                        <span className={cn("font-bold tabular-nums", valueColor)}>
+                          {fmt(spent)}{" "}
+                          <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -500,30 +507,58 @@ export function CanteenCart({
             </span>
           </div>
         )}
-        <Button
-          variant="outline"
-          onClick={onOpenDiscount}
-          disabled={isEmpty}
-          className="h-12 w-full border-amber-300 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 font-semibold text-base"
-        >
-          {discountLabel ? `Add Discount: ${discountLabel}` : "Add Discount"}
-        </Button>
-
-        {/* Receipt note — mirrors the Store cart pattern (one optional
-            memo that gets attached to receipt.notes server-side). */}
-        {onNoteChange && (
-          <div className="pt-1">
-            <p className="text-xs font-medium text-muted-foreground mb-1">
+        <div className="flex gap-2">
+          {onNoteChange && (
+            <Button
+              variant="outline"
+              onClick={() => { setLocalNote(note); setNoteModalOpen(true); }}
+              className={cn(
+                "flex-1 h-9 rounded-xl relative gap-1.5 text-sm",
+                note ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" : ""
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
               {t("canteen.receiptNoteLabel", "Note")}
-            </p>
-            <Input
-              placeholder={t("canteen.receiptNote", "Add a note to this receipt (optional)")}
-              value={note}
-              onChange={(e) => onNoteChange(e.target.value)}
-              className="h-10 text-sm"
-              maxLength={200}
-            />
-          </div>
+              {note && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />
+              )}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={onOpenDiscount}
+            disabled={isEmpty}
+            className="flex-1 h-9 rounded-xl border-amber-300 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 font-semibold text-sm"
+          >
+            {discountLabel ? `Add Discount: ${discountLabel}` : "Add Discount"}
+          </Button>
+        </div>
+
+        {/* Note modal */}
+        {onNoteChange && (
+          <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{t("canteen.receiptNoteLabel", "Note")}</DialogTitle>
+              </DialogHeader>
+              <Textarea
+                placeholder={t("canteen.receiptNote", "Add a note to this receipt (optional)")}
+                value={localNote}
+                onChange={(e) => setLocalNote(e.target.value)}
+                rows={4}
+                maxLength={200}
+                autoFocus
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
+                  {t("common.cancel", "Cancel")}
+                </Button>
+                <Button onClick={() => { onNoteChange(localNote); setNoteModalOpen(false); }}>
+                  {t("common.save", "Save")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
 
         <div className="flex justify-between items-baseline pt-2">

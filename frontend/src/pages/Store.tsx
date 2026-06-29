@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { IconButton } from "@/components/IconButton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
@@ -27,6 +28,7 @@ import {
   Check,
   Printer,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import {
   DndContext,
@@ -634,6 +636,8 @@ const Store = () => {
 
   // ── Receipt note (optional cashier memo, saved to receipt.notes) ────────
   const [receiptNote, setReceiptNote] = useState<string>("");
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [localNote, setLocalNote] = useState("");
 
   // ── Customer display broadcast (second-monitor) ─────────────────────────
   const display = useDisplayBroadcast();
@@ -906,8 +910,9 @@ const Store = () => {
   useEffect(() => {
     if (paymentModalOpen) return;
     if (cart.length === 0 && !preSelectedMember) {
-      display.standby();
-      return;
+      // Delay standby so the success/failed screen (TERMINAL_DWELL_MS=5000ms) can finish
+      const timer = window.setTimeout(() => display.standby(), 5500);
+      return () => window.clearTimeout(timer);
     }
     display.review({
       items: buildDisplayItems(),
@@ -1405,40 +1410,6 @@ const Store = () => {
       {/* Selected Member */}
       {preSelectedMember && (
         <div className="mx-3 mt-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
-          {preSelectedMember.customer_kind !== "department" && preSelectedMember.user_id == null && (() => {
-            const ct = preSelectedMember.daily_limit_canteen ?? null;
-            const ctSpent = Number(preSelectedMember.spent_today_canteen ?? 0);
-            const st = preSelectedMember.daily_limit_store ?? null;
-            const stSpent = Number(preSelectedMember.spent_today_store ?? 0);
-            if (ct == null && st == null) return null;
-            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-            const chip = (label: string, limit: number, spent: number) => {
-              const remaining = Math.max(limit - spent, 0);
-              const usedPct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-              const remainPct = limit > 0 ? remaining / limit : 0;
-              const color = remaining === 0 ? "text-red-600" : remainPct <= 0.2 ? "text-amber-600" : "text-emerald-700";
-              const barColor = remaining === 0 ? "bg-red-500" : remainPct <= 0.2 ? "bg-amber-500" : "bg-emerald-500";
-              return (
-                <div key={label} className="w-full space-y-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className={cn("font-semibold tabular-nums", color)}>
-                      {fmt(remaining)}<span className="text-muted-foreground font-normal">/{fmt(limit)}</span>
-                    </span>
-                  </div>
-                  <div className="w-full h-1 rounded-full bg-amber-200 overflow-hidden">
-                    <div className={cn("h-full rounded-full", barColor)} style={{ width: `${usedPct}%` }} />
-                  </div>
-                </div>
-              );
-            };
-            return (
-              <div className="mb-2 pb-2 border-b border-amber-200 flex flex-col gap-1.5 text-xs">
-                {ct != null && chip("Canteen", Number(ct), ctSpent)}
-                {st != null && chip("Store", Number(st), stSpent)}
-              </div>
-            );
-          })()}
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
               {preSelectedMember.photo_url ? (
@@ -1466,12 +1437,50 @@ const Store = () => {
             <button
               type="button"
               onClick={() => setPreSelectedMember(null)}
-              className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
+              className="shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
               aria-label={t("common.cancel")}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
+          {/* Daily Spending Limit panel */}
+          {preSelectedMember.customer_kind !== "department" && preSelectedMember.user_id == null && (() => {
+            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            const rows: { label: string; limit: number; spent: number }[] = [];
+            if (preSelectedMember.daily_limit_canteen != null)
+              rows.push({ label: "Canteen", limit: Number(preSelectedMember.daily_limit_canteen), spent: Number(preSelectedMember.spent_today_canteen ?? 0) });
+            if (preSelectedMember.daily_limit_store != null)
+              rows.push({ label: "Store", limit: Number(preSelectedMember.daily_limit_store), spent: Number(preSelectedMember.spent_today_store ?? 0) });
+            if (rows.length === 0) return null;
+            return (
+              <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
+                <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                  Daily Spending Limit
+                </div>
+                {rows.map(({ label, limit, spent }) => {
+                  const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                  const over = spent >= limit;
+                  const warn = pct >= 80;
+                  const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
+                  const barColor = over ? "bg-red-500" : "bg-amber-500";
+                  return (
+                    <div key={label} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-foreground font-medium">{label}</span>
+                        <span className={cn("font-bold tabular-nums", valueColor)}>
+                          {fmt(spent)}{" "}
+                          <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1647,6 +1656,21 @@ const Store = () => {
             </div>
           )}
 
+          {/* Note + Add Discount — side by side */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setLocalNote(receiptNote); setNoteModalOpen(true); }}
+              className={cn(
+                "flex-1 h-9 rounded-xl border text-sm font-semibold transition flex items-center justify-center gap-1.5 relative",
+                receiptNote ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" : "border-border hover:bg-muted",
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
+              {t("store.receiptNoteLabel", "Note")}
+              {receiptNote && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />}
+            </button>
+
           {/* Add Discount popover button */}
           <Popover>
             <PopoverTrigger asChild>
@@ -1654,7 +1678,7 @@ const Store = () => {
                 type="button"
                 disabled={cart.length === 0}
                 className={cn(
-                  "w-full h-12 rounded-xl border text-base font-semibold transition",
+                  "flex-1 h-9 rounded-xl border text-sm font-semibold transition",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                   billDiscountAmount > 0
                     ? "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100"
@@ -1714,25 +1738,32 @@ const Store = () => {
               )}
             </PopoverContent>
           </Popover>
-
-          {/* Receipt note */}
-          <div className="pt-1">
-            <p className="text-xs font-medium text-muted-foreground mb-1">
-              {t("store.receiptNoteLabel", "Note")}
-            </p>
-            <Input
-              placeholder={t("store.receiptNote", "Add a note to this receipt (optional)")}
-              value={receiptNote}
-              onChange={(e) => setReceiptNote(e.target.value)}
-              className="h-10 text-sm"
-              maxLength={200}
-            />
           </div>
 
-          {/* Spending limit chip — shown when a member is pre-selected */}
-          {preSelectedMember && preSelectedMember.customer_kind !== "department" && (
-            <SpendingLimitChip member={preSelectedMember} refreshKey={chipRefreshKey} />
-          )}
+          {/* Note modal */}
+          <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{t("store.receiptNoteLabel", "Note")}</DialogTitle>
+              </DialogHeader>
+              <Textarea
+                placeholder={t("store.receiptNote", "Add a note to this receipt (optional)")}
+                value={localNote}
+                onChange={(e) => setLocalNote(e.target.value)}
+                rows={4}
+                maxLength={200}
+                autoFocus
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
+                  {t("common.cancel", "Cancel")}
+                </Button>
+                <Button onClick={() => { setReceiptNote(localNote); setNoteModalOpen(false); }}>
+                  {t("common.save", "Save")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Total */}
           <div className="flex justify-between items-baseline pt-2">

@@ -326,8 +326,9 @@ export default function Canteen() {
   useEffect(() => {
     if (paymentModalOpen) return;
     if (cart.items.length === 0 && !preSelectedMember) {
-      display.standby();
-      return;
+      // Delay standby so the success/failed screen (TERMINAL_DWELL_MS=5000ms) can finish
+      const timer = window.setTimeout(() => display.standby(), 5500);
+      return () => window.clearTimeout(timer);
     }
     display.review({
       items: buildDisplayItems(),
@@ -1158,7 +1159,7 @@ export default function Canteen() {
             </label>
             <Badge
               variant="outline"
-              className="border-amber-300 bg-amber-50 text-amber-700 px-3 py-1 text-sm font-semibold"
+              className="px-3 py-1 text-sm font-semibold"
             >
               {shopDisplayName ?? user?.shopName ?? user?.shopId ?? "Canteen"}
             </Badge>
@@ -1217,13 +1218,6 @@ export default function Canteen() {
           </div>
         )}
 
-        {/* Today's spending limit — shown when member is scanned */}
-        {preSelectedMember && preSelectedMember.customer_kind !== "department" && (
-          <div className="px-1 lg:hidden">
-            <SpendingLimitChip member={preSelectedMember} refreshKey={chipRefreshKey} />
-          </div>
-        )}
-
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-1 pb-24 lg:pb-2">
           {reorderMode ? (
@@ -1261,12 +1255,6 @@ export default function Canteen() {
 
       {/* Desktop cart panel — visible ≥lg, hidden below */}
       <CanteenCart
-        headerSlot={
-          <SpendingLimitChip
-            member={preSelectedMember && preSelectedMember.customer_kind !== "department" ? preSelectedMember : null}
-            refreshKey={chipRefreshKey}
-          />
-        }
         items={cart.items}
         subtotal={cart.subtotal}
         billDiscountMode={cart.billDiscountMode}

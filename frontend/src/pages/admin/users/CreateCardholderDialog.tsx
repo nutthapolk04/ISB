@@ -166,18 +166,16 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
     try {
       const body: Record<string, any> = { kind };
       if (kind === "student") {
-        const trimmed = customerCode.trim();
-        const isPrefixed = trimmed.toUpperCase().startsWith("PS-");
-        const stripped = isPrefixed ? trimmed.slice(3) : trimmed;
-        const finalCustomerCode = isPrefixed ? `PS-${stripped}` : `PS-${trimmed}`;
+        const sid = externalId.trim();
+        const autoCode = sid ? `PS-${sid}` : `PS-${Date.now()}`;
         Object.assign(body, {
           name,
-          customer_code: finalCustomerCode,
-          student_code: stripped || null,
+          customer_code: autoCode,
+          student_code: sid || null,
           grade: grade || null, school_type: schoolType,
           family_code: familyCode || null, card_uid: cardUid || null,
           initial_balance: parseFloat(initialBalance) || 0,
-          external_id: externalId.trim() || null,
+          external_id: sid || null,
         });
       } else if (kind === "parent" || kind === "staff") {
         Object.assign(body, {
@@ -258,7 +256,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
             {kind === "student" && (
               <>
                 <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
-                <Field label="Student code (Customer code) *"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="85001" /></Field>
+                <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Grade"><Input value={grade} onChange={e => setGrade(e.target.value)} placeholder="04" /></Field>
                   <Field label="School type">
@@ -273,7 +271,6 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                   </Field>
                 </div>
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
-                <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} placeholder="MIFARE hex" /></Field>
                 <Field label="Initial balance (THB)"><Input type="number" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field>
               </>

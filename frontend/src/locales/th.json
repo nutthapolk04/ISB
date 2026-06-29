@@ -2570,10 +2570,12 @@
     },
     "childSettings": {
       "title": "วงเงินใช้จ่ายต่อวัน",
+      "todayTitle": "ใช้จ่ายวันนี้",
       "canteenLabel": "วงเงินโรงอาหารต่อวัน",
       "storeLabel": "วงเงินร้านค้าต่อวัน",
       "unlimitedPlaceholder": "ไม่จำกัด",
       "unlimitedHint": "เว้นว่างคือไม่จำกัด",
+      "noLimit": "ไม่จำกัดวงเงิน",
       "save": "บันทึก",
       "saving": "กำลังบันทึก...",
       "saveSuccess": "บันทึกวงเงินแล้ว",
