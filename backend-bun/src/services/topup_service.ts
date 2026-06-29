@@ -233,12 +233,12 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
       txnNo = r.txn_no;
       await db.update(paymentIntents).set({ qrPayload, txnNo }).where(eq(paymentIntents.id, created.id));
     } else if (paymentMethod === "bay_easypay" && pymtConfigured) {
-      const feBase = process.env.FRONTEND_BASE_URL ?? "";
+      const apiBase = process.env.BACKEND_BASE_URL ?? "";
       const r = await createEasyPay({
         amount: input.amount, refCode,
-        successUrl: `${feBase}/payment/bay/success?ref=${refCode}`,
-        failUrl: `${feBase}/payment/bay/fail?ref=${refCode}`,
-        cancelUrl: `${feBase}/payment/bay/cancel?ref=${refCode}`,
+        successUrl: `${apiBase}/api/v1/payment/bay/return/success?ref=${refCode}`,
+        failUrl: `${apiBase}/api/v1/payment/bay/return/fail?ref=${refCode}`,
+        cancelUrl: `${apiBase}/api/v1/payment/bay/return/cancel?ref=${refCode}`,
         lang: input.lang ?? undefined,
         payType: input.payType ?? undefined,
         remark: input.remark ?? null,

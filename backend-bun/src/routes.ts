@@ -371,6 +371,27 @@ const router = (app: Elysia) =>
         .get("/api/v1/admin/settings/public", PublicSettingsController.getPublicSettings, AdminSettingsSchema.getPublicSettings)
         .get("/api/v1/admin/settings/school", PublicSettingsController.getSchoolSettings, AdminSettingsSchema.getSchoolSettings)
         .post("/api/v1/bay/callback", BayCallbackController.callback, BayCallbackSchema.bayCallback)
+        // BAY EASYPay browser-return endpoints — BAY POST-redirects the user's
+        // browser here after card payment. Backend 302 GET-redirects to the React
+        // page because Vercel static hosting returns 405 for POST requests.
+        .post("/api/v1/payment/bay/return/success", ({ request, set }) => {
+            const ref = new URL(request.url).searchParams.get("ref") ?? "";
+            set.status = 302;
+            set.headers["Location"] = `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/success?ref=${encodeURIComponent(ref)}`;
+            return null;
+        })
+        .post("/api/v1/payment/bay/return/fail", ({ request, set }) => {
+            const ref = new URL(request.url).searchParams.get("ref") ?? "";
+            set.status = 302;
+            set.headers["Location"] = `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/fail?ref=${encodeURIComponent(ref)}`;
+            return null;
+        })
+        .post("/api/v1/payment/bay/return/cancel", ({ request, set }) => {
+            const ref = new URL(request.url).searchParams.get("ref") ?? "";
+            set.status = 302;
+            set.headers["Location"] = `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/cancel?ref=${encodeURIComponent(ref)}`;
+            return null;
+        })
         .get("/api/v1/customer-display/images", CustomerDisplayController.listPublic, CustomerDisplaySchema.customerDisplayListPublic)
         .get("/api/v1/customer-display/images/:id/binary", CustomerDisplayController.getBinary, CustomerDisplaySchema.customerDisplayGetBinary)
         // 4. Authenticated API bundle

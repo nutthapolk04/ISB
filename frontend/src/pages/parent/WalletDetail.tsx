@@ -224,6 +224,19 @@ export default function WalletDetail() {
           { amount: amt, payment_method: "bay_easypay" },
         );
         if (resp.payment_page_url && resp.payment_form_params) {
+          // Store intent BEFORE leaving for BAY's hosted page so the success
+          // page can read it when BAY redirects back (sessionStorage persists
+          // across same-tab cross-origin navigations for the same origin).
+          const feeAmt = Math.round(amt * CREDIT_FEE_RATE * 100) / 100;
+          storeBayIntent({
+            orderRef: resp.ref_code,
+            walletId: profile.wallet_id,
+            amount: amt,
+            fee: feeAmt,
+            returnUrl: window.location.pathname + window.location.search,
+            merchantName: "ISB SCHOOL SHOP",
+            productName: "Wallet Top-up",
+          });
           const form = document.createElement('form');
           form.method = 'POST';
           form.action = resp.payment_page_url;
