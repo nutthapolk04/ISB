@@ -1,11 +1,7 @@
----
-description: Index of project documentation in .cursor/docs/
-alwaysApply: false
----
 
 # Project Documentation
 
-Read the relevant doc before implementing features. All files are in `.cursor/docs/`.
+Read the relevant doc before implementing features. All files are in `.claude/doc/`.
 
 | Document | Read when |
 |----------|-----------|
@@ -17,6 +13,6 @@ Read the relevant doc before implementing features. All files are in `.cursor/do
 | `SPENDING_LIMIT_PLAN.md` | Spending groups, daily limits, admin CRUD |
 | `README.md` | Quick start, demo accounts, deployment |
 
-Developer guidelines and commands: `AGENTS.md` (repo root). Claude mirror: `.claude/doc/` + `.claude/.agents/`.
+Developer guidelines and commands: `AGENTS.md` (repo root or `.claude/doc/AGENTS.md`).
 
 **Note:** Specs written before the Bun migration may reference Python/FastAPI paths. Implementation lives in `backend-bun/src/`.

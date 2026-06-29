@@ -5,10 +5,14 @@
 ```
 ISB/
 ├── frontend/          React 18 + TypeScript + Vite + shadcn/ui
+├── kiosk/             Vue 3 + Capacitor — balance / top-up kiosk (Android)
 ├── backend-bun/       Bun + Elysia + Drizzle ORM + PostgreSQL
 ├── .cursor/
 │   ├── rules/         Role-based agent rules (*.mdc)
 │   └── docs/          Specs, feature docs, how-to guides
+├── .claude/
+│   ├── doc/           Specs & guides (Claude Code — mirror of .cursor/docs)
+│   └── .agents/       Role rules (mirror of .cursor/rules)
 └── AGENTS.md          This file (Cursor reads automatically)
 ```
 
@@ -40,6 +44,12 @@ Elysia app entry: `backend-bun/src/index.ts` → `server.ts` → `app.ts`. Route
 
 Install deps from repo root: `bun install` (Bun workspace).
 
+### Kiosk (from `kiosk/`)
+
+- `npm run dev` — Vite dev server
+- `npm run build` — production bundle + `vue-tsc`
+- `npx cap sync android` — after build, sync to Capacitor Android project
+
 ## Coding Style
 
 - TypeScript for all new frontend and backend code
@@ -59,7 +69,7 @@ Short imperative commit subjects (`Add payment methods UI`, `Fix wallet top-up c
 
 ## Documentation
 
-Detailed specs and guides live in `.cursor/docs/`. Use `@project-docs.mdc` or read directly:
+Detailed specs and guides live in `.cursor/docs/` (Cursor) or `.claude/doc/` (Claude Code). Use `@project-docs.mdc` or read directly:
 
 | Document | Purpose |
 |----------|---------|

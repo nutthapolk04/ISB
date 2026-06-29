@@ -1,5 +1,7 @@
 # Schooney — Parent / Student Portal Specification
 
+> **Implementation note:** Backend code lives in `backend-bun/src/` (Bun + Elysia). API paths below use `/api/v1/` prefix as implemented in Elysia routes.
+
 > Phase: 2 (extends Phase 1 POS system)
 > Last updated: 2026-04-17
 > Target users: Parents, Students, ISB Staff

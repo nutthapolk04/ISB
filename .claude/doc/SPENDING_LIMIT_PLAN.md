@@ -1,5 +1,7 @@
 # Daily Spending Limit by Spending Group — Implementation Plan
 
+> **Implementation note:** Implemented in `backend-bun/` — see `src/services/spending_group_service.ts`, `src/services/pos_checkout_service.ts`. File paths referencing `backend/app/` below are from the original plan; use the `backend-bun/src/` equivalents.
+
 > **Audience:** School administrator (non-technical) + ISB developer
 > **Project:** Schooney Payment System (`/Users/nutthapolkumket/ISB/`)
 > **Status:** Approved 2026-06-12 — ready for build
