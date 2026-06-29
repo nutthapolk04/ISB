@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kiosk Balance App</string>
+    <string name="title_activity_main">Kiosk Balance App</string>
+    <string name="package_name">com.okontek.app</string>
+    <string name="custom_url_scheme">com.okontek.app</string>
+</resources>
