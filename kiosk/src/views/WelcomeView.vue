@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
+import KioskOverlay from '../components/KioskOverlay.vue';
 import { CreditCard, Languages } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -18,6 +19,7 @@ const goToManual = () => {
 };
 
 const rfidError = ref(false);
+const rfidNetworkError = ref(false);
 
 // ── Passive RFID capture-phase listener ─────────────────────────────────────
 // RFID readers emit fast keypresses ending with Enter.
@@ -27,16 +29,29 @@ const rfidLastKey = ref(0);
 const rfidMode = ref(false);
 
 async function handleRfidLogin(code: string) {
-  const success = await store.login(code.trim(), 'rfid');
-  if (success) {
+  if (store.isLoading || !store.isReady) return;
+
+  const result = await store.login(code.trim(), 'rfid');
+  if (result.ok) {
     router.push('/balance');
-  } else {
+    return;
+  }
+
+  if (result.reason === 'network') {
+    rfidNetworkError.value = true;
+    setTimeout(() => { rfidNetworkError.value = false; }, 3000);
+    return;
+  }
+
+  if (result.reason === 'not_found') {
     rfidError.value = true;
     setTimeout(() => { rfidError.value = false; }, 2500);
   }
 }
 
 function handleKeyDown(e: KeyboardEvent) {
+  if (store.isLoading || !store.isReady) return;
+
   const now = Date.now();
   const gap = now - rfidLastKey.value;
 
@@ -91,6 +106,8 @@ const t = {
     manual: 'Manual Input',
     lang: 'ภาษาไทย',
     cardNotFound: 'Card not found',
+    networkError: 'Connection error. Please try again.',
+    searching: 'Looking up card…',
   },
   TH: {
     welcome: 'ยินดีต้อนรับ',
@@ -98,14 +115,18 @@ const t = {
     manual: 'กรอกเลขบัตรเอง',
     lang: 'English',
     cardNotFound: 'ไม่พบบัตรนี้ในระบบ',
+    networkError: 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่',
+    searching: 'กำลังค้นหาบัตร…',
   }
 };
 </script>
 
 <template>
   <div class="kiosk-container welcome-view">
+    <KioskOverlay v-if="store.isLoading" :message="currT.searching" />
+
     <div class="lang-switch-container">
-      <button class="lang-btn" @click="toggleLanguage">
+      <button class="lang-btn" :disabled="store.isLoading" @click="toggleLanguage">
         <Languages :size="32" />
         <span>{{ currT.lang }}</span>
       </button>
@@ -137,10 +158,15 @@ const t = {
       <h1 class="mb-4">{{ currT.welcome }}</h1>
       <p class="text-muted text-center mb-12">{{ currT.sub }}</p>
       <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
+      <p v-if="rfidNetworkError" class="rfid-error-msg">{{ currT.networkError }}</p>
     </div>
 
     <div class="action-footer">
-      <button class="kiosk-btn btn-secondary" @click="goToManual">
+      <button
+        class="kiosk-btn btn-secondary"
+        :disabled="store.isLoading || !store.isReady"
+        @click="goToManual"
+      >
         {{ currT.manual }}
       </button>
     </div>
@@ -170,6 +196,11 @@ const t = {
   gap: 0.75rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.lang-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .welcome-content {

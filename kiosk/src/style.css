@@ -39,7 +39,18 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Open Sans',
+    'Helvetica Neue',
+    sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
   font-size: var(--font-size-base);
@@ -95,7 +106,9 @@ h3 {
   border-radius: var(--border-radius);
   border: none;
   cursor: pointer;
-  transition: transform 0.1s active, background-color 0.2s;
+  transition:
+    transform 0.1s active,
+    background-color 0.2s;
   width: 100%;
   max-width: 400px;
 }
@@ -145,9 +158,67 @@ h3 {
   animation: pulse 2s infinite ease-in-out;
 }
 
+/* Full-screen kiosk loading / blocking overlay */
+.kiosk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.kiosk-spinner {
+  width: 56px;
+  height: 56px;
+  border: 5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: kiosk-spin 0.8s linear infinite;
+}
+
+.kiosk-overlay-msg {
+  color: #f8fafc;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  max-width: 90%;
+  line-height: 1.4;
+}
+
+.kiosk-boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: var(--bg-color);
+  padding: 2rem;
+}
+
+.kiosk-boot-error {
+  color: #ef4444;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  max-width: 28rem;
+}
+
+@keyframes kiosk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ===== Global Print Styles ===== */
 @media print {
-
   /* Reset page for thermal receipt */
   @page {
     size: 80mm auto;

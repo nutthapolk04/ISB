@@ -9,6 +9,7 @@ const router = useRouter();
 const store = useKioskStore();
 const inputVal = ref('');
 const error = ref(false);
+const networkError = ref(false);
 const inputRef = ref<HTMLInputElement | null>(null);
 const showFullKeyboard = ref(false);
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
@@ -21,6 +22,7 @@ const t = {
     back: 'Back',
     submit: 'Check Balance',
     error: 'Invalid ID. Please try again.',
+    networkError: 'Connection error. Please try again.',
     useKeyboard: 'ABC',
     useNumpad: '123'
   },
@@ -31,15 +33,18 @@ const t = {
     back: 'ย้อนกลับ',
     submit: 'ตรวจสอบยอดเงิน',
     error: 'รหัสไม่ถูกต้อง กรุณาลองใหม่',
+    networkError: 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่',
     useKeyboard: 'ABC',
     useNumpad: '123'
   }
 };
 
 const handleInput = (key: string) => {
+  if (store.isLoading) return;
   if (inputVal.value.length < 12) {
     inputVal.value += key;
     error.value = false;
+    networkError.value = false;
     focusInput();
   }
 };
@@ -79,12 +84,23 @@ const handleLogout = () => {
 };
 
 const handleSubmit = async () => {
-  if (inputVal.value.length === 0) return;
-  
-  const success = await store.login(inputVal.value, 'manual');
-  if (success) {
+  if (inputVal.value.length === 0 || store.isLoading || !store.isReady) return;
+
+  error.value = false;
+  networkError.value = false;
+
+  const result = await store.login(inputVal.value, 'manual');
+  if (result.ok) {
     router.push('/balance');
-  } else {
+    return;
+  }
+
+  if (result.reason === 'network') {
+    networkError.value = true;
+    return;
+  }
+
+  if (result.reason === 'not_found') {
     error.value = true;
     setTimeout(() => {
       inputVal.value = '';
@@ -100,7 +116,8 @@ const alphaKeys = [
   'Z', 'X', 'C', 'V', 'B', 'N', 'M'
 ];
 
-const isReady = computed(() => inputVal.value.length > 0 && !store.isLoading);
+const isReady = computed(() => inputVal.value.length > 0 && !store.isLoading && store.isReady);
+const inputsDisabled = computed(() => store.isLoading || !store.isReady);
 
 onMounted(() => {
   focusInput();
@@ -123,7 +140,7 @@ onMounted(() => {
     <div class="content">
       <p class="sub-text mb-8">{{ currT.sub }}</p>
       
-      <div class="input-wrapper" :class="{ 'error-border': error }">
+      <div class="input-wrapper" :class="{ 'error-border': error || networkError }">
         <input 
           ref="inputRef"
           v-model="inputVal"
@@ -131,38 +148,42 @@ onMounted(() => {
           class="real-input"
           :placeholder="currT.placeholder"
           maxlength="12"
+          :disabled="inputsDisabled"
           @input="handleNativeInput"
           @keydown.enter="handleSubmit"
         />
-        <AlertCircle v-if="error" class="icon-error" />
+        <AlertCircle v-if="error || networkError" class="icon-error" />
       </div>
 
       <div v-if="error" class="error-msg mb-4">
         {{ currT.error }}
       </div>
+      <div v-if="networkError" class="error-msg mb-4">
+        {{ currT.networkError }}
+      </div>
       
       <!-- Layout Toggle -->
       <div class="keyboard-toggle mb-4">
-        <button class="toggle-btn" @click="toggleKeyboardMode">
+        <button class="toggle-btn" :disabled="inputsDisabled" @click="toggleKeyboardMode">
           <KeyboardIcon :size="20" />
           <span>{{ showFullKeyboard ? currT.useNumpad : currT.useKeyboard }}</span>
         </button>
       </div>
 
       <!-- Numpad or Alpha Keyboard -->
-      <div class="keyboard-area mb-8">
+      <div class="keyboard-area mb-8" :class="{ 'keyboard-disabled': inputsDisabled }">
         <Numpad v-if="!showFullKeyboard" @input="handleInput" @delete="handleDelete" @clear="handleClear" />
         
         <div v-else class="alpha-keyboard">
           <div class="alpha-row">
-            <button v-for="key in alphaKeys.slice(0, 10)" :key="key" class="alpha-key" @click="handleInput(key)">{{ key }}</button>
+            <button v-for="key in alphaKeys.slice(0, 10)" :key="key" class="alpha-key" :disabled="inputsDisabled" @click="handleInput(key)">{{ key }}</button>
           </div>
           <div class="alpha-row">
-            <button v-for="key in alphaKeys.slice(10, 19)" :key="key" class="alpha-key" @click="handleInput(key)">{{ key }}</button>
+            <button v-for="key in alphaKeys.slice(10, 19)" :key="key" class="alpha-key" :disabled="inputsDisabled" @click="handleInput(key)">{{ key }}</button>
           </div>
           <div class="alpha-row">
-            <button v-for="key in alphaKeys.slice(19)" :key="key" class="alpha-key" @click="handleInput(key)">{{ key }}</button>
-            <button class="alpha-key action-key" @click="handleDelete">⌫</button>
+            <button v-for="key in alphaKeys.slice(19)" :key="key" class="alpha-key" :disabled="inputsDisabled" @click="handleInput(key)">{{ key }}</button>
+            <button class="alpha-key action-key" :disabled="inputsDisabled" @click="handleDelete">⌫</button>
           </div>
         </div>
       </div>
@@ -357,6 +378,11 @@ onMounted(() => {
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.keyboard-disabled {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .logout-btn {
