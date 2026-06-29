@@ -18,7 +18,7 @@ The Vite + React app bootstraps in `frontend/src/main.tsx`. `frontend/src/App.ts
 
 ### Backend (`backend-bun/`)
 
-Elysia app entry: `backend-bun/src/index.ts`. Routes in `backend-bun/src/routes/`, business logic in `backend-bun/src/services/`, auth in `backend-bun/src/middleware/auth.ts`. Env vars only via `backend-bun/src/lib/config.ts`. Schema: Drizzle (`backend-bun/drizzle/`). See `backend-bun/README.md` for layout and migration notes.
+Elysia app entry: `backend-bun/src/index.ts` → `server.ts` → `app.ts`. Route wiring in `backend-bun/src/routes.ts`; handlers in `backend-bun/src/controllers/`; route schemas in `backend-bun/src/interfaces/routes/`. Business logic in `backend-bun/src/services/`, auth in `backend-bun/src/middleware/AuthMiddleware.ts`. Env vars only via `backend-bun/src/lib/config.ts`. Schema: Drizzle (`backend-bun/drizzle/`). See `backend-bun/README.md` for layout and migration notes.
 
 ## Build, Test, and Development Commands
 

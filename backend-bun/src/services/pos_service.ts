@@ -14,7 +14,7 @@ import {
   bundleItems,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
-import type { AccessTokenPayload } from "@/middleware/auth";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { fifoRefundLot } from "@/services/inventory_fifo";
 
 export interface ReceiptItemDTO {

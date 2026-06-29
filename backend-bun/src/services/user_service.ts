@@ -2,7 +2,7 @@ import { and, eq, ilike, isNull, ne, or, sql, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, shops, customers, wallets, departments } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
-import type { AccessTokenPayload } from "@/middleware/auth";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
 export interface UserResponseDTO {
   id: number;

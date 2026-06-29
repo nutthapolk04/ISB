@@ -20,7 +20,7 @@ import {
   shopCategories,
   unitsOfMeasure,
 } from "@/db/schema";
-import type { AccessTokenPayload } from "@/middleware/auth";
+import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { receiveStock } from "@/services/shop_product_service";
 
 // ── Public DTOs (mirror frontend expectations + Python ImportResult) ──────

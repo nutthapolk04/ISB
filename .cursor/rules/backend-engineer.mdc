@@ -30,7 +30,17 @@ You are acting as a **Backend Engineer** for this project.
 
 - Backend folder: `backend-bun/` (Bun + Elysia + Drizzle ORM)
 - Dev server: `bun run dev` (จาก `backend-bun/`, default port 3001)
-- Routes: `backend-bun/src/routes/` — business logic ใน `backend-bun/src/services/`
+- Entry: `index.ts` → `server.ts` → `app.ts`; routes ใน `backend-bun/src/routes.ts`; handlers ใน `backend-bun/src/controllers/`
+- Business logic: `backend-bun/src/services/` — controllers ต้องบาง
 - Schema: Drizzle (`drizzle-kit generate` + `migrate`) — ดู `backend-bun/README.md`
 - Env vars: ผ่าน `backend-bun/src/lib/config.ts` เท่านั้น — ห้ามใช้ `process.env` ที่อื่น
 - รัน test ด้วย `bun test` จาก `backend-bun/` ก่อน commit
+
+## Controller conventions
+
+เมื่อแก้/สร้างไฟล์ใน `backend-bun/src/controllers/` ให้ทำตาม **@backend-controller** (`.cursor/rules/backend-controller.mdc`) โดยสรุป:
+
+- `export const XController = { ... }`; cast `Context` → `RequestContext` / `AuthedRequestContext`
+- Log: `` `[${requestId} (OP-CODE)]` `` ผ่าน `logger`; API errors เป็นภาษาอังกฤษ
+- Responses: `successResponse` / `errorResponse` + `ResponseStatus` เท่านั้น
+- Auth (เป้าหมาย): JWT บน `ctx.store.user`; actor ผ่าน `resolveActorId` / `resolveActor`
