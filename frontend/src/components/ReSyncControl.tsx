@@ -110,6 +110,8 @@ export function ReSyncControl() {
     }
   };
 
+  if (!isAdmin) return null;
+
   return (
     <>
       <Button type="button" variant="outline" className="h-9 gap-2" onClick={handleOpen}>
