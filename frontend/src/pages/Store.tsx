@@ -1405,6 +1405,40 @@ const Store = () => {
       {/* Selected Member */}
       {preSelectedMember && (
         <div className="mx-3 mt-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+          {preSelectedMember.customer_kind !== "department" && preSelectedMember.user_id == null && (() => {
+            const ct = preSelectedMember.daily_limit_canteen ?? null;
+            const ctSpent = Number(preSelectedMember.spent_today_canteen ?? 0);
+            const st = preSelectedMember.daily_limit_store ?? null;
+            const stSpent = Number(preSelectedMember.spent_today_store ?? 0);
+            if (ct == null && st == null) return null;
+            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            const chip = (label: string, limit: number, spent: number) => {
+              const remaining = Math.max(limit - spent, 0);
+              const usedPct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+              const remainPct = limit > 0 ? remaining / limit : 0;
+              const color = remaining === 0 ? "text-red-600" : remainPct <= 0.2 ? "text-amber-600" : "text-emerald-700";
+              const barColor = remaining === 0 ? "bg-red-500" : remainPct <= 0.2 ? "bg-amber-500" : "bg-emerald-500";
+              return (
+                <div key={label} className="w-full space-y-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className={cn("font-semibold tabular-nums", color)}>
+                      {fmt(remaining)}<span className="text-muted-foreground font-normal">/{fmt(limit)}</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-1 rounded-full bg-amber-200 overflow-hidden">
+                    <div className={cn("h-full rounded-full", barColor)} style={{ width: `${usedPct}%` }} />
+                  </div>
+                </div>
+              );
+            };
+            return (
+              <div className="mb-2 pb-2 border-b border-amber-200 flex flex-col gap-1.5 text-xs">
+                {ct != null && chip("Canteen", Number(ct), ctSpent)}
+                {st != null && chip("Store", Number(st), stSpent)}
+              </div>
+            );
+          })()}
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
               {preSelectedMember.photo_url ? (
