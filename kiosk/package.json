@@ -12,6 +12,7 @@
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
+    "capacitor-hardware": "../plugins/capacitor-hardware",
     "lucide-vue-next": "^0.469.0",
     "pinia": "^2.3.0",
     "qrcode": "^1.5.4",

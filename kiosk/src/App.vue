@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useKioskStore } from './stores/kioskStore';
+import { Hardware } from 'capacitor-hardware'
 
 const router = useRouter();
 const route = useRoute();
@@ -40,6 +41,13 @@ onMounted(() => {
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
     void store.bootstrap();
+    Hardware.getPlatform()
+        .then((result) => {
+            console.log('[Hardware] platform:', result.platform);
+        })
+        .catch((err) => {
+            console.warn('[Hardware] getPlatform failed:', err);
+        });
 });
 
 onUnmounted(() => {
