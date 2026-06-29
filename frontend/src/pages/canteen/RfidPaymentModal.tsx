@@ -43,6 +43,10 @@ export interface StudentLookupResult {
   allergy_override_note?: string | null;
   card_frozen?: boolean;
   daily_limit?: number | null;
+  daily_limit_canteen?: number | null;
+  daily_limit_store?: number | null;
+  spent_today_canteen?: number | null;
+  spent_today_store?: number | null;
   negative_credit_limit?: number | null;
   wallet_balance?: number | null;
   wallet_id?: number | null;
@@ -91,6 +95,10 @@ interface RfidPaymentModalProps {
   onBack: () => void;
   onConfirm: (payer: WalletPayer) => Promise<void>;
   confirming: boolean;
+  /** "canteen" uses daily_limit_canteen; "store" uses daily_limit_store */
+  shopKind?: "canteen" | "store";
+  /** Called whenever a payer is identified (student scan/search) so the caller can update the second screen */
+  onPayerIdentified?: (student: StudentLookupResult | null) => void;
   /** Pre-selected member from search (skips to identity stage) */
   preSelectedMember?: StudentLookupResult | null;
   /** Clear the pre-selected member after use */
@@ -128,6 +136,8 @@ export function RfidPaymentModal({
   onBack,
   onConfirm,
   confirming,
+  shopKind = "canteen",
+  onPayerIdentified,
   preSelectedMember,
   onClearPreSelected,
 }: RfidPaymentModalProps) {
@@ -149,6 +159,11 @@ export function RfidPaymentModal({
   const [familyResult, setFamilyResult] = useState<FamilyLookupResult | null>(null);
   const [familyLoading, setFamilyLoading] = useState(false);
   const [familyError, setFamilyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onPayerIdentified?.(student);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student]);
 
   useEffect(() => {
     if (open) {
@@ -363,9 +378,22 @@ export function RfidPaymentModal({
   const allowedFloor = negLimit !== null ? -Number(negLimit) : 0;
   const isFrozen = payerKind === "customer" && student?.card_frozen === true;
   const dailyLimitVal =
-    payerKind === "customer" && student?.daily_limit
-      ? Number(student.daily_limit)
+    payerKind === "customer"
+      ? (shopKind === "store" ? (student?.daily_limit_store ?? null) : (student?.daily_limit_canteen ?? null))
       : null;
+  const dailySpentVal =
+    payerKind === "customer"
+      ? (shopKind === "store" ? (student?.spent_today_store ?? null) : (student?.spent_today_canteen ?? null))
+      : null;
+  const dailyRemainingVal =
+    dailyLimitVal != null ? Math.max(0, dailyLimitVal - (dailySpentVal ?? 0)) : null;
+
+  // Both-shop limits for compact "Canteen ฿X/฿Y · Store ฿X/฿Y" display.
+  const canteenDailyLimit = payerKind === "customer" ? (student?.daily_limit_canteen ?? null) : null;
+  const canteenSpent = payerKind === "customer" ? (student?.spent_today_canteen ?? 0) : 0;
+  const storeDailyLimit = payerKind === "customer" ? (student?.daily_limit_store ?? null) : null;
+  const storeSpent = payerKind === "customer" ? (student?.spent_today_store ?? 0) : 0;
+  const hasAnyDailyLimit = canteenDailyLimit != null || storeDailyLimit != null;
 
   // Overdraft policy:
   //   - customer wallet: allowed up to negative_credit_limit (0 if null)
@@ -729,12 +757,57 @@ export function RfidPaymentModal({
                   ฿{remaining.toFixed(2)}
                 </span>
               </div>
-              {dailyLimitVal && (
-                <div className="pt-1 text-[11px] text-muted-foreground">
-                  {r("dailyLimit")}: ฿{dailyLimitVal.toFixed(2)}
-                </div>
-              )}
             </div>
+
+            {/* Daily Spending Limit — compact: Canteen / Store on one line each */}
+            {hasAnyDailyLimit && (
+              <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  Daily Spending Limit
+                </div>
+                <div className="border-t border-border" />
+                {canteenDailyLimit != null && (() => {
+                  const pct = canteenDailyLimit > 0 ? Math.min((canteenSpent / canteenDailyLimit) * 100, 100) : 0;
+                  const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
+                  const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-muted-foreground font-medium">Canteen</span>
+                        <span className={cn("text-base font-bold tabular-nums", color)}>
+                          ฿{canteenSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          <span className="text-muted-foreground font-normal"> / </span>
+                          ฿{canteenDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {storeDailyLimit != null && (() => {
+                  const pct = storeDailyLimit > 0 ? Math.min((storeSpent / storeDailyLimit) * 100, 100) : 0;
+                  const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
+                  const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-muted-foreground font-medium">Store</span>
+                        <span className={cn("text-base font-bold tabular-nums", color)}>
+                          ฿{storeSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          <span className="text-muted-foreground font-normal"> / </span>
+                          ฿{storeDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Warning banners */}
             {overLimit && (

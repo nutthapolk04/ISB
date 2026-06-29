@@ -121,9 +121,10 @@ export async function salesReport(args: {
       .from(receiptItems)
       .innerJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
       .innerJoin(shops, eq(shops.id, shopProducts.shopId))
+      .innerJoin(receipts, eq(receipts.id, receiptItems.receiptId))
       .where(inArray(receiptItems.receiptId, receiptIds))
       .groupBy(shopProducts.shopId, shops.name, shopProducts.name)
-      .orderBy(asc(shops.name), sql`SUM(${receiptItems.lineTotal}) DESC`);
+      .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receiptItems.lineTotal}) DESC`);
     rows = agg.map((r) => {
       const total = pgNumber(r.total) ?? 0;
       grandTotal += total;
@@ -204,7 +205,7 @@ export async function salesByPaymentReport(args: {
     .innerJoin(shops, eq(shops.id, receipts.shopId))
     .where(and(...conds))
     .groupBy(receipts.shopId, shops.name, receipts.paymentMethod)
-    .orderBy(asc(shops.name), sql`SUM(${receipts.total}) DESC`);
+    .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receipts.total}) DESC`);
 
   let grand = 0;
   let totalRec = 0;
@@ -285,7 +286,7 @@ export async function stockReport(args: {
     .from(shopProducts)
     .innerJoin(shops, eq(shops.id, shopProducts.shopId))
     .where(and(...conds))
-    .orderBy(asc(shopProducts.shopId), asc(shopProducts.name));
+    .orderBy(desc(shopProducts.updatedAt), asc(shopProducts.shopId), asc(shopProducts.name));
 
   return {
     shop_id: effectiveShopId,
@@ -744,7 +745,7 @@ export async function salesSummaryReport(args: {
 
   const allRows = await baseQuery
     .where(and(...filterConds))
-    .orderBy(asc(shops.name), asc(receipts.transactionDate), asc(receipts.id));
+    .orderBy(asc(shops.name), desc(receipts.transactionDate), desc(receipts.id));
 
   const rows: SalesSummaryRow[] = [];
   const totals: SalesSummaryTotals = {
@@ -900,7 +901,7 @@ export async function salesByItemReport(args: {
     .leftJoin(customers, eq(customers.id, receipts.customerId))
     .leftJoin(users, eq(users.id, receipts.payerUserId))
     .where(and(...conds))
-    .orderBy(asc(receipts.transactionDate), asc(receipts.id), asc(receiptItems.id));
+    .orderBy(desc(receipts.transactionDate), desc(receipts.id), desc(receiptItems.id));
 
   const rows: SalesByItemRow[] = [];
   const totals: SalesByItemTotals = { sales_qty: 0, sales_amt: 0 };

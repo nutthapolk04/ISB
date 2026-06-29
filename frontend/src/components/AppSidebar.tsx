@@ -117,6 +117,7 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,      roles: ["admin", "manager", "cashier"] },
+      { titleKey: "nav.storeBalanceFile", url: "/store/balance-file",   icon: BookOpen,    roles: ["admin"] },
     ],
   },
   {

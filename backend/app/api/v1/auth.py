@@ -7,6 +7,7 @@ POST /api/v1/auth/logout  — client-side token invalidation hint
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -161,7 +162,9 @@ def register_user(
     """Create a new user account. Requires authenticated user (admin)."""
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Admin only")
-    existing = db.query(User).filter(User.username == payload.username).first()
+    existing = db.query(User).filter(
+        func.lower(User.username) == payload.username.lower()
+    ).first()
     if existing:
         raise HTTPException(status_code=409, detail=f"Username '{payload.username}' already exists")
     validate_password_policy(payload.password)

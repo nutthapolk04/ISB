@@ -3,6 +3,7 @@ Auth Service — authentication and user lookup logic
 """
 from typing import Optional
 from datetime import timedelta
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -19,7 +20,9 @@ class AuthService:
         Verify credentials and return the user if valid.
         Returns None if username not found or password is wrong.
         """
-        user = self.db.query(User).filter(User.username == username).first()
+        user = self.db.query(User).filter(
+            func.lower(User.username) == username.lower()
+        ).first()
         if not user:
             return None
         if not verify_password(password, user.hashed_password):

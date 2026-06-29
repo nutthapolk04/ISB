@@ -20,6 +20,7 @@ export interface ShopRow {
   receipt_header: string | null;
   receipt_footer: string | null;
   void_shortcuts: string[];
+  shop_number: number | null;
 }
 
 export interface ListShopsFilters {
@@ -68,6 +69,7 @@ export interface CreateShopInput {
   module?: ShopModule;
   uses_dual_pricing?: boolean;
   spending_group_id?: number | null;
+  shop_number?: number | null;
 }
 
 export async function createShop(input: CreateShopInput): Promise<ShopRow> {
@@ -89,6 +91,7 @@ export async function createShop(input: CreateShopInput): Promise<ShopRow> {
       module: input.module ?? "store",
       usesDualPricing: input.uses_dual_pricing ?? true,
       spendingGroupId: input.spending_group_id ?? null,
+      shopNumber: input.shop_number ?? null,
     })
     .returning();
   return toShopResponse(rows[0]);
@@ -104,6 +107,7 @@ export interface UpdateShopInput {
   spending_group_id?: number | null;
   receipt_header?: string | null;
   receipt_footer?: string | null;
+  shop_number?: number | null;
 }
 
 export async function updateShop(shopId: string, input: UpdateShopInput): Promise<ShopRow> {
@@ -118,6 +122,7 @@ export async function updateShop(shopId: string, input: UpdateShopInput): Promis
   if (input.spending_group_id !== undefined) updates.spendingGroupId = input.spending_group_id;
   if (input.receipt_header !== undefined) updates.receiptHeader = input.receipt_header;
   if (input.receipt_footer !== undefined) updates.receiptFooter = input.receipt_footer;
+  if (input.shop_number !== undefined) updates.shopNumber = input.shop_number;
 
   if (Object.keys(updates).length > 0) {
     const updated = await db
@@ -278,6 +283,7 @@ function toShopResponse(row: typeof shops.$inferSelect): ShopRow {
     receipt_header: row.receiptHeader ?? null,
     receipt_footer: row.receiptFooter ?? null,
     void_shortcuts: Array.isArray(row.voidShortcuts) ? row.voidShortcuts : [],
+    shop_number: row.shopNumber ?? null,
   };
 }
 

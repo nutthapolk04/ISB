@@ -34,6 +34,7 @@ class ShopBase(BaseModel):
     module: ShopModule = "store"
     uses_dual_pricing: bool = True
     spending_group_id: Optional[int] = None
+    shop_number: Optional[int] = Field(None, ge=1, le=99999)
 
 
 class ShopCreate(ShopBase):
@@ -48,6 +49,7 @@ class ShopUpdate(BaseModel):
     module: Optional[ShopModule] = None
     uses_dual_pricing: Optional[bool] = None
     spending_group_id: Optional[int] = None
+    shop_number: Optional[int] = Field(None, ge=1, le=99999)
 
 
 class ShopResponse(ShopBase):

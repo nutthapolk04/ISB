@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import {
+  afterPaymentPayer,
   cartToDisplayItems,
   payerForCustomer,
   payerForDepartment,
@@ -50,6 +51,7 @@ import {
 } from "@/lib/customerDisplay";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
+import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -275,6 +277,17 @@ export default function Canteen() {
     display.standby();
   }, [display]);
 
+  const canteenSpendingLimit = (s: { daily_limit_canteen?: number | null; spent_today_canteen?: number | null } | null): SpendingLimitData | null => {
+    if (!s || s.daily_limit_canteen == null) return null;
+    const spent = s.spent_today_canteen ?? 0;
+    return {
+      daily_limit: s.daily_limit_canteen,
+      spent_today: spent,
+      remaining: Math.max(0, s.daily_limit_canteen - spent),
+      group_name: "Daily Canteen Limit",
+    };
+  };
+
   const buildDisplayItems = () =>
     cartToDisplayItems(
       cart.items.map((i) => ({
@@ -303,6 +316,31 @@ export default function Canteen() {
   const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
   // Increment to trigger spending chip refresh after successful checkout
   const [chipRefreshKey, setChipRefreshKey] = useState(0);
+
+  // ── Live-broadcast cart to the customer display ─────────────────────────────
+  // Pushes the order to the second screen as soon as the cashier scans items or
+  // picks a member, so the student can preview before any payment modal opens.
+  // Skip while a payment dialog is on (modal owns the display state then).
+  const paymentModalOpen =
+    methodPickerOpen || rfidOpen || cashOpen || qrOpen || edcOpen || deptOpen;
+  useEffect(() => {
+    if (paymentModalOpen) return;
+    if (cart.items.length === 0 && !preSelectedMember) {
+      display.standby();
+      return;
+    }
+    display.review({
+      items: buildDisplayItems(),
+      total: cart.total,
+      payer: preSelectedMember
+        ? payerForCustomer(
+            { ...preSelectedMember, spendingLimit: canteenSpendingLimit(preSelectedMember) },
+            cart.total,
+          )
+        : null,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.items, cart.total, preSelectedMember, paymentModalOpen]);
 
   // ── Departments (for department payment option) ──────────────────────────
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
@@ -786,7 +824,7 @@ export default function Canteen() {
       payer.kind === "department"
         ? payerForDepartment(payer.department, amount)
         : payer.kind === "customer"
-          ? payerForCustomer(payer.student, amount)
+          ? payerForCustomer({ ...payer.student, spendingLimit: canteenSpendingLimit(payer.student) }, amount)
           : payerForUser(payer.user, amount);
     const displayMethod = payer.kind === "department" ? "department" : "wallet";
     display.processing({
@@ -819,7 +857,7 @@ export default function Canteen() {
         });
         display.success({
           total: amount,
-          payer: displayPayer,
+          payer: afterPaymentPayer(displayPayer, amount, "canteen"),
           method: "wallet",
           receiptNumber: res.receipt_number,
         });
@@ -841,7 +879,7 @@ export default function Canteen() {
       });
       display.success({
         total: amount,
-        payer: displayPayer,
+        payer: afterPaymentPayer(displayPayer, amount, "canteen"),
         method: "wallet",
         receiptNumber: res.receipt_number,
       });
@@ -858,7 +896,7 @@ export default function Canteen() {
       } as StudentLookupResult, res as unknown as ReceiptApi);
     } catch (e) {
       const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
-      display.failed({ reason: String(reason), method: displayMethod });
+      display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
       if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
         setWalletLimitError(e.detail);
       } else {
@@ -932,7 +970,7 @@ export default function Canteen() {
     if (preSelectedMember) {
       // Direct charge for pre-selected member (wallet or department)
       const amount = cart.total;
-      const displayPayer = payerForCustomer(preSelectedMember, amount);
+      const displayPayer = payerForCustomer({ ...preSelectedMember, spendingLimit: canteenSpendingLimit(preSelectedMember) }, amount);
       const displayMethod =
         preSelectedMember.customer_kind === "department" ? "department" : "wallet";
       display.processing({
@@ -968,7 +1006,7 @@ export default function Canteen() {
         );
         display.success({
           total: amount,
-          payer: displayPayer,
+          payer: afterPaymentPayer(displayPayer, amount, "canteen"),
           method: "wallet",
           receiptNumber: res.receipt_number,
         });
@@ -982,7 +1020,7 @@ export default function Canteen() {
         setPreSelectedMember(null);
       } catch (e) {
         const reason = e instanceof ApiError ? e.detail : (e as any)?.message ?? "Payment could not be completed.";
-        display.failed({ reason: String(reason), method: displayMethod });
+        display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
         if (e instanceof ApiError && e.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
           setWalletLimitError(e.detail);
         } else {
@@ -1180,17 +1218,9 @@ export default function Canteen() {
         )}
 
         {/* Today's spending limit — shown when member is scanned */}
-        {preSelectedMember && (
+        {preSelectedMember && preSelectedMember.customer_kind !== "department" && (
           <div className="px-1 lg:hidden">
-            <SpendingLimitChip
-              shopId={CANTEEN_SHOP_ID}
-              payerId={
-                preSelectedMember.user_id != null
-                  ? { kind: "user", id: preSelectedMember.user_id }
-                  : { kind: "customer", id: preSelectedMember.id }
-              }
-              refreshKey={chipRefreshKey}
-            />
+            <SpendingLimitChip member={preSelectedMember} refreshKey={chipRefreshKey} />
           </div>
         )}
 
@@ -1233,14 +1263,7 @@ export default function Canteen() {
       <CanteenCart
         headerSlot={
           <SpendingLimitChip
-            shopId={CANTEEN_SHOP_ID}
-            payerId={
-              preSelectedMember
-                ? preSelectedMember.user_id != null
-                  ? { kind: "user", id: preSelectedMember.user_id }
-                  : { kind: "customer", id: preSelectedMember.id }
-                : null
-            }
+            member={preSelectedMember && preSelectedMember.customer_kind !== "department" ? preSelectedMember : null}
             refreshKey={chipRefreshKey}
           />
         }
@@ -1354,6 +1377,13 @@ export default function Canteen() {
         }}
         onConfirm={handleConfirmWallet}
         confirming={confirming}
+        onPayerIdentified={(s) => {
+          display.review({
+            items: buildDisplayItems(),
+            total: cart.total,
+            payer: s ? payerForCustomer({ ...s, spendingLimit: canteenSpendingLimit(s) }, cart.total) : null,
+          });
+        }}
         preSelectedMember={preSelectedMember}
         onClearPreSelected={() => setPreSelectedMember(null)}
       />

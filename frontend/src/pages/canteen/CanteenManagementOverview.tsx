@@ -47,6 +47,7 @@ interface ShopApiResponse {
   is_active: boolean;
   module: string;
   allow_department_charge: boolean;
+  shop_number: number | null;
 }
 
 interface ShopStats {
@@ -61,6 +62,7 @@ interface Shop {
   productCount: number;
   shopType: "avg_cost" | "fifo";
   allowDepartmentCharge: boolean;
+  shopNumber: number | null;
 }
 
 const emptyForm = {
@@ -70,6 +72,7 @@ const emptyForm = {
   isActive: "active" as "active" | "inactive",
   shopType: "avg_cost" as "avg_cost" | "fifo",
   allowDepartmentCharge: false,
+  shopNumber: "" as string,
 };
 
 export default function CanteenManagementOverview() {
@@ -107,6 +110,7 @@ export default function CanteenManagementOverview() {
               productCount: stats.total_products,
               shopType: s.shop_type,
               allowDepartmentCharge: s.allow_department_charge ?? false,
+              shopNumber: s.shop_number ?? null,
             };
           }),
       );
@@ -142,6 +146,7 @@ export default function CanteenManagementOverview() {
         shop_type: addForm.shopType,
         module: "canteen",
         allow_department_charge: addForm.allowDepartmentCharge,
+        shop_number: addForm.shopNumber ? parseInt(addForm.shopNumber) : null,
       });
       toast.success(t("management.shopAdded"));
       setAddOpen(false);
@@ -165,6 +170,7 @@ export default function CanteenManagementOverview() {
       isActive: shop.isActive ? "active" : "inactive",
       shopType: shop.shopType,
       allowDepartmentCharge: shop.allowDepartmentCharge,
+      shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
     });
   };
 
@@ -179,6 +185,7 @@ export default function CanteenManagementOverview() {
         name: editForm.name.trim(),
         description: editForm.description.trim() || null,
         is_active: editForm.isActive === "active",
+        shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
       });
       toast.success(t("management.shopUpdated"));
       setEditTarget(null);
@@ -347,11 +354,12 @@ export default function CanteenManagementOverview() {
               <Label>{t("management.shopId", "Shop ID")} *</Label>
               <Input
                 value={addForm.id}
-                onChange={(e) => setAddForm({ ...addForm, id: e.target.value })}
-                placeholder="e.g. canteen_new"
+                maxLength={5}
+                onChange={(e) => setAddForm({ ...addForm, id: e.target.value.slice(0, 5) })}
+                placeholder="e.g. ct001"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopIdHint", "Unique code, lowercase, no spaces")}
+                {t("management.shopIdHint", "Unique code, max 5 chars, lowercase")}
               </p>
             </div>
             <div>
@@ -369,6 +377,21 @@ export default function CanteenManagementOverview() {
                 onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
                 placeholder={t("management.shopDescPlaceholder", "Optional description")}
               />
+            </div>
+            <div>
+              <Label>{t("management.shopNumber", "Shop Number")}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99999}
+                placeholder="00001"
+                value={addForm.shopNumber}
+                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
+                onChange={(e) => setAddForm({ ...addForm, shopNumber: e.target.value.slice(0, 5) })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-N00001-...)")}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -416,6 +439,21 @@ export default function CanteenManagementOverview() {
                   <SelectItem value="inactive">{t("management.statusInactive", "Inactive")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>{t("management.shopNumber", "Shop Number")}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99999}
+                placeholder="00001"
+                value={editForm.shopNumber}
+                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
+                onChange={(e) => setEditForm({ ...editForm, shopNumber: e.target.value.slice(0, 5) })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-N00001-...)")}
+              </p>
             </div>
           </div>
           <DialogFooter>

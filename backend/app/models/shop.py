@@ -78,6 +78,7 @@ class Shop(Base):
     spending_group_id = Column(
         Integer, ForeignKey("spending_groups.id", ondelete="RESTRICT"), nullable=True, index=True
     )
+    shop_number = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

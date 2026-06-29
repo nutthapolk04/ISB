@@ -34,6 +34,7 @@
     "storeManagement": "Store Management",
     "storeUsers": "ผู้ใช้ร้านค้า",
     "storeReports": "รายงานสหกรณ์",
+    "storeBalanceFile": "Balance File",
     "adminDashboard": "แดชบอร์ด",
     "users": "ผู้ใช้งาน",
     "adminUsers": "จัดการผู้ใช้",
@@ -1157,14 +1158,14 @@
       "invalidAmount": "ระบุจำนวนเงินให้ถูกต้อง",
       "reasonRequired": "ต้องระบุเหตุผล",
       "directionType": "ประเภท",
-      "directionCredit": "เพิ่มยอด (Credit)",
+      "directionCredit": "+",
       "info": {
         "auditReason": {
           "title": "ต้องระบุเหตุผลทุกครั้ง",
           "body": "ทุกการปรับยอดจะถูกบันทึกในระบบ audit log พร้อมชื่อ admin + เหตุผล — ใช้เหตุผลที่ชัดเจนเพื่อให้ตรวจสอบย้อนหลังได้ (เช่น 'แก้ยอดผิดจาก incident #123')"
         }
       },
-      "directionDebit": "หักยอด (Debit)",
+      "directionDebit": "−",
       "amountLabel": "จำนวนเงิน (บาท)",
       "reasonLabel": "เหตุผล",
       "reasonPlaceholder": "เช่น คืนเงินผิดพลาดจากการ void, ชดเชยระบบผิดพลาด",
@@ -1445,7 +1446,7 @@
       "bindCard": "ผูกบัตร",
       "walletBalance": "ยอดเงินคงเหลือ",
       "deleteUser": "ลบผู้ใช้",
-      "deleteConfirm": "คุณแน่ใจว่าต้องการลบ",
+      "deleteConfirm": "ลบผู้ใช้",
       "deleteWarning": "การกระทำนี้ไม่สามารถย้อนกลับได้",
       "deleteSuccess": "ลบผู้ใช้แล้ว",
       "deleteError": "ไม่สามารถลบผู้ใช้ได้",
@@ -1513,12 +1514,10 @@
       "roleRemoveFailed": "ลบสิทธิ์ไม่สำเร็จ",
       "roleRemoved": "ลบสิทธิ์แล้ว",
       "selectRoleToAdd": "เลือกสิทธิ์ที่จะเพิ่ม",
-      "deleteSuccess": "ลบผู้ใช้แล้ว",
       "deleteFailed": "ลบผู้ใช้ไม่สำเร็จ",
       "deleteTitle": "ลบผู้ใช้",
       "deleteConfirmTitle": "ยืนยันการลบผู้ใช้",
-      "deleteConfirmDesc": "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้",
-      "deleteConfirm": "ลบผู้ใช้"
+      "deleteConfirmDesc": "การลบจะนำกระเป๋าเงิน บันทึก audit และข้อมูลที่เชื่อมโยงทั้งหมดไปด้วย ไม่สามารถยกเลิกได้"
     }
   },
   "canteen": {
@@ -3158,5 +3157,39 @@
         "zeroBalance": "ยอดเป็น 0"
       }
     }
+  },
+  "balanceFile": {
+    "title": "Balance File",
+    "subtitle": "บัญชีสต็อกสินค้า วิธีต้นทุนเฉลี่ย — สรุปรายเดือนเชื่อมโยงกับข้อมูลการรับสินค้า",
+    "filters": "ตัวกรอง",
+    "shop": "ร้านค้า",
+    "product": "สินค้า",
+    "allProducts": "สินค้าทั้งหมด",
+    "month": "เดือน",
+    "year": "ปี",
+    "load": "โหลด",
+    "exportExcel": "ส่งออก Excel",
+    "goReceive": "รับสินค้า",
+    "selectShop": "กรุณาเลือกร้านค้า",
+    "empty": "ไม่พบข้อมูลในช่วงเวลาที่เลือก",
+    "loadFailed": "โหลด Balance File ไม่สำเร็จ",
+    "exportFailed": "ส่งออก Excel ไม่สำเร็จ",
+    "period": "ช่วงเวลา",
+    "opening": "ยอดยกมา",
+    "summary": "สรุปยอดคงเหลือ",
+    "col": {
+      "date": "วันที่",
+      "desc": "รายการ",
+      "doc": "เลขที่เอกสาร",
+      "in": "รับเข้า (Stock In)",
+      "out": "จ่ายออก (Stock Out)",
+      "balance": "คงเหลือ (Balance)",
+      "note": "หมายเหตุ"
+    },
+    "exportPdf": "ส่งออก PDF",
+    "viewMode": "มุมมอง",
+    "monthly": "รายเดือน",
+    "yearly": "รายปี",
+    "closingBalance": "ยอดคงเหลือสุดท้าย"
   }
 }

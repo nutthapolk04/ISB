@@ -495,12 +495,22 @@ export default function FamilyDashboard() {
                   <div className="flex items-start gap-3 pr-20">
                     <div className="shrink-0">
                       {card.photoUrl ? (
-                        <img src={card.photoUrl} alt={card.name} className="h-12 w-12 rounded-full object-cover border-2 border-white/30" />
-                      ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md">
-                          <UserRound className="h-6 w-6 text-white" />
-                        </div>
-                      )}
+                        <img
+                          src={card.photoUrl}
+                          alt={card.name}
+                          className="h-12 w-12 rounded-full object-cover border-2 border-white/30"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.nextElementSibling?.removeAttribute("hidden");
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        hidden={!!card.photoUrl}
+                        className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md"
+                      >
+                        <UserRound className="h-6 w-6 text-white" />
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-base font-bold text-white truncate">{card.name}</p>
@@ -579,23 +589,16 @@ export default function FamilyDashboard() {
                   disabled={activeCard.kind !== "self" && !activeCard.walletId}
                 />
 
-                {activeCard.kind === "child" ? (
-                  <ActionButton
-                    icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
-                    label={t("parent.dashboard.profile", "Profile")}
-                    to={`/parent/profile/${activeCard.customerId}`}
-                  />
-                ) : (
-                  <ActionButton
-                    icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
-                    label={t("parent.dashboard.history", "History")}
-                    to={
-                      activeCard.kind === "self" ? "/parent/transactions/own" :
-                      `/parent/transactions/wallet-${activeCard.walletId}`
-                    }
-                    disabled={activeCard.kind !== "self" && !activeCard.walletId}
-                  />
-                )}
+                <ActionButton
+                  icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
+                  label={t("parent.dashboard.history", "History")}
+                  to={
+                    activeCard.kind === "self" ? "/parent/transactions/own" :
+                    activeCard.kind === "child" && activeCard.walletId ? `/parent/transactions/wallet-${activeCard.walletId}` :
+                    `/parent/transactions/wallet-${activeCard.walletId}`
+                  }
+                  disabled={activeCard.kind !== "self" && !activeCard.walletId}
+                />
 
                 <ActionButton
                   icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100"><Bell className="h-5 w-5 text-purple-600" /></div>}
@@ -610,6 +613,13 @@ export default function FamilyDashboard() {
                   to={activeCard.kind === "child" ? `/parent/settings/${activeCard.customerId}` : "#"}
                   disabled={activeCard.kind !== "child"}
                 />
+
+                <ActionButton
+                  icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100"><GraduationCap className="h-5 w-5 text-green-600" /></div>}
+                  label={t("parent.dashboard.profile", "Profile")}
+                  to={activeCard.kind === "child" ? `/parent/profile/${activeCard.customerId}` : "#"}
+                  disabled={activeCard.kind !== "child"}
+                />
               </div>
             </div>
           )}
@@ -617,17 +627,8 @@ export default function FamilyDashboard() {
           {/* Recent transactions */}
           {activeCard?.walletId && (
             <div className="mt-5">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3">
                 <p className="text-base font-semibold text-slate-800">{t("parent.dashboard.recentActivity", "Recent activity")}</p>
-                {activeCard.kind === "child" && activeCard.walletId && (
-                  <Link
-                    to={`/parent/transactions/wallet-${activeCard.walletId}`}
-                    className="flex items-center gap-0.5 text-xs font-medium text-orange-500 hover:text-orange-600"
-                  >
-                    {t("parent.dashboard.viewAll", "View all")}
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                )}
               </div>
 
               <div className="space-y-2.5">

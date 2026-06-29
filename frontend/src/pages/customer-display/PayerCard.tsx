@@ -4,8 +4,9 @@
  * department transactions. Customer photo is intentionally omitted
  * (privacy in a queue).
  */
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
+import type { DisplayPayer, SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 
 interface Props {
   payer: DisplayPayer;
@@ -25,8 +26,35 @@ function fmt(amount: number | null): string {
   );
 }
 
+function LimitLine({ label, sl }: { label: string; sl: SpendingLimitData }) {
+  const pct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
+  const atLimit = pct >= 100;
+  const nearLimit = pct >= 80 && !atLimit;
+  const color = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
+  const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-zinc-700 font-medium">{label}</span>
+        <span className={cn("text-xl font-bold tabular-nums", color)}>
+          ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <span className="text-zinc-400 font-normal"> / </span>
+          ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function PayerCard({ payer, total, successful = false }: Props) {
   const showBalance = payer.balanceBefore !== null;
+  const canteen = payer.canteenLimit && payer.canteenLimit.daily_limit > 0 ? payer.canteenLimit : null;
+  const store = payer.storeLimit && payer.storeLimit.daily_limit > 0 ? payer.storeLimit : null;
+  const showLimits = payer.kind !== "department" && (canteen || store);
+
   const afterClass = cn(
     "tabular-nums font-bold",
     successful
@@ -38,6 +66,7 @@ export function PayerCard({ payer, total, successful = false }: Props) {
 
   return (
     <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-8 max-w-xl mx-auto">
+      {/* Identity */}
       <div className="mb-6">
         <div className="text-3xl font-bold text-zinc-900">{payer.name}</div>
         <div className="mt-1 text-sm text-zinc-500">
@@ -47,13 +76,36 @@ export function PayerCard({ payer, total, successful = false }: Props) {
         </div>
       </div>
 
+      {/* Wallet Balance section */}
       {showBalance && (
-        <div className="space-y-3 border-t border-amber-100 pt-5">
-          <Row label="Current Balance" value={fmt(payer.balanceBefore)} />
-          <Row label="Amount Charged" value={fmt(-total)} negative />
-          <Row label="Balance After" value={fmt(payer.balanceAfter)} valueClass={afterClass} bold />
+        <div>
+          <SectionLabel>Wallet Balance</SectionLabel>
+          <div className="space-y-3 pt-3">
+            <Row label="Current Balance" value={fmt(payer.balanceBefore)} />
+            <Row label="Amount Charged" value={fmt(-total)} negative />
+            <Row label="Balance After" value={fmt(payer.balanceAfter)} valueClass={afterClass} bold />
+          </div>
         </div>
       )}
+
+      {/* Daily Spending Limit — compact lines */}
+      {showLimits && (
+        <div className={cn(showBalance ? "mt-6" : "")}>
+          <SectionLabel>Daily Spending Limit</SectionLabel>
+          <div className="space-y-3 pt-3">
+            {canteen && <LimitLine label="Canteen" sl={canteen} />}
+            {store && <LimitLine label="Store" sl={store} />}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 border-t border-amber-100 pt-5">
+      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{children}</span>
     </div>
   );
 }

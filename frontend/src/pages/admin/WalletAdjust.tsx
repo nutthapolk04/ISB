@@ -329,8 +329,8 @@ export default function WalletAdjust() {
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="credit">Credit (+)</SelectItem>
-                    <SelectItem value="debit">Debit (−)</SelectItem>
+                    <SelectItem value="credit">+</SelectItem>
+                    <SelectItem value="debit">−</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -358,8 +358,8 @@ export default function WalletAdjust() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-3 text-sm">
               <span className="text-muted-foreground">{rptRows.length} records</span>
-              <Badge variant="outline" className="text-green-700 border-green-300">+ Credit: {formatTHB(rptCreditTotal)}</Badge>
-              <Badge variant="outline" className="text-destructive border-destructive/30">− Debit: {formatTHB(rptDebitTotal)}</Badge>
+              <Badge variant="outline" className="text-green-700 border-green-300">+ {formatTHB(rptCreditTotal)}</Badge>
+              <Badge variant="outline" className="text-destructive border-destructive/30">− {formatTHB(rptDebitTotal)}</Badge>
               <Badge variant="secondary">Net: {formatTHB(rptCreditTotal - rptDebitTotal)}</Badge>
             </div>
             <div className="flex gap-2">
@@ -413,7 +413,7 @@ export default function WalletAdjust() {
                           <TableCell><Badge variant="secondary" className="font-mono text-xs">{r.entity_code}</Badge></TableCell>
                           <TableCell>
                             <Badge variant="outline" className={r.direction === "credit" ? "text-green-700 border-green-300" : "text-destructive border-destructive/30"}>
-                              {r.direction === "credit" ? "+ Credit" : "− Debit"}
+                              {r.direction === "credit" ? "+" : "−"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-mono font-semibold">{formatTHB(r.amount)}</TableCell>

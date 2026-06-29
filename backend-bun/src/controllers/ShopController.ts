@@ -1,4 +1,4 @@
-/** Shops — CRUD, products, barcodes, requisition, close-month, stock reports (auth) */
+/** Shops — CRUD, products, barcodes, requisition, balance-file, close-month, stock reports (auth) */
 import { authedCtx, type AuthedRequestContext } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { eq } from "drizzle-orm";
@@ -37,10 +37,35 @@ import {
 	confirmClose,
 } from "@/services/close_month_service";
 import { getMonthlyStockReport, exportMonthlyStockReport } from "@/services/monthly_stock_service";
+import { getBalanceFile, exportBalanceFile } from "@/services/balance_file_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+type BalanceFileQuery = {
+	year?: string | null;
+	month?: string | null;
+	product_id?: string | null;
+};
+
+function parseBalanceFileQuery(
+	reqContext: AuthedRequestContext,
+	query: BalanceFileQuery,
+):
+	| { error: ReturnType<typeof errorResponse> }
+	| { year: number; month: number | null; productId: number | null } {
+	const year = Number(query.year);
+	const month = query.month ? Number(query.month) : null;
+	const productId = query.product_id ? Number(query.product_id) : null;
+	if (!Number.isInteger(year) || year < 2000 || year > 2999) {
+		return { error: errorResponse(reqContext, "Invalid year", ResponseStatus.UNPROCESSABLE) };
+	}
+	if (month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) {
+		return { error: errorResponse(reqContext, "Invalid month (1-12)", ResponseStatus.UNPROCESSABLE) };
+	}
+	return { year, month, productId };
+}
 
 async function assertCloseForShop(closeId: number, shopId: string, reqContext: AuthedRequestContext) {
 	const close = await getClose(closeId);
@@ -85,6 +110,7 @@ export const ShopController = {
 				allow_department_charge: body.allow_department_charge ?? undefined,
 				uses_dual_pricing: body.uses_dual_pricing ?? undefined,
 				spending_group_id: body.spending_group_id ?? undefined,
+				shop_number: body.shop_number ?? undefined,
 			});
 			logger.info(`[${reqContext.requestId} (SH-02)] ShopController.create() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.CREATED);
@@ -596,6 +622,56 @@ export const ShopController = {
 			});
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (SH-20)] ShopController.exportMonthlyStockReport() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	balanceFile: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-28)] ShopController.balanceFile() called.`);
+		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-28)] ShopController.balanceFile() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const parsed = parseBalanceFileQuery(reqContext, query);
+		if ("error" in parsed) return parsed.error;
+		const { year, month, productId } = parsed;
+		try {
+			logger.info(`[${reqContext.requestId} (SH-28)] ShopController.balanceFile() calling getBalanceFile().`);
+			const result = await getBalanceFile(params.shopId, year, month, productId);
+			logger.info(`[${reqContext.requestId} (SH-28)] ShopController.balanceFile() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-28)] ShopController.balanceFile() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	exportBalanceFile: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-29)] ShopController.exportBalanceFile() called.`);
+		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SH-29)] ShopController.exportBalanceFile() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const parsed = parseBalanceFileQuery(reqContext, query);
+		if ("error" in parsed) return parsed.error;
+		const { year, month, productId } = parsed;
+		try {
+			logger.info(`[${reqContext.requestId} (SH-29)] ShopController.exportBalanceFile() calling exportBalanceFile().`);
+			const buffer = await exportBalanceFile(params.shopId, year, month, productId);
+			const suffix = month !== null ? `-${String(month).padStart(2, "0")}` : "";
+			logger.info(`[${reqContext.requestId} (SH-29)] ShopController.exportBalanceFile() completed.`);
+			return new Response(buffer, {
+				headers: {
+					"Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="balance-file-${year}${suffix}.xlsx"`,
+				},
+			});
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-29)] ShopController.exportBalanceFile() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

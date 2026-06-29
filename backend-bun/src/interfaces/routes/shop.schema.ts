@@ -34,6 +34,7 @@ export const createShop = {
         module: t.Optional(t.Union([t.Literal("canteen"), t.Literal("store")])),
         uses_dual_pricing: t.Optional(t.Nullable(t.Boolean())),
         spending_group_id: t.Optional(t.Nullable(t.Number())),
+        shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),
     }),
     detail: { ...shopsTag, summary: "Create a shop (admin)" },
 };
@@ -59,6 +60,7 @@ export const updateShop = {
         spending_group_id: t.Optional(t.Nullable(t.Number())),
         receipt_header: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         receipt_footer: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+        shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),
     }),
     detail: { ...shopsTag, summary: "Update a shop (admin)" },
 };
@@ -180,6 +182,24 @@ export const exportMonthlyStockReport = {
     params: shopIdParams,
     query: t.Object({ start_date: t.Optional(t.String()), end_date: t.Optional(t.String()) }),
     detail: { ...shopsTag, summary: "Export monthly stock report (Excel)" },
+};
+
+const balanceFileQuery = t.Object({
+    year: t.String(),
+    month: t.Optional(t.Nullable(t.String())),
+    product_id: t.Optional(t.Nullable(t.String())),
+});
+
+export const balanceFile = {
+    params: shopIdParams,
+    query: balanceFileQuery,
+    detail: { ...shopsTag, summary: "Balance file report (average cost ledger)" },
+};
+
+export const exportBalanceFile = {
+    params: shopIdParams,
+    query: balanceFileQuery,
+    detail: { ...shopsTag, summary: "Export balance file (Excel)" },
 };
 
 export const listCloseMonth = {

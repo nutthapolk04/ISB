@@ -84,7 +84,8 @@ export default function AdjustmentReport() {
       const data = await api.get<AdjustmentRow[]>(
         `/wallets/admin/adjustment-report?${params.toString()}`
       );
-      setRows(data);
+      const sorted = [...data].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      setRows(sorted);
       setSearched(true);
       if (data.length === 0) {
         toast({ title: t("adjustmentReport.noResults", "No adjustments found for the selected filters.") });
@@ -213,8 +214,8 @@ export default function AdjustmentReport() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="credit">Credit (+)</SelectItem>
-                  <SelectItem value="debit">Debit (−)</SelectItem>
+                  <SelectItem value="credit">+</SelectItem>
+                  <SelectItem value="debit">−</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -232,10 +233,10 @@ export default function AdjustmentReport() {
           <div className="flex flex-wrap gap-3 text-sm">
             <span className="text-muted-foreground">{rows.length} records</span>
             <Badge variant="outline" className="text-green-700 border-green-300">
-              + Credit: {formatTHB(creditTotal)}
+              + {formatTHB(creditTotal)}
             </Badge>
             <Badge variant="outline" className="text-destructive border-destructive/30">
-              − Debit: {formatTHB(debitTotal)}
+              − {formatTHB(debitTotal)}
             </Badge>
             <Badge variant="secondary">
               Net: {formatTHB(creditTotal - debitTotal)}
@@ -306,7 +307,7 @@ export default function AdjustmentReport() {
                               ? "text-green-700 border-green-300"
                               : "text-destructive border-destructive/30"}
                           >
-                            {r.direction === "credit" ? "+ Credit" : "− Debit"}
+                            {r.direction === "credit" ? "+" : "−"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">
