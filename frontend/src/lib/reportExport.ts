@@ -450,7 +450,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     headStyles: {
       font: fontFamily,
       fillColor: [241, 245, 249],
-      textColor: 30,
+      textColor: 0,
       fontStyle: "bold",
       // Headers stay readable even at 6.5pt — give them an extra
       // half-point so the columns don't all collapse into 1-char width.
