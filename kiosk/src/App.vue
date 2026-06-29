@@ -35,18 +35,26 @@ const handleInteraction = () => {
     resetTimeout();
 };
 
-onMounted(() => {
+onMounted(async () => {
     window.addEventListener('mousedown', handleInteraction);
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
     void store.bootstrap();
-    Hardware.getPlatform()
+
+    await Hardware.addListener('billEvent', (event) => {
+        console.log('[Hardware] bill:', event);
+    });
+
+    Hardware.connect({
+        port: '/dev/ttyS1',
+        baudRate: 9600,
+    })
         .then((result) => {
-            console.log('[Hardware] platform:', result.platform);
+            console.log('[Hardware] connect:', result);
         })
         .catch((err) => {
-            console.warn('[Hardware] getPlatform failed:', err);
+            console.warn('[Hardware] connect failed:', err);
         });
 });
 
