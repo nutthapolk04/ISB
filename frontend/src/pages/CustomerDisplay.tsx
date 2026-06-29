@@ -65,8 +65,14 @@ export default function CustomerDisplay() {
   }, [display]);
 
   const fsHint = !isFullscreen ? (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm pointer-events-none">
-      Tap anywhere to enter fullscreen
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer">
+      <div className="flex flex-col items-center gap-4 text-white text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+        </svg>
+        <p className="text-3xl font-bold">แตะหน้าจอเพื่อเปิดเต็มจอ</p>
+        <p className="text-lg opacity-70">Tap to enter fullscreen</p>
+      </div>
     </div>
   ) : null;
 
