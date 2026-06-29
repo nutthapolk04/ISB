@@ -203,8 +203,8 @@ export default function SpendingGroups() {
             await load();
         } catch (e) {
             if (e instanceof ApiError && e.status === 409) {
-                const body = e.body as { blocking_shops?: BlockingShop[]; message?: string } | undefined;
-                setBlockingShops(body?.blocking_shops ?? []);
+                const detail = (e.body as { detail?: { blocking_shops?: BlockingShop[] } } | undefined)?.detail;
+                setBlockingShops(detail?.blocking_shops ?? []);
             } else {
                 toast({ title: e instanceof ApiError ? e.detail : "Delete failed", variant: "destructive" });
                 setDeleteTarget(null);
