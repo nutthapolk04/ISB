@@ -47,7 +47,9 @@
     "groupCanteenManagement": "จัดการโรงอาหาร",
     "canteenManagement": "จัดการโรงอาหาร",
     "guide": "คู่มือการใช้งาน",
-    "refund": "คืนเงิน"
+    "refund": "คืนเงิน",
+    "groupReports": "รายงาน",
+    "adminReports": "รายงาน"
   },
   "serverStatus": {
     "label": "เซิร์ฟเวอร์",

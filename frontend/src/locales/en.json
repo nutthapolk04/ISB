@@ -47,7 +47,9 @@
     "groupCanteenManagement": "Canteen Management",
     "canteenManagement": "Canteen Management",
     "guide": "User Guide",
-    "refund": "Refund"
+    "refund": "Refund",
+    "groupReports": "Reports",
+    "adminReports": "Reports"
   },
   "serverStatus": {
     "label": "Server",
