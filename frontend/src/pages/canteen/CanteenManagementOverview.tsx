@@ -153,6 +153,11 @@ export default function CanteenManagementOverview() {
       toast.error(t("management.fillAllRequired"));
       return;
     }
+    const idTrimmed = addForm.id.trim();
+    if (idTrimmed.length !== 5) {
+      toast.error(t("management.shopIdMustBe5", "Shop ID must be exactly 5 characters"));
+      return;
+    }
     setSaving(true);
     try {
       await api.post("/shops/", {
@@ -378,7 +383,7 @@ export default function CanteenManagementOverview() {
                 placeholder="e.g. ct001"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopIdHint", "Unique code, max 5 chars, lowercase")}
+                {t("management.shopIdHint", "Exactly 5 characters — letters + digits, lowercase")}
               </p>
             </div>
             <div>

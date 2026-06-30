@@ -169,6 +169,11 @@ const ShopManagement = () => {
       toast.error(t("management.fillAllRequired"));
       return;
     }
+    const idTrimmed = shopForm.id.trim();
+    if (idTrimmed.length !== 5) {
+      toast.error(t("management.shopIdMustBe5", "Shop ID must be exactly 5 characters"));
+      return;
+    }
     try {
       setSaving(true);
       await api.post("/shops/", {
@@ -340,7 +345,7 @@ const ShopManagement = () => {
                 placeholder="e.g. coop1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopIdHint", "Unique code, max 5 chars, lowercase")}
+                {t("management.shopIdHint", "Exactly 5 characters — letters + digits, lowercase")}
               </p>
             </div>
             <div>

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, roles, userRoles, permissions, rolePermissions, shops } from "@/db/schema";
 import { config } from "@/lib/config";
@@ -142,7 +142,12 @@ async function getPermissionNames(userId: number): Promise<string[]> {
 // ── Authentication ────────────────────────────────────────────────────────
 
 async function findUserByUsername(username: string): Promise<typeof users.$inferSelect | null> {
-  const rows = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  // Username login is case-insensitive; password verification stays exact.
+  const rows = await db
+    .select()
+    .from(users)
+    .where(sql`LOWER(${users.username}) = LOWER(${username})`)
+    .limit(1);
   return rows[0] ?? null;
 }
 
