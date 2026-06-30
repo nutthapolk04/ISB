@@ -15,40 +15,7 @@
  * get a stray window every time the cashier opens the app.
  */
 const WINDOW_NAME = "isb-customer-display";
-const FALLBACK_FEATURES = "popup=yes,noopener=no,fullscreen=yes,width=1280,height=800,left=200,top=100";
-
-// Module-level handle to the popup so callers can ping it after user gestures.
-let popupWin: Window | null = null;
-
-/** Get the live popup handle (or null if it's been closed). */
-export function getCustomerDisplayWindow(): Window | null {
-  if (popupWin && !popupWin.closed) return popupWin;
-  popupWin = null;
-  return null;
-}
-
-/**
- * Try to fullscreen the popup using the CURRENT call's user activation. The
- * popup is same-origin so the parent can call requestFullscreen on the
- * popup's documentElement — activation flows from the parent's gesture.
- *
- * Call this from event handlers attached to user input (click, keydown)
- * on the parent (POS) window.
- */
-export function ensureCustomerDisplayFullscreen(): void {
-  const win = getCustomerDisplayWindow();
-  if (!win) return;
-  try {
-    const doc = win.document;
-    if (!doc || doc.fullscreenElement) return;
-    const el = doc.documentElement;
-    if (el && el.requestFullscreen) {
-      el.requestFullscreen().catch(() => { /* ignore */ });
-    }
-  } catch {
-    // Cross-origin or popup torn down — ignore.
-  }
-}
+const FALLBACK_FEATURES = "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
 
 /** Probe whether the host station has ≥2 monitors available. Returns false
  *  on Safari / Firefox (no API), when the permission is denied, or when
@@ -96,9 +63,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         ].join(",");
         const w = window.open("/customer-display", WINDOW_NAME, features);
         if (w) {
-          popupWin = w;
           try { w.focus(); } catch { /* cross-origin — ignore */ }
-          tryFullscreenWithRetry(w);
           return true;
         }
       }
@@ -111,76 +76,11 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
   try {
     const w = window.open("/customer-display", WINDOW_NAME, FALLBACK_FEATURES);
     if (!w) return false;
-    popupWin = w;
     try { w.focus(); } catch { /* ignore */ }
-    tryFullscreenWithRetry(w);
     return true;
   } catch {
     return false;
   }
-}
-
-/**
- * After the popup is created, the parent's `window.open()` user activation
- * is still valid for a few seconds in the popup's task queue. Poll for the
- * popup's documentElement and request fullscreen as soon as the DOM exists.
- */
-function tryFullscreenWithRetry(win: Window): void {
-  let attempts = 0;
-  const iv = setInterval(() => {
-    attempts += 1;
-    if (attempts > 25 || win.closed) {
-      clearInterval(iv);
-      return;
-    }
-    try {
-      const doc = win.document;
-      if (!doc) return;
-      if (doc.fullscreenElement) {
-        clearInterval(iv);
-        return;
-      }
-      const el = doc.documentElement;
-      if (el && el.requestFullscreen) {
-        el.requestFullscreen().catch(() => { /* ignore */ });
-      }
-    } catch {
-      // popup not yet accessible — keep polling
-    }
-  }, 200);
-}
-
-/**
- * Detects whether a standalone /customer-display window is already running
- * elsewhere (e.g. a separate kiosk-mode browser launched on the second
- * monitor). Uses BroadcastChannel ping/pong on the same channel that the
- * display already subscribes to, so no extra wiring is needed.
- *
- * Resolves true on the first pong within `timeoutMs`, false otherwise.
- */
-function isCustomerDisplayRunning(timeoutMs = 200): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (typeof BroadcastChannel === "undefined") {
-      resolve(false);
-      return;
-    }
-    let settled = false;
-    const ch = new BroadcastChannel("pos-display");
-    const finish = (v: boolean) => {
-      if (settled) return;
-      settled = true;
-      try { ch.close(); } catch { /* ignore */ }
-      resolve(v);
-    };
-    ch.onmessage = (e) => {
-      const data = e?.data;
-      if (data && typeof data === "object" && (data as { type?: string }).type === "customer-display-pong") {
-        finish(true);
-      }
-    };
-    try { ch.postMessage({ type: "customer-display-ping" }); } catch { /* ignore */ }
-    window.setTimeout(() => finish(false), timeoutMs);
-  });
 }
 
 /**
@@ -192,12 +92,11 @@ function isCustomerDisplayRunning(timeoutMs = 200): Promise<boolean> {
  * still pops automatically because it has a second monitor wired up.
  *
  * Returns false (without opening anything) when the Screen Management API
- * isn't available, when permission is denied, only one screen is connected,
- * or a standalone customer-display window is already running. Returns the
- * underlying `openCustomerDisplayWindow` result otherwise.
+ * isn't available, when permission is denied, or when only one screen is
+ * connected. Returns the underlying `openCustomerDisplayWindow` result
+ * otherwise.
  */
 export async function autoOpenCustomerDisplayWindow(): Promise<boolean> {
-  if (await isCustomerDisplayRunning()) return false;
   if (!(await hasSecondaryMonitor())) return false;
   return openCustomerDisplayWindow();
 }

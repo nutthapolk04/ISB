@@ -47,25 +47,8 @@ export function useDisplayState(): DisplayState {
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel(CHANNEL_NAME);
     ch.onmessage = (e) => {
-      const data = e?.data;
-      if (!data || typeof data !== "object") return;
-      // Respond to presence pings from cashier so they can detect that a
-      // standalone customer-display window is already running and skip the
-      // auto-popup. Reply on the same channel.
-      if ((data as { type?: string }).type === "customer-display-ping") {
-        try { ch.postMessage({ type: "customer-display-pong" }); } catch { /* ignore */ }
-        return;
-      }
-      if ((data as { type?: string }).type === "customer-display-shutdown") {
-        // Cashier logged out — close this window. Browsers may block
-        // close() on windows not opened by script, in which case we
-        // navigate to about:blank as a visible signal.
-        try { window.close(); } catch { /* ignore */ }
-        try { window.location.replace("about:blank"); } catch { /* ignore */ }
-        return;
-      }
-      if ("state" in data) {
-        setState(data as DisplayState);
+      if (e?.data && typeof e.data === "object" && "state" in e.data) {
+        setState(e.data as DisplayState);
       }
     };
     return () => ch.close();

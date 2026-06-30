@@ -68,7 +68,7 @@ import {
   payerForUser,
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
-import { autoOpenCustomerDisplayWindow, ensureCustomerDisplayFullscreen } from "@/lib/customerDisplayWindow";
+import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
 import {
   AlertDialog,
@@ -297,18 +297,6 @@ const Store = () => {
     // Guarded auto-open: only fires on stations with ≥2 monitors so single-
     // screen PCs / notebooks don't get a stray customer display window.
     void autoOpenCustomerDisplayWindow();
-  }, []);
-
-  // Forward parent user-gestures to the popup so it can enter fullscreen
-  // even after its own activation has expired (popup has no input device).
-  useEffect(() => {
-    const fwd = () => ensureCustomerDisplayFullscreen();
-    window.addEventListener("pointerdown", fwd);
-    window.addEventListener("keydown", fwd);
-    return () => {
-      window.removeEventListener("pointerdown", fwd);
-      window.removeEventListener("keydown", fwd);
-    };
   }, []);
 
   // ── Per-shop receipt overrides ──────────────────────────────────────────

@@ -28,72 +28,20 @@
   <body>
     <div id="root"></div>
     <script>
-      // Customer display: inject PWA manifest only on /customer-display so
-      // Chrome offers "Install" → launched as PWA, the app opens in
-      // display:fullscreen automatically. Other routes get no manifest.
-      (function () {
-        if (window.location.pathname !== "/customer-display") return;
-        var link = document.createElement("link");
-        link.rel = "manifest";
-        link.href = "/customer-display.webmanifest";
-        document.head.appendChild(link);
-        // Theme color tweaks the Chrome PWA window header.
-        var theme = document.createElement("meta");
-        theme.name = "theme-color";
-        theme.content = "#0f172a";
-        document.head.appendChild(theme);
-      })();
-    </script>
-    <script>
       // Customer display popup auto-fullscreen.
-      // The popup is opened with the parent's user activation, which sticks
-      // around briefly. We try fullscreen aggressively until it lands.
+      // Fires before React mounts so the parent's window.open() user activation
+      // is still valid in this popup's first task.
       (function () {
         if (window.location.pathname !== "/customer-display") return;
-        var cachedScreen = null;
-        try {
-          if ("getScreenDetails" in window) {
-            window.getScreenDetails().then(function (sd) {
-              cachedScreen = sd.currentScreen || (sd.screens || []).find(function (s) { return !s.isPrimary; }) || null;
-            }).catch(function () {});
-          }
-        } catch (e) {}
         var tryFs = function () {
           if (document.fullscreenElement) return;
           var el = document.documentElement;
-          if (!el || !el.requestFullscreen) return;
-          try {
-            var opts = { navigationUI: "hide" };
-            if (cachedScreen) opts.screen = cachedScreen;
-            var p = el.requestFullscreen(opts);
-            if (p && p.catch) {
-              p.catch(function (err) {
-                // Surface error so the cashier station console makes it
-                // visible why fullscreen didn't engage.
-                if (window.console && console.warn) {
-                  console.warn("[customer-display] requestFullscreen failed:", err && err.message ? err.message : err);
-                }
-              });
-            }
-          } catch (e) { /* ignore */ }
+          var p = el.requestFullscreen && el.requestFullscreen();
+          if (p && p.catch) p.catch(function () {});
         };
         tryFs();
         document.addEventListener("DOMContentLoaded", tryFs, { once: true });
         window.addEventListener("load", tryFs, { once: true });
-        window.addEventListener("focus", tryFs);
-        document.addEventListener("visibilitychange", tryFs);
-        ["pointerdown", "keydown", "touchstart", "click"].forEach(function (ev) {
-          window.addEventListener(ev, tryFs, { once: false });
-        });
-        var attempts = 0;
-        var iv = setInterval(function () {
-          attempts += 1;
-          if (document.fullscreenElement || attempts > 30) {
-            clearInterval(iv);
-            return;
-          }
-          tryFs();
-        }, 200);
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
