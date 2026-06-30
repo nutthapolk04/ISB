@@ -1,5 +1,6 @@
 /*
- * Serial port JNI for ICT NK77 bill acceptor (9600 8E1).
+ * Serial port JNI for kiosk peripherals (NK77 bill acceptor, NLS-EM20-85 scanner).
+ * NK77 / ICT104U: 9600 8E1 (Even parity, 1 stop) per ICT104U Protocol SWD-03.
  * Based on android-serialport-api (Apache 2.0).
  */
 
@@ -91,7 +92,7 @@ static jint openSerialPort(JNIEnv* env, jstring path, jint baudrate, jint flags)
     }
 
     LOGD("Opening serial port %s", pathUtf.c_str());
-    const int fd = ::open(pathUtf.c_str(), O_RDWR | flags);
+    const int fd = ::open(pathUtf.c_str(), O_RDWR | O_NOCTTY | flags);
     if (fd == -1) {
         LOGE("Cannot open port");
         throwIOException(env, "Cannot open port");
@@ -110,11 +111,21 @@ static jint openSerialPort(JNIEnv* env, jstring path, jint baudrate, jint flags)
     cfsetispeed(&cfg, speed);
     cfsetospeed(&cfg, speed);
 
-    // ICT NK77: 9600 8E1
-    cfg.c_cflag |= PARENB;
-    cfg.c_cflag &= ~PARODD;
-    cfg.c_cflag &= ~CSTOPB;
+    // NK77 / ICT104U: 9600 8E1 — 8 data bits, EVEN parity, 1 stop bit.
+    cfg.c_cflag |= (CLOCAL | CREAD);
+    cfg.c_cflag |= PARENB;     // enable parity
+    cfg.c_cflag &= ~PARODD;    // even parity
+    cfg.c_cflag &= ~CSTOPB;    // 1 stop bit
+    cfg.c_cflag &= ~CSIZE;
     cfg.c_cflag |= CS8;
+    // Pass bytes through untouched even if a parity error slips in (don't drop/mark).
+    cfg.c_iflag &= ~(INPCK | ISTRIP | PARMRK);
+    cfg.c_iflag &= ~(IXON | IXOFF | IXANY);
+#ifdef CRTSCTS
+    cfg.c_cflag &= ~CRTSCTS;
+#endif
+    cfg.c_cc[VMIN] = 1;
+    cfg.c_cc[VTIME] = 0;
 
     if (tcsetattr(fd, TCSANOW, &cfg) != 0) {
         LOGE("tcsetattr() failed");
@@ -123,6 +134,7 @@ static jint openSerialPort(JNIEnv* env, jstring path, jint baudrate, jint flags)
         return -1;
     }
 
+    tcflush(fd, TCIOFLUSH);
     return static_cast<jint>(fd);
 }
 

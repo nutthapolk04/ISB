@@ -124,6 +124,6 @@ addListener(eventName: 'billEvent', listenerFunc: (event: BillEvent) => void) =>
 
 #### BillEventType
 
-<code>'powerUp' | 'escrowPending' | 'escrow' | 'stacked' | 'stackFailed' | 'exception' | 'raw' | 'error'</code>
+<code>'powerUp' | 'ready' | 'escrowPending' | 'escrow' | 'stacked' | 'stackFailed' | 'rejected' | 'exception' | 'raw' | 'error'</code>
 
 </docgen-api>

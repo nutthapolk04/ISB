@@ -10,7 +10,8 @@
     "db:introspect": "drizzle-kit introspect",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed-kiosk": "bun scripts/seed-kiosk-user.ts"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.0",

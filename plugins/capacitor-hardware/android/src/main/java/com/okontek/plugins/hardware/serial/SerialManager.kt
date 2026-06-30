@@ -16,6 +16,7 @@ class SerialManager {
         disconnect()
 
         val portFile = SerialPort(File(port), baudRate, 0)
+        portFile.flush()
         serialPort = portFile
         reader = Nk77Reader(portFile.inputStream, portFile.outputStream, onBillEvent)
         reader?.start()

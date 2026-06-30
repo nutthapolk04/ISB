@@ -7,10 +7,12 @@ export interface ConnectOptions {
 
 export type BillEventType =
     | 'powerUp'
+    | 'ready'
     | 'escrowPending'
     | 'escrow'
     | 'stacked'
     | 'stackFailed'
+    | 'rejected'
     | 'exception'
     | 'raw'
     | 'error';

@@ -46,8 +46,9 @@ onMounted(async () => {
         console.log('[Hardware] bill:', event);
     });
 
+    // NK77 bill acceptor — FM-3568D maps UART1 to /dev/ttyS2 (9600 8N1)
     Hardware.connect({
-        port: '/dev/ttyS1',
+        port: '/dev/ttyS2',
         baudRate: 9600,
     })
         .then((result) => {
