@@ -14,7 +14,7 @@ import {
 	adjustDepartmentBalance,
 	listDepartmentTransactions,
 } from "@/services/wallet_service";
-import { deleteDepartment } from "@/services/department_service";
+import { deleteDepartment, updateDepartment } from "@/services/department_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
@@ -221,6 +221,33 @@ export const TopupController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (TP-07)] TopupController.departmentTransactions() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	updateDepartment: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() called.`);
+		if (!hasRole(user.roles, "admin")) {
+			logger.warn(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() forbidden.`);
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.department_id, "department id", reqContext.set);
+		if (id === null) {
+			logger.warn(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() invalid department id.`);
+			return errorResponse(reqContext, "Invalid department id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			logger.info(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() calling updateDepartment().`);
+			const result = await updateDepartment(id, {
+				department_name: body.department_name,
+				is_active: body.is_active,
+			});
+			logger.info(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

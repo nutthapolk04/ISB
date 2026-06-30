@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2, UserPlus, Trash2 } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2, UserPlus, Trash2, Pencil } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -113,6 +113,48 @@ export default function UserList() {
 
   const [deleting, setDeleting] = useState<AdminUser | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const canEdit = authUser?.activeRole === "admin" || authUser?.activeRole === "manager";
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: "", email: "", role: "", status: "active" });
+  const [editBusy, setEditBusy] = useState(false);
+
+  const openEdit = (u: AdminUser) => {
+    setEditForm({
+      full_name: u.full_name || "",
+      email: u.email || "",
+      role: u.role || "",
+      status: u.is_active ? "active" : "inactive",
+    });
+    setEditing(u);
+  };
+
+  const handleEditSave = async () => {
+    if (!editing) return;
+    setEditBusy(true);
+    try {
+      await api.patch(`/users-admin/${editing.id}`, {
+        full_name: editForm.full_name,
+        email: editForm.email || null,
+        role: editForm.role,
+        status: editForm.status,
+      });
+      toast({
+        title: t("admin.users.editSuccess", "User updated"),
+        description: editForm.full_name || editing.username,
+      });
+      setEditing(null);
+      void load();
+    } catch (e) {
+      toast({
+        title: t("admin.users.editFailed", "Failed to update user"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setEditBusy(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -373,6 +415,17 @@ export default function UserList() {
                 <Button asChild size="sm" variant="outline">
                   <Link to={`/users/${u.id}`}>{t("admin.users.detail", "Detail")}</Link>
                 </Button>
+                {canEdit && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0"
+                    onClick={() => openEdit(u)}
+                    title={t("admin.users.editTitle", "Edit user")}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
                 {canDelete && u.id !== authUser?.id && (
                   <Button
                     size="sm"
@@ -482,6 +535,58 @@ export default function UserList() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(open) => !open && !editBusy && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("admin.users.editTitle", "Edit user")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-md bg-muted/60 px-3 py-2 text-sm">
+              <span className="font-medium">@{editing?.username}</span>
+              <span className="ml-2 text-xs text-muted-foreground">#{editing?.id}</span>
+            </div>
+            <div className="space-y-1">
+              <Label>{t("admin.users.fullName", "Full name")}</Label>
+              <Input value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>{t("admin.users.email", "Email")}</Label>
+              <Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>{t("admin.users.role", "Role")}</Label>
+              <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["admin", "manager", "cashier", "staff", "teacher", "parent", "student"].map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>{t("admin.users.status", "Status")}</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={editBusy}>
+              {t("common.cancel", "Cancel")}
+            </Button>
+            <Button onClick={handleEditSave} disabled={editBusy}>
+              {editBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save", "Save")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

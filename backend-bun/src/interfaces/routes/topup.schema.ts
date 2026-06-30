@@ -61,3 +61,12 @@ export const topupDeleteDepartment = {
     params: t.Object({ department_id: t.String() }),
     detail: { tags: ["Wallets"], summary: "Delete department" },
 };
+
+export const topupUpdateDepartment = {
+    params: t.Object({ department_id: t.String() }),
+    body: t.Object({
+        department_name: t.Optional(t.String({ minLength: 1, maxLength: 200 })),
+        is_active: t.Optional(t.Boolean()),
+    }),
+    detail: { tags: ["Wallets"], summary: "Update department info" },
+};

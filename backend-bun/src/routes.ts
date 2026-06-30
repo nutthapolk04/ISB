@@ -242,6 +242,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
         app
             .post("/:department_id/adjust", TopupController.adjustDepartment, TopupSchema.topupAdjustDepartment)
             .get("/:department_id/transactions", TopupController.departmentTransactions, TopupSchema.topupDepartmentTransactions)
+            .patch("/:department_id", TopupController.updateDepartment, TopupSchema.topupUpdateDepartment)
             .delete("/:department_id", TopupController.deleteDepartment, TopupSchema.topupDeleteDepartment)
     )
     // ── POS ───────────────────────────────────────────────────────────────────
