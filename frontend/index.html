@@ -27,6 +27,23 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Customer display popup auto-fullscreen.
+      // Fires before React mounts so the parent's window.open() user activation
+      // is still valid in this popup's first task.
+      (function () {
+        if (window.location.pathname !== "/customer-display") return;
+        var tryFs = function () {
+          if (document.fullscreenElement) return;
+          var el = document.documentElement;
+          var p = el.requestFullscreen && el.requestFullscreen();
+          if (p && p.catch) p.catch(function () {});
+        };
+        tryFs();
+        document.addEventListener("DOMContentLoaded", tryFs, { once: true });
+        window.addEventListener("load", tryFs, { once: true });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
