@@ -397,27 +397,25 @@ export default function CanteenManagementOverview() {
                 placeholder={t("management.shopDescPlaceholder", "Optional description")}
               />
             </div>
-            {spendingGroups.length > 0 && (
-              <div>
-                <Label>{t("spendingGroup.title", "Spending Group")}</Label>
-                <Select
-                  value={addForm.spendingGroupId || "__none__"}
-                  onValueChange={(v) => setAddForm({ ...addForm, spendingGroupId: v === "__none__" ? "" : v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("spendingGroup.title", "Spending Group")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{t("spendingGroup.none", "None")}</SelectItem>
-                    {spendingGroups.map((g) => (
-                      <SelectItem key={g.id} value={String(g.id)}>
-                        {g.name_en} ({g.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div>
+              <Label>{t("spendingGroup.title", "Spending Group")}</Label>
+              <Select
+                value={addForm.spendingGroupId || "__none__"}
+                onValueChange={(v) => setAddForm({ ...addForm, spendingGroupId: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("spendingGroup.title", "Spending Group")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t("spendingGroup.none", "None")}</SelectItem>
+                  {spendingGroups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.name_en} ({g.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
