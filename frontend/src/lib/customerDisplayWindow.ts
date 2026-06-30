@@ -15,7 +15,40 @@
  * get a stray window every time the cashier opens the app.
  */
 const WINDOW_NAME = "isb-customer-display";
-const FALLBACK_FEATURES = "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
+const FALLBACK_FEATURES = "popup=yes,noopener=no,fullscreen=yes,width=1280,height=800,left=200,top=100";
+
+// Module-level handle to the popup so callers can ping it after user gestures.
+let popupWin: Window | null = null;
+
+/** Get the live popup handle (or null if it's been closed). */
+export function getCustomerDisplayWindow(): Window | null {
+  if (popupWin && !popupWin.closed) return popupWin;
+  popupWin = null;
+  return null;
+}
+
+/**
+ * Try to fullscreen the popup using the CURRENT call's user activation. The
+ * popup is same-origin so the parent can call requestFullscreen on the
+ * popup's documentElement — activation flows from the parent's gesture.
+ *
+ * Call this from event handlers attached to user input (click, keydown)
+ * on the parent (POS) window.
+ */
+export function ensureCustomerDisplayFullscreen(): void {
+  const win = getCustomerDisplayWindow();
+  if (!win) return;
+  try {
+    const doc = win.document;
+    if (!doc || doc.fullscreenElement) return;
+    const el = doc.documentElement;
+    if (el && el.requestFullscreen) {
+      el.requestFullscreen().catch(() => { /* ignore */ });
+    }
+  } catch {
+    // Cross-origin or popup torn down — ignore.
+  }
+}
 
 /** Probe whether the host station has ≥2 monitors available. Returns false
  *  on Safari / Firefox (no API), when the permission is denied, or when
@@ -63,7 +96,9 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         ].join(",");
         const w = window.open("/customer-display", WINDOW_NAME, features);
         if (w) {
+          popupWin = w;
           try { w.focus(); } catch { /* cross-origin — ignore */ }
+          tryFullscreenWithRetry(w);
           return true;
         }
       }
@@ -76,11 +111,43 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
   try {
     const w = window.open("/customer-display", WINDOW_NAME, FALLBACK_FEATURES);
     if (!w) return false;
+    popupWin = w;
     try { w.focus(); } catch { /* ignore */ }
+    tryFullscreenWithRetry(w);
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * After the popup is created, the parent's `window.open()` user activation
+ * is still valid for a few seconds in the popup's task queue. Poll for the
+ * popup's documentElement and request fullscreen as soon as the DOM exists.
+ */
+function tryFullscreenWithRetry(win: Window): void {
+  let attempts = 0;
+  const iv = setInterval(() => {
+    attempts += 1;
+    if (attempts > 25 || win.closed) {
+      clearInterval(iv);
+      return;
+    }
+    try {
+      const doc = win.document;
+      if (!doc) return;
+      if (doc.fullscreenElement) {
+        clearInterval(iv);
+        return;
+      }
+      const el = doc.documentElement;
+      if (el && el.requestFullscreen) {
+        el.requestFullscreen().catch(() => { /* ignore */ });
+      }
+    } catch {
+      // popup not yet accessible — keep polling
+    }
+  }, 200);
 }
 
 /**

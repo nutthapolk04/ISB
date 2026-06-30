@@ -48,7 +48,7 @@ import {
   payerForUser,
   paymentMethodForDisplay,
 } from "@/lib/customerDisplay";
-import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
+import { autoOpenCustomerDisplayWindow, ensureCustomerDisplayFullscreen } from "@/lib/customerDisplayWindow";
 import type { DisplayPayer } from "@/hooks/useDisplayBroadcast";
 import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
@@ -128,6 +128,18 @@ export default function Canteen() {
     // Guarded auto-open: only fires on stations with ≥2 monitors so single-
     // screen PCs / notebooks don't get a stray customer display window.
     void autoOpenCustomerDisplayWindow();
+  }, []);
+
+  // Forward parent user-gestures to the popup so it can enter fullscreen
+  // even after its own activation has expired (popup has no input device).
+  useEffect(() => {
+    const fwd = () => ensureCustomerDisplayFullscreen();
+    window.addEventListener("pointerdown", fwd);
+    window.addEventListener("keydown", fwd);
+    return () => {
+      window.removeEventListener("pointerdown", fwd);
+      window.removeEventListener("keydown", fwd);
+    };
   }, []);
   // Cashier/manager → their shop; admin viewer → fallback to "canteen"
   const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;

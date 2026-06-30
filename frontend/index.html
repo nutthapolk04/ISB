@@ -36,12 +36,34 @@
         var tryFs = function () {
           if (document.fullscreenElement) return;
           var el = document.documentElement;
-          var p = el.requestFullscreen && el.requestFullscreen();
-          if (p && p.catch) p.catch(function () {});
+          if (!el || !el.requestFullscreen) return;
+          try {
+            var p = el.requestFullscreen();
+            if (p && p.catch) p.catch(function () {});
+          } catch (e) { /* ignore */ }
         };
+        // Try immediately, then on every browser lifecycle event we can hook,
+        // plus a short polling burst — the parent's window.open user activation
+        // sticks around for ~5s so we keep poking until it lands.
         tryFs();
         document.addEventListener("DOMContentLoaded", tryFs, { once: true });
         window.addEventListener("load", tryFs, { once: true });
+        window.addEventListener("focus", tryFs);
+        document.addEventListener("visibilitychange", tryFs);
+        // Any user interaction on the popup also retries (kiosk station may
+        // have a touchscreen or stray mouse movement)
+        ["pointerdown", "keydown", "touchstart", "click"].forEach(function (ev) {
+          window.addEventListener(ev, tryFs, { once: false });
+        });
+        var attempts = 0;
+        var iv = setInterval(function () {
+          attempts += 1;
+          if (document.fullscreenElement || attempts > 30) {
+            clearInterval(iv);
+            return;
+          }
+          tryFs();
+        }, 200);
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
