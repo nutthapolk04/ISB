@@ -119,11 +119,21 @@ class Nk77Reader(
     private fun startPollThread() {
         pollThread?.interrupt()
         pollThread = Thread {
+            var pollCount = 0
             while (running) {
                 try {
                     Thread.sleep(POLL_INTERVAL_MS)
                     if (!running || initState != InitState.ENABLED) continue
-                    sendCommand(CMD_STATUS_POLL)
+                    // Don't interrupt an in-progress escrow — let the device drive the exchange.
+                    if (expectBillValue) continue
+
+                    pollCount++
+                    // Experiment: keep the bezel armed by asserting enable (0x3E) every cycle,
+                    // in case the acceptor's enable state decays. Poll status (0x0C) less often.
+                    sendCommand(CMD_ENABLE)
+                    if (pollCount % STATUS_POLL_EVERY == 0) {
+                        sendCommand(CMD_STATUS_POLL)
+                    }
                 } catch (_: InterruptedException) {
                     break
                 }
@@ -329,7 +339,8 @@ class Nk77Reader(
         private const val TAG = "Nk77Reader"
 
         private const val ENABLE_DEBOUNCE_MS = 200L
-        private const val POLL_INTERVAL_MS = 500L
+        private const val POLL_INTERVAL_MS = 1_000L
+        private const val STATUS_POLL_EVERY = 3
 
         private const val CMD_ACK = 0x02
         private const val CMD_ACCEPT = 0x02
