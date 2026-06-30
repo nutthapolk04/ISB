@@ -74,19 +74,8 @@ export interface CheckoutInput {
 
 async function generateReceiptNumber(sqlTx: SqlTx, shopId?: string | null): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  let moduleCode = "S";
-  let shopNum = 0;
-  if (shopId) {
-    const shopRow = await sqlTx<Array<{ module: string; shop_number: number | null }>>`
-      SELECT module, shop_number FROM shops WHERE id = ${shopId} LIMIT 1
-    `;
-    if (shopRow[0]) {
-      moduleCode = shopRow[0].module === "canteen" ? "N" : "S";
-      shopNum = shopRow[0].shop_number ?? 0;
-    }
-  }
-  const shopCode5 = String(shopNum).padStart(5, "0");
-  const prefix = `R-${moduleCode}${shopCode5}-${today}-`;
+  const sid = shopId ?? "unknown";
+  const prefix = `R-${sid}-${today}-`;
   const rows = await sqlTx<Array<{ receipt_number: string }>>`
     SELECT receipt_number FROM receipts
     WHERE receipt_number LIKE ${prefix + "%"}

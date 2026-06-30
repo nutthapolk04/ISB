@@ -378,21 +378,6 @@ export default function CanteenManagementOverview() {
                 placeholder={t("management.shopDescPlaceholder", "Optional description")}
               />
             </div>
-            <div>
-              <Label>{t("management.shopNumber", "Shop Number")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99999}
-                placeholder="00001"
-                value={addForm.shopNumber}
-                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
-                onChange={(e) => setAddForm({ ...addForm, shopNumber: e.target.value.slice(0, 5) })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-N00001-...)")}
-              </p>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>{t("common.cancel")}</Button>
@@ -439,21 +424,6 @@ export default function CanteenManagementOverview() {
                   <SelectItem value="inactive">{t("management.statusInactive", "Inactive")}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>{t("management.shopNumber", "Shop Number")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99999}
-                placeholder="00001"
-                value={editForm.shopNumber}
-                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
-                onChange={(e) => setEditForm({ ...editForm, shopNumber: e.target.value.slice(0, 5) })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-N00001-...)")}
-              </p>
             </div>
           </div>
           <DialogFooter>

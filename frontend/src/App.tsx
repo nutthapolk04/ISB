@@ -50,6 +50,7 @@ import Transfer from "./pages/parent/Transfer";
 import WalletAdjust from "./pages/admin/WalletAdjust";
 import WalletTransfer from "./pages/admin/WalletTransfer";
 import DepartmentAdjust from "./pages/admin/DepartmentAdjust";
+import DepartmentDetail from "./pages/admin/DepartmentDetail";
 import CustomerDetail from "./pages/admin/CustomerDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/users/UserManagement";
@@ -353,6 +354,7 @@ const App = () => {
                   <Route path="/admin/cards" element={<Navigate to="/users?tab=cards" replace />} />
                   <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                   <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
+                  <Route path="/admin/department/:departmentId" element={<DepartmentDetail />} />
                   <Route path="/admin/reports" element={<Reports />} />
                 </Route>
 

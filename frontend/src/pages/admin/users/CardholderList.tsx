@@ -132,7 +132,7 @@ const relativeTime = (iso: string | null | undefined) => {
 function rowDetailHref(c: Cardholder): string {
   if (c.entity_type === "user") return `/users/${c.entity_id}`;
   if (c.entity_type === "customer") return `/admin/customer/${c.entity_id}`;
-  if (c.entity_type === "department") return `/admin/department-adjust?id=${c.entity_id}`;
+  if (c.entity_type === "department") return `/admin/department/${c.entity_id}`;
   return "#";
 }
 

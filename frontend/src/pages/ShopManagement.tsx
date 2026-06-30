@@ -394,21 +394,6 @@ const ShopManagement = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>{t("management.shopNumber", "Shop Number")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99999}
-                placeholder="00001"
-                value={shopForm.shopNumber}
-                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
-                onChange={(e) => setShopForm({ ...shopForm, shopNumber: e.target.value.slice(0, 5) })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-S00001-...)")}
-              </p>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddOpen(false)}>{t("common.cancel")}</Button>
@@ -598,20 +583,6 @@ const ShopManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>{t("management.shopNumber", "Shop Number")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99999}
-                placeholder="00001"
-                value={editForm.shopNumber}
-                onChange={(e) => setEditForm({ ...editForm, shopNumber: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-S00001-...)")}
-              </p>
             </div>
           </div>
           <DialogFooter>
