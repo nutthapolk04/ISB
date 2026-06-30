@@ -360,25 +360,19 @@ export default function GuidePage() {
     visibleGuides.find((r) => r.id === activeRole) ?? visibleGuides[0] ?? roleGuides[0];
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Page header */}
-      <div className="page-header border-b rounded-none">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <BookOpen className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="page-title text-xl">
-              {t("guide.title")}
-            </h1>
-            <p className="page-description">{t("guide.subtitle")}</p>
-          </div>
+    <div className="page-shell">
+      {/* Floating page header */}
+      <div className="page-header flex items-center gap-3">
+        <BookOpen className="h-7 w-7 text-primary" />
+        <div>
+          <h1 className="page-title">{t("guide.title")}</h1>
+          <p className="page-description">{t("guide.subtitle")}</p>
         </div>
       </div>
 
       {/* Mobile role tabs — only when multiple guides exist (e.g. admin) */}
       {visibleGuides.length > 1 && (
-        <div className="sm:hidden flex gap-1 overflow-x-auto border-b bg-muted/30 px-3 py-2 shrink-0">
+        <div className="sm:hidden flex gap-1 overflow-x-auto border-b bg-muted/30 px-3 py-2 shrink-0 rounded-lg">
           {visibleGuides.map((role) => {
             const Icon = role.icon;
             const isActive = role.id === activeRole;
@@ -401,7 +395,7 @@ export default function GuidePage() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
         {/* Sidebar — hidden on mobile, visible sm+ */}
         <aside className="hidden sm:block w-56 shrink-0 border-r bg-muted/30 p-4 space-y-1 overflow-y-auto">
           <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

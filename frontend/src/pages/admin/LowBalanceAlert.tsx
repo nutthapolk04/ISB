@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 
 interface SettingsResponse {
   low_balance_alert_enabled?: boolean;
@@ -72,14 +71,6 @@ export default function LowBalanceAlert() {
   return (
     <div className="page-shell">
       <div className="space-y-4 sm:space-y-6">
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="h-10">
-            <Link to="/admin">
-              <ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.settings.back", "Back")}
-            </Link>
-          </Button>
-        </div>
-
         <div className="page-header flex items-center gap-3">
           <Bell className="h-7 w-7 text-primary" />
           <div>
