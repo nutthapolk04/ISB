@@ -151,6 +151,39 @@ function tryFullscreenWithRetry(win: Window): void {
 }
 
 /**
+ * Detects whether a standalone /customer-display window is already running
+ * elsewhere (e.g. a separate kiosk-mode browser launched on the second
+ * monitor). Uses BroadcastChannel ping/pong on the same channel that the
+ * display already subscribes to, so no extra wiring is needed.
+ *
+ * Resolves true on the first pong within `timeoutMs`, false otherwise.
+ */
+function isCustomerDisplayRunning(timeoutMs = 200): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof BroadcastChannel === "undefined") {
+      resolve(false);
+      return;
+    }
+    let settled = false;
+    const ch = new BroadcastChannel("pos-display");
+    const finish = (v: boolean) => {
+      if (settled) return;
+      settled = true;
+      try { ch.close(); } catch { /* ignore */ }
+      resolve(v);
+    };
+    ch.onmessage = (e) => {
+      const data = e?.data;
+      if (data && typeof data === "object" && (data as { type?: string }).type === "customer-display-pong") {
+        finish(true);
+      }
+    };
+    try { ch.postMessage({ type: "customer-display-ping" }); } catch { /* ignore */ }
+    window.setTimeout(() => finish(false), timeoutMs);
+  });
+}
+
+/**
  * Automatic entry point — pop only when the host actually has ≥2 monitors.
  *
  * Used by the POS pages (Canteen, Store) and the post-login hook so that
@@ -159,11 +192,12 @@ function tryFullscreenWithRetry(win: Window): void {
  * still pops automatically because it has a second monitor wired up.
  *
  * Returns false (without opening anything) when the Screen Management API
- * isn't available, when permission is denied, or when only one screen is
- * connected. Returns the underlying `openCustomerDisplayWindow` result
- * otherwise.
+ * isn't available, when permission is denied, only one screen is connected,
+ * or a standalone customer-display window is already running. Returns the
+ * underlying `openCustomerDisplayWindow` result otherwise.
  */
 export async function autoOpenCustomerDisplayWindow(): Promise<boolean> {
+  if (await isCustomerDisplayRunning()) return false;
   if (!(await hasSecondaryMonitor())) return false;
   return openCustomerDisplayWindow();
 }

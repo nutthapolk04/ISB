@@ -47,8 +47,17 @@ export function useDisplayState(): DisplayState {
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel(CHANNEL_NAME);
     ch.onmessage = (e) => {
-      if (e?.data && typeof e.data === "object" && "state" in e.data) {
-        setState(e.data as DisplayState);
+      const data = e?.data;
+      if (!data || typeof data !== "object") return;
+      // Respond to presence pings from cashier so they can detect that a
+      // standalone customer-display window is already running and skip the
+      // auto-popup. Reply on the same channel.
+      if ((data as { type?: string }).type === "customer-display-ping") {
+        try { ch.postMessage({ type: "customer-display-pong" }); } catch { /* ignore */ }
+        return;
+      }
+      if ("state" in data) {
+        setState(data as DisplayState);
       }
     };
     return () => ch.close();
