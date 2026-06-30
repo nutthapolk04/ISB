@@ -585,6 +585,8 @@ export default function Canteen() {
   const [panelProductIds, setPanelProductIds] = useState<Record<number, Set<number>>>({});
   // Cache of short-name overrides per panel: panelId → productId → short_name
   const [panelShortNames, setPanelShortNames] = useState<Record<number, Record<number, string>>>({});
+  // Cache of panel price overrides per panel: panelId → productId → panel_price (retail only).
+  const [panelPrices, setPanelPrices] = useState<Record<number, Record<number, number>>>({});
   const [panelTabsLoading, setPanelTabsLoading] = useState(false);
 
   useEffect(() => {
@@ -598,7 +600,7 @@ export default function Canteen() {
       // Pre-fetch all panel product IDs so counts are visible immediately
       await Promise.all(data.map(async (panel) => {
         try {
-          const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null }[]>(
+          const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null; panel_price?: number | null }[]>(
             `/shops/${CANTEEN_SHOP_ID}/price-panels/${panel.id}/items`,
           );
           if (!cancelled) {
@@ -607,6 +609,11 @@ export default function Canteen() {
             const snMap: Record<number, string> = {};
             items.forEach((i) => { if (i.short_name) snMap[i.product_id] = i.short_name; });
             setPanelShortNames((prev) => ({ ...prev, [panel.id]: snMap }));
+            const priceMap: Record<number, number> = {};
+            items.forEach((i) => {
+              if (i.panel_price != null) priceMap[i.product_id] = Number(i.panel_price);
+            });
+            setPanelPrices((prev) => ({ ...prev, [panel.id]: priceMap }));
           }
         } catch { /* tolerate */ }
       }));
@@ -621,7 +628,7 @@ export default function Canteen() {
   const fetchPanelProducts = async (panelId: number) => {
     if (panelProductIds[panelId]) return; // already cached
     try {
-      const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null }[]>(
+      const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null; panel_price?: number | null }[]>(
         `/shops/${CANTEEN_SHOP_ID}/price-panels/${panelId}/items`,
       );
       const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
@@ -629,6 +636,11 @@ export default function Canteen() {
       const snMap: Record<number, string> = {};
       items.forEach((i) => { if (i.short_name) snMap[i.product_id] = i.short_name; });
       setPanelShortNames((prev) => ({ ...prev, [panelId]: snMap }));
+      const priceMap: Record<number, number> = {};
+      items.forEach((i) => {
+        if (i.panel_price != null) priceMap[i.product_id] = Number(i.panel_price);
+      });
+      setPanelPrices((prev) => ({ ...prev, [panelId]: priceMap }));
     } catch {
       // tolerate — panel just shows all if fetch fails
     }
@@ -665,7 +677,8 @@ export default function Canteen() {
   const visibleProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
-    return products.filter((p) => {
+    const priceMap = activePanelId !== null ? panelPrices[activePanelId] : null;
+    const filtered = products.filter((p) => {
       if (panelIds && !panelIds.has(p.id)) return false;
       if (!q) return true;
       return (
@@ -673,7 +686,12 @@ export default function Canteen() {
         p.productCode.toLowerCase().includes(q)
       );
     });
-  }, [products, search, activePanelId, panelProductIds]);
+    if (!priceMap) return filtered;
+    return filtered.map((p) => {
+      const override = priceMap[p.id];
+      return override != null ? { ...p, price: override } : p;
+    });
+  }, [products, search, activePanelId, panelProductIds, panelPrices]);
 
   // ── Checkout ───────────────────────────────────────────────────────────
   const doCheckout = async (
