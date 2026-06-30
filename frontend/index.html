@@ -28,6 +28,23 @@
   <body>
     <div id="root"></div>
     <script>
+      // Customer display: inject PWA manifest only on /customer-display so
+      // Chrome offers "Install" → launched as PWA, the app opens in
+      // display:fullscreen automatically. Other routes get no manifest.
+      (function () {
+        if (window.location.pathname !== "/customer-display") return;
+        var link = document.createElement("link");
+        link.rel = "manifest";
+        link.href = "/customer-display.webmanifest";
+        document.head.appendChild(link);
+        // Theme color tweaks the Chrome PWA window header.
+        var theme = document.createElement("meta");
+        theme.name = "theme-color";
+        theme.content = "#0f172a";
+        document.head.appendChild(theme);
+      })();
+    </script>
+    <script>
       // Customer display popup auto-fullscreen.
       // The popup is opened with the parent's user activation, which sticks
       // around briefly. We try fullscreen aggressively until it lands.
