@@ -47,6 +47,15 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,6 +195,7 @@ const bucketFromReceipt = (r: ReceiptRow): "canteen" | "store" | "other" => {
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 const STALE = 30_000;
+const RECENT_PAGE_SIZE = 10;
 
 function useRecentReceipts() {
   return useQuery<ReceiptRow[]>({
@@ -406,6 +416,7 @@ export default function AdminDashboard() {
   const [showLowStock, setShowLowStock] = useState(false);
   const lowStockItemsQuery = useLowStockItems(showLowStock);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
+  const [recentPage, setRecentPage] = useState(1);
 
   // Shop id → display name (lower-cased keys) for badges.
   const shopMap: Record<string, string> = Object.fromEntries(
@@ -434,7 +445,16 @@ export default function AdminDashboard() {
     [perShopQuery.data],
   );
 
-  const recent = (receiptsQuery.data ?? []).slice(0, 10);
+  // Recent activity — paginated client-side (data already fetched). Page is
+  // clamped (not reset) so the 30s auto-refetch doesn't yank the user back.
+  const allRecent = receiptsQuery.data ?? [];
+  const recentTotal = allRecent.length;
+  const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
+  const recentCurrentPage = Math.min(recentPage, recentTotalPages);
+  const recent = allRecent.slice(
+    (recentCurrentPage - 1) * RECENT_PAGE_SIZE,
+    recentCurrentPage * RECENT_PAGE_SIZE,
+  );
   const rangeLabel = formatDateRangeLabel(dateFrom, dateTo, i18n.language);
   const summaryLoading = perShopQuery.isLoading || shopsQuery.isLoading;
 
@@ -720,7 +740,7 @@ export default function AdminDashboard() {
             <ReceiptIcon className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-base font-semibold">{t("admin.dashboard.recentActivity")}</h2>
             <span className="text-xs text-muted-foreground">
-              {t("admin.dashboard.recentLast10")}
+              {t("admin.dashboard.recentCount", { count: recentTotal })}
             </span>
           </div>
 
@@ -734,6 +754,7 @@ export default function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
                   <TableHead>{t("admin.dashboard.colTime")}</TableHead>
                   <TableHead>{t("admin.dashboard.colReceipt")}</TableHead>
                   <TableHead>{t("admin.dashboard.colShop")}</TableHead>
@@ -744,17 +765,18 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recent.length === 0 && (
+                {recentTotal === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="py-8 text-center text-muted-foreground"
                     >
                       {t("admin.dashboard.noRecentActivity")}
                     </TableCell>
                   </TableRow>
                 )}
-                {recent.map((r) => {
+                {recent.map((r, idx) => {
+                  const rowNo = (recentCurrentPage - 1) * RECENT_PAGE_SIZE + idx + 1;
                   const sid =
                     r.shop_id ??
                     (bucketFromReceipt(r) === "canteen"
@@ -777,6 +799,9 @@ export default function AdminDashboard() {
                       }`}
                       onClick={() => setSelectedReceiptId(r.id)}
                     >
+                      <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                        {rowNo}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatRelative(r.created_at, t)}
                       </TableCell>
@@ -807,6 +832,64 @@ export default function AdminDashboard() {
                 })}
               </TableBody>
             </Table>
+          )}
+
+          {!receiptsQuery.isLoading && recentTotal > 0 && (
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {t("admin.dashboard.pageInfo", {
+                  from: (recentCurrentPage - 1) * RECENT_PAGE_SIZE + 1,
+                  to: Math.min(recentCurrentPage * RECENT_PAGE_SIZE, recentTotal),
+                  total: recentTotal.toLocaleString(),
+                })}
+              </p>
+              {recentTotalPages > 1 && (
+                <Pagination className="mx-0 w-auto">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setRecentPage((p) => Math.max(1, p - 1)); }}
+                        className={recentCurrentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+
+                    {Array.from({ length: recentTotalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === recentTotalPages || Math.abs(p - recentCurrentPage) <= 1)
+                      .reduce<(number | "ellipsis")[]>((acc, p, i, arr) => {
+                        if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("ellipsis");
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        p === "ellipsis" ? (
+                          <PaginationItem key={`e-${i}`}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        ) : (
+                          <PaginationItem key={p}>
+                            <PaginationLink
+                              href="#"
+                              isActive={p === recentCurrentPage}
+                              onClick={(e) => { e.preventDefault(); setRecentPage(p); }}
+                            >
+                              {p}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ),
+                      )}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setRecentPage((p) => Math.min(recentTotalPages, p + 1)); }}
+                        className={recentCurrentPage === recentTotalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

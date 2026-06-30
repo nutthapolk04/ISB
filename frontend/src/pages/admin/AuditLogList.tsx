@@ -27,6 +27,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { ChevronDown, History, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -73,7 +82,7 @@ const ACTION_BADGE: Record<string, string> = {
   reprint: "bg-sky-100 text-sky-800",
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 
 export default function AuditLogList() {
   const { t } = useTranslation();
@@ -214,6 +223,7 @@ export default function AuditLogList() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
                 <TableHead className="w-40">{t("audit.colDate")}</TableHead>
                 <TableHead>{t("audit.colUser")}</TableHead>
                 <TableHead>{t("audit.colEntity")}</TableHead>
@@ -224,7 +234,7 @@ export default function AuditLogList() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
                     {t("shopUsers.loading")}
                   </TableCell>
@@ -232,18 +242,22 @@ export default function AuditLogList() {
               )}
               {!loading && items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     {t("audit.noResults")}
                   </TableCell>
                 </TableRow>
               )}
-              {items.map((row) => {
+              {items.map((row, idx) => {
+                const rowNo = (page - 1) * PAGE_SIZE + idx + 1;
                 const actionKey = row.action.toLowerCase();
                 const badgeClass = ACTION_BADGE[actionKey] ?? "bg-gray-100 text-gray-700";
                 const hasChanges = row.changes && Object.keys(row.changes as object).length > 0;
                 const summary = humanizeSummary(t, row.entity_type, row.action, row.changes);
                 return (
                   <TableRow key={row.id} className="align-top">
+                    <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                      {rowNo}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground tabular-nums">
                       {new Date(row.created_at).toLocaleString()}
                     </TableCell>
@@ -297,31 +311,62 @@ export default function AuditLogList() {
       </Card>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm">
-        <p className="text-muted-foreground">
-          {t("audit.totalCount", { total })}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {total > 0
+            ? t("audit.pageInfo", {
+                from: (page - 1) * PAGE_SIZE + 1,
+                to: Math.min(page * PAGE_SIZE, total),
+                total: total.toLocaleString(),
+              })
+            : t("audit.totalCount", { total })}
         </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            {t("audit.prev")}
-          </Button>
-          <span className="text-muted-foreground">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            {t("audit.next")}
-          </Button>
-        </div>
+        {totalPages > 1 && (
+          <Pagination className="mx-0 w-auto">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (page > 1 && !loading) setPage((p) => Math.max(1, p - 1)); }}
+                  className={page <= 1 || loading ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | "ellipsis")[]>((acc, p, i, arr) => {
+                  if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("ellipsis");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "ellipsis" ? (
+                    <PaginationItem key={`e-${i}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === page}
+                        onClick={(e) => { e.preventDefault(); if (!loading) setPage(p); }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ),
+                )}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (page < totalPages && !loading) setPage((p) => Math.min(totalPages, p + 1)); }}
+                  className={page >= totalPages || loading ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </div>
   );

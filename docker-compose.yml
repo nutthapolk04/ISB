@@ -1,0 +1,38 @@
+# Local development database.
+#
+# Brings up a single PostgreSQL instance matching the connection string in the
+# commented-out local DATABASE_URL in .env:
+#   postgresql://user:password@localhost:5432/ISB
+#
+# Usage:
+#   docker compose up -d        # start in background
+#   docker compose ps           # status / health
+#   docker compose logs -f db   # tail logs
+#   docker compose down         # stop (keeps data)
+#   docker compose down -v      # stop AND wipe the data volume
+#
+# Data persists in the named volume `isb_pgdata` across restarts.
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: isb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ISB
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18+ stores data in a major-version subdir, so the volume must
+      # be mounted at /var/lib/postgresql (not /var/lib/postgresql/data).
+      - isb_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d ISB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  isb_pgdata:
