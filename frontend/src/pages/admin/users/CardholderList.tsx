@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import {
+  useCardholders,
+  useFamilyLinks,
+  useDeleteCardholder,
+  useLinkStudent,
+  useUnlinkFamily,
+  type Cardholder,
+} from "@/hooks/useCardholders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +29,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { toast } from "@/hooks/use-toast";
 import {
   Search,
@@ -49,47 +66,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import CreateCardholderDialog from "./CreateCardholderDialog";
 import SyncRunDialog from "./SyncRunDialog";
 
-export interface Cardholder {
-  key: string;
-  kind: "student" | "parent" | "staff" | "department" | "other";
-  entity_type: "user" | "customer" | "department";
-  entity_id: number;
-  name: string;
-  identifier: string;
-  photo_url?: string | null;
-  family_code?: string | null;
-  external_id?: string | null;
-  card_uid?: string | null;
-  wallet_id?: number | null;
-  wallet_balance?: number | null;
-  is_active: boolean;
-  is_graduated?: boolean;
-  role?: string | null;
-  shop_id?: string | null;
-  grade?: string | null;
-  school_type?: string | null;
-  allergies?: string | null;
-  department_code?: string | null;
-  synced_at?: string | null;
-}
-
-interface FamilyLink {
-  id: number;
-  parent_user_id: number;
-  parent_username?: string | null;
-  parent_full_name?: string | null;
-  child_customer_id: number;
-  child_name?: string | null;
-  child_student_code?: string | null;
-  relation: string;
-}
-
 type SchoolFilter = "all" | "ES Student" | "MS Student" | "HS Student";
-
-interface ListResponse {
-  items: Cardholder[];
-  total: number;
-}
 
 const KIND_FILTERS: { kind: Cardholder["kind"] | "all"; labelKey: string; icon: any }[] = [
   { kind: "all",        labelKey: "cardholders.kindAll",        icon: UsersIcon },
@@ -115,6 +92,8 @@ const KIND_BADGE_KEY: Record<Cardholder["kind"], string> = {
   department: "cardholders.kindDepartment",
   other:      "cardholders.kindOther",
 };
+
+const PAGE_SIZE = 10;
 
 const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
@@ -144,22 +123,49 @@ export default function CardholderList() {
   // ?shop=<shopId> from ShopDetail "Manage shop staff" link — pre-filters by shop_id
   const shopFilter = searchParams.get("shop") ?? null;
   const initialKind = (searchParams.get("kind") as Cardholder["kind"] | "all") || (shopFilter ? "staff" : "all");
-  const [allItems, setAllItems] = useState<Cardholder[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const cardholdersQuery = useCardholders();
+  const familyLinksQuery = useFamilyLinks();
+  const deleteCardholder = useDeleteCardholder();
+  const linkStudent = useLinkStudent();
+  const unlinkFamily = useUnlinkFamily();
+
+  const allItems = cardholdersQuery.data?.items ?? [];
+  const familyLinks = familyLinksQuery.data ?? [];
+  const loading = cardholdersQuery.isLoading;
+
+  // Reload both queries after Create / Sync finish.
+  const reload = () => {
+    cardholdersQuery.refetch();
+    familyLinksQuery.refetch();
+  };
+
+  // Surface load failures the same way the old imperative fetch did.
+  useEffect(() => {
+    if (!cardholdersQuery.isError) return;
+    const e = cardholdersQuery.error;
+    toast({
+      title: t("cardholders.loadFailed"),
+      description: e instanceof ApiError ? e.detail : t("shopUsers.errorGeneric"),
+      variant: "destructive",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardholdersQuery.isError]);
+
   const [kind, setKind] = useState<Cardholder["kind"] | "all">(initialKind);
   const [q, setQ] = useState("");
   const [school, setSchool] = useState<SchoolFilter>("all");
   const [grade, setGrade] = useState<string>("all");
+  const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
-  const [familyLinks, setFamilyLinks] = useState<FamilyLink[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [linkStudentFor, setLinkStudentFor] = useState<Cardholder | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [linkStudentRelation, setLinkStudentRelation] = useState("parent");
-  const [linkingStudent, setLinkingStudent] = useState(false);
   const [unlinkingFamilyId, setUnlinkingFamilyId] = useState<number | null>(null);
+  const linkingStudent = linkStudent.isPending;
 
   // Delete cardholder (admin only). Customers go through /customers DELETE,
   // user accounts go through /users DELETE. Department cardholders are
@@ -167,35 +173,26 @@ export default function CardholderList() {
   const { user: authUser } = useAuth();
   const canDelete = authUser?.activeRole === "admin";
   const [deleting, setDeleting] = useState<Cardholder | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
+  const deleteBusy = deleteCardholder.isPending;
 
-  const handleDeleteCardholder = async () => {
+  const handleDeleteCardholder = () => {
     if (!deleting) return;
-    setDeleteBusy(true);
-    try {
-      const path =
-        deleting.entity_type === "user"
-          ? `/users/${deleting.entity_id}`
-          : deleting.entity_type === "customer"
-            ? `/customers/${deleting.entity_id}`
-            : null;
-      if (!path) throw new Error("Unsupported entity type");
-      await api.delete(path);
-      toast({
-        title: t("cardholders.deleteSuccess", "User deleted"),
-        description: deleting.name,
-      });
-      setAllItems((items) => items.filter((c) => c.key !== deleting.key));
-      setDeleting(null);
-    } catch (e) {
-      toast({
-        title: t("cardholders.deleteFailed", "Failed to delete user"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setDeleteBusy(false);
-    }
+    deleteCardholder.mutate(deleting, {
+      onSuccess: () => {
+        toast({
+          title: t("cardholders.deleteSuccess", "User deleted"),
+          description: deleting.name,
+        });
+        setDeleting(null);
+      },
+      onError: (e) => {
+        toast({
+          title: t("cardholders.deleteFailed", "Failed to delete user"),
+          description: e instanceof ApiError ? e.detail : "Unknown error",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   // Keep URL in sync when chip changes (so /users?kind=student is shareable).
@@ -212,37 +209,8 @@ export default function CardholderList() {
     }
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (q.trim()) params.set("q", q.trim());
-      params.set("page_size", "500");
-      const [data, links] = await Promise.all([
-        api.get<ListResponse>(`/admin/cardholders?${params.toString()}`),
-        api.get<FamilyLink[]>("/family/links"),
-      ]);
-      setAllItems(data.items);
-      setFamilyLinks(links);
-    } catch (e) {
-      toast({
-        title: t("cardholders.loadFailed"),
-        description: e instanceof ApiError ? e.detail : t("shopUsers.errorGeneric"),
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Initial load + reload after Create / Sync finish (search reload happens
-  // on Enter / button click below).
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Display list filtered by chip selection (and student sub-filters when active).
+  // Display list filtered by chip selection, student sub-filters, and the
+  // free-text search box — all client-side so results update as you type.
   const items = useMemo(() => {
     let rows = kind === "all" ? allItems : allItems.filter((c) => c.kind === kind);
     if (kind === "student") {
@@ -250,9 +218,28 @@ export default function CardholderList() {
       if (grade !== "all") rows = rows.filter((c) => c.grade === grade);
     }
     if (shopFilter) rows = rows.filter((c) => c.shop_id === shopFilter);
+    const query = q.trim().toLowerCase();
+    if (query) {
+      rows = rows.filter((c) =>
+        [c.name, c.identifier, c.family_code, c.external_id, c.card_uid, c.department_code]
+          .some((field) => field?.toLowerCase().includes(query)),
+      );
+    }
     return rows;
-  }, [allItems, kind, school, grade, shopFilter]);
+  }, [allItems, kind, school, grade, shopFilter, q]);
   const total = items.length;
+
+  // Reset to page 1 whenever the filtered set changes underneath the user.
+  useEffect(() => {
+    setPage(1);
+  }, [kind, school, grade, shopFilter, q, allItems]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedItems = useMemo(
+    () => items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [items, currentPage],
+  );
 
   // Stats always count the full unfiltered list so chip badges stay correct.
   const stats = useMemo(() => {
@@ -298,37 +285,40 @@ export default function CardholderList() {
     setLinkStudentRelation("parent");
   };
 
-  const handleLinkStudent = async () => {
+  const handleLinkStudent = () => {
     if (!linkStudentFor || !selectedStudentId) return;
-    setLinkingStudent(true);
-    try {
-      await api.post("/family/links", {
+    linkStudent.mutate(
+      {
         parent_user_id: linkStudentFor.entity_id,
         child_customer_id: parseInt(selectedStudentId),
         relation: linkStudentRelation,
-      });
-      toast({ title: t("cardholders.studentLinked", "Student linked") });
-      setLinkStudentFor(null);
-      load();
-    } catch (e) {
-      toast({ title: t("cardholders.linkFailed", "Link failed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
-    } finally {
-      setLinkingStudent(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          toast({ title: t("cardholders.studentLinked", "Student linked") });
+          setLinkStudentFor(null);
+        },
+        onError: (e) => {
+          toast({ title: t("cardholders.linkFailed", "Link failed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+        },
+      },
+    );
   };
 
-  const handleUnlinkFamily = async (linkId: number) => {
+  const handleUnlinkFamily = (linkId: number) => {
     if (!window.confirm(t("cardholders.unlinkConfirm", "Remove this family link?"))) return;
     setUnlinkingFamilyId(linkId);
-    try {
-      await api.delete(`/family/links/${linkId}`);
-      toast({ title: t("cardholders.studentUnlinked", "Family link removed") });
-      load();
-    } catch (e) {
-      toast({ title: t("cardholders.linkFailed", "Link failed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
-    } finally {
-      setUnlinkingFamilyId(null);
-    }
+    unlinkFamily.mutate(linkId, {
+      onSuccess: () => {
+        toast({ title: t("cardholders.studentUnlinked", "Family link removed") });
+      },
+      onError: (e) => {
+        toast({ title: t("cardholders.linkFailed", "Link failed"), description: e instanceof ApiError ? e.detail : "Unknown error", variant: "destructive" });
+      },
+      onSettled: () => {
+        setUnlinkingFamilyId(null);
+      },
+    });
   };
 
   return (
@@ -364,23 +354,15 @@ export default function CardholderList() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-2">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t("cardholders.searchPlaceholder")}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") load();
-            }}
-            className="pl-8"
-          />
-        </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("cardholders.search")}
-        </Button>
+      {/* Search — filters the already-loaded list live as you type */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={t("cardholders.searchPlaceholder")}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="pl-8"
+        />
       </div>
 
       {/* Student-only KPIs + sub-filters (school / grade) */}
@@ -430,21 +412,22 @@ export default function CardholderList() {
           <Table>
             <TableHeader>
               <TableRow className="text-xs">
-                <TableHead className="w-48">Name</TableHead>
-                <TableHead className="w-24">Type</TableHead>
-                <TableHead className="w-44">ID Number</TableHead>
-                <TableHead className="w-28">Family Code</TableHead>
-                <TableHead className="w-28">Card UID</TableHead>
-                <TableHead className="w-28 text-right">Wallet Balance</TableHead>
-                <TableHead className="w-20">Status</TableHead>
-                <TableHead className="w-24">Last Synced</TableHead>
+                <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
+                <TableHead className="w-48">{t("cardholders.colName", "Name")}</TableHead>
+                <TableHead className="w-24">{t("cardholders.colKind", "Type")}</TableHead>
+                <TableHead className="w-44">{t("cardholders.colIdentifier", "ID Number")}</TableHead>
+                <TableHead className="w-28">{t("cardholders.colFamily", "Family Code")}</TableHead>
+                <TableHead className="w-28">{t("cardholders.colCard", "Card UID")}</TableHead>
+                <TableHead className="w-28 text-right">{t("cardholders.colBalance", "Wallet Balance")}</TableHead>
+                <TableHead className="w-20">{t("cardholders.colStatus", "Status")}</TableHead>
+                <TableHead className="w-24">{t("cardholders.colLastSync", "Last Synced")}</TableHead>
                 <TableHead className="w-28"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-6 text-muted-foreground">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
                     {t("common.loading", "Loading…")}
                   </TableCell>
@@ -452,12 +435,13 @@ export default function CardholderList() {
               )}
               {!loading && items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-6 text-muted-foreground">
                     {t("cardholders.noResults")}
                   </TableCell>
                 </TableRow>
               )}
-              {items.flatMap((c) => {
+              {pagedItems.flatMap((c, idx) => {
+                const rowNo = (currentPage - 1) * PAGE_SIZE + idx + 1;
                 const isExpandable = (c.kind === "parent" || c.kind === "staff") && c.entity_type === "user";
                 const isExpanded = expandedRows.has(c.key);
                 const childLinks = isExpandable
@@ -471,6 +455,8 @@ export default function CardholderList() {
 
                 const mainRow = (
                   <TableRow key={c.key} className={isExpanded ? "border-b-0" : ""}>
+                    {/* Row number */}
+                    <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{rowNo}</TableCell>
                     {/* Name + avatar */}
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-0">
@@ -579,7 +565,7 @@ export default function CardholderList() {
 
                 const expandRow = (
                   <TableRow key={`${c.key}-exp`} className="bg-muted/20 hover:bg-muted/20">
-                    <TableCell colSpan={9} className="px-6 pb-4 pt-2">
+                    <TableCell colSpan={10} className="px-6 pb-4 pt-2">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -659,20 +645,76 @@ export default function CardholderList() {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground">{t("cardholders.totalCount", { total: total.toLocaleString() })}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {total > 0
+            ? t("cardholders.pageInfo", {
+                from: (currentPage - 1) * PAGE_SIZE + 1,
+                to: Math.min(currentPage * PAGE_SIZE, total),
+                total: total.toLocaleString(),
+              })
+            : t("cardholders.totalCount", { total: total.toLocaleString() })}
+        </p>
+        {totalPages > 1 && (
+          <Pagination className="mx-0 w-auto">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                .reduce<(number | "ellipsis")[]>((acc, p, i, arr) => {
+                  if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("ellipsis");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "ellipsis" ? (
+                    <PaginationItem key={`e-${i}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e) => { e.preventDefault(); setPage(p); }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ),
+                )}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
+      </div>
 
       <CreateCardholderDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={() => {
           setCreateOpen(false);
-          load();
+          reload();
         }}
       />
       <SyncRunDialog
         open={syncOpen}
         onOpenChange={setSyncOpen}
-        onFinished={() => load()}
+        onFinished={() => reload()}
       />
 
       {/* Link student dialog */}
