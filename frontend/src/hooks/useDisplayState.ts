@@ -56,6 +56,14 @@ export function useDisplayState(): DisplayState {
         try { ch.postMessage({ type: "customer-display-pong" }); } catch { /* ignore */ }
         return;
       }
+      if ((data as { type?: string }).type === "customer-display-shutdown") {
+        // Cashier logged out — close this window. Browsers may block
+        // close() on windows not opened by script, in which case we
+        // navigate to about:blank as a visible signal.
+        try { window.close(); } catch { /* ignore */ }
+        try { window.location.replace("about:blank"); } catch { /* ignore */ }
+        return;
+      }
       if ("state" in data) {
         setState(data as DisplayState);
       }

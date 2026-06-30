@@ -438,6 +438,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Tell the customer-display window (if any) to close itself before we
+    // wipe local state. Same channel both windows already share.
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        const ch = new BroadcastChannel("pos-display");
+        ch.postMessage({ type: "customer-display-shutdown" });
+        // Close after a short delay so the message has time to deliver.
+        setTimeout(() => { try { ch.close(); } catch { /* ignore */ } }, 100);
+      }
+    } catch { /* ignore */ }
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(TOKEN_KEY);
