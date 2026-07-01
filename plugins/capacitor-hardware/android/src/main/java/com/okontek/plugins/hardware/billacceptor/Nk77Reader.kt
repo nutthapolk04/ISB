@@ -18,16 +18,14 @@ data class BillEvent(
 /**
  * NK77 RS-232 (ICT104U family). FM-3568D: /dev/ttyS2, 9600 8E1 (EVEN parity).
  *
- * Observe-only mode (debugging):
+ * Init:
  * 1. Passively WAIT for the device's power-up handshake 0x80/0x8F.
  * 2. Reply 0x02 within 2s (clears Inhibit), then send 0x3E (enable) — this runs ONCE.
- * 3. After that, just LOG whatever the device sends. We do NOT auto-accept bills
- *    (no 0x02 on escrow) yet — purely observation.
+ * 3. If no 0x80/0x8F within 3s (device already powered), poll 0x0C — a 0x3E reply means
+ *    the BA is already enabled; a 0x5E reply means inhibit → we send 0x3E.
  *
- * Per ICT104U V0.5 the BA only sends 0x80/0x8F right after power-on (every 2s until it gets
- * 0x02); if it was already powered and previously ACKed, it stays silent. To recover from that
- * (e.g. the app restarted against an already-running device) without power-cycling, if we don't
- * see 0x80/0x8F within 3s we poll with 0x0C — the BA answers 0x80/0x8F and we resume init.
+ * Escrow (3.2): device sends 0x81 then 0x40–0x44 → controller sends 0x02 (accept) within 5s →
+ *               device sends 0x10 (stacked) or 0x11 (rejected).
  *
  * NOTE: 0x5B "model info" was REMOVED in ICT104U V0.5 — there is no model handshake.
  */
@@ -47,6 +45,9 @@ class Nk77Reader(
     private var initDone = false
 
     private var expectBillValue = false
+    private var lastBillSlot: Int? = null
+    private var lastBillCode: Int? = null
+    private var lastBillAmountThb: Int? = null
 
     private var thread: Thread? = null
     private var promptThread: Thread? = null
@@ -73,10 +74,17 @@ class Nk77Reader(
         powerUpEventEmitted = false
         initDone = false
         expectBillValue = false
+        clearLastBill()
+    }
+
+    private fun clearLastBill() {
+        lastBillSlot = null
+        lastBillCode = null
+        lastBillAmountThb = null
     }
 
     override fun run() {
-        Log.i(TAG, "NK77 reader started — observe-only (wait 0x80/0x8F → 0x02 → 0x3E once; poll 0x0C after 3s, then log)")
+        Log.i(TAG, "NK77 reader started — ICT104U (init → accept bills → stack)")
 
         val buffer = ByteArray(64)
         while (running) {
@@ -100,8 +108,7 @@ class Nk77Reader(
 
     /**
      * If no 0x80/0x8F arrives within 3s (device already powered from a previous session),
-     * poll with 0x0C — the BA replies 0x80/0x8F and init resumes, no power-cycle needed.
-     * Repeats every 3s until init completes.
+     * poll with 0x0C — the BA replies 0x3E (enabled) or 0x5E (inhibit). Repeats until init completes.
      */
     private fun startStatusPrompt() {
         promptThread?.interrupt()
@@ -112,17 +119,26 @@ class Nk77Reader(
                     Thread.sleep(STATUS_PROMPT_MS)
                     if (!running || initDone) break
                     n++
-                    Log.i(TAG, "No 0x80/0x8F for ${STATUS_PROMPT_MS}ms — poll (0x0C) #$n to wake device")
+                    Log.i(TAG, "No 0x80/0x8F for ${STATUS_PROMPT_MS}ms — poll (0x30) #$n")
                     sendCommand(CMD_STATUS_POLL)
                 }
             } catch (_: InterruptedException) {
-                // Handshake arrived, or reader stopped.
+                // Handshake or status reply completed init, or reader stopped.
             }
         }.apply {
             isDaemon = true
             name = "nk77-status-prompt"
             start()
         }
+    }
+
+    private fun finishInit(reason: String) {
+        if (initDone) return
+        initDone = true
+        promptThread?.interrupt()
+        promptThread = null
+        Log.i(TAG, "Init done ($reason)")
+        emit(BillEvent(type = "ready", rawHex = "3E", message = "Bill acceptor ready — insert bill"))
     }
 
     /** 3.1 Power Up: device sends 0x80/0x8F every 2s until it gets 0x02. ACK it, then enable once. */
@@ -136,13 +152,55 @@ class Nk77Reader(
         sendCommand(CMD_ACK)
 
         if (!initDone) {
-            initDone = true
-            promptThread?.interrupt()
-            promptThread = null
-            Log.i(TAG, "Enable (0x3E) — init done, now observing")
+            Log.i(TAG, "Enable (0x3E)")
             sendCommand(CMD_ENABLE)
-            emit(BillEvent(type = "ready", rawHex = "3E", message = "Bill acceptor ready — insert bill"))
+            finishInit("handshake 0x$hex")
         }
+    }
+
+    /** 3.3 poll reply: BA already enabled. */
+    private fun onPollEnabled(hex: String) {
+        Log.d(TAG, "Poll: enabled (0x3E)")
+        if (!initDone) {
+            finishInit("poll status 0x$hex")
+        }
+    }
+
+    /** 3.3 poll reply: BA inhibited — re-enable. */
+    private fun onPollInhibited() {
+        Log.w(TAG, "Poll: inhibited (0x5E) — enable (0x3E)")
+        sendCommand(CMD_ENABLE)
+        if (!initDone) {
+            finishInit("poll inhibit → enable")
+        }
+    }
+
+    /** 3.2 Escrow: accept bill within 5s by sending 0x02. */
+    private fun handleBillValue(byte: Int, hex: String) {
+        if (!initDone) {
+            Log.w(TAG, "Bill value 0x$hex before init — ignored")
+            return
+        }
+
+        val slot = byte - BILL_CODE_MIN + 1
+        val amount = THB_DENOMINATIONS.getOrNull(byte - BILL_CODE_MIN)
+        lastBillSlot = slot
+        lastBillCode = byte
+        lastBillAmountThb = amount
+
+        Log.i(TAG, "Bill value 0x$hex — accept (0x02)${amount?.let { " (~$it THB)" } ?: ""}")
+        sendCommand(CMD_ACCEPT)
+
+        emit(
+            BillEvent(
+                type = "escrow",
+                billSlot = slot,
+                billCode = byte,
+                billAmountThb = amount,
+                rawHex = hex,
+                message = amount?.let { "Bill ~$it THB (0x$hex)" } ?: "Bill slot $slot (0x$hex)",
+            ),
+        )
     }
 
     private fun handleByte(byte: Int) {
@@ -160,39 +218,72 @@ class Nk77Reader(
             return
         }
 
-        // Observe-only: classify for readable logs, but DO NOT respond to the device yet.
         if (expectBillValue) {
             expectBillValue = false
-            val msg = if (byte in BILL_CODE_MIN..BILL_CODE_MAX) {
-                val amount = THB_DENOMINATIONS.getOrNull(byte - BILL_CODE_MIN)
-                "Bill value 0x$hex${amount?.let { " (~$it THB)" } ?: ""} (observe only — not accepting)"
+            if (byte in BILL_CODE_MIN..BILL_CODE_MAX) {
+                handleBillValue(byte, hex)
             } else {
-                "Unexpected byte after escrow 0x81: 0x$hex"
+                emit(BillEvent(type = "raw", rawHex = hex, message = "Unexpected byte after escrow 0x81: 0x$hex"))
             }
-            Log.i(TAG, msg)
-            emit(BillEvent(type = "log", billCode = byte, rawHex = hex, message = msg))
             return
         }
 
-        val msg = when (byte) {
-            STATUS_ENABLED -> "Status: enabled (0x3E)"
-            STATUS_INHIBIT -> "Status: inhibit (0x5E)"
-            CMD_ESCROW -> {
-                expectBillValue = true
-                "Bill validated (0x81) — waiting value"
-            }
-            in BILL_CODE_MIN..BILL_CODE_MAX -> {
-                val amount = THB_DENOMINATIONS.getOrNull(byte - BILL_CODE_MIN)
-                "Bill value 0x$hex${amount?.let { " (~$it THB)" } ?: ""} (observe only — not accepting)"
-            }
-            CMD_STACK_OK -> "Bill stacked (0x10)"
-            CMD_REJECTED -> "Bill rejected / escrow timeout (0x11)"
-            in CMD_EXCEPTION_MIN..CMD_EXCEPTION_MAX -> exceptionMessage(byte)
-            else -> "Unclassified byte 0x$hex"
-        }
+        when (byte) {
+            STATUS_ENABLED -> onPollEnabled(hex)
 
-        Log.i(TAG, "RX 0x$hex — $msg")
-        emit(BillEvent(type = "log", billCode = byte, rawHex = hex, message = msg))
+            STATUS_INHIBIT -> onPollInhibited()
+
+            CMD_ESCROW -> {
+                if (!initDone) return
+                expectBillValue = true
+                Log.i(TAG, "Bill validated (0x81) — waiting value")
+                emit(BillEvent(type = "escrowPending", rawHex = hex, message = "Bill validated (0x81) — waiting value"))
+            }
+
+            in BILL_CODE_MIN..BILL_CODE_MAX -> handleBillValue(byte, hex)
+
+            CMD_STACK_OK -> {
+                val amount = lastBillAmountThb
+                Log.i(TAG, "Bill stacked (0x10)${amount?.let { " — $it THB" } ?: ""}")
+                emit(
+                    BillEvent(
+                        type = "stacked",
+                        billSlot = lastBillSlot,
+                        billCode = lastBillCode,
+                        billAmountThb = amount,
+                        rawHex = hex,
+                        message = amount?.let { "Bill stacked — $it THB" } ?: "Bill stacked (0x10)",
+                    ),
+                )
+                clearLastBill()
+            }
+
+            CMD_REJECTED -> {
+                Log.w(TAG, "Bill rejected / escrow timeout (0x11)")
+                emit(
+                    BillEvent(
+                        type = "rejected",
+                        billSlot = lastBillSlot,
+                        billCode = lastBillCode,
+                        billAmountThb = lastBillAmountThb,
+                        rawHex = hex,
+                        message = "Bill rejected / escrow timeout (0x11)",
+                    ),
+                )
+                clearLastBill()
+            }
+
+            in CMD_EXCEPTION_MIN..CMD_EXCEPTION_MAX -> {
+                val msg = exceptionMessage(byte)
+                Log.w(TAG, "Exception 0x$hex — $msg")
+                emit(BillEvent(type = "exception", billCode = byte, rawHex = hex, message = msg))
+            }
+
+            else -> {
+                Log.d(TAG, "Unclassified byte 0x$hex")
+                emit(BillEvent(type = "raw", rawHex = hex, message = "Unclassified byte 0x$hex"))
+            }
+        }
     }
 
     private fun sendCommand(vararg bytes: Int) {
@@ -235,10 +326,11 @@ class Nk77Reader(
     companion object {
         private const val TAG = "Nk77Reader"
 
-        // If no power-up handshake (0x80/0x8F) shows up in this window, poll 0x0C to wake the BA.
         private const val STATUS_PROMPT_MS = 3_000L
 
         private const val CMD_ACK = 0x02
+        private const val CMD_ACCEPT = 0x02
+        private const val CMD_DECLINE = 0x0F
         private const val CMD_ENABLE = 0x3E
         private const val CMD_STATUS_POLL = 0x30
         private const val CMD_POWER_UP = 0x80
