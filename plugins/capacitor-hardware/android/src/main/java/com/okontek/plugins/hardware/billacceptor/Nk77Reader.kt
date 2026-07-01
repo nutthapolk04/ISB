@@ -120,7 +120,7 @@ class Nk77Reader(
                     if (!running || initDone) break
                     n++
                     Log.i(TAG, "No 0x80/0x8F for ${STATUS_PROMPT_MS}ms — poll (0x30) #$n")
-                    sendCommand(CMD_STATUS_POLL)
+                    sendCommand(CMD_RESET)
                 }
             } catch (_: InterruptedException) {
                 // Handshake or status reply completed init, or reader stopped.
@@ -331,8 +331,9 @@ class Nk77Reader(
         private const val CMD_ACK = 0x02
         private const val CMD_ACCEPT = 0x02
         private const val CMD_DECLINE = 0x0F
+        private const val CMD_HOLD = 0x18
         private const val CMD_ENABLE = 0x3E
-        private const val CMD_STATUS_POLL = 0x30
+        private const val CMD_RESET = 0x30
         private const val CMD_POWER_UP = 0x80
         private const val CMD_POWER_UP_ALT = 0x8F
         private const val CMD_ESCROW = 0x81
