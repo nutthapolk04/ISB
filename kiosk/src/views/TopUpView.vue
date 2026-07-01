@@ -2,8 +2,9 @@
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
 import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut } from 'lucide-vue-next';
-import { ref, computed, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
+import { useBillAcceptor } from '../hooks/useBillAcceptor';
 import QRCode from 'qrcode';
 
 const router = useRouter();
@@ -50,10 +51,24 @@ const t = {
     cancelTopup: 'Cancel Top-up',
     changeMethod: 'Change Payment Method',
     seconds: 'sec',
-    cashConfirmTitle: 'Proceed to Cashier',
-    cashConfirmDesc: 'Please show this screen to the cashier and pay the amount below.',
-    cashConfirmNote: 'The cashier will confirm payment and top up your wallet.',
-    cashConfirmBtn: 'Confirm Cash Received',
+    cashConfirmTitle: 'Insert Cash',
+    cashConfirmDesc: 'Insert banknotes into the machine one at a time.',
+    cashConfirmNote: 'Bills are accepted automatically. Top-up completes when the target is reached.',
+    cashTarget: 'Target amount',
+    cashInserted: 'Inserted',
+    cashRemaining: 'Remaining',
+    cashOverpayTitle: 'Bill exceeds target',
+    cashOverpayDesc: 'This bill would exceed your target amount. What would you like to do?',
+    cashOverpayBill: 'Bill amount',
+    cashOverpayWouldBe: 'Total if accepted',
+    cashOverpayAccept: 'Accept overpay',
+    cashOverpayReturn: 'Return bill',
+    cashPartialHint: 'Press cancel to finish with the amount inserted.',
+    cashCancelAttentionTitle: 'Cancel this top-up?',
+    cashCancelAttentionDesc: 'Inserted banknotes cannot be returned as cash. The amount below will be credited to the student wallet immediately.',
+    cashCancelAttentionAmount: 'Amount to credit',
+    cashCancelConfirmBtn: 'Cancel and credit wallet',
+    cashCancelDismissBtn: 'Keep inserting',
     processing: 'Processing…',
     failDetail: 'Error detail',
   },
@@ -93,10 +108,24 @@ const t = {
     cancelTopup: 'ยกเลิกการเติมเงิน',
     changeMethod: 'เปลี่ยนช่องทางชำระ',
     seconds: 'วินาที',
-    cashConfirmTitle: 'ชำระเงินที่แคชเชียร์',
-    cashConfirmDesc: 'กรุณาแสดงหน้าจอนี้ให้แคชเชียร์และชำระจำนวนเงินด้านล่าง',
-    cashConfirmNote: 'แคชเชียร์จะกดยืนยันรับเงินและเติมเงินเข้าวอลเล็ตของคุณ',
-    cashConfirmBtn: 'ยืนยันรับเงินแล้ว',
+    cashConfirmTitle: 'สอดเงินสด',
+    cashConfirmDesc: 'สอดธนบัตรเข้าเครื่องทีละใบ',
+    cashConfirmNote: 'เครื่องจะรับแบงค์อัตโนมัติ เติมเงินสำเร็จเมื่อครบยอดที่ต้องการ',
+    cashTarget: 'ยอดที่ต้องการเติม',
+    cashInserted: 'สอดแล้ว',
+    cashRemaining: 'คงเหลือ',
+    cashOverpayTitle: 'แบงค์เกินยอด',
+    cashOverpayDesc: 'แบงค์นี้จะทำให้เกินยอดที่ต้องการ ต้องการทำอย่างไร?',
+    cashOverpayBill: 'มูลค่าแบงค์',
+    cashOverpayWouldBe: 'ยอดรวมถ้ารับ',
+    cashOverpayAccept: 'รับเกินยอด',
+    cashOverpayReturn: 'คืนแบงค์',
+    cashPartialHint: 'กดยกเลิกเพื่อเติมเงินด้วยยอดที่สอดแล้ว',
+    cashCancelAttentionTitle: 'ยกเลิกการเติมเงิน?',
+    cashCancelAttentionDesc: 'เงินสดที่สอดแล้วไม่สามารถรับคืนได้ — ยอดด้านล่างจะถูกเติมเข้าวอเล็ตทันที',
+    cashCancelAttentionAmount: 'ยอดที่จะเติมเข้าวอเล็ต',
+    cashCancelConfirmBtn: 'ยืนยัน ยกเลิกและเติมเงิน',
+    cashCancelDismissBtn: 'สอดเงินต่อ',
     processing: 'กำลังดำเนินการ…',
     failDetail: 'รายละเอียดข้อผิดพลาด',
   }
@@ -115,9 +144,11 @@ const enteredAmount = ref('0');
 const failType = ref<'internet' | 'server'>('internet');
 const failDetail = ref<string | null>(null);
 const isProcessing = ref(false);
+const creditedAmount = ref(0);
 const qrDataUrl = ref('');
 const qrLoading = ref(false);
 const activeRefCode = ref<string | null>(null);
+const showCashCancelConfirm = ref(false);
 let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 50000;
@@ -142,6 +173,13 @@ const formattedAmount = computed(() => {
 
 const currentWallet = computed(() => store.currentWallet);
 
+const bill = useBillAcceptor();
+
+/** Cash session is locked once any bill has been stacked — no back, logout, or method change. */
+const cashLocked = computed(
+  () => currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0,
+);
+
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat(store.language === 'TH' ? 'th-TH' : 'en-US', {
     minimumFractionDigits: 2,
@@ -154,6 +192,14 @@ const selectMethod = async (key: string) => {
   selectedMethod.value = key;
   if (key === 'cash') {
     currentStep.value = 'cash-confirm';
+    try {
+      await bill.start(amountNumber.value);
+    } catch (e) {
+      console.warn('[TopUp] startCollecting failed:', e);
+      failType.value = 'server';
+      failDetail.value = e instanceof Error ? e.message : String(e);
+      currentStep.value = 'fail';
+    }
   } else {
     currentStep.value = 'qr';
     await initQrPayment();
@@ -276,32 +322,54 @@ const stopPolling = () => {
 onUnmounted(() => {
   clearQrTimer();
   stopPolling();
+  void bill.stop();
 });
 
-// Real top-up via backend
-const doTopUp = async () => {
+// Auto-finalize when the acceptor reports the target is met.
+watch(bill.collectComplete, async (done) => {
+  if (done && currentStep.value === 'cash-confirm' && !isProcessing.value) {
+    bill.acknowledgeCollectComplete();
+    await finalizeCashTopUp();
+  }
+});
+
+const finalizeCashTopUp = async (): Promise<boolean> => {
   const walletId = store.currentWallet?.id;
-  if (!walletId || !isAmountValid.value) return;
+  const amount = bill.collectedThb.value;
+  if (!walletId || amount <= 0) return false;
 
   isProcessing.value = true;
   failDetail.value = null;
   try {
-    await realApi.topUp(walletId, amountNumber.value, selectedMethod.value ?? 'cash');
-    clearQrTimer();
-    // Refresh balance + transaction history
+    await bill.stop();
+    await bill.finalizeTopUp(walletId, amount);
+    creditedAmount.value = amount;
     await store.refreshBalance();
     currentStep.value = 'success';
+    return true;
   } catch (e) {
     const isNetwork = e instanceof TypeError && (e.message.includes('fetch') || e.message.includes('network'));
     failType.value = isNetwork ? 'internet' : 'server';
     failDetail.value = e instanceof Error ? e.message : String(e);
     currentStep.value = 'fail';
+    return false;
   } finally {
     isProcessing.value = false;
+    bill.resetSessionState();
   }
 };
 
-const backToMethods = () => {
+const handleHeaderBack = () => {
+  if (currentStep.value === 'amount') goBack();
+  else if (currentStep.value === 'methods') backToAmount();
+  else if (currentStep.value === 'cash-confirm') backToMethods();
+  else if (currentStep.value === 'qr') backToMethods();
+  else goBack();
+};
+
+const backToMethods = async () => {
+  await bill.stop();
+  bill.resetSessionState();
   selectedMethod.value = null;
   currentStep.value = 'methods';
   clearQrTimer();
@@ -325,16 +393,51 @@ const goBackToBalance = () => {
   router.push('/balance');
 };
 
-const cancelTopup = () => {
+const executeCancelTopup = async () => {
   clearQrTimer();
+  if (currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0) {
+    const ok = await finalizeCashTopUp();
+    if (ok) return;
+  }
+  await bill.stop();
+  bill.resetSessionState();
   store.logout();
   router.push('/');
 };
 
-const retryTopup = () => {
+const requestCancelTopup = () => {
+  if (currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0) {
+    showCashCancelConfirm.value = true;
+    return;
+  }
+  void executeCancelTopup();
+};
+
+const confirmCashCancel = async () => {
+  showCashCancelConfirm.value = false;
+  await executeCancelTopup();
+};
+
+const dismissCashCancel = () => {
+  showCashCancelConfirm.value = false;
+};
+
+const cancelTopup = requestCancelTopup;
+
+const retryTopup = async () => {
+  await bill.stop();
+  bill.resetSessionState();
   currentStep.value = 'amount';
   enteredAmount.value = '0';
+  creditedAmount.value = 0;
 };
+
+const successAmountDisplay = computed(() => {
+  if (selectedMethod.value === 'cash' && creditedAmount.value > 0) {
+    return formatCurrency(creditedAmount.value);
+  }
+  return formattedAmount.value;
+});
 
 const selectedColor = (prop: 'colorBg' | 'colorText' | 'border') => {
   const m = methods.find(m => m.key === selectedMethod.value);
@@ -360,14 +463,16 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   <div class="kiosk-container topup-view">
     <!-- Header -->
     <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail'">
-      <button class="back-btn" @click="currentStep === 'amount' ? goBack() : currentStep === 'methods' ? backToAmount() : currentStep === 'cash-confirm' ? backToMethods() : currentStep === 'qr' ? backToMethods() : goBack()">
+      <button v-if="!cashLocked" class="back-btn" @click="handleHeaderBack">
         <ChevronLeft :size="32" />
         <span>{{ currT.back }}</span>
       </button>
+      <div v-else class="back-btn back-btn-placeholder" aria-hidden="true" />
       <h2>{{ currT.title }}</h2>
-      <button class="logout-btn" @click="cancelTopup">
+      <button v-if="!cashLocked" class="logout-btn" @click="cancelTopup">
         <LogOut :size="28" />
       </button>
+      <div v-else class="logout-btn logout-btn-placeholder" aria-hidden="true" />
     </div>
 
     <!-- Wallet Info Bar (shown in amount & qr steps) -->
@@ -496,7 +601,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
       </div>
     </div>
 
-    <!-- Step 3b: Cash Confirm -->
+    <!-- Step 3b: Cash — insert bills -->
     <div v-if="currentStep === 'cash-confirm'" class="cash-confirm-section">
       <div class="cash-confirm-card">
         <div class="cash-icon">
@@ -504,26 +609,105 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
         </div>
         <h3 class="cash-title">{{ currT.cashConfirmTitle }}</h3>
         <p class="cash-desc">{{ currT.cashConfirmDesc }}</p>
-        <div class="cash-amount-display">฿{{ formattedAmount }}</div>
+
+        <div class="cash-stats">
+          <div class="cash-stat">
+            <span class="cash-stat-label">{{ currT.cashTarget }}</span>
+            <span class="cash-stat-value">฿{{ formattedAmount }}</span>
+          </div>
+          <div class="cash-stat cash-stat-inserted">
+            <span class="cash-stat-label">{{ currT.cashInserted }}</span>
+            <span class="cash-stat-value">฿{{ formatCurrency(bill.collectedThb.value) }}</span>
+          </div>
+          <div class="cash-stat">
+            <span class="cash-stat-label">{{ currT.cashRemaining }}</span>
+            <span class="cash-stat-value">฿{{ formatCurrency(bill.remainingThb.value) }}</span>
+          </div>
+        </div>
+
         <p class="cash-note">{{ currT.cashConfirmNote }}</p>
-        <button
-          class="kiosk-btn btn-primary"
-          style="width: 100%;"
-          :disabled="isProcessing"
-          @click="doTopUp"
-        >
-          <CheckCircle2 v-if="!isProcessing" :size="22" />
-          <span>{{ isProcessing ? currT.processing : currT.cashConfirmBtn }}</span>
-        </button>
-        <div class="qr-actions">
-          <button class="kiosk-btn btn-secondary qr-action-btn" :disabled="isProcessing" @click="backToMethods">
+        <p v-if="cashLocked && !bill.isTargetMet.value" class="cash-partial-hint">
+          {{ currT.cashPartialHint }}
+        </p>
+
+        <div class="qr-actions" :class="{ 'cash-actions-locked': cashLocked }">
+          <button
+            v-if="!cashLocked"
+            class="kiosk-btn btn-secondary qr-action-btn"
+            :disabled="isProcessing"
+            @click="backToMethods"
+          >
             <ArrowLeft :size="20" />
             <span>{{ currT.changeMethod }}</span>
           </button>
-          <button class="kiosk-btn btn-danger qr-action-btn" :disabled="isProcessing" @click="cancelTopup">
+          <button
+            class="kiosk-btn btn-danger qr-action-btn"
+            :class="{ 'cash-cancel-only': cashLocked }"
+            :disabled="isProcessing"
+            @click="cancelTopup"
+          >
             <XCircle :size="20" />
             <span>{{ currT.cancelTopup }}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Cash cancel attention modal -->
+      <div v-if="showCashCancelConfirm" class="overpay-overlay">
+        <div class="overpay-modal cancel-attention-modal">
+          <div class="cancel-attention-icon">
+            <AlertTriangle :size="48" />
+          </div>
+          <h3 class="overpay-title">{{ currT.cashCancelAttentionTitle }}</h3>
+          <p class="overpay-desc">{{ currT.cashCancelAttentionDesc }}</p>
+          <div class="cancel-attention-amount">
+            <span>{{ currT.cashCancelAttentionAmount }}</span>
+            <strong>฿{{ formatCurrency(bill.collectedThb.value) }}</strong>
+          </div>
+          <div class="overpay-actions">
+            <button
+              class="kiosk-btn btn-danger"
+              :disabled="isProcessing"
+              @click="confirmCashCancel"
+            >
+              {{ isProcessing ? currT.processing : currT.cashCancelConfirmBtn }}
+            </button>
+            <button
+              class="kiosk-btn btn-secondary"
+              :disabled="isProcessing"
+              @click="dismissCashCancel"
+            >
+              {{ currT.cashCancelDismissBtn }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overpay decision modal -->
+      <div v-if="bill.overpayPending.value" class="overpay-overlay">
+        <div class="overpay-modal">
+          <h3 class="overpay-title">{{ currT.cashOverpayTitle }}</h3>
+          <p class="overpay-desc">{{ currT.cashOverpayDesc }}</p>
+          <div class="overpay-details">
+            <div class="overpay-row">
+              <span>{{ currT.cashOverpayBill }}</span>
+              <strong>฿{{ bill.overpayPending.value?.billAmountThb ?? 0 }}</strong>
+            </div>
+            <div class="overpay-row">
+              <span>{{ currT.cashOverpayWouldBe }}</span>
+              <strong>
+                ฿{{ (bill.overpayPending.value?.collectedThb ?? 0) + (bill.overpayPending.value?.billAmountThb ?? 0) }}
+              </strong>
+            </div>
+          </div>
+          <div class="overpay-actions">
+            <button class="kiosk-btn btn-primary" :disabled="isProcessing" @click="bill.acceptOverpay()">
+              {{ currT.cashOverpayAccept }}
+            </button>
+            <button class="kiosk-btn btn-secondary" :disabled="isProcessing" @click="bill.returnOverpay()">
+              {{ currT.cashOverpayReturn }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -545,7 +729,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
         </div>
       </div>
       <div class="result-amount-box">
-        <span class="result-amount">฿{{ formattedAmount }}</span>
+        <span class="result-amount">฿{{ successAmountDisplay }}</span>
       </div>
       <button class="kiosk-btn btn-primary" style="margin-top: 2rem;" @click="goBackToBalance">
         {{ currT.backToBalance }}
@@ -1181,6 +1365,123 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   padding: 0.75rem 1rem;
   background: #f0fdf4;
   border-radius: 0.75rem;
+  width: 100%;
+}
+
+.cash-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  width: 100%;
+}
+.cash-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.75rem;
+}
+.cash-stat-inserted {
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+}
+.cash-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.cash-stat-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-color);
+}
+.cash-stat-inserted .cash-stat-value {
+  color: #16a34a;
+}
+.cash-partial-hint {
+  font-size: 0.85rem;
+  color: #ca8a04;
+  width: 100%;
+}
+
+.overpay-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1.5rem;
+}
+.overpay-modal {
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.overpay-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+.overpay-desc {
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+.overpay-details {
+  background: #fef3c7;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+.overpay-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  font-size: 1rem;
+}
+.overpay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cancel-attention-modal {
+  max-width: 440px;
+}
+.cancel-attention-icon {
+  color: #ca8a04;
+  margin-bottom: 0.75rem;
+}
+.cancel-attention-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fef3c7;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 1rem;
+}
+.cancel-attention-amount strong {
+  font-size: 1.35rem;
+  color: #16a34a;
+}
+
+.back-btn-placeholder,
+.logout-btn-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.cash-actions-locked {
+  width: 100%;
+}
+.cash-cancel-only {
   width: 100%;
 }
 

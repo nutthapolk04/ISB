@@ -16,6 +16,7 @@ class SerialManager {
         disconnect()
 
         val portFile = SerialPort(File(port), baudRate, 0)
+        portFile.flush()
         serialPort = portFile
         reader = Nk77Reader(portFile.inputStream, portFile.outputStream, onBillEvent)
         reader?.start()
@@ -37,5 +38,21 @@ class SerialManager {
 
     fun isConnected(): Boolean {
         return connected && serialPort != null
+    }
+
+    fun startCollecting(targetThb: Int) {
+        reader?.startCollecting(targetThb)
+    }
+
+    fun stopCollecting() {
+        reader?.stopCollecting()
+    }
+
+    fun acceptBill() {
+        reader?.acceptBill()
+    }
+
+    fun returnBill() {
+        reader?.returnBill()
     }
 }

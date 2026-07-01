@@ -2,7 +2,8 @@
 import { onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useKioskStore } from './stores/kioskStore';
-import { Hardware } from 'capacitor-hardware'
+import { Hardware } from 'capacitor-hardware';
+import { retryPendingCashTopup } from './hooks/useBillAcceptor';
 
 const router = useRouter();
 const route = useRoute();
@@ -40,14 +41,11 @@ onMounted(async () => {
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
-    void store.bootstrap();
+    void store.bootstrap().then(() => retryPendingCashTopup());
 
-    await Hardware.addListener('billEvent', (event) => {
-        console.log('[Hardware] bill:', event);
-    });
-
+    // NK77 bill acceptor — FM-3568D maps UART1 to /dev/ttyS2 (9600 8E1)
     Hardware.connect({
-        port: '/dev/ttyS1',
+        port: '/dev/ttyS2',
         baudRate: 9600,
     })
         .then((result) => {
