@@ -54,6 +54,59 @@ class HardwarePlugin : Plugin() {
         }
     }
 
+    @PluginMethod
+    fun startCollecting(call: PluginCall) {
+        val targetThb = call.getInt("targetThb")
+        if (targetThb == null || targetThb <= 0) {
+            call.reject("targetThb must be a positive number")
+            return
+        }
+        try {
+            serialManager.startCollecting(targetThb)
+            call.resolve()
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to start collecting"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
+    fun stopCollecting(call: PluginCall) {
+        try {
+            serialManager.stopCollecting()
+            call.resolve()
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to stop collecting"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
+    fun acceptBill(call: PluginCall) {
+        try {
+            serialManager.acceptBill()
+            call.resolve()
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to accept bill"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
+    fun returnBill(call: PluginCall) {
+        try {
+            serialManager.returnBill()
+            call.resolve()
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to return bill"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
     private fun emitBillEvent(event: BillEvent) {
         val payload = JSObject()
         payload.put("type", event.type)
@@ -61,6 +114,8 @@ class HardwarePlugin : Plugin() {
         event.billSlot?.let { payload.put("billSlot", it) }
         event.billCode?.let { payload.put("billCode", it) }
         event.billAmountThb?.let { payload.put("billAmountThb", it) }
+        event.collectedThb?.let { payload.put("collectedThb", it) }
+        event.targetThb?.let { payload.put("targetThb", it) }
         event.message?.let { payload.put("message", it) }
 
         val activity = activity

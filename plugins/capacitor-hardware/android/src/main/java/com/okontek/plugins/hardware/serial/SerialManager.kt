@@ -39,4 +39,20 @@ class SerialManager {
     fun isConnected(): Boolean {
         return connected && serialPort != null
     }
+
+    fun startCollecting(targetThb: Int) {
+        reader?.startCollecting(targetThb)
+    }
+
+    fun stopCollecting() {
+        reader?.stopCollecting()
+    }
+
+    fun acceptBill() {
+        reader?.acceptBill()
+    }
+
+    fun returnBill() {
+        reader?.returnBill()
+    }
 }
