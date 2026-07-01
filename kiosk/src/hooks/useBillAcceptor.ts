@@ -135,16 +135,17 @@ export function useBillAcceptor() {
     /**
      * Credit the wallet for cash already stacked in the acceptor.
      * Persists to localStorage before the API call so a network failure can be retried.
+     * Returns the new transaction id and post-top-up balance so the caller can print a receipt.
      */
-    async function finalizeTopUp(walletId: string, amount: number): Promise<void> {
+    async function finalizeTopUp(
+        walletId: string,
+        amount: number,
+    ): Promise<{ transaction_id: number; balance_after: number }> {
         const pending: PendingCashTopup = { walletId, amount, ts: Date.now() };
         localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-        try {
-            await realApi.topUp(walletId, amount, 'cash');
-            localStorage.removeItem(PENDING_KEY);
-        } catch (e) {
-            throw e;
-        }
+        const res = await realApi.topUp(walletId, amount, 'cash');
+        localStorage.removeItem(PENDING_KEY);
+        return res;
     }
 
     function acknowledgeCollectComplete() {

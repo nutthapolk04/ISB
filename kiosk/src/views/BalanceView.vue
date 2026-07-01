@@ -2,11 +2,15 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { User, LogOut, ChevronRight, ChevronLeft, Wallet, History } from 'lucide-vue-next';
+import { User, LogOut, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle } from 'lucide-vue-next';
 
 const router = useRouter();
 const store = useKioskStore();
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
+
+/** Maximum balance a wallet may hold (THB). Top-up is blocked at or above this. */
+const MAX_BALANCE = 50000;
+const showLimitModal = ref(false);
 
 if (!store.isAuthenticated) {
   router.push('/');
@@ -27,6 +31,9 @@ const t = {
     roleParent: 'Parent / Guardian',
     roleStaff: 'Staff / Teacher',
     roleStudent: 'Student',
+    limitTitle: 'Unable to Process Transaction',
+    limitMsg: 'This card has already reached the maximum limit of 50,000 Baht, so no further top-up is possible.',
+    limitClose: 'OK',
   },
   TH: {
     balance: 'ยอดเงินคงเหลือ',
@@ -42,6 +49,9 @@ const t = {
     roleParent: 'ผู้ปกครอง / ผู้ดูแล',
     roleStaff: 'บุคลากร / ครู',
     roleStudent: 'นักเรียน',
+    limitTitle: 'ไม่สามารถทำรายการได้',
+    limitMsg: 'บัตรนี้มีวงเงินสูงสุด 50,000 บาทแล้ว จึงไม่สามารถเติมเงินเพิ่มได้',
+    limitClose: 'ตกลง',
   }
 };
 
@@ -51,6 +61,11 @@ const handleLogout = () => {
 };
 
 const goToTopup = () => {
+  // Block top-up when the active wallet is already at (or above) the balance cap.
+  if ((store.currentWallet?.balance ?? 0) >= MAX_BALANCE) {
+    showLimitModal.value = true;
+    return;
+  }
   router.push('/topup');
 };
 
@@ -282,6 +297,18 @@ onUnmounted(() => {
         </div>
         <ChevronRight :size="24" class="chevron" />
       </button>
+    </div>
+
+    <!-- Max-balance limit alert -->
+    <div v-if="showLimitModal" class="limit-overlay" @click.self="showLimitModal = false">
+      <div class="limit-modal">
+        <div class="limit-icon">
+          <AlertTriangle :size="48" />
+        </div>
+        <h3 class="limit-title">{{ currT.limitTitle }}</h3>
+        <p class="limit-msg">{{ currT.limitMsg }}</p>
+        <button class="limit-btn" @click="showLimitModal = false">{{ currT.limitClose }}</button>
+      </div>
     </div>
   </div>
 </template>
@@ -570,5 +597,67 @@ onUnmounted(() => {
 .chevron {
   color: var(--text-muted);
   opacity: 0.5;
+}
+
+/* ---- Max-balance limit modal ---- */
+.limit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1.5rem;
+}
+.limit-modal {
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  padding: 2.5rem 2rem 2rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.limit-icon {
+  color: #d97706;
+  background: #fef3c7;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.limit-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-color);
+}
+.limit-msg {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.limit-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  height: 3.5rem;
+  border: none;
+  border-radius: 1rem;
+  background: var(--primary);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+}
+.limit-btn:active {
+  transform: scale(0.97);
 }
 </style>

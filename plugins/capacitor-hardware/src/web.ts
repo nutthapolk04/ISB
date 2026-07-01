@@ -29,4 +29,16 @@ export class HardwareWeb extends WebPlugin implements HardwarePlugin {
     async returnBill(): Promise<void> {
         throw this.unimplemented('Not available on web');
     }
+
+    async connectPrinter(): Promise<{ connected: boolean }> {
+        throw this.unimplemented('Not available on web');
+    }
+
+    async disconnectPrinter(): Promise<void> {
+        throw this.unimplemented('Not available on web');
+    }
+
+    async printRaw(): Promise<void> {
+        throw this.unimplemented('Not available on web');
+    }
 }

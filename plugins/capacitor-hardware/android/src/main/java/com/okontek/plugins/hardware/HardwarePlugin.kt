@@ -5,13 +5,16 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import android.util.Base64
 import com.okontek.plugins.hardware.billacceptor.BillEvent
+import com.okontek.plugins.hardware.printer.PrinterManager
 import com.okontek.plugins.hardware.serial.SerialManager
 
 @CapacitorPlugin(name = "Hardware")
 class HardwarePlugin : Plugin() {
 
     private val serialManager = SerialManager()
+    private val printerManager by lazy { PrinterManager(context) }
 
     @PluginMethod
     fun getPlatform(call: PluginCall) {
@@ -102,6 +105,56 @@ class HardwarePlugin : Plugin() {
             call.resolve()
         } catch (e: Throwable) {
             val message = e.message ?: "Failed to return bill"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
+    fun connectPrinter(call: PluginCall) {
+        try {
+            // USB printer detection + permission may be async (permission dialog).
+            printerManager.connect { connected, error ->
+                if (connected) {
+                    val ret = JSObject()
+                    ret.put("connected", true)
+                    call.resolve(ret)
+                } else {
+                    call.reject(error ?: "Failed to connect to printer")
+                }
+            }
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to connect to printer"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
+    fun disconnectPrinter(call: PluginCall) {
+        try {
+            printerManager.disconnect()
+            call.resolve()
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to disconnect printer"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
+    fun printRaw(call: PluginCall) {
+        val data = call.getString("data")
+        if (data == null) {
+            call.reject("data (base64 ESC/POS payload) is required")
+            return
+        }
+        try {
+            val bytes = Base64.decode(data, Base64.DEFAULT)
+            printerManager.write(bytes)
+            call.resolve()
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to print"
             val cause = if (e is Exception) e else Exception(e)
             call.reject(message, cause)
         }
