@@ -57,6 +57,22 @@ export interface HardwarePlugin {
     /** Return the bill currently held in escrow (resolves an `overpayPending` prompt). */
     returnBill(): Promise<void>;
 
+    /**
+     * Detect and open the 80mm USB thermal receipt printer (auto-detects the USB
+     * printer-class device and requests USB permission if needed).
+     */
+    connectPrinter(): Promise<{ connected: boolean }>;
+
+    /** Close the printer serial connection. */
+    disconnectPrinter(): Promise<void>;
+
+    /**
+     * Write a pre-built ESC/POS payload to the printer.
+     * `data` is the base64-encoded raw byte stream (raster image, feed, cut, etc.);
+     * all receipt encoding happens on the JS side.
+     */
+    printRaw(options: { data: string }): Promise<void>;
+
     addListener(
         eventName: 'billEvent',
         listenerFunc: (event: BillEvent) => void,

@@ -20,4 +20,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- USB host access for the 80mm thermal receipt printer -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 </manifest>

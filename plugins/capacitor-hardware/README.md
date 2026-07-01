@@ -33,6 +33,9 @@ npx cap sync
 * [`stopCollecting()`](#stopcollecting)
 * [`acceptBill()`](#acceptbill)
 * [`returnBill()`](#returnbill)
+* [`connectPrinter()`](#connectprinter)
+* [`disconnectPrinter()`](#disconnectprinter)
+* [`printRaw(...)`](#printraw)
 * [`addListener('billEvent', ...)`](#addlistenerbillevent-)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
@@ -123,6 +126,48 @@ returnBill() => Promise<void>
 ```
 
 Return the bill currently held in escrow (resolves an `overpayPending` prompt).
+
+--------------------
+
+
+### connectPrinter()
+
+```typescript
+connectPrinter() => Promise<{ connected: boolean; }>
+```
+
+Detect and open the 80mm USB thermal receipt printer (auto-detects the USB
+printer-class device and requests USB permission if needed).
+
+**Returns:** <code>Promise&lt;{ connected: boolean; }&gt;</code>
+
+--------------------
+
+
+### disconnectPrinter()
+
+```typescript
+disconnectPrinter() => Promise<void>
+```
+
+Close the printer serial connection.
+
+--------------------
+
+
+### printRaw(...)
+
+```typescript
+printRaw(options: { data: string; }) => Promise<void>
+```
+
+Write a pre-built ESC/POS payload to the printer.
+`data` is the base64-encoded raw byte stream (raster image, feed, cut, etc.);
+all receipt encoding happens on the JS side.
+
+| Param         | Type                           |
+| ------------- | ------------------------------ |
+| **`options`** | <code>{ data: string; }</code> |
 
 --------------------
 

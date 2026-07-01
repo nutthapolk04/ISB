@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut, Printer } from 'lucide-vue-next';
 import { ref, computed, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
 import { useBillAcceptor } from '../hooks/useBillAcceptor';
+import { usePrinter } from '../hooks/usePrinter';
+import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import QRCode from 'qrcode';
 
 const router = useRouter();
@@ -27,6 +29,9 @@ const t = {
     backToMenu: 'Back to methods',
     enterAmount: 'Enter top-up amount',
     maxAmount: 'Max 50,000 Baht per transaction',
+    maxTopupHint: 'Top up up to {n} Baht',
+    limitReachedHint: 'Remaining limit is below the 100 Baht minimum',
+    overpayCapExceeded: 'Accepting would exceed the 50,000 Baht limit',
     confirm: 'Confirm',
     clear: 'C',
     baht: 'Baht',
@@ -71,6 +76,18 @@ const t = {
     cashCancelDismissBtn: 'Keep inserting',
     processing: 'Processing…',
     failDetail: 'Error detail',
+    receiptTitle: 'Receipt',
+    receiptType: 'Top-up',
+    receiptTxId: 'Transaction No.',
+    receiptMember: 'Member',
+    receiptBalanceAfter: 'Remaining Balance',
+    receiptThankYou: 'Thank you for using our service',
+    receiptPoweredBy: 'This document is system-generated',
+    printReceipt: 'Print Receipt',
+    printing: 'Printing…',
+    printed: 'Receipt printed',
+    printFailed: 'Could not print receipt',
+    reprint: 'Print again',
   },
   TH: {
     title: 'เติมเงิน',
@@ -84,6 +101,9 @@ const t = {
     backToMenu: 'กลับเลือกช่องทาง',
     enterAmount: 'กรอกจำนวนเงินที่ต้องการเติม',
     maxAmount: 'เติมได้สูงสุด 50,000 บาท / ครั้ง',
+    maxTopupHint: 'เติมได้สูงสุด {n} บาท',
+    limitReachedHint: 'วงเงินคงเหลือต่ำกว่าขั้นต่ำ 100 บาท',
+    overpayCapExceeded: 'หากรับจะเกินวงเงิน 50,000 บาท',
     confirm: 'ยืนยัน',
     clear: 'C',
     baht: 'บาท',
@@ -128,6 +148,18 @@ const t = {
     cashCancelDismissBtn: 'สอดเงินต่อ',
     processing: 'กำลังดำเนินการ…',
     failDetail: 'รายละเอียดข้อผิดพลาด',
+    receiptTitle: 'ใบเสร็จรับเงิน',
+    receiptType: 'เติมเงิน',
+    receiptTxId: 'เลขที่รายการ',
+    receiptMember: 'สมาชิก',
+    receiptBalanceAfter: 'ยอดคงเหลือ',
+    receiptThankYou: 'ขอบคุณที่ใช้บริการ',
+    receiptPoweredBy: 'เอกสารออกจากระบบอัตโนมัติ',
+    printReceipt: 'พิมพ์ใบเสร็จ',
+    printing: 'กำลังพิมพ์…',
+    printed: 'พิมพ์ใบเสร็จแล้ว',
+    printFailed: 'พิมพ์ใบเสร็จไม่สำเร็จ',
+    reprint: 'พิมพ์อีกครั้ง',
   }
 };
 
@@ -161,7 +193,7 @@ const amountNumber = computed(() => {
 });
 
 const isAmountValid = computed(() => {
-  return amountNumber.value >= MIN_AMOUNT && amountNumber.value <= MAX_AMOUNT;
+  return amountNumber.value >= MIN_AMOUNT && amountNumber.value <= effectiveMax.value;
 });
 
 const formattedAmount = computed(() => {
@@ -173,7 +205,22 @@ const formattedAmount = computed(() => {
 
 const currentWallet = computed(() => store.currentWallet);
 
+/** Wallet balance ceiling (THB). Top-up may not push the balance above this. */
+const MAX_BALANCE = 50000;
+/** Remaining room before hitting the cap, for the currently active wallet. */
+const headroom = computed(() => Math.max(0, MAX_BALANCE - (store.currentWallet?.balance ?? 0)));
+/** Effective per-transaction ceiling: the smaller of the per-txn max and the wallet headroom. */
+const effectiveMax = computed(() => Math.min(MAX_AMOUNT, headroom.value));
+
 const bill = useBillAcceptor();
+const printer = usePrinter();
+
+// --- Receipt printing ---
+const receiptTxId = ref<number | null>(null);
+const balanceBefore = ref(0);
+type PrintState = 'idle' | 'printing' | 'done' | 'error';
+const printState = ref<PrintState>('idle');
+let autoPrinted = false;
 
 /** Cash session is locked once any bill has been stacked — no back, logout, or method change. */
 const cashLocked = computed(
@@ -190,6 +237,10 @@ const formatCurrency = (val: number) => {
 // --- Actions ---
 const selectMethod = async (key: string) => {
   selectedMethod.value = key;
+  balanceBefore.value = store.currentWallet?.balance ?? 0;
+  receiptTxId.value = null;
+  printState.value = 'idle';
+  autoPrinted = false;
   if (key === 'cash') {
     currentStep.value = 'cash-confirm';
     try {
@@ -214,21 +265,22 @@ const pressKey = (key: string) => {
   if (key === '00') {
     if (enteredAmount.value === '0') return;
     const newVal = enteredAmount.value + '00';
-    if (parseFloat(newVal) > MAX_AMOUNT) return;
+    if (parseFloat(newVal) > effectiveMax.value) return;
     enteredAmount.value = newVal;
     return;
   }
   if (enteredAmount.value === '0') {
-    if (key === '0') return; 
+    if (key === '0') return;
     enteredAmount.value = key;
   } else {
     const newVal = enteredAmount.value + key;
-    if (parseFloat(newVal) > MAX_AMOUNT) return;
+    if (parseFloat(newVal) > effectiveMax.value) return;
     enteredAmount.value = newVal;
   }
 };
 
 const selectShortcut = (val: number) => {
+  if (val > effectiveMax.value) return;
   enteredAmount.value = val.toString();
 };
 
@@ -342,7 +394,8 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
   failDetail.value = null;
   try {
     await bill.stop();
-    await bill.finalizeTopUp(walletId, amount);
+    const res = await bill.finalizeTopUp(walletId, amount);
+    receiptTxId.value = res.transaction_id;
     creditedAmount.value = amount;
     await store.refreshBalance();
     currentStep.value = 'success';
@@ -439,6 +492,65 @@ const successAmountDisplay = computed(() => {
   return formattedAmount.value;
 });
 
+// --- Receipt building / printing ---
+const creditedNumber = computed(() =>
+  selectedMethod.value === 'cash' && creditedAmount.value > 0
+    ? creditedAmount.value
+    : amountNumber.value,
+);
+
+const buildReceiptData = (): TopupReceiptData => {
+  const tt = currT.value;
+  const wallet = store.currentWallet;
+  const methodLabel = selectedMethod.value ? (tt as any)[selectedMethod.value] : '';
+  const amount = creditedNumber.value;
+  const balAfter = wallet?.balance ?? balanceBefore.value + amount;
+
+  const rows: ReceiptRow[] = [];
+  if (receiptTxId.value != null) {
+    rows.push({ label: tt.receiptTxId, value: String(receiptTxId.value) });
+  }
+  rows.push({ label: tt.successDate, value: nowFormatted.value });
+  if (wallet) {
+    rows.push({ label: tt.receiptMember, value: wallet.holderName });
+  }
+  rows.push({ label: tt.successMethod, value: methodLabel });
+
+  return {
+    schoolName: store.schoolInfo.school_name || undefined,
+    logoUrl: store.schoolInfo.school_logo_url || undefined,
+    title: tt.receiptTitle,
+    typeLabel: tt.receiptType,
+    rows,
+    amountLabel: tt.successAmount,
+    amountText: `+฿${formatCurrency(amount)}`,
+    balanceLabel: tt.receiptBalanceAfter,
+    balanceText: `฿${formatCurrency(balAfter)}`,
+    footerLines: [tt.receiptThankYou, tt.receiptPoweredBy],
+  };
+};
+
+const printReceipt = async () => {
+  if (printState.value === 'printing') return;
+  printState.value = 'printing';
+  try {
+    await printer.printTopupReceipt(buildReceiptData());
+    printState.value = 'done';
+  } catch (e) {
+    console.warn('[TopUp] print receipt failed:', e);
+    printState.value = 'error';
+  }
+};
+
+// Auto-print once when the success screen appears. printReceipt lazily connects if needed,
+// so this also recovers when the boot-time printer connect failed.
+watch(currentStep, (step) => {
+  if (step === 'success' && !autoPrinted) {
+    autoPrinted = true;
+    void printReceipt();
+  }
+});
+
 const selectedColor = (prop: 'colorBg' | 'colorText' | 'border') => {
   const m = methods.find(m => m.key === selectedMethod.value);
   return m ? m[prop] : '#e0f2fe';
@@ -457,6 +569,20 @@ const nowFormatted = computed(() => {
 });
 
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
+
+// Amount-screen hint: shows the remaining allowance, or a warning if it's below the minimum.
+const maxHintText = computed(() => {
+  const tt = currT.value;
+  if (effectiveMax.value < MIN_AMOUNT) return tt.limitReachedHint;
+  return tt.maxTopupHint.replace('{n}', effectiveMax.value.toLocaleString());
+});
+
+// For cash: block accepting an over-target bill when it would push the balance past the cap.
+const overpayExceedsCap = computed(() => {
+  const p = bill.overpayPending.value;
+  if (!p) return false;
+  return (p.collectedThb ?? 0) + (p.billAmountThb ?? 0) > effectiveMax.value;
+});
 </script>
 
 <template>
@@ -516,7 +642,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
         <div class="amount-display" :class="{ 'has-value': amountNumber > 0 }">
           {{ formattedAmount }}
         </div>
-        <p class="max-hint">{{ currT.maxAmount }}</p>
+        <p class="max-hint">{{ maxHintText }}</p>
       </div>
 
       <!-- Shortcut Buttons -->
@@ -526,6 +652,7 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
           :key="s"
           class="shortcut-btn"
           :class="{ active: amountNumber === s }"
+          :disabled="s > effectiveMax"
           @click="selectShortcut(s)"
         >
           {{ s.toLocaleString() }}
@@ -700,8 +827,13 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
               </strong>
             </div>
           </div>
+          <p v-if="overpayExceedsCap" class="overpay-cap-note">{{ currT.overpayCapExceeded }}</p>
           <div class="overpay-actions">
-            <button class="kiosk-btn btn-primary" :disabled="isProcessing" @click="bill.acceptOverpay()">
+            <button
+              class="kiosk-btn btn-primary"
+              :disabled="isProcessing || overpayExceedsCap"
+              @click="bill.acceptOverpay()"
+            >
               {{ currT.cashOverpayAccept }}
             </button>
             <button class="kiosk-btn btn-secondary" :disabled="isProcessing" @click="bill.returnOverpay()">
@@ -731,7 +863,29 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
       <div class="result-amount-box">
         <span class="result-amount">฿{{ successAmountDisplay }}</span>
       </div>
-      <button class="kiosk-btn btn-primary" style="margin-top: 2rem;" @click="goBackToBalance">
+
+      <!-- Receipt printing -->
+      <div class="receipt-print-block">
+        <p v-if="printState === 'printing'" class="print-status printing">{{ currT.printing }}</p>
+        <p v-else-if="printState === 'done'" class="print-status done">
+          <CheckCircle2 :size="18" /> {{ currT.printed }}
+        </p>
+        <p v-else-if="printState === 'error'" class="print-status error">
+          {{ currT.printFailed }}
+          <span v-if="printer.lastPrinterError.value" class="print-error-detail">({{ printer.lastPrinterError.value }})</span>
+        </p>
+
+        <button
+          class="kiosk-btn btn-secondary print-receipt-btn"
+          :disabled="printState === 'printing'"
+          @click="printReceipt"
+        >
+          <Printer :size="22" />
+          <span>{{ printState === 'done' || printState === 'error' ? currT.reprint : currT.printReceipt }}</span>
+        </button>
+      </div>
+
+      <button class="kiosk-btn btn-primary" style="margin-top: 1rem;" @click="goBackToBalance">
         {{ currT.backToBalance }}
       </button>
     </div>
@@ -944,6 +1098,10 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   background: var(--primary);
   color: white;
   border-color: var(--primary);
+}
+.shortcut-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* Numpad */
@@ -1274,6 +1432,35 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   color: #16a34a;
 }
 
+/* Receipt print block */
+.receipt-print-block {
+  margin-top: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+.print-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.print-status.printing { color: var(--text-muted); }
+.print-status.done { color: #16a34a; }
+.print-status.error { color: #dc2626; flex-direction: column; gap: 0.15rem; text-align: center; }
+.print-error-detail { font-size: 0.75rem; font-weight: 500; opacity: 0.8; word-break: break-all; }
+.print-receipt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
 /* Failure */
 .fail-screen {
   text-align: center;
@@ -1448,6 +1635,12 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+.overpay-cap-note {
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
 }
 
 .cancel-attention-modal {

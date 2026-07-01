@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useKioskStore } from './stores/kioskStore';
 import { Hardware } from 'capacitor-hardware';
 import { retryPendingCashTopup } from './hooks/useBillAcceptor';
+import { connectPrinter } from './hooks/usePrinter';
 
 const router = useRouter();
 const route = useRoute();
@@ -54,6 +55,9 @@ onMounted(async () => {
         .catch((err) => {
             console.warn('[Hardware] connect failed:', err);
         });
+
+    // 80mm receipt printer on its own UART (see usePrinter for port/baud). Non-fatal on failure.
+    void connectPrinter();
 });
 
 onUnmounted(() => {
