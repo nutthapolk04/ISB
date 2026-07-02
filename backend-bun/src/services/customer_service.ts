@@ -1,6 +1,7 @@
 import { eq, and, or, ilike, asc, inArray, sql, ne, isNotNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops } from "@/db/schema";
+import { expandCardUidCandidates } from "@/lib/card_uid";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
@@ -253,7 +254,14 @@ export async function getCustomerByCode(code: string): Promise<StudentProfileDTO
 }
 
 export async function getCustomerByCard(uid: string): Promise<StudentProfileDTO | null> {
-    const rows = await db.select().from(customers).where(eq(customers.cardUid, uid)).limit(1);
+    const candidates = expandCardUidCandidates(uid);
+    if (candidates.length === 0) return null;
+
+    const rows = await db
+        .select()
+        .from(customers)
+        .where(or(...candidates.map((c) => ilike(customers.cardUid, c))))
+        .limit(1);
     if (!rows[0]) return null;
     const ws = await walletByCustomerIds([rows[0].id]);
     const wallet = ws.get(rows[0].id);

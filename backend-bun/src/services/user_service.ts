@@ -1,6 +1,7 @@
 import { and, eq, ilike, isNull, ne, or, sql, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, shops, customers, wallets, departments } from "@/db/schema";
+import { expandCardUidCandidates } from "@/lib/card_uid";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -245,7 +246,18 @@ export async function getUserPayerByUsername(username: string): Promise<UserPaye
 }
 
 export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDTO> {
-    const rows = await db.select().from(users).where(ilike(users.cardUid, uid)).limit(1);
+    const candidates = expandCardUidCandidates(uid);
+    if (candidates.length === 0) {
+        const err = new Error("Card not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+
+    const rows = await db
+        .select()
+        .from(users)
+        .where(or(...candidates.map((c) => ilike(users.cardUid, c))))
+        .limit(1);
     if (!rows[0]) {
         const err = new Error("Card not found");
         (err as { status?: number }).status = 404;
