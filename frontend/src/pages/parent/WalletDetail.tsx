@@ -575,7 +575,11 @@ export default function WalletDetail() {
         />
 
         <Dialog open={qrOpen} onOpenChange={() => {}}>
-          <DialogContent className="max-w-sm sm:max-w-md">
+          <DialogContent
+            className="max-w-sm sm:max-w-md [&>button]:hidden"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>{t("parent.wallet.qrTitle")}</DialogTitle>
               <DialogDescription>
