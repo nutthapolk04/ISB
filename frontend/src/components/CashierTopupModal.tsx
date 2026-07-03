@@ -317,7 +317,7 @@ export function CashierTopupModal({
   };
 
   // Quick amount buttons
-  const quickAmounts = [500, 1000, 2000, 5000, 10000, 20000, 50000];
+  const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
