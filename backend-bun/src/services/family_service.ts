@@ -150,19 +150,15 @@ export async function myCoparents(parentUserId: number, familyCode: string | nul
       .where(eq(parentChildLinks.parentUserId, u.id))
       .limit(1);
     const link = linkRows[0];
-    const wallet = await db
-      .select({ id: wallets.id, balance: wallets.balance })
-      .from(wallets)
-      .where(eq(wallets.userId, u.id))
-      .limit(1);
+    const wallet = await ensureUserWallet(u.id);
     results.push({
       user_id: u.id,
       full_name: u.fullName || u.username || "",
       relation: link?.relation ?? null,
       parent_rank: link?.parentRank ?? null,
       role: u.role ?? null,
-      wallet_id: wallet[0]?.id ?? null,
-      wallet_balance: wallet[0] ? pgNumber(wallet[0].balance) : null,
+      wallet_id: wallet?.id ?? null,
+      wallet_balance: wallet ? pgNumber(wallet.balance) : null,
       photo_url: u.photoUrl ?? null,
       username: u.username,
       card_uid: u.cardUid ?? null,
