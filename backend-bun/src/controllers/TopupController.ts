@@ -12,6 +12,7 @@ import {
 import {
 	cashierTopup,
 	cashierTopupByCustomer,
+	cashierTopupByUser,
 	adjustDepartmentBalance,
 	listDepartmentTransactions,
 } from "@/services/wallet_service";
@@ -190,6 +191,33 @@ export const TopupController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (TP-05b)] TopupController.cashierTopupByCustomer() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	cashierTopupByUser: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (TP-05c)] TopupController.cashierTopupByUser() called.`);
+		if (!hasRole(user.roles, "cashier", "manager", "admin", "staff", "kiosk")) {
+			logger.warn(`[${reqContext.requestId} (TP-05c)] TopupController.cashierTopupByUser() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const userId = parseIntParam(params.id, "user id", reqContext.set);
+		if (userId === null) {
+			return errorResponse(reqContext, "Invalid user id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			const result = await cashierTopupByUser({
+				userId,
+				amount: body.amount,
+				cashierUserId: Number(user.sub),
+				notes: body.notes ?? undefined,
+			});
+			logger.info(`[${reqContext.requestId} (TP-05c)] TopupController.cashierTopupByUser() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (TP-05c)] TopupController.cashierTopupByUser() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

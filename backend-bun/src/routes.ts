@@ -104,6 +104,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/:id", UserController.getById, UserSchema.getUserById)
             .patch("/:id", UserController.update, UserSchema.updateUser)
             .delete("/:id", UserController.remove, UserSchema.deleteUser)
+            .post("/:id/cashier-topup", TopupController.cashierTopupByUser, TopupSchema.topupCashierByUser)
     )
     // ── Users admin ─────────────────────────────────────────────────────────
     .group("/users-admin", (app) =>

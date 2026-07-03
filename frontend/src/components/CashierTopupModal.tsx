@@ -37,6 +37,7 @@ interface CustomerResult {
   wallet_balance?: number;
   card_frozen?: boolean;
   wallet_id?: number;
+  user_id?: number | null;
 }
 
 interface TopupSuccessResult {
@@ -214,10 +215,12 @@ export function CashierTopupModal({
         setQrStatus("waiting");
         setStep("qr");
       } else {
-        // Cash topup: use customer endpoint when no wallet_id (auto-creates wallet)
+        // Cash topup: route to the right endpoint based on entity type
         const url = hasWallet
           ? `/wallets/${selectedCustomer.wallet_id}/cashier-topup`
-          : `/customers/${selectedCustomer.id}/cashier-topup`;
+          : selectedCustomer.user_id
+            ? `/users/${selectedCustomer.user_id}/cashier-topup`
+            : `/customers/${selectedCustomer.id}/cashier-topup`;
         const result = await api.post<TopupSuccessResult>(url, {
           amount: amountNum,
           notes: notes.trim() || null,
