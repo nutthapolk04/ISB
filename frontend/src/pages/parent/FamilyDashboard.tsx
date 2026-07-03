@@ -576,7 +576,7 @@ export default function FamilyDashboard() {
                     activeCard.kind === "coparent" ? `/parent/wallet/wallet-${activeCard.walletId}` :
                     `/parent/wallet/${activeCard.customerId}`
                   }
-                  disabled={activeCard.kind !== "self" && !activeCard.walletId}
+                  disabled={activeCard.kind === "coparent" || (activeCard.kind === "child" && !activeCard.walletId)}
                 />
 
                 <ActionButton
