@@ -358,8 +358,8 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
 <template>
   <div class="kiosk-container topup-view">
-    <!-- Header -->
-    <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail'">
+    <!-- Header — hidden on QR step so there is no tappable back button outside the QR card -->
+    <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr'">
       <button class="back-btn" @click="currentStep === 'amount' ? goBack() : currentStep === 'methods' ? backToAmount() : currentStep === 'cash-confirm' ? backToMethods() : currentStep === 'qr' ? backToMethods() : goBack()">
         <ChevronLeft :size="32" />
         <span>{{ currT.back }}</span>
@@ -370,8 +370,8 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
       </button>
     </div>
 
-    <!-- Wallet Info Bar (shown in amount & qr steps) -->
-    <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'methods' || currentStep === 'qr' || currentStep === 'cash-confirm')" class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
+    <!-- Wallet Info Bar (shown in amount & methods steps; hidden on QR to avoid outside-click targets) -->
+    <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'methods' || currentStep === 'cash-confirm')" class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
       <div class="wallet-bar-name">{{ currentWallet.holderName }}</div>
       <div class="wallet-bar-balance">
         <span class="wallet-bar-label">{{ currT.currentBalance }}</span>
@@ -809,14 +809,17 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   cursor: not-allowed;
 }
 
-/* --- QR Section --- */
+/* --- QR Section — fixed fullscreen overlay so there is no clickable area outside the card --- */
 .qr-section {
-  flex: 1;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg-color);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  padding: 2rem;
 }
 
 .qr-card {
