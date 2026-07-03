@@ -531,7 +531,7 @@ const ShopDetail = () => {
                                 <td className="p-2 font-medium">{r.name}</td>
                                 <td className="p-2 font-mono text-muted-foreground">{r.barcode || "—"}</td>
                                 <td className="p-2 text-right tabular-nums">{r.action !== "stock_only" ? `฿${r.price}` : "—"}</td>
-                                <td className="p-2 text-right tabular-nums">{r.quantity != null ? `+${r.quantity}` : "—"}</td>
+                                <td className="p-2 text-right tabular-nums">{r.quantity != null ? (r.quantity >= 0 ? `+${r.quantity}` : `${r.quantity}`) : "—"}</td>
                                 <td className="p-2 text-center">
                                   {r.action === "create" ? (
                                     <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800">Create</span>
