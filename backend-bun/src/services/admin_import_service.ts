@@ -516,7 +516,18 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
     .where(eq(shopCategories.shopId, ctx.defaultShopId));
   const catCache = new Set(existingCats.map((c) => c.name));
 
-  // Process in parallel batches — each row is independent.
+  // Phase 1: Upsert all products in parallel batches, collecting stock jobs.
+  interface StockJob {
+    rowIdx: number;
+    shopId: string;
+    productId: number;
+    qty: number;
+    costPerUnit: number;
+    note: string | null;
+    reference: string | null;
+  }
+  const stockJobs: StockJob[] = [];
+
   const BATCH = 20;
   const allRows = rows.map((row, i) => ({ row, rowIdx: i + 2 }));
 
@@ -564,28 +575,56 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
           });
           return;
         }
+        stockJobs.push({
+          rowIdx,
+          shopId: rowShopId,
+          productId: product.id,
+          qty: qtyVal,
+          costPerUnit: coerceNum(row.cost_per_unit) ?? Number(product.internalPrice) ?? 0,
+          note: coerceStr(row.notes) || null,
+          reference: coerceStr(row.reference) || null,
+        });
+      }
+    }));
+  }
+
+  // Phase 2: Receive all stock in one transaction per shopId (avoids N separate transactions).
+  const jobsByShop = new Map<string, StockJob[]>();
+  for (const job of stockJobs) {
+    if (!jobsByShop.has(job.shopId)) jobsByShop.set(job.shopId, []);
+    jobsByShop.get(job.shopId)!.push(job);
+  }
+
+  for (const [shopId, jobs] of jobsByShop) {
+    try {
+      await receiveStock({
+        shopId,
+        items: jobs.map((j) => ({
+          product_id: j.productId,
+          qty: j.qty,
+          cost_per_unit: j.costPerUnit,
+          po: j.reference,
+          invoice: null,
+          note: j.note,
+        })),
+        userId: ctx.userId,
+      });
+      stockResult.imported += jobs.length;
+    } catch {
+      // Batch failed — fall back to individual receives to isolate the bad row.
+      for (const job of jobs) {
         try {
-          const costPerUnit = coerceNum(row.cost_per_unit) ?? Number(product.internalPrice) ?? 0;
-          const note = coerceStr(row.notes) || null;
-          const reference = coerceStr(row.reference) || null;
           await receiveStock({
-            shopId: rowShopId,
-            items: [{
-              product_id: product.id,
-              qty: qtyVal,
-              cost_per_unit: costPerUnit,
-              po: reference,
-              invoice: null,
-              note,
-            }],
+            shopId,
+            items: [{ product_id: job.productId, qty: job.qty, cost_per_unit: job.costPerUnit, po: job.reference, invoice: null, note: job.note }],
             userId: ctx.userId,
           });
           stockResult.imported += 1;
-        } catch (e) {
-          stockResult.errors.push({ row: rowIdx, reason: friendlyDbError(e) });
+        } catch (e2) {
+          stockResult.errors.push({ row: job.rowIdx, reason: friendlyDbError(e2) });
         }
       }
-    }));
+    }
   }
 
   return { products: productResult, stock: stockResult };
