@@ -240,6 +240,7 @@ export async function getBalanceFile(
             bal_qty: state.qty, bal_avg_cost: state.avg, bal_total_value: balValue,
             note: m.note ?? null,
           });
+          totals.in_qty += delta;
         } else {
           rows.push({
             date: formatBE(m.date),
@@ -250,6 +251,7 @@ export async function getBalanceFile(
             bal_qty: state.qty, bal_avg_cost: state.avg, bal_total_value: balValue,
             note: m.note ?? null,
           });
+          totals.out_qty += -delta;
         }
       } else if (m.type === "void") {
         const delta = m.stock_after - m.stock_before;
