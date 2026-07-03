@@ -62,5 +62,6 @@ export const globalRateLimit = createRateLimit(300);
 export const authRateLimit = createRateLimit(30);
 
 export const rateLimitMiddleware = new Elysia({ name: "rate-limit" }).onBeforeHandle(
+	{ as: "global" },
 	globalRateLimit,
 );
