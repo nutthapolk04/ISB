@@ -574,9 +574,7 @@ export default function WalletDetail() {
           onCancel={() => setGatewayOpen(false)}
         />
 
-        <Dialog open={qrOpen} onOpenChange={(open) => {
-          if (!open) { setQrOpen(false); setIntent(null); setQrStatus("waiting"); }
-        }}>
+        <Dialog open={qrOpen} onOpenChange={() => {}}>
           <DialogContent className="max-w-sm sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t("parent.wallet.qrTitle")}</DialogTitle>
