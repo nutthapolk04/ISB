@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Search,
-  UserCircle2,
   Loader2,
   Wallet,
   ArrowLeft,
@@ -26,6 +25,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 interface CustomerResult {
   id: number;
@@ -367,16 +367,13 @@ export function CashierTopupModal({
                     )}
                   >
                     {/* Photo */}
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-                      {customer.photo_url ? (
-                        <img
-                          src={customer.photo_url}
-                          alt={customer.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <UserCircle2 className="h-8 w-8 text-muted-foreground" />
-                      )}
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      <img
+                        src={resolveAvatarUrl(customer.photo_url, customer.name || String(customer.id))}
+                        alt={customer.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(customer.name || String(customer.id)); }}
+                      />
                     </div>
 
                     {/* Info */}
@@ -448,18 +445,13 @@ export function CashierTopupModal({
 
             {/* Customer card */}
             <div className="flex gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-emerald-100 ring-2 ring-emerald-300">
-                {selectedCustomer.photo_url ? (
-                  <img
-                    src={selectedCustomer.photo_url}
-                    alt={selectedCustomer.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-emerald-400">
-                    <UserCircle2 className="h-12 w-12" />
-                  </div>
-                )}
+              <div className="h-32 w-32 shrink-0 overflow-hidden rounded-xl bg-emerald-100 ring-2 ring-emerald-300">
+                <img
+                  src={resolveAvatarUrl(selectedCustomer.photo_url, selectedCustomer.name || String(selectedCustomer.id))}
+                  alt={selectedCustomer.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedCustomer.name || String(selectedCustomer.id)); }}
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-bold truncate">

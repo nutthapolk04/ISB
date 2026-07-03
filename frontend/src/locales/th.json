@@ -1504,6 +1504,10 @@
       "fieldPassword": "Password",
       "fieldRole": "Role",
       "fieldShop": "Shop ID (ไม่บังคับ)",
+      "fieldEmails": "อีเมล (ไม่บังคับ)",
+      "emailPlaceholder1": "อีเมล 1",
+      "emailPlaceholder2": "อีเมล 2",
+      "emailPlaceholder3": "อีเมล 3",
       "selectRole": "เลือก role…",
       "addRoleBtn": "เพิ่มสิทธิ์",
       "extraRolesHint": "เพิ่มสิทธิ์อื่นนอกเหนือจากสิทธิ์หลัก เช่น ให้บัญชีเดียวเป็นได้ทั้ง manager และ cashier",
@@ -1776,7 +1780,7 @@
       "saveFailed": "บันทึกลำดับไม่สำเร็จ"
     },
     "tabAll": "ทั้งหมด",
-    "tabPanels": "ตารางราคา"
+    "tabPanels": "Tab"
   },
   "common": {
     "cancel": "ยกเลิก",

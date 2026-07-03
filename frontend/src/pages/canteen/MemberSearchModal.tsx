@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
-  UserCircle2,
   Building2,
   Loader2,
   AlertTriangle,
@@ -19,6 +18,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import type { StudentLookupResult, DepartmentLookupResult } from "./RfidPaymentModal";
 
 interface MemberSearchModalProps {
@@ -178,17 +178,16 @@ export function MemberSearchModal({
                     )}
                   >
                     {/* Photo / icon */}
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
                       {member.customer_kind === "department" ? (
-                        <Building2 className="h-7 w-7 text-rose-500" />
-                      ) : member.photo_url ? (
+                        <Building2 className="h-11 w-11 text-rose-500" />
+                      ) : (
                         <img
-                          src={member.photo_url}
+                          src={resolveAvatarUrl(member.photo_url, member.name || String(member.id))}
                           alt={member.name}
                           className="h-full w-full object-cover"
+                          onError={(e) => { e.currentTarget.src = getFallbackAvatar(member.name || String(member.id)); }}
                         />
-                      ) : (
-                        <UserCircle2 className="h-8 w-8 text-muted-foreground" />
                       )}
                     </div>
 
@@ -263,21 +262,18 @@ export function MemberSearchModal({
           <div className="space-y-4">
             {/* Member card */}
             <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
+              <div className="h-40 w-40 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
                 {selectedMember.customer_kind === "department" ? (
                   <div className="flex h-full w-full items-center justify-center text-rose-500">
-                    <Building2 className="h-14 w-14" />
+                    <Building2 className="h-20 w-20" />
                   </div>
-                ) : selectedMember.photo_url ? (
+                ) : (
                   <img
-                    src={selectedMember.photo_url}
+                    src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
                     alt={selectedMember.name}
                     className="h-full w-full object-cover"
+                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
                   />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-amber-400">
-                    <UserCircle2 className="h-16 w-16" />
-                  </div>
                 )}
               </div>
               <div className="min-w-0 flex-1">

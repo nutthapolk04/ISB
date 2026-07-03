@@ -23,7 +23,6 @@ import {
   AlertTriangle,
   ShieldAlert,
   CheckCircle2,
-  UserCircle2,
   Loader2,
   ArrowLeft,
   Users,
@@ -32,6 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 export interface StudentLookupResult {
   id: number;
@@ -606,12 +606,8 @@ export function RfidPaymentModal({
                         : "border-border bg-card hover:border-amber-400 hover:bg-amber-50/50 cursor-pointer",
                     )}
                   >
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-                      {member.photo_url ? (
-                        <img src={member.photo_url} alt={member.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <UserCircle2 className="h-7 w-7 text-muted-foreground" />
-                      )}
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      <img src={resolveAvatarUrl(member.photo_url, member.name || String(member.id))} alt={member.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = getFallbackAvatar(member.name || String(member.id)); }} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -652,32 +648,38 @@ export function RfidPaymentModal({
           <div className="space-y-4">
             {/* Identity card — student, user, or department */}
             <div className={cn(
-              "flex gap-4 rounded-2xl border p-4",
+              "flex flex-col items-center gap-3 rounded-2xl border p-4 text-center",
               overLimit
                 ? "border-red-300 bg-gradient-to-br from-red-50 to-rose-50"
                 : "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50",
             )}>
               <div className={cn(
-                "h-20 w-20 shrink-0 overflow-hidden rounded-xl ring-2",
+                "h-40 w-40 shrink-0 overflow-hidden rounded-xl ring-2",
                 overLimit ? "bg-red-100 ring-red-400" : "bg-amber-100 ring-amber-300",
               )}>
                 {payerKind === "department" ? (
                   <div className="flex h-full w-full items-center justify-center text-rose-500">
-                    <Building2 className="h-12 w-12" />
+                    <Building2 className="h-20 w-20" />
                   </div>
-                ) : (payerKind === "user" ? userPayer?.photo_url : student?.photo_url) ? (
-                  <img
-                    src={(payerKind === "user" ? userPayer?.photo_url : student?.photo_url) ?? undefined}
-                    alt={payerKind === "user" ? userPayer?.full_name ?? "" : student?.name ?? ""}
-                    className="h-full w-full object-cover"
-                  />
                 ) : (
-                  <div className={cn("flex h-full w-full items-center justify-center", overLimit ? "text-red-400" : "text-amber-400")}>
-                    <UserCircle2 className="h-14 w-14" />
-                  </div>
+                  (() => {
+                    const seed = payerKind === "user"
+                      ? (userPayer?.username || userPayer?.full_name || String(userPayer?.user_id ?? ""))
+                      : (student?.name || String(student?.id ?? ""));
+                    const raw = payerKind === "user" ? userPayer?.photo_url : student?.photo_url;
+                    const alt = payerKind === "user" ? userPayer?.full_name ?? "" : student?.name ?? "";
+                    return (
+                      <img
+                        src={resolveAvatarUrl(raw, seed)}
+                        alt={alt}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(seed); }}
+                      />
+                    );
+                  })()
                 )}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 w-full">
                 <div className="truncate text-lg font-bold">
                   {payerKind === "department"
                     ? departmentPayer?.department_name
@@ -688,7 +690,7 @@ export function RfidPaymentModal({
                     {departmentPayer?.department_code}
                   </div>
                 ) : payerKind === "user" ? (
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     <div className="text-xs text-muted-foreground capitalize">
                       @{userPayer?.username} · {userPayer?.role}
                     </div>
@@ -706,7 +708,7 @@ export function RfidPaymentModal({
                   </div>
                 )}
                 {payerKind === "customer" && student?.allergies && (
-                  <div className="mt-2 flex items-start gap-1 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-700">
+                  <div className="mt-2 inline-flex items-start gap-1 rounded-md bg-red-50 px-2 py-1 text-[11px] text-red-700 text-left">
                     <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                     <span>{r("allergies")}: {student.allergies}</span>
                   </div>
@@ -763,45 +765,55 @@ export function RfidPaymentModal({
             {hasAnyDailyLimit && (
               <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                  Daily Spending Limit
+                  Daily Spending remaining / limit
                 </div>
                 <div className="border-t border-border" />
                 {canteenDailyLimit != null && (() => {
-                  const pct = canteenDailyLimit > 0 ? Math.min((canteenSpent / canteenDailyLimit) * 100, 100) : 0;
-                  const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
-                  const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+                  const canteenRemaining = Math.max(0, canteenDailyLimit - canteenSpent);
+                  const remainingPct = canteenDailyLimit > 0 ? Math.max(0, (canteenRemaining / canteenDailyLimit) * 100) : 100;
+                  const over = canteenSpent >= canteenDailyLimit;
+                  const warn = remainingPct <= 20 && !over;
+                  const color = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
                   return (
                     <div className="space-y-1.5">
                       <div className="flex items-baseline justify-between">
                         <span className="text-muted-foreground font-medium">Canteen</span>
                         <span className={cn("text-base font-bold tabular-nums", color)}>
-                          ฿{canteenSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          ฿{canteenRemaining.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           <span className="text-muted-foreground font-normal"> / </span>
                           ฿{canteenDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
                       </div>
                       <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+                        />
                       </div>
                     </div>
                   );
                 })()}
                 {storeDailyLimit != null && (() => {
-                  const pct = storeDailyLimit > 0 ? Math.min((storeSpent / storeDailyLimit) * 100, 100) : 0;
-                  const color = pct >= 100 ? "text-red-600" : pct >= 80 ? "text-amber-600" : "text-emerald-700";
-                  const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+                  const storeRemaining = Math.max(0, storeDailyLimit - storeSpent);
+                  const remainingPct = storeDailyLimit > 0 ? Math.max(0, (storeRemaining / storeDailyLimit) * 100) : 100;
+                  const over = storeSpent >= storeDailyLimit;
+                  const warn = remainingPct <= 20 && !over;
+                  const color = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
                   return (
                     <div className="space-y-1.5">
                       <div className="flex items-baseline justify-between">
                         <span className="text-muted-foreground font-medium">Store</span>
                         <span className={cn("text-base font-bold tabular-nums", color)}>
-                          ฿{storeSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          ฿{storeRemaining.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           <span className="text-muted-foreground font-normal"> / </span>
                           ฿{storeDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
                       </div>
                       <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+                        />
                       </div>
                     </div>
                   );

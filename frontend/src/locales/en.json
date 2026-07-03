@@ -1504,6 +1504,10 @@
       "fieldPassword": "Password",
       "fieldRole": "Role",
       "fieldShop": "Shop ID (optional)",
+      "fieldEmails": "Email (optional)",
+      "emailPlaceholder1": "Email 1",
+      "emailPlaceholder2": "Email 2",
+      "emailPlaceholder3": "Email 3",
       "selectRole": "Select role…",
       "addRoleBtn": "Add role",
       "extraRolesHint": "Add more roles on top of the primary role above. Lets a single account act as e.g. manager + cashier.",
@@ -1776,7 +1780,7 @@
       "saveFailed": "Failed to save order"
     },
     "tabAll": "All",
-    "tabPanels": "Price Panels"
+    "tabPanels": "Tab"
   },
   "common": {
     "cancel": "Cancel",

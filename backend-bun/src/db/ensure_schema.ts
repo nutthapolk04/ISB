@@ -157,6 +157,24 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
     sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS confirmed_via VARCHAR(30)`,
     label: "payment_intents.confirmed_via",
   },
+  // ── shop_categories: remove duplicates then enforce uniqueness ────────────
+  // Bulk import previously created duplicate (shop_id, name) rows because the
+  // table lacked a unique constraint. Delete duplicates first (keep oldest),
+  // then add the constraint so future imports fail at the DB level.
+  {
+    sql: `DELETE FROM shop_categories
+          WHERE id NOT IN (
+            SELECT DISTINCT ON (shop_id, name) id
+            FROM shop_categories
+            ORDER BY shop_id, name, created_at ASC
+          )`,
+    label: "shop_categories dedup",
+  },
+  {
+    sql: `CREATE UNIQUE INDEX IF NOT EXISTS uq_shop_categories_shop_name
+          ON shop_categories (shop_id, name)`,
+    label: "shop_categories unique (shop_id, name)",
+  },
 ];
 
 export async function ensureSchema(): Promise<void> {

@@ -17,7 +17,7 @@ const t = {
   EN: {
     title: 'Top-up',
     sub: 'Select payment method',
-    promptpay: 'QR Code',
+    promptpay: 'Thai QR Code / PromptPay',
     cash: 'Cash',
     back: 'Back',
     scan: 'Scan the QR code below to top-up',
@@ -60,7 +60,7 @@ const t = {
   TH: {
     title: 'เติมเงิน',
     sub: 'เลือกช่องทางการเติมเงิน',
-    promptpay: 'QR Code',
+    promptpay: 'Thai QR Code / PromptPay',
     cash: 'เงินสด',
     back: 'กลับ',
     scan: 'สแกน QR Code ด้านล่างเพื่อเติมเงิน',
@@ -122,7 +122,7 @@ let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 50000;
 const MIN_AMOUNT = 100;
-const SHORTCUTS = [500, 1000, 2000, 5000, 10000, 20000, 50000];
+const SHORTCUTS = [100, 200, 500, 1000, 2000, 5000];
 
 const amountNumber = computed(() => {
   const n = parseFloat(enteredAmount.value);

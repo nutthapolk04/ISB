@@ -11,7 +11,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 interface Member {
@@ -35,25 +34,25 @@ const fmt = (n: number | null | undefined) =>
   "฿" + (n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 function LimitRow({ label, limit, spent }: { label: string; limit: number; spent: number }) {
-  const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-  const atLimit = pct >= 100;
-  const nearLimit = pct >= 80 && !atLimit;
+  const remaining = Math.max(0, limit - spent);
+  const remainingPct = limit > 0 ? Math.max(0, (remaining / limit) * 100) : 100;
+  const atLimit = spent >= limit;
+  const nearLimit = remainingPct <= 20 && !atLimit;
   const text = atLimit ? "text-red-700 font-bold" : nearLimit ? "text-amber-700 font-semibold" : "";
   return (
     <div className="space-y-1">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-medium text-muted-foreground">{label}</span>
         <span className={cn("font-mono tabular-nums", text)}>
-          {fmt(spent)} <span className="text-muted-foreground">/</span> {fmt(limit)}
+          {fmt(remaining)} <span className="text-muted-foreground">/</span> {fmt(limit)}
         </span>
       </div>
-      <Progress
-        value={pct}
-        className={cn(
-          "h-1.5",
-          atLimit ? "[&>div]:bg-red-500" : nearLimit ? "[&>div]:bg-amber-500" : "[&>div]:bg-primary",
-        )}
-      />
+      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+        />
+      </div>
     </div>
   );
 }
@@ -90,7 +89,7 @@ export function SpendingLimitChip({ member, refreshKey = 0 }: Props) {
 
   return (
     <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs space-y-2">
-      <div className="font-medium text-foreground">{t("pos.todayRemaining", "Today's remaining")}</div>
+      <div className="font-medium text-foreground">{t("pos.dailySpendingRemainingLimit", "Daily Spending remaining / limit")}</div>
       {ct != null && <LimitRow label="Canteen" limit={Number(ct)} spent={Number(latest.spent_today_canteen ?? 0)} />}
       {st != null && <LimitRow label="Store" limit={Number(st)} spent={Number(latest.spent_today_store ?? 0)} />}
     </div>

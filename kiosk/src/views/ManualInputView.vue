@@ -3,14 +3,13 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
 import Numpad from '../components/Numpad.vue';
-import { ChevronLeft, AlertCircle, Keyboard as KeyboardIcon, LogOut } from 'lucide-vue-next';
+import { ChevronLeft, AlertCircle, LogOut } from 'lucide-vue-next';
 
 const router = useRouter();
 const store = useKioskStore();
 const inputVal = ref('');
 const error = ref(false);
 const inputRef = ref<HTMLInputElement | null>(null);
-const showFullKeyboard = ref(false);
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
 const t = {
@@ -20,9 +19,7 @@ const t = {
     placeholder: 'Enter ID...',
     back: 'Back',
     submit: 'Check Balance',
-    error: 'Invalid ID. Please try again.',
-    useKeyboard: 'ABC',
-    useNumpad: '123'
+    error: 'Invalid ID. Please try again.'
   },
   TH: {
     title: 'กรอกข้อมูลด้วยตนเอง',
@@ -30,9 +27,7 @@ const t = {
     placeholder: 'กรอกรหัส...',
     back: 'ย้อนกลับ',
     submit: 'ตรวจสอบยอดเงิน',
-    error: 'รหัสไม่ถูกต้อง กรุณาลองใหม่',
-    useKeyboard: 'ABC',
-    useNumpad: '123'
+    error: 'รหัสไม่ถูกต้อง กรุณาลองใหม่'
   }
 };
 
@@ -43,6 +38,8 @@ const handleInput = (key: string) => {
     focusInput();
   }
 };
+
+const stripNonDigits = (val: string) => val.replace(/\D+/g, '');
 
 const handleDelete = () => {
   inputVal.value = inputVal.value.slice(0, -1);
@@ -55,6 +52,8 @@ const handleClear = () => {
 };
 
 const handleNativeInput = () => {
+  const cleaned = stripNonDigits(inputVal.value).slice(0, 12);
+  if (cleaned !== inputVal.value) inputVal.value = cleaned;
   error.value = false;
 };
 
@@ -62,11 +61,6 @@ const focusInput = () => {
   nextTick(() => {
     inputRef.value?.focus();
   });
-};
-
-const toggleKeyboardMode = () => {
-  showFullKeyboard.value = !showFullKeyboard.value;
-  focusInput();
 };
 
 const goBack = () => {
@@ -93,13 +87,6 @@ const handleSubmit = async () => {
   }
 };
 
-// Simple A-Z Keyboard Layout
-const alphaKeys = [
-  'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
-  'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L',
-  'Z', 'X', 'C', 'V', 'B', 'N', 'M'
-];
-
 const isReady = computed(() => inputVal.value.length > 0 && !store.isLoading);
 
 onMounted(() => {
@@ -124,10 +111,12 @@ onMounted(() => {
       <p class="sub-text mb-8">{{ currT.sub }}</p>
       
       <div class="input-wrapper" :class="{ 'error-border': error }">
-        <input 
+        <input
           ref="inputRef"
           v-model="inputVal"
           type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
           class="real-input"
           :placeholder="currT.placeholder"
           maxlength="12"
@@ -140,31 +129,10 @@ onMounted(() => {
       <div v-if="error" class="error-msg mb-4">
         {{ currT.error }}
       </div>
-      
-      <!-- Layout Toggle -->
-      <div class="keyboard-toggle mb-4">
-        <button class="toggle-btn" @click="toggleKeyboardMode">
-          <KeyboardIcon :size="20" />
-          <span>{{ showFullKeyboard ? currT.useNumpad : currT.useKeyboard }}</span>
-        </button>
-      </div>
 
-      <!-- Numpad or Alpha Keyboard -->
+      <!-- Numpad -->
       <div class="keyboard-area mb-8">
-        <Numpad v-if="!showFullKeyboard" @input="handleInput" @delete="handleDelete" @clear="handleClear" />
-        
-        <div v-else class="alpha-keyboard">
-          <div class="alpha-row">
-            <button v-for="key in alphaKeys.slice(0, 10)" :key="key" class="alpha-key" @click="handleInput(key)">{{ key }}</button>
-          </div>
-          <div class="alpha-row">
-            <button v-for="key in alphaKeys.slice(10, 19)" :key="key" class="alpha-key" @click="handleInput(key)">{{ key }}</button>
-          </div>
-          <div class="alpha-row">
-            <button v-for="key in alphaKeys.slice(19)" :key="key" class="alpha-key" @click="handleInput(key)">{{ key }}</button>
-            <button class="alpha-key action-key" @click="handleDelete">⌫</button>
-          </div>
-        </div>
+        <Numpad @input="handleInput" @delete="handleDelete" @clear="handleClear" />
       </div>
 
       <button 
@@ -273,69 +241,11 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
-.keyboard-toggle {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-}
-
-.toggle-btn {
-  background: none;
-  border: 1px solid var(--text-muted);
-  color: var(--text-muted);
-  padding: 0.5rem 1rem;
-  border-radius: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
 .keyboard-area {
   width: 100%;
   display: flex;
   justify-content: center;
   min-height: 320px;
-}
-
-.alpha-keyboard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 600px;
-}
-
-.alpha-row {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.alpha-key {
-  width: 3rem;
-  height: 3.5rem;
-  background-color: var(--card-bg);
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 700;
-  font-size: 1.25rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  color: var(--text-color);
-  cursor: pointer;
-}
-
-.alpha-key:active {
-  background-color: var(--primary);
-  color: white;
-  transform: scale(0.95);
-}
-
-.action-key {
-  width: 4rem;
-  background-color: rgba(100, 116, 139, 0.1);
 }
 
 .mb-4 { margin-bottom: 1rem; }

@@ -143,6 +143,7 @@ async function upsertProductRow(
   row: Row,
   ctx: ProcessCtx,
   errors: ImportRowError[],
+  catCache?: Set<string>,
 ): Promise<{ product: typeof shopProducts.$inferSelect; wasCreated: boolean } | null> {
   const rowShopId = coerceStr(row.shop_id) || ctx.defaultShopId;
   if (!rowShopId) {
@@ -154,48 +155,50 @@ async function upsertProductRow(
     return null;
   }
 
-  const shopRows = await db.select().from(shops).where(eq(shops.id, rowShopId)).limit(1);
-  if (!shopRows[0]) {
-    errors.push({ row: rowIdx, reason: `ไม่พบร้าน '${rowShopId}' ในระบบ` });
-    return null;
+  // Skip per-row shop DB lookup when called from processProductRows (pre-validated).
+  if (!catCache) {
+    const shopRows = await db.select().from(shops).where(eq(shops.id, rowShopId)).limit(1);
+    if (!shopRows[0]) {
+      errors.push({ row: rowIdx, reason: `ไม่พบร้าน '${rowShopId}' ในระบบ` });
+      return null;
+    }
   }
 
-  const name = coerceStr(row.name);
+  const name = coerceStr(row.product_name ?? row.name);
   const barcode = coerceStr(row.barcode);
-  const priceVal = coerceNum(row.price);
-  const costVal = coerceNum(row.cost_price);
+  const priceVal = coerceNum(row.external_price ?? row.price);
+  const costVal = coerceNum(row.internal_price ?? row.cost_price);
 
   if (!name) {
-    errors.push({ row: rowIdx, reason: "ต้องระบุ 'name' (ชื่อสินค้า)" });
+    errors.push({ row: rowIdx, reason: "ต้องระบุ 'product_name' (ชื่อสินค้า)" });
     return null;
   }
   if (priceVal === null) {
-    errors.push({ row: rowIdx, reason: "'price' (ราคาขาย) ต้องเป็นตัวเลข" });
+    errors.push({ row: rowIdx, reason: "'external_price' (ราคาขาย) ต้องเป็นตัวเลข" });
     return null;
   }
   if (costVal === null) {
-    errors.push({ row: rowIdx, reason: "'cost_price' (ต้นทุน) ต้องเป็นตัวเลข" });
+    errors.push({ row: rowIdx, reason: "'internal_price' (ต้นทุน) ต้องเป็นตัวเลข" });
     return null;
   }
 
   const category = coerceStr(row.category) || "ทั่วไป";
   const rowProductCode = coerceStr(row.product_code);
 
-  // Ensure category exists for this shop (mirrors Python — flush a new
-  // ShopCategory before the product so the FK reference is valid).
-  const catRows = await db
-    .select({ id: shopCategories.id })
-    .from(shopCategories)
-    .where(and(eq(shopCategories.shopId, rowShopId), eq(shopCategories.name, category)))
-    .limit(1);
-  if (!catRows[0]) {
-    try {
+  // Ensure category exists — use in-memory cache to avoid per-row DB lookups.
+  if (catCache) {
+    if (!catCache.has(category)) {
+      catCache.add(category); // Claim before await so parallel rows skip the insert.
       await db
         .insert(shopCategories)
-        .values({ id: `cat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, shopId: rowShopId, name: category });
-    } catch {
-      // Race-condition tolerant: another concurrent row may have inserted it.
+        .values({ id: `cat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, shopId: rowShopId, name: category })
+        .onConflictDoNothing();
     }
+  } else {
+    await db
+      .insert(shopCategories)
+      .values({ id: `cat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, shopId: rowShopId, name: category })
+      .onConflictDoNothing();
   }
 
   // Resolve uom by display name when provided.
@@ -281,9 +284,37 @@ async function processProductRows(rows: Row[], ctx: ProcessCtx): Promise<Product
   let created = 0;
   let updated = 0;
   const errors: ImportRowError[] = [];
-  // Row 2 = first data row in operator-facing reports (header is row 1).
-  for (let i = 0; i < rows.length; i += 1) {
-    const r = await upsertProductRow(i + 2, rows[i], ctx, errors);
+
+  // Pre-validate shop once — avoids N identical DB lookups inside the loop.
+  if (ctx.defaultShopId) {
+    const shopRow = await db.select({ id: shops.id }).from(shops)
+      .where(eq(shops.id, ctx.defaultShopId)).limit(1);
+    if (!shopRow[0]) {
+      errors.push({ row: 2, reason: `ไม่พบร้าน '${ctx.defaultShopId}' ในระบบ` });
+      return { created, updated, errors };
+    }
+  }
+
+  // Category cache: load all existing categories for this shop up-front.
+  const existingCats = await db
+    .select({ name: shopCategories.name })
+    .from(shopCategories)
+    .where(eq(shopCategories.shopId, ctx.defaultShopId));
+  const catCache = new Set(existingCats.map((c) => c.name));
+
+  // Process in parallel batches of 20 to avoid overwhelming the DB pool.
+  const BATCH = 20;
+  const allResults: Array<{ product: typeof shopProducts.$inferSelect; wasCreated: boolean } | null> = [];
+
+  for (let start = 0; start < rows.length; start += BATCH) {
+    const batch = rows.slice(start, start + BATCH);
+    const batchResults = await Promise.all(
+      batch.map((row, i) => upsertProductRow(start + i + 2, row, ctx, errors, catCache))
+    );
+    allResults.push(...batchResults);
+  }
+
+  for (const r of allResults) {
     if (r) {
       if (r.wasCreated) created += 1;
       else updated += 1;
@@ -299,7 +330,7 @@ async function processStockRows(rows: Row[], ctx: ProcessCtx): Promise<StockImpo
     const rowIdx = i + 2;
     const row = rows[i];
     try {
-      const rowShopId = coerceStr(row.shop_id);
+      const rowShopId = coerceStr(row.shop_id) || ctx.defaultShopId;
       if (!rowShopId) {
         errors.push({ row: rowIdx, reason: "ต้องระบุ 'shop_id'" });
         continue;
@@ -308,9 +339,9 @@ async function processStockRows(rows: Row[], ctx: ProcessCtx): Promise<StockImpo
         errors.push({ row: rowIdx, reason: "Manager รับสต็อกได้เฉพาะร้านของตัวเองเท่านั้น" });
         continue;
       }
-      const qty = coerceInt(row.quantity);
+      const qty = coerceInt(row.stock ?? row.quantity);
       if (qty === null || qty <= 0) {
-        errors.push({ row: rowIdx, reason: "'quantity' ต้องเป็นจำนวนเต็มที่มากกว่า 0" });
+        errors.push({ row: rowIdx, reason: "'stock' ต้องเป็นจำนวนเต็มที่มากกว่า 0" });
         continue;
       }
 
@@ -376,14 +407,23 @@ async function dryRunCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreIm
   let stockImported = 0;
   const stockErrors: ImportRowError[] = [];
 
+  // Pre-fetch all existing products for this shop in one query so dry-run
+  // doesn't hit the DB once per row.
+  const existingProducts = await db
+    .select({ id: shopProducts.id, name: shopProducts.name, barcode: shopProducts.barcode })
+    .from(shopProducts)
+    .where(eq(shopProducts.shopId, ctx.defaultShopId));
+  const byBarcode = new Map(existingProducts.filter((p) => p.barcode).map((p) => [p.barcode!, p]));
+  const byName = new Map(existingProducts.map((p) => [p.name, p]));
+
   for (let i = 0; i < rows.length; i += 1) {
     const rowIdx = i + 2;
     const row = rows[i];
 
-    const name = coerceStr(row.name);
-    const priceVal = coerceNum(row.price);
-    const costVal = coerceNum(row.cost_price);
-    const qtyVal = coerceInt(row.quantity);
+    const name = coerceStr(row.product_name ?? row.name);
+    const priceVal = coerceNum(row.external_price ?? row.price);
+    const costVal = coerceNum(row.internal_price ?? row.cost_price);
+    const qtyVal = coerceInt(row.stock ?? row.quantity);
     const barcode = coerceStr(row.barcode) || null;
     const category = coerceStr(row.category) || "ทั่วไป";
     const rowShopId = coerceStr(row.shop_id) || ctx.defaultShopId;
@@ -401,17 +441,8 @@ async function dryRunCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreIm
         continue;
       }
 
-      // Check existing product (create vs update) — read-only.
-      let exists = false;
-      if (barcode) {
-        const r = await db.select({ id: shopProducts.id }).from(shopProducts)
-          .where(and(eq(shopProducts.shopId, rowShopId), eq(shopProducts.barcode, barcode))).limit(1);
-        exists = !!r[0];
-      } else {
-        const r = await db.select({ id: shopProducts.id }).from(shopProducts)
-          .where(and(eq(shopProducts.shopId, rowShopId), eq(shopProducts.name, name))).limit(1);
-        exists = !!r[0];
-      }
+      // Check existing product via in-memory maps — no DB round-trip.
+      const exists = barcode ? byBarcode.has(barcode) : byName.has(name);
 
       preview.push({
         row: rowIdx,
@@ -426,13 +457,9 @@ async function dryRunCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreIm
       if (hasStockData) stockImported += 1;
 
     } else if (hasStockData && !hasProductData) {
-      // Stock-only top-up row — look up existing product by barcode.
-      const rowShopId2 = coerceStr(row.shop_id) || ctx.defaultShopId;
       let productName: string | null = null;
       if (barcode) {
-        const r = await db.select({ name: shopProducts.name }).from(shopProducts)
-          .where(and(eq(shopProducts.barcode, barcode), eq(shopProducts.shopId, rowShopId2))).limit(1);
-        if (r[0]) productName = r[0].name;
+        productName = byBarcode.get(barcode)?.name ?? null;
       }
       if (productName) {
         preview.push({
@@ -450,9 +477,9 @@ async function dryRunCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreIm
         stockErrors.push({ row: rowIdx, reason: "ไม่พบสินค้า barcode นี้ในระบบ" });
       }
     } else if (name || priceVal !== null || costVal !== null) {
-      if (!name) productErrors.push({ row: rowIdx, reason: "ต้องระบุ 'name' (ชื่อสินค้า)" });
-      else if (priceVal === null) productErrors.push({ row: rowIdx, reason: "'price' (ราคาขาย) ต้องเป็นตัวเลข" });
-      else productErrors.push({ row: rowIdx, reason: "'cost_price' (ต้นทุน) ต้องเป็นตัวเลข" });
+      if (!name) productErrors.push({ row: rowIdx, reason: "ต้องระบุ 'product_name' (ชื่อสินค้า)" });
+      else if (priceVal === null) productErrors.push({ row: rowIdx, reason: "'external_price' (ราคาขาย) ต้องเป็นตัวเลข" });
+      else productErrors.push({ row: rowIdx, reason: "'internal_price' (ต้นทุน) ต้องเป็นตัวเลข" });
     }
   }
 
@@ -475,74 +502,93 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
   const productResult: ProductImportResult = { created: 0, updated: 0, errors: [] };
   const stockResult: StockImportResult = { imported: 0, errors: [] };
 
-  for (let i = 0; i < rows.length; i += 1) {
-    const rowIdx = i + 2;
-    const row = rows[i];
-
-    const name = coerceStr(row.name);
-    const priceVal = coerceNum(row.price);
-    const costVal = coerceNum(row.cost_price);
-    const qtyVal = coerceInt(row.quantity);
-    const barcode = coerceStr(row.barcode);
-
-    const hasProductData = name && priceVal !== null && costVal !== null;
-    const hasStockData = qtyVal !== null && qtyVal > 0;
-
-    let product: typeof shopProducts.$inferSelect | undefined;
-
-    if (hasProductData) {
-      const r = await upsertProductRow(rowIdx, row, ctx, productResult.errors);
-      if (!r) continue;
-      if (r.wasCreated) productResult.created += 1;
-      else productResult.updated += 1;
-      product = r.product;
-    } else if (name || priceVal !== null || costVal !== null) {
-      // Partial product columns — that's a validation error, not a silent
-      // skip. Tell the operator which field is missing.
-      if (!name) productResult.errors.push({ row: rowIdx, reason: "ต้องระบุ 'name' (ชื่อสินค้า)" });
-      else if (priceVal === null) productResult.errors.push({ row: rowIdx, reason: "'price' (ราคาขาย) ต้องเป็นตัวเลข" });
-      else productResult.errors.push({ row: rowIdx, reason: "'cost_price' (ต้นทุน) ต้องเป็นตัวเลข" });
-      continue;
+  // Pre-validate shop once.
+  if (ctx.defaultShopId) {
+    const shopRow = await db.select({ id: shops.id }).from(shops)
+      .where(eq(shops.id, ctx.defaultShopId)).limit(1);
+    if (!shopRow[0]) {
+      productResult.errors.push({ row: 2, reason: `ไม่พบร้าน '${ctx.defaultShopId}' ในระบบ` });
+      return { products: productResult, stock: stockResult };
     }
+  }
 
-    if (hasStockData && qtyVal !== null) {
+  // Pre-load category cache.
+  const existingCats = await db
+    .select({ name: shopCategories.name })
+    .from(shopCategories)
+    .where(eq(shopCategories.shopId, ctx.defaultShopId));
+  const catCache = new Set(existingCats.map((c) => c.name));
+
+  // Process in parallel batches — each row is independent.
+  const BATCH = 20;
+  const allRows = rows.map((row, i) => ({ row, rowIdx: i + 2 }));
+
+  for (let start = 0; start < allRows.length; start += BATCH) {
+    const batch = allRows.slice(start, start + BATCH);
+    await Promise.all(batch.map(async ({ row, rowIdx }) => {
+      const name = coerceStr(row.product_name ?? row.name);
+      const priceVal = coerceNum(row.external_price ?? row.price);
+      const costVal = coerceNum(row.internal_price ?? row.cost_price);
+      const qtyVal = coerceInt(row.stock ?? row.quantity);
+      const barcode = coerceStr(row.barcode);
       const rowShopId = coerceStr(row.shop_id) || ctx.defaultShopId;
-      if (!product && barcode) {
-        const rows2 = await db
-          .select()
-          .from(shopProducts)
-          .where(and(eq(shopProducts.barcode, barcode), eq(shopProducts.shopId, rowShopId)))
-          .limit(1);
-        product = rows2[0];
+
+      const hasProductData = name && priceVal !== null && costVal !== null;
+      const hasStockData = qtyVal !== null && qtyVal > 0;
+
+      let product: typeof shopProducts.$inferSelect | undefined;
+
+      if (hasProductData) {
+        const r = await upsertProductRow(rowIdx, row, ctx, productResult.errors, catCache);
+        if (!r) return;
+        if (r.wasCreated) productResult.created += 1;
+        else productResult.updated += 1;
+        product = r.product;
+      } else if (name || priceVal !== null || costVal !== null) {
+        if (!name) productResult.errors.push({ row: rowIdx, reason: "ต้องระบุ 'name' (ชื่อสินค้า)" });
+        else if (priceVal === null) productResult.errors.push({ row: rowIdx, reason: "'price' (ราคาขาย) ต้องเป็นตัวเลข" });
+        else productResult.errors.push({ row: rowIdx, reason: "'cost_price' (ต้นทุน) ต้องเป็นตัวเลข" });
+        return;
       }
-      if (!product) {
-        stockResult.errors.push({
-          row: rowIdx,
-          reason: "ไม่พบสินค้าสำหรับรับสต็อก — ต้องระบุ name/price/cost_price หรือ barcode ที่มีอยู่",
-        });
-        continue;
+
+      if (hasStockData && qtyVal !== null) {
+        if (!product && barcode) {
+          const rows2 = await db
+            .select()
+            .from(shopProducts)
+            .where(and(eq(shopProducts.barcode, barcode), eq(shopProducts.shopId, rowShopId)))
+            .limit(1);
+          product = rows2[0];
+        }
+        if (!product) {
+          stockResult.errors.push({
+            row: rowIdx,
+            reason: "ไม่พบสินค้าสำหรับรับสต็อก — ต้องระบุ name/price/cost_price หรือ barcode ที่มีอยู่",
+          });
+          return;
+        }
+        try {
+          const costPerUnit = coerceNum(row.cost_per_unit) ?? Number(product.internalPrice) ?? 0;
+          const note = coerceStr(row.notes) || null;
+          const reference = coerceStr(row.reference) || null;
+          await receiveStock({
+            shopId: rowShopId,
+            items: [{
+              product_id: product.id,
+              qty: qtyVal,
+              cost_per_unit: costPerUnit,
+              po: reference,
+              invoice: null,
+              note,
+            }],
+            userId: ctx.userId,
+          });
+          stockResult.imported += 1;
+        } catch (e) {
+          stockResult.errors.push({ row: rowIdx, reason: friendlyDbError(e) });
+        }
       }
-      try {
-        const costPerUnit = coerceNum(row.cost_per_unit) ?? Number(product.internalPrice) ?? 0;
-        const note = coerceStr(row.notes) || null;
-        const reference = coerceStr(row.reference) || null;
-        await receiveStock({
-          shopId: rowShopId,
-          items: [{
-            product_id: product.id,
-            qty: qtyVal,
-            cost_per_unit: costPerUnit,
-            po: reference,
-            invoice: null,
-            note,
-          }],
-          userId: ctx.userId,
-        });
-        stockResult.imported += 1;
-      } catch (e) {
-        stockResult.errors.push({ row: rowIdx, reason: friendlyDbError(e) });
-      }
-    }
+    }));
   }
 
   return { products: productResult, stock: stockResult };
@@ -644,16 +690,15 @@ export async function importStore(args: {
   if (args.dryRun) {
     let rows: Row[];
     try {
-      // For dry-run prefer the unified sheet; fall back handles legacy workbooks below.
-      let legacyProducts: Row[] = [];
-      let legacyStock: Row[] = [];
-      try { legacyProducts = parseXlsx(buf, "Products"); } catch { /* ignore */ }
-      try { legacyStock = parseXlsx(buf, "StockReceive"); } catch { /* ignore */ }
-      if (legacyProducts.length > 0 && legacyStock.length > 0) {
-        // Legacy two-sheet dry-run: merge into a combined preview list.
-        rows = [...legacyProducts, ...legacyStock];
+      const wb = XLSX.read(buf, { type: "buffer" });
+      const sheetNames = wb.SheetNames;
+      const isLegacyTwoSheet = sheetNames.includes("Products") && sheetNames.includes("StockReceive");
+      if (isLegacyTwoSheet) {
+        const productRows = XLSX.utils.sheet_to_json<Row>(wb.Sheets["Products"], { defval: null, raw: true });
+        const stockRows = XLSX.utils.sheet_to_json<Row>(wb.Sheets["StockReceive"], { defval: null, raw: true });
+        rows = [...productRows, ...stockRows];
       } else {
-        rows = parseXlsx(buf, null);
+        rows = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetNames[0]], { defval: null, raw: true });
       }
     } catch (e) {
       return { status: 400, body: { detail: `Could not parse file: ${friendlyDbError(e)}` } };
@@ -663,24 +708,22 @@ export async function importStore(args: {
 
   // ── Real import ───────────────────────────────────────────────────────────
 
-  // Legacy two-sheet workbook detection: when both Products + StockReceive
-  // sheets are present, use the split-sheet flow so old template files keep
-  // working without forcing operators to migrate.
-  let legacyProducts: Row[] = [];
-  let legacyStock: Row[] = [];
-  try { legacyProducts = parseXlsx(buf, "Products"); } catch { /* fall through */ }
-  try { legacyStock = parseXlsx(buf, "StockReceive"); } catch { /* fall through */ }
-
-  if (legacyProducts.length > 0 && legacyStock.length > 0) {
-    const products = await processProductRows(legacyProducts, ctx);
-    const stock = await processStockRows(legacyStock, ctx);
-    return { status: 200, body: { products, stock } };
-  }
-
-  // Unified single-sheet path — read the first sheet.
   let rows: Row[];
   try {
-    rows = parseXlsx(buf, null);
+    const wb = XLSX.read(buf, { type: "buffer" });
+    const sheetNames = wb.SheetNames;
+    // Legacy two-sheet workbook detection: when both Products + StockReceive
+    // sheets are EXPLICITLY present, use the split-sheet flow so old template
+    // files keep working without forcing operators to migrate.
+    if (sheetNames.includes("Products") && sheetNames.includes("StockReceive")) {
+      const productRows = XLSX.utils.sheet_to_json<Row>(wb.Sheets["Products"], { defval: null, raw: true });
+      const stockRows = XLSX.utils.sheet_to_json<Row>(wb.Sheets["StockReceive"], { defval: null, raw: true });
+      const products = await processProductRows(productRows, ctx);
+      const stock = await processStockRows(stockRows, ctx);
+      return { status: 200, body: { products, stock } };
+    }
+    // Unified single-sheet path — read the first sheet.
+    rows = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetNames[0]], { defval: null, raw: true });
   } catch (e) {
     return { status: 400, body: { detail: `Could not parse file: ${friendlyDbError(e)}` } };
   }
@@ -718,14 +761,14 @@ export async function buildTemplate(shopId: string): Promise<Response> {
   if (module === "canteen") {
     sheetName = "Menu";
     aoa = [
-      ["product_code", "name", "barcode", "price", "cost_price", "category", "uom", "shop_id"],
+      ["product_code", "product_name", "barcode", "external_price", "internal_price", "category", "uom", "shop_id"],
       ["FOOD-001", "ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sampleShopId],
     ];
   } else {
     sheetName = "Store";
     aoa = [
-      ["product_code", "name", "barcode", "price", "cost_price", "category", "uom", "shop_id",
-        "quantity", "cost_per_unit", "notes", "reference"],
+      ["product_code", "product_name", "barcode", "external_price", "internal_price", "category", "uom", "shop_id",
+        "stock", "cost_per_unit", "notes", "reference"],
       ["BK-001", "หนังสือคณิตศาสตร์ ม.1", "BK001001", 120, 70, "หนังสือเรียน", "เล่ม", sampleShopId,
         50, 65, "รับเข้าจาก supplier A", "PO-2026-001"],
     ];

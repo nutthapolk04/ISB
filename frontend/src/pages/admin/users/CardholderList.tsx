@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import CreateCardholderDialog from "./CreateCardholderDialog";
 import SyncRunDialog from "./SyncRunDialog";
+import { getFallbackAvatar, resolveAvatarUrl } from "@/lib/avatarFallback";
 
 export interface Cardholder {
   key: string;
@@ -477,17 +478,12 @@ export default function CardholderList() {
                     {/* Name + avatar */}
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-0">
-                        {c.photo_url ? (
-                          <img
-                            src={c.photo_url}
-                            alt={c.name}
-                            className="h-8 w-8 shrink-0 rounded-full object-cover border border-border bg-muted"
-                          />
-                        ) : (
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                            <UserCircle2 className="h-5 w-5" />
-                          </div>
-                        )}
+                        <img
+                          src={resolveAvatarUrl(c.photo_url, c.name || String(c.id))}
+                          alt={c.name}
+                          className="h-8 w-8 shrink-0 rounded-full object-cover border border-border bg-muted"
+                          onError={(e) => { e.currentTarget.src = getFallbackAvatar(c.name || String(c.id)); }}
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm leading-tight truncate block max-w-[180px]">{c.name}</span>

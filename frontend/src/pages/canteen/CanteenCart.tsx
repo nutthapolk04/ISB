@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X, MessageSquare } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, X, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/IconButton";
@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { getCanteenImage, getCanteenFallback } from "./canteenImages";
 import type {
   CanteenCartItem,
@@ -229,18 +230,13 @@ export function CanteenCart({
       {selectedMember && (
         <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
-              {selectedMember.photo_url ? (
-                <img
-                  src={selectedMember.photo_url}
-                  alt={selectedMember.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-amber-400">
-                  <UserCircle2 className="h-8 w-8" />
-                </div>
-              )}
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+              <img
+                src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
+                alt={selectedMember.name}
+                className="h-full w-full object-cover"
+                onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-sm truncate">{selectedMember.name}</div>
@@ -275,25 +271,28 @@ export function CanteenCart({
             return (
               <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
                 <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                  Daily Spending Limit
+                  Daily Spending remaining / limit
                 </div>
                 {rows.map(({ label, limit, spent }) => {
-                  const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                  const remaining = Math.max(0, limit - spent);
+                  const remainingPct = limit > 0 ? Math.max(0, (remaining / limit) * 100) : 100;
                   const over = spent >= limit;
-                  const warn = pct >= 80;
-                  const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
-                  const barColor = over ? "bg-red-500" : "bg-amber-500";
+                  const warn = remainingPct <= 20 && !over;
+                  const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
                   return (
                     <div key={label} className="space-y-1">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-foreground font-medium">{label}</span>
                         <span className={cn("font-bold tabular-nums", valueColor)}>
-                          {fmt(spent)}{" "}
+                          {fmt(remaining)}{" "}
                           <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
                         </span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
-                        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+                        />
                       </div>
                     </div>
                   );

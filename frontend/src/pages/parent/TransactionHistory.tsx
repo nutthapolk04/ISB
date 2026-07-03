@@ -13,6 +13,8 @@ import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
 import { getRoleStyle } from "@/lib/roleStyles";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,8 @@ export default function TransactionHistory() {
   // customerId can be a numeric string, "own", or "wallet-N"
   const { customerId } = useParams<{ customerId: string }>();
   const { t, i18n } = useTranslation();
+  const schoolInfo = useSchoolInfo();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -232,7 +236,13 @@ export default function TransactionHistory() {
   <title>${title}</title>
   <style>
     body { font-family: sans-serif; font-size: 12px; color: #1e293b; margin: 24px; }
-    h2 { font-size: 16px; margin-bottom: 4px; }
+    .meta-bar { display: flex; justify-content: space-between; font-size: 9px; color: #000; margin-bottom: 10px; }
+    .report-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .report-header img { object-fit: contain; }
+    .report-header .school-name { font-size: 16px; font-weight: bold; line-height: 1.2; }
+    .report-header .report-title { font-size: 13px; margin-top: 2px; }
+    .filters { text-align: right; font-size: 9px; color: #000; margin-bottom: 14px; }
+    .filters div { margin-top: 1px; }
     p.sub { font-size: 11px; color: #64748b; margin: 0 0 16px; }
     table { width: 100%; border-collapse: collapse; }
     th { background: #fff7ed; color: #c2410c; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 2px solid #fed7aa; }
@@ -242,8 +252,18 @@ export default function TransactionHistory() {
   </style>
 </head>
 <body>
-  <h2>${title}</h2>
-  <p class="sub">${t("txHistory.csv.date", "Date")}: ${new Date().toLocaleDateString()} &nbsp;|&nbsp; ID: ${studentId}</p>
+  <div class="meta-bar">
+    <span>Report ID: ISB000${user?.fullName || user?.username ? ` &middot; By: ${user?.fullName || user?.username}` : ""}</span>
+    <span>Printed: ${(() => { const d = new Date(); const pad = (n:number) => String(n).padStart(2,"0"); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; })()}</span>
+  </div>
+  <div class="report-header">
+    ${schoolInfo.logoUrl ? `<img src="${schoolInfo.logoUrl}" width="52" height="52" />` : ""}
+    <div>
+      <div class="school-name">${schoolInfo.name || ""}</div>
+      <div class="report-title">${title}</div>
+    </div>
+  </div>
+  ${(dateFrom || dateTo) ? `<div class="filters"><div>Date: ${dateFrom || "-"} &rarr; ${dateTo || "-"}</div></div>` : ""}
   <table>
     <thead>
       <tr>

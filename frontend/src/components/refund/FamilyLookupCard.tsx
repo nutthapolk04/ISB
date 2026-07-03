@@ -16,7 +16,6 @@ import {
   Search,
   Users as UsersIcon,
   Loader2,
-  UserRound,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -45,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/dateFormat";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 interface FamilyLookupCardProps {
   /** Called when the user clicks "Refund" on a family member. */
@@ -77,19 +77,13 @@ function toRefundCandidate(m: FamilyMemberDetail): RefundCandidate | null {
 }
 
 function MemberAvatar({ photoUrl, name }: { photoUrl: string | null; name: string }) {
-  if (photoUrl) {
-    return (
-      <img
-        src={photoUrl}
-        alt={name}
-        className="h-8 w-8 rounded-full object-cover"
-      />
-    );
-  }
   return (
-    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-      <UserRound className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-    </div>
+    <img
+      src={resolveAvatarUrl(photoUrl, name)}
+      alt={name}
+      className="h-8 w-8 rounded-full object-cover"
+      onError={(e) => { e.currentTarget.src = getFallbackAvatar(name); }}
+    />
   );
 }
 

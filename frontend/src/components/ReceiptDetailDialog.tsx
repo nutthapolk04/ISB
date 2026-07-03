@@ -25,6 +25,7 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, downloadReceiptHtml } from "@/lib/printReceipt";
 import type { ReceiptApi } from "@/lib/printReceipt";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -190,17 +191,12 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                 {receipt.payer_detail && (
                   <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
                     <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
-                      {receipt.payer_detail.photo_url ? (
-                        <img
-                          src={receipt.payer_detail.photo_url}
-                          alt={receipt.payer_detail.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg text-blue-400 font-bold">
-                          {receipt.payer_detail.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
+                      <img
+                        src={resolveAvatarUrl(receipt.payer_detail.photo_url, receipt.payer_detail.name)}
+                        alt={receipt.payer_detail.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(receipt.payer_detail?.name); }}
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-sm truncate">{receipt.payer_detail.name}</div>

@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, UserCircle2, XCircle } from "lucide-react";
+import { Loader2, XCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import type {
   StudentLookupResult,
   UserPayerLookup,
@@ -199,16 +200,13 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-3">
                 <div className="flex items-center gap-3">
                   {/* Avatar / photo */}
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-amber-100 ring-2 ring-amber-300 flex items-center justify-center">
-                    {found.photo_url ? (
-                      <img
-                        src={found.photo_url}
-                        alt={found.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <UserCircle2 className="h-10 w-10 text-amber-400" />
-                    )}
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-amber-100 ring-2 ring-amber-300 flex items-center justify-center">
+                    <img
+                      src={resolveAvatarUrl(found.photo_url, found.name || String(found.id))}
+                      alt={found.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => { e.currentTarget.src = getFallbackAvatar(found.name || String(found.id)); }}
+                    />
                   </div>
 
                   {/* Info */}

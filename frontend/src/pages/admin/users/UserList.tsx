@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { getFallbackAvatar, resolveAvatarUrl } from "@/lib/avatarFallback";
 import { Search, CheckCircle2, XCircle, Clock, CreditCard, Users2, Building2, Loader2, UserPlus, Trash2, Pencil } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -83,6 +84,9 @@ interface CreateForm {
   full_name: string;
   role: string;
   shop_id: string;
+  email1: string;
+  email2: string;
+  email3: string;
 }
 
 export default function UserList() {
@@ -101,6 +105,9 @@ export default function UserList() {
     full_name: "",
     role: "",
     shop_id: "",
+    email1: "",
+    email2: "",
+    email3: "",
   });
   const [creating, setCreating] = useState(false);
 
@@ -188,6 +195,9 @@ export default function UserList() {
       full_name: "",
       role: isManager ? "cashier" : "",
       shop_id: isManager ? (authUser?.shopId ?? "") : "",
+      email1: "",
+      email2: "",
+      email3: "",
     });
   };
 
@@ -195,7 +205,7 @@ export default function UserList() {
     e.preventDefault();
     setCreating(true);
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, string | string[]> = {
         username: createForm.username,
         password: createForm.password,
         full_name: createForm.full_name,
@@ -203,6 +213,15 @@ export default function UserList() {
       };
       if (createForm.shop_id.trim()) {
         body.shop_id = createForm.shop_id.trim();
+      }
+      if (createForm.role === "parent" || createForm.role === "staff") {
+        const emails = [createForm.email1, createForm.email2, createForm.email3]
+          .map((e) => e.trim())
+          .filter(Boolean);
+        if (emails.length > 0) {
+          body.email = emails[0];
+          if (emails.length > 1) body.notification_emails = emails.slice(1);
+        }
       }
       await api.post("/users", body);
       toast({
@@ -326,13 +345,12 @@ export default function UserList() {
           <TableRow key={u.id}>
             <TableCell>
               <div className="flex items-center gap-2">
-                {u.photo_url ? (
-                  <img src={u.photo_url} alt="" className="h-8 w-8 rounded-full object-cover border" />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-muted grid place-items-center text-xs font-semibold text-muted-foreground">
-                    {(u.full_name || u.username).slice(0, 2).toUpperCase()}
-                  </div>
-                )}
+                <img
+                  src={resolveAvatarUrl(u.photo_url, u.username || u.full_name)}
+                  alt=""
+                  className="h-8 w-8 rounded-full object-cover border bg-muted"
+                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(u.username || u.full_name); }}
+                />
                 <div>
                   <div className="font-medium">{u.full_name}</div>
                   <div className="text-xs text-muted-foreground">@{u.username}</div>
@@ -525,6 +543,29 @@ export default function UserList() {
                 className={isManager ? "bg-muted text-muted-foreground" : ""}
               />
             </div>
+            {(createForm.role === "parent" || createForm.role === "staff") && (
+              <div className="space-y-2">
+                <Label>{t("admin.users.fieldEmails", "Email (optional)")}</Label>
+                <Input
+                  type="email"
+                  placeholder={t("admin.users.emailPlaceholder1", "Email 1")}
+                  value={createForm.email1}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, email1: e.target.value }))}
+                />
+                <Input
+                  type="email"
+                  placeholder={t("admin.users.emailPlaceholder2", "Email 2")}
+                  value={createForm.email2}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, email2: e.target.value }))}
+                />
+                <Input
+                  type="email"
+                  placeholder={t("admin.users.emailPlaceholder3", "Email 3")}
+                  value={createForm.email3}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, email3: e.target.value }))}
+                />
+              </div>
+            )}
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
                 {t("common.cancel", "Cancel")}
