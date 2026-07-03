@@ -461,7 +461,7 @@ export async function voidReceipt(args: {
                cost_per_unit, reference, note, created_by)
             VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, 'void',
                     ${restoreQty}, ${stockBefore}, ${stockAfter},
-                    ${pgNumber(item.unitPrice) ?? 0}, ${receipt.receiptNumber},
+                    ${pgNumber(sub.avg_cost) ?? 0}, ${receipt.receiptNumber},
                     ${reason ?? "Voided receipt (bundle)"}, ${callerId})
           `;
         }
@@ -495,7 +495,7 @@ export async function voidReceipt(args: {
            cost_per_unit, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shopId}, 'void',
                 ${item.quantity}, ${stockBefore}, ${stockAfter},
-                ${pgNumber(item.unitPrice) ?? 0}, ${receipt.receiptNumber},
+                ${pgNumber(locked?.avg_cost ?? null) ?? 0}, ${receipt.receiptNumber},
                 ${reason ?? "Voided receipt"}, ${callerId})
       `;
       voidLines.push({ name: product.name, qty: item.quantity, price: pgNumber(item.lineTotal) ?? 0 });

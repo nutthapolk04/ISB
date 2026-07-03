@@ -32,6 +32,7 @@ const TOPUP_LABEL_BY_METHOD: Record<string, string> = {
 };
 
 const PYMT_METHODS = new Set(["bay_qr", "bay_easypay"]);
+const EASYPAY_FEE_RATE = 0.03;
 
 function requireIntentWalletId(walletId: number | null, refCode: string): number {
   if (walletId == null) {
@@ -234,8 +235,9 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
       await db.update(paymentIntents).set({ qrPayload, txnNo }).where(eq(paymentIntents.id, created.id));
     } else if (paymentMethod === "bay_easypay" && pymtConfigured) {
       const apiBase = process.env.BACKEND_BASE_URL ?? "";
+      const chargeAmount = Math.round(input.amount * (1 + EASYPAY_FEE_RATE) * 100) / 100;
       const r = await createEasyPay({
-        amount: input.amount, refCode,
+        amount: chargeAmount, refCode,
         successUrl: `${apiBase}/api/v1/payment/bay/return/success?ref=${refCode}`,
         failUrl: `${apiBase}/api/v1/payment/bay/return/fail?ref=${refCode}`,
         cancelUrl: `${apiBase}/api/v1/payment/bay/return/cancel?ref=${refCode}`,

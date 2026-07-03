@@ -498,7 +498,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             products.find((p) => p.id === m.productId)?.subMerchantId === subMerchantFilter;
           return matchType && matchSearch && matchShop;
         })
-        .sort((a, b) => b.id - a.id),
+        .sort((a, b) => a.id - b.id),
     [movements, movTypeFilter, movSearch, subMerchantFilter, products],
   );
 

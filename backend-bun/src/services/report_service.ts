@@ -451,12 +451,6 @@ async function buildProductBlock(
     .limit(1);
   const lastBefore = lastBeforeRows[0];
 
-  const openingQty = lastBefore ? lastBefore.stockAfter : product.stock;
-  const openingCost =
-    lastBefore && lastBefore.costPerUnit !== null
-      ? pgNumber(lastBefore.costPerUnit) ?? 0
-      : pgNumber(product.avgCost) ?? 0;
-
   const movements = await db
     .select()
     .from(shopMovements)
@@ -468,6 +462,17 @@ async function buildProductBlock(
       ),
     )
     .orderBy(asc(shopMovements.createdAt));
+
+  // When no movement exists before the period, derive opening qty from the first
+  // in-period movement's stock_before (0 if the period has no movements at all).
+  // Falling back to product.stock was wrong: it used the *current* live stock.
+  const openingQty = lastBefore
+    ? lastBefore.stockAfter
+    : (movements.length > 0 ? movements[0].stockBefore : 0);
+  const openingCost =
+    lastBefore && lastBefore.costPerUnit !== null
+      ? pgNumber(lastBefore.costPerUnit) ?? 0
+      : pgNumber(product.avgCost) ?? 0;
 
   const rows: StockCardRowDTO[] = [
     {

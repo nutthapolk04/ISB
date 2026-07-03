@@ -3183,8 +3183,8 @@
     "loadFailed": "โหลด Balance File ไม่สำเร็จ",
     "exportFailed": "ส่งออก Excel ไม่สำเร็จ",
     "period": "ช่วงเวลา",
-    "opening": "ยอดยกมา",
-    "summary": "สรุปยอดคงเหลือ",
+    "opening": "Opening Balance",
+    "summary": "Summary Balance",
     "col": {
       "date": "วันที่",
       "desc": "รายการ",
@@ -3198,6 +3198,6 @@
     "viewMode": "มุมมอง",
     "monthly": "รายเดือน",
     "yearly": "รายปี",
-    "closingBalance": "ยอดคงเหลือสุดท้าย"
+    "closingBalance": "Ending Balance"
   }
 }

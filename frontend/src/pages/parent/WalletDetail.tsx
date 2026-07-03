@@ -21,10 +21,9 @@ import { Wallet as WalletIcon, CheckCircle2, AlertCircle, History, Loader2, QrCo
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 import { storeBayIntent } from "@/pages/payment/MockBayGateway";
 
-// Demo May-2026 — Topup channel limits & fee.
-// Fee is UI-only for now (not persisted on payment_intents) — wallet still
-// credits the face amount; the 3% is shown as the cost the parent pays the
-// processor.
+// Topup channel limits & fee.
+// Fee (3%) is applied server-side to the BAY charge amount; wallet is credited
+// the base (face) amount only. Frontend displays the breakdown for clarity.
 const MAX_TOPUP_THB = 50_000;
 const MAX_WALLET_BALANCE = 50_000;
 const CREDIT_FEE_RATE = 0.03;

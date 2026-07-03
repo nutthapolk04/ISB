@@ -86,12 +86,12 @@ function formatBE(isoDate: string): string {
 
 function descriptionFor(m: RawMovement, productName: string): string {
   switch (m.type) {
-    case "receive":      return `รับสินค้า - ${productName}`;
-    case "sale":         return "ขายนักเรียน";
-    case "internal_use": return "ใช้ภายใน";
-    case "exchange":     return "แลกเปลี่ยน";
-    case "adjustment":   return m.quantity >= 0 && m.stock_after > m.stock_before ? "ปรับเพิ่ม" : "ปรับลด";
-    case "void":         return "ยกเลิก";
+    case "receive":      return `Goods Received - ${productName}`;
+    case "sale":         return "Sales";
+    case "internal_use": return "Internal Use";
+    case "exchange":     return "Exchange";
+    case "adjustment":   return m.stock_after > m.stock_before ? "Adj Increase" : "Adj Decrease";
+    case "void":         return "VOID";
     default:             return m.type;
   }
 }
@@ -172,14 +172,14 @@ export async function getBalanceFile(
     const rows: LedgerRow[] = [
       {
         date: null,
-        description: "ยอดยกมา",
+        description: "Opening Balance",
         doc_no: null,
         in_qty: null, in_unit_cost: null, in_amount: null,
         out_qty: null, out_avg_cost: null, out_amount: null,
         bal_qty: opening.qty,
         bal_avg_cost: opening.avg,
         bal_total_value: openingValue,
-        note: "ยอดยกมา",
+        note: null,
       },
     ];
 
@@ -251,14 +251,46 @@ export async function getBalanceFile(
             note: m.note ?? null,
           });
         }
+      } else if (m.type === "void") {
+        const delta = m.stock_after - m.stock_before;
+        if (delta > 0) {
+          // Void of an outbound movement — stock returns in
+          const inQty = delta;
+          const inAmount = Math.round(inQty * before.avg * 100) / 100;
+          rows.push({
+            date: formatBE(m.date),
+            description: descriptionFor(m, p.name),
+            doc_no: m.reference ?? null,
+            in_qty: inQty, in_unit_cost: before.avg, in_amount: inAmount,
+            out_qty: null, out_avg_cost: null, out_amount: null,
+            bal_qty: state.qty, bal_avg_cost: state.avg, bal_total_value: balValue,
+            note: m.note ?? null,
+          });
+          totals.in_qty += inQty;
+          totals.in_amount += inAmount;
+        } else if (delta < 0) {
+          // Void of an inbound movement — stock goes out
+          const outQty = -delta;
+          const outAmount = Math.round(outQty * before.avg * 100) / 100;
+          rows.push({
+            date: formatBE(m.date),
+            description: descriptionFor(m, p.name),
+            doc_no: m.reference ?? null,
+            in_qty: null, in_unit_cost: null, in_amount: null,
+            out_qty: outQty, out_avg_cost: before.avg, out_amount: outAmount,
+            bal_qty: state.qty, bal_avg_cost: state.avg, bal_total_value: balValue,
+            note: m.note ?? null,
+          });
+          totals.out_qty += outQty;
+          totals.out_amount += outAmount;
+        }
       }
-      // void → skip
     }
 
     const finalValue = Math.round(state.qty * state.avg * 100) / 100;
     rows.push({
       date: null,
-      description: "สรุปรวม (Summary)",
+      description: "Summary Balance",
       doc_no: null,
       in_qty: totals.in_qty,
       in_unit_cost: null,
@@ -269,7 +301,7 @@ export async function getBalanceFile(
       bal_qty: state.qty,
       bal_avg_cost: state.avg,
       bal_total_value: finalValue,
-      note: "ยอดคงเหลือสุดท้าย",
+      note: "Ending Balance",
     });
 
     blocks.push({
@@ -319,19 +351,19 @@ export async function exportBalanceFile(
       [`Product: ${block.product_name}${block.product_code ? ` (${block.product_code})` : ""}`],
       [],
       [
-        "วันที่\nDate",
-        "รายการ\nDescription",
-        "เลขที่เอกสาร\nDoc No.",
-        "รับเข้า (Stock In)", null, null,
-        "จ่ายออก (Stock Out)", null, null,
-        "คงเหลือ (Balance)", null, null,
-        "หมายเหตุ\nNote",
+        "Date",
+        "Description",
+        "Doc No.",
+        "Stock In", null, null,
+        "Stock Out", null, null,
+        "Balance", null, null,
+        "Note",
       ],
       [
         null, null, null,
-        "จำนวน\n(Qty)", "ราคา/หน่วย\n(Unit Cost)", "มูลค่า\n(Amount)",
-        "จำนวน\n(Qty)", "ราคา Avg\n(Avg Cost)", "มูลค่า\n(Amount)",
-        "จำนวน\n(Qty)", "Avg Cost\n(ต่อหน่วย)", "มูลค่ารวม\n(Total Value)",
+        "Qty", "Unit Cost", "Amount",
+        "Qty", "Avg Cost", "Amount",
+        "Qty", "Avg Cost", "Total Value",
         null,
       ],
     ];
