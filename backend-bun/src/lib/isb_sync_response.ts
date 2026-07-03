@@ -1,6 +1,7 @@
 /**
  * ISB → Vendor Sync API response envelopes (OpenAPI v1.0.0).
  */
+import { timingSafeEqual } from "@/lib/crypto";
 
 export interface SyncSuccessBody {
   status: "SUCCESS";
@@ -105,5 +106,6 @@ export function checkApiKey(
   const apiKey = process.env.ISB_SYNC_API_KEY;
   if (!apiKey) return false;
   const provided = headers["x-api-key"] ?? headers["X-Api-Key"] ?? headers["X-API-Key"];
-  return provided === apiKey;
+  if (!provided) return false;
+  return timingSafeEqual(provided, apiKey);
 }

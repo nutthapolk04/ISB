@@ -2,6 +2,7 @@
 import { publicCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { logger } from "@/logger";
+import { timingSafeEqual } from "@/lib/crypto";
 import { handleBayCallback } from "@/services/topup_service";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 
@@ -15,11 +16,7 @@ function verifyWebhookSignature(
 	hasher.update(raw);
 	const expectedHex = hasher.digest("hex");
 	const expected = `sha256=${expectedHex}`;
-	const a = new TextEncoder().encode(expected);
-	const b = new TextEncoder().encode(provided);
-	let diff = a.length ^ b.length;
-	for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a[i] ^ b[i];
-	return diff === 0;
+	return timingSafeEqual(expected, provided);
 }
 
 export const BayCallbackController = {
