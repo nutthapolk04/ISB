@@ -758,8 +758,8 @@ export async function buildTemplate(shopId: string): Promise<Response> {
   if (module === "canteen") {
     sheetName = "Menu";
     aoa = [
-      ["product_code", "product_name", "barcode", "external_price", "internal_price", "category", "uom", "shop_id"],
-      ["FOOD-001", "ข้าวกะเพราหมูสับ", "CT001001", 45, 28, "อาหารจานหลัก", "จาน", sampleShopId],
+      ["product_code", "product_name", "category", "external_price", "internal_price"],
+      ["FOOD-001", "ข้าวกะเพราหมูสับ", "อาหารจานหลัก", 45, 28],
     ];
   } else {
     sheetName = "Store";
