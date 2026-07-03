@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import { CreditCard, Languages } from 'lucide-vue-next';
 
+
 const router = useRouter();
 const store = useKioskStore();
 
@@ -12,10 +13,6 @@ const toggleLanguage = () => {
 };
 
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
-
-const goToManual = () => {
-  router.push('/manual-input');
-};
 
 const rfidError = ref(false);
 
@@ -88,14 +85,12 @@ const t = {
   EN: {
     welcome: 'Welcome',
     sub: 'Please tap your card',
-    manual: 'Manual Input',
     lang: 'ภาษาไทย',
     cardNotFound: 'Card not found',
   },
   TH: {
     welcome: 'ยินดีต้อนรับ',
     sub: 'กรุณาแตะบัตรของคุณ',
-    manual: 'กรอกเลขบัตรเอง',
     lang: 'English',
     cardNotFound: 'ไม่พบบัตรนี้ในระบบ',
   }
@@ -139,11 +134,6 @@ const t = {
       <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
     </div>
 
-    <div class="action-footer">
-      <button class="kiosk-btn btn-secondary" @click="goToManual">
-        {{ currT.manual }}
-      </button>
-    </div>
   </div>
 </template>
 
@@ -191,12 +181,6 @@ const t = {
   background: rgba(37, 99, 235, 0.1);
   padding: 3rem;
   border-radius: 3rem;
-}
-
-.action-footer {
-  width: 100%;
-  display: flex;
-  justify-content: center;
 }
 
 .mb-4 { margin-bottom: 1rem; }
