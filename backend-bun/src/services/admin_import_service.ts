@@ -340,10 +340,11 @@ async function processStockRows(rows: Row[], ctx: ProcessCtx): Promise<StockImpo
         continue;
       }
       const qty = coerceInt(row.stock ?? row.quantity);
-      if (qty === null || qty <= 0) {
-        errors.push({ row: rowIdx, reason: "'stock' ต้องเป็นจำนวนเต็มที่มากกว่า 0" });
+      if (qty === null || qty < 0) {
+        errors.push({ row: rowIdx, reason: qty !== null && qty < 0 ? "'stock' ต้องไม่ติดลบ" : "ต้องระบุ 'stock' (จำนวนรับ)" });
         continue;
       }
+      if (qty === 0) continue;
 
       // Resolve product by product_id (if numeric) else barcode.
       let productId: number | null = null;
@@ -431,8 +432,8 @@ async function dryRunCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreIm
     const hasProductData = name && priceVal !== null && costVal !== null;
     const hasStockData = qtyVal !== null && qtyVal > 0;
 
-    if (qtyVal !== null && qtyVal <= 0) {
-      stockErrors.push({ row: rowIdx, reason: "'stock' ต้องเป็นจำนวนเต็มที่มากกว่า 0" });
+    if (qtyVal !== null && qtyVal < 0) {
+      stockErrors.push({ row: rowIdx, reason: "'stock' ต้องไม่ติดลบ" });
     }
 
     if (hasProductData) {
@@ -540,8 +541,8 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
       const hasProductData = name && priceVal !== null && costVal !== null;
       const hasStockData = qtyVal !== null && qtyVal > 0;
 
-      if (qtyVal !== null && qtyVal <= 0) {
-        stockResult.errors.push({ row: rowIdx, reason: "'stock' ต้องเป็นจำนวนเต็มที่มากกว่า 0" });
+      if (qtyVal !== null && qtyVal < 0) {
+        stockResult.errors.push({ row: rowIdx, reason: "'stock' ต้องไม่ติดลบ" });
       }
 
       let product: typeof shopProducts.$inferSelect | undefined;
