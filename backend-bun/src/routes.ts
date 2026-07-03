@@ -146,6 +146,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .patch("/:id/negative-limit", CustomerController.setNegativeLimit, CustomerSchema.setCustomerNegativeLimit)
             .patch("/:id/card", CustomerController.bindCard, CustomerSchema.bindCustomerCard)
             .post("/:id/graduate", CustomerController.graduate, CustomerSchema.graduateCustomer)
+            .post("/:id/cashier-topup", TopupController.cashierTopupByCustomer, TopupSchema.topupCashierByCustomer)
     )
     // ── Products ────────────────────────────────────────────────────────────
     .group("/products", (app) =>

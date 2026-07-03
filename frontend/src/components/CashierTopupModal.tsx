@@ -184,10 +184,7 @@ export function CashierTopupModal({
   };
 
   const handleSubmitTopup = async () => {
-    if (!selectedCustomer || !selectedCustomer.wallet_id) {
-      toast.error(t("topup.noWallet", "Customer has no wallet"));
-      return;
-    }
+    if (!selectedCustomer) return;
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum < 100 || amountNum > 50000) {
@@ -195,9 +192,16 @@ export function CashierTopupModal({
       return;
     }
 
+    // bay_qr requires an existing wallet — use cash if no wallet yet (QR intent needs wallet_id)
+    const hasWallet = !!selectedCustomer.wallet_id;
+    const effectiveMethod: PaymentMethod = (!hasWallet && paymentMethod === "bay_qr") ? "cash" : paymentMethod;
+    if (!hasWallet && paymentMethod === "bay_qr") {
+      toast.warning(t("topup.noWalletQrFallback", "QR not available — wallet will be created and topped up as cash"));
+    }
+
     setSubmitting(true);
     try {
-      if (paymentMethod === "bay_qr") {
+      if (effectiveMethod === "bay_qr" && hasWallet) {
         const resp = await api.post<TopupIntent>(
           `/wallets/${selectedCustomer.wallet_id}/topup`,
           {
@@ -210,13 +214,14 @@ export function CashierTopupModal({
         setQrStatus("waiting");
         setStep("qr");
       } else {
-        const result = await api.post<TopupSuccessResult>(
-          `/wallets/${selectedCustomer.wallet_id}/cashier-topup`,
-          {
-            amount: amountNum,
-            notes: notes.trim() || null,
-          }
-        );
+        // Cash topup: use customer endpoint when no wallet_id (auto-creates wallet)
+        const url = hasWallet
+          ? `/wallets/${selectedCustomer.wallet_id}/cashier-topup`
+          : `/customers/${selectedCustomer.id}/cashier-topup`;
+        const result = await api.post<TopupSuccessResult>(url, {
+          amount: amountNum,
+          notes: notes.trim() || null,
+        });
 
         setTopupResult(result);
         setStep("success");
@@ -225,7 +230,7 @@ export function CashierTopupModal({
       }
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed");
-      toast.error(paymentMethod === "bay_qr" ? t("topup.qrCreateFailed", "Failed to create QR") : msg);
+      toast.error(effectiveMethod === "bay_qr" ? t("topup.qrCreateFailed", "Failed to create QR") : msg);
     } finally {
       setSubmitting(false);
     }
@@ -358,10 +363,10 @@ export function CashierTopupModal({
                     key={customer.id}
                     type="button"
                     onClick={() => handleSelectCustomer(customer)}
-                    disabled={customer.card_frozen || !customer.wallet_id}
+                    disabled={customer.card_frozen}
                     className={cn(
                       "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
-                      customer.card_frozen || !customer.wallet_id
+                      customer.card_frozen
                         ? "border-red-200 bg-red-50 opacity-60 cursor-not-allowed"
                         : "border-border bg-card hover:border-emerald-400 hover:bg-emerald-50/50"
                     )}

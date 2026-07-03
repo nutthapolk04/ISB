@@ -37,6 +37,15 @@ export const topupCashier = {
     detail: { tags: ["Wallets"], summary: "Cashier wallet top-up" },
 };
 
+export const topupCashierByCustomer = {
+    params: t.Object({ id: t.String() }),
+    body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+    }),
+    detail: { tags: ["Customers"], summary: "Cashier top-up by customer ID (auto-creates wallet if needed)" },
+};
+
 export const topupAdjustDepartment = {
     params: t.Object({ department_id: t.String() }),
     body: t.Object({

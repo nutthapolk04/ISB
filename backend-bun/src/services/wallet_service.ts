@@ -537,6 +537,22 @@ export async function cashierTopup(args: {
   };
 }
 
+/** Cashier top-up by customer ID — auto-creates wallet if customer has none. */
+export async function cashierTopupByCustomer(args: {
+  customerId: number;
+  amount: number;
+  cashierUserId: number;
+  notes?: string;
+}): Promise<CashierTopupDTO> {
+  const wallet = await ensureWalletForCustomer(args.customerId);
+  return cashierTopup({
+    walletId: wallet.id,
+    amount: args.amount,
+    cashierUserId: args.cashierUserId,
+    notes: args.notes,
+  });
+}
+
 export interface DepartmentAdjustDTO {
   department_id: number;
   wallet_id: number;
