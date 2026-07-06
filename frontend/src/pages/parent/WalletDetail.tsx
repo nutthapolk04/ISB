@@ -224,8 +224,8 @@ export default function WalletDetail() {
         );
         if (resp.payment_page_url && resp.payment_form_params) {
           // Store intent BEFORE leaving for BAY's hosted page so the success
-          // page can read it when BAY redirects back (sessionStorage persists
-          // across same-tab cross-origin navigations for the same origin).
+          // page can read it when BAY redirects back. localStorage persists
+          // across cross-origin redirects, 3DS chains, and browser restores.
           const feeAmt = Math.round(amt * CREDIT_FEE_RATE * 100) / 100;
           storeBayIntent({
             orderRef: resp.ref_code,

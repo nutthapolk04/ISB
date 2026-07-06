@@ -38,15 +38,15 @@ export interface BayPendingIntent {
   productName?: string;
 }
 
-const SS_KEY_PREFIX = "bay_intent_";
+const LS_KEY_PREFIX = "bay_intent_";
 
 export function storeBayIntent(intent: BayPendingIntent) {
-  sessionStorage.setItem(SS_KEY_PREFIX + intent.orderRef, JSON.stringify(intent));
+  localStorage.setItem(LS_KEY_PREFIX + intent.orderRef, JSON.stringify(intent));
 }
 
 export function readBayIntent(orderRef: string | null): BayPendingIntent | null {
   if (!orderRef) return null;
-  const raw = sessionStorage.getItem(SS_KEY_PREFIX + orderRef);
+  const raw = localStorage.getItem(LS_KEY_PREFIX + orderRef);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as BayPendingIntent;
@@ -56,7 +56,7 @@ export function readBayIntent(orderRef: string | null): BayPendingIntent | null 
 }
 
 export function clearBayIntent(orderRef: string) {
-  sessionStorage.removeItem(SS_KEY_PREFIX + orderRef);
+  localStorage.removeItem(LS_KEY_PREFIX + orderRef);
 }
 
 const fmtTHB = (n: number) =>
