@@ -591,7 +591,7 @@ export async function stockCardReport(args: {
     .select()
     .from(shopProducts)
     .where(and(...productConds))
-    .orderBy(asc(shopProducts.name));
+    .orderBy(asc(shopProducts.category), asc(shopProducts.productCode));
 
   process.stdout.write(`[SC] db returned ${productsRows.length} rows\n`);
 

@@ -264,7 +264,7 @@ async function upsertProductRow(
         category,
         externalPrice: String(priceVal),
         internalPrice: String(costVal),
-        vatPercent: "7.00",
+        vatPercent: "0.00",
         avgCost: "0.0000",
         stock: 0,
         minStock: 0,
