@@ -1,5 +1,4 @@
 /** Admin import — templates, products, stock, store (admin | manager) */
-import type { Context } from "elysia";
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";

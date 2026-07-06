@@ -96,29 +96,30 @@ export const logging = (app: Elysia) =>
         .use(ip({ headersOnly: true }))
         .derive({ as: 'global' }, () => ({
             start: performance.now(),
-            requestID: `${requestId()}`,
+            requestId: `${requestId()}`,
         }))
         .onBeforeHandle({ as: 'global' }, (ctx) => {
+            ctx.set.headers['X-Request-Id'] = ctx.requestId
             logger.debug(
-                `Req:-->[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method} ${ctx.path}`,
+                `Req:-->[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method} ${ctx.path}`,
             )
         })
         .onAfterHandle({ as: 'global' }, (ctx) => {
             if (!ctx.set.status) {
                 logger.error(
-                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method
+                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method
                     } ${ctx.path} [500] in ${(performance.now() - ctx.start).toFixed(2)} ms`,
                 )
             } else {
                 logger.info(
-                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method
+                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method
                     } ${ctx.path} [${ctx.set.status}] in ${(performance.now() - ctx.start).toFixed(2)} ms`,
                 )
             }
         })
         .onError({ as: 'global' }, (ctx) => {
             logger.error(
-                `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method} ${ctx.path
+                `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method} ${ctx.path
                 } [${ctx.set.status}] in ${ctx.start ? (performance.now() - ctx.start).toFixed(2) : '-'} ms`,
             )
         })

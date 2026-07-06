@@ -1,5 +1,4 @@
 /** Departments — GET /departments (auth) */
-import type { Context } from "elysia";
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { logger } from "@/logger";

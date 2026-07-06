@@ -6,7 +6,6 @@ import connectDB from "@/utils/Database";
 import { ensureSchema } from "@/db/ensure_schema";
 import { config, APP_VERSION } from "@/lib/config";
 import { rateLimitMiddleware } from "@/middleware/RateLimitMiddleware";
-import { timerMiddleware } from "@/middleware/TimerMiddleware";
 import { logger, logging } from "@/logger";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
 import { version } from "../package.json";
@@ -98,7 +97,6 @@ const app = new Elysia()
             },
         }),
     )
-    .use(timerMiddleware)
     .use(logging)
     .use(rateLimitMiddleware)
     .use(router);

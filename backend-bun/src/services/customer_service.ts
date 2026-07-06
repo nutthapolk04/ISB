@@ -5,7 +5,7 @@ import { expandCardUidCandidates } from "@/lib/card_uid";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
-import { todayDeductedByModule, DEFAULT_DAILY_LIMIT_CANTEEN, DEFAULT_DAILY_LIMIT_STORE } from "@/services/pos_checkout_service";
+import { todayDeductedByModule } from "@/services/pos_checkout_service";
 
 /**
  * StudentProfileResponse parity — fields can come from either the customers

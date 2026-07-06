@@ -1,4 +1,4 @@
-import { eq, and, or, ilike, asc, sql } from "drizzle-orm";
+import { eq, and, or, ilike, asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     products,

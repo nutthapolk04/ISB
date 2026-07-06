@@ -2258,6 +2258,7 @@
     "filterDateTo": "ถึงวันที่",
     "filterAll": "ทั้งหมด",
     "applyFilters": "ค้นหา",
+    "applyFiltersHint": "เลือกตัวกรองที่ต้องการ แล้วกด \"ค้นหา\" เพื่อดูผลลัพธ์",
     "loadFailed": "โหลด audit log ไม่สำเร็จ",
     "noResults": "ไม่พบรายการตามเงื่อนไข",
     "colDate": "เวลา",

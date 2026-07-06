@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, inArray, lte, ne, or, sql, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, ne, or, sql, isNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { returnRequests, receipts, receiptItems, shopProducts, customers, users, departments } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";

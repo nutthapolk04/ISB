@@ -1,4 +1,4 @@
-import { and, eq, ilike, isNull, ne, or, sql, asc } from "drizzle-orm";
+import { and, eq, ilike, isNull, or, sql, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, shops, customers, wallets, departments } from "@/db/schema";
 import { expandCardUidCandidates } from "@/lib/card_uid";

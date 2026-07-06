@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db, pgClient } from "@/db/client";
+import { db } from "@/db/client";
 import { users, roles, userRoles, permissions, rolePermissions, shops } from "@/db/schema";
 import { config } from "@/lib/config";
 
