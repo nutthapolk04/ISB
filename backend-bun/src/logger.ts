@@ -62,6 +62,15 @@ const requestId = () => {
     return Date.now().toString() + nanoseconds().toString().substring(0, 7)
 }
 
+/** Log an error with message + stack trace for incident debugging. */
+export function logError(message: string, error: unknown, meta?: Record<string, unknown>) {
+    logger.error(message, {
+        ...meta,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+    })
+}
+
 // Winston logger
 export const logger = createLogger({
     level: level(),
@@ -117,8 +126,12 @@ export const logging = (app: Elysia) =>
             }
         })
         .onError({ as: 'global' }, (ctx) => {
-            logger.error(
-                `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method} ${ctx.path
-                } [${ctx.set.status}] in ${ctx.start ? (performance.now() - ctx.start).toFixed(2) : '-'} ms`,
+            const err = 'error' in ctx ? ctx.error : undefined
+            logError(
+                `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method} ${ctx.path} [${ctx.set.status}]`,
+                err,
+                {
+                    durationMs: ctx.start ? (performance.now() - ctx.start).toFixed(2) : undefined,
+                },
             )
         })
