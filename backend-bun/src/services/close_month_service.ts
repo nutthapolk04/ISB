@@ -53,13 +53,6 @@ function err(msg: string, status: number): Error {
     return Object.assign(new Error(msg), { status });
 }
 
-function csvCell(value: string): string {
-    if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-        return `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
-}
-
 async function fetchItems(closeId: number): Promise<CloseItemDTO[]> {
     const rows = await db
         .select({

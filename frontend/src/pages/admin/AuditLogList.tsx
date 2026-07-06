@@ -214,6 +214,7 @@ export default function AuditLogList() {
               </Button>
             </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">{t("audit.applyFiltersHint")}</p>
         </CardContent>
       </Card>
 

@@ -4,7 +4,6 @@ import {
     receipts,
     receiptItems,
     shopProducts,
-    shopMovements,
     shops,
     customers,
     users,

@@ -16,6 +16,10 @@ COPY shared/package.json ./shared/
 COPY backend-bun/package.json ./backend-bun/
 COPY frontend/package.json ./frontend/
 COPY kiosk/package.json ./kiosk/
+# kiosk depends on this via a relative file: path (not a declared workspace),
+# so bun install needs the target package.json present to link it — even
+# though this image never builds/runs kiosk itself.
+COPY plugins/capacitor-hardware/package.json ./plugins/capacitor-hardware/
 
 RUN bun install --frozen-lockfile
 

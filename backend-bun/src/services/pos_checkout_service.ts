@@ -1,21 +1,14 @@
 import type { SqlTx } from "@/lib/sql_tx";
-import { and, eq, sql, desc, like, inArray } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
-    receipts,
-    receiptItems,
     shopProducts,
-    shopMovements,
     shops,
-    customers,
-    wallets,
-    walletTransactions,
     productBundles,
-    bundleItems,
     menuOptionGroups,
     menuOptions,
 } from "@/db/schema";
-import { pgNumber, pgToIso } from "@/lib/dates";
+import { pgNumber } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
 import { fifoDeductInTx } from "@/services/inventory_fifo";
@@ -135,7 +128,6 @@ async function resolveOptions(
         .from(menuOptions)
         .where(inArray(menuOptions.optionGroupId, groupIds));
     const optById = new Map(allOpts.map((o) => [o.id, o]));
-    const groupById = new Map(groups.map((g) => [g.id, g]));
 
     const perGroup = new Map<number, Array<{ opt: typeof menuOptions.$inferSelect; qty: number }>>();
     let total = 0;
@@ -204,23 +196,6 @@ async function resolveOptions(
         snapshot: { groups: groupsOut, options_total: rounded },
         optionsTotal: rounded,
     };
-}
-
-async function todayDeductedForWallet(walletId: number): Promise<number> {
-    const today = new Date().toISOString().slice(0, 10);
-    const rows = await db
-        .select({
-            total: sql<string>`COALESCE(SUM(CASE WHEN ${walletTransactions.transactionType} = 'DEDUCTION' THEN ${walletTransactions.amount} ELSE 0 END), 0)`,
-        })
-        .from(walletTransactions)
-        .where(
-            and(
-                eq(walletTransactions.walletId, walletId),
-                sql`${walletTransactions.createdAt} >= ${today + "T00:00:00+07:00"}`,
-                sql`${walletTransactions.createdAt} <= ${today + "T23:59:59.999999+07:00"}`,
-            ),
-        );
-    return pgNumber(rows[0]?.total ?? "0") ?? 0;
 }
 
 export const DEFAULT_DAILY_LIMIT_CANTEEN = 500;

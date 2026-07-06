@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { syncLogs, users } from "@/db/schema";
 import { pgToIso } from "@/lib/dates";

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { spendingGroups, shops } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";

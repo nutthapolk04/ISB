@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { customerDisplayImages } from "@/db/schema";
 import { pgToIso } from "@/lib/dates";

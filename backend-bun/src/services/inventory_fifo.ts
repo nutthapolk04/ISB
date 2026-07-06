@@ -55,10 +55,6 @@ async function replaceLots(sqlTx: SqlTx, productId: number, lots: FifoLotOut[]):
     }
 }
 
-function sumQty(lots: ReadonlyArray<FifoLotIn>): number {
-    return lots.reduce((acc, l) => acc + Number(l.qtyRemaining), 0);
-}
-
 export interface FifoMutationResult {
     newStock: number;
     newAvgCost: number;

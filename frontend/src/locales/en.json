@@ -2260,6 +2260,7 @@
     "filterDateTo": "To",
     "filterAll": "All",
     "applyFilters": "Apply filters",
+    "applyFiltersHint": "Pick your filters, then click \"Apply filters\" to update the results below.",
     "loadFailed": "Could not load audit log",
     "noResults": "No audit entries match the filters.",
     "colDate": "When",

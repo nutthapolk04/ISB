@@ -12,9 +12,7 @@ import {
 import { pgToIso } from "@/lib/dates";
 
 type UserRow = typeof users.$inferSelect;
-type CustomerRow = typeof customers.$inferSelect;
 type FamilyProfileRow = typeof familyProfiles.$inferSelect;
-type ParentChildLinkRow = typeof parentChildLinks.$inferSelect;
 
 function statusErr(status: number, message: string): Error {
     const err = new Error(message) as Error & { status: number };

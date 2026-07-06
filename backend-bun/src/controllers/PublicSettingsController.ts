@@ -1,5 +1,4 @@
 /** Public settings — GET /public/settings, /public/school (no auth) */
-import type { Context } from "elysia";
 import { publicCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { logger } from "@/logger";

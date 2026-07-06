@@ -9,7 +9,7 @@
  * JOIN so missing wallet rows surface as `wallet_id=null, wallet_balance=0`
  * instead of being filtered out.
  */
-import { and, asc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { customers, users, wallets } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
