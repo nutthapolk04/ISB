@@ -28,6 +28,11 @@ export const topupInquiry = {
     detail: { tags: ["Wallets"], summary: "Inquire top-up from gateway" },
 };
 
+export const topupCancelIntent = {
+    params: t.Object({ refCode: t.String() }),
+    detail: { tags: ["Wallets"], summary: "Cancel a pending top-up intent" },
+};
+
 export const topupCashier = {
     params: t.Object({ id: t.String() }),
     body: t.Object({

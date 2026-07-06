@@ -16,7 +16,7 @@
  * the URL stays short and bookmark-safe.
  */
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { CreditCard, Lock, Shield, ShieldCheck, Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,14 +84,7 @@ export function MockBayPaymentForm() {
   const [nameOnCard, setNameOnCard] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // If someone lands here without a valid pending intent, push them out.
-  useEffect(() => {
-    if (!orderRef || !intent) {
-      navigate("/", { replace: true });
-    }
-  }, [orderRef, intent, navigate]);
-
-  if (!intent) return null;
+  if (!intent) return <Navigate to="/" replace />;
 
   const total = intent.amount + intent.fee;
 
@@ -433,7 +426,9 @@ export function MockBayPaymentCancel() {
   const intent = readBayIntent(orderRef);
 
   useEffect(() => {
-    if (orderRef) clearBayIntent(orderRef);
+    if (!orderRef) return;
+    clearBayIntent(orderRef);
+    api.post(`/wallets/topup/${orderRef}/cancel`, {}).catch(() => {});
   }, [orderRef]);
 
   return (

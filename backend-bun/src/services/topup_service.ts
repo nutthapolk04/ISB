@@ -378,6 +378,23 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
 
 // ── Status + parent-confirm ──────────────────────────────────────────────
 
+export async function cancelTopupIntent(refCode: string): Promise<void> {
+  const rows = await db.select().from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
+  const intent = rows[0];
+  if (!intent) {
+    const err = new Error("Top-up intent not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  if (intent.status === "cancelled") return;
+  if (intent.status === "confirmed") {
+    const err = new Error("Cannot cancel a confirmed payment");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+  await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, intent.id));
+}
+
 export async function getTopupStatus(refCode: string): Promise<{ intent: TopupStatusDTO; walletId: number }> {
   const rows = await db.select().from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
   const intent = rows[0];

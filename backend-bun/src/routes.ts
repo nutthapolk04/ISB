@@ -238,6 +238,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/topup/:refCode/status", TopupController.status, TopupSchema.topupStatus)
             .post("/topup/:refCode/parent-confirm", TopupController.parentConfirm, TopupSchema.topupParentConfirm)
             .post("/topup/:refCode/inquiry", TopupController.inquiry, TopupSchema.topupInquiry)
+            .post("/topup/:refCode/cancel", TopupController.cancelIntent, TopupSchema.topupCancelIntent)
             .post("/:id/cashier-topup", TopupController.cashierTopup, TopupSchema.topupCashier)
     )
     .group("/admin/departments", (app) =>

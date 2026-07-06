@@ -4,6 +4,7 @@ import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
 import {
 	createTopupIntent,
+	cancelTopupIntent,
 	getTopupStatus,
 	confirmTopup,
 	userCanAccessWallet,
@@ -135,6 +136,29 @@ export const TopupController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (TP-04)] TopupController.inquiry() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	cancelIntent: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (TP-06)] TopupController.cancelIntent() called.`);
+		if (!hasRole(user.roles, ...TOPUP_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (TP-06)] TopupController.cancelIntent() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			const { walletId } = await getTopupStatus(params.refCode);
+			if (!(await userCanAccessWallet(user, walletId))) {
+				logger.warn(`[${reqContext.requestId} (TP-06)] TopupController.cancelIntent() not authorized.`);
+				return errorResponse(reqContext, "Not authorized", ResponseStatus.FORBIDDEN);
+			}
+			await cancelTopupIntent(params.refCode);
+			logger.info(`[${reqContext.requestId} (TP-06)] TopupController.cancelIntent() completed.`);
+			return successResponse(reqContext, { cancelled: true }, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (TP-06)] TopupController.cancelIntent() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
