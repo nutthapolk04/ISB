@@ -1,35 +1,13 @@
-# Build context = monorepo root (~/ISB). Required for bun workspaces
-# because bun.lock + shared/ live at the root.
-#
-# Single-stage to avoid losing Bun's workspace symlink layout when copying
-# node_modules across stages. Bun's resolver expects both the hoisted
-# /app/node_modules and per-workspace /app/<ws>/node_modules to be present
-# in whichever form bun install produced them.
+# Build context = backend-bun/ itself. Expects dist/server.js to already
+# exist (run `bun run build` locally before building this image) — the
+# image only ships the pre-bundled output, not source or node_modules.
 
 FROM oven/bun:1.3-alpine
 WORKDIR /app
 
-# Copy workspace manifests + lockfile first so the bun install layer caches
-# when only source changes.
-COPY package.json bun.lock ./
-COPY shared/package.json ./shared/
-COPY backend-bun/package.json ./backend-bun/
-COPY frontend/package.json ./frontend/
-COPY kiosk/package.json ./kiosk/
-# kiosk depends on this via a relative file: path (not a declared workspace),
-# so bun install needs the target package.json present to link it — even
-# though this image never builds/runs kiosk itself.
-COPY plugins/capacitor-hardware/package.json ./plugins/capacitor-hardware/
-
-RUN bun install --frozen-lockfile
-
-# Source — only the workspaces we actually run at runtime.
-COPY shared ./shared
-COPY backend-bun ./backend-bun
-
-WORKDIR /app/backend-bun
+COPY dist ./dist
 
 ENV PORT=3001
 EXPOSE 3001
 
-CMD ["bun", "src/index.ts"]
+CMD ["bun", "dist/server.js"]
