@@ -8,7 +8,7 @@
  */
 import { and, desc, eq, like } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { paymentIntents, wallets, customers, users, parentChildLinks } from "@/db/schema";
+import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import {
