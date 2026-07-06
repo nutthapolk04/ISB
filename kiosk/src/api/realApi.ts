@@ -309,7 +309,19 @@ export const realApi = {
      * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
      * Returns updated balance_after and the new transaction_id.
      */
-    async topUp(walletId: string, amount: number, method: string): Promise<{ balance_after: number; transaction_id: number }> {
+    async topUp(
+        walletId: string,
+        amount: number,
+        method: string,
+        idempotencyKey?: string,
+    ): Promise<{ balance_after: number; transaction_id: number }> {
+        const body: Record<string, unknown> = {
+            amount,
+            notes: `Kiosk top-up via ${method}`,
+        };
+        if (idempotencyKey) {
+            body.idempotency_key = idempotencyKey;
+        }
         const res = await requestPost<{
             wallet_id: number;
             customer_name: string;
@@ -319,7 +331,7 @@ export const realApi = {
             transaction_id: number;
         }>(
             `/wallets/${walletId}/cashier-topup`,
-            { amount, notes: `Kiosk top-up via ${method}` },
+            body,
         );
         return { balance_after: res.balance_after, transaction_id: res.transaction_id };
     },
@@ -332,7 +344,13 @@ export const realApi = {
         });
     },
 
-    async getTopupStatus(refCode: string): Promise<{ ref_code: string; status: string; amount: number; payment_method: string }> {
+    async getTopupStatus(refCode: string): Promise<{
+        ref_code: string;
+        status: string;
+        amount: number;
+        payment_method: string;
+        transaction_id?: number | null;
+    }> {
         return request(`/wallets/topup/${refCode}/status`);
     },
 

@@ -20,98 +20,104 @@
 import { pgClient } from "./client";
 
 const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
-  // ── POS-sale BAY QR: extend payment_intents with cart snapshot + type ──
-  {
-    sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS intent_type VARCHAR(20) DEFAULT 'wallet_topup'`,
-    label: "payment_intents.intent_type",
-  },
-  {
-    sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS cart_snapshot JSONB`,
-    label: "payment_intents.cart_snapshot",
-  },
-  {
-    sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS receipt_id INTEGER`,
-    label: "payment_intents.receipt_id",
-  },
-  {
-    sql: `ALTER TABLE payment_intents ALTER COLUMN wallet_id DROP NOT NULL`,
-    label: "payment_intents.wallet_id nullable",
-  },
-  {
-    sql: `CREATE INDEX IF NOT EXISTS ix_payment_intents_intent_type ON payment_intents(intent_type)`,
-    label: "payment_intents idx intent_type",
-  },
-  // ── BAY POS QR introduces 'QR_PROMPTPAY' as a paymentmethod enum value
-  // so we can split it from the legacy 'OTHER' bucket in reports.
-  // ALTER TYPE ... ADD VALUE IF NOT EXISTS requires Postgres 12+.
-  {
-    sql: `ALTER TYPE paymentmethod ADD VALUE IF NOT EXISTS 'QR_PROMPTPAY'`,
-    label: "paymentmethod += QR_PROMPTPAY",
-  },
-  // ── customer_types: table + enum + seed rows ──
-  // Created via SQLAlchemy Base.metadata.create_all on FastAPI, which the
-  // Bun container never runs. Without these rows, creating a student
-  // (ensureCustomerTypeId('INTERNAL')) blows up with "Failed query: select
-  // from customer_types" because the table doesn't exist OR the seed row
-  // is missing.
-  {
-    sql: `DO $$ BEGIN
+    // ── POS-sale BAY QR: extend payment_intents with cart snapshot + type ──
+    {
+        sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS intent_type VARCHAR(20) DEFAULT 'wallet_topup'`,
+        label: "payment_intents.intent_type",
+    },
+    {
+        sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS cart_snapshot JSONB`,
+        label: "payment_intents.cart_snapshot",
+    },
+    {
+        sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS receipt_id INTEGER`,
+        label: "payment_intents.receipt_id",
+    },
+    {
+        sql: `ALTER TABLE payment_intents ALTER COLUMN wallet_id DROP NOT NULL`,
+        label: "payment_intents.wallet_id nullable",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_payment_intents_intent_type ON payment_intents(intent_type)`,
+        label: "payment_intents idx intent_type",
+    },
+    // ── BAY POS QR introduces 'QR_PROMPTPAY' as a paymentmethod enum value
+    // so we can split it from the legacy 'OTHER' bucket in reports.
+    // ALTER TYPE ... ADD VALUE IF NOT EXISTS requires Postgres 12+.
+    {
+        sql: `ALTER TYPE paymentmethod ADD VALUE IF NOT EXISTS 'QR_PROMPTPAY'`,
+        label: "paymentmethod += QR_PROMPTPAY",
+    },
+    // ── customer_types: table + enum + seed rows ──
+    // Created via SQLAlchemy Base.metadata.create_all on FastAPI, which the
+    // Bun container never runs. Without these rows, creating a student
+    // (ensureCustomerTypeId('INTERNAL')) blows up with "Failed query: select
+    // from customer_types" because the table doesn't exist OR the seed row
+    // is missing.
+    {
+        sql: `DO $$ BEGIN
       IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'customertypeenum') THEN
         CREATE TYPE customertypeenum AS ENUM ('PUBLIC', 'INTERNAL');
       END IF;
     END $$;`,
-    label: "type customertypeenum",
-  },
-  {
-    sql: `CREATE TABLE IF NOT EXISTS customer_types (
+        label: "type customertypeenum",
+    },
+    {
+        sql: `CREATE TABLE IF NOT EXISTS customer_types (
       id SERIAL PRIMARY KEY,
       type_name customertypeenum NOT NULL UNIQUE,
       description VARCHAR(255),
       default_price_level VARCHAR(50) NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )`,
-    label: "customer_types table",
-  },
-  {
-    sql: `CREATE INDEX IF NOT EXISTS ix_customer_types_id ON customer_types(id)`,
-    label: "customer_types idx",
-  },
-  {
-    sql: `INSERT INTO customer_types (type_name, description, default_price_level)
+        label: "customer_types table",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_customer_types_id ON customer_types(id)`,
+        label: "customer_types idx",
+    },
+    {
+        sql: `INSERT INTO customer_types (type_name, description, default_price_level)
           VALUES ('INTERNAL', 'Student/staff internal customer', 'internal')
           ON CONFLICT (type_name) DO NOTHING`,
-    label: "customer_types seed INTERNAL",
-  },
-  {
-    sql: `INSERT INTO customer_types (type_name, description, default_price_level)
+        label: "customer_types seed INTERNAL",
+    },
+    {
+        sql: `INSERT INTO customer_types (type_name, description, default_price_level)
           VALUES ('PUBLIC', 'Public/visitor', 'retail')
           ON CONFLICT (type_name) DO NOTHING`,
-    label: "customer_types seed PUBLIC",
-  },
-  // ── Graduation Refund (mirrors FastAPI _ensure_runtime_schema) ──
-  {
-    sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)`,
-    label: "wallet_transactions.refund_method",
-  },
-  {
-    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS enroll_date DATE`,
-    label: "customers.enroll_date",
-  },
-  {
-    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE`,
-    label: "customers.withdraw_date",
-  },
-  {
-    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_canteen NUMERIC(10,2)`,
-    label: "customers.daily_limit_canteen",
-  },
-  {
-    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_store NUMERIC(10,2)`,
-    label: "customers.daily_limit_store",
-  },
-  // ── Close Month: monthly stock period closes ──────────────────────────────
-  {
-    sql: `CREATE TABLE IF NOT EXISTS stock_period_closes (
+        label: "customer_types seed PUBLIC",
+    },
+    // ── Graduation Refund (mirrors FastAPI _ensure_runtime_schema) ──
+    {
+        sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refund_method VARCHAR(20)`,
+        label: "wallet_transactions.refund_method",
+    },
+    {
+        sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_wallet_tx_cashier_idempotency
+          ON wallet_transactions (reference_ticket)
+          WHERE reference_ticket LIKE 'cashier-idem:%'`,
+        label: "wallet_transactions cashier idempotency index",
+    },
+    {
+        sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS enroll_date DATE`,
+        label: "customers.enroll_date",
+    },
+    {
+        sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS withdraw_date DATE`,
+        label: "customers.withdraw_date",
+    },
+    {
+        sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_canteen NUMERIC(10,2)`,
+        label: "customers.daily_limit_canteen",
+    },
+    {
+        sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS daily_limit_store NUMERIC(10,2)`,
+        label: "customers.daily_limit_store",
+    },
+    // ── Close Month: monthly stock period closes ──────────────────────────────
+    {
+        sql: `CREATE TABLE IF NOT EXISTS stock_period_closes (
       id SERIAL PRIMARY KEY,
       shop_id VARCHAR(50) NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
       period_year INTEGER NOT NULL,
@@ -123,14 +129,14 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT uq_stock_period_closes_shop_period UNIQUE (shop_id, period_year, period_month)
     )`,
-    label: "CREATE stock_period_closes",
-  },
-  {
-    sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_closes_shop_id ON stock_period_closes(shop_id)`,
-    label: "idx stock_period_closes.shop_id",
-  },
-  {
-    sql: `CREATE TABLE IF NOT EXISTS stock_period_close_items (
+        label: "CREATE stock_period_closes",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_closes_shop_id ON stock_period_closes(shop_id)`,
+        label: "idx stock_period_closes.shop_id",
+    },
+    {
+        sql: `CREATE TABLE IF NOT EXISTS stock_period_close_items (
       id SERIAL PRIMARY KEY,
       close_id INTEGER NOT NULL REFERENCES stock_period_closes(id) ON DELETE CASCADE,
       product_id INTEGER NOT NULL REFERENCES shop_products(id),
@@ -141,43 +147,43 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
       variance_value NUMERIC(10,4),
       adjustment_movement_id INTEGER REFERENCES shop_movements(id) ON DELETE SET NULL
     )`,
-    label: "CREATE stock_period_close_items",
-  },
-  {
-    sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_close_items_close_id ON stock_period_close_items(close_id)`,
-    label: "idx stock_period_close_items.close_id",
-  },
-  // ── Per-shop void receipt reason shortcuts ────────────────────────────────
-  {
-    sql: `ALTER TABLE shops ADD COLUMN IF NOT EXISTS void_shortcuts JSONB NOT NULL DEFAULT '[]'::jsonb`,
-    label: "shops.void_shortcuts",
-  },
-  // ── confirmed_via on payment_intents (used by wallet transaction channel display)
-  {
-    sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS confirmed_via VARCHAR(30)`,
-    label: "payment_intents.confirmed_via",
-  },
+        label: "CREATE stock_period_close_items",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_stock_period_close_items_close_id ON stock_period_close_items(close_id)`,
+        label: "idx stock_period_close_items.close_id",
+    },
+    // ── Per-shop void receipt reason shortcuts ────────────────────────────────
+    {
+        sql: `ALTER TABLE shops ADD COLUMN IF NOT EXISTS void_shortcuts JSONB NOT NULL DEFAULT '[]'::jsonb`,
+        label: "shops.void_shortcuts",
+    },
+    // ── confirmed_via on payment_intents (used by wallet transaction channel display)
+    {
+        sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS confirmed_via VARCHAR(30)`,
+        label: "payment_intents.confirmed_via",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {
-  for (const patch of PATCHES) {
-    try {
-      await pgClient.unsafe(patch.sql);
-      // eslint-disable-next-line no-console
-      console.log(`[ensureSchema] + ${patch.label}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      // ALTER TABLE ALTER COLUMN DROP NOT NULL is silently OK on second
-      // run; "already exists"/"does not exist" on a DROP we want to be
-      // idempotent. Log other errors loudly.
-      const benign = /already exists|does not exist|is not null/i.test(msg);
-      if (benign) {
-        // eslint-disable-next-line no-console
-        console.log(`[ensureSchema] = ${patch.label} (already applied)`);
-      } else {
-        // eslint-disable-next-line no-console
-        console.error(`[ensureSchema] ! ${patch.label} FAILED — ${msg}`);
-      }
+    for (const patch of PATCHES) {
+        try {
+            await pgClient.unsafe(patch.sql);
+            // eslint-disable-next-line no-console
+            console.log(`[ensureSchema] + ${patch.label}`);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            // ALTER TABLE ALTER COLUMN DROP NOT NULL is silently OK on second
+            // run; "already exists"/"does not exist" on a DROP we want to be
+            // idempotent. Log other errors loudly.
+            const benign = /already exists|does not exist|is not null/i.test(msg);
+            if (benign) {
+                // eslint-disable-next-line no-console
+                console.log(`[ensureSchema] = ${patch.label} (already applied)`);
+            } else {
+                // eslint-disable-next-line no-console
+                console.error(`[ensureSchema] ! ${patch.label} FAILED — ${msg}`);
+            }
+        }
     }
-  }
 }

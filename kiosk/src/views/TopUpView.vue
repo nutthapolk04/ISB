@@ -351,6 +351,10 @@ const startPolling = () => {
       if (s.status === 'confirmed') {
         stopPolling();
         clearQrTimer();
+        if (s.transaction_id != null) {
+          receiptTxId.value = s.transaction_id;
+        }
+        creditedAmount.value = s.amount;
         await store.refreshBalance();
         currentStep.value = 'success';
       } else if (s.status === 'cancelled') {

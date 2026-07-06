@@ -9,6 +9,11 @@ interface PendingCashTopup {
     walletId: string;
     amount: number;
     ts: number;
+    idempotencyKey: string;
+}
+
+function newIdempotencyKey(): string {
+    return crypto.randomUUID();
 }
 
 const collecting = ref(false);
@@ -88,8 +93,13 @@ export async function retryPendingCashTopup(): Promise<boolean> {
         return false;
     }
 
+    if (!pending.idempotencyKey) {
+        localStorage.removeItem(PENDING_KEY);
+        return false;
+    }
+
     try {
-        await realApi.topUp(pending.walletId, pending.amount, 'cash');
+        await realApi.topUp(pending.walletId, pending.amount, 'cash', pending.idempotencyKey);
         localStorage.removeItem(PENDING_KEY);
         console.log('[BillAcceptor] retried pending top-up OK:', pending.amount);
         return true;
@@ -141,9 +151,31 @@ export function useBillAcceptor() {
         walletId: string,
         amount: number,
     ): Promise<{ transaction_id: number; balance_after: number }> {
-        const pending: PendingCashTopup = { walletId, amount, ts: Date.now() };
+        const existingRaw = localStorage.getItem(PENDING_KEY);
+        let idempotencyKey = newIdempotencyKey();
+        if (existingRaw) {
+            try {
+                const existing = JSON.parse(existingRaw) as PendingCashTopup;
+                if (
+                    existing.walletId === walletId &&
+                    existing.amount === amount &&
+                    existing.idempotencyKey
+                ) {
+                    idempotencyKey = existing.idempotencyKey;
+                }
+            } catch {
+                /* use fresh key */
+            }
+        }
+
+        const pending: PendingCashTopup = {
+            walletId,
+            amount,
+            ts: Date.now(),
+            idempotencyKey,
+        };
         localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-        const res = await realApi.topUp(walletId, amount, 'cash');
+        const res = await realApi.topUp(walletId, amount, 'cash', idempotencyKey);
         localStorage.removeItem(PENDING_KEY);
         return res;
     }

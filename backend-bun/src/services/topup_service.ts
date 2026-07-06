@@ -61,6 +61,8 @@ export interface TopupStatusDTO {
     status: string;
     amount: number;
     payment_method: string;
+    /** Present when status is `confirmed` — wallet_transactions.id for the TOPUP row. */
+    transaction_id?: number | null;
 }
 
 export interface TopupConfirmDTO {
@@ -384,12 +386,30 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
         (err as { status?: number }).status = 404;
         throw err;
     }
+
+    let transactionId: number | null = null;
+    if (intent.status === "confirmed") {
+        const txRows = await db
+            .select({ id: walletTransactions.id })
+            .from(walletTransactions)
+            .where(
+                and(
+                    eq(walletTransactions.referenceType, "payment_intent"),
+                    eq(walletTransactions.referenceId, intent.id),
+                    eq(walletTransactions.transactionType, "TOPUP"),
+                ),
+            )
+            .limit(1);
+        transactionId = txRows[0]?.id ?? null;
+    }
+
     return {
         intent: {
             ref_code: intent.refCode,
             status: intent.status,
             amount: pgNumber(intent.amount) ?? 0,
             payment_method: intent.paymentMethod,
+            transaction_id: transactionId,
         },
         walletId: requireIntentWalletId(intent.walletId, refCode),
     };

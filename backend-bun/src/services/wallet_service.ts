@@ -468,6 +468,103 @@ export interface CashierTopupDTO {
     transaction_id: number;
 }
 
+const CASHIER_IDEM_PREFIX = "cashier-idem:";
+
+function isPgUniqueViolation(err: unknown): boolean {
+    if (!err || typeof err !== "object") return false;
+    const code = (err as { code?: string }).code;
+    if (code === "23505") return true;
+    const cause = (err as { cause?: unknown }).cause;
+    return isPgUniqueViolation(cause);
+}
+
+function parseIdempotencyKey(key: string | undefined): string | undefined {
+    if (!key) return undefined;
+    const trimmed = key.trim();
+    if (trimmed.length < 8 || trimmed.length > 64) {
+        const err = new Error("idempotency_key must be 8–64 characters");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) {
+        const err = new Error("idempotency_key contains invalid characters");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    return trimmed;
+}
+
+function toCashierIdempotencyTicket(key: string): string {
+    return `${CASHIER_IDEM_PREFIX}${key}`;
+}
+
+async function resolveWalletOwnerName(w: {
+    customerId: number | null;
+    userId: number | null;
+}): Promise<string> {
+    if (w.customerId !== null) {
+        const cr = await db
+            .select({ name: customers.name })
+            .from(customers)
+            .where(eq(customers.id, w.customerId))
+            .limit(1);
+        if (cr[0]) return cr[0].name || `Customer #${w.customerId}`;
+    } else if (w.userId !== null) {
+        const ur = await db
+            .select({ fullName: users.fullName, username: users.username })
+            .from(users)
+            .where(eq(users.id, w.userId))
+            .limit(1);
+        if (ur[0]) return ur[0].fullName || ur[0].username;
+    }
+    return "Unknown";
+}
+
+async function lookupIdempotentCashierTopup(args: {
+    walletId: number;
+    amount: number;
+    ticket: string;
+}): Promise<CashierTopupDTO | null> {
+    const rows = await db
+        .select({
+            id: walletTransactions.id,
+            amount: walletTransactions.amount,
+            balanceBefore: walletTransactions.balanceBefore,
+            balanceAfter: walletTransactions.balanceAfter,
+            walletId: walletTransactions.walletId,
+        })
+        .from(walletTransactions)
+        .where(
+            and(
+                eq(walletTransactions.walletId, args.walletId),
+                eq(walletTransactions.referenceTicket, args.ticket),
+                eq(walletTransactions.transactionType, "ADJUSTMENT"),
+            ),
+        )
+        .limit(1);
+    const tx = rows[0];
+    if (!tx) return null;
+
+    const txAmount = pgNumber(tx.amount) ?? 0;
+    if (Math.abs(txAmount - args.amount) > 0.001) {
+        const err = new Error("Idempotency key reused with a different amount");
+        (err as { status?: number }).status = 409;
+        throw err;
+    }
+
+    const wRows = await db.select().from(wallets).where(eq(wallets.id, args.walletId)).limit(1);
+    const customerName = wRows[0] ? await resolveWalletOwnerName(wRows[0]) : "Unknown";
+
+    return {
+        wallet_id: args.walletId,
+        customer_name: customerName,
+        amount: args.amount,
+        balance_before: pgNumber(tx.balanceBefore) ?? 0,
+        balance_after: pgNumber(tx.balanceAfter) ?? 0,
+        transaction_id: tx.id,
+    };
+}
+
 /**
  * Cashier-side cash top-up — wraps adjustBalance with the right reason format
  * and enforces the 50,000 THB ceiling (non-department wallets only).
@@ -477,12 +574,25 @@ export async function cashierTopup(args: {
     amount: number;
     cashierUserId: number;
     notes?: string;
+    idempotencyKey?: string;
 }): Promise<CashierTopupDTO> {
     const { walletId, amount, cashierUserId, notes } = args;
+    const idempotencyKey = parseIdempotencyKey(args.idempotencyKey);
+    const idempotencyTicket = idempotencyKey ? toCashierIdempotencyTicket(idempotencyKey) : undefined;
+
     if (amount <= 0) {
         const err = new Error("Top-up amount must be positive");
         (err as { status?: number }).status = 400;
         throw err;
+    }
+
+    if (idempotencyTicket) {
+        const cached = await lookupIdempotentCashierTopup({
+            walletId,
+            amount,
+            ticket: idempotencyTicket,
+        });
+        if (cached) return cached;
     }
 
     const wRows = await db.select().from(wallets).where(eq(wallets.id, walletId)).limit(1);
@@ -506,26 +616,28 @@ export async function cashierTopup(args: {
         }
     }
 
-    // Resolve display name
-    let customerName = "Unknown";
-    if (w.customerId !== null) {
-        const cr = await db.select({ name: customers.name }).from(customers).where(eq(customers.id, w.customerId)).limit(1);
-        if (cr[0]) customerName = cr[0].name || `Customer #${w.customerId}`;
-    } else if (w.userId !== null) {
-        const ur = await db
-            .select({ fullName: users.fullName, username: users.username })
-            .from(users)
-            .where(eq(users.id, w.userId))
-            .limit(1);
-        if (ur[0]) customerName = ur[0].fullName || ur[0].username;
-    }
+    const customerName = await resolveWalletOwnerName(w);
 
-    const tx = await adjustBalance({
-        walletId,
-        amount,
-        adminUserId: cashierUserId,
-        reason: "Cash top-up at POS" + (notes ? ` - ${notes}` : ""),
-    });
+    let tx;
+    try {
+        tx = await adjustBalance({
+            walletId,
+            amount,
+            adminUserId: cashierUserId,
+            reason: "Cash top-up at POS" + (notes ? ` - ${notes}` : ""),
+            referenceTicket: idempotencyTicket,
+        });
+    } catch (e) {
+        if (idempotencyTicket && isPgUniqueViolation(e)) {
+            const cached = await lookupIdempotentCashierTopup({
+                walletId,
+                amount,
+                ticket: idempotencyTicket,
+            });
+            if (cached) return cached;
+        }
+        throw e;
+    }
 
     return {
         wallet_id: walletId,

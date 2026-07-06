@@ -73,10 +73,10 @@ GET /api/v1/customers/search?q={uid_or_code}
 
 ### B. Kiosk เติมเงินสดแล้วยอดไม่ขึ้น / ขึ้นซ้ำ
 
-- Kiosk เก็บ pending ใน `localStorage` key `kiosk-pending-cash-topup` และ retry ตอน boot (`useBillAcceptor.ts`)
-- ตรวจ log backend ช่วงเวลานั้น: `POST /wallets/:id/cashier-topup`
-- ตรวจ `wallet_transactions` ว่ามี `ADJUSTMENT` ซ้ำจำนวนเดียวกันหรือไม่
-- **หมายเหตุ:** ยังไม่มี server-side idempotency key สำหรับ cashier top-up — ถ้า retry สำเร็จ 2 ครั้งอาจ credit ซ้ำ (ต้อง reconcile ด้วยมือ)
+- Kiosk เก็บ pending ใน `localStorage` key `kiosk-pending-cash-topup` (รวม `idempotencyKey`) และ retry ตอน boot (`useBillAcceptor.ts`)
+- ตรวจ log backend ช่วงเวลานั้น: `POST /wallets/:id/cashier-topup` (body มี `idempotency_key`)
+- ตรวจ `wallet_transactions` — cash top-up ใช้ `reference_ticket` แบบ `cashier-idem:{key}`; retry ด้วย key เดียวกันจะไม่ credit ซ้ำ
+- ถ้ายอดซ้ำจริง → ดูว่าเป็น **คนละ** `idempotency_key` หรือ top-up คนละ session
 
 ### C. บัตรสแกนแล้วไม่เจอ (POS)
 
@@ -125,4 +125,4 @@ Env ที่เกี่ยวข้อง:
 - Metrics endpoint (CPU/memory)
 - Centralized log aggregation (ELK/Datadog)
 - Automated alert
-- Deploy/runbook แบบ multi-instance (ดูหมวด Resilience — ยัง defer)
+- Deploy/runbook แบบ multi-instance (**Resilience — defer** ตามแผน production readiness)

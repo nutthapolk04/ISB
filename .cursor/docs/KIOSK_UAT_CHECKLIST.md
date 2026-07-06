@@ -38,7 +38,7 @@
 | 3.6 | ยกเลิกหลังใส่เงินแล้ว | modal เตือน + คืนเงินตาม flow hardware | |
 | 3.7 | ใส่เกินจำนวน (overpay) | แสดง overpay UI, คืนส่วนเกินหรือยอมรับตามที่ออกแบบ | |
 | 3.8 | ปิดแอปขณะรอ API หลังใส่เงินครบ | เปิดใหม่ → retry pending (`kiosk-pending-cash-topup`) | |
-| 3.9 | ปิดแอปแล้วเปิดซ้ำหลัง success | ไม่ credit ซ้ำ (ตรวจ `wallet_transactions`) | |
+| 3.9 | ปิดแอปแล้วเปิดซ้ำหลัง success | ไม่ credit ซ้ำ — server ใช้ `idempotency_key` คู่กับ pending retry | |
 
 ## 4. เติมเงิน QR
 
@@ -52,8 +52,9 @@
 
 | # | ขั้นตอน | ผลที่คาดหวัง | ✓ |
 |---|---------|--------------|---|
-| 5.1 | พิมพ์จากหน้าประวัติ (ถ้ามี) | ใบเสร็จอ่านได้ | |
-| 5.2 | หลัง top-up สำเร็จ | *(ยังไม่ wire auto-print — บันทึกเป็น known gap ถ้ายังไม่ทำ)* | |
+| 5.1 | พิมพ์จากหน้าประวัติ | กดรายการ → `ReceiptPreview` → พิมพ์ thermal 80mm | |
+| 5.2 | หลัง top-up สำเร็จ (cash) | **auto-print** บนหน้า success + ปุ่มพิมพ์ซ้ำ; มีเลข `transaction_id` | |
+| 5.3 | หลัง top-up สำเร็จ (QR) | auto-print + เลข `transaction_id` จาก `GET /topup/:ref/status` | |
 
 ## 6. ความทนทานเบื้องต้น
 
@@ -78,6 +79,4 @@
 
 ## Known gaps (production plan)
 
-- Server-side idempotency สำหรับ `cashier-topup` (ป้องกัน double credit จาก pending retry)
-- Auto-print receipt หลัง top-up success ด้วย `transaction_id` จาก API
-- Resilience (metrics, crash guard, deploy spec) — defer ตามแผน
+- Resilience (metrics, crash guard, deploy spec) — **defer** ตามแผน รอเอกสาร infra

@@ -7,7 +7,7 @@ import { ensureSchema } from "@/db/ensure_schema";
 import { config, APP_VERSION } from "@/lib/config";
 import { rateLimitMiddleware } from "@/middleware/RateLimitMiddleware";
 import { timerMiddleware } from "@/middleware/TimerMiddleware";
-import { logger, logError } from "@/logger";
+import { logger, logError, logging } from "@/logger";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
 import { version } from "../package.json";
 
@@ -38,23 +38,6 @@ const app = new Elysia()
             methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         }),
     )
-    .onError(({ code, error, set, requestID }) => {
-        if (code === "VALIDATION") {
-            set.status = 422;
-            return { detail: error.message };
-        }
-        if (code === "NOT_FOUND") {
-            set.status = 404;
-            return { detail: "Not found" };
-        }
-        if (set.status === 401 || set.status === 403) {
-            return { detail: error instanceof Error ? error.message : "Unauthorized" };
-        }
-        const rid = requestID ?? "unknown";
-        logError(`[${rid}] Unhandled error (${String(code)})`, error);
-        set.status = set.status === 200 ? 500 : set.status;
-        return { detail: error instanceof Error ? error.message : "Internal error" };
-    })
     .use(
         swagger({
             path: "/docs",
@@ -101,6 +84,23 @@ const app = new Elysia()
     )
     .use(timerMiddleware)
     .use(logging)
+    .onError(({ code, error, set, requestID }) => {
+        if (code === "VALIDATION") {
+            set.status = 422;
+            return { detail: error.message };
+        }
+        if (code === "NOT_FOUND") {
+            set.status = 404;
+            return { detail: "Not found" };
+        }
+        if (set.status === 401 || set.status === 403) {
+            return { detail: error instanceof Error ? error.message : "Unauthorized" };
+        }
+        const rid = requestID ?? "unknown";
+        logError(`[${rid}] Unhandled error (${String(code)})`, error);
+        set.status = set.status === 200 ? 500 : set.status;
+        return { detail: error instanceof Error ? error.message : "Internal error" };
+    })
     .use(rateLimitMiddleware)
     .use(router);
 
