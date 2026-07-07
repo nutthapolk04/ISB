@@ -32,6 +32,7 @@ module.exports = {
             },
             out_file: "./logs/pm2-staging-out.log",
             error_file: "./logs/pm2-staging-error.log",
+            max_memory_restart: '700M',
         },
     ],
 };

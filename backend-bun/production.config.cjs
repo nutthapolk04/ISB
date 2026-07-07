@@ -27,6 +27,7 @@ module.exports = {
             },
             out_file: "./logs/pm2-out.log",
             error_file: "./logs/pm2-error.log",
+            max_memory_restart: '700M',
         },
     ],
 };

@@ -18,6 +18,7 @@
     "prod:logs": "pm2 logs ./production.config.cjs",
     "prod:flush": "pm2 flush ./production.config.cjs",
     "pm2:ps": "pm2 ps",
+    "pm2:setup": "pm2 install pm2-logrotate && pm2 set pm2-logrotate:max_size 30M && pm2 set pm2-logrotate:rotateInterval '0 0 * * *' && pm2 set pm2-logrotate:retain 14 && pm2 set pm2-logrotate:compress true",
     "start": "bun src/index.ts",
     "test": "bun test",
     "db:introspect": "drizzle-kit introspect",
