@@ -216,7 +216,7 @@ onUnmounted(() => {
                     <!-- Wallet Type Badge -->
                     <div class="wallet-type-badge">
                         {{ wallet.type === 'personal' ? currT.personal : wallet.type === 'coparent' ? currT.personal :
-                        currT.child }}
+                            currT.child }}
                     </div>
 
                     <div class="user-row">
