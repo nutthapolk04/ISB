@@ -83,7 +83,7 @@
 <body>
 <header>
   <h1>Performance, Security, Load Test &amp; Incident Readiness</h1>
-  <p>ISB Backend (backend-bun + kiosk) · อัปเดตล่าสุด 3 ก.ค. 2026 · Branch <code style="background:rgba(255,255,255,0.2);color:white;">charp</code></p>
+  <p>ISB Backend (backend-bun + kiosk) · อัปเดตล่าสุด 7 ก.ค. 2026 · Branch <code style="background:rgba(255,255,255,0.2);color:white;">charp</code></p>
 </header>
 <main>
 
@@ -328,6 +328,57 @@
 </section>
 
 <section>
+  <h2>🚀 9. Deploy Infrastructure — ย้ายจาก Railway มา self-host EC2 (7 ก.ค. 2026)</h2>
+  <p style="font-size:13px;color:#64748b;">เลิกใช้ Railway เป็นที่ deploy <code>backend-bun</code> ย้ายมารัน Docker เองบน EC2 (Amazon Linux 2023) ต่อผ่าน Termius ทั้งหมด แยก 2 environment คนละ container/พอร์ตบนเครื่องเดียวกัน</p>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">เสร็จแล้ว</span></div>
+    <div class="card-title">Build locally + SFTP แทน git clone/pull บนเซิร์ฟเวอร์</div>
+    <p>เดิม <code>Dockerfile</code> ต้อง build จาก root ของ monorepo (ต้องพึ่ง <code>bun.lock</code> + <code>shared/</code>) เปลี่ยนเป็น: build <code>dist/server.js</code> ด้วย <code>bun run build</code> บนเครื่อง local ก่อน แล้วลากแค่ <code>Dockerfile</code>, <code>deploy.sh</code>, <code>dist/</code>, <code>.env.prod</code>, <code>.env.uat</code> ขึ้นเซิร์ฟเวอร์ผ่าน SFTP — image เหลือแค่ <code>COPY dist ./dist</code> ไม่ต้อง <code>bun install</code> ในเซิร์ฟเวอร์เลย เบากว่าเดิมมาก และไม่ต้องพึ่งทั้ง repo อีกต่อไป</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">เสร็จแล้ว</span></div>
+    <div class="card-title"><code>deploy.sh</code> รองรับ 2 environment บนเครื่องเดียวกัน</div>
+    <p>รับ argument <code>prod</code>/<code>uat</code> → เลือก container name + env file ให้อัตโนมัติ แล้วดึงค่า <code>PORT</code> จากไฟล์ env มาทำ <code>-p PORT:PORT</code> เอง (ไม่ hardcode) เพื่อกันปัญหาพอร์ตข้างใน container กับพอร์ตที่ Docker forward ไม่ตรงกัน</p>
+    <table>
+      <thead><tr><th>Environment</th><th>Container</th><th>Port</th><th>Database</th></tr></thead>
+      <tbody>
+        <tr><td>prod</td><td><code>isb-backend-prod</code></td><td>19510</td><td>Railway (<code>isb</code> db)</td></tr>
+        <tr><td>uat</td><td><code>isb-backend-uat</code></td><td>19500</td><td>self-host Postgres แยกเครื่อง (<code>isb-uat</code> db)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">เสร็จแล้ว</span></div>
+    <div class="card-title">Seed ข้อมูลทดสอบเข้า UAT DB</div>
+    <p><code>pg_dump</code> จาก local DB (ที่ restore มาจาก prod ไว้แล้ว) แล้ว <code>pg_restore</code> เข้า UAT DB หลังเจอปัญหา <code>--clean</code> ลบ object ไม่ตรงลำดับ (type/table depend กัน) แก้ด้วยการ <code>DROP SCHEMA public CASCADE</code> ล้างเกลี้ยงก่อน restore ใหม่ทั้งชุด — ได้ customers 124, users 144, shops 118, products 115, wallets 129 แถว แล้ว reset password ของ user <code>admin</code> ด้วย bcrypt hash ให้ตรงกับที่ <code>AuthUtils.ts</code> ใช้จริง เพื่อ login ทดสอบได้</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">บั๊ก/ปัญหาที่เจอระหว่างทาง</div>
+    <ul>
+      <li><strong>Docker ไม่ได้ติดตั้งบน EC2</strong> — เครื่องเป็น Amazon Linux 2023 ไม่ใช่ Ubuntu ที่วางแผนไว้แต่แรก ติดตั้งด้วย <code>dnf install docker</code> + เพิ่ม <code>ec2-user</code> เข้า group <code>docker</code></li>
+      <li><strong>Port ชนกันระหว่าง prod/uat</strong> — ตั้ง <code>PORT</code> ใน <code>.env.uat</code> ซ้ำกับ <code>.env.prod</code> (19510 ทั้งคู่) ทำให้ Docker error "port is already allocated" ตอน start container ที่สอง</li>
+      <li><strong>UAT DB password authentication failed</strong> — สลับ username เป็น <code>isb-uat</code> ทั้งที่ role นี้ไม่มีอยู่จริงบน Postgres server ทำให้ container ขึ้น crash loop ตลอด แก้กลับไปใช้ user <code>isb</code> เดิม + แยก database ชื่อ <code>isb-uat</code> แทนแยกที่ user</li>
+      <li><strong>Local dev server ตอบ 500 เพราะ DATABASE_URL ค้างของเก่าใน memory</strong> — process <code>bun run --watch src/server.ts</code> ที่รันมาก่อนหน้าจะเปลี่ยน <code>.env</code> ยังพยายามต่อ <code>localhost:5432</code> เก่าอยู่ ค้าง 10 วิ (connect_timeout) แล้ว throw เป็น 500 — แก้ด้วยการ restart dev process ให้อ่าน env ใหม่</li>
+    </ul>
+  </div>
+
+  <div class="card open">
+    <div class="status-row"><span class="pill pill-medium">Medium</span><span class="pill pill-open">ค้างอยู่ — ต้องทำก่อน go-live จริง</span></div>
+    <div class="card-title">Secret/credential ยังเป็นค่า TEMP ใน <code>.env.prod</code></div>
+    <p><code>JWT_SECRET</code> (ต้องตรงกับ FastAPI <code>SECRET_KEY</code>), <code>PYMT_BASE_URL</code>/<code>PYMT_MERCHANT_TOKEN</code>/<code>PYMT_WEBHOOK_SECRET</code> (ต้องเป็น production credential จริงจาก BAY ไม่ใช่ของ UAT sandbox) ยังไม่ได้กรอกค่าจริง — ตอนนี้ deploy ได้แค่ระดับ "โครงรันติด" (skeleton) เท่านั้น auth ข้าม backend และ payment จริงยังใช้ไม่ได้</p>
+  </div>
+
+  <div class="lesson">
+    💡 <strong>ค้นพบสำคัญระหว่างทาง:</strong> กลไก apply schema จริงของระบบนี้คือ <code>ensureSchema()</code> ที่รันตอน server boot ทุกครั้ง (raw SQL <code>ALTER TABLE ADD COLUMN IF NOT EXISTS</code> แบบ idempotent) <strong>ไม่ใช่ <code>drizzle-kit migrate</code></strong> — อธิบายได้ว่าทำไม migration 0001-0003 ใน <code>drizzle/meta/_journal.json</code> ไม่เคยถูกอัปเดตให้ตรงกับไฟล์ <code>.sql</code> ที่มีอยู่จริง (คนละกลไกกัน ไม่ใช่บั๊ก แค่ทีมไม่ได้พึ่ง drizzle-kit migrate จริงจังตั้งแต่แรก) — schema จริงถูก sync อยู่เสมอผ่าน <code>ensureSchema</code> ทุกครั้งที่ server start ไม่ว่า drizzle journal จะตรงหรือไม่ก็ตาม
+  </div>
+</section>
+
+<section>
   <h2>📖 สรุปศัพท์เทคนิค</h2>
   <p style="font-size:13px;color:#64748b;">คำศัพท์ที่ใช้ในเอกสารนี้ เรียงตามหมวดที่พบมากสุดก่อน พร้อมคำอธิบายแบบเข้าใจง่าย</p>
 
@@ -392,6 +443,25 @@
     </tbody>
   </table>
 
+  <h3>Deploy Infrastructure</h3>
+  <table>
+    <thead><tr><th style="width:220px;">คำศัพท์</th><th>คำอธิบาย</th></tr></thead>
+    <tbody>
+      <tr><td>EC2</td><td>บริการเช่าเซิร์ฟเวอร์เสมือน (VM) ของ AWS — ที่เราใช้รัน Docker container ของ backend เองแทนการใช้ platform สำเร็จรูปอย่าง Railway</td></tr>
+      <tr><td>Termius</td><td>แอปสำหรับต่อเซิร์ฟเวอร์ผ่าน SSH (terminal) และ SFTP (โอนไฟล์) รวมไว้ในที่เดียว ใช้ทั้งรันคำสั่งและลากไฟล์ขึ้นเซิร์ฟเวอร์</td></tr>
+      <tr><td>SSH</td><td>(Secure Shell) โปรโตคอลเข้ารหัสสำหรับต่อเข้าเทอร์มินัลของเครื่องอื่นระยะไกล ใช้ยืนยันตัวตนด้วย key แทน password ได้</td></tr>
+      <tr><td>SFTP</td><td>(SSH File Transfer Protocol) วิธีโอนไฟล์ระหว่างเครื่องผ่านการเชื่อมต่อ SSH เดียวกัน — ใช้แทนการ <code>git pull</code> บนเซิร์ฟเวอร์ในโปรเจกต์นี้</td></tr>
+      <tr><td>Docker image / container</td><td>Image คือ "พิมพ์เขียว" ของแอป (โค้ด + runtime) ที่ build ไว้ครั้งเดียว ส่วน container คือตัวที่รันจริงจาก image นั้น — รันกี่ container จาก image เดียวกันก็ได้ (เช่น prod/uat)</td></tr>
+      <tr><td>Docker build context</td><td>โฟลเดอร์ที่ Docker ใช้เป็นขอบเขตตอน build image (คำสั่ง <code>COPY</code> ใน Dockerfile อ่านไฟล์จากขอบเขตนี้เท่านั้น) — เปลี่ยนจาก root ทั้ง monorepo มาเป็นแค่ <code>backend-bun/</code> ทำให้ build เร็วและง่ายขึ้นมาก</td></tr>
+      <tr><td><code>--env-file</code></td><td>Flag ของ <code>docker run</code> ที่ระบุไฟล์ env (เช่น <code>.env.prod</code>) ให้ inject เป็น environment variable เข้า container ตอนรัน โดยไม่ต้องฝังค่าไว้ใน image</td></tr>
+      <tr><td>Amazon Linux / <code>dnf</code></td><td>Amazon Linux คือ Linux distro ของ AWS เอง (ต่างจาก Ubuntu) ใช้ <code>dnf</code> เป็นตัวจัดการ package แทน <code>apt</code> ของ Ubuntu — คนละคำสั่งติดตั้งโปรแกรมกันคนละ distro</td></tr>
+      <tr><td>Docker group / <code>newgrp</code></td><td>ผู้ใช้ต้องอยู่ใน group <code>docker</code> ถึงจะรันคำสั่ง <code>docker</code> ได้โดยไม่ต้อง <code>sudo</code> — <code>newgrp docker</code> คือคำสั่งให้ session ปัจจุบันรับสิทธิ์ group ใหม่ทันทีโดยไม่ต้อง logout/login</td></tr>
+      <tr><td><code>ensureSchema()</code></td><td>ฟังก์ชันในโค้ดที่รันตอน server start ทุกครั้ง คอย "ปะ" schema ของ DB ให้ตรงกับที่โค้ดคาดหวัง (เพิ่ม column/table/index ที่ยังไม่มี) แบบ idempotent — เป็นกลไกจริงที่ใช้ sync schema ของโปรเจกต์นี้ ไม่ใช่ <code>drizzle-kit migrate</code></td></tr>
+      <tr><td><code>pg_dump</code> / <code>pg_restore</code></td><td>เครื่องมือมาตรฐานของ Postgres สำหรับ "ส่งออก" ฐานข้อมูลทั้งลูกเป็นไฟล์ (<code>pg_dump</code>) แล้ว "นำเข้า" กลับเข้า DB อื่น (<code>pg_restore</code>) ใช้ตอน copy ข้อมูลจาก local ไปใส่ UAT</td></tr>
+      <tr><td>bcrypt</td><td>อัลกอริทึมเข้ารหัสรหัสผ่านทางเดียว (hash) ที่ตั้งใจให้คำนวณช้าโดยตั้งใจ (ปรับด้วยค่า "cost") เพื่อกันการ brute-force เดารหัสผ่าน — ระบบนี้ใช้ cost 10 ผ่าน <code>Bun.password.hash()</code></td></tr>
+    </tbody>
+  </table>
+
   <h3>Code Cleanup / Dead Code</h3>
   <table>
     <tbody>
@@ -408,6 +478,6 @@
 </section>
 
 </main>
-<footer>อัปเดตล่าสุด 3 ก.ค. 2026 · ISB Backend (backend-bun) · Performance / Security / Load Test Readiness Plan</footer>
+<footer>อัปเดตล่าสุด 7 ก.ค. 2026 · ISB Backend (backend-bun) · Performance / Security / Load Test Readiness Plan</footer>
 </body>
 </html>
