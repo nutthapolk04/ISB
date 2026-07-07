@@ -288,7 +288,7 @@ onUnmounted(() => {
         <ChevronRight :size="24" class="chevron" />
       </button>
 
-      <button v-if="store.loginSource !== 'manual'" class="menu-item history" @click="goToHistory">
+      <button class="menu-item history" @click="goToHistory">
         <div class="menu-item-left">
           <div class="menu-icon history-icon">
             <History :size="28" />

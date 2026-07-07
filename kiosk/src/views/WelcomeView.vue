@@ -14,10 +14,6 @@ const toggleLanguage = () => {
 
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
-const goToManual = () => {
-    router.push('/manual-input');
-};
-
 const rfidError = ref(false);
 const rfidNetworkError = ref(false);
 
@@ -103,7 +99,6 @@ const t = {
     EN: {
         welcome: 'Welcome',
         sub: 'Please tap your card',
-        manual: 'Manual Input',
         lang: 'ภาษาไทย',
         cardNotFound: 'Card not found',
         networkError: 'Connection error. Please try again.',
@@ -112,7 +107,6 @@ const t = {
     TH: {
         welcome: 'ยินดีต้อนรับ',
         sub: 'กรุณาแตะบัตรของคุณ',
-        manual: 'กรอกเลขบัตรเอง',
         lang: 'English',
         cardNotFound: 'ไม่พบบัตรนี้ในระบบ',
         networkError: 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่',
@@ -156,19 +150,13 @@ const t = {
             <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
             <p v-if="rfidNetworkError" class="rfid-error-msg">{{ currT.networkError }}</p>
         </div>
-
-        <div class="action-footer">
-            <button class="kiosk-btn btn-secondary" :disabled="store.isLoading || !store.isReady" @click="goToManual">
-                {{ currT.manual }}
-            </button>
-        </div>
     </div>
 </template>
 
 <style scoped>
 .welcome-view {
-    justify-content: space-between;
-    padding: 4rem 2rem;
+    justify-content: flex-start;
+    padding: 4rem 2rem 2rem;
 }
 
 .lang-switch-container {
@@ -214,12 +202,6 @@ const t = {
     background: rgba(37, 99, 235, 0.1);
     padding: 3rem;
     border-radius: 3rem;
-}
-
-.action-footer {
-    width: 100%;
-    display: flex;
-    justify-content: center;
 }
 
 .mb-4 {
