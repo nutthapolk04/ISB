@@ -27,7 +27,7 @@ const t = {
     amount: 'Amount will be credited automatically',
     demo: 'This is a demo screen',
     backToMenu: 'Back to methods',
-    enterAmount: 'Enter top-up amount',
+    enterAmount: 'Select top-up amount',
     maxAmount: 'Max 50,000 Baht per transaction',
     maxTopupHint: 'Top up up to {n} Baht',
     limitReachedHint: 'Remaining limit is below the 100 Baht minimum',
@@ -99,7 +99,7 @@ const t = {
     amount: 'ยอดเงินจะถูกเพิ่มโดยอัตโนมัติ',
     demo: 'นี่คือหน้าจอตัวอย่าง',
     backToMenu: 'กลับเลือกช่องทาง',
-    enterAmount: 'กรอกจำนวนเงินที่ต้องการเติม',
+    enterAmount: 'เลือกจำนวนเงินที่ต้องการเติม',
     maxAmount: 'เติมได้สูงสุด 50,000 บาท / ครั้ง',
     maxTopupHint: 'เติมได้สูงสุด {n} บาท',
     limitReachedHint: 'วงเงินคงเหลือต่ำกว่าขั้นต่ำ 100 บาท',
@@ -185,7 +185,7 @@ let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 50000;
 const MIN_AMOUNT = 100;
-const SHORTCUTS = [500, 1000, 2000, 5000, 10000, 20000, 50000];
+const SHORTCUTS = [100, 200, 300, 500, 1000];
 
 const amountNumber = computed(() => {
   const n = parseFloat(enteredAmount.value);
@@ -254,28 +254,6 @@ const selectMethod = async (key: string) => {
   } else {
     currentStep.value = 'qr';
     await initQrPayment();
-  }
-};
-
-const pressKey = (key: string) => {
-  if (key === 'C') {
-    enteredAmount.value = '0';
-    return;
-  }
-  if (key === '00') {
-    if (enteredAmount.value === '0') return;
-    const newVal = enteredAmount.value + '00';
-    if (parseFloat(newVal) > effectiveMax.value) return;
-    enteredAmount.value = newVal;
-    return;
-  }
-  if (enteredAmount.value === '0') {
-    if (key === '0') return;
-    enteredAmount.value = key;
-  } else {
-    const newVal = enteredAmount.value + key;
-    if (parseFloat(newVal) > effectiveMax.value) return;
-    enteredAmount.value = newVal;
   }
 };
 
@@ -640,8 +618,9 @@ const overpayExceedsCap = computed(() => {
       </button>
     </div>
 
-    <!-- Step 2: Amount Input -->
+    <!-- Step 2: Amount selection (shortcut chips) -->
     <div v-if="currentStep === 'amount'" class="amount-section">
+      <p class="amount-heading">{{ currT.enterAmount }}</p>
       <div class="amount-display-card">
         <div class="amount-display" :class="{ 'has-value': amountNumber > 0 }">
           {{ formattedAmount }}
@@ -649,28 +628,20 @@ const overpayExceedsCap = computed(() => {
         <p class="max-hint">{{ maxHintText }}</p>
       </div>
 
-      <!-- Shortcut Buttons -->
-      <div class="shortcut-row">
+      <div class="shortcut-grid">
         <button
           v-for="s in SHORTCUTS"
           :key="s"
+          type="button"
           class="shortcut-btn"
           :class="{ active: amountNumber === s }"
           :disabled="s > effectiveMax"
           @click="selectShortcut(s)"
         >
-          {{ s.toLocaleString() }}
+          ฿{{ s.toLocaleString() }}
         </button>
       </div>
 
-      <!-- Numpad -->
-      <div class="numpad">
-        <button v-for="k in ['7','8','9','4','5','6','1','2','3','0','00','C']" :key="k" class="num-key" :class="{ 'key-clear': k === 'C' }" @click="pressKey(k)">
-          {{ k }}
-        </button>
-      </div>
-
-      <!-- Confirm -->
       <div class="amount-footer">
         <button class="kiosk-btn btn-secondary" @click="goBack">
           <ChevronLeft :size="24" />
@@ -1045,7 +1016,16 @@ const overpayExceedsCap = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+}
+
+.amount-heading {
+  width: 100%;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
 }
 
 .amount-display-card {
@@ -1075,67 +1055,38 @@ const overpayExceedsCap = computed(() => {
   margin-top: 0.25rem;
 }
 
-/* Shortcuts */
-.shortcut-row {
-  display: flex;
-  gap: 0.4rem;
+/* Shortcut amount chips */
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
   width: 100%;
-  justify-content: stretch;
-  flex-wrap: wrap;
+  flex: 1;
+  align-content: center;
 }
 .shortcut-btn {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0.65rem 0.5rem;
-  border-radius: 2rem;
-  border: 2px solid var(--text-muted);
+  min-height: 5.5rem;
+  padding: 1rem 0.5rem;
+  border-radius: 1.25rem;
+  border: 2px solid rgba(0, 0, 0, 0.12);
   background: var(--card-bg);
   color: var(--text-color);
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s;
-  white-space: nowrap;
+  box-shadow: var(--shadow);
 }
 .shortcut-btn.active,
-.shortcut-btn:active {
+.shortcut-btn:active:not(:disabled) {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
+  transform: scale(0.98);
 }
 .shortcut-btn:disabled {
   opacity: 0.35;
   pointer-events: none;
-}
-
-/* Numpad */
-.numpad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.num-key {
-  height: 4.5rem;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 0.75rem;
-  background: var(--card-bg);
-  color: var(--text-color);
-  font-size: 2.5rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.1s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.num-key:active {
-  background: #e2e8f0;
-}
-.key-clear {
-  color: #ef4444;
-  font-weight: 800;
 }
 
 .amount-footer {
