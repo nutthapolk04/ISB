@@ -8,7 +8,10 @@ import { config, APP_VERSION } from "@/lib/config";
 import { rateLimitMiddleware } from "@/middleware/RateLimitMiddleware";
 import { logError, logger, logging } from "@/logger";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
+import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_response";
 import { version } from "../package.json";
+
+const SYNC_PATHS = new Set(["/api/v1/sync/staffs", "/api/v1/sync/families", "/api/v1/sync/departments"]);
 
 export async function initializeServices() {
     logger.info("🚀 Starting ISB backend...");
@@ -82,8 +85,23 @@ const app = new Elysia()
         }),
     )
     .use(logging)
-    .onError(({ code, error, set, requestId }) => {
+    .onError(({ code, error, set, requestId, path }) => {
         if (code === "VALIDATION") {
+            // NOTE: plugin-level .onError() never fires for VALIDATION on nested
+            // routes in Elysia 1.4.x — the root app's handler always wins. Any
+            // route needing a custom validation-error shape must branch here.
+            if (path === "/api/v1/wallet/adjust-balance") {
+                set.status = 400;
+                return {
+                    status: "FAILED" as const,
+                    code: "INVALID_REQUEST" as const,
+                    message: "Request body does not match the expected schema.",
+                    errors: mapValidationError(error),
+                };
+            }
+            if (SYNC_PATHS.has(path)) {
+                return syncValidationFailed(set, mapValidationError(error));
+            }
             set.status = 422;
             return { detail: error.message };
         }

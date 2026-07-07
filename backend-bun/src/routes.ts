@@ -1,7 +1,6 @@
 import { Elysia } from "elysia";
 import { requireAuth } from "@/middleware/AuthMiddleware";
 import { authRateLimit } from "@/middleware/RateLimitMiddleware";
-import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_response";
 import { HealthController } from "@/controllers/HealthController";
 import { AuthController } from "@/controllers/AuthController";
 import { IsbSyncController } from "@/controllers/IsbSyncController";
@@ -64,22 +63,13 @@ import * as AdminReportsSchema from "@/interfaces/routes/admin_reports.schema";
 import * as CanteenSchema from "@/interfaces/routes/canteen.schema";
 import * as KioskSchema from "@/interfaces/routes/kiosk.schema";
 
-/** ISB vendor sync + wallet-adjust-balance — public, x-api-key only (no JWT). */
+/**
+ * ISB vendor sync + wallet-adjust-balance — public, x-api-key only (no JWT).
+ * Validation-error formatting for these paths lives in app.ts's root
+ * onError, not here — Elysia 1.4.x always runs the root app's onError for
+ * VALIDATION on nested routes, so a plugin-level handler here never fires.
+ */
 const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
-    .onError(({ code, error, set, path }) => {
-        if (code === "VALIDATION") {
-            if (path === "/api/v1/wallet/adjust-balance") {
-                set.status = 400;
-                return {
-                    status: "FAILED" as const,
-                    code: "INVALID_REQUEST" as const,
-                    message: "Request body does not match the expected schema.",
-                    errors: mapValidationError(error),
-                };
-            }
-            return syncValidationFailed(set, mapValidationError(error));
-        }
-    })
     .post("/sync/staffs", IsbSyncController.staffs, IsbSyncSchema.isbSyncStaffs)
     .post("/sync/families", IsbSyncController.families, IsbSyncSchema.isbSyncFamilies)
     .post("/sync/departments", IsbSyncController.departments, IsbSyncSchema.isbSyncDepartments)
