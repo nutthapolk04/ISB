@@ -726,7 +726,7 @@ const Reports = () => {
     const payload = buildSalesSummaryPayload();
     if (!payload || !ssData) return;
     try {
-      const fname = `SalesSummary_${ssDateFrom || "any"}_${ssDateTo || "any"}.pdf`;
+      const fname = `DailySalesReport_${ssDateFrom || "any"}_${ssDateTo || "any"}.pdf`;
       await exportToPDF(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -739,7 +739,7 @@ const Reports = () => {
     const payload = buildSalesSummaryPayload();
     if (!payload || !ssData) return;
     try {
-      const fname = `SalesSummary_${ssDateFrom || "any"}_${ssDateTo || "any"}.xlsx`;
+      const fname = `DailySalesReport_${ssDateFrom || "any"}_${ssDateTo || "any"}.xlsx`;
       exportToExcel(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -949,7 +949,7 @@ const Reports = () => {
           rows: bodyRows,
           totals: { total: data.grand_total },
         },
-        baseFilename: `${isTopSelling ? "TopSelling" : "SalesReport"}${dateLabel}`,
+        baseFilename: `${isTopSelling ? "TopSellingReport" : "SalesReport"}${dateLabel}`,
       };
     }
 
@@ -1025,7 +1025,7 @@ const Reports = () => {
           rows: bodyRows,
           totals: { total: data.retail_total },
         },
-        baseFilename: `SalesByPayment${dateLabel}`,
+        baseFilename: `SalesByPaymentReport${dateLabel}`,
       };
     }
 
@@ -1049,13 +1049,13 @@ const Reports = () => {
           ],
           rows: data.rows.map((r) => ({ ...r, shop_name: r.shop_name ?? r.shop_id })) as unknown as Record<string, unknown>[],
         },
-        baseFilename: "StockReport",
+        baseFilename: `StockBalanceReport`,
       };
     }
 
     if (selectedReportType === "returnReport") {
-      const data = await api.get<ReturnReportData>(
-        `/reports/returns?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+      const data = await api.get<{ rows: Record<string, unknown>[]; total_voided: number }>(
+        `/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`,
       );
       return {
         payload: {
@@ -1068,18 +1068,16 @@ const Reports = () => {
           },
           columns: [
             { header: t("reports.colId"),       key: "id",              format: "number",   align: "right", width: 8  },
-            { header: t("reports.colDate"),      key: "return_date",     format: "date",                     width: 13 },
+            { header: t("reports.colDate"),      key: "voided_at",       format: "datetime",                 width: 18 },
             { header: t("reports.colReceipt"),   key: "receipt_number",                                      width: 20 },
-            { header: t("reports.colProduct"),   key: "product_name",                                        width: 40 },
-            { header: t("reports.colQuantity"),  key: "quantity",        format: "number",   align: "right", width: 10 },
-            { header: t("reports.colRefund"),    key: "refund_amount",   format: "currency", align: "right", width: 14 },
-            { header: t("reports.colExchange"),  key: "exchange_amount", format: "currency", align: "right", width: 14 },
-            { header: t("reports.colStatus"),    key: "status",                                              width: 14 },
+            { header: t("reports.colTotal"),     key: "total",           format: "currency", align: "right", width: 14 },
+            { header: "Voided By",               key: "voided_by_name",                                      width: 20 },
+            { header: "Reason",                  key: "voided_reason",                                       width: 30 },
           ],
-          rows: data.rows as unknown as Record<string, unknown>[],
-          totals: { refund_amount: data.total_refund, exchange_amount: data.total_exchange },
+          rows: data.rows,
+          totals: { total: data.total_voided },
         },
-        baseFilename: `ReturnReport${dateLabel}`,
+        baseFilename: `VoidReport${dateLabel}`,
       };
     }
 
@@ -1395,7 +1393,7 @@ const Reports = () => {
                   <Label htmlFor="ssUserName">User Name</Label>
                   <Input
                     id="ssUserName"
-                    placeholder="Search name (customer or payer)"
+                    placeholder="Search user name"
                     value={ssUserName}
                     onChange={(e) => setSsUserName(e.target.value)}
                   />
@@ -1589,7 +1587,7 @@ const Reports = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="siUserName">User Name</Label>
-                  <Input id="siUserName" placeholder="Search name (customer or payer)"
+                  <Input id="siUserName" placeholder="Search user name"
                     value={siUserName} onChange={(e) => setSiUserName(e.target.value)} />
                 </div>
                 <div className="space-y-2">

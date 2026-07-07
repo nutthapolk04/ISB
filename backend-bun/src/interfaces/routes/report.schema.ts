@@ -46,6 +46,11 @@ export const returnsReport = {
     detail: { tags: ["Reports"], summary: "Returns within date range with refund/exchange totals" },
 };
 
+export const voidReport = {
+    query: t.Object(dateRangeQuery),
+    detail: { tags: ["Reports"], summary: "Voided receipts within date range" },
+};
+
 export const stockCardReport = {
     query: t.Object({
         date_from: t.String(),

@@ -6,6 +6,7 @@ import {
 	salesByPaymentReport,
 	stockReport,
 	returnsReport,
+	voidReport,
 	stockCardReport,
 	salesSummaryReport,
 	salesByItemReport,
@@ -92,6 +93,27 @@ export const ReportController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (RP-04)] ReportController.returns() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	voidReceipts: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (RP-06)] ReportController.voidReceipts() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (RP-06)] ReportController.voidReceipts() calling voidReport().`);
+			const result = await voidReport({
+				user,
+				dateFrom: query.date_from,
+				dateTo: query.date_to,
+				shopId: query.shop_id ?? undefined,
+				module: query.module ?? undefined,
+			});
+			logger.info(`[${reqContext.requestId} (RP-06)] ReportController.voidReceipts() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (RP-06)] ReportController.voidReceipts() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

@@ -392,6 +392,86 @@ export async function returnsReport(args: {
   };
 }
 
+// ── /voids ──────────────────────────────────────────────────────────────────
+
+export interface VoidRow {
+  id: number;
+  receipt_number: string;
+  voided_at: string;
+  total: number;
+  voided_by_name: string | null;
+  voided_reason: string | null;
+}
+
+export interface VoidReport {
+  date_from: string;
+  date_to: string;
+  shop_id: string | null;
+  rows: VoidRow[];
+  total_voided: number;
+}
+
+export async function voidReport(args: {
+  user: AccessTokenPayload;
+  dateFrom: string;
+  dateTo: string;
+  shopId?: string;
+  module?: string;
+}): Promise<VoidReport> {
+  const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
+  const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+  const { start, end } = dateRange(args.dateFrom, args.dateTo);
+
+  let shopFilter = effectiveShopId
+    ? eq(receipts.shopId, effectiveShopId)
+    : effMod
+    ? inArray(receipts.shopId, await moduleShopIds(effMod))
+    : undefined;
+
+  const rows = await db
+    .select({
+      id: receipts.id,
+      receipt_number: receipts.receiptNumber,
+      voided_at: receipts.voidedAt,
+      total: receipts.total,
+      voided_by_name: users.fullName,
+      voided_reason: receipts.voidedReason,
+    })
+    .from(receipts)
+    .leftJoin(users, eq(receipts.voidedBy, users.id))
+    .where(
+      and(
+        eq(receipts.status, "VOIDED"),
+        gte(receipts.voidedAt, start),
+        lte(receipts.voidedAt, end),
+        shopFilter,
+      ),
+    )
+    .orderBy(desc(receipts.voidedAt));
+
+  let totalVoided = 0;
+  const mapped: VoidRow[] = rows.map((r) => {
+    const total = pgNumber(r.total) ?? 0;
+    totalVoided += total;
+    return {
+      id: r.id,
+      receipt_number: r.receipt_number,
+      voided_at: pgToIso(r.voided_at)!,
+      total,
+      voided_by_name: r.voided_by_name ?? null,
+      voided_reason: r.voided_reason ?? null,
+    };
+  });
+
+  return {
+    date_from: args.dateFrom,
+    date_to: args.dateTo,
+    shop_id: effectiveShopId,
+    rows: mapped,
+    total_voided: totalVoided,
+  };
+}
+
 // ── /stock-card ─────────────────────────────────────────────────────────────
 
 export interface StockCardRowDTO {
