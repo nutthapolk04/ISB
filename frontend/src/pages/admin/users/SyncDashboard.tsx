@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
 import {
   BarChart,
   Bar,
@@ -152,7 +153,7 @@ export default function SyncDashboard() {
               <Clock className="h-3 w-3" /> Last sync
             </div>
             <div className="text-sm font-medium mt-1">
-              {stats?.last_sync_at ? new Date(stats.last_sync_at).toLocaleString() : "—"}
+              {stats?.last_sync_at ? fmtDateTime(stats.last_sync_at) : "—"}
             </div>
             {stats?.last_sync_status && (
               <Badge
@@ -212,7 +213,7 @@ export default function SyncDashboard() {
                   />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip
-                    labelFormatter={(v) => new Date(v).toLocaleDateString()}
+                    labelFormatter={(v) => fmtDate(v)}
                     contentStyle={{ borderRadius: "6px", border: "1px solid #e5e7eb" }}
                   />
                   <Legend />

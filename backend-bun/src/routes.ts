@@ -31,6 +31,7 @@ import { CustomerDisplayController } from "@/controllers/CustomerDisplayControll
 import { AdminImportController } from "@/controllers/AdminImportController";
 import { AdminReportsController } from "@/controllers/AdminReportsController";
 import { CanteenController } from "@/controllers/CanteenController";
+import { KioskController } from "@/controllers/KioskController";
 import * as HealthSchema from "@/interfaces/routes/health.schema";
 import * as AuthSchema from "@/interfaces/routes/auth.schema";
 import * as IsbSyncSchema from "@/interfaces/routes/isb_sync.schema";
@@ -59,6 +60,7 @@ import * as CardholderSchema from "@/interfaces/routes/cardholder.schema";
 import * as AdminImportSchema from "@/interfaces/routes/admin_import.schema";
 import * as AdminReportsSchema from "@/interfaces/routes/admin_reports.schema";
 import * as CanteenSchema from "@/interfaces/routes/canteen.schema";
+import * as KioskSchema from "@/interfaces/routes/kiosk.schema";
 
 /** ISB vendor sync — public, x-api-key only (no JWT). */
 const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
@@ -230,6 +232,12 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .post("/topup/:refCode/parent-confirm", TopupController.parentConfirm, TopupSchema.topupParentConfirm)
             .post("/topup/:refCode/inquiry", TopupController.inquiry, TopupSchema.topupInquiry)
             .post("/:id/cashier-topup", TopupController.cashierTopup, TopupSchema.topupCashier)
+    )
+    // ── Kiosk device ──────────────────────────────────────────────────────────
+    .group("/kiosk", (app) =>
+        app
+            .get("/me", KioskController.me, KioskSchema.kioskMe)
+            .patch("/me/location", KioskController.updateLocation, KioskSchema.kioskUpdateLocation)
     )
     .group("/admin/departments", (app) =>
         app

@@ -8,6 +8,7 @@
  */
 
 import type { User, Wallet, Transaction } from './mockApi';
+import { getKioskDeviceId, getKioskDeviceName, logKioskEvent } from '../lib/kioskLog';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,13 @@ interface ISBWalletTransaction {
     created_at: string;
 }
 
+export interface KioskProfile {
+    user_id: number;
+    username: string;
+    full_name: string;
+    role: string;
+}
+
 // ── Token manager ─────────────────────────────────────────────────────────────
 
 let _token: string | null = null;
@@ -102,11 +110,13 @@ async function fetchToken(): Promise<string> {
 
     const data: ISBTokenResponse = await res.json();
     _token = data.access_token;
+    logKioskEvent('api', 'info', 'Service account authenticated', { username });
     return _token;
 }
 
 async function request<T>(path: string, retried = false): Promise<T> {
     const token = _token ?? await fetchToken();
+    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -114,6 +124,7 @@ async function request<T>(path: string, retried = false): Promise<T> {
 
     if (res.status === 401 && !retried) {
         _token = null;
+        logKioskEvent('api', 'warn', 'GET 401 — refreshing token', { path });
         return request<T>(path, true);
     }
 
@@ -123,14 +134,17 @@ async function request<T>(path: string, retried = false): Promise<T> {
             const body = await res.json();
             if (body.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
         } catch { /* ignore parse errors */ }
+        logKioskEvent('api', 'error', `GET ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
+    logKioskEvent('api', 'info', `GET ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
 async function requestPost<T>(path: string, body: unknown, retried = false): Promise<T> {
     const token = _token ?? await fetchToken();
+    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
@@ -143,6 +157,7 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
 
     if (res.status === 401 && !retried) {
         _token = null;
+        logKioskEvent('api', 'warn', 'POST 401 — refreshing token', { path });
         return requestPost<T>(path, body, true);
     }
 
@@ -152,9 +167,44 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
+        logKioskEvent('api', 'error', `POST ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
+    logKioskEvent('api', 'info', `POST ${path}`, { status: res.status, ms: Date.now() - started });
+    return res.json() as Promise<T>;
+}
+
+async function requestPatch<T>(path: string, body: unknown, retried = false): Promise<T> {
+    const token = _token ?? await fetchToken();
+    const started = Date.now();
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+        method: 'PATCH',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (res.status === 401 && !retried) {
+        _token = null;
+        logKioskEvent('api', 'warn', 'PATCH 401 — refreshing token', { path });
+        return requestPatch<T>(path, body, true);
+    }
+
+    if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+            const err = await res.json();
+            if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        } catch { /* ignore parse errors */ }
+        logKioskEvent('api', 'error', `PATCH ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
+        throw new Error(detail);
+    }
+
+    logKioskEvent('api', 'info', `PATCH ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
@@ -305,6 +355,19 @@ export const realApi = {
         await fetchToken();
     },
 
+    async getKioskProfile(): Promise<KioskProfile> {
+        return request<KioskProfile>('/kiosk/me');
+    },
+
+    async updateKioskLocation(fullName: string): Promise<KioskProfile> {
+        return requestPatch<KioskProfile>('/kiosk/me/location', { full_name: fullName });
+    },
+
+    verifyTechnicianPassword(password: string): boolean {
+        const expected = import.meta.env.VITE_KIOSK_PASSWORD as string | undefined;
+        return !!expected && password === expected;
+    },
+
     /**
      * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
      * Returns updated balance_after and the new transaction_id.
@@ -315,9 +378,11 @@ export const realApi = {
         method: string,
         idempotencyKey?: string,
     ): Promise<{ balance_after: number; transaction_id: number }> {
+        const location = getKioskDeviceName();
+        const deviceId = getKioskDeviceId();
         const body: Record<string, unknown> = {
             amount,
-            notes: `Kiosk top-up via ${method}`,
+            notes: `Kiosk top-up via ${method} @ ${location} (${deviceId})`,
         };
         if (idempotencyKey) {
             body.idempotency_key = idempotencyKey;
@@ -337,10 +402,11 @@ export const realApi = {
     },
 
     async createTopupIntent(walletId: string, amount: number): Promise<{ ref_code: string; qr_payload: string; status: string; payment_method: string }> {
+        const location = getKioskDeviceName();
         return requestPost(`/wallets/${walletId}/topup`, {
             amount,
             payment_method: 'bay_qr',
-            remark: 'Kiosk top-up via QR Code',
+            remark: `Kiosk top-up via QR @ ${location}`,
         });
     },
 

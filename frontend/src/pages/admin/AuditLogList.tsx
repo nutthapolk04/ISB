@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -260,7 +261,7 @@ export default function AuditLogList() {
                       {rowNo}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground tabular-nums">
-                      {new Date(row.created_at).toLocaleString()}
+                      {fmtDateTime(row.created_at)}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm font-medium">{row.user_full_name ?? "—"}</div>

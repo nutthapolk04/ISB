@@ -1,0 +1,36 @@
+/** Kiosk device — profile / location label (role=kiosk) */
+import { authedCtx } from "@/interfaces/ServiceRequest";
+import ResponseStatus from "@/constants/ResponseStatus";
+import { getKioskProfile, updateKioskLocation } from "@/services/kiosk_service";
+import { errorFromService, successResponse } from "@/utils/ResponseUtil";
+import { logger } from "@/logger";
+
+export const KioskController = {
+    me: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        logger.info(`[${reqContext.requestId} (KC-01)] KioskController.me() called.`);
+        try {
+            const result = await getKioskProfile(user as Parameters<typeof getKioskProfile>[0]);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (KC-01)] KioskController.me() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    updateLocation: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { body } = reqContext;
+        logger.info(`[${reqContext.requestId} (KC-02)] KioskController.updateLocation() called.`);
+        try {
+            const result = await updateKioskLocation(
+                user as Parameters<typeof updateKioskLocation>[0],
+                body.full_name,
+            );
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (KC-02)] KioskController.updateLocation() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+};

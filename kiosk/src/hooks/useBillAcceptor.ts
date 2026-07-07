@@ -2,6 +2,7 @@ import { computed, ref } from 'vue';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Hardware, type BillEvent } from 'capacitor-hardware';
 import { realApi } from '../api/realApi';
+import { logKioskEvent } from '../lib/kioskLog';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
@@ -27,7 +28,11 @@ const lastHardwareError = ref<string | null>(null);
 let listenerHandle: PluginListenerHandle | null = null;
 
 function handleBillEvent(event: BillEvent) {
-    console.log('[BillAcceptor]', event);
+    logKioskEvent('bill', event.type === 'error' || event.type === 'exception' ? 'error' : 'info', `bill:${event.type}`, {
+        targetThb: event.targetThb,
+        collectedThb: event.collectedThb,
+        message: event.message,
+    });
 
     switch (event.type) {
         case 'ready':
@@ -90,8 +95,11 @@ export async function retryPendingCashTopup(): Promise<boolean> {
         pending = JSON.parse(raw) as PendingCashTopup;
     } catch {
         localStorage.removeItem(PENDING_KEY);
+        logKioskEvent('pending', 'error', 'Corrupt pending top-up removed');
         return false;
     }
+
+    logKioskEvent('pending', 'warn', 'Retrying pending cash top-up', { ...pending });
 
     if (!pending.idempotencyKey) {
         localStorage.removeItem(PENDING_KEY);
@@ -101,10 +109,13 @@ export async function retryPendingCashTopup(): Promise<boolean> {
     try {
         await realApi.topUp(pending.walletId, pending.amount, 'cash', pending.idempotencyKey);
         localStorage.removeItem(PENDING_KEY);
-        console.log('[BillAcceptor] retried pending top-up OK:', pending.amount);
+        logKioskEvent('pending', 'info', 'Pending cash top-up retry succeeded', { amount: pending.amount });
         return true;
     } catch (e) {
-        console.warn('[BillAcceptor] pending top-up retry failed:', e);
+        logKioskEvent('pending', 'error', 'Pending cash top-up retry failed', {
+            amount: pending.amount,
+            error: e instanceof Error ? e.message : String(e),
+        });
         return false;
     }
 }
@@ -175,9 +186,26 @@ export function useBillAcceptor() {
             idempotencyKey,
         };
         localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-        const res = await realApi.topUp(walletId, amount, 'cash', idempotencyKey);
-        localStorage.removeItem(PENDING_KEY);
-        return res;
+        logKioskEvent('pending', 'warn', 'Pending cash top-up saved before API', { ...pending });
+        try {
+            const res = await realApi.topUp(walletId, amount, 'cash', idempotencyKey);
+            localStorage.removeItem(PENDING_KEY);
+            logKioskEvent('cash', 'info', 'Cash top-up API succeeded', {
+                walletId,
+                amount,
+                transaction_id: res.transaction_id,
+                idempotencyKey,
+            });
+            return res;
+        } catch (e) {
+            logKioskEvent('cash', 'error', 'Cash top-up API failed — pending retained in storage', {
+                walletId,
+                amount,
+                idempotencyKey,
+                error: e instanceof Error ? e.message : String(e),
+            });
+            throw e;
+        }
     }
 
     function acknowledgeCollectComplete() {

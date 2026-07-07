@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
-import { fmtDateTime } from "@/lib/dateFormat";
+import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -243,7 +243,7 @@ export default function TransactionHistory() {
 </head>
 <body>
   <h2>${title}</h2>
-  <p class="sub">${t("txHistory.csv.date", "Date")}: ${new Date().toLocaleDateString()} &nbsp;|&nbsp; ID: ${studentId}</p>
+  <p class="sub">${t("txHistory.csv.date", "Date")}: ${fmtDate(new Date())} &nbsp;|&nbsp; ID: ${studentId}</p>
   <table>
     <thead>
       <tr>
@@ -380,7 +380,7 @@ export default function TransactionHistory() {
               ? t("parent.transactions.today", "TODAY")
               : new Date(date + "T12:00:00")
                   .toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
-                    day: "numeric", month: "long", year: "numeric",
+                    day: "numeric", month: "long", year: "numeric", calendar: "gregory",
                   })
                   .toUpperCase();
 

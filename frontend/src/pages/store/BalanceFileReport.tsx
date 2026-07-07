@@ -225,7 +225,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
 
     const periodLabel = formatPeriod(data.month, data.year, lang);
     const shopLabel = data.shop_name ?? shopId;
-    const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US");
+    const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US", { calendar: "gregory" });
 
     const colIn  = t("balanceFile.col.in");
     const colOut = t("balanceFile.col.out");

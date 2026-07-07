@@ -21,7 +21,7 @@ const resetTimeout = () => {
     if (timeoutId) clearTimeout(timeoutId);
     store.updateActivity();
 
-    if (route.name === 'welcome') return;
+    if (route.name === 'welcome' || route.name === 'technician') return;
 
     const duration = route.path.startsWith('/topup') ? TIMEOUT_TOPUP : TIMEOUT_DEFAULT;
     timeoutId = window.setTimeout(handleTimeout, duration);

@@ -6,6 +6,7 @@ import { ref, computed, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
 import { useBillAcceptor } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
+import { logKioskEvent } from '../lib/kioskLog';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import QRCode from 'qrcode';
 
@@ -243,6 +244,7 @@ const selectMethod = async (key: string) => {
   autoPrinted = false;
   if (key === 'cash') {
     currentStep.value = 'cash-confirm';
+    logKioskEvent('cash', 'info', 'Cash top-up session started', { amount: amountNumber.value, walletId: store.currentWallet?.id });
     try {
       await bill.start(amountNumber.value);
     } catch (e) {
@@ -253,6 +255,7 @@ const selectMethod = async (key: string) => {
     }
   } else {
     currentStep.value = 'qr';
+    logKioskEvent('qr', 'info', 'QR top-up session started', { amount: amountNumber.value, walletId: store.currentWallet?.id });
     await initQrPayment();
   }
 };
@@ -304,6 +307,7 @@ const initQrPayment = async () => {
   try {
     const intent = await realApi.createTopupIntent(walletId, amountNumber.value);
     activeRefCode.value = intent.ref_code;
+    logKioskEvent('qr', 'info', 'QR intent created', { ref_code: intent.ref_code, amount: amountNumber.value });
     qrDataUrl.value = await QRCode.toDataURL(intent.qr_payload, {
       width: 240,
       margin: 2,
@@ -329,6 +333,7 @@ const startPolling = () => {
       if (s.status === 'confirmed') {
         stopPolling();
         clearQrTimer();
+        logKioskEvent('qr', 'info', 'QR payment confirmed', { ref_code: activeRefCode.value, transaction_id: s.transaction_id });
         if (s.transaction_id != null) {
           receiptTxId.value = s.transaction_id;
         }
@@ -338,6 +343,7 @@ const startPolling = () => {
       } else if (s.status === 'cancelled') {
         stopPolling();
         clearQrTimer();
+        logKioskEvent('qr', 'warn', 'QR payment cancelled or expired', { ref_code: activeRefCode.value });
         failType.value = 'server';
         failDetail.value = 'Payment was cancelled or expired';
         currentStep.value = 'fail';

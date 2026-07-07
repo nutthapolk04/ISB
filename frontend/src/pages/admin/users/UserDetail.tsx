@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -623,7 +624,7 @@ export default function UserDetail() {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">{t("admin.users.lastSynced", "Last synced")}</p>
                 <p className="text-sm text-muted-foreground">
-                  {user.last_synced_at ? new Date(user.last_synced_at).toLocaleString() : "never"}
+                  {user.last_synced_at ? fmtDateTime(user.last_synced_at) : "never"}
                 </p>
               </div>
 
@@ -972,7 +973,7 @@ export default function UserDetail() {
               <TableBody>
                 {user.identity_history.map((h) => (
                   <TableRow key={h.id}>
-                    <TableCell className="text-xs">{new Date(h.changed_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs">{fmtDateTime(h.changed_at)}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {h.old_external_id || <span className="text-muted-foreground">—</span>}
                     </TableCell>

@@ -347,7 +347,7 @@ export default function FamilyDashboard() {
   };
 
   const dateStr = new Date().toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    weekday: "long", day: "numeric", month: "long", year: "numeric", calendar: "gregory",
   });
 
   const displayName = ownWallet?.name ?? studentWallet?.name ?? user?.username ?? "";

@@ -3,10 +3,14 @@ import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import KioskOverlay from '../components/KioskOverlay.vue';
-import { CreditCard, Languages } from 'lucide-vue-next';
+import { CreditCard, Languages, Wrench } from 'lucide-vue-next';
 
 const router = useRouter();
 const store = useKioskStore();
+
+function openTechnician() {
+    router.push('/technician');
+}
 
 const toggleLanguage = () => {
     store.setLanguage(store.language === 'EN' ? 'TH' : 'EN');
@@ -103,6 +107,7 @@ const t = {
         cardNotFound: 'Card not found',
         networkError: 'Connection error. Please try again.',
         searching: 'Looking up card…',
+        technician: 'Technician',
     },
     TH: {
         welcome: 'ยินดีต้อนรับ',
@@ -111,6 +116,7 @@ const t = {
         cardNotFound: 'ไม่พบบัตรนี้ในระบบ',
         networkError: 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่',
         searching: 'กำลังค้นหาบัตร…',
+        technician: 'ผู้ดูแลเครื่อง',
     }
 };
 </script>
@@ -120,6 +126,10 @@ const t = {
         <KioskOverlay v-if="store.isLoading" :message="currT.searching" />
 
         <div class="lang-switch-container">
+            <button class="tech-entry-btn" type="button" :disabled="store.isLoading" @click="openTechnician">
+                <Wrench :size="28" />
+                <span>{{ currT.technician }}</span>
+            </button>
             <button class="lang-btn" :disabled="store.isLoading" @click="toggleLanguage">
                 <Languages :size="32" />
                 <span>{{ currT.lang }}</span>
@@ -162,7 +172,28 @@ const t = {
 .lang-switch-container {
     width: 100%;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.tech-entry-btn {
+    background: none;
+    border: 2px solid #94a3b8;
+    color: var(--text-muted);
+    padding: 0.75rem 1.25rem;
+    border-radius: 3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.tech-entry-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .lang-btn {
