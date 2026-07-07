@@ -81,6 +81,7 @@ const t = {
     receiptType: 'Top-up',
     receiptTxId: 'Transaction No.',
     receiptMember: 'Member',
+    receiptDevice: 'Machine',
     receiptBalanceAfter: 'Remaining Balance',
     receiptThankYou: 'Thank you for using our service',
     receiptPoweredBy: 'This document is system-generated',
@@ -153,6 +154,7 @@ const t = {
     receiptType: 'เติมเงิน',
     receiptTxId: 'เลขที่รายการ',
     receiptMember: 'สมาชิก',
+    receiptDevice: 'เครื่อง',
     receiptBalanceAfter: 'ยอดคงเหลือ',
     receiptThankYou: 'ขอบคุณที่ใช้บริการ',
     receiptPoweredBy: 'เอกสารออกจากระบบอัตโนมัติ',
@@ -499,6 +501,10 @@ const buildReceiptData = (): TopupReceiptData => {
     rows.push({ label: tt.receiptTxId, value: String(receiptTxId.value) });
   }
   rows.push({ label: tt.successDate, value: nowFormatted.value });
+  const deviceName = store.deviceProfile?.full_name;
+  if (deviceName) {
+    rows.push({ label: tt.receiptDevice, value: deviceName });
+  }
   if (wallet) {
     rows.push({ label: tt.receiptMember, value: wallet.holderName });
   }
@@ -835,6 +841,10 @@ const overpayExceedsCap = computed(() => {
         <div class="result-row">
           <span class="result-label">{{ currT.successDate }}</span>
           <span class="result-value">{{ nowFormatted }}</span>
+        </div>
+        <div v-if="store.deviceProfile?.full_name" class="result-row">
+          <span class="result-label">{{ currT.receiptDevice }}</span>
+          <span class="result-value">{{ store.deviceProfile.full_name }}</span>
         </div>
         <div class="result-row">
           <span class="result-label">{{ currT.successMethod }}</span>

@@ -21,6 +21,7 @@ const t = {
     type: 'Type',
     date: 'Date & Time',
     location: 'Location',
+    device: 'Machine',
     before: 'Previous Balance',
     amount: 'Amount',
     after: 'Remaining Balance',
@@ -55,6 +56,7 @@ const t = {
     type: 'ประเภท',
     date: 'วันที่และเวลา',
     location: 'สถานที่',
+    device: 'เครื่อง',
     before: 'ยอดคงเหลือก่อนทำรายการ',
     amount: 'จำนวนเงิน',
     after: 'ยอดคงเหลือ',
@@ -130,6 +132,9 @@ const buildReceiptData = (): ReceiptData => {
     { label: tt.txId, value: String(tx.id) },
     { label: tt.date, value: `${tx.date} ${tx.time}` },
   ];
+  if (isTopup && store.deviceProfile?.full_name) {
+    rows.push({ label: tt.device, value: store.deviceProfile.full_name });
+  }
   if (store.currentUser) rows.push({ label: tt.buyer, value: store.currentUser.name });
   if (tx.shop_name) rows.push({ label: tt.shopName, value: tx.shop_name });
   else if (tx.machine) rows.push({ label: tt.location, value: tx.machine });
@@ -214,6 +219,10 @@ const handlePrint = async () => {
           <div class="receipt-row">
             <span class="r-label">{{ currT.date }}</span>
             <span class="r-value">{{ props.transaction.date }} {{ props.transaction.time }}</span>
+          </div>
+          <div v-if="props.transaction.type === 'topup' && store.deviceProfile?.full_name" class="receipt-row">
+            <span class="r-label">{{ currT.device }}</span>
+            <span class="r-value">{{ store.deviceProfile.full_name }}</span>
           </div>
           <div class="receipt-row">
             <span class="r-label">{{ currT.location }}</span>

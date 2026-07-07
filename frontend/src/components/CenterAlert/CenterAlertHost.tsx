@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { alertStore, type AlertItem, type AlertVariant } from "./store";
+import { alertStore, type AlertItem, type AlertVariant } from "@/lib/alertStore";
 
 const VARIANT_STYLES: Record<
   AlertVariant,

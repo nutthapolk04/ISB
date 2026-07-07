@@ -1,7 +1,7 @@
 // Shim that adapts the sonner-style `toast.success(...)` API onto our
 // CenterAlert system. Both the original `Toaster` and `toast` are kept as
 // named exports so existing call sites work without code changes.
-import { alert } from "@/components/CenterAlert/api";
+import { alert } from "@/lib/alertApi";
 
 type ToastOptions = {
   description?: string;

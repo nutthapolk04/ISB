@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { SelectedOptionGroup } from "@/pages/canteen/menuOptionTypes";
+import type { SelectedOptionGroup } from "@/types/menuOptions";
 
 export interface CanteenProduct {
   id: number;

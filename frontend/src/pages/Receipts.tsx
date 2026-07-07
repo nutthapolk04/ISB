@@ -23,6 +23,7 @@ import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { getPaginationRange } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
@@ -761,28 +762,21 @@ const Receipts = () => {
                                 >
                                     {t("receipts.prev", "‹ Prev")}
                                 </Button>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
-                                        acc.push(p);
-                                        return acc;
-                                    }, [])
-                                    .map((p, i) =>
-                                        p === "…" ? (
-                                            <span key={`ellipsis-${i}`} className="text-xs px-1 text-muted-foreground">…</span>
-                                        ) : (
-                                            <Button
-                                                key={p}
-                                                variant={safePage === p ? "default" : "outline"}
-                                                size="sm"
-                                                onClick={() => setCurrentPage(p as number)}
-                                                className={cn("h-8 w-8 p-0 text-xs", safePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
-                                            >
-                                                {p}
-                                            </Button>
-                                        ),
-                                    )}
+                                {getPaginationRange(safePage, totalPages).map((p, i) =>
+                                    p === "ellipsis" ? (
+                                        <span key={`ellipsis-${i}`} className="text-xs px-1 text-muted-foreground">…</span>
+                                    ) : (
+                                        <Button
+                                            key={p}
+                                            variant={safePage === p ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(p)}
+                                            className={cn("h-8 w-8 p-0 text-xs", safePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
+                                        >
+                                            {p}
+                                        </Button>
+                                    ),
+                                )}
                                 <Button
                                     variant="outline"
                                     size="sm"

@@ -57,7 +57,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
-import type { SelectedOptionGroup } from "./canteen/menuOptionTypes";
+import type { SelectedOptionGroup } from "@/types/menuOptions";
 import { ProductGrid } from "./canteen/ProductGrid";
 import { CanteenCart } from "./canteen/CanteenCart";
 import { DiscountModal } from "./canteen/DiscountModal";

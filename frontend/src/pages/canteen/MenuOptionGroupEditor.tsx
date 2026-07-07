@@ -35,7 +35,7 @@ import { api, ApiError } from "@/lib/api";
 import type {
   MenuOptionGroup,
   OptionSelectionType,
-} from "./menuOptionTypes";
+} from "@/types/menuOptions";
 
 interface Props {
   shopId: string;

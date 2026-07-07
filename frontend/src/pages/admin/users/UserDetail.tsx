@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -315,12 +316,12 @@ export default function UserDetail() {
     }
   };
 
+  const debouncedStudentQ = useDebounce(studentQ, 250);
   useEffect(() => {
     if (!linkOpen) return;
-    const h = setTimeout(loadStudents, 250);
-    return () => clearTimeout(h);
+    loadStudents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentQ, linkOpen]);
+  }, [debouncedStudentQ, linkOpen]);
 
   const linkStudent = async () => {
     if (!user || !studentId) return;

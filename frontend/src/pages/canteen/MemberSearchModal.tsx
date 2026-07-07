@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import type { StudentLookupResult, DepartmentLookupResult } from "./RfidPaymentModal";
@@ -96,13 +97,10 @@ export function MemberSearchModal({
     }
   }, []);
 
-  // Debounce effect
+  const debouncedQuery = useDebounce(query, 300);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      searchMembers(query);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, searchMembers]);
+    searchMembers(debouncedQuery);
+  }, [debouncedQuery, searchMembers]);
 
   const handleSelect = async (member: StudentLookupResult) => {
     setSelectedMember(member);

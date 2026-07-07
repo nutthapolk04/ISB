@@ -47,15 +47,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { PaginationBar } from "@/components/PaginationBar";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -843,52 +835,7 @@ export default function AdminDashboard() {
                   total: recentTotal.toLocaleString(),
                 })}
               </p>
-              {recentTotalPages > 1 && (
-                <Pagination className="mx-0 w-auto">
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); setRecentPage((p) => Math.max(1, p - 1)); }}
-                        className={recentCurrentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-
-                    {Array.from({ length: recentTotalPages }, (_, i) => i + 1)
-                      .filter((p) => p === 1 || p === recentTotalPages || Math.abs(p - recentCurrentPage) <= 1)
-                      .reduce<(number | "ellipsis")[]>((acc, p, i, arr) => {
-                        if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("ellipsis");
-                        acc.push(p);
-                        return acc;
-                      }, [])
-                      .map((p, i) =>
-                        p === "ellipsis" ? (
-                          <PaginationItem key={`e-${i}`}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        ) : (
-                          <PaginationItem key={p}>
-                            <PaginationLink
-                              href="#"
-                              isActive={p === recentCurrentPage}
-                              onClick={(e) => { e.preventDefault(); setRecentPage(p); }}
-                            >
-                              {p}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ),
-                      )}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); setRecentPage((p) => Math.min(recentTotalPages, p + 1)); }}
-                        className={recentCurrentPage === recentTotalPages ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
+              <PaginationBar currentPage={recentCurrentPage} totalPages={recentTotalPages} onPageChange={setRecentPage} />
             </div>
           )}
         </CardContent>

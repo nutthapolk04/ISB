@@ -10,7 +10,7 @@
  * dialog so we reuse the existing RefundDialog without duplicating logic.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Search,
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/dateFormat";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface FamilyLookupCardProps {
   /** Called when the user clicks "Refund" on a family member. */
@@ -114,14 +115,10 @@ function StatusBadge({ member }: { member: FamilyMemberDetail }) {
 export function FamilyLookupCard({ onRefundClick }: FamilyLookupCardProps) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
-  const [debounced, setDebounced] = useState("");
   const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
 
   // 300ms debounce on the search input — avoids flooding the backend.
-  useEffect(() => {
-    const handle = setTimeout(() => setDebounced(input.trim()), 300);
-    return () => clearTimeout(handle);
-  }, [input]);
+  const debounced = useDebounce(input.trim(), 300);
 
   const search = useRefundFamilySearch(debounced);
   const roster = useRefundFamilyRoster(selectedFamily);

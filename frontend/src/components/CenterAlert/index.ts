@@ -1,3 +1,3 @@
 export { CenterAlertHost } from "./CenterAlertHost";
-export { alert } from "./api";
-export type { AlertItem, AlertVariant, AlertAction } from "./store";
+export { alert } from "@/lib/alertApi";
+export type { AlertItem, AlertVariant, AlertAction } from "@/lib/alertStore";
