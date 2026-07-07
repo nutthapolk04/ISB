@@ -69,6 +69,13 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
+    labelKey: "nav.groupReports",
+    module: null,
+    items: [
+      { titleKey: "nav.adminReports", url: "/admin/reports", icon: BarChart3, roles: ["admin"] },
+    ],
+  },
+  {
     labelKey: "nav.groupUsers",
     module: null,
     items: [

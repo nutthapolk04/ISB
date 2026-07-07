@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ChevronLeft, Loader2, Nfc, CheckCircle2, UserCircle2, X } from "lucide-react";
+import { Building2, ChevronLeft, Loader2, Nfc, CheckCircle2, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 export interface DepartmentOption {
   id: number;
@@ -185,11 +186,12 @@ export function DepartmentPaymentModal({
               /* Verified employee card */
               <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                 <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-emerald-100 flex items-center justify-center">
-                  {verifiedEmployee.photo_url ? (
-                    <img src={verifiedEmployee.photo_url} alt={verifiedEmployee.full_name} className="h-full w-full object-cover" />
-                  ) : (
-                    <UserCircle2 className="h-7 w-7 text-emerald-400" />
-                  )}
+                  <img
+                    src={resolveAvatarUrl(verifiedEmployee.photo_url, verifiedEmployee.username || verifiedEmployee.full_name)}
+                    alt={verifiedEmployee.full_name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(verifiedEmployee.username || verifiedEmployee.full_name); }}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm truncate">{verifiedEmployee.full_name}</div>

@@ -110,7 +110,7 @@ export default function CanteenMenuPage() {
         <TabsList>
           <TabsTrigger value="menu">{t("canteen.tabMenu")}</TabsTrigger>
           <TabsTrigger value="categories">{t("canteen.tabCategories")}</TabsTrigger>
-          <TabsTrigger value="panels">{t("canteen.tabPanels", "Price Panels")}</TabsTrigger>
+          <TabsTrigger value="panels">{t("canteen.tabPanels", "Tab")}</TabsTrigger>
           <TabsTrigger value="info">{t("canteen.tabInfo")}</TabsTrigger>
         </TabsList>
 

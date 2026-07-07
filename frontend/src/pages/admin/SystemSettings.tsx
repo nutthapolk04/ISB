@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, AlertTriangle, Settings as SettingsIcon } from "lucide-react";
+import { AlertTriangle, Settings as SettingsIcon } from "lucide-react";
 
 interface SettingsResponse {
   allow_negative_user_wallet?: boolean;
@@ -131,14 +130,6 @@ export default function SystemSettings() {
   return (
     <div className="page-shell">
       <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="sm" className="h-10">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-1" /> {t("admin.settings.back", "Back")}
-          </Link>
-        </Button>
-      </div>
-
       <div className="page-header flex items-center gap-3">
         <SettingsIcon className="h-7 w-7 text-primary" />
         <div>

@@ -5,7 +5,7 @@ import { expandCardUidCandidates } from "@/lib/card_uid";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
-import { todayDeductedByModule } from "@/services/pos_checkout_service";
+import { todayDeductedByModule, DEFAULT_DAILY_LIMIT_CANTEEN, DEFAULT_DAILY_LIMIT_STORE } from "@/services/pos_checkout_service";
 
 /**
  * StudentProfileResponse parity — fields can come from either the customers
@@ -99,8 +99,8 @@ function customerToProfile(
         card_frozen: c.cardFrozen,
         is_active: c.isActive,
         daily_limit: pgNumber(c.dailyLimit),
-        daily_limit_canteen: pgNumber(c.dailyLimitCanteen),
-        daily_limit_store: pgNumber(c.dailyLimitStore),
+        daily_limit_canteen: pgNumber(c.dailyLimitCanteen) ?? DEFAULT_DAILY_LIMIT_CANTEEN,
+        daily_limit_store: pgNumber(c.dailyLimitStore) ?? DEFAULT_DAILY_LIMIT_STORE,
         spent_today_canteen: spentToday?.canteen ?? null,
         spent_today_store: spentToday?.store ?? null,
         negative_credit_limit: pgNumber(c.negativeCreditLimit),
@@ -734,18 +734,21 @@ export async function getSpendingGroupsUsageToday(customerId: number): Promise<S
     }
     const { dailyLimitCanteen, dailyLimitStore } = cRows[0];
 
-    // Get all active spending groups with their module (via linked shops)
+    // Get all active spending groups with their module (via linked shops).
+    // GROUP BY instead of selectDistinct so a group linked to shops of mixed
+    // modules collapses to one row (MIN picks "canteen" over "store").
     const groups = await db
-        .selectDistinct({
+        .select({
             id: spendingGroups.id,
             code: spendingGroups.code,
             nameEn: spendingGroups.nameEn,
             nameTh: spendingGroups.nameTh,
-            module: shops.module,
+            module: sql<string>`MIN(${shops.module})`,
         })
         .from(spendingGroups)
         .innerJoin(shops, eq(shops.spendingGroupId, spendingGroups.id))
-        .where(eq(spendingGroups.isActive, true));
+        .where(eq(spendingGroups.isActive, true))
+        .groupBy(spendingGroups.id, spendingGroups.code, spendingGroups.nameEn, spendingGroups.nameTh);
 
     if (groups.length === 0) return [];
 

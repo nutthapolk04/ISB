@@ -43,6 +43,7 @@ export interface Product {
   barcode: string;         // primary barcode
   name: string;
   externalPrice: number;
+  category?: string;
   extraBarcodes?: ExtraBarcode[];
 }
 
@@ -78,6 +79,7 @@ export function PrintBarcodeDialog({
   const { t } = useTranslation();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
   const [labelSize, setLabelSize] = useState<LabelSize>("medium");
   const [showPrice, setShowPrice] = useState(true);
@@ -94,9 +96,16 @@ export function PrintBarcodeDialog({
     }
   }, [open, selectedProduct]);
 
-  // Filter products by search
+  // Unique categories derived from products
+  const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean) as string[])).sort();
+
+  // Products filtered by category first, then by search term
+  const categoryFiltered = selectedCategory === "all"
+    ? products
+    : products.filter((p) => p.category === selectedCategory);
+
   const filteredProducts = searchTerm.trim()
-    ? products.filter(
+    ? categoryFiltered.filter(
         (p) =>
           p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           p.productCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,14 +146,13 @@ export function PrintBarcodeDialog({
     for (const opt of opts) addBarcode(product, opt.value, opt.label);
   };
 
-  /** Add every product (and every barcode they own) to the print list.
-   *  Skips items already added so quantities don't double when the user
-   *  clicks the button twice. Used by the Export Barcodes flow when a
-   *  manager wants to reprint the whole shop catalog. */
-  const addAllProducts = () => {
+  /** Add every product in `pool` (and every barcode they own) to the print list.
+   *  Skips items already added. Pass `categoryFiltered` to bulk-add by category,
+   *  or `products` for the full catalog. */
+  const addAllProducts = (pool: typeof products = products) => {
     const existing = new Set(printItems.map((i) => i.key));
     const additions: PrintItem[] = [];
-    for (const p of products) {
+    for (const p of pool) {
       const opts = getBarcodeOptions(p);
       for (const opt of opts) {
         const key = `${p.id}-${opt.value}`;
@@ -269,17 +277,32 @@ export function PrintBarcodeDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search */}
+          {/* Category + Search */}
           <div className="relative">
             <Label>{t("barcode.searchProducts") || "Search Products"}</Label>
-            <div className="relative mt-1.5">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t("barcode.searchPlaceholder") || "Search by name, code, or barcode..."}
-                className="pl-10"
-              />
+            <div className="flex gap-2 mt-1.5">
+              {categories.length > 0 && (
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-44 shrink-0">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t("barcode.searchPlaceholder") || "Search by name, code, or barcode..."}
+                  className="pl-10"
+                />
+              </div>
             </div>
             {filteredProducts.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-56 overflow-y-auto">
@@ -321,14 +344,21 @@ export function PrintBarcodeDialog({
             )}
           </div>
 
-          {/* Bulk actions — add every product in the catalog, or clear the
-              current selection. Keeps the existing one-at-a-time search flow
-              intact so cashiers can still pick a single item. */}
+          {/* Bulk actions */}
           <div className="flex items-center justify-between gap-2">
-            <Button variant="outline" size="sm" onClick={addAllProducts} disabled={products.length === 0}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {t("barcode.addAll", { count: products.length, defaultValue: "Add all ({{count}})" })}
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedCategory === "all" ? (
+                <Button variant="outline" size="sm" onClick={() => addAllProducts(products)} disabled={products.length === 0}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  {t("barcode.addAll", { count: products.length, defaultValue: "Add all ({{count}})" })}
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => addAllProducts(categoryFiltered)} disabled={categoryFiltered.length === 0}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Add all in "{selectedCategory}" ({categoryFiltered.length})
+                </Button>
+              )}
+            </div>
             {printItems.length > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setPrintItems([])}>
                 <X className="h-3.5 w-3.5 mr-1.5" />

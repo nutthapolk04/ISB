@@ -28,6 +28,11 @@ export const topupInquiry = {
     detail: { tags: ["Wallets"], summary: "Inquire top-up from gateway" },
 };
 
+export const topupCancelIntent = {
+    params: t.Object({ refCode: t.String() }),
+    detail: { tags: ["Wallets"], summary: "Cancel a pending top-up intent" },
+};
+
 export const topupCashier = {
     params: t.Object({ id: t.String() }),
     body: t.Object({
@@ -36,6 +41,24 @@ export const topupCashier = {
         idempotency_key: t.Optional(t.Nullable(t.String({ minLength: 8, maxLength: 64 }))),
     }),
     detail: { tags: ["Wallets"], summary: "Cashier wallet top-up" },
+};
+
+export const topupCashierByUser = {
+    params: t.Object({ id: t.String() }),
+    body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+    }),
+    detail: { tags: ["Users"], summary: "Cashier top-up by user ID (auto-creates wallet if needed)" },
+};
+
+export const topupCashierByCustomer = {
+    params: t.Object({ id: t.String() }),
+    body: t.Object({
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+    }),
+    detail: { tags: ["Customers"], summary: "Cashier top-up by customer ID (auto-creates wallet if needed)" },
 };
 
 export const topupAdjustDepartment = {
@@ -61,4 +84,13 @@ export const topupDepartmentTransactions = {
 export const topupDeleteDepartment = {
     params: t.Object({ department_id: t.String() }),
     detail: { tags: ["Wallets"], summary: "Delete department" },
+};
+
+export const topupUpdateDepartment = {
+    params: t.Object({ department_id: t.String() }),
+    body: t.Object({
+        department_name: t.Optional(t.String({ minLength: 1, maxLength: 200 })),
+        is_active: t.Optional(t.Boolean()),
+    }),
+    detail: { tags: ["Wallets"], summary: "Update department info" },
 };

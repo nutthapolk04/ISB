@@ -3,7 +3,10 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -26,7 +29,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Pencil, Trash2, Store, Building2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, Building2, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface AssignableShop {
@@ -213,93 +216,95 @@ export default function SpendingGroups() {
     };
 
     return (
-        <div className="space-y-6">
-
-
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <Store className="h-5 w-5" />
-                                {t("spendingGroup.title")}
-                            </CardTitle>
-                            <p className="text-sm text-muted-foreground mt-1">{t("spendingGroup.subtitle")}</p>
-                        </div>
-                        <Button onClick={openCreate} className="gap-1">
-                            <Plus className="h-4 w-4" />
-                            {t("spendingGroup.create")}
-                        </Button>
+        <div className="page-shell">
+            {/* Page header */}
+            <div className="page-header flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Layers className="h-7 w-7 text-primary" />
+                    <div>
+                        <h1 className="page-title">{t("spendingGroup.title")}</h1>
+                        <p className="page-description">{t("spendingGroup.subtitle")}</p>
                     </div>
-                </CardHeader>
-                <CardContent>
+                </div>
+                <Button onClick={openCreate} className="gap-1.5">
+                    <Plus className="h-4 w-4" />
+                    {t("spendingGroup.create")}
+                </Button>
+            </div>
+
+            {/* Content */}
+            <Card>
+                <CardContent className="p-0">
                     {loading ? (
-                        <p className="text-muted-foreground text-sm">Loading…</p>
-                    ) : groups.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">No spending groups yet.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b text-left text-muted-foreground">
-                                        <th className="pb-2 pr-4">{t("spendingGroup.code")}</th>
-                                        <th className="pb-2 pr-4">{t("spendingGroup.nameEn")}</th>
-                                        <th className="pb-2 pr-4">{t("spendingGroup.nameTh")}</th>
-                                        <th className="pb-2 pr-4">{t("spendingGroup.dailyLimit")}</th>
-                                        <th className="pb-2 pr-4">{t("spendingGroup.linkedShops")}</th>
-                                        <th className="pb-2 pr-4">{t("spendingGroup.enforce")}</th>
-                                        <th className="pb-2">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {groups.map((g) => (
-                                        <tr key={g.id} className="border-b hover:bg-muted/30">
-                                            <td className="py-3 pr-4 font-mono text-xs">{g.code}</td>
-                                            <td className="py-3 pr-4">{g.name_en}</td>
-                                            <td className="py-3 pr-4">{g.name_th}</td>
-                                            <td className="py-3 pr-4 font-medium">{formatTHB(g.daily_limit)}</td>
-                                            <td className="py-3 pr-4">
-                                                <button
-                                                    onClick={() => setAssignTarget(g)}
-                                                    className="flex items-center gap-1 text-xs bg-primary/10 text-primary rounded px-2 py-0.5 hover:bg-primary/20 cursor-pointer"
-                                                    title={t("spendingGroup.manageShops")}
-                                                >
-                                                    <Building2 className="h-3 w-3" />
-                                                    {g.linked_shop_count}
-                                                </button>
-                                            </td>
-                                            <td className="py-3 pr-4">
-                                                <div className="flex items-center gap-2">
-                                                    <Switch
-                                                        checked={g.is_active}
-                                                        onCheckedChange={(v) => void handleEnforceToggle(g, v)}
-                                                    />
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {g.is_active ? t("spendingGroup.enforce") : t("spendingGroup.dontEnforce")}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3">
-                                                <div className="flex items-center gap-1">
-                                                    <Button variant="ghost" size="icon" onClick={() => openEdit(g)} title="Edit">
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => confirmDelete(g)}
-                                                        title="Delete"
-                                                        className="text-destructive hover:text-destructive"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="flex items-center justify-center py-16 text-muted-foreground">
+                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                            Loading…
                         </div>
+                    ) : groups.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+                            <Layers className="h-8 w-8 opacity-30" />
+                            <p className="text-sm">No spending groups yet.</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>{t("spendingGroup.code")}</TableHead>
+                                    <TableHead>{t("spendingGroup.nameEn")}</TableHead>
+                                    <TableHead>{t("spendingGroup.nameTh")}</TableHead>
+                                    <TableHead>{t("spendingGroup.dailyLimit")}</TableHead>
+                                    <TableHead>{t("spendingGroup.linkedShops")}</TableHead>
+                                    <TableHead>{t("spendingGroup.enforce")}</TableHead>
+                                    <TableHead />
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {groups.map((g) => (
+                                    <TableRow key={g.id}>
+                                        <TableCell className="font-mono text-xs">{g.code}</TableCell>
+                                        <TableCell>{g.name_en}</TableCell>
+                                        <TableCell>{g.name_th}</TableCell>
+                                        <TableCell className="font-medium">{formatTHB(g.daily_limit)}</TableCell>
+                                        <TableCell>
+                                            <button
+                                                onClick={() => setAssignTarget(g)}
+                                                className="flex items-center gap-1 text-xs bg-primary/10 text-primary rounded px-2 py-0.5 hover:bg-primary/20"
+                                                title={t("spendingGroup.manageShops")}
+                                            >
+                                                <Building2 className="h-3 w-3" />
+                                                {g.linked_shop_count}
+                                            </button>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={g.is_active}
+                                                    onCheckedChange={(v) => void handleEnforceToggle(g, v)}
+                                                />
+                                                <span className="text-xs text-muted-foreground">
+                                                    {g.is_active ? t("spendingGroup.enforce") : t("spendingGroup.dontEnforce")}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1 justify-end">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(g)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                                    onClick={() => confirmDelete(g)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </CardContent>
             </Card>

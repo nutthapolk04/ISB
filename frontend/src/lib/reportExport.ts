@@ -282,7 +282,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   // ─── Top meta bar: Report ID (left) + Printed (right) ───────────────
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(7.5);
-  doc.setTextColor(130);
+  doc.setTextColor(0);
   const reportIdLine = meta.runByName
     ? `Report ID: ${reportId} · By: ${meta.runByName}`
     : `Report ID: ${reportId}`;
@@ -315,7 +315,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   // ─── Filters summary ──────────────────────────────────────────────────
   if (meta.filters && meta.filters.length > 0) {
     doc.setFontSize(8);
-    doc.setTextColor(100);
+    doc.setTextColor(0);
     for (const line of meta.filters) {
       doc.text(line, pageWidth - marginX, cursorY, { align: "right" });
       cursorY += 10;
@@ -450,7 +450,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     headStyles: {
       font: fontFamily,
       fillColor: [241, 245, 249],
-      textColor: 30,
+      textColor: 0,
       fontStyle: "bold",
       // Headers stay readable even at 6.5pt — give them an extra
       // half-point so the columns don't all collapse into 1-char width.
@@ -487,9 +487,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     doc.setPage(p);
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(7.5);
-    doc.setTextColor(130);
     doc.text(`Page ${p} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
-    doc.setTextColor(0);
   }
 
   doc.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);

@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { fmtDate, fmtTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import {
   AlertCircle, ArrowUpCircle, ArrowDownCircle, Bell,
   ChevronLeft, ChevronRight, GraduationCap, Lock,
@@ -491,23 +492,12 @@ export default function FamilyDashboard() {
                 <div className="relative z-10">
                   <div className="flex items-start gap-3 pr-20">
                     <div className="shrink-0">
-                      {card.photoUrl ? (
-                        <img
-                          src={card.photoUrl}
-                          alt={card.name}
-                          className="h-12 w-12 rounded-full object-cover border-2 border-white/30"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            e.currentTarget.nextElementSibling?.removeAttribute("hidden");
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        hidden={!!card.photoUrl}
-                        className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md"
-                      >
-                        <UserRound className="h-6 w-6 text-white" />
-                      </div>
+                      <img
+                        src={resolveAvatarUrl(card.photoUrl, card.name || card.code)}
+                        alt={card.name}
+                        className="h-12 w-12 rounded-full object-cover border-2 border-white/30"
+                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(card.name || card.code); }}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-base font-bold text-white truncate">{card.name}</p>
@@ -583,7 +573,7 @@ export default function FamilyDashboard() {
                     activeCard.kind === "coparent" ? `/parent/wallet/wallet-${activeCard.walletId}` :
                     `/parent/wallet/${activeCard.customerId}`
                   }
-                  disabled={activeCard.kind !== "self" && !activeCard.walletId}
+                  disabled={activeCard.kind === "child" && !activeCard.walletId}
                 />
 
                 <ActionButton

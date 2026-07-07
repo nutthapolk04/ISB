@@ -22,7 +22,8 @@ import { Label } from "@/components/ui/label";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, Search, Loader2, Eye, UserCircle2, ShieldOff, ShieldCheck, RefreshCw } from "lucide-react";
+import { CreditCard, Search, Loader2, Eye, ShieldOff, ShieldCheck, RefreshCw } from "lucide-react";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 type CardRole = "all" | "staff" | "parent" | "student" | "admin" | "manager" | "cashier" | "visitor";
 
@@ -397,11 +398,12 @@ export default function CardManagement() {
                     <TableCell className="font-mono text-sm">{c.uid}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {c.photoUrl ? (
-                          <img src={c.photoUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
-                        ) : (
-                          <UserCircle2 className="h-7 w-7 text-muted-foreground" />
-                        )}
+                        <img
+                          src={resolveAvatarUrl(c.photoUrl, c.name || String(c.id))}
+                          alt=""
+                          className="h-7 w-7 rounded-full object-cover"
+                          onError={(e) => { e.currentTarget.src = getFallbackAvatar(c.name || String(c.id)); }}
+                        />
                         <div>
                           <span className="font-medium">{c.name}</span>
                           {c.psDepartment && (

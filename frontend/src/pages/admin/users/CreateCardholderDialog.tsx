@@ -75,7 +75,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   const [initialBalance, setInitialBalance] = useState("0");
   // Parent / Staff
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
+  const [emails, setEmails] = useState<string[]>([""]);
   const [password, setPassword] = useState("");
   const [staffRole, setStaffRole] = useState("staff");
   const [shopId, setShopId] = useState("");
@@ -87,6 +87,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   const [deptName, setDeptName] = useState("");
   const [initialCredit, setInitialCredit] = useState("0");
   // Other
+  const [otherEmail, setOtherEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [withWallet, setWithWallet] = useState(false);
   // ID number (external_id) — student, staff, other; not parent, not department
@@ -98,7 +99,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
     setName(""); setFamilyCode(""); setCardUid("");
     setCustomerCode(""); setGrade("");
     setSchoolType("ES Student"); setInitialBalance("0");
-    setUsername(""); setEmail(""); setPassword("");
+    setUsername(""); setEmails([""]); setPassword(""); setOtherEmail("");
     setStaffRole("staff"); setShopId("");
     setDeptCode(""); setDeptName(""); setInitialCredit("0");
     setPhone(""); setWithWallet(false);
@@ -166,22 +167,24 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
     try {
       const body: Record<string, any> = { kind };
       if (kind === "student") {
-        const trimmed = customerCode.trim();
-        const isPrefixed = trimmed.toUpperCase().startsWith("PS-");
-        const stripped = isPrefixed ? trimmed.slice(3) : trimmed;
-        const finalCustomerCode = isPrefixed ? `PS-${stripped}` : `PS-${trimmed}`;
+        const sid = externalId.trim();
+        const autoCode = sid ? `PS-${sid}` : `PS-${Date.now()}`;
         Object.assign(body, {
           name,
-          customer_code: finalCustomerCode,
-          student_code: stripped || null,
+          customer_code: autoCode,
+          student_code: sid || null,
           grade: grade || null, school_type: schoolType,
           family_code: familyCode || null, card_uid: cardUid || null,
           initial_balance: parseFloat(initialBalance) || 0,
-          external_id: externalId.trim() || null,
+          external_id: sid || null,
         });
       } else if (kind === "parent" || kind === "staff") {
+        const filledEmails = emails.map((e) => e.trim()).filter(Boolean);
         Object.assign(body, {
-          name, username, email: email || null, password,
+          name, username,
+          email: filledEmails[0] || null,
+          notification_emails: filledEmails.slice(1),
+          password,
           family_code: familyCode || null, card_uid: cardUid || null,
         });
         if (kind === "staff") {
@@ -197,7 +200,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
       } else if (kind === "other") {
         Object.assign(body, {
           name, customer_code: customerCode || null,
-          email: email || null, phone: phone || null,
+          email: otherEmail || null, phone: phone || null,
           card_uid: cardUid || null, with_wallet: withWallet,
           external_id: externalId.trim() || null,
         });
@@ -258,7 +261,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
             {kind === "student" && (
               <>
                 <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
-                <Field label="Student code (Customer code) *"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="85001" /></Field>
+                <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Grade"><Input value={grade} onChange={e => setGrade(e.target.value)} placeholder="04" /></Field>
                   <Field label="School type">
@@ -273,7 +276,6 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                   </Field>
                 </div>
                 <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
-                <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} placeholder="MIFARE hex" /></Field>
                 <Field label="Initial balance (THB)"><Input type="number" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field>
               </>
@@ -283,7 +285,43 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
               <>
                 <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <Field label="Username *"><Input value={username} onChange={e => setUsername(e.target.value)} /></Field>
-                <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Email</Label>
+                  <div className="space-y-2">
+                    {emails.map((val, i) => (
+                      <div key={i} className="flex gap-1.5">
+                        <Input
+                          type="email"
+                          placeholder={`Email ${i + 1}`}
+                          value={val}
+                          onChange={(e) => {
+                            const next = [...emails];
+                            next[i] = e.target.value;
+                            setEmails(next);
+                          }}
+                        />
+                        {emails.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setEmails(emails.filter((_, j) => j !== i))}
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {emails.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setEmails([...emails, ""])}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        + Add Email
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <Field label="Password *">
                   <PasswordInput
                     value={password}
@@ -413,7 +451,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
               <>
                 <Field label={t("cardholders.fields.name", "Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <Field label="Visitor code (Customer code)"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="auto if blank" /></Field>
-                <Field label="Email"><Input value={email} onChange={e => setEmail(e.target.value)} /></Field>
+                <Field label="Email"><Input type="email" value={otherEmail} onChange={e => setOtherEmail(e.target.value)} /></Field>
                 <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
                 <Field label="Other ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>

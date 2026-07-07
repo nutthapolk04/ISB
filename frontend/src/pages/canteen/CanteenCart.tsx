@@ -1,12 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, UserCircle2, X } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard, UtensilsCrossed, Pencil, X, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/IconButton";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { getCanteenImage, getCanteenFallback } from "./canteenImages";
 import type {
   CanteenCartItem,
@@ -181,6 +183,8 @@ export function CanteenCart({
 }: CanteenCartProps) {
   const { t } = useTranslation();
   const isEmpty = items.length === 0;
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [localNote, setLocalNote] = useState("");
   const discountLabel =
     billDiscountValue > 0
       ? billDiscountMode === "percent"
@@ -226,18 +230,13 @@ export function CanteenCart({
       {selectedMember && (
         <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
-              {selectedMember.photo_url ? (
-                <img
-                  src={selectedMember.photo_url}
-                  alt={selectedMember.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-amber-400">
-                  <UserCircle2 className="h-8 w-8" />
-                </div>
-              )}
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+              <img
+                src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
+                alt={selectedMember.name}
+                className="h-full w-full object-cover"
+                onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-sm truncate">{selectedMember.name}</div>
@@ -253,13 +252,54 @@ export function CanteenCart({
               <button
                 type="button"
                 onClick={onClearMember}
-                className="shrink-0 rounded-full p-1.5 hover:bg-amber-100 text-muted-foreground hover:text-foreground"
+                className="shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
                 aria-label={t("canteen.cart.clearMemberAria")}
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
+          {/* Daily Spending Limit panel */}
+          {selectedMember.customer_kind !== "department" && selectedMember.user_id == null && (() => {
+            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            const rows: { label: string; limit: number; spent: number }[] = [];
+            if (selectedMember.daily_limit_canteen != null)
+              rows.push({ label: "Canteen", limit: Number(selectedMember.daily_limit_canteen), spent: Number(selectedMember.spent_today_canteen ?? 0) });
+            if (selectedMember.daily_limit_store != null)
+              rows.push({ label: "Store", limit: Number(selectedMember.daily_limit_store), spent: Number(selectedMember.spent_today_store ?? 0) });
+            if (rows.length === 0) return null;
+            return (
+              <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
+                <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                  Daily Spending remaining / limit
+                </div>
+                {rows.map(({ label, limit, spent }) => {
+                  const remaining = Math.max(0, limit - spent);
+                  const remainingPct = limit > 0 ? Math.max(0, (remaining / limit) * 100) : 100;
+                  const over = spent >= limit;
+                  const warn = remainingPct <= 20 && !over;
+                  const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
+                  return (
+                    <div key={label} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-foreground font-medium">{label}</span>
+                        <span className={cn("font-bold tabular-nums", valueColor)}>
+                          {fmt(remaining)}{" "}
+                          <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -466,30 +506,58 @@ export function CanteenCart({
             </span>
           </div>
         )}
-        <Button
-          variant="outline"
-          onClick={onOpenDiscount}
-          disabled={isEmpty}
-          className="h-12 w-full border-amber-300 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 font-semibold text-base"
-        >
-          {discountLabel ? `Add Discount: ${discountLabel}` : "Add Discount"}
-        </Button>
-
-        {/* Receipt note — mirrors the Store cart pattern (one optional
-            memo that gets attached to receipt.notes server-side). */}
-        {onNoteChange && (
-          <div className="pt-1">
-            <p className="text-xs font-medium text-muted-foreground mb-1">
+        <div className="flex gap-2">
+          {onNoteChange && (
+            <Button
+              variant="outline"
+              onClick={() => { setLocalNote(note); setNoteModalOpen(true); }}
+              className={cn(
+                "flex-1 h-9 rounded-xl relative gap-1.5 text-sm",
+                note ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" : ""
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
               {t("canteen.receiptNoteLabel", "Note")}
-            </p>
-            <Input
-              placeholder={t("canteen.receiptNote", "Add a note to this receipt (optional)")}
-              value={note}
-              onChange={(e) => onNoteChange(e.target.value)}
-              className="h-10 text-sm"
-              maxLength={200}
-            />
-          </div>
+              {note && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />
+              )}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={onOpenDiscount}
+            disabled={isEmpty}
+            className="flex-1 h-9 rounded-xl border-amber-300 bg-amber-50/70 text-amber-700 hover:bg-amber-100 hover:text-amber-800 font-semibold text-sm"
+          >
+            {discountLabel ? `Add Discount: ${discountLabel}` : "Add Discount"}
+          </Button>
+        </div>
+
+        {/* Note modal */}
+        {onNoteChange && (
+          <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{t("canteen.receiptNoteLabel", "Note")}</DialogTitle>
+              </DialogHeader>
+              <Textarea
+                placeholder={t("canteen.receiptNote", "Add a note to this receipt (optional)")}
+                value={localNote}
+                onChange={(e) => setLocalNote(e.target.value)}
+                rows={4}
+                maxLength={200}
+                autoFocus
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
+                  {t("common.cancel", "Cancel")}
+                </Button>
+                <Button onClick={() => { onNoteChange(localNote); setNoteModalOpen(false); }}>
+                  {t("common.save", "Save")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
 
         <div className="flex justify-between items-baseline pt-2">

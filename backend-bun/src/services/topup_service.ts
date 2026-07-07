@@ -32,6 +32,7 @@ const TOPUP_LABEL_BY_METHOD: Record<string, string> = {
 };
 
 const PYMT_METHODS = new Set(["bay_qr", "bay_easypay"]);
+const EASYPAY_FEE_RATE = 0.03;
 
 function requireIntentWalletId(walletId: number | null, refCode: string): number {
     if (walletId == null) {
@@ -235,12 +236,15 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
             txnNo = r.txn_no;
             await db.update(paymentIntents).set({ qrPayload, txnNo }).where(eq(paymentIntents.id, created.id));
         } else if (paymentMethod === "bay_easypay" && pymtConfigured) {
-            const feBase = process.env.FRONTEND_BASE_URL ?? "";
+            // Return URLs route through the backend (not the frontend) to avoid
+            // a Vercel 405 on BAY's redirect back — the backend then 302s to the FE.
+            const apiBase = process.env.BACKEND_BASE_URL ?? "";
+            const chargeAmount = Math.round(input.amount * (1 + EASYPAY_FEE_RATE) * 100) / 100;
             const r = await createEasyPay({
-                amount: input.amount, refCode,
-                successUrl: `${feBase}/payment/bay/success?ref=${refCode}`,
-                failUrl: `${feBase}/payment/bay/fail?ref=${refCode}`,
-                cancelUrl: `${feBase}/payment/bay/cancel?ref=${refCode}`,
+                amount: chargeAmount, refCode,
+                successUrl: `${apiBase}/api/v1/payment/bay/return/success?ref=${refCode}`,
+                failUrl: `${apiBase}/api/v1/payment/bay/return/fail?ref=${refCode}`,
+                cancelUrl: `${apiBase}/api/v1/payment/bay/return/cancel?ref=${refCode}`,
                 lang: input.lang ?? undefined,
                 payType: input.payType ?? undefined,
                 remark: input.remark ?? null,
@@ -378,6 +382,23 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
 
 // ── Status + parent-confirm ──────────────────────────────────────────────
 
+export async function cancelTopupIntent(refCode: string): Promise<void> {
+  const rows = await db.select().from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
+  const intent = rows[0];
+  if (!intent) {
+    const err = new Error("Top-up intent not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+  if (intent.status === "cancelled") return;
+  if (intent.status === "confirmed") {
+    const err = new Error("Cannot cancel a confirmed payment");
+    (err as { status?: number }).status = 400;
+    throw err;
+  }
+  await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, intent.id));
+}
+
 export async function getTopupStatus(refCode: string): Promise<{ intent: TopupStatusDTO; walletId: number }> {
     const rows = await db.select().from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
     const intent = rows[0];
@@ -427,32 +448,34 @@ export async function handleBayCallback(body: {
     amount: number;
     status: "COMPLETED" | "FAILED";
 }): Promise<{ received: true }> {
-    // Locate intent: orderRef → txnNo → reference1
+    // Locate intent: orderRef (refCode → txnNo) → txnNo → reference1.
+    // EASYPay callbacks carry the sanitized orderRef we sent to PYMT, which
+    // matches paymentIntents.txnNo rather than refCode (refCode keeps the
+    // hyphens). Fall back to txnNo when refCode lookup misses.
+    const select = () => db
+        .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
+        .from(paymentIntents);
     let refCode: string | null = null;
     let currentStatus: string | null = null;
     let intentType: string | null = null;
 
+    const adopt = (row: { refCode: string; status: string; intentType: string | null } | undefined) => {
+        if (!row) return false;
+        refCode = row.refCode; currentStatus = row.status; intentType = row.intentType ?? null;
+        return true;
+    };
+
     if (body.orderRef) {
-        const rows = await db
-            .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
-            .from(paymentIntents)
-            .where(eq(paymentIntents.refCode, body.orderRef))
-            .limit(1);
-        if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; intentType = rows[0].intentType ?? null; }
+        const byRef = await select().where(eq(paymentIntents.refCode, body.orderRef)).limit(1);
+        if (!adopt(byRef[0])) {
+            const byTxn = await select().where(eq(paymentIntents.txnNo, body.orderRef)).limit(1);
+            adopt(byTxn[0]);
+        }
     } else if (body.transactionNo) {
-        const rows = await db
-            .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
-            .from(paymentIntents)
-            .where(eq(paymentIntents.txnNo, body.transactionNo))
-            .limit(1);
-        if (rows[0]) { refCode = rows[0].refCode; currentStatus = rows[0].status; intentType = rows[0].intentType ?? null; }
-        else if (body.reference1) {
-            const rRows = await db
-                .select({ refCode: paymentIntents.refCode, status: paymentIntents.status, intentType: paymentIntents.intentType })
-                .from(paymentIntents)
-                .where(eq(paymentIntents.refCode, body.reference1))
-                .limit(1);
-            if (rRows[0]) { refCode = rRows[0].refCode; currentStatus = rRows[0].status; intentType = rRows[0].intentType ?? null; }
+        const byTxn = await select().where(eq(paymentIntents.txnNo, body.transactionNo)).limit(1);
+        if (!adopt(byTxn[0]) && body.reference1) {
+            const byRef = await select().where(eq(paymentIntents.refCode, body.reference1)).limit(1);
+            adopt(byRef[0]);
         }
     }
 

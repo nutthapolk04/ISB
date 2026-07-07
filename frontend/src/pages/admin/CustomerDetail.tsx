@@ -21,6 +21,7 @@ import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+import { resolveAvatarUrl } from "@/lib/avatarFallback";
 import {
   ArrowLeft, Camera, CreditCard, GraduationCap, Lock, Unlock, Upload, User as UserIcon,
   AlertTriangle, Edit3, Save, X, Wifi, ShieldAlert, Plus, Trash2, Loader2,
@@ -467,7 +468,7 @@ export default function CustomerDetail() {
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <div className="relative">
               <Avatar className="h-24 w-24">
-                {profile.photo_url && <AvatarImage src={profile.photo_url} alt={profile.name} />}
+                <AvatarImage src={resolveAvatarUrl(profile.photo_url, profile.name || String(profile.id))} alt={profile.name} />
                 <AvatarFallback className="text-xl">{initials}</AvatarFallback>
               </Avatar>
               <button

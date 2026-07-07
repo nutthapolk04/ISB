@@ -22,10 +22,9 @@ import { Wallet as WalletIcon, CheckCircle2, AlertCircle, History, Loader2, QrCo
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 import { storeBayIntent } from "@/pages/payment/MockBayGateway";
 
-// Demo May-2026 — Topup channel limits & fee.
-// Fee is UI-only for now (not persisted on payment_intents) — wallet still
-// credits the face amount; the 3% is shown as the cost the parent pays the
-// processor.
+// Topup channel limits & fee.
+// Fee (3%) is applied server-side to the BAY charge amount; wallet is credited
+// the base (face) amount only. Frontend displays the breakdown for clarity.
 const MAX_TOPUP_THB = 50_000;
 const MAX_WALLET_BALANCE = 50_000;
 const CREDIT_FEE_RATE = 0.03;
@@ -223,6 +222,19 @@ export default function WalletDetail() {
           { amount: amt, payment_method: "bay_easypay", lang: i18n.language.startsWith("en") ? "E" : "T" },
         );
         if (resp.payment_page_url && resp.payment_form_params) {
+          // Store intent BEFORE leaving for BAY's hosted page so the success
+          // page can read it when BAY redirects back. localStorage persists
+          // across cross-origin redirects, 3DS chains, and browser restores.
+          const feeAmt = Math.round(amt * CREDIT_FEE_RATE * 100) / 100;
+          storeBayIntent({
+            orderRef: resp.ref_code,
+            walletId: profile.wallet_id,
+            amount: amt,
+            fee: feeAmt,
+            returnUrl: window.location.pathname + window.location.search,
+            merchantName: "ISB SCHOOL SHOP",
+            productName: "Wallet Top-up",
+          });
           const form = document.createElement('form');
           form.method = 'POST';
           form.action = resp.payment_page_url;
@@ -561,10 +573,12 @@ export default function WalletDetail() {
           onCancel={() => setGatewayOpen(false)}
         />
 
-        <Dialog open={qrOpen} onOpenChange={(open) => {
-          if (!open) { setQrOpen(false); setIntent(null); setQrStatus("waiting"); }
-        }}>
-          <DialogContent className="max-w-sm sm:max-w-md">
+        <Dialog open={qrOpen} onOpenChange={() => {}}>
+          <DialogContent
+            className="max-w-sm sm:max-w-md [&>button]:hidden"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>{t("parent.wallet.qrTitle")}</DialogTitle>
               <DialogDescription>

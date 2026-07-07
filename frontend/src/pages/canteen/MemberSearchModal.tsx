@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
-  UserCircle2,
   Building2,
   Loader2,
   AlertTriangle,
@@ -20,6 +19,7 @@ import { api, ApiError } from "@/lib/api";
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import type { StudentLookupResult, DepartmentLookupResult } from "./RfidPaymentModal";
 
 interface MemberSearchModalProps {
@@ -176,17 +176,16 @@ export function MemberSearchModal({
                     )}
                   >
                     {/* Photo / icon */}
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
                       {member.customer_kind === "department" ? (
-                        <Building2 className="h-7 w-7 text-rose-500" />
-                      ) : member.photo_url ? (
+                        <Building2 className="h-11 w-11 text-rose-500" />
+                      ) : (
                         <img
-                          src={member.photo_url}
+                          src={resolveAvatarUrl(member.photo_url, member.name || String(member.id))}
                           alt={member.name}
                           className="h-full w-full object-cover"
+                          onError={(e) => { e.currentTarget.src = getFallbackAvatar(member.name || String(member.id)); }}
                         />
-                      ) : (
-                        <UserCircle2 className="h-8 w-8 text-muted-foreground" />
                       )}
                     </div>
 
@@ -261,21 +260,18 @@ export function MemberSearchModal({
           <div className="space-y-4">
             {/* Member card */}
             <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
+              <div className="h-40 w-40 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
                 {selectedMember.customer_kind === "department" ? (
                   <div className="flex h-full w-full items-center justify-center text-rose-500">
-                    <Building2 className="h-14 w-14" />
+                    <Building2 className="h-20 w-20" />
                   </div>
-                ) : selectedMember.photo_url ? (
+                ) : (
                   <img
-                    src={selectedMember.photo_url}
+                    src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
                     alt={selectedMember.name}
                     className="h-full w-full object-cover"
+                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
                   />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-amber-400">
-                    <UserCircle2 className="h-16 w-16" />
-                  </div>
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -324,47 +320,6 @@ export function MemberSearchModal({
                 </div>
               </div>
             )}
-
-            {/* Daily Spending Limit — Canteen + Store */}
-            {selectedMember.customer_kind !== "department" && (() => {
-              const ct = selectedMember.daily_limit_canteen ?? null;
-              const ctSpent = selectedMember.spent_today_canteen ?? 0;
-              const st = selectedMember.daily_limit_store ?? null;
-              const stSpent = selectedMember.spent_today_store ?? 0;
-              if (ct == null && st == null) return null;
-              const row = (label: string, limit: number | null, spent: number) => {
-                if (limit == null) return null;
-                const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-                const atLimit = pct >= 100;
-                const nearLimit = pct >= 80 && !atLimit;
-                const txtColor = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
-                const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
-                return (
-                  <div className="space-y-1.5">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-muted-foreground font-medium">{label}</span>
-                      <span className={cn("text-base font-bold tabular-nums", txtColor)}>
-                        ฿{spent.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        <span className="text-muted-foreground font-normal"> / </span>
-                        ฿{limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </span>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              };
-              return (
-                <div className="rounded-2xl border border-border bg-card p-3 space-y-3 text-sm">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                    Daily Spending Limit
-                  </div>
-                  {row("Canteen", ct, ctSpent)}
-                  {row("Store", st, stSpent)}
-                </div>
-              );
-            })()}
 
             {/* Actions */}
             <div className="flex gap-2">

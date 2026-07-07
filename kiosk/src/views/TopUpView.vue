@@ -21,7 +21,7 @@ const t = {
     EN: {
         title: 'Top-up',
         sub: 'Select payment method',
-        promptpay: 'QR Code',
+        promptpay: 'Thai QR Code / PromptPay',
         cash: 'Cash',
         back: 'Back',
         scan: 'Scan the QR code below to top-up',
@@ -94,7 +94,7 @@ const t = {
     TH: {
         title: 'เติมเงิน',
         sub: 'เลือกช่องทางการเติมเงิน',
-        promptpay: 'QR Code',
+        promptpay: 'Thai QR Code / PromptPay',
         cash: 'เงินสด',
         back: 'กลับ',
         scan: 'สแกน QR Code ด้านล่างเพื่อเติมเงิน',
@@ -188,7 +188,7 @@ let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 50000;
 const MIN_AMOUNT = 100;
-const SHORTCUTS = [100, 200, 300, 500, 1000];
+const SHORTCUTS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 const amountNumber = computed(() => {
     const n = parseFloat(enteredAmount.value);
@@ -582,7 +582,7 @@ const overpayExceedsCap = computed(() => {
 <template>
     <div class="kiosk-container topup-view">
         <!-- Header -->
-        <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail'">
+        <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr'">
             <button v-if="!cashLocked" class="back-btn" @click="handleHeaderBack">
                 <ChevronLeft :size="32" />
                 <span>{{ currT.back }}</span>
@@ -595,8 +595,8 @@ const overpayExceedsCap = computed(() => {
             <div v-else class="logout-btn logout-btn-placeholder" aria-hidden="true" />
         </div>
 
-        <!-- Wallet Info Bar (shown in amount & qr steps) -->
-        <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'methods' || currentStep === 'qr' || currentStep === 'cash-confirm')"
+        <!-- Wallet Info Bar (shown in amount & methods steps; hidden on QR to avoid outside-click targets) -->
+        <div v-if="currentWallet && (currentStep === 'amount' || currentStep === 'methods' || currentStep === 'cash-confirm')"
             class="wallet-bar" :style="{ background: currentWallet.colorTheme }">
             <div class="wallet-bar-name">{{ currentWallet.holderName }}</div>
             <div class="wallet-bar-balance">
@@ -1107,12 +1107,15 @@ const overpayExceedsCap = computed(() => {
 
 /* --- QR Section --- */
 .qr-section {
-    flex: 1;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: var(--bg-color);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
+    padding: 2rem;
 }
 
 .qr-card {

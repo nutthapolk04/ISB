@@ -169,6 +169,11 @@ const ShopManagement = () => {
             toast.error(t("management.fillAllRequired"));
             return;
         }
+        const idTrimmed = shopForm.id.trim();
+        if (idTrimmed.length !== 5) {
+            toast.error(t("management.shopIdMustBe5", "Shop ID must be exactly 5 characters"));
+            return;
+        }
         try {
             setSaving(true);
             await api.post("/shops/", {
@@ -340,7 +345,7 @@ const ShopManagement = () => {
                                 placeholder="e.g. coop1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
-                                {t("management.shopIdHint", "Unique code, max 5 chars, lowercase")}
+                                {t("management.shopIdHint", "Exactly 5 characters — letters + digits, lowercase")}
                             </p>
                         </div>
                         <div>
@@ -393,21 +398,6 @@ const ShopManagement = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div>
-                            <Label>{t("management.shopNumber", "Shop Number")}</Label>
-                            <Input
-                                type="number"
-                                min={1}
-                                max={99999}
-                                placeholder="00001"
-                                value={shopForm.shopNumber}
-                                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
-                                onChange={(e) => setShopForm({ ...shopForm, shopNumber: e.target.value.slice(0, 5) })}
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-S00001-...)")}
-                            </p>
                         </div>
                     </div>
                     <DialogFooter>
@@ -598,20 +588,6 @@ const ShopManagement = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div>
-                            <Label>{t("management.shopNumber", "Shop Number")}</Label>
-                            <Input
-                                type="number"
-                                min={1}
-                                max={99999}
-                                placeholder="00001"
-                                value={editForm.shopNumber}
-                                onChange={(e) => setEditForm({ ...editForm, shopNumber: e.target.value })}
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-S00001-...)")}
-                            </p>
                         </div>
                     </div>
                     <DialogFooter>

@@ -1,0 +1,6 @@
+[
+	{
+		"pkg": "capacitor-hardware",
+		"classpath": "com.okontek.plugins.hardware.HardwarePlugin"
+	}
+]

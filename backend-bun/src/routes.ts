@@ -69,6 +69,13 @@ import * as KioskSchema from "@/interfaces/routes/kiosk.schema";
  * onError, not here — Elysia 1.4.x always runs the root app's onError for
  * VALIDATION on nested routes, so a plugin-level handler here never fires.
  */
+/** Build a BAY return location URL for the matching Vercel React page. */
+const bayReturnLocation = (outcome: "success" | "fail" | "cancel", url: string) => {
+    const ref = new URL(url).searchParams.get("ref") ?? "";
+    return `${process.env.FRONTEND_BASE_URL ?? ""}/payment/bay/${outcome}?ref=${encodeURIComponent(ref)}`;
+};
+
+/** ISB vendor sync — public, x-api-key only (no JWT). */
 const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
     .post("/sync/staffs", IsbSyncController.staffs, IsbSyncSchema.isbSyncStaffs)
     .post("/sync/families", IsbSyncController.families, IsbSyncSchema.isbSyncFamilies)
@@ -102,6 +109,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/:id", UserController.getById, UserSchema.getUserById)
             .patch("/:id", UserController.update, UserSchema.updateUser)
             .delete("/:id", UserController.remove, UserSchema.deleteUser)
+            .post("/:id/cashier-topup", TopupController.cashierTopupByUser, TopupSchema.topupCashierByUser)
     )
     // ── Users admin ─────────────────────────────────────────────────────────
     .group("/users-admin", (app) =>
@@ -116,6 +124,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .patch("/family-profile/:family_code", UsersAdminController.updateFamilyProfile, UsersAdminSchema.updateFamilyProfile)
             .post("/:user_id/link-student", UsersAdminController.linkStudent, UsersAdminSchema.linkStudentToUser)
             .delete("/:user_id/link-student/:customer_id", UsersAdminController.unlinkStudent, UsersAdminSchema.unlinkStudent)
+            .patch("/:user_id/password", UsersAdminController.changePassword, UsersAdminSchema.changePassword)
     )
     // ── Admin audit & settings ──────────────────────────────────────────────
     .group("/admin", (app) => app
@@ -143,6 +152,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .patch("/:id/negative-limit", CustomerController.setNegativeLimit, CustomerSchema.setCustomerNegativeLimit)
             .patch("/:id/card", CustomerController.bindCard, CustomerSchema.bindCustomerCard)
             .post("/:id/graduate", CustomerController.graduate, CustomerSchema.graduateCustomer)
+            .post("/:id/cashier-topup", TopupController.cashierTopupByCustomer, TopupSchema.topupCashierByCustomer)
     )
     // ── Products ────────────────────────────────────────────────────────────
     .group("/products", (app) =>
@@ -159,6 +169,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/sales-by-payment", ReportController.salesByPayment, ReportSchema.salesByPaymentReport)
             .get("/stock", ReportController.stock, ReportSchema.stockReport)
             .get("/returns", ReportController.returns, ReportSchema.returnsReport)
+            .get("/voids", ReportController.voidReceipts, ReportSchema.voidReport)
             .get("/stock-card", ReportController.stockCard, ReportSchema.stockCardReport)
             .get("/sales-summary", ReportController.salesSummary, ReportSchema.salesSummaryReport)
             .get("/sales-by-item", ReportController.salesByItem, ReportSchema.salesByItemReport)
@@ -233,6 +244,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/topup/:refCode/status", TopupController.status, TopupSchema.topupStatus)
             .post("/topup/:refCode/parent-confirm", TopupController.parentConfirm, TopupSchema.topupParentConfirm)
             .post("/topup/:refCode/inquiry", TopupController.inquiry, TopupSchema.topupInquiry)
+            .post("/topup/:refCode/cancel", TopupController.cancelIntent, TopupSchema.topupCancelIntent)
             .post("/:id/cashier-topup", TopupController.cashierTopup, TopupSchema.topupCashier)
     )
     // ── Kiosk device ──────────────────────────────────────────────────────────
@@ -245,6 +257,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
         app
             .post("/:department_id/adjust", TopupController.adjustDepartment, TopupSchema.topupAdjustDepartment)
             .get("/:department_id/transactions", TopupController.departmentTransactions, TopupSchema.topupDepartmentTransactions)
+            .patch("/:department_id", TopupController.updateDepartment, TopupSchema.topupUpdateDepartment)
             .delete("/:department_id", TopupController.deleteDepartment, TopupSchema.topupDeleteDepartment)
     )
     // ── POS ───────────────────────────────────────────────────────────────────
@@ -380,6 +393,43 @@ const router = (app: Elysia) =>
         .get("/api/v1/admin/settings/public", PublicSettingsController.getPublicSettings, AdminSettingsSchema.getPublicSettings)
         .get("/api/v1/admin/settings/school", PublicSettingsController.getSchoolSettings, AdminSettingsSchema.getSchoolSettings)
         .post("/api/v1/bay/callback", BayCallbackController.callback, BayCallbackSchema.bayCallback)
+        // BAY EASYPay browser-return endpoints — BAY POST-redirects the user's
+        // browser here after card payment. Backend 302 GET-redirects to the React
+        // page because Vercel static hosting returns 405 for POST requests.
+        // BAY POSTs (form submit) for the happy-path redirect; the user's
+        // "Done" click on the BAY error page comes through as a plain GET.
+        // Register both verbs for every outcome so the customer always
+        // reaches the matching React page on Vercel instead of a 404.
+        .post("/api/v1/payment/bay/return/success", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("success", request.url);
+            return null;
+        })
+        .get("/api/v1/payment/bay/return/success", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("success", request.url);
+            return null;
+        })
+        .post("/api/v1/payment/bay/return/fail", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("fail", request.url);
+            return null;
+        })
+        .get("/api/v1/payment/bay/return/fail", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("fail", request.url);
+            return null;
+        })
+        .post("/api/v1/payment/bay/return/cancel", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("cancel", request.url);
+            return null;
+        })
+        .get("/api/v1/payment/bay/return/cancel", ({ request, set }) => {
+            set.status = 302;
+            set.headers["Location"] = bayReturnLocation("cancel", request.url);
+            return null;
+        })
         .get("/api/v1/customer-display/images", CustomerDisplayController.listPublic, CustomerDisplaySchema.customerDisplayListPublic)
         .get("/api/v1/customer-display/images/:id/binary", CustomerDisplayController.getBinary, CustomerDisplaySchema.customerDisplayGetBinary)
         // 4. Authenticated API bundle

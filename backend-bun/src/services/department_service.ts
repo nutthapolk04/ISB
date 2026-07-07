@@ -82,6 +82,55 @@ export async function createDepartment(args: {
     return { id: deptId, code: args.code, name: args.name, walletId, walletBalance: credit };
 }
 
+export async function updateDepartment(
+  deptId: number,
+  patch: { department_name?: string; is_active?: boolean },
+): Promise<DepartmentSummaryDTO> {
+  const existing = await db
+    .select({ id: departments.id })
+    .from(departments)
+    .where(eq(departments.id, deptId))
+    .limit(1);
+
+  if (!existing[0]) {
+    const err = new Error("Department not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+  }
+
+  const set: Record<string, unknown> = {};
+  if (patch.department_name !== undefined) set.departmentName = patch.department_name;
+  if (patch.is_active !== undefined) set.isActive = patch.is_active;
+
+  if (Object.keys(set).length > 0) {
+    await db.update(departments).set(set).where(eq(departments.id, deptId));
+  }
+
+  const rows = await db
+    .select({
+      id: departments.id,
+      department_code: departments.departmentCode,
+      department_name: departments.departmentName,
+      is_active: departments.isActive,
+      wallet_id: wallets.id,
+      wallet_balance: wallets.balance,
+    })
+    .from(departments)
+    .leftJoin(wallets, eq(wallets.departmentId, departments.id))
+    .where(eq(departments.id, deptId))
+    .limit(1);
+
+  const r = rows[0];
+  return {
+    id: r.id,
+    department_code: r.department_code,
+    department_name: r.department_name,
+    is_active: r.is_active,
+    wallet_id: r.wallet_id,
+    wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
+  };
+}
+
 export async function deleteDepartment(deptId: number): Promise<void> {
     const rows = await db
         .select({ id: departments.id, walletId: wallets.id, balance: wallets.balance })

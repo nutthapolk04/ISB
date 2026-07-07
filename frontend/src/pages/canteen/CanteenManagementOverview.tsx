@@ -39,6 +39,13 @@ import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface SpendingGroupOption {
+  id: number;
+  code: string;
+  name_en: string;
+  name_th: string;
+}
+
 interface ShopApiResponse {
   id: string;
   name: string;
@@ -47,6 +54,7 @@ interface ShopApiResponse {
   is_active: boolean;
   module: string;
   allow_department_charge: boolean;
+  spending_group_id: number | null;
   shop_number: number | null;
 }
 
@@ -62,6 +70,7 @@ interface Shop {
   productCount: number;
   shopType: "avg_cost" | "fifo";
   allowDepartmentCharge: boolean;
+  spendingGroupId: number | null;
   shopNumber: number | null;
 }
 
@@ -72,6 +81,7 @@ const emptyForm = {
   isActive: "active" as "active" | "inactive",
   shopType: "avg_cost" as "avg_cost" | "fifo",
   allowDepartmentCharge: false,
+  spendingGroupId: "" as string,
   shopNumber: "" as string,
 };
 
@@ -81,6 +91,7 @@ export default function CanteenManagementOverview() {
   const { user, hasRole } = useAuth();
 
   const [shops, setShops] = useState<Shop[]>([]);
+  const [spendingGroups, setSpendingGroups] = useState<SpendingGroupOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -95,7 +106,11 @@ export default function CanteenManagementOverview() {
   const fetchShops = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.get<ShopApiResponse[]>("/shops/?active_only=false&module=canteen");
+      const [data, groups] = await Promise.all([
+        api.get<ShopApiResponse[]>("/shops/?active_only=false&module=canteen"),
+        api.get<SpendingGroupOption[]>("/spending-groups/").catch(() => [] as SpendingGroupOption[]),
+      ]);
+      setSpendingGroups(groups);
       const mapped: Shop[] = await Promise.all(
         data
           .filter((s) => s.module === "canteen")
@@ -110,6 +125,7 @@ export default function CanteenManagementOverview() {
               productCount: stats.total_products,
               shopType: s.shop_type,
               allowDepartmentCharge: s.allow_department_charge ?? false,
+              spendingGroupId: s.spending_group_id ?? null,
               shopNumber: s.shop_number ?? null,
             };
           }),
@@ -137,6 +153,11 @@ export default function CanteenManagementOverview() {
       toast.error(t("management.fillAllRequired"));
       return;
     }
+    const idTrimmed = addForm.id.trim();
+    if (idTrimmed.length !== 5) {
+      toast.error(t("management.shopIdMustBe5", "Shop ID must be exactly 5 characters"));
+      return;
+    }
     setSaving(true);
     try {
       await api.post("/shops/", {
@@ -146,6 +167,7 @@ export default function CanteenManagementOverview() {
         shop_type: addForm.shopType,
         module: "canteen",
         allow_department_charge: addForm.allowDepartmentCharge,
+        spending_group_id: addForm.spendingGroupId ? parseInt(addForm.spendingGroupId) : null,
         shop_number: addForm.shopNumber ? parseInt(addForm.shopNumber) : null,
       });
       toast.success(t("management.shopAdded"));
@@ -170,6 +192,7 @@ export default function CanteenManagementOverview() {
       isActive: shop.isActive ? "active" : "inactive",
       shopType: shop.shopType,
       allowDepartmentCharge: shop.allowDepartmentCharge,
+      spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
       shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
     });
   };
@@ -185,6 +208,7 @@ export default function CanteenManagementOverview() {
         name: editForm.name.trim(),
         description: editForm.description.trim() || null,
         is_active: editForm.isActive === "active",
+        spending_group_id: editForm.spendingGroupId ? parseInt(editForm.spendingGroupId) : null,
         shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
       });
       toast.success(t("management.shopUpdated"));
@@ -359,7 +383,7 @@ export default function CanteenManagementOverview() {
                 placeholder="e.g. ct001"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopIdHint", "Unique code, max 5 chars, lowercase")}
+                {t("management.shopIdHint", "Exactly 5 characters — letters + digits, lowercase")}
               </p>
             </div>
             <div>
@@ -379,19 +403,23 @@ export default function CanteenManagementOverview() {
               />
             </div>
             <div>
-              <Label>{t("management.shopNumber", "Shop Number")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99999}
-                placeholder="00001"
-                value={addForm.shopNumber}
-                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
-                onChange={(e) => setAddForm({ ...addForm, shopNumber: e.target.value.slice(0, 5) })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-N00001-...)")}
-              </p>
+              <Label>{t("spendingGroup.title", "Spending Group")}</Label>
+              <Select
+                value={addForm.spendingGroupId || "__none__"}
+                onValueChange={(v) => setAddForm({ ...addForm, spendingGroupId: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("spendingGroup.title", "Spending Group")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t("spendingGroup.none", "None")}</SelectItem>
+                  {spendingGroups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.name_en} ({g.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -440,21 +468,27 @@ export default function CanteenManagementOverview() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>{t("management.shopNumber", "Shop Number")}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99999}
-                placeholder="00001"
-                value={editForm.shopNumber}
-                onInput={(e) => { const v = (e.target as HTMLInputElement).value; if (v.length > 5) (e.target as HTMLInputElement).value = v.slice(0, 5); }}
-                onChange={(e) => setEditForm({ ...editForm, shopNumber: e.target.value.slice(0, 5) })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("management.shopNumberHint", "5-digit code used in receipt numbers (e.g. 1 → R-N00001-...)")}
-              </p>
-            </div>
+            {spendingGroups.length > 0 && (
+              <div>
+                <Label>{t("spendingGroup.title", "Spending Group")}</Label>
+                <Select
+                  value={editForm.spendingGroupId || "__none__"}
+                  onValueChange={(v) => setEditForm({ ...editForm, spendingGroupId: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("spendingGroup.title", "Spending Group")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t("spendingGroup.none", "None")}</SelectItem>
+                    {spendingGroups.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>
+                        {g.name_en} ({g.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>{t("common.cancel")}</Button>

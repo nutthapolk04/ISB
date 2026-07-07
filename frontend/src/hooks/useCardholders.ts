@@ -91,7 +91,7 @@ export function useFamilyLinks() {
   });
 }
 
-/** Delete a cardholder — routes to /users or /customers depending on entity_type. */
+/** Delete a cardholder — routes to /users, /customers, or /admin/departments depending on entity_type. */
 export function useDeleteCardholder() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -101,7 +101,9 @@ export function useDeleteCardholder() {
           ? `/users/${c.entity_id}`
           : c.entity_type === "customer"
             ? `/customers/${c.entity_id}`
-            : null;
+            : c.entity_type === "department"
+              ? `/admin/departments/${c.entity_id}`
+              : null;
       if (!path) throw new Error("Unsupported entity type");
       return api.delete(path);
     },

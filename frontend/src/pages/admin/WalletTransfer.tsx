@@ -4,6 +4,7 @@ import { api, ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB} from "@/lib/format";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -401,17 +402,12 @@ export default function WalletTransfer() {
         <Card className="border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              {parent.photo_url ? (
-                <img
-                  src={parent.photo_url}
-                  alt={parent.full_name ?? parent.username}
-                  className="h-14 w-14 shrink-0 rounded-full object-cover border-2 border-amber-300"
-                />
-              ) : (
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900">
-                  <UserRound className="h-7 w-7" />
-                </div>
-              )}
+              <img
+                src={resolveAvatarUrl(parent.photo_url, parent.username || parent.full_name)}
+                alt={parent.full_name ?? parent.username}
+                className="h-14 w-14 shrink-0 rounded-full object-cover border-2 border-amber-300"
+                onError={(e) => { e.currentTarget.src = getFallbackAvatar(parent.username || parent.full_name); }}
+              />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-lg truncate">
                   {parent.full_name ?? parent.username}
@@ -471,14 +467,12 @@ export default function WalletTransfer() {
                       >
                         <CardContent className="pt-3 pb-3">
                           <div className="flex items-center gap-3">
-                            {par.photo_url ? (
-                              <img src={par.photo_url} alt={par.full_name ?? par.username}
-                                className="h-10 w-10 shrink-0 rounded-full object-cover border-2 border-amber-300" />
-                            ) : (
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900">
-                                <UserRound className="h-5 w-5" />
-                              </div>
-                            )}
+                            <img
+                              src={resolveAvatarUrl(par.photo_url, par.username || par.full_name)}
+                              alt={par.full_name ?? par.username}
+                              className="h-10 w-10 shrink-0 rounded-full object-cover border-2 border-amber-300"
+                              onError={(e) => { e.currentTarget.src = getFallbackAvatar(par.username || par.full_name); }}
+                            />
                             <div className="flex-1 min-w-0">
                               <p className="font-medium truncate">{par.full_name ?? par.username}</p>
                               <div className="flex items-center gap-1.5 mt-0.5">
@@ -523,14 +517,12 @@ export default function WalletTransfer() {
                       <Card key={sib.customer_id} className="border-muted">
                         <CardContent className="pt-3 pb-3">
                           <div className="flex items-center gap-3">
-                            {sib.photo_url ? (
-                              <img src={sib.photo_url} alt={sib.name}
-                                className="h-10 w-10 shrink-0 rounded-full object-cover border border-primary/20" />
-                            ) : (
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                <UserRound className="h-5 w-5" />
-                              </div>
-                            )}
+                            <img
+                              src={resolveAvatarUrl(sib.photo_url, sib.name || String(sib.customer_id))}
+                              alt={sib.name}
+                              className="h-10 w-10 shrink-0 rounded-full object-cover border border-primary/20"
+                              onError={(e) => { e.currentTarget.src = getFallbackAvatar(sib.name || String(sib.customer_id)); }}
+                            />
                             <div className="flex-1 min-w-0">
                               <p className="font-medium truncate">{sib.name}</p>
                               <div className="flex flex-wrap items-center gap-1 mt-0.5">
@@ -606,17 +598,12 @@ export default function WalletTransfer() {
                 >
                   <CardContent className="pt-4 pb-3">
                     <div className="flex items-start gap-3">
-                      {child.photo_url ? (
-                        <img
-                          src={child.photo_url}
-                          alt={child.name}
-                          className="h-10 w-10 shrink-0 rounded-full object-cover border border-primary/20"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <UserRound className="h-5 w-5" />
-                        </div>
-                      )}
+                      <img
+                        src={resolveAvatarUrl(child.photo_url, child.name || String(child.customer_id))}
+                        alt={child.name}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover border border-primary/20"
+                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(child.name || String(child.customer_id)); }}
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{child.name}</p>
                         <div className="flex flex-wrap items-center gap-1 mt-0.5">
