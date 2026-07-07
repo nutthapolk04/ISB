@@ -426,10 +426,13 @@ function goBack() {
 
 <style scoped>
 .tech-page {
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
     background: #f8fafc;
     color: #0f172a;
-    overflow-y: auto;
+    overflow: hidden;
     position: relative;
 }
 
@@ -463,14 +466,20 @@ function goBack() {
 .tech-shell {
     position: relative;
     z-index: 1;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     max-width: 72rem;
+    width: 100%;
     margin: 0 auto;
-    padding: 1.5rem 1rem 2rem;
+    padding: 1rem 1rem 1.25rem;
+    overflow: hidden;
 }
 
 @media (min-width: 640px) {
     .tech-shell {
-        padding: 2rem 1.5rem;
+        padding: 1.25rem 1.5rem 1.5rem;
     }
 }
 
@@ -480,7 +489,8 @@ function goBack() {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 1rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
 }
 
 .tech-topbar-left {
@@ -591,8 +601,15 @@ function goBack() {
 
 /* Unlock */
 .unlock-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     max-width: 28rem;
-    margin: 4rem auto 0;
+    width: 100%;
+    margin: 0 auto;
+    overflow-y: auto;
 }
 
 .unlock-card {
@@ -704,15 +721,19 @@ function goBack() {
 
 /* Unlocked stack */
 .tech-stack {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.75rem;
+    overflow: hidden;
 }
 
 .stat-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
@@ -725,7 +746,7 @@ function goBack() {
     border-radius: 0.75rem;
     border: 1px solid #e2e8f0;
     background: #fff;
-    padding: 1rem;
+    padding: 0.75rem;
     box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
 }
 
@@ -765,8 +786,9 @@ function goBack() {
     border-radius: 1rem;
     border: 1px solid #e2e8f0;
     background: #fff;
-    padding: 1.25rem;
+    padding: 1rem;
     box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+    flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
@@ -778,6 +800,10 @@ function goBack() {
 .panel-flush {
     padding: 0;
     overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-title-row {
@@ -895,12 +921,13 @@ function goBack() {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.75rem;
-    padding: 1.25rem 1.25rem 0;
+    padding: 1rem 1rem 0;
+    flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
     .logs-header {
-        padding: 1.5rem 1.5rem 0;
+        padding: 1.25rem 1.25rem 0;
     }
 }
 
@@ -943,14 +970,16 @@ function goBack() {
     font-size: 0.75rem;
     font-weight: 600;
     color: #047857;
+    flex-shrink: 0;
 }
 
 .logs-toolbar {
-    padding: 1.25rem;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid #f1f5f9;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
@@ -1064,8 +1093,11 @@ function goBack() {
 }
 
 .log-scroll {
-    max-height: 52vh;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .empty-msg {
@@ -1150,11 +1182,14 @@ function goBack() {
     font-size: 0.875rem;
     font-weight: 600;
     color: #0f172a;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .log-json {
     margin: 0.25rem 0 0;
-    overflow-x: auto;
+    max-height: 6rem;
+    overflow: auto;
     border-radius: 0.375rem;
     background: #f8fafc;
     padding: 0.25rem 0.5rem;
@@ -1162,5 +1197,7 @@ function goBack() {
     font-size: 0.6875rem;
     color: #475569;
     box-shadow: inset 0 0 0 1px #f1f5f9;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 </style>
