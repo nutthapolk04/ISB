@@ -143,30 +143,60 @@ export async function getBalanceFile(
         ORDER BY name
       `;
 
+  if (productRows.length === 0) {
+    return { shop_id: shopId, shop_name: shopName, year, month: month ?? null, blocks: [] };
+  }
+
+  const productIds = productRows.map((p) => p.id);
+
+  // Bulk fetch all history movements BEFORE monthStart for all products in one query
+  const allHistory = await pgClient<(RawMovement & { product_id: number })[]>`
+    SELECT id, product_id, date::text AS date, type::text, quantity,
+           cost_per_unit::text AS cost_per_unit,
+           stock_before, stock_after, reference, note, created_at::text AS created_at
+    FROM shop_movements
+    WHERE shop_id = ${shopId}
+      AND product_id = ANY(${productIds}::int[])
+      AND date < ${monthStart}::date
+    ORDER BY product_id ASC, date ASC, created_at ASC, id ASC
+  `;
+
+  // Bulk fetch all movements WITHIN the period for all products in one query
+  const allMonthMoves = await pgClient<(RawMovement & { product_id: number })[]>`
+    SELECT id, product_id, date::text AS date, type::text, quantity,
+           cost_per_unit::text AS cost_per_unit,
+           stock_before, stock_after, reference, note, created_at::text AS created_at
+    FROM shop_movements
+    WHERE shop_id = ${shopId}
+      AND product_id = ANY(${productIds}::int[])
+      AND date >= ${monthStart}::date AND date <= ${monthEnd}::date
+    ORDER BY product_id ASC, date ASC, created_at ASC, id ASC
+  `;
+
+  // Group by product_id for O(n) lookup
+  const historyByProduct = new Map<number, (RawMovement & { product_id: number })[]>();
+  const monthMovesByProduct = new Map<number, (RawMovement & { product_id: number })[]>();
+  for (const m of allHistory) {
+    const arr = historyByProduct.get(m.product_id) ?? [];
+    arr.push(m);
+    historyByProduct.set(m.product_id, arr);
+  }
+  for (const m of allMonthMoves) {
+    const arr = monthMovesByProduct.get(m.product_id) ?? [];
+    arr.push(m);
+    monthMovesByProduct.set(m.product_id, arr);
+  }
+
   const blocks: BalanceFileBlock[] = [];
 
   for (const p of productRows) {
-    // 1. Replay history BEFORE monthStart to compute opening qty/avg
-    const history = await pgClient<RawMovement[]>`
-      SELECT id, date::text AS date, type::text, quantity, cost_per_unit::text AS cost_per_unit,
-             stock_before, stock_after, reference, note, created_at::text AS created_at
-      FROM shop_movements
-      WHERE shop_id = ${shopId} AND product_id = ${p.id} AND date < ${monthStart}::date
-      ORDER BY date ASC, created_at ASC, id ASC
-    `;
+    const history = historyByProduct.get(p.id) ?? [];
+    const monthMoves = monthMovesByProduct.get(p.id) ?? [];
+
+    // Replay history BEFORE monthStart to compute opening qty/avg
     let state: State = { qty: 0, avg: 0 };
     for (const m of history) state = applyMovement(state, m);
     const opening = { ...state };
-
-    // 2. Iterate movements WITHIN the month
-    const monthMoves = await pgClient<RawMovement[]>`
-      SELECT id, date::text AS date, type::text, quantity, cost_per_unit::text AS cost_per_unit,
-             stock_before, stock_after, reference, note, created_at::text AS created_at
-      FROM shop_movements
-      WHERE shop_id = ${shopId} AND product_id = ${p.id}
-        AND date >= ${monthStart}::date AND date <= ${monthEnd}::date
-      ORDER BY date ASC, created_at ASC, id ASC
-    `;
 
     const openingValue = Math.round(opening.qty * opening.avg * 100) / 100;
     const rows: LedgerRow[] = [

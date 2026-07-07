@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
-import { BookOpen, FileDown, FileText, Loader2, PackagePlus } from "lucide-react";
+import { BookOpen, FileDown, FileText, Loader2 } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -99,7 +99,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const school = useSchoolInfo();
   const embedded = !!lockedShopId;
   const isAdmin = user?.role === "admin";
 
@@ -215,17 +215,17 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     }
   };
 
-  const goReceiveStock = () => {
-    if (shopId) navigate(`/store/management/${shopId}`);
-    else navigate("/store/management");
-  };
-
   const exportPdf = () => {
     if (!data || data.blocks.length === 0) return;
 
     const periodLabel = formatPeriod(data.month, data.year, lang);
     const shopLabel = data.shop_name ?? shopId;
     const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US");
+    const reportId = "ISB014";
+    const schoolName = school.name || "International School Bangkok";
+    const logoHtml = school.logoUrl
+      ? `<img src="${school.logoUrl}" alt="logo" style="height:48px;object-fit:contain;margin-right:12px;vertical-align:middle;" />`
+      : "";
 
     const colIn  = t("balanceFile.col.in");
     const colOut = t("balanceFile.col.out");
@@ -262,6 +262,21 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
         <div class="block">
           <div class="block-heading">${heading}</div>
           <table>
+            <colgroup>
+              <col style="width:8%"/>
+              <col style="width:18%"/>
+              <col style="width:10%"/>
+              <col style="width:5%"/>
+              <col style="width:7%"/>
+              <col style="width:7%"/>
+              <col style="width:5%"/>
+              <col style="width:7%"/>
+              <col style="width:7%"/>
+              <col style="width:5%"/>
+              <col style="width:7%"/>
+              <col style="width:8%"/>
+              <col style="width:6%"/>
+            </colgroup>
             <thead>
               <tr>
                 <th rowspan="2">${t("balanceFile.col.date")}</th>
@@ -298,14 +313,17 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
   @page { size: A4 landscape; margin: 12mm 10mm; }
   * { box-sizing: border-box; }
   body { font-family: "Sarabun", "Noto Sans Thai", Arial, sans-serif; font-size: 8pt; color: #111; }
-  .report-header { text-align: center; margin-bottom: 10px; }
-  .report-header h1 { font-size: 13pt; margin: 0 0 2px; }
-  .report-header h2 { font-size: 10pt; margin: 0 0 2px; font-weight: normal; }
-  .report-header .meta { font-size: 8pt; color: #555; }
+  .report-meta-bar { display:flex; justify-content:space-between; font-size:7pt; color:#888; margin-bottom:6px; }
+  .report-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #d1d5db; padding-bottom:8px; }
+  .report-header-left { display:flex; align-items:center; }
+  .report-header-text { display:flex; flex-direction:column; }
+  .report-header-text h1 { font-size:13pt; margin:0 0 2px; font-weight:700; }
+  .report-header-text h2 { font-size:10pt; margin:0 0 2px; font-weight:normal; }
+  .report-header-meta { font-size:8pt; color:#555; text-align:right; }
   .block { margin-bottom: 14px; page-break-inside: avoid; }
   .block-heading { font-size: 9pt; font-weight: bold; margin-bottom: 3px; }
-  table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
-  th, td { border: 1px solid #ccc; padding: 2px 4px; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 7.5pt; table-layout: fixed; }
+  th, td { border: 1px solid #ccc; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   th { background: #f3f4f6; font-weight: 600; text-align: center; }
   .group-in  { background: #dcfce7 !important; }
   .group-out { background: #ffedd5 !important; }
@@ -321,10 +339,21 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
 </style>
 </head>
 <body>
+<div class="report-meta-bar">
+  <span>Report ID: ${reportId}</span>
+  <span>Printed: ${generatedAt}</span>
+</div>
 <div class="report-header">
-  <h1>International School Bangkok</h1>
-  <h2>Balance File Report</h2>
-  <div class="meta">${t("balanceFile.period")}: ${periodLabel} &nbsp;·&nbsp; Shop: ${shopLabel}</div>
+  <div class="report-header-left">
+    ${logoHtml}
+    <div class="report-header-text">
+      <h1>${schoolName}</h1>
+      <h2>Balance File Report</h2>
+    </div>
+  </div>
+  <div class="report-header-meta">
+    ${t("balanceFile.period")}: ${periodLabel}<br/>Shop: ${shopLabel}
+  </div>
 </div>
 ${blocksHtml}
 <div class="footer">${t("common.generatedAt", "Generated")}: ${generatedAt}</div>
@@ -469,12 +498,6 @@ ${blocksHtml}
               {t("balanceFile.exportPdf", "Export PDF")}
             </Button>
 
-            {!embedded && (
-              <Button variant="secondary" onClick={goReceiveStock} className="ml-auto">
-                <PackagePlus className="h-4 w-4 mr-1" />
-                {t("balanceFile.goReceive", "Receive Stock")}
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>

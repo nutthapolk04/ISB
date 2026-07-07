@@ -175,6 +175,11 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
           ON shop_categories (shop_id, name)`,
     label: "shop_categories unique (shop_id, name)",
   },
+  {
+    sql: `CREATE INDEX IF NOT EXISTS ix_shop_movements_shop_product_date
+          ON shop_movements (shop_id, product_id, date)`,
+    label: "shop_movements composite (shop_id, product_id, date)",
+  },
 ];
 
 export async function ensureSchema(): Promise<void> {
