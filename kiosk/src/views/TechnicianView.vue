@@ -246,7 +246,7 @@ function goBack() {
 </script>
 
 <template>
-    <div class="tech-page">
+    <div class="kiosk-container tech-page">
         <!-- Ambient background -->
         <div class="tech-ambient" aria-hidden="true">
             <div class="ambient-blob ambient-blob-top" />
