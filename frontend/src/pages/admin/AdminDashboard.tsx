@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { format } from "date-fns";
+import { enUS, th } from "date-fns/locale";
 import {
   UtensilsCrossed,
   Store,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { fmtDate } from "@/lib/dateFormat";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
@@ -111,26 +113,13 @@ const formatTHB = (n: number) =>
 
 const todayIso = () => format(new Date(), "yyyy-MM-dd");
 
-const formatDateLong = (d: Date, _lang: string) =>
-  d.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+const formatDateLong = (d: Date, lang: string) =>
+  format(d, "EEEE d MMMM yyyy", { locale: lang === "th" ? th : enUS });
 
-const formatDateRangeLabel = (from: string, to: string, _lang: string): string => {
+const formatDateRangeLabel = (from: string, to: string): string => {
   if (!from || !to) return "—";
-  const f = new Date(from);
-  const tt = new Date(to);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  if (from === to) return fmt(f);
-  return `${fmt(f)} — ${fmt(tt)}`;
+  if (from === to) return fmtDate(from);
+  return `${fmtDate(from)} — ${fmtDate(to)}`;
 };
 
 const formatRelative = (iso: string, t: TFunction): string => {
@@ -447,7 +436,7 @@ export default function AdminDashboard() {
     (recentCurrentPage - 1) * RECENT_PAGE_SIZE,
     recentCurrentPage * RECENT_PAGE_SIZE,
   );
-  const rangeLabel = formatDateRangeLabel(dateFrom, dateTo, i18n.language);
+  const rangeLabel = formatDateRangeLabel(dateFrom, dateTo);
   const summaryLoading = perShopQuery.isLoading || shopsQuery.isLoading;
 
   const applyPreset = (p: Preset) => {

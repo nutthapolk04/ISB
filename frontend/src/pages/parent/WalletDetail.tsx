@@ -220,7 +220,7 @@ export default function WalletDetail() {
       try {
         const resp = await api.post<TopupIntent>(
           `/wallets/${profile.wallet_id}/topup`,
-          { amount: amt, payment_method: "bay_easypay" },
+          { amount: amt, payment_method: "bay_easypay", lang: i18n.language.startsWith("en") ? "E" : "T" },
         );
         if (resp.payment_page_url && resp.payment_form_params) {
           const form = document.createElement('form');
