@@ -65,4 +65,19 @@ public class MainActivity extends BridgeActivity {
                         | WindowInsetsCompat.Type.navigationBars()
         );
     }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        if (hasFocus) {
+            WindowInsetsControllerCompat controller =
+                    new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+
+            controller.hide(
+                    WindowInsetsCompat.Type.statusBars()
+                            | WindowInsetsCompat.Type.navigationBars()
+            );
+        }
+    }
 }
