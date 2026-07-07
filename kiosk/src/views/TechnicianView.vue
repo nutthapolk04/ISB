@@ -177,6 +177,23 @@ function levelIconClass(level: KioskLogLevel): string {
     return 'icon-info';
 }
 
+const logTimeFormatter = computed(() => new Intl.DateTimeFormat(
+    store.language === 'TH' ? 'th-TH' : 'en-GB',
+    {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    },
+));
+
+function formatLogTime(ts: number): string {
+    return logTimeFormatter.value.format(new Date(ts));
+}
+
 onMounted(() => {
     selectedDay.value = days.value[0] ?? new Date().toISOString().slice(0, 10);
     locationInput.value = store.deviceProfile?.full_name ?? '';
@@ -410,7 +427,7 @@ function goBack() {
                                 <div class="log-body">
                                     <div class="log-meta">
                                         <span :class="['cat-badge', categoryTone(e.category)]">{{ e.category }}</span>
-                                        <span class="log-iso">{{ e.iso }}</span>
+                                        <span class="log-time">{{ formatLogTime(e.ts) }}</span>
                                     </div>
                                     <p class="log-message">{{ e.message }}</p>
                                     <pre v-if="e.data" class="log-json">{{ JSON.stringify(e.data) }}</pre>
@@ -1171,10 +1188,11 @@ function goBack() {
     text-transform: uppercase;
 }
 
-.log-iso {
+.log-time {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.6875rem;
     color: #64748b;
+    white-space: nowrap;
 }
 
 .log-message {
