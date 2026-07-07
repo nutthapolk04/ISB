@@ -6,13 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Receipt, Search, Eye, Download, Loader2, Ban, Printer } from "lucide-react";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -35,88 +35,88 @@ type ModuleScope = "canteen" | "store";
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
 interface ReceiptOptionsSnapshotApi {
-  options_total: number;
-  groups: Array<{
-    group_id: number;
-    name: string;
-    selection_type: "single" | "multi" | "quantity";
-    options: Array<{
-      option_id: number;
-      name: string;
-      price_delta: number;
-      quantity: number;
+    options_total: number;
+    groups: Array<{
+        group_id: number;
+        name: string;
+        selection_type: "single" | "multi" | "quantity";
+        options: Array<{
+            option_id: number;
+            name: string;
+            price_delta: number;
+            quantity: number;
+        }>;
     }>;
-  }>;
 }
 
 interface ReceiptItemApi {
-  id: number;
-  receipt_id: number;
-  product_variant_id: number;
-  quantity: number;
-  unit_price: number;
-  discount: number;
-  line_total: number;
-  options?: ReceiptOptionsSnapshotApi | null;
-  created_at: string;
-  product_variant?: {
-    sku: string | null;
-    variant_name: string | null;
-    barcode: string | null;
-  } | null;
+    id: number;
+    receipt_id: number;
+    product_variant_id: number;
+    quantity: number;
+    unit_price: number;
+    discount: number;
+    line_total: number;
+    options?: ReceiptOptionsSnapshotApi | null;
+    created_at: string;
+    product_variant?: {
+        sku: string | null;
+        variant_name: string | null;
+        barcode: string | null;
+    } | null;
 }
 
 interface PayerDetail {
-  name: string;
-  code: string | null;
-  grade: string | null;       // grade for students, dept name for staff
-  photo_url: string | null;
-  role: string;
-  wallet_balance: number | null;
+    name: string;
+    code: string | null;
+    grade: string | null;       // grade for students, dept name for staff
+    photo_url: string | null;
+    role: string;
+    wallet_balance: number | null;
 }
 
 interface ReceiptApi {
-  id: number;
-  receipt_number: string;
-  transaction_date: string;
-  transaction_mode: string;
-  customer_id: number | null;
-  payer_user_id?: number | null;
-  payer_department_id?: number | null;
-  payer_kind?: string | null;
-  payer_label?: string | null;
-  payer_detail?: PayerDetail | null;
-  created_by_name?: string | null;
-  shop_id?: string | null;
-  shop_name?: string | null;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
-  payment_method: string;
-  status: string;
-  notes: string | null;
-  cash_received?: number | null;
-  created_at: string;
-  created_by: number;
-  voided_at: string | null;
-  voided_by: number | null;
-  voided_reason: string | null;
-  items: ReceiptItemApi[];
+    id: number;
+    receipt_number: string;
+    transaction_date: string;
+    transaction_mode: string;
+    customer_id: number | null;
+    payer_user_id?: number | null;
+    payer_department_id?: number | null;
+    payer_kind?: string | null;
+    payer_label?: string | null;
+    payer_detail?: PayerDetail | null;
+    created_by_name?: string | null;
+    shop_id?: string | null;
+    shop_name?: string | null;
+    subtotal: number;
+    discount: number;
+    tax: number;
+    total: number;
+    payment_method: string;
+    status: string;
+    notes: string | null;
+    cash_received?: number | null;
+    created_at: string;
+    created_by: number;
+    voided_at: string | null;
+    voided_by: number | null;
+    voided_reason: string | null;
+    items: ReceiptItemApi[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string, _locale?: string): string {
-  return fmtDateTimeShared(iso);
+    return fmtDateTimeShared(iso);
 }
 
 function fmtDateOnly(iso: string): string {
-  try {
-    return new Date(iso).toISOString().slice(0, 10);
-  } catch {
-    return "";
-  }
+    try {
+        return new Date(iso).toISOString().slice(0, 10);
+    } catch {
+        return "";
+    }
 }
 
 // ── Print / PDF ───────────────────────────────────────────────────────────────
@@ -127,1058 +127,1058 @@ function fmtDateOnly(iso: string): string {
 // ── Component ────────────────────────────────────────────────────────────────
 
 const Receipts = () => {
-  const { t, i18n } = useTranslation();
-  const { user } = useAuth();
-  const { pathname } = useLocation();
-  const schoolInfo = useSchoolInfo();
+    const { t, i18n } = useTranslation();
+    const { user } = useAuth();
+    const { pathname } = useLocation();
+    const schoolInfo = useSchoolInfo();
 
-  // Defined inside component to avoid module-level TDZ issues in bundled output
-  const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
-  const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
+    // Defined inside component to avoid module-level TDZ issues in bundled output
+    const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
+    const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
 
-  // ── Module scope detection (from URL) ───────────────────────────────────
-  const moduleScope: ModuleScope = pathname.startsWith("/canteen")
-    ? "canteen"
-    : "store";
+    // ── Module scope detection (from URL) ───────────────────────────────────
+    const moduleScope: ModuleScope = pathname.startsWith("/canteen")
+        ? "canteen"
+        : "store";
 
-  const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [monthlySales, setMonthlySales] = useState<number>(0);
-  const [monthlyCount, setMonthlyCount] = useState<number>(0);
+    const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [monthlySales, setMonthlySales] = useState<number>(0);
+    const [monthlyCount, setMonthlyCount] = useState<number>(0);
 
-  // ── Structured search fields (inputs) ──────────────────────────────────
-  const [searchReceiptId, setSearchReceiptId] = useState("");
-  const [searchPayer, setSearchPayer] = useState("");
-  const [searchDateFrom, setSearchDateFrom] = useState("");
-  const [searchDateTo, setSearchDateTo] = useState("");
-  const [searchPaymentType, setSearchPaymentType] = useState("all");
+    // ── Structured search fields (inputs) ──────────────────────────────────
+    const [searchReceiptId, setSearchReceiptId] = useState("");
+    const [searchPayer, setSearchPayer] = useState("");
+    const [searchDateFrom, setSearchDateFrom] = useState("");
+    const [searchDateTo, setSearchDateTo] = useState("");
+    const [searchPaymentType, setSearchPaymentType] = useState("all");
 
-  // Applied criteria — only updated when Search button is clicked
-  const [appliedSearch, setAppliedSearch] = useState({
-    receiptId: "",
-    payer: "",
-    dateFrom: "",
-    dateTo: "",
-    paymentType: "all",
-  });
-
-  const handleSearch = () => {
-    setAppliedSearch({
-      receiptId: searchReceiptId.trim(),
-      payer: searchPayer.trim(),
-      dateFrom: searchDateFrom,
-      dateTo: searchDateTo,
-      paymentType: searchPaymentType,
+    // Applied criteria — only updated when Search button is clicked
+    const [appliedSearch, setAppliedSearch] = useState({
+        receiptId: "",
+        payer: "",
+        dateFrom: "",
+        dateTo: "",
+        paymentType: "all",
     });
-    setCurrentPage(1);
-  };
 
-  const handleClearSearch = () => {
-    setSearchReceiptId("");
-    setSearchPayer("");
-    setSearchDateFrom("");
-    setSearchDateTo("");
-    setSearchPaymentType("all");
-    setAppliedSearch({ receiptId: "", payer: "", dateFrom: "", dateTo: "", paymentType: "all" });
-    setCurrentPage(1);
-  };
+    const handleSearch = () => {
+        setAppliedSearch({
+            receiptId: searchReceiptId.trim(),
+            payer: searchPayer.trim(),
+            dateFrom: searchDateFrom,
+            dateTo: searchDateTo,
+            paymentType: searchPaymentType,
+        });
+        setCurrentPage(1);
+    };
 
-  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptApi | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const handleClearSearch = () => {
+        setSearchReceiptId("");
+        setSearchPayer("");
+        setSearchDateFrom("");
+        setSearchDateTo("");
+        setSearchPaymentType("all");
+        setAppliedSearch({ receiptId: "", payer: "", dateFrom: "", dateTo: "", paymentType: "all" });
+        setCurrentPage(1);
+    };
 
-  // ── Void / cancel ───────────────────────────────────────────────────────
-  const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
-  const [voidReason, setVoidReason] = useState("");
-  const [voidLoading, setVoidLoading] = useState(false);
-  // Per-shop custom reason shortcuts. Cashier sees them, manager/admin edit.
-  const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
-  const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
-  const [newShortcutText, setNewShortcutText] = useState("");
-  // Admin-only picker for store scope (dynamic) / canteen scope (dynamic).
-  // Declared above effectiveShortcutShopId so the const eval doesn't hit TDZ
-  // on the picked* refs during the first render.
-  const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
-  const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
-  const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
-  const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
-  // Effective shop for shortcut management: own shopId > picked filter shop
-  const effectiveShortcutShopId = user?.shopId
-    ?? (moduleScope === "canteen" && pickedCanteenShop !== "all" ? pickedCanteenShop : null)
-    ?? (moduleScope === "store" && pickedStoreShop !== "all" ? pickedStoreShop : null);
+    const [selectedReceipt, setSelectedReceipt] = useState<ReceiptApi | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const canEditShortcuts =
-    !!effectiveShortcutShopId && (user?.role === "manager" || user?.role === "admin");
+    // ── Void / cancel ───────────────────────────────────────────────────────
+    const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
+    const [voidReason, setVoidReason] = useState("");
+    const [voidLoading, setVoidLoading] = useState(false);
+    // Per-shop custom reason shortcuts. Cashier sees them, manager/admin edit.
+    const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
+    const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
+    const [newShortcutText, setNewShortcutText] = useState("");
+    // Admin-only picker for store scope (dynamic) / canteen scope (dynamic).
+    // Declared above effectiveShortcutShopId so the const eval doesn't hit TDZ
+    // on the picked* refs during the first render.
+    const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
+    const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
+    const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
+    const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
+    // Effective shop for shortcut management: own shopId > picked filter shop
+    const effectiveShortcutShopId = user?.shopId
+        ?? (moduleScope === "canteen" && pickedCanteenShop !== "all" ? pickedCanteenShop : null)
+        ?? (moduleScope === "store" && pickedStoreShop !== "all" ? pickedStoreShop : null);
 
-  const canVoid = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
+    const canEditShortcuts =
+        !!effectiveShortcutShopId && (user?.role === "manager" || user?.role === "admin");
 
-  useEffect(() => {
-    if (!effectiveShortcutShopId) {
-      setCustomShortcuts([]);
-      return;
-    }
-    api.get<{ void_shortcuts?: string[] }>(`/shops/${effectiveShortcutShopId}`)
-      .then((s) => setCustomShortcuts(Array.isArray(s.void_shortcuts) ? s.void_shortcuts : []))
-      .catch(() => setCustomShortcuts([]));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveShortcutShopId]);
+    const canVoid = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
 
-  const saveCustomShortcuts = async (next: string[]) => {
-    if (!effectiveShortcutShopId) return;
-    const prev = customShortcuts;
-    setCustomShortcuts(next);
-    try {
-      const res = await api.put<{ void_shortcuts?: string[] }>(
-        `/shops/${effectiveShortcutShopId}/void-shortcuts`,
-        { shortcuts: next },
-      );
-      if (Array.isArray(res.void_shortcuts)) setCustomShortcuts(res.void_shortcuts);
-    } catch (e) {
-      setCustomShortcuts(prev);
-      toast.error(
-        e instanceof ApiError
-          ? e.detail
-          : t("receipts.voidDialog.shortcutSaveFailed", "Could not save shortcut"),
-      );
-    }
-  };
-
-  const addCustomShortcut = async () => {
-    const text = newShortcutText.trim();
-    setShortcutDialogOpen(false);
-    setNewShortcutText("");
-    if (!text || customShortcuts.includes(text)) return;
-    await saveCustomShortcuts([...customShortcuts, text]);
-  };
-
-  const removeCustomShortcut = async (text: string) => {
-    await saveCustomShortcuts(customShortcuts.filter((s) => s !== text));
-  };
-
-  const handleVoidConfirm = async () => {
-    if (!voidTarget) return;
-    const targetId = voidTarget.id;
-    const targetNumber = voidTarget.receipt_number;
-    setVoidLoading(true);
-    try {
-      const updated = await api.post<ReceiptApi>(`/pos/void/${targetId}`, {
-        reason: voidReason.trim() || null,
-      });
-      setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
-      toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
-      setVoidTarget(null);
-      setVoidReason("");
-    } catch (e) {
-      // If backend says the receipt is ALREADY voided, treat it as success:
-      // an earlier request did succeed at the DB level but the response
-      // never made it back (e.g. transient 500 during the postgres-js bug).
-      // Refetch the row so the UI reflects the real voided state.
-      const isAlreadyVoided =
-        e instanceof ApiError &&
-        typeof e.detail === "string" &&
-        /already.*voided/i.test(e.detail);
-      if (isAlreadyVoided) {
-        try {
-          const refreshed = await api.get<ReceiptApi>(`/pos/receipt/${targetId}`);
-          setReceipts((prev) => prev.map((r) => r.id === refreshed.id ? refreshed : r));
-        } catch {
-          // If refetch also fails, fall back to a soft local mark so the
-          // cashier doesn't keep re-trying. They can hard-refresh later.
-          setReceipts((prev) => prev.map((r) => r.id === targetId ? { ...r, status: "voided" } : r));
+    useEffect(() => {
+        if (!effectiveShortcutShopId) {
+            setCustomShortcuts([]);
+            return;
         }
-        toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
-        setVoidTarget(null);
-        setVoidReason("");
-      } else {
-        toast.error(e instanceof ApiError ? e.detail : t("receipts.voidDialog.failToast"));
-      }
-    } finally {
-      setVoidLoading(false);
+        api.get<{ void_shortcuts?: string[] }>(`/shops/${effectiveShortcutShopId}`)
+            .then((s) => setCustomShortcuts(Array.isArray(s.void_shortcuts) ? s.void_shortcuts : []))
+            .catch(() => setCustomShortcuts([]));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [effectiveShortcutShopId]);
+
+    const saveCustomShortcuts = async (next: string[]) => {
+        if (!effectiveShortcutShopId) return;
+        const prev = customShortcuts;
+        setCustomShortcuts(next);
+        try {
+            const res = await api.put<{ void_shortcuts?: string[] }>(
+                `/shops/${effectiveShortcutShopId}/void-shortcuts`,
+                { shortcuts: next },
+            );
+            if (Array.isArray(res.void_shortcuts)) setCustomShortcuts(res.void_shortcuts);
+        } catch (e) {
+            setCustomShortcuts(prev);
+            toast.error(
+                e instanceof ApiError
+                    ? e.detail
+                    : t("receipts.voidDialog.shortcutSaveFailed", "Could not save shortcut"),
+            );
+        }
+    };
+
+    const addCustomShortcut = async () => {
+        const text = newShortcutText.trim();
+        setShortcutDialogOpen(false);
+        setNewShortcutText("");
+        if (!text || customShortcuts.includes(text)) return;
+        await saveCustomShortcuts([...customShortcuts, text]);
+    };
+
+    const removeCustomShortcut = async (text: string) => {
+        await saveCustomShortcuts(customShortcuts.filter((s) => s !== text));
+    };
+
+    const handleVoidConfirm = async () => {
+        if (!voidTarget) return;
+        const targetId = voidTarget.id;
+        const targetNumber = voidTarget.receipt_number;
+        setVoidLoading(true);
+        try {
+            const updated = await api.post<ReceiptApi>(`/pos/void/${targetId}`, {
+                reason: voidReason.trim() || null,
+            });
+            setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+            toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
+            setVoidTarget(null);
+            setVoidReason("");
+        } catch (e) {
+            // If backend says the receipt is ALREADY voided, treat it as success:
+            // an earlier request did succeed at the DB level but the response
+            // never made it back (e.g. transient 500 during the postgres-js bug).
+            // Refetch the row so the UI reflects the real voided state.
+            const isAlreadyVoided =
+                e instanceof ApiError &&
+                typeof e.detail === "string" &&
+                /already.*voided/i.test(e.detail);
+            if (isAlreadyVoided) {
+                try {
+                    const refreshed = await api.get<ReceiptApi>(`/pos/receipt/${targetId}`);
+                    setReceipts((prev) => prev.map((r) => r.id === refreshed.id ? refreshed : r));
+                } catch {
+                    // If refetch also fails, fall back to a soft local mark so the
+                    // cashier doesn't keep re-trying. They can hard-refresh later.
+                    setReceipts((prev) => prev.map((r) => r.id === targetId ? { ...r, status: "voided" } : r));
+                }
+                toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
+                setVoidTarget(null);
+                setVoidReason("");
+            } else {
+                toast.error(e instanceof ApiError ? e.detail : t("receipts.voidDialog.failToast"));
+            }
+        } finally {
+            setVoidLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!user?.shopId) {
+            if (moduleScope === "canteen") {
+                api.get<{ id: string; name: string }[]>("/shops?module=canteen")
+                    .then(setCanteenStalls)
+                    .catch(() => { });
+            } else {
+                api.get<{ id: string; name: string }[]>("/shops?module=store")
+                    .then(setStoreShops)
+                    .catch(() => { });
+            }
+        }
+    }, [moduleScope, user?.shopId]);
+
+    // ── Build shop-scope query params ───────────────────────────────────────
+    const queryParams = useMemo(() => {
+        if (moduleScope === "canteen") {
+            if (user?.shopId) return `?shop_id=${user.shopId}`;
+            if (pickedCanteenShop !== "all") return `?shop_id=${pickedCanteenShop}`;
+            return `?shop_ids=${CANTEEN_SHOPS.join(",")}`;
+        }
+        // Store scope
+        if (!user?.shopId) {
+            const ids = storeShops.length > 0
+                ? storeShops.map((s) => s.id).join(",")
+                : STORE_SHOPS.join(",");
+            return pickedStoreShop === "all"
+                ? `?shop_ids=${ids}`
+                : `?shop_id=${pickedStoreShop}`;
+        }
+        // manager / cashier on store: lock to their own shop
+        return `?shop_id=${user.shopId}`;
+    }, [moduleScope, user, pickedStoreShop, pickedCanteenShop, storeShops]);
+
+    // ── Fetch receipts from API ─────────────────────────────────────────────
+    const fetchReceipts = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await api.get<ReceiptApi[]>(`/pos/receipt${queryParams}`);
+            setReceipts(data);
+        } catch (err) {
+            const msg = err instanceof ApiError ? err.message : "Failed to load receipts";
+            toast.error(msg);
+        } finally {
+            setLoading(false);
+        }
+    }, [queryParams]);
+
+    useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
+
+    // ── Monthly stats fetch (no-filter state) ────────────────────────────────
+    const fetchMonthlyStats = useCallback(async () => {
+        try {
+            const now = new Date();
+            // Use local-time dates so Bangkok-timezone users get a full calendar month
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            const dateFrom = startOfMonth.toISOString();
+            const dateTo = endOfToday.toISOString();
+            const sep = queryParams.includes("?") ? "&" : "?";
+            const params = `${queryParams}${sep}date_from=${dateFrom}&date_to=${dateTo}&page_size=500`;
+            const data = await api.get<ReceiptApi[]>(`/pos/receipt${params}`);
+            const active = data.filter((r) => r.status === "active");
+            setMonthlySales(active.reduce((s, r) => s + r.total, 0));
+            setMonthlyCount(data.length);
+        } catch {
+            // non-critical — leave previous values
+        }
+    }, [queryParams]);
+
+    useEffect(() => { fetchMonthlyStats(); }, [fetchMonthlyStats]);
+
+    // ── Derived ─────────────────────────────────────────────────────────────
+    const filteredReceipts = receipts.filter((r) => {
+        const { receiptId, payer, dateFrom, dateTo, paymentType } = appliedSearch;
+        if (receiptId && !r.receipt_number.toLowerCase().includes(receiptId.toLowerCase())) return false;
+        if (payer) {
+            const q = payer.toLowerCase();
+            if (!(r.payer_label ?? "").toLowerCase().includes(q)) return false;
+        }
+        const txDate = fmtDateOnly(r.transaction_date);
+        if (dateFrom && txDate < dateFrom) return false;
+        if (dateTo && txDate > dateTo) return false;
+        if (paymentType !== "all" && r.payment_method.toLowerCase() !== paymentType) return false;
+        return true;
+    });
+
+    const hasActiveSearch =
+        appliedSearch.receiptId !== "" ||
+        appliedSearch.payer !== "" ||
+        appliedSearch.dateFrom !== "" ||
+        appliedSearch.dateTo !== "" ||
+        appliedSearch.paymentType !== "all";
+
+    // ── Pagination ──────────────────────────────────────────────────────────
+    const PAGE_SIZE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Reset to page 1 when search changes
+    const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const pagedReceipts = filteredReceipts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todaySales = receipts
+        .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
+        .reduce((s, r) => s + r.total, 0);
+
+    const displayMonthlySales = hasActiveSearch
+        ? filteredReceipts.filter((r) => r.status === "active").reduce((s, r) => s + r.total, 0)
+        : monthlySales;
+
+    const displayMonthlyCount = hasActiveSearch ? filteredReceipts.length : monthlyCount;
+
+    const handleViewReceipt = async (receipt: ReceiptApi) => {
+        // Show immediately with what we have, then enrich with payer_detail from single-receipt endpoint
+        setSelectedReceipt(receipt);
+        setIsDialogOpen(true);
+        try {
+            const full = await api.get<ReceiptApi>(`/pos/receipt/${receipt.id}`);
+            setSelectedReceipt(full);
+        } catch {
+            // fallback — keep the list data already shown
+        }
+    };
+
+    // ── Loading ─────────────────────────────────────────────────────────────
+    if (loading) {
+        return (
+            <div className="page-shell flex items-center justify-center min-h-[50vh]">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
     }
-  };
 
-  useEffect(() => {
-    if (!user?.shopId) {
-      if (moduleScope === "canteen") {
-        api.get<{ id: string; name: string }[]>("/shops?module=canteen")
-          .then(setCanteenStalls)
-          .catch(() => {});
-      } else {
-        api.get<{ id: string; name: string }[]>("/shops?module=store")
-          .then(setStoreShops)
-          .catch(() => {});
-      }
-    }
-  }, [moduleScope, user?.shopId]);
+    const scopeTitle =
+        moduleScope === "canteen"
+            ? t("receipts.canteenTitle", "Canteen Receipts")
+            : t("receipts.storeTitle", "Store Receipts");
 
-  // ── Build shop-scope query params ───────────────────────────────────────
-  const queryParams = useMemo(() => {
-    if (moduleScope === "canteen") {
-      if (user?.shopId) return `?shop_id=${user.shopId}`;
-      if (pickedCanteenShop !== "all") return `?shop_id=${pickedCanteenShop}`;
-      return `?shop_ids=${CANTEEN_SHOPS.join(",")}`;
-    }
-    // Store scope
-    if (!user?.shopId) {
-      const ids = storeShops.length > 0
-        ? storeShops.map((s) => s.id).join(",")
-        : STORE_SHOPS.join(",");
-      return pickedStoreShop === "all"
-        ? `?shop_ids=${ids}`
-        : `?shop_id=${pickedStoreShop}`;
-    }
-    // manager / cashier on store: lock to their own shop
-    return `?shop_id=${user.shopId}`;
-  }, [moduleScope, user, pickedStoreShop, pickedCanteenShop, storeShops]);
-
-  // ── Fetch receipts from API ─────────────────────────────────────────────
-  const fetchReceipts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.get<ReceiptApi[]>(`/pos/receipt${queryParams}`);
-      setReceipts(data);
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to load receipts";
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [queryParams]);
-
-  useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
-
-  // ── Monthly stats fetch (no-filter state) ────────────────────────────────
-  const fetchMonthlyStats = useCallback(async () => {
-    try {
-      const now = new Date();
-      // Use local-time dates so Bangkok-timezone users get a full calendar month
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      const dateFrom = startOfMonth.toISOString();
-      const dateTo = endOfToday.toISOString();
-      const sep = queryParams.includes("?") ? "&" : "?";
-      const params = `${queryParams}${sep}date_from=${dateFrom}&date_to=${dateTo}&page_size=500`;
-      const data = await api.get<ReceiptApi[]>(`/pos/receipt${params}`);
-      const active = data.filter((r) => r.status === "active");
-      setMonthlySales(active.reduce((s, r) => s + r.total, 0));
-      setMonthlyCount(data.length);
-    } catch {
-      // non-critical — leave previous values
-    }
-  }, [queryParams]);
-
-  useEffect(() => { fetchMonthlyStats(); }, [fetchMonthlyStats]);
-
-  // ── Derived ─────────────────────────────────────────────────────────────
-  const filteredReceipts = receipts.filter((r) => {
-    const { receiptId, payer, dateFrom, dateTo, paymentType } = appliedSearch;
-    if (receiptId && !r.receipt_number.toLowerCase().includes(receiptId.toLowerCase())) return false;
-    if (payer) {
-      const q = payer.toLowerCase();
-      if (!(r.payer_label ?? "").toLowerCase().includes(q)) return false;
-    }
-    const txDate = fmtDateOnly(r.transaction_date);
-    if (dateFrom && txDate < dateFrom) return false;
-    if (dateTo && txDate > dateTo) return false;
-    if (paymentType !== "all" && r.payment_method.toLowerCase() !== paymentType) return false;
-    return true;
-  });
-
-  const hasActiveSearch =
-    appliedSearch.receiptId !== "" ||
-    appliedSearch.payer !== "" ||
-    appliedSearch.dateFrom !== "" ||
-    appliedSearch.dateTo !== "" ||
-    appliedSearch.paymentType !== "all";
-
-  // ── Pagination ──────────────────────────────────────────────────────────
-  const PAGE_SIZE = 10;
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // Reset to page 1 when search changes
-  const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const pagedReceipts = filteredReceipts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todaySales = receipts
-    .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
-    .reduce((s, r) => s + r.total, 0);
-
-  const displayMonthlySales = hasActiveSearch
-    ? filteredReceipts.filter((r) => r.status === "active").reduce((s, r) => s + r.total, 0)
-    : monthlySales;
-
-  const displayMonthlyCount = hasActiveSearch ? filteredReceipts.length : monthlyCount;
-
-  const handleViewReceipt = async (receipt: ReceiptApi) => {
-    // Show immediately with what we have, then enrich with payer_detail from single-receipt endpoint
-    setSelectedReceipt(receipt);
-    setIsDialogOpen(true);
-    try {
-      const full = await api.get<ReceiptApi>(`/pos/receipt/${receipt.id}`);
-      setSelectedReceipt(full);
-    } catch {
-      // fallback — keep the list data already shown
-    }
-  };
-
-  // ── Loading ─────────────────────────────────────────────────────────────
-  if (loading) {
     return (
-      <div className="page-shell flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const scopeTitle =
-    moduleScope === "canteen"
-      ? t("receipts.canteenTitle", "Canteen Receipts")
-      : t("receipts.storeTitle", "Store Receipts");
-
-  return (
-    <div className="page-shell">
-      <div className="page-header">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="page-title mb-2">{scopeTitle}</h1>
-            <p className="page-description">{t("receipts.description")}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">
-              {moduleScope === "canteen"
-                ? t("receipts.scopeCanteen")
-                : t("receipts.scopeStore")}
-            </Badge>
-            {moduleScope === "canteen" && !user?.shopId && canteenStalls.length > 0 && (
-              <Select value={pickedCanteenShop} onValueChange={setPickedCanteenShop}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Canteen Shops</SelectItem>
-                  {canteenStalls.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {moduleScope === "store" && !user?.shopId && storeShops.length > 0 && (
-              <Select value={pickedStoreShop} onValueChange={setPickedStoreShop}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Store Shops</SelectItem>
-                  {storeShops.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <InfoCallout
-        id="receipts.statusGuide"
-        variant="tip"
-        title={t("receipts.info.statusGuide.title")}
-      >
-        {t("receipts.info.statusGuide.body")}
-      </InfoCallout>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.todaySales")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value text-success">฿{todaySales.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.totalSalesMonthly", "Total Sales Monthly")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value text-primary">฿{displayMonthlySales.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="kpi-card">
-          <CardHeader>
-            <CardTitle className="kpi-label">{t("receipts.receiptCountMonthly", "Receipt Count Monthly")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="kpi-value">{displayMonthlyCount}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Search Panel ──────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-primary" />
-            <CardTitle className="text-base">{t("receipts.searchPanel.title", "Search Receipt")}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Receipt ID */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t("receipts.searchPanel.receiptId", "Receipt ID")}
-              </label>
-              <Input
-                placeholder="R-001"
-                value={searchReceiptId}
-                onChange={(e) => setSearchReceiptId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              />
-            </div>
-
-            {/* Payer name / code */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t("receipts.searchPanel.payer", "รหัส/ชื่อนักเรียน")}
-              </label>
-              <Input
-                placeholder={t("receipts.searchPanel.payerPlaceholder")}
-                value={searchPayer}
-                onChange={(e) => setSearchPayer(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              />
-            </div>
-
-            {/* Purchase Date Range */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t("receipts.searchPanel.date", "Purchase Date")}
-              </label>
-              <DateRangePicker
-                startDate={searchDateFrom}
-                endDate={searchDateTo}
-                onStartChange={setSearchDateFrom}
-                onEndChange={setSearchDateTo}
-              />
-            </div>
-
-            {/* Payment Type */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t("receipts.searchPanel.paymentType", "Payment Type")}
-              </label>
-              <Select value={searchPaymentType} onValueChange={setSearchPaymentType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("receipts.searchPanel.allTypes", "All")}</SelectItem>
-                  <SelectItem value="wallet">{t("common.paymentMethods.wallet")}</SelectItem>
-                  <SelectItem value="cash">{t("common.paymentMethods.cash")}</SelectItem>
-                  <SelectItem value="qr_promptpay">{t("common.paymentMethods.qr_promptpay")}</SelectItem>
-                  <SelectItem value="edc">{t("common.paymentMethods.edc")}</SelectItem>
-                  <SelectItem value="department">{t("common.paymentMethods.department")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2 mt-4">
-            {hasActiveSearch && (
-              <Button variant="ghost" size="sm" onClick={handleClearSearch} className="text-muted-foreground">
-                {t("receipts.searchPanel.clear", "ล้างตัวกรอง")}
-              </Button>
-            )}
-            <Button
-              onClick={handleSearch}
-              className="bg-orange-500 hover:bg-orange-600 text-white gap-2"
-            >
-              <Search className="h-4 w-4" />
-              {t("receipts.searchPanel.search", "Search Receipt")}
-            </Button>
-          </div>
-
-          {/* Active filter chips */}
-          {hasActiveSearch && (
-            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
-              <span className="text-xs text-muted-foreground self-center">
-                {t("receipts.searchPanel.filtering", "กรอง:")}
-              </span>
-              {appliedSearch.receiptId && (
-                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  ID: {appliedSearch.receiptId}
-                </span>
-              )}
-              {appliedSearch.payer && (
-                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  {t("receipts.searchPanel.chipPayer")}: {appliedSearch.payer}
-                </span>
-              )}
-              {(appliedSearch.dateFrom || appliedSearch.dateTo) && (
-                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  {t("receipts.searchPanel.chipDate")}: {appliedSearch.dateFrom || "…"} → {appliedSearch.dateTo || "…"}
-                </span>
-              )}
-              {appliedSearch.paymentType !== "all" && (
-                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  {t("receipts.paymentMethod")}: {t(`common.paymentMethods.${(appliedSearch.paymentType ?? "").toLowerCase()}`, appliedSearch.paymentType)}
-                </span>
-              )}
-              <span className="text-xs text-muted-foreground self-center ml-1">
-                ({filteredReceipts.length} {t("receipts.searchPanel.results", "รายการ")})
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Receipts List */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center">
-            <Receipt className="h-6 w-6 mr-2 text-primary" />
-            <CardTitle>{t("receipts.allReceipts")}</CardTitle>
-            {hasActiveSearch && (
-              <Badge variant="secondary" className="ml-2 text-xs">
-                {filteredReceipts.length} / {receipts.length}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredReceipts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Receipt className="h-10 w-10 mb-3" />
-              <p>{t("receipts.noReceipts")}</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("receipts.receiptId")}</TableHead>
-                  <TableHead>{t("receipts.dateTime")}</TableHead>
-                  {!user?.shopId && (
-                    <TableHead>{t("receipts.shop", "Shop")}</TableHead>
-                  )}
-                  <TableHead>{t("receipts.seller")}</TableHead>
-                  <TableHead>{t("receipts.paymentMethod")}</TableHead>
-                  <TableHead>{t("receipts.buyer")}</TableHead>
-                  <TableHead className="text-right">{t("receipts.total")}</TableHead>
-                  <TableHead className="text-center">{t("receipts.status")}</TableHead>
-                  <TableHead className="text-center">{t("receipts.manage")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedReceipts.map((receipt) => (
-                  <TableRow key={receipt.id}>
-                    <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
-                    <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
-                    {!user?.shopId && (
-                      <TableCell className="text-sm">{receipt.shop_name ?? receipt.shop_id ?? "—"}</TableCell>
-                    )}
-                    <TableCell className="text-sm">{receipt.created_by_name ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{receipt.payer_label ?? "—"}</TableCell>
-                    <TableCell className="text-right font-semibold data-number">
-                      ฿{receipt.total.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={receipt.status === "active" ? "success" : "destructive"}>
-                        {receipt.status === "active"
-                          ? t("receipts.statusActive")
-                          : t("receipts.statusVoided")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex gap-2 justify-center">
-                        <IconButton
-                          tooltip={t("receipts.tooltip.view")}
-                          onClick={() => handleViewReceipt(receipt)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </IconButton>
-                        <IconButton
-                          tooltip={t("receipts.tooltip.download")}
-                          onClick={() => downloadReceiptHtml(receipt as unknown as LibReceiptApi, schoolInfo, receipt.shop_name ?? user?.shopName, "en")}
-                        >
-                          <Download className="h-4 w-4" />
-                        </IconButton>
-                        {canVoid && receipt.status === "active" && (
-                          <IconButton
-                            tooltip={t("receipts.void", "Void")}
-                            onClick={() => {
-                              setVoidTarget(receipt);
-                              setVoidReason("");
-                            }}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </IconButton>
+        <div className="page-shell">
+            <div className="page-header">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h1 className="page-title mb-2">{scopeTitle}</h1>
+                        <p className="page-description">{t("receipts.description")}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                            {moduleScope === "canteen"
+                                ? t("receipts.scopeCanteen")
+                                : t("receipts.scopeStore")}
+                        </Badge>
+                        {moduleScope === "canteen" && !user?.shopId && canteenStalls.length > 0 && (
+                            <Select value={pickedCanteenShop} onValueChange={setPickedCanteenShop}>
+                                <SelectTrigger className="w-48">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Canteen Shops</SelectItem>
+                                    {canteenStalls.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {/* ── Pagination ────────────────────────────────────────────────── */}
-          {filteredReceipts.length > PAGE_SIZE && (
-            <div className="flex items-center justify-between pt-4 border-t mt-2">
-              <p className="text-xs text-muted-foreground">
-                {t("receipts.paginationRange", {
-                  start: (safePage - 1) * PAGE_SIZE + 1,
-                  end: Math.min(safePage * PAGE_SIZE, filteredReceipts.length),
-                  total: filteredReceipts.length,
-                  defaultValue: "Showing {{start}}–{{end}} of {{total}} items",
-                })}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={safePage === 1}
-                  className="h-8 w-8 p-0 text-xs"
-                >
-                  «
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage === 1}
-                  className="h-8 px-3 text-xs"
-                >
-                  {t("receipts.prev", "‹ Prev")}
-                </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((p, i) =>
-                    p === "…" ? (
-                      <span key={`ellipsis-${i}`} className="text-xs px-1 text-muted-foreground">…</span>
-                    ) : (
-                      <Button
-                        key={p}
-                        variant={safePage === p ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(p as number)}
-                        className={cn("h-8 w-8 p-0 text-xs", safePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
-                      >
-                        {p}
-                      </Button>
-                    ),
-                  )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={safePage === totalPages}
-                  className="h-8 px-3 text-xs"
-                >
-                  {t("receipts.next", "Next ›")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={safePage === totalPages}
-                  className="h-8 w-8 p-0 text-xs"
-                >
-                  »
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Void Confirmation Dialog ─────────────────────────────────────── */}
-      <Dialog open={!!voidTarget} onOpenChange={(v) => { if (!v && !voidLoading) setVoidTarget(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <Ban className="h-5 w-5" />
-              {t("receipts.voidDialog.title")}
-            </DialogTitle>
-            <DialogDescription>
-              {voidTarget?.receipt_number} · ฿{voidTarget?.total.toLocaleString()}
-              {" "}— {t("receipts.voidDialog.walletRefundNote")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="text-sm font-medium">{t("receipts.voidDialog.reasonLabel")}</label>
-              {/* Preset reason chips + per-shop custom chips */}
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {([
-                  "incorrect_transaction",
-                  "customer_changed_mind",
-                  "out_of_stock",
-                  "incorrect_price",
-                  "duplicate_payment",
-                  "test_transaction",
-                ] as const).map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={voidLoading}
-                    onClick={() => setVoidReason(t(`receipts.voidDialog.reasons.${key}`))}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs transition",
-                      voidReason === t(`receipts.voidDialog.reasons.${key}`)
-                        ? "border-destructive bg-destructive/10 text-destructive font-semibold"
-                        : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
-                    )}
-                  >
-                    {t(`receipts.voidDialog.reasons.${key}`)}
-                  </button>
-                ))}
-                {customShortcuts.map((text) => (
-                  <span key={text} className="inline-flex items-center gap-0.5">
-                    <button
-                      type="button"
-                      disabled={voidLoading}
-                      onClick={() => setVoidReason(text)}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs transition",
-                        voidReason === text
-                          ? "border-destructive bg-destructive/10 text-destructive font-semibold"
-                          : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
-                      )}
-                    >
-                      {text}
-                    </button>
-                    {canEditShortcuts && (
-                      <button
-                        type="button"
-                        disabled={voidLoading}
-                        aria-label={t("receipts.voidDialog.removeShortcut", "Remove shortcut")}
-                        onClick={() => removeCustomShortcut(text)}
-                        className="rounded-full border border-border bg-muted/50 px-1.5 py-1 text-xs text-muted-foreground hover:border-destructive/50 hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {canEditShortcuts && customShortcuts.length < 24 && (
-                  <button
-                    type="button"
-                    disabled={voidLoading}
-                    onClick={() => setShortcutDialogOpen(true)}
-                    className="rounded-full border border-dashed border-orange-400 px-3 py-1 text-xs text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-                  >
-                    + {t("receipts.voidDialog.addShortcut", "Add")}
-                  </button>
-                )}
-              </div>
-              <Textarea
-                value={voidReason}
-                onChange={(e) => setVoidReason(e.target.value)}
-                placeholder={t("receipts.voidDialog.reasonPlaceholder")}
-                rows={2}
-                className="mt-2 resize-none"
-                disabled={voidLoading}
-              />
-            </div>
-            {!voidReason.trim() && (
-              <p className="text-xs text-destructive font-medium">
-                {t("receipts.voidDialog.reasonRequired")}
-              </p>
-            )}
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
-              {t("receipts.voidDialog.irreversible")}
-            </div>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setVoidTarget(null)}
-              disabled={voidLoading}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              className="flex-1"
-              onClick={handleVoidConfirm}
-              disabled={voidLoading || !voidReason.trim()}
-            >
-              {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t("receipts.voidDialog.confirm")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add custom shortcut dialog */}
-      <Dialog
-        open={shortcutDialogOpen}
-        onOpenChange={(v) => {
-          setShortcutDialogOpen(v);
-          if (!v) setNewShortcutText("");
-        }}
-      >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              {t("receipts.voidDialog.addShortcutTitle", "Add reason shortcut")}
-            </DialogTitle>
-            <DialogDescription>
-              {t(
-                "receipts.voidDialog.addShortcutDesc",
-                "Manager-only. Shared with all cashiers in this shop.",
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newShortcutText}
-            onChange={(e) => setNewShortcutText(e.target.value)}
-            placeholder={t("receipts.voidDialog.shortcutPlaceholder", "e.g. Wrong department")}
-            maxLength={60}
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newShortcutText.trim()) addCustomShortcut();
-            }}
-          />
-          <div className="flex gap-2 pt-1">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setShortcutDialogOpen(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={addCustomShortcut}
-              disabled={!newShortcutText.trim()}
-            >
-              {t("common.save", "Save")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Receipt Detail Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <Receipt className="h-5 w-5 mr-2" />
-              {t("receipts.details")}
-            </DialogTitle>
-            <DialogDescription>
-              {t("receipts.receiptId")}: {selectedReceipt?.receipt_number}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedReceipt && (() => {
-            const isWallet = selectedReceipt.payment_method.toLowerCase() === "wallet";
-            const walletBalanceAfter = selectedReceipt.payer_detail?.wallet_balance ?? null;
-            const balanceBefore = isWallet && walletBalanceAfter !== null ? walletBalanceAfter + selectedReceipt.total : null;
-            const row = (label: string, value: React.ReactNode, bold = false) => (
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">{label}</span>
-                <span className={bold ? "font-semibold" : ""}>{value}</span>
-              </div>
-            );
-            return (
-              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-                {selectedReceipt.status !== "active" && (
-                  <div className="rounded border-2 border-destructive bg-destructive/10 p-2 text-center text-xs font-bold text-destructive">
-                    *** THIS RECEIPT HAS BEEN VOIDED ***
-                  </div>
-                )}
-
-                {/* Block 1: Receipt No / Date / Cashier */}
-                <div className="space-y-1.5">
-                  {row(t("receipts.receiptNo", "Receipt No"), <span className="font-mono font-semibold">{selectedReceipt.receipt_number}</span>)}
-                  {row(t("receipts.dateTime"), fmtDate(selectedReceipt.transaction_date))}
-                  {selectedReceipt.created_by_name && row(t("receipts.cashier", "Cashier"), selectedReceipt.created_by_name, true)}
-                  {selectedReceipt.shop_name && row(t("receipts.shop", "Shop"), selectedReceipt.shop_name)}
+                        {moduleScope === "store" && !user?.shopId && storeShops.length > 0 && (
+                            <Select value={pickedStoreShop} onValueChange={setPickedStoreShop}>
+                                <SelectTrigger className="w-48">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Store Shops</SelectItem>
+                                    {storeShops.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
                 </div>
+            </div>
 
-                <Separator />
+            <InfoCallout
+                id="receipts.statusGuide"
+                variant="tip"
+                title={t("receipts.info.statusGuide.title")}
+            >
+                {t("receipts.info.statusGuide.body")}
+            </InfoCallout>
 
-                {/* Block 2: Payer / Payment Type / Status */}
-                <div className="space-y-1.5">
-                  {selectedReceipt.payer_detail && (
-                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
-                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
-                        {selectedReceipt.payer_detail.photo_url ? (
-                          <img src={selectedReceipt.payer_detail.photo_url} alt={selectedReceipt.payer_detail.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="text-lg text-blue-400 font-bold">{selectedReceipt.payer_detail.name.charAt(0).toUpperCase()}</span>
+            {/* Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="kpi-card">
+                    <CardHeader>
+                        <CardTitle className="kpi-label">{t("receipts.todaySales")}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="kpi-value text-success">฿{todaySales.toLocaleString()}</p>
+                    </CardContent>
+                </Card>
+                <Card className="kpi-card">
+                    <CardHeader>
+                        <CardTitle className="kpi-label">{t("receipts.totalSalesMonthly", "Total Sales Monthly")}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="kpi-value text-primary">฿{displayMonthlySales.toLocaleString()}</p>
+                    </CardContent>
+                </Card>
+                <Card className="kpi-card">
+                    <CardHeader>
+                        <CardTitle className="kpi-label">{t("receipts.receiptCountMonthly", "Receipt Count Monthly")}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="kpi-value">{displayMonthlyCount}</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* ── Search Panel ──────────────────────────────────────────────────── */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                        <Search className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-base">{t("receipts.searchPanel.title", "Search Receipt")}</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {/* Receipt ID */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">
+                                {t("receipts.searchPanel.receiptId", "Receipt ID")}
+                            </label>
+                            <Input
+                                placeholder="R-001"
+                                value={searchReceiptId}
+                                onChange={(e) => setSearchReceiptId(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                            />
+                        </div>
+
+                        {/* Payer name / code */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">
+                                {t("receipts.searchPanel.payer", "รหัส/ชื่อนักเรียน")}
+                            </label>
+                            <Input
+                                placeholder={t("receipts.searchPanel.payerPlaceholder")}
+                                value={searchPayer}
+                                onChange={(e) => setSearchPayer(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                            />
+                        </div>
+
+                        {/* Purchase Date Range */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">
+                                {t("receipts.searchPanel.date", "Purchase Date")}
+                            </label>
+                            <DateRangePicker
+                                startDate={searchDateFrom}
+                                endDate={searchDateTo}
+                                onStartChange={setSearchDateFrom}
+                                onEndChange={setSearchDateTo}
+                            />
+                        </div>
+
+                        {/* Payment Type */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">
+                                {t("receipts.searchPanel.paymentType", "Payment Type")}
+                            </label>
+                            <Select value={searchPaymentType} onValueChange={setSearchPaymentType}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">{t("receipts.searchPanel.allTypes", "All")}</SelectItem>
+                                    <SelectItem value="wallet">{t("common.paymentMethods.wallet")}</SelectItem>
+                                    <SelectItem value="cash">{t("common.paymentMethods.cash")}</SelectItem>
+                                    <SelectItem value="qr_promptpay">{t("common.paymentMethods.qr_promptpay")}</SelectItem>
+                                    <SelectItem value="edc">{t("common.paymentMethods.edc")}</SelectItem>
+                                    <SelectItem value="department">{t("common.paymentMethods.department")}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center justify-end gap-2 mt-4">
+                        {hasActiveSearch && (
+                            <Button variant="ghost" size="sm" onClick={handleClearSearch} className="text-muted-foreground">
+                                {t("receipts.searchPanel.clear", "ล้างตัวกรอง")}
+                            </Button>
                         )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-sm truncate">{selectedReceipt.payer_detail.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {selectedReceipt.payer_detail.code && <span className="font-mono">{selectedReceipt.payer_detail.code}</span>}
-                          {selectedReceipt.payer_detail.grade && (
-                            <span className="ml-1">
-                              {selectedReceipt.payer_detail.role === "student"
-                                ? `· ${t("receipts.searchPanel.detailGrade")} ${selectedReceipt.payer_detail.grade}`
-                                : `· ${selectedReceipt.payer_detail.grade}`}
+                        <Button
+                            onClick={handleSearch}
+                            className="bg-orange-500 hover:bg-orange-600 text-white gap-2"
+                        >
+                            <Search className="h-4 w-4" />
+                            {t("receipts.searchPanel.search", "Search Receipt")}
+                        </Button>
+                    </div>
+
+                    {/* Active filter chips */}
+                    {hasActiveSearch && (
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
+                            <span className="text-xs text-muted-foreground self-center">
+                                {t("receipts.searchPanel.filtering", "กรอง:")}
                             </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {!selectedReceipt.payer_detail && selectedReceipt.payer_label && row(t("receipts.payer", "Payer"), selectedReceipt.payer_label, true)}
-                  {row(t("receipts.paymentMethod"), t(`common.paymentMethods.${(selectedReceipt.payment_method ?? "").toLowerCase()}`, selectedReceipt.payment_method), true)}
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{t("receipts.status", "Status")}</span>
-                    <Badge variant={selectedReceipt.status === "active" ? "success" : "destructive"}>
-                      {selectedReceipt.status === "active" ? "Active" : "Voided"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Block 3: Items */}
-                <div className="space-y-2">
-                  {selectedReceipt.items.map((item) => {
-                    const gross = item.line_total;
-                    const hasItemDiscount = item.discount > 0;
-                    const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
-                    const isBundle = opts?.is_bundle === true;
-                    const displayName = isBundle
-                      ? (opts?.bundle_name ?? "Bundle")
-                      : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
-                    return (
-                      <div key={item.id} className="text-sm">
-                        <div className="flex justify-between">
-                          <span>{displayName} ×{item.quantity}</span>
-                          <span className="data-number">฿{gross.toLocaleString()}</span>
-                        </div>
-                        <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
-                          Unit price: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          {" · "}
-                          Total: ฿{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </div>
-                        {!isBundle && opts?.groups && opts.groups.length > 0 && (
-                          <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
-                            {opts.groups.flatMap((g: any) =>
-                              g.options.map((o: any) => (
-                                <div key={`${g.group_id}-${o.option_id}`} className="flex justify-between">
-                                  <span>+ {o.name}{o.quantity > 1 && ` ×${o.quantity}`}</span>
-                                  {o.price_delta > 0 && <span className="data-number">+฿{(o.price_delta * o.quantity).toLocaleString()}</span>}
-                                </div>
-                              )),
+                            {appliedSearch.receiptId && (
+                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                                    ID: {appliedSearch.receiptId}
+                                </span>
                             )}
-                          </div>
+                            {appliedSearch.payer && (
+                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                                    {t("receipts.searchPanel.chipPayer")}: {appliedSearch.payer}
+                                </span>
+                            )}
+                            {(appliedSearch.dateFrom || appliedSearch.dateTo) && (
+                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                                    {t("receipts.searchPanel.chipDate")}: {appliedSearch.dateFrom || "…"} → {appliedSearch.dateTo || "…"}
+                                </span>
+                            )}
+                            {appliedSearch.paymentType !== "all" && (
+                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
+                                    {t("receipts.paymentMethod")}: {t(`common.paymentMethods.${(appliedSearch.paymentType ?? "").toLowerCase()}`, appliedSearch.paymentType)}
+                                </span>
+                            )}
+                            <span className="text-xs text-muted-foreground self-center ml-1">
+                                ({filteredReceipts.length} {t("receipts.searchPanel.results", "รายการ")})
+                            </span>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Receipts List */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center">
+                        <Receipt className="h-6 w-6 mr-2 text-primary" />
+                        <CardTitle>{t("receipts.allReceipts")}</CardTitle>
+                        {hasActiveSearch && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                                {filteredReceipts.length} / {receipts.length}
+                            </Badge>
                         )}
-                        {hasItemDiscount && (
-                          <div className="flex justify-between text-destructive text-xs pl-4">
-                            <span>{t("receipts.itemDiscount", "ส่วนลด")}</span>
-                            <span className="data-number">-฿{item.discount.toLocaleString()}</span>
-                          </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {filteredReceipts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                            <Receipt className="h-10 w-10 mb-3" />
+                            <p>{t("receipts.noReceipts")}</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>{t("receipts.receiptId")}</TableHead>
+                                    <TableHead>{t("receipts.dateTime")}</TableHead>
+                                    {!user?.shopId && (
+                                        <TableHead>{t("receipts.shop", "Shop")}</TableHead>
+                                    )}
+                                    <TableHead>{t("receipts.seller")}</TableHead>
+                                    <TableHead>{t("receipts.paymentMethod")}</TableHead>
+                                    <TableHead>{t("receipts.buyer")}</TableHead>
+                                    <TableHead className="text-right">{t("receipts.total")}</TableHead>
+                                    <TableHead className="text-center">{t("receipts.status")}</TableHead>
+                                    <TableHead className="text-center">{t("receipts.manage")}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {pagedReceipts.map((receipt) => (
+                                    <TableRow key={receipt.id}>
+                                        <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
+                                        <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
+                                        {!user?.shopId && (
+                                            <TableCell className="text-sm">{receipt.shop_name ?? receipt.shop_id ?? "—"}</TableCell>
+                                        )}
+                                        <TableCell className="text-sm">{receipt.created_by_name ?? "—"}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary">
+                                                {t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method)}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm">{receipt.payer_label ?? "—"}</TableCell>
+                                        <TableCell className="text-right font-semibold data-number">
+                                            ฿{receipt.total.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant={receipt.status === "active" ? "success" : "destructive"}>
+                                                {receipt.status === "active"
+                                                    ? t("receipts.statusActive")
+                                                    : t("receipts.statusVoided")}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex gap-2 justify-center">
+                                                <IconButton
+                                                    tooltip={t("receipts.tooltip.view")}
+                                                    onClick={() => handleViewReceipt(receipt)}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </IconButton>
+                                                <IconButton
+                                                    tooltip={t("receipts.tooltip.download")}
+                                                    onClick={() => downloadReceiptHtml(receipt as unknown as LibReceiptApi, schoolInfo, receipt.shop_name ?? user?.shopName, "en")}
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </IconButton>
+                                                {canVoid && receipt.status === "active" && (
+                                                    <IconButton
+                                                        tooltip={t("receipts.void", "Void")}
+                                                        onClick={() => {
+                                                            setVoidTarget(receipt);
+                                                            setVoidReason("");
+                                                        }}
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        <Ban className="h-4 w-4" />
+                                                    </IconButton>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+
+                    {/* ── Pagination ────────────────────────────────────────────────── */}
+                    {filteredReceipts.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-between pt-4 border-t mt-2">
+                            <p className="text-xs text-muted-foreground">
+                                {t("receipts.paginationRange", {
+                                    start: (safePage - 1) * PAGE_SIZE + 1,
+                                    end: Math.min(safePage * PAGE_SIZE, filteredReceipts.length),
+                                    total: filteredReceipts.length,
+                                    defaultValue: "Showing {{start}}–{{end}} of {{total}} items",
+                                })}
+                            </p>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(1)}
+                                    disabled={safePage === 1}
+                                    className="h-8 w-8 p-0 text-xs"
+                                >
+                                    «
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={safePage === 1}
+                                    className="h-8 px-3 text-xs"
+                                >
+                                    {t("receipts.prev", "‹ Prev")}
+                                </Button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                                        acc.push(p);
+                                        return acc;
+                                    }, [])
+                                    .map((p, i) =>
+                                        p === "…" ? (
+                                            <span key={`ellipsis-${i}`} className="text-xs px-1 text-muted-foreground">…</span>
+                                        ) : (
+                                            <Button
+                                                key={p}
+                                                variant={safePage === p ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setCurrentPage(p as number)}
+                                                className={cn("h-8 w-8 p-0 text-xs", safePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
+                                            >
+                                                {p}
+                                            </Button>
+                                        ),
+                                    )}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={safePage === totalPages}
+                                    className="h-8 px-3 text-xs"
+                                >
+                                    {t("receipts.next", "Next ›")}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(totalPages)}
+                                    disabled={safePage === totalPages}
+                                    className="h-8 w-8 p-0 text-xs"
+                                >
+                                    »
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* ── Void Confirmation Dialog ─────────────────────────────────────── */}
+            <Dialog open={!!voidTarget} onOpenChange={(v) => { if (!v && !voidLoading) setVoidTarget(null); }}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Ban className="h-5 w-5" />
+                            {t("receipts.voidDialog.title")}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {voidTarget?.receipt_number} · ฿{voidTarget?.total.toLocaleString()}
+                            {" "}— {t("receipts.voidDialog.walletRefundNote")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div>
+                            <label className="text-sm font-medium">{t("receipts.voidDialog.reasonLabel")}</label>
+                            {/* Preset reason chips + per-shop custom chips */}
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {([
+                                    "incorrect_transaction",
+                                    "customer_changed_mind",
+                                    "out_of_stock",
+                                    "incorrect_price",
+                                    "duplicate_payment",
+                                    "test_transaction",
+                                ] as const).map((key) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        disabled={voidLoading}
+                                        onClick={() => setVoidReason(t(`receipts.voidDialog.reasons.${key}`))}
+                                        className={cn(
+                                            "rounded-full border px-3 py-1 text-xs transition",
+                                            voidReason === t(`receipts.voidDialog.reasons.${key}`)
+                                                ? "border-destructive bg-destructive/10 text-destructive font-semibold"
+                                                : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
+                                        )}
+                                    >
+                                        {t(`receipts.voidDialog.reasons.${key}`)}
+                                    </button>
+                                ))}
+                                {customShortcuts.map((text) => (
+                                    <span key={text} className="inline-flex items-center gap-0.5">
+                                        <button
+                                            type="button"
+                                            disabled={voidLoading}
+                                            onClick={() => setVoidReason(text)}
+                                            className={cn(
+                                                "rounded-full border px-3 py-1 text-xs transition",
+                                                voidReason === text
+                                                    ? "border-destructive bg-destructive/10 text-destructive font-semibold"
+                                                    : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
+                                            )}
+                                        >
+                                            {text}
+                                        </button>
+                                        {canEditShortcuts && (
+                                            <button
+                                                type="button"
+                                                disabled={voidLoading}
+                                                aria-label={t("receipts.voidDialog.removeShortcut", "Remove shortcut")}
+                                                onClick={() => removeCustomShortcut(text)}
+                                                className="rounded-full border border-border bg-muted/50 px-1.5 py-1 text-xs text-muted-foreground hover:border-destructive/50 hover:text-destructive"
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </span>
+                                ))}
+                                {canEditShortcuts && customShortcuts.length < 24 && (
+                                    <button
+                                        type="button"
+                                        disabled={voidLoading}
+                                        onClick={() => setShortcutDialogOpen(true)}
+                                        className="rounded-full border border-dashed border-orange-400 px-3 py-1 text-xs text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                                    >
+                                        + {t("receipts.voidDialog.addShortcut", "Add")}
+                                    </button>
+                                )}
+                            </div>
+                            <Textarea
+                                value={voidReason}
+                                onChange={(e) => setVoidReason(e.target.value)}
+                                placeholder={t("receipts.voidDialog.reasonPlaceholder")}
+                                rows={2}
+                                className="mt-2 resize-none"
+                                disabled={voidLoading}
+                            />
+                        </div>
+                        {!voidReason.trim() && (
+                            <p className="text-xs text-destructive font-medium">
+                                {t("receipts.voidDialog.reasonRequired")}
+                            </p>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
+                            {t("receipts.voidDialog.irreversible")}
+                        </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                        <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setVoidTarget(null)}
+                            disabled={voidLoading}
+                        >
+                            {t("common.cancel")}
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={handleVoidConfirm}
+                            disabled={voidLoading || !voidReason.trim()}
+                        >
+                            {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            {t("receipts.voidDialog.confirm")}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
-                <Separator />
+            {/* Add custom shortcut dialog */}
+            <Dialog
+                open={shortcutDialogOpen}
+                onOpenChange={(v) => {
+                    setShortcutDialogOpen(v);
+                    if (!v) setNewShortcutText("");
+                }}
+            >
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {t("receipts.voidDialog.addShortcutTitle", "Add reason shortcut")}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t(
+                                "receipts.voidDialog.addShortcutDesc",
+                                "Manager-only. Shared with all cashiers in this shop.",
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        value={newShortcutText}
+                        onChange={(e) => setNewShortcutText(e.target.value)}
+                        placeholder={t("receipts.voidDialog.shortcutPlaceholder", "e.g. Wrong department")}
+                        maxLength={60}
+                        autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && newShortcutText.trim()) addCustomShortcut();
+                        }}
+                    />
+                    <div className="flex gap-2 pt-1">
+                        <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setShortcutDialogOpen(false)}
+                        >
+                            {t("common.cancel")}
+                        </Button>
+                        <Button
+                            className="flex-1"
+                            onClick={addCustomShortcut}
+                            disabled={!newShortcutText.trim()}
+                        >
+                            {t("common.save", "Save")}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
-                {/* Block 4: Balance Before / Subtotal / Grand Total / Balance After */}
-                <div className="space-y-1.5">
-                  {balanceBefore !== null && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{t("receipts.balanceBefore", "Balance Before This Sale")}</span>
-                      <span className="data-number">฿{balanceBefore.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  {row(t("receipts.subtotal", "Subtotal"), `฿${selectedReceipt.subtotal.toLocaleString()}`)}
-                  {selectedReceipt.discount > 0 && (
-                    <div className="flex justify-between text-sm text-destructive">
-                      <span>{t("receipts.billDiscount", "Bill Discount")}</span>
-                      <span className="data-number">-฿{selectedReceipt.discount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {selectedReceipt.tax > 0 && row(t("receipts.tax", "Tax"), `฿${selectedReceipt.tax.toLocaleString()}`)}
-                  <div className="flex justify-between text-base font-bold">
-                    <span>{t("receipts.grandTotal")}</span>
-                    <span className="text-primary data-number">฿{selectedReceipt.total.toLocaleString()}</span>
-                  </div>
-                  {walletBalanceAfter !== null && (
-                    <div className="flex justify-between text-sm font-semibold">
-                      <span className="text-muted-foreground">{t("receipts.balanceAfter", "Balance After This Sale")}</span>
-                      <span className={cn("data-number", walletBalanceAfter < 0 ? "text-destructive" : "text-emerald-600")}>
-                        ฿{walletBalanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
-                  {selectedReceipt.payment_method.toLowerCase() === "cash" && selectedReceipt.cash_received != null && (
-                    <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5 mt-1">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
-                        <span className="data-number">฿{selectedReceipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold border-t pt-1.5">
-                        <span>{t("receipts.change", "Change")}</span>
-                        <span className="text-emerald-600 data-number">
-                          ฿{Math.max(0, selectedReceipt.cash_received - selectedReceipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {selectedReceipt.notes && (
-                    <div className="pt-1 text-xs text-muted-foreground">
-                      <span className="font-semibold">{t("receipts.notes", "Note")}: </span>{selectedReceipt.notes}
-                    </div>
-                  )}
-                  {selectedReceipt.voided_reason && (
-                    <div className="text-xs text-destructive">
-                      <span className="font-semibold">{t("receipts.voidReason", "Void reason")}: </span>{selectedReceipt.voided_reason}
-                    </div>
-                  )}
-                </div>
+            {/* Receipt Detail Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center">
+                            <Receipt className="h-5 w-5 mr-2" />
+                            {t("receipts.details")}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t("receipts.receiptId")}: {selectedReceipt?.receipt_number}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedReceipt && (() => {
+                        const isWallet = selectedReceipt.payment_method.toLowerCase() === "wallet";
+                        const walletBalanceAfter = selectedReceipt.payer_detail?.wallet_balance ?? null;
+                        const balanceBefore = isWallet && walletBalanceAfter !== null ? walletBalanceAfter + selectedReceipt.total : null;
+                        const row = (label: string, value: React.ReactNode, bold = false) => (
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">{label}</span>
+                                <span className={bold ? "font-semibold" : ""}>{value}</span>
+                            </div>
+                        );
+                        return (
+                            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                                {selectedReceipt.status !== "active" && (
+                                    <div className="rounded border-2 border-destructive bg-destructive/10 p-2 text-center text-xs font-bold text-destructive">
+                                        *** THIS RECEIPT HAS BEEN VOIDED ***
+                                    </div>
+                                )}
 
-                <Separator />
+                                {/* Block 1: Receipt No / Date / Cashier */}
+                                <div className="space-y-1.5">
+                                    {row(t("receipts.receiptNo", "Receipt No"), <span className="font-mono font-semibold">{selectedReceipt.receipt_number}</span>)}
+                                    {row(t("receipts.dateTime"), fmtDate(selectedReceipt.transaction_date))}
+                                    {selectedReceipt.created_by_name && row(t("receipts.cashier", "Cashier"), selectedReceipt.created_by_name, true)}
+                                    {selectedReceipt.shop_name && row(t("receipts.shop", "Shop"), selectedReceipt.shop_name)}
+                                </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                    onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    {t("receipts.print", "Print")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => downloadReceiptHtml(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {t("receipts.download", "Save PDF")}
-                  </Button>
-                </div>
-              </div>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+                                <Separator />
+
+                                {/* Block 2: Payer / Payment Type / Status */}
+                                <div className="space-y-1.5">
+                                    {selectedReceipt.payer_detail && (
+                                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
+                                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
+                                                {selectedReceipt.payer_detail.photo_url ? (
+                                                    <img src={selectedReceipt.payer_detail.photo_url} alt={selectedReceipt.payer_detail.name} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-lg text-blue-400 font-bold">{selectedReceipt.payer_detail.name.charAt(0).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-semibold text-sm truncate">{selectedReceipt.payer_detail.name}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {selectedReceipt.payer_detail.code && <span className="font-mono">{selectedReceipt.payer_detail.code}</span>}
+                                                    {selectedReceipt.payer_detail.grade && (
+                                                        <span className="ml-1">
+                                                            {selectedReceipt.payer_detail.role === "student"
+                                                                ? `· ${t("receipts.searchPanel.detailGrade")} ${selectedReceipt.payer_detail.grade}`
+                                                                : `· ${selectedReceipt.payer_detail.grade}`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!selectedReceipt.payer_detail && selectedReceipt.payer_label && row(t("receipts.payer", "Payer"), selectedReceipt.payer_label, true)}
+                                    {row(t("receipts.paymentMethod"), t(`common.paymentMethods.${(selectedReceipt.payment_method ?? "").toLowerCase()}`, selectedReceipt.payment_method), true)}
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">{t("receipts.status", "Status")}</span>
+                                        <Badge variant={selectedReceipt.status === "active" ? "success" : "destructive"}>
+                                            {selectedReceipt.status === "active" ? "Active" : "Voided"}
+                                        </Badge>
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                {/* Block 3: Items */}
+                                <div className="space-y-2">
+                                    {selectedReceipt.items.map((item) => {
+                                        const gross = item.line_total;
+                                        const hasItemDiscount = item.discount > 0;
+                                        const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
+                                        const isBundle = opts?.is_bundle === true;
+                                        const displayName = isBundle
+                                            ? (opts?.bundle_name ?? "Bundle")
+                                            : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
+                                        return (
+                                            <div key={item.id} className="text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>{displayName} ×{item.quantity}</span>
+                                                    <span className="data-number">฿{gross.toLocaleString()}</span>
+                                                </div>
+                                                <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
+                                                    Unit price: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    {" · "}
+                                                    Total: ฿{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </div>
+                                                {!isBundle && opts?.groups && opts.groups.length > 0 && (
+                                                    <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
+                                                        {opts.groups.flatMap((g: any) =>
+                                                            g.options.map((o: any) => (
+                                                                <div key={`${g.group_id}-${o.option_id}`} className="flex justify-between">
+                                                                    <span>+ {o.name}{o.quantity > 1 && ` ×${o.quantity}`}</span>
+                                                                    {o.price_delta > 0 && <span className="data-number">+฿{(o.price_delta * o.quantity).toLocaleString()}</span>}
+                                                                </div>
+                                                            )),
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {hasItemDiscount && (
+                                                    <div className="flex justify-between text-destructive text-xs pl-4">
+                                                        <span>{t("receipts.itemDiscount", "ส่วนลด")}</span>
+                                                        <span className="data-number">-฿{item.discount.toLocaleString()}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <Separator />
+
+                                {/* Block 4: Balance Before / Subtotal / Grand Total / Balance After */}
+                                <div className="space-y-1.5">
+                                    {balanceBefore !== null && (
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">{t("receipts.balanceBefore", "Balance Before This Sale")}</span>
+                                            <span className="data-number">฿{balanceBefore.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    )}
+                                    {row(t("receipts.subtotal", "Subtotal"), `฿${selectedReceipt.subtotal.toLocaleString()}`)}
+                                    {selectedReceipt.discount > 0 && (
+                                        <div className="flex justify-between text-sm text-destructive">
+                                            <span>{t("receipts.billDiscount", "Bill Discount")}</span>
+                                            <span className="data-number">-฿{selectedReceipt.discount.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {selectedReceipt.tax > 0 && row(t("receipts.tax", "Tax"), `฿${selectedReceipt.tax.toLocaleString()}`)}
+                                    <div className="flex justify-between text-base font-bold">
+                                        <span>{t("receipts.grandTotal")}</span>
+                                        <span className="text-primary data-number">฿{selectedReceipt.total.toLocaleString()}</span>
+                                    </div>
+                                    {walletBalanceAfter !== null && (
+                                        <div className="flex justify-between text-sm font-semibold">
+                                            <span className="text-muted-foreground">{t("receipts.balanceAfter", "Balance After This Sale")}</span>
+                                            <span className={cn("data-number", walletBalanceAfter < 0 ? "text-destructive" : "text-emerald-600")}>
+                                                ฿{walletBalanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {selectedReceipt.payment_method.toLowerCase() === "cash" && selectedReceipt.cash_received != null && (
+                                        <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5 mt-1">
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
+                                                <span className="data-number">฿{selectedReceipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div className="flex justify-between font-semibold border-t pt-1.5">
+                                                <span>{t("receipts.change", "Change")}</span>
+                                                <span className="text-emerald-600 data-number">
+                                                    ฿{Math.max(0, selectedReceipt.cash_received - selectedReceipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {selectedReceipt.notes && (
+                                        <div className="pt-1 text-xs text-muted-foreground">
+                                            <span className="font-semibold">{t("receipts.notes", "Note")}: </span>{selectedReceipt.notes}
+                                        </div>
+                                    )}
+                                    {selectedReceipt.voided_reason && (
+                                        <div className="text-xs text-destructive">
+                                            <span className="font-semibold">{t("receipts.voidReason", "Void reason")}: </span>{selectedReceipt.voided_reason}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <Separator />
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                        className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                                        onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
+                                    >
+                                        <Printer className="h-4 w-4 mr-2" />
+                                        {t("receipts.print", "Print")}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => downloadReceiptHtml(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
+                                    >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        {t("receipts.download", "Save PDF")}
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
 };
 
 export default Receipts;
