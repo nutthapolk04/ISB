@@ -7,6 +7,7 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -326,11 +327,11 @@ export default function WalletAdjust() {
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1">
                 <Label htmlFor="rpt-date-from">{t("adjustmentReport.dateFrom", "From")}</Label>
-                <Input id="rpt-date-from" type="date" value={rptDateFrom} onChange={(e) => setRptDateFrom(e.target.value)} className="w-40" />
+                <DatePicker id="rpt-date-from" value={rptDateFrom} onChange={setRptDateFrom} className="w-40" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="rpt-date-to">{t("adjustmentReport.dateTo", "To")}</Label>
-                <Input id="rpt-date-to" type="date" value={rptDateTo} onChange={(e) => setRptDateTo(e.target.value)} className="w-40" />
+                <DatePicker id="rpt-date-to" value={rptDateTo} onChange={setRptDateTo} className="w-40" />
               </div>
               <div className="space-y-1">
                 <Label>{t("adjustmentReport.direction", "Direction")}</Label>

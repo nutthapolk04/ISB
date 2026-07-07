@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,11 +69,6 @@ const TX_COLUMNS = [
   { header: "Note",        key: "note",          format: "text" as const,     width: 24 },
   { header: "By",          key: "transferred_by",format: "text" as const,     width: 18 },
 ];
-
-const formatDT = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-};
 
 const formatTHBTx = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
@@ -805,9 +802,9 @@ export default function WalletTransfer() {
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             <Label className="text-sm">{t("adjustmentReport.dateFrom", "From")}</Label>
-            <Input type="date" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)} className="w-36 h-8 text-sm" />
+            <DatePicker value={txDateFrom} onChange={setTxDateFrom} className="w-36 h-8 text-sm" />
             <Label className="text-sm">{t("adjustmentReport.dateTo", "To")}</Label>
-            <Input type="date" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)} className="w-36 h-8 text-sm" />
+            <DatePicker value={txDateTo} onChange={setTxDateTo} className="w-36 h-8 text-sm" />
             <Button size="sm" onClick={() => loadHistory(1)} disabled={txLoading} className="gap-1.5 h-8">
               <Search className="h-3.5 w-3.5" />
               {txLoading ? "…" : t("adjustmentReport.search", "Search")}
@@ -849,7 +846,7 @@ export default function WalletTransfer() {
                   <TableBody>
                     {txHistory.map((tx) => (
                       <TableRow key={tx.id}>
-                        <TableCell className="whitespace-nowrap text-xs font-mono">{formatDT(tx.created_at)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs font-mono">{fmtDateTime(tx.created_at)}</TableCell>
                         <TableCell>
                           <p className="font-medium text-sm">{tx.from_name}</p>
                           <p className="text-xs font-mono text-muted-foreground">{tx.from_code}</p>

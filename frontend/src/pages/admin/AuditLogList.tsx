@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -197,11 +199,11 @@ export default function AuditLogList() {
             </div>
             <div className="space-y-1.5">
               <Label>{t("audit.filterDateFrom")}</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
             </div>
             <div className="space-y-1.5">
               <Label>{t("audit.filterDateTo")}</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <DatePicker value={dateTo} onChange={setDateTo} />
             </div>
             <div className="flex items-end">
               <Button onClick={() => { setPage(1); load(); }} disabled={loading} className="w-full">
@@ -221,14 +223,14 @@ export default function AuditLogList() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
-                <TableHead className="w-40">{t("audit.colDate")}</TableHead>
-                <TableHead>{t("audit.colUser")}</TableHead>
-                <TableHead>{t("audit.colEntity")}</TableHead>
-                <TableHead>{t("audit.colAction")}</TableHead>
+                <TableHead className="w-[4%] text-right">{t("common.colNo", "No.")}</TableHead>
+                <TableHead className="w-[9%]">{t("audit.colDate")}</TableHead>
+                <TableHead className="w-[16%]">{t("audit.colUser")}</TableHead>
+                <TableHead className="w-[18%]">{t("audit.colEntity")}</TableHead>
+                <TableHead className="w-[12%]">{t("audit.colAction")}</TableHead>
                 <TableHead>{t("audit.colChanges")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -260,28 +262,28 @@ export default function AuditLogList() {
                       {rowNo}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground tabular-nums">
-                      {new Date(row.created_at).toLocaleString()}
+                      {fmtDateTime(row.created_at)}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm font-medium">{row.user_full_name ?? "—"}</div>
-                      <div className="text-xs text-muted-foreground">@{row.user_username ?? row.user_id}</div>
+                      <div className="text-sm font-medium truncate">{row.user_full_name ?? "—"}</div>
+                      <div className="text-xs text-muted-foreground truncate">@{row.user_username ?? row.user_id}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
+                      <div className="text-sm truncate">
                         <span className="font-medium">{entityLabel(t, row.entity_type)}</span>
                         {row.entity_id !== null && (
                           <span className="text-muted-foreground"> #{row.entity_id}</span>
                         )}
                       </div>
                       {row.entity_name && (
-                        <div className="text-xs text-muted-foreground truncate max-w-[180px]">{row.entity_name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{row.entity_name}</div>
                       )}
                       {row.shop_id && (
-                        <div className="text-[11px] text-muted-foreground/60">{row.shop_id}</div>
+                        <div className="text-[11px] text-muted-foreground/60 truncate">{row.shop_id}</div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("text-[11px] font-medium", badgeClass)}>
+                      <Badge className={cn("whitespace-nowrap text-[11px] font-medium", badgeClass)}>
                         {actionLabel(t, row.action)}
                       </Badge>
                     </TableCell>

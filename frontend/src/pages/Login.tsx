@@ -448,7 +448,7 @@ const Login = () => {
               )}
 
               {/* ── Quick-login cards ── */}
-              <div className="mt-4 rounded-md border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3 space-y-2.5">
+              {/* <div className="mt-4 rounded-md border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3 space-y-2.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
                   <Sparkles className="h-3.5 w-3.5" />
                   {t("login.demoBanner", "Demo accounts — Personal Wallet + POS spending")}
@@ -483,15 +483,15 @@ const Login = () => {
                   <ArrowLeftRight className="h-3 w-3 shrink-0 mt-0.5" />
                   {t("login.demoHint", "Click to log in instantly — try top-up, family transfer, and pay at POS from your own wallet")}
                 </p>
-              </div>
+              </div> */}
 
               {/* ── Reference account carousel ── */}
-              <div className="mt-3">
+              {/* <div className="mt-3">
                 <p className="mb-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                   {t("login.otherAccounts", "Other accounts (Reference)")}
                 </p>
                 <CredentialCarousel />
-              </div>
+              </div> */}
             </CardContent>
           </Card>
         </div>
