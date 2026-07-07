@@ -122,7 +122,7 @@ let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 50000;
 const MIN_AMOUNT = 100;
-const SHORTCUTS = [100, 200, 500, 1000, 2000, 5000];
+const SHORTCUTS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 const amountNumber = computed(() => {
   const n = parseFloat(enteredAmount.value);
@@ -157,28 +157,6 @@ const selectMethod = async (key: string) => {
   } else {
     currentStep.value = 'qr';
     await initQrPayment();
-  }
-};
-
-const pressKey = (key: string) => {
-  if (key === 'C') {
-    enteredAmount.value = '0';
-    return;
-  }
-  if (key === '00') {
-    if (enteredAmount.value === '0') return;
-    const newVal = enteredAmount.value + '00';
-    if (parseFloat(newVal) > MAX_AMOUNT) return;
-    enteredAmount.value = newVal;
-    return;
-  }
-  if (enteredAmount.value === '0') {
-    if (key === '0') return; 
-    enteredAmount.value = key;
-  } else {
-    const newVal = enteredAmount.value + key;
-    if (parseFloat(newVal) > MAX_AMOUNT) return;
-    enteredAmount.value = newVal;
   }
 };
 
@@ -424,13 +402,6 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
           @click="selectShortcut(s)"
         >
           {{ s.toLocaleString() }}
-        </button>
-      </div>
-
-      <!-- Numpad -->
-      <div class="numpad">
-        <button v-for="k in ['7','8','9','4','5','6','1','2','3','0','00','C']" :key="k" class="num-key" :class="{ 'key-clear': k === 'C' }" @click="pressKey(k)">
-          {{ k }}
         </button>
       </div>
 
@@ -760,36 +731,6 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
   background: var(--primary);
   color: white;
   border-color: var(--primary);
-}
-
-/* Numpad */
-.numpad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.num-key {
-  height: 4.5rem;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 0.75rem;
-  background: var(--card-bg);
-  color: var(--text-color);
-  font-size: 2.5rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.1s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.num-key:active {
-  background: #e2e8f0;
-}
-.key-clear {
-  color: #ef4444;
-  font-weight: 800;
 }
 
 .amount-footer {

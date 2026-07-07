@@ -3,6 +3,7 @@ import WelcomeView from '../views/WelcomeView.vue';
 import BalanceView from '../views/BalanceView.vue';
 import TransactionHistoryView from '../views/TransactionHistoryView.vue';
 import TopUpView from '../views/TopUpView.vue';
+import SettingsView from '../views/SettingsView.vue';
 
 const routes = [
     {
@@ -24,6 +25,11 @@ const routes = [
         path: '/topup',
         name: 'topup',
         component: TopUpView
+    },
+    {
+        path: '/settings',
+        name: 'settings',
+        component: SettingsView
     },
     // Catch all - redirect to welcome
     {

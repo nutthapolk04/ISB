@@ -2,10 +2,11 @@
 import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
-import { CreditCard, Languages } from 'lucide-vue-next';
-
+import { CreditCard, Languages, Settings } from 'lucide-vue-next';
 
 const router = useRouter();
+
+
 const store = useKioskStore();
 
 const toggleLanguage = () => {
@@ -134,6 +135,14 @@ const t = {
       <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
     </div>
 
+    <!-- Bottom bar: gear icon + machine name -->
+    <div class="bottom-bar">
+      <button class="settings-btn" @click="router.push('/settings')">
+        <Settings :size="20" />
+        <span v-if="store.machineName" class="machine-name-label">{{ store.machineName }}</span>
+      </button>
+    </div>
+
   </div>
 </template>
 
@@ -224,6 +233,39 @@ const t = {
   color: var(--text-color);
   text-align: center;
   opacity: 0.9;
+}
+
+.bottom-bar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding-bottom: 1.5rem;
+}
+
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: pointer;
+  padding: 0.5rem 0.25rem;
+  border-radius: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.settings-btn:hover,
+.settings-btn:active {
+  opacity: 0.8;
+}
+
+.machine-name-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 .rfid-waves {
