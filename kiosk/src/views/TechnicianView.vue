@@ -617,7 +617,7 @@ function goBack() {
 }
 
 .unlock-icon {
-    color: #4f46e5;
+    color: #2563eb;
 }
 
 .unlock-title {
@@ -664,8 +664,8 @@ function goBack() {
 }
 
 .tech-input:focus {
-    border-color: #818cf8;
-    box-shadow: 0 0 0 3px rgb(199 210 254 / 60%);
+    border-color: #2563eb;
+    /* box-shadow: 0 0 0 3px rgb(199 210 254 / 60%); */
 }
 
 .error-line {
@@ -688,7 +688,7 @@ function goBack() {
     gap: 0.5rem;
     border: none;
     border-radius: 0.75rem;
-    background: linear-gradient(to bottom, #6366f1, #4f46e5);
+    background: #2563eb;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
     font-weight: 600;
@@ -848,7 +848,7 @@ function goBack() {
     gap: 0.375rem;
     border: none;
     border-radius: 0.75rem;
-    background: linear-gradient(to bottom, #6366f1, #4f46e5);
+    background: #2563eb;
     padding: 0.625rem 1rem;
     font-size: 0.875rem;
     font-weight: 600;
