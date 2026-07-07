@@ -177,6 +177,28 @@ export const users = pgTable("users", {
 	}).onDelete("set null"),
 ]);
 
+/**
+ * Extra SSO login emails a user can authenticate with, beyond users.email.
+ * A staff member who is also a parent gets two ISB accounts (e.g.
+ * "chrism@isb.ac.th" and "202231@parents.isb.ac.th") that both resolve to
+ * the same users row / wallet / family. Populated by the ISB vendor sync
+ * (isb_sync_service.ts) from each Staff/Parent record's `login` array.
+ */
+export const userLoginEmails = pgTable("user_login_emails", {
+	id: serial().primaryKey().notNull(),
+	userId: integer("user_id").notNull(),
+	email: varchar({ length: 255 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	uniqueIndex("ix_user_login_emails_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
+	index("ix_user_login_emails_user_id").using("btree", table.userId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "user_login_emails_user_id_fkey"
+	}).onDelete("cascade"),
+]);
+
 export const products = pgTable("products", {
 	id: serial().primaryKey().notNull(),
 	name: varchar({ length: 255 }).notNull(),

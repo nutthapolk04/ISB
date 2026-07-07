@@ -88,7 +88,8 @@ interface IsbStaff {
     hasChildren: boolean;
     profileImage: string;
     smartCard: { cardNumber: string };
-    login: { loginId: string; email: string };
+    /** SSO login emails (string array). A staff member who's also a parent carries both. */
+    login: string[];
 }
 
 export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult> {
@@ -142,7 +143,8 @@ interface IsbParent {
     firstName: string;
     lastName: string;
     profileImage: string;
-    login: string;
+    /** SSO login emails (string array). A non-staff parent usually carries one. */
+    login: string[];
     smartCard: { cardNumber: string };
 }
 
@@ -183,7 +185,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
             await upsertFamilyProfile(
                 familyCode,
                 fam.notificationEmails,
-                [fam.mainParent.login, fam.secondaryParent?.login].filter(Boolean) as string[],
+                [...fam.mainParent.login, ...(fam.secondaryParent?.login ?? [])],
             );
 
             // Parents
@@ -206,7 +208,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
 
                 let user;
                 if (parent.customerType === "Staff") {
-                    user = await upsertStaffParentRef(payload, familyCode, logId);
+                    user = await upsertStaffParentRef(payload, familyCode, logId, parent.login);
                 } else {
                     user = await upsertParent(payload, familyCode, parent.login, logId);
                 }

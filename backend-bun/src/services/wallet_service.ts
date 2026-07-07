@@ -374,6 +374,8 @@ export async function adjustBalance(args: {
     adminUserId: number;
     reason: string;
     referenceTicket?: string;
+    /** When true, a DEDUCT that would push the balance negative throws an INSUFFICIENT_BALANCE-coded 409 instead of proceeding. Admin/cashier adjustments intentionally allow negative balances, so this defaults to off. */
+    requireSufficientBalance?: boolean;
 }): Promise<WalletTransactionResponseDTO> {
     const { walletId, amount, adminUserId, referenceTicket } = args;
     const reason = args.reason?.trim();
@@ -400,6 +402,12 @@ export async function adjustBalance(args: {
         }
         const balanceBefore = Number(wRows[0].balance);
         const balanceAfter = balanceBefore + amount;
+        if (args.requireSufficientBalance && balanceAfter < 0) {
+            const err = new Error("Balance is not sufficient");
+            (err as { status?: number; code?: string }).status = 409;
+            (err as { status?: number; code?: string }).code = "INSUFFICIENT_BALANCE";
+            throw err;
+        }
         const direction = amount > 0 ? "credit" : "debit";
         const refTag = referenceTicket ? ` [ref:${referenceTicket}]` : "";
         const description = `Admin ${direction} adjustment${refTag} — ${reason}`;
@@ -859,4 +867,176 @@ export async function transferWithinFamily(args: {
             to_balance_after: toBalanceAfter,
         };
     });
+}
+
+// ── Vendor wallet-adjust-balance API ────────────────────────────────────────
+// POST /api/v1/wallet/adjust-balance (x-api-key, no JWT). Lets ISB's other
+// systems (cashier/POS/online) deduct or top up a cardholder's wallet by
+// their ISB customerId, with the same idempotency guarantee as cashierTopup.
+
+const VENDOR_ADJUST_PREFIX = "vendor-adjust:";
+
+export type VendorAdjustType = "DEDUCT" | "TOPUP";
+
+export interface VendorAdjustResultDTO {
+    customerId: string;
+    walletId: number;
+    amount: number;
+    type: VendorAdjustType;
+    balanceBefore: number;
+    balanceAfter: number;
+}
+
+export class VendorAdjustError extends Error {
+    code: string;
+    status: number;
+    balanceBefore?: number;
+    balanceAfter?: number;
+    constructor(code: string, status: number, message: string, balances?: { balanceBefore: number; balanceAfter: number }) {
+        super(message);
+        this.code = code;
+        this.status = status;
+        this.balanceBefore = balances?.balanceBefore;
+        this.balanceAfter = balances?.balanceAfter;
+    }
+}
+
+function toVendorTicket(transactionId: string): string {
+    return `${VENDOR_ADJUST_PREFIX}${transactionId}`;
+}
+
+/**
+ * Any prior use of `transactionId` is a duplicate, full stop — this mirrors
+ * the vendor's own documented contract (their example always returns FAILED
+ * / DUPLICATE_TRANSACTION on reuse, even with the same amount), unlike
+ * cashierTopup's "replay the cached success" idempotency style.
+ */
+async function lookupVendorTransaction(ticket: string): Promise<{ balanceBefore: number; balanceAfter: number } | null> {
+    const rows = await db
+        .select({
+            balanceBefore: walletTransactions.balanceBefore,
+            balanceAfter: walletTransactions.balanceAfter,
+        })
+        .from(walletTransactions)
+        .where(eq(walletTransactions.referenceTicket, ticket))
+        .limit(1);
+    const tx = rows[0];
+    if (!tx) return null;
+    return { balanceBefore: pgNumber(tx.balanceBefore) ?? 0, balanceAfter: pgNumber(tx.balanceAfter) ?? 0 };
+}
+
+/**
+ * A vendor-supplied `customerId` (external_id) can be a staff/parent (owns a
+ * `users` wallet) or a student/public cardholder (owns a `customers`
+ * wallet) — same "external_id" convention the ISB sync upserts use. Lazily
+ * creates the wallet (balance 0) on first touch, same as every other entry
+ * point in this file (ensureWalletForUser/ensureWalletForCustomer).
+ */
+async function resolveWalletByExternalId(customerId: string): Promise<WalletRow | null> {
+    const userRow = (await db.select().from(users).where(eq(users.externalId, customerId)).limit(1))[0];
+    if (userRow) return ensureWalletForUser(userRow.id);
+
+    const custRow = (await db.select().from(customers).where(eq(customers.externalId, customerId)).limit(1))[0];
+    if (custRow) return ensureWalletForCustomer(custRow.id);
+
+    return null;
+}
+
+let vendorServiceUserIdCache: number | null = null;
+
+/**
+ * Self-healing system account attributed as `created_by`/`user_id` on
+ * vendor-triggered adjustments (mirrors getInternalTypeId's lazy-create
+ * pattern). Inactive + random password — never usable for interactive login.
+ */
+async function getOrCreateVendorApiServiceUser(): Promise<number> {
+    if (vendorServiceUserIdCache !== null) return vendorServiceUserIdCache;
+    const existing = (await db.select({ id: users.id }).from(users).where(eq(users.username, "vendor_api_service")).limit(1))[0];
+    if (existing) {
+        vendorServiceUserIdCache = existing.id;
+        return existing.id;
+    }
+    const hash = await Bun.password.hash(crypto.randomUUID(), { algorithm: "bcrypt", cost: 12 });
+    const [created] = await db.insert(users).values({
+        username: "vendor_api_service",
+        email: "vendor-api-service@isb-coop.local",
+        fullName: "Vendor API Service Account",
+        hashedPassword: hash,
+        isActive: false,
+        isSuperuser: false,
+        role: "staff",
+        status: "active",
+    }).returning({ id: users.id });
+    vendorServiceUserIdCache = created.id;
+    return created.id;
+}
+
+export async function vendorAdjustBalance(args: {
+    customerId: string;
+    transactionId: string;
+    amount: number;
+    type: VendorAdjustType;
+    source: string;
+    reasonCode?: string;
+    description?: string;
+    requestedBy?: string;
+}): Promise<VendorAdjustResultDTO> {
+    if (!args.customerId?.trim() || !args.transactionId?.trim()) {
+        throw new VendorAdjustError("INVALID_REQUEST", 400, "customerId and transactionId are required");
+    }
+    if (!Number.isFinite(args.amount) || args.amount <= 0) {
+        throw new VendorAdjustError("INVALID_REQUEST", 400, "amount must be a positive number");
+    }
+    if (args.type !== "DEDUCT" && args.type !== "TOPUP") {
+        throw new VendorAdjustError("INVALID_REQUEST", 400, "type must be DEDUCT or TOPUP");
+    }
+
+    const ticket = toVendorTicket(args.transactionId);
+
+    const existing = await lookupVendorTransaction(ticket);
+    if (existing) {
+        throw new VendorAdjustError("DUPLICATE_TRANSACTION", 409, "Duplicate transaction ID", existing);
+    }
+
+    const wallet = await resolveWalletByExternalId(args.customerId);
+    if (!wallet) {
+        throw new VendorAdjustError("CUSTOMER_NOT_FOUND", 404, "Customer ID not found");
+    }
+
+    const signedAmount = args.type === "DEDUCT" ? -Math.abs(args.amount) : Math.abs(args.amount);
+    const serviceUserId = await getOrCreateVendorApiServiceUser();
+    const reasonParts = [args.reasonCode, args.description].filter(Boolean);
+    const reason = reasonParts.length > 0 ? reasonParts.join(" — ") : `Vendor API ${args.type.toLowerCase()}`;
+    const requestedByTag = args.requestedBy ? ` requestedBy=${args.requestedBy}` : "";
+
+    try {
+        const tx = await adjustBalance({
+            walletId: wallet.id,
+            amount: signedAmount,
+            adminUserId: serviceUserId,
+            reason: `${reason} (source=${args.source}${requestedByTag})`,
+            referenceTicket: ticket,
+            requireSufficientBalance: args.type === "DEDUCT",
+        });
+        return {
+            customerId: args.customerId,
+            walletId: wallet.id,
+            amount: args.amount,
+            type: args.type,
+            balanceBefore: tx.balance_before,
+            balanceAfter: tx.balance_after,
+        };
+    } catch (e) {
+        if ((e as { code?: string }).code === "INSUFFICIENT_BALANCE") {
+            throw new VendorAdjustError("INSUFFICIENT_BALANCE", 409, "Balance is not sufficient");
+        }
+        if (isPgUniqueViolation(e)) {
+            // Race: two concurrent requests reused the same transactionId.
+            const raced = await lookupVendorTransaction(ticket);
+            if (raced) {
+                throw new VendorAdjustError("DUPLICATE_TRANSACTION", 409, "Duplicate transaction ID", raced);
+            }
+        }
+        throw e;
+    }
 }

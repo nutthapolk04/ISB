@@ -5,6 +5,7 @@ import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_respons
 import { HealthController } from "@/controllers/HealthController";
 import { AuthController } from "@/controllers/AuthController";
 import { IsbSyncController } from "@/controllers/IsbSyncController";
+import { VendorWalletController } from "@/controllers/VendorWalletController";
 import { BayCallbackController } from "@/controllers/BayCallbackController";
 import { PublicSettingsController } from "@/controllers/PublicSettingsController";
 import { DepartmentController } from "@/controllers/DepartmentController";
@@ -35,6 +36,7 @@ import { KioskController } from "@/controllers/KioskController";
 import * as HealthSchema from "@/interfaces/routes/health.schema";
 import * as AuthSchema from "@/interfaces/routes/auth.schema";
 import * as IsbSyncSchema from "@/interfaces/routes/isb_sync.schema";
+import * as VendorWalletSchema from "@/interfaces/routes/vendor_wallet.schema";
 import * as BayCallbackSchema from "@/interfaces/routes/bay_callback.schema";
 import * as AdminSettingsSchema from "@/interfaces/routes/admin_settings.schema";
 import * as CustomerDisplaySchema from "@/interfaces/routes/customer_display.schema";
@@ -62,16 +64,26 @@ import * as AdminReportsSchema from "@/interfaces/routes/admin_reports.schema";
 import * as CanteenSchema from "@/interfaces/routes/canteen.schema";
 import * as KioskSchema from "@/interfaces/routes/kiosk.schema";
 
-/** ISB vendor sync — public, x-api-key only (no JWT). */
+/** ISB vendor sync + wallet-adjust-balance — public, x-api-key only (no JWT). */
 const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
-    .onError(({ code, error, set }) => {
+    .onError(({ code, error, set, path }) => {
         if (code === "VALIDATION") {
+            if (path === "/api/v1/wallet/adjust-balance") {
+                set.status = 400;
+                return {
+                    status: "FAILED" as const,
+                    code: "INVALID_REQUEST" as const,
+                    message: "Request body does not match the expected schema.",
+                    errors: mapValidationError(error),
+                };
+            }
             return syncValidationFailed(set, mapValidationError(error));
         }
     })
     .post("/sync/staffs", IsbSyncController.staffs, IsbSyncSchema.isbSyncStaffs)
     .post("/sync/families", IsbSyncController.families, IsbSyncSchema.isbSyncFamilies)
-    .post("/sync/departments", IsbSyncController.departments, IsbSyncSchema.isbSyncDepartments);
+    .post("/sync/departments", IsbSyncController.departments, IsbSyncSchema.isbSyncDepartments)
+    .post("/wallet/adjust-balance", VendorWalletController.adjustBalance, VendorWalletSchema.adjustBalance);
 
 /**
  * All authenticated /api/v1 routes in one plugin (Elysia 1.4.x: avoid multiple

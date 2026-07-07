@@ -18,7 +18,9 @@ const staffItemSchema = t.Object({
     hasChildren: t.Boolean(),
     profileImage: t.String(),
     smartCard: smartCardSchema,
-    login: staffLoginSchema,
+    // SSO login accounts (string array) — a staff member who's also a
+    // parent carries both, e.g. ["chrism@isb.ac.th", "202231@parents.isb.ac.th"].
+    login: t.Array(t.String()),
 });
 
 const parentSchema = t.Object({
@@ -27,7 +29,8 @@ const parentSchema = t.Object({
     firstName: t.String(),
     lastName: t.String(),
     profileImage: t.String(),
-    login: t.String(),
+    // SSO login accounts (string array). A non-staff parent usually carries one.
+    login: t.Array(t.String()),
     smartCard: smartCardSchema,
 });
 

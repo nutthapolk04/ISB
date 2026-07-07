@@ -163,6 +163,42 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS confirmed_via VARCHAR(30)`,
         label: "payment_intents.confirmed_via",
     },
+    // ── Multi-account SSO: a staff+parent person can log in with either of
+    // their ISB accounts and land on the same wallet/family. ISB's vendor
+    // sync now sends `login` as a string array per Staff/Parent record.
+    {
+        sql: `CREATE TABLE IF NOT EXISTS user_login_emails (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      email VARCHAR(255) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+        label: "CREATE user_login_emails",
+    },
+    {
+        sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_user_login_emails_email ON user_login_emails(email)`,
+        label: "idx user_login_emails.email",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_user_login_emails_user_id ON user_login_emails(user_id)`,
+        label: "idx user_login_emails.user_id",
+    },
+    {
+        // One-time backfill: every existing user's primary email becomes a
+        // known login too, so the new SSO fallback lookup never regresses
+        // anyone who only ever had one email.
+        sql: `INSERT INTO user_login_emails (user_id, email)
+      SELECT id, email FROM users WHERE email IS NOT NULL AND email <> ''
+      ON CONFLICT (email) DO NOTHING`,
+        label: "backfill user_login_emails from users.email",
+    },
+    // ── Vendor wallet-adjust-balance API idempotency (POST /api/v1/wallet/adjust-balance) ──
+    {
+        sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_wallet_tx_vendor_idempotency
+      ON wallet_transactions (reference_ticket)
+      WHERE reference_ticket LIKE 'vendor-adjust:%'`,
+        label: "wallet_transactions vendor-adjust idempotency index",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

@@ -12,7 +12,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     users, customers, wallets, syncLogs, syncAuditLogs, parentChildLinks,
-    familyProfiles, customerTypes,
+    familyProfiles, customerTypes, userLoginEmails,
 } from "@/db/schema";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -176,14 +176,32 @@ export interface StaffPayload {
     staffType?: string;
     department?: string;
     smartCard?: { cardNumber?: string };
-    login?: { email: string; loginId: string };
+    /** SSO login emails, e.g. ["chrism@isb.ac.th", "202231@parents.isb.ac.th"] — first is primary. */
+    login?: string[];
     hasChildren?: boolean;
+}
+
+/**
+ * Records every email in `emails` as a valid SSO login for `userId`, so
+ * auth_service's SSO lookup can resolve any of them to this same user/wallet.
+ * "Last write wins" on conflict — matches the ISB vendor sync's own
+ * documented upsert semantics (an email can move to a different person).
+ */
+async function syncLoginEmails(userId: number, emails: (string | undefined | null)[]): Promise<void> {
+    const cleaned = [...new Set(emails.map((e) => (e ?? "").trim().toLowerCase()).filter(Boolean))];
+    if (cleaned.length === 0) return;
+    for (const email of cleaned) {
+        await db.insert(userLoginEmails)
+            .values({ userId, email })
+            .onConflictDoUpdate({ target: userLoginEmails.email, set: { userId } });
+    }
 }
 
 export async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
-    const email = (payload.login?.email ?? "").trim().toLowerCase();
-    const username = (payload.login?.loginId ?? "").split("@")[0].trim().toLowerCase();
+    const logins = payload.login ?? [];
+    const email = (logins[0] ?? "").trim().toLowerCase();
+    const username = email.split("@")[0].trim().toLowerCase();
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
     const familyCode = String(payload.familyCode);
     const cardUid = payload.smartCard?.cardNumber ?? null;
@@ -236,14 +254,15 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
         entityName: userRow.fullName, externalId: extId,
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
+    await syncLoginEmails(userRow.id, logins);
     return userRow;
 }
 
-export async function upsertParent(payload: StaffPayload, familyCode: string, loginHint: string | null, syncLogId: number): Promise<typeof users.$inferSelect> {
+export async function upsertParent(payload: StaffPayload, familyCode: string, logins: string[], syncLogId: number): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
     const cardUid = payload.smartCard?.cardNumber ?? null;
-    const email = (loginHint ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase();
+    const email = (logins[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase();
     const username = email.split("@")[0].trim().toLowerCase();
 
     let existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
@@ -285,10 +304,11 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         entityName: userRow.fullName, externalId: extId,
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
+    await syncLoginEmails(userRow.id, logins.length > 0 ? logins : [email]);
     return userRow;
 }
 
-export async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number): Promise<typeof users.$inferSelect> {
+export async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number, logins: string[] = []): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     let existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
     const created = !existing;
@@ -326,6 +346,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
         entityName: userRow.fullName, externalId: extId,
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
+    await syncLoginEmails(userRow.id, logins);
     return userRow;
 }
 
@@ -504,8 +525,8 @@ async function processFamily(args: {
             if (ctype === "Staff") {
                 user = await upsertStaffParentRef(payload, familyCode, args.syncLogId);
             } else {
-                const loginHint = idx < loginArray.length ? loginArray[idx] : null;
-                user = await upsertParent(payload, familyCode, loginHint, args.syncLogId);
+                const logins = idx < loginArray.length ? [loginArray[idx]] : [];
+                user = await upsertParent(payload, familyCode, logins, args.syncLogId);
             }
             parentUserRows.push({ user, rank });
             success += 1;

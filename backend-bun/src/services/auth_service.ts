@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users, roles, userRoles, permissions, rolePermissions, shops } from "@/db/schema";
+import { users, roles, userRoles, permissions, rolePermissions, shops, userLoginEmails } from "@/db/schema";
 import { config } from "@/lib/config";
 
 const ACCESS_TOKEN_EXPIRE_MINUTES = 30;
@@ -349,6 +349,27 @@ export async function me(userId: number): Promise<MeResponseDTO> {
     };
 }
 
+// ── Multi-account SSO lookup ────────────────────────────────────────────
+//
+// A staff member who's also a parent has two ISB accounts (e.g.
+// "chrism@isb.ac.th" and "202231@parents.isb.ac.th") that must both land on
+// the same users row / wallet / family. `users.email` only ever holds one
+// address, so a login with the *other* address falls back to
+// `user_login_emails` (populated by the ISB vendor sync from each person's
+// `login` array) before giving up.
+async function findUserByAnyLoginEmail(email: string): Promise<typeof users.$inferSelect | undefined> {
+    const direct = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
+    if (direct) return direct;
+
+    const viaAlias = (await db
+        .select({ user: users })
+        .from(userLoginEmails)
+        .innerJoin(users, eq(users.id, userLoginEmails.userId))
+        .where(eq(userLoginEmails.email, email))
+        .limit(1))[0];
+    return viaAlias?.user;
+}
+
 // ── Mock SSO (lookup by email) ────────────────────────────────────────────
 
 export async function mockSso(email: string): Promise<TokenResponseDTO> {
@@ -358,8 +379,7 @@ export async function mockSso(email: string): Promise<TokenResponseDTO> {
         (err as { status?: number }).status = 400;
         throw err;
     }
-    const rows = await db.select().from(users).where(eq(users.email, trimmed)).limit(1);
-    const user = rows[0];
+    const user = await findUserByAnyLoginEmail(trimmed);
     if (!user) {
         const err = new Error("This email is not registered in the system. Please contact your school administrator.");
         (err as { status?: number }).status = 404;
@@ -408,8 +428,7 @@ export async function googleSso(accessToken: string): Promise<TokenResponseDTO> 
         (err as { status?: number }).status = 400;
         throw err;
     }
-    const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    const user = rows[0];
+    const user = await findUserByAnyLoginEmail(email);
     if (!user) {
         const err = new Error("This Google account is not registered in the system. Please contact your school administrator.");
         (err as { status?: number }).status = 404;
