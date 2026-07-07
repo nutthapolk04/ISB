@@ -1815,6 +1815,7 @@
     "close": "ปิด",
     "selectDate": "เลือกวันที่",
     "selectDateRange": "เลือกช่วงวันที่",
+    "startEndDate": "วันเริ่มต้น — วันสิ้นสุด",
     "unknownError": "ข้อผิดพลาดไม่ทราบสาเหตุ",
     "select": "เลือก",
     "next": "ถัดไป",

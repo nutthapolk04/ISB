@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import { enUS, th } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 import { CalendarIcon } from "lucide-react";
 import { useMonthlyStockReport } from "@/hooks/useMonthlyStock";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,8 @@ function toYMD(d: Date) {
 }
 
 export default function MonthlyStockReport({ shopId }: { shopId: string }) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "th" ? th : enUS;
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const [range, setRange] = useState<DateRange | undefined>({ from: firstOfMonth, to: now });
@@ -102,9 +106,9 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
 
   const triggerLabel = range?.from
     ? range.to
-      ? `${format(range.from, "d MMM yyyy")} — ${format(range.to, "d MMM yyyy")}`
-      : format(range.from, "d MMM yyyy")
-    : "Select date range";
+      ? `${format(range.from, "d MMM yyyy", { locale: dateLocale })} — ${format(range.to, "d MMM yyyy", { locale: dateLocale })}`
+      : format(range.from, "d MMM yyyy", { locale: dateLocale })
+    : t("common.selectDateRange");
 
   return (
     <div className="space-y-4">
@@ -121,7 +125,7 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <div className="p-2 border-b text-sm font-medium text-muted-foreground px-3 py-2">
-              Start Date — End Date
+              {t("common.startEndDate")}
             </div>
             <Calendar
               mode="range"
@@ -134,6 +138,7 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
               }}
               disabled={{ after: now }}
               defaultMonth={firstOfMonth}
+              locale={dateLocale}
             />
           </PopoverContent>
         </Popover>
