@@ -166,7 +166,7 @@ const t = {
 <style scoped>
 .welcome-view {
     justify-content: flex-start;
-    padding: 2rem;
+    padding: 3rem 2rem 2rem;
 }
 
 .lang-switch-container {

@@ -303,7 +303,7 @@ onUnmounted(() => {
 
 <style scoped>
 .balance-view {
-    padding: 1.5rem 2rem;
+    padding: 3rem 2rem 2rem;
     justify-content: flex-start;
     gap: 1.5rem;
 }
