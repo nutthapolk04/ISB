@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,8 +66,6 @@ interface TopupIntent {
   txn_no: string | null;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export default function WalletDetail() {
   const { customerId } = useParams<{ customerId: string }>();

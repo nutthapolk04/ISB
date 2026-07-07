@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { getPaginationRange } from "@/lib/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,9 +145,6 @@ type SortKey = "name" | "children" | "balance";
 type SortDir = "asc" | "desc";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 function unitStatus(u: FamilyUnit): StatusFilter {
   if (u.children.length === 0) return "normal";

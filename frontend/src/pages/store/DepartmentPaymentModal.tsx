@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Building2, ChevronLeft, Loader2, Nfc, CheckCircle2, UserCircle2, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 
 export interface DepartmentOption {
   id: number;
@@ -50,8 +51,6 @@ interface VerifiedEmployee {
   department_name?: string | null;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export function DepartmentPaymentModal({
   open,

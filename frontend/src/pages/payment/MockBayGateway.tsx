@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { formatCurrency as fmtTHB } from "@/lib/format";
 
 // ── Shared types + storage helpers ──────────────────────────────────────
 
@@ -59,8 +60,6 @@ export function clearBayIntent(orderRef: string) {
   sessionStorage.removeItem(SS_KEY_PREFIX + orderRef);
 }
 
-const fmtTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 // ── 1. BAY-style hosted form ────────────────────────────────────────────
 

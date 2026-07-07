@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { IdCard } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
+import { formatCurrency as formatTHB } from "@/lib/format";
 
 interface StudentProfileData {
   id: number;
@@ -22,8 +23,6 @@ interface StudentProfileData {
   wallet_balance?: number | null;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export default function StudentProfile() {
   const { customerId } = useParams<{ customerId: string }>();

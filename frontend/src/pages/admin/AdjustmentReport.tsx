@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
@@ -41,8 +42,6 @@ interface AdjustmentRow {
   adjusted_by: string;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 const formatDT = (iso: string) => {
   const d = new Date(iso);

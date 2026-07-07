@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,8 +48,6 @@ interface WalletTransaction {
   created_at: string;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 
 export default function DepartmentAdjust() {

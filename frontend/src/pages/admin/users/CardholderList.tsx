@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import {
   useCardholders,
   useFamilyLinks,
@@ -87,8 +88,6 @@ const KIND_BADGE_KEY: Record<Cardholder["kind"], string> = {
 
 const PAGE_SIZE = 10;
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 const relativeTime = (iso: string | null | undefined) => {
   if (!iso) return "—";

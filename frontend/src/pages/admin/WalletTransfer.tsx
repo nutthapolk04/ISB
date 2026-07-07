@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB, formatCurrency as formatTHBTx } from "@/lib/format";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
@@ -73,9 +74,6 @@ const formatDT = (iso: string) => {
   return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-const formatTHBTx = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
-
 interface ParentInfo {
   user_id: number;
   username: string;
@@ -123,9 +121,6 @@ interface StudentFamilyContext {
   parents: ParentSummary[];
   siblings: ChildSummary[];
 }
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export default function WalletTransfer() {
   const { t } = useTranslation();

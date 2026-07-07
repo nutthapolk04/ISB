@@ -24,10 +24,7 @@ export default defineConfig(({ mode }) => ({
         host: "::",
         port: 8080,
     },
-    plugins: [react(), tanstackRouter({
-        target: "react",
-        autoCodeSplitting: true,
-    }), mode === "development" && componentTagger()].filter(Boolean),
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),

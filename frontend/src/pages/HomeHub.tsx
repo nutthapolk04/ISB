@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth, moduleOf, type UserRole } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     ChefHat,
@@ -27,8 +28,6 @@ interface FamilyChild {
     wallet_balance?: number | null;
 }
 
-const formatTHB = (n: number) =>
-    new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 interface Tile {
     key: string;

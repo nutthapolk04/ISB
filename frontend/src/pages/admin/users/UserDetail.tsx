@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { useDebounce } from "@/hooks/useDebounce";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -126,8 +127,6 @@ interface StudentOption {
   card_uid: string | null;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export default function UserDetail() {
   const { t } = useTranslation();

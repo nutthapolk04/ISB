@@ -46,14 +46,12 @@ import {
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/dateFormat";
 import { useDebounce } from "@/hooks/useDebounce";
+import { formatCurrency as formatTHB } from "@/lib/format";
 
 interface FamilyLookupCardProps {
   /** Called when the user clicks "Refund" on a family member. */
   onRefundClick: (candidate: RefundCandidate) => void;
 }
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 const formatDate = (iso: string | null): string => fmtDate(iso);
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -78,9 +79,6 @@ interface ParentUser {
   username: string;
   full_name?: string | null;
 }
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 const formatDate = (iso: string, _lang: string) => fmtDateTimeShared(iso);
 

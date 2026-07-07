@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
@@ -104,9 +105,6 @@ interface Cardholder {
 }
 
 type Direction = "credit" | "debit";
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 function profileHref(c: Cardholder): string {
   if (c.entity_type === "user") return `/users/${c.entity_id}`;

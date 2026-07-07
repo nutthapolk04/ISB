@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -55,10 +56,6 @@ interface WalletResponse {
   photo_url: string | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
