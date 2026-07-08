@@ -199,8 +199,8 @@ const t = {
 
 .lang-btn {
     background: none;
-    border: 2px solid var(--text-muted);
-    color: var(--text-color);
+    border: 2px solid #94a3b8;
+    color: var(--text-muted);
     padding: 0.75rem 1.5rem;
     border-radius: 3rem;
     display: flex;
@@ -231,7 +231,7 @@ const t = {
 
 .card-icon {
     color: var(--primary);
-    background: rgba(37, 99, 235, 0.1);
+    /* background: rgba(37, 99, 235, 0.1); */
     padding: 3rem;
     border-radius: 3rem;
 }
@@ -304,14 +304,15 @@ const t = {
 
 .wave {
     position: absolute;
-    border: 4px solid var(--primary);
+    border: 4px solid transparent;
+
     opacity: 0;
     border-radius: 50%;
     width: 300px;
     height: 300px;
     top: -150px;
     left: -150px;
-    animation: wave-animation 3s infinite;
+    animation: wave-animation 3s infinite linear;
 }
 
 .wave:nth-child(2) {
@@ -325,12 +326,20 @@ const t = {
 @keyframes wave-animation {
     0% {
         transform: scale(0.5);
-        opacity: 0.5;
+        opacity: 0;
+        background-color: var(--primary);
+    }
+
+    20% {
+        transform: scale(0.75);
+        opacity: 0.1;
+        background-color: var(--primary);
     }
 
     100% {
         transform: scale(1.5);
         opacity: 0;
+        background-color: #EACB46;
     }
 }
 </style>
