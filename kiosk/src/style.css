@@ -1,6 +1,9 @@
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1e40af;
+  /* ISB brand — red/yellow from the school crest */
+  --primary: #d4362a;
+  --primary-dark: #b6352a;
+  --accent: #eacb46;
+  --accent-dark: #c9a531;
   --bg-color: #f8fafc;
   --text-color: #0f172a;
   --text-muted: #64748b;
@@ -25,7 +28,10 @@
     --text-color: #f8fafc;
     --text-muted: #94a3b8;
     --card-bg: #1e293b;
-    --primary: #3b82f6;
+    --primary: #e6493c;
+    --primary-dark: #d4362a;
+    --accent: #f0d564;
+    --accent-dark: #eacb46;
     --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
   }
 }
@@ -114,8 +120,9 @@ h3 {
 }
 
 .btn-primary {
-  background-color: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: white;
+  box-shadow: 0 8px 20px -6px rgba(212, 54, 42, 0.5);
 }
 
 .btn-secondary {

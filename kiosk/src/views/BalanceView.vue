@@ -339,7 +339,7 @@ onUnmounted(() => {
     color: white;
     border-radius: 1.5rem;
     padding: 1.5rem 2rem;
-    box-shadow: 0 8px 24px rgba(59, 31, 126, 0.3);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
     transition: transform 0.35s ease, opacity 0.35s ease;
     position: relative;
     overflow: hidden;
@@ -596,21 +596,25 @@ onUnmounted(() => {
 }
 
 .topup-icon {
-    background: #dbeafe;
-    color: #2563eb;
+    background: rgba(212, 54, 42, 0.1);
+    color: var(--primary);
 }
 
 .history-icon {
-    background: #fce7f3;
-    color: #db2777;
+    background: rgba(234, 203, 70, 0.25);
+    color: #8a6d1a;
 }
 
 .menu-item.topup {
-    border-color: #bfdbfe;
+    border-color: rgba(212, 54, 42, 0.2);
 }
 
 .menu-item.history {
-    border-color: #fbcfe8;
+    border-color: rgba(234, 203, 70, 0.5);
+}
+
+.menu-item:active {
+    box-shadow: 0 4px 14px -4px rgba(212, 54, 42, 0.2);
 }
 
 .chevron {

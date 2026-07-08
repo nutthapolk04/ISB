@@ -140,8 +140,7 @@ const t = {
 
         <!-- School branding -->
         <div class="school-brand">
-            <img v-if="store.schoolInfo.school_logo_url" :src="store.schoolInfo.school_logo_url" class="school-logo"
-                alt="School logo" />
+            <img src="/isb-logo%201.svg" class="school-logo" alt="School logo" />
             <h2 v-if="store.schoolInfo.school_name" class="school-name">{{ store.schoolInfo.school_name }}</h2>
         </div>
 
