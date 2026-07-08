@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 
+launch.json
+
 # Build output
 dist/
 

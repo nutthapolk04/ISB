@@ -1,24 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Search, Eye, Download, Loader2, Ban, Printer } from "lucide-react";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Receipt, Eye, Download, Loader2, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { api, ApiError } from "@/lib/api";
@@ -27,85 +20,12 @@ import { getPaginationRange } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
-import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
-import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
-
-// ── Scope constants ──────────────────────────────────────────────────────────
-
-type ModuleScope = "canteen" | "store";
-
-// ── Types (match backend ReceiptResponse) ────────────────────────────────────
-
-interface ReceiptOptionsSnapshotApi {
-    options_total: number;
-    groups: Array<{
-        group_id: number;
-        name: string;
-        selection_type: "single" | "multi" | "quantity";
-        options: Array<{
-            option_id: number;
-            name: string;
-            price_delta: number;
-            quantity: number;
-        }>;
-    }>;
-}
-
-interface ReceiptItemApi {
-    id: number;
-    receipt_id: number;
-    product_variant_id: number;
-    quantity: number;
-    unit_price: number;
-    discount: number;
-    line_total: number;
-    options?: ReceiptOptionsSnapshotApi | null;
-    created_at: string;
-    product_variant?: {
-        sku: string | null;
-        variant_name: string | null;
-        barcode: string | null;
-    } | null;
-}
-
-interface PayerDetail {
-    name: string;
-    code: string | null;
-    grade: string | null;       // grade for students, dept name for staff
-    photo_url: string | null;
-    role: string;
-    wallet_balance: number | null;
-}
-
-interface ReceiptApi {
-    id: number;
-    receipt_number: string;
-    transaction_date: string;
-    transaction_mode: string;
-    customer_id: number | null;
-    payer_user_id?: number | null;
-    payer_department_id?: number | null;
-    payer_kind?: string | null;
-    payer_label?: string | null;
-    payer_detail?: PayerDetail | null;
-    created_by_name?: string | null;
-    shop_id?: string | null;
-    shop_name?: string | null;
-    subtotal: number;
-    discount: number;
-    tax: number;
-    total: number;
-    payment_method: string;
-    status: string;
-    notes: string | null;
-    cash_received?: number | null;
-    created_at: string;
-    created_by: number;
-    voided_at: string | null;
-    voided_by: number | null;
-    voided_reason: string | null;
-    items: ReceiptItemApi[];
-}
+import { downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
+import type { ReceiptApi, ModuleScope } from "./receipts/receiptTypes";
+import { ReceiptStatsPanel } from "./receipts/ReceiptStatsPanel";
+import { ReceiptSearchPanel } from "./receipts/ReceiptSearchPanel";
+import { ReceiptVoidDialog } from "./receipts/ReceiptVoidDialog";
+import { ReceiptDetailDialog } from "./receipts/ReceiptDetailDialog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,15 +41,10 @@ function fmtDateOnly(iso: string): string {
     }
 }
 
-// ── Print / PDF ───────────────────────────────────────────────────────────────
-// Receipt print uses the shared builder in lib/printReceipt so the layout
-// matches what auto-print produces at sale time. School is international so
-// the paper receipt is always rendered in English.
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 const Receipts = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { user } = useAuth();
     const { pathname } = useLocation();
     const schoolInfo = useSchoolInfo();
@@ -190,113 +105,13 @@ const Receipts = () => {
 
     // ── Void / cancel ───────────────────────────────────────────────────────
     const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
-    const [voidReason, setVoidReason] = useState("");
-    const [voidLoading, setVoidLoading] = useState(false);
-    // Per-shop custom reason shortcuts. Cashier sees them, manager/admin edit.
-    const [customShortcuts, setCustomShortcuts] = useState<string[]>([]);
-    const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
-    const [newShortcutText, setNewShortcutText] = useState("");
     // Admin-only picker for store scope (dynamic) / canteen scope (dynamic).
-    // Declared above effectiveShortcutShopId so the const eval doesn't hit TDZ
-    // on the picked* refs during the first render.
     const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
     const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
     const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
     const [storeShops, setStoreShops] = useState<{ id: string; name: string }[]>([]);
-    // Effective shop for shortcut management: own shopId > picked filter shop
-    const effectiveShortcutShopId = user?.shopId
-        ?? (moduleScope === "canteen" && pickedCanteenShop !== "all" ? pickedCanteenShop : null)
-        ?? (moduleScope === "store" && pickedStoreShop !== "all" ? pickedStoreShop : null);
-
-    const canEditShortcuts =
-        !!effectiveShortcutShopId && (user?.role === "manager" || user?.role === "admin");
 
     const canVoid = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
-
-    useEffect(() => {
-        if (!effectiveShortcutShopId) {
-            setCustomShortcuts([]);
-            return;
-        }
-        api.get<{ void_shortcuts?: string[] }>(`/shops/${effectiveShortcutShopId}`)
-            .then((s) => setCustomShortcuts(Array.isArray(s.void_shortcuts) ? s.void_shortcuts : []))
-            .catch(() => setCustomShortcuts([]));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectiveShortcutShopId]);
-
-    const saveCustomShortcuts = async (next: string[]) => {
-        if (!effectiveShortcutShopId) return;
-        const prev = customShortcuts;
-        setCustomShortcuts(next);
-        try {
-            const res = await api.put<{ void_shortcuts?: string[] }>(
-                `/shops/${effectiveShortcutShopId}/void-shortcuts`,
-                { shortcuts: next },
-            );
-            if (Array.isArray(res.void_shortcuts)) setCustomShortcuts(res.void_shortcuts);
-        } catch (e) {
-            setCustomShortcuts(prev);
-            toast.error(
-                e instanceof ApiError
-                    ? e.detail
-                    : t("receipts.voidDialog.shortcutSaveFailed", "Could not save shortcut"),
-            );
-        }
-    };
-
-    const addCustomShortcut = async () => {
-        const text = newShortcutText.trim();
-        setShortcutDialogOpen(false);
-        setNewShortcutText("");
-        if (!text || customShortcuts.includes(text)) return;
-        await saveCustomShortcuts([...customShortcuts, text]);
-    };
-
-    const removeCustomShortcut = async (text: string) => {
-        await saveCustomShortcuts(customShortcuts.filter((s) => s !== text));
-    };
-
-    const handleVoidConfirm = async () => {
-        if (!voidTarget) return;
-        const targetId = voidTarget.id;
-        const targetNumber = voidTarget.receipt_number;
-        setVoidLoading(true);
-        try {
-            const updated = await api.post<ReceiptApi>(`/pos/void/${targetId}`, {
-                reason: voidReason.trim() || null,
-            });
-            setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
-            toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
-            setVoidTarget(null);
-            setVoidReason("");
-        } catch (e) {
-            // If backend says the receipt is ALREADY voided, treat it as success:
-            // an earlier request did succeed at the DB level but the response
-            // never made it back (e.g. transient 500 during the postgres-js bug).
-            // Refetch the row so the UI reflects the real voided state.
-            const isAlreadyVoided =
-                e instanceof ApiError &&
-                typeof e.detail === "string" &&
-                /already.*voided/i.test(e.detail);
-            if (isAlreadyVoided) {
-                try {
-                    const refreshed = await api.get<ReceiptApi>(`/pos/receipt/${targetId}`);
-                    setReceipts((prev) => prev.map((r) => r.id === refreshed.id ? refreshed : r));
-                } catch {
-                    // If refetch also fails, fall back to a soft local mark so the
-                    // cashier doesn't keep re-trying. They can hard-refresh later.
-                    setReceipts((prev) => prev.map((r) => r.id === targetId ? { ...r, status: "voided" } : r));
-                }
-                toast.success(t("receipts.voidDialog.successToast", { number: targetNumber }));
-                setVoidTarget(null);
-                setVoidReason("");
-            } else {
-                toast.error(e instanceof ApiError ? e.detail : t("receipts.voidDialog.failToast"));
-            }
-        } finally {
-            setVoidLoading(false);
-        }
-    };
 
     useEffect(() => {
         if (!user?.shopId) {
@@ -490,153 +305,29 @@ const Receipts = () => {
                 {t("receipts.info.statusGuide.body")}
             </InfoCallout>
 
-            {/* Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="kpi-card">
-                    <CardHeader>
-                        <CardTitle className="kpi-label">{t("receipts.todaySales")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="kpi-value text-success">฿{todaySales.toLocaleString()}</p>
-                    </CardContent>
-                </Card>
-                <Card className="kpi-card">
-                    <CardHeader>
-                        <CardTitle className="kpi-label">{t("receipts.totalSalesMonthly", "Total Sales Monthly")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="kpi-value text-primary">฿{displayMonthlySales.toLocaleString()}</p>
-                    </CardContent>
-                </Card>
-                <Card className="kpi-card">
-                    <CardHeader>
-                        <CardTitle className="kpi-label">{t("receipts.receiptCountMonthly", "Receipt Count Monthly")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="kpi-value">{displayMonthlyCount}</p>
-                    </CardContent>
-                </Card>
-            </div>
+            <ReceiptStatsPanel
+                todaySales={todaySales}
+                displayMonthlySales={displayMonthlySales}
+                displayMonthlyCount={displayMonthlyCount}
+            />
 
-            {/* ── Search Panel ──────────────────────────────────────────────────── */}
-            <Card>
-                <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                        <Search className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-base">{t("receipts.searchPanel.title", "Search Receipt")}</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {/* Receipt ID */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                {t("receipts.searchPanel.receiptId", "Receipt ID")}
-                            </label>
-                            <Input
-                                placeholder="R-001"
-                                value={searchReceiptId}
-                                onChange={(e) => setSearchReceiptId(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                            />
-                        </div>
-
-                        {/* Payer name / code */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                {t("receipts.searchPanel.payer", "รหัส/ชื่อนักเรียน")}
-                            </label>
-                            <Input
-                                placeholder={t("receipts.searchPanel.payerPlaceholder")}
-                                value={searchPayer}
-                                onChange={(e) => setSearchPayer(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                            />
-                        </div>
-
-                        {/* Purchase Date Range */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                {t("receipts.searchPanel.date", "Purchase Date")}
-                            </label>
-                            <DateRangePicker
-                                startDate={searchDateFrom}
-                                endDate={searchDateTo}
-                                onStartChange={setSearchDateFrom}
-                                onEndChange={setSearchDateTo}
-                            />
-                        </div>
-
-                        {/* Payment Type */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                {t("receipts.searchPanel.paymentType", "Payment Type")}
-                            </label>
-                            <Select value={searchPaymentType} onValueChange={setSearchPaymentType}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">{t("receipts.searchPanel.allTypes", "All")}</SelectItem>
-                                    <SelectItem value="wallet">{t("common.paymentMethods.wallet")}</SelectItem>
-                                    <SelectItem value="cash">{t("common.paymentMethods.cash")}</SelectItem>
-                                    <SelectItem value="qr_promptpay">{t("common.paymentMethods.qr_promptpay")}</SelectItem>
-                                    <SelectItem value="edc">{t("common.paymentMethods.edc")}</SelectItem>
-                                    <SelectItem value="department">{t("common.paymentMethods.department")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center justify-end gap-2 mt-4">
-                        {hasActiveSearch && (
-                            <Button variant="ghost" size="sm" onClick={handleClearSearch} className="text-muted-foreground">
-                                {t("receipts.searchPanel.clear", "ล้างตัวกรอง")}
-                            </Button>
-                        )}
-                        <Button
-                            onClick={handleSearch}
-                            className="bg-orange-500 hover:bg-orange-600 text-white gap-2"
-                        >
-                            <Search className="h-4 w-4" />
-                            {t("receipts.searchPanel.search", "Search Receipt")}
-                        </Button>
-                    </div>
-
-                    {/* Active filter chips */}
-                    {hasActiveSearch && (
-                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
-                            <span className="text-xs text-muted-foreground self-center">
-                                {t("receipts.searchPanel.filtering", "กรอง:")}
-                            </span>
-                            {appliedSearch.receiptId && (
-                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                                    ID: {appliedSearch.receiptId}
-                                </span>
-                            )}
-                            {appliedSearch.payer && (
-                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                                    {t("receipts.searchPanel.chipPayer")}: {appliedSearch.payer}
-                                </span>
-                            )}
-                            {(appliedSearch.dateFrom || appliedSearch.dateTo) && (
-                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                                    {t("receipts.searchPanel.chipDate")}: {appliedSearch.dateFrom || "…"} → {appliedSearch.dateTo || "…"}
-                                </span>
-                            )}
-                            {appliedSearch.paymentType !== "all" && (
-                                <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                                    {t("receipts.paymentMethod")}: {t(`common.paymentMethods.${(appliedSearch.paymentType ?? "").toLowerCase()}`, appliedSearch.paymentType)}
-                                </span>
-                            )}
-                            <span className="text-xs text-muted-foreground self-center ml-1">
-                                ({filteredReceipts.length} {t("receipts.searchPanel.results", "รายการ")})
-                            </span>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            <ReceiptSearchPanel
+                searchReceiptId={searchReceiptId}
+                onReceiptIdChange={setSearchReceiptId}
+                searchPayer={searchPayer}
+                onPayerChange={setSearchPayer}
+                searchDateFrom={searchDateFrom}
+                onDateFromChange={setSearchDateFrom}
+                searchDateTo={searchDateTo}
+                onDateToChange={setSearchDateTo}
+                searchPaymentType={searchPaymentType}
+                onPaymentTypeChange={setSearchPaymentType}
+                appliedSearch={appliedSearch}
+                hasActiveSearch={hasActiveSearch}
+                resultsCount={filteredReceipts.length}
+                onSearch={handleSearch}
+                onClearSearch={handleClearSearch}
+            />
 
             {/* Receipts List */}
             <Card>
@@ -716,10 +407,7 @@ const Receipts = () => {
                                                 {canVoid && receipt.status === "active" && (
                                                     <IconButton
                                                         tooltip={t("receipts.void", "Void")}
-                                                        onClick={() => {
-                                                            setVoidTarget(receipt);
-                                                            setVoidReason("");
-                                                        }}
+                                                        onClick={() => setVoidTarget(receipt)}
                                                         className="text-destructive hover:text-destructive"
                                                     >
                                                         <Ban className="h-4 w-4" />
@@ -802,372 +490,20 @@ const Receipts = () => {
                 </CardContent>
             </Card>
 
-            {/* ── Void Confirmation Dialog ─────────────────────────────────────── */}
-            <Dialog open={!!voidTarget} onOpenChange={(v) => { if (!v && !voidLoading) setVoidTarget(null); }}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <Ban className="h-5 w-5" />
-                            {t("receipts.voidDialog.title")}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {voidTarget?.receipt_number} · ฿{voidTarget?.total.toLocaleString()}
-                            {" "}— {t("receipts.voidDialog.walletRefundNote")}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <div>
-                            <label className="text-sm font-medium">{t("receipts.voidDialog.reasonLabel")}</label>
-                            {/* Preset reason chips + per-shop custom chips */}
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                {([
-                                    "incorrect_transaction",
-                                    "customer_changed_mind",
-                                    "out_of_stock",
-                                    "incorrect_price",
-                                    "duplicate_payment",
-                                    "test_transaction",
-                                ] as const).map((key) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        disabled={voidLoading}
-                                        onClick={() => setVoidReason(t(`receipts.voidDialog.reasons.${key}`))}
-                                        className={cn(
-                                            "rounded-full border px-3 py-1 text-xs transition",
-                                            voidReason === t(`receipts.voidDialog.reasons.${key}`)
-                                                ? "border-destructive bg-destructive/10 text-destructive font-semibold"
-                                                : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
-                                        )}
-                                    >
-                                        {t(`receipts.voidDialog.reasons.${key}`)}
-                                    </button>
-                                ))}
-                                {customShortcuts.map((text) => (
-                                    <span key={text} className="inline-flex items-center gap-0.5">
-                                        <button
-                                            type="button"
-                                            disabled={voidLoading}
-                                            onClick={() => setVoidReason(text)}
-                                            className={cn(
-                                                "rounded-full border px-3 py-1 text-xs transition",
-                                                voidReason === text
-                                                    ? "border-destructive bg-destructive/10 text-destructive font-semibold"
-                                                    : "border-border bg-muted/50 text-muted-foreground hover:border-destructive/50 hover:text-foreground",
-                                            )}
-                                        >
-                                            {text}
-                                        </button>
-                                        {canEditShortcuts && (
-                                            <button
-                                                type="button"
-                                                disabled={voidLoading}
-                                                aria-label={t("receipts.voidDialog.removeShortcut", "Remove shortcut")}
-                                                onClick={() => removeCustomShortcut(text)}
-                                                className="rounded-full border border-border bg-muted/50 px-1.5 py-1 text-xs text-muted-foreground hover:border-destructive/50 hover:text-destructive"
-                                            >
-                                                ×
-                                            </button>
-                                        )}
-                                    </span>
-                                ))}
-                                {canEditShortcuts && customShortcuts.length < 24 && (
-                                    <button
-                                        type="button"
-                                        disabled={voidLoading}
-                                        onClick={() => setShortcutDialogOpen(true)}
-                                        className="rounded-full border border-dashed border-orange-400 px-3 py-1 text-xs text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-                                    >
-                                        + {t("receipts.voidDialog.addShortcut", "Add")}
-                                    </button>
-                                )}
-                            </div>
-                            <Textarea
-                                value={voidReason}
-                                onChange={(e) => setVoidReason(e.target.value)}
-                                placeholder={t("receipts.voidDialog.reasonPlaceholder")}
-                                rows={2}
-                                className="mt-2 resize-none"
-                                disabled={voidLoading}
-                            />
-                        </div>
-                        {!voidReason.trim() && (
-                            <p className="text-xs text-destructive font-medium">
-                                {t("receipts.voidDialog.reasonRequired")}
-                            </p>
-                        )}
-                        <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
-                            {t("receipts.voidDialog.irreversible")}
-                        </div>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                        <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => setVoidTarget(null)}
-                            disabled={voidLoading}
-                        >
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            className="flex-1"
-                            onClick={handleVoidConfirm}
-                            disabled={voidLoading || !voidReason.trim()}
-                        >
-                            {voidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {t("receipts.voidDialog.confirm")}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <ReceiptVoidDialog
+                receipt={voidTarget}
+                onOpenChange={(open) => { if (!open) setVoidTarget(null); }}
+                onVoided={(updated) => setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r))}
+                moduleScope={moduleScope}
+                pickedCanteenShop={pickedCanteenShop}
+                pickedStoreShop={pickedStoreShop}
+            />
 
-            {/* Add custom shortcut dialog */}
-            <Dialog
-                open={shortcutDialogOpen}
-                onOpenChange={(v) => {
-                    setShortcutDialogOpen(v);
-                    if (!v) setNewShortcutText("");
-                }}
-            >
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {t("receipts.voidDialog.addShortcutTitle", "Add reason shortcut")}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {t(
-                                "receipts.voidDialog.addShortcutDesc",
-                                "Manager-only. Shared with all cashiers in this shop.",
-                            )}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Input
-                        value={newShortcutText}
-                        onChange={(e) => setNewShortcutText(e.target.value)}
-                        placeholder={t("receipts.voidDialog.shortcutPlaceholder", "e.g. Wrong department")}
-                        maxLength={60}
-                        autoFocus
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" && newShortcutText.trim()) addCustomShortcut();
-                        }}
-                    />
-                    <div className="flex gap-2 pt-1">
-                        <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => setShortcutDialogOpen(false)}
-                        >
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            className="flex-1"
-                            onClick={addCustomShortcut}
-                            disabled={!newShortcutText.trim()}
-                        >
-                            {t("common.save", "Save")}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Receipt Detail Dialog */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center">
-                            <Receipt className="h-5 w-5 mr-2" />
-                            {t("receipts.details")}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {t("receipts.receiptId")}: {selectedReceipt?.receipt_number}
-                        </DialogDescription>
-                    </DialogHeader>
-                    {selectedReceipt && (() => {
-                        const isWallet = selectedReceipt.payment_method.toLowerCase() === "wallet";
-                        const walletBalanceAfter = selectedReceipt.payer_detail?.wallet_balance ?? null;
-                        const balanceBefore = isWallet && walletBalanceAfter !== null ? walletBalanceAfter + selectedReceipt.total : null;
-                        const row = (label: string, value: React.ReactNode, bold = false) => (
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">{label}</span>
-                                <span className={bold ? "font-semibold" : ""}>{value}</span>
-                            </div>
-                        );
-                        return (
-                            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-                                {selectedReceipt.status !== "active" && (
-                                    <div className="rounded border-2 border-destructive bg-destructive/10 p-2 text-center text-xs font-bold text-destructive">
-                                        *** THIS RECEIPT HAS BEEN VOIDED ***
-                                    </div>
-                                )}
-
-                                {/* Block 1: Receipt No / Date / Cashier */}
-                                <div className="space-y-1.5">
-                                    {row(t("receipts.receiptNo", "Receipt No"), <span className="font-mono font-semibold">{selectedReceipt.receipt_number}</span>)}
-                                    {row(t("receipts.dateTime"), fmtDate(selectedReceipt.transaction_date))}
-                                    {selectedReceipt.created_by_name && row(t("receipts.cashier", "Cashier"), selectedReceipt.created_by_name, true)}
-                                    {selectedReceipt.shop_name && row(t("receipts.shop", "Shop"), selectedReceipt.shop_name)}
-                                </div>
-
-                                <Separator />
-
-                                {/* Block 2: Payer / Payment Type / Status */}
-                                <div className="space-y-1.5">
-                                    {selectedReceipt.payer_detail && (
-                                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
-                                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
-                                                <img src={resolveAvatarUrl(selectedReceipt.payer_detail.photo_url, selectedReceipt.payer_detail.name)} alt={selectedReceipt.payer_detail.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedReceipt.payer_detail?.name); }} />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="font-semibold text-sm truncate">{selectedReceipt.payer_detail.name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {selectedReceipt.payer_detail.code && <span className="font-mono">{selectedReceipt.payer_detail.code}</span>}
-                                                    {selectedReceipt.payer_detail.grade && (
-                                                        <span className="ml-1">
-                                                            {selectedReceipt.payer_detail.role === "student"
-                                                                ? `· ${t("receipts.searchPanel.detailGrade")} ${selectedReceipt.payer_detail.grade}`
-                                                                : `· ${selectedReceipt.payer_detail.grade}`}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!selectedReceipt.payer_detail && selectedReceipt.payer_label && row(t("receipts.payer", "Payer"), selectedReceipt.payer_label, true)}
-                                    {row(t("receipts.paymentMethod"), t(`common.paymentMethods.${(selectedReceipt.payment_method ?? "").toLowerCase()}`, selectedReceipt.payment_method), true)}
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">{t("receipts.status", "Status")}</span>
-                                        <Badge variant={selectedReceipt.status === "active" ? "success" : "destructive"}>
-                                            {selectedReceipt.status === "active" ? "Active" : "Voided"}
-                                        </Badge>
-                                    </div>
-                                </div>
-
-                                <Separator />
-
-                                {/* Block 3: Items */}
-                                <div className="space-y-2">
-                                    {selectedReceipt.items.map((item) => {
-                                        const gross = item.line_total;
-                                        const hasItemDiscount = item.discount > 0;
-                                        const opts = item.options as { is_bundle?: boolean; bundle_name?: string; groups?: any[] } | null | undefined;
-                                        const isBundle = opts?.is_bundle === true;
-                                        const displayName = isBundle
-                                            ? (opts?.bundle_name ?? "Bundle")
-                                            : item.product_variant?.variant_name ?? `Product #${item.product_variant_id}`;
-                                        return (
-                                            <div key={item.id} className="text-sm">
-                                                <div className="flex justify-between">
-                                                    <span>{displayName} ×{item.quantity}</span>
-                                                    <span className="data-number">฿{gross.toLocaleString()}</span>
-                                                </div>
-                                                <div className="pl-4 pt-0.5 text-xs text-muted-foreground">
-                                                    Unit price: ฿{item.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    {" · "}
-                                                    Total: ฿{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                </div>
-                                                {!isBundle && opts?.groups && opts.groups.length > 0 && (
-                                                    <div className="pl-4 pt-0.5 space-y-0.5 text-xs text-muted-foreground">
-                                                        {opts.groups.flatMap((g: any) =>
-                                                            g.options.map((o: any) => (
-                                                                <div key={`${g.group_id}-${o.option_id}`} className="flex justify-between">
-                                                                    <span>+ {o.name}{o.quantity > 1 && ` ×${o.quantity}`}</span>
-                                                                    {o.price_delta > 0 && <span className="data-number">+฿{(o.price_delta * o.quantity).toLocaleString()}</span>}
-                                                                </div>
-                                                            )),
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {hasItemDiscount && (
-                                                    <div className="flex justify-between text-destructive text-xs pl-4">
-                                                        <span>{t("receipts.itemDiscount", "ส่วนลด")}</span>
-                                                        <span className="data-number">-฿{item.discount.toLocaleString()}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <Separator />
-
-                                {/* Block 4: Balance Before / Subtotal / Grand Total / Balance After */}
-                                <div className="space-y-1.5">
-                                    {balanceBefore !== null && (
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">{t("receipts.balanceBefore", "Balance Before This Sale")}</span>
-                                            <span className="data-number">฿{balanceBefore.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                        </div>
-                                    )}
-                                    {row(t("receipts.subtotal", "Subtotal"), `฿${selectedReceipt.subtotal.toLocaleString()}`)}
-                                    {selectedReceipt.discount > 0 && (
-                                        <div className="flex justify-between text-sm text-destructive">
-                                            <span>{t("receipts.billDiscount", "Bill Discount")}</span>
-                                            <span className="data-number">-฿{selectedReceipt.discount.toLocaleString()}</span>
-                                        </div>
-                                    )}
-                                    {selectedReceipt.tax > 0 && row(t("receipts.tax", "Tax"), `฿${selectedReceipt.tax.toLocaleString()}`)}
-                                    <div className="flex justify-between text-base font-bold">
-                                        <span>{t("receipts.grandTotal")}</span>
-                                        <span className="text-primary data-number">฿{selectedReceipt.total.toLocaleString()}</span>
-                                    </div>
-                                    {walletBalanceAfter !== null && (
-                                        <div className="flex justify-between text-sm font-semibold">
-                                            <span className="text-muted-foreground">{t("receipts.balanceAfter", "Balance After This Sale")}</span>
-                                            <span className={cn("data-number", walletBalanceAfter < 0 ? "text-destructive" : "text-emerald-600")}>
-                                                ฿{walletBalanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {selectedReceipt.payment_method.toLowerCase() === "cash" && selectedReceipt.cash_received != null && (
-                                        <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5 mt-1">
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">{t("receipts.cashReceived", "Cash received")}</span>
-                                                <span className="data-number">฿{selectedReceipt.cash_received.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                            </div>
-                                            <div className="flex justify-between font-semibold border-t pt-1.5">
-                                                <span>{t("receipts.change", "Change")}</span>
-                                                <span className="text-emerald-600 data-number">
-                                                    ฿{Math.max(0, selectedReceipt.cash_received - selectedReceipt.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedReceipt.notes && (
-                                        <div className="pt-1 text-xs text-muted-foreground">
-                                            <span className="font-semibold">{t("receipts.notes", "Note")}: </span>{selectedReceipt.notes}
-                                        </div>
-                                    )}
-                                    {selectedReceipt.voided_reason && (
-                                        <div className="text-xs text-destructive">
-                                            <span className="font-semibold">{t("receipts.voidReason", "Void reason")}: </span>{selectedReceipt.voided_reason}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <Separator />
-
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Button
-                                        className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                                        onClick={() => printReceiptShared(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
-                                    >
-                                        <Printer className="h-4 w-4 mr-2" />
-                                        {t("receipts.print", "Print")}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => downloadReceiptHtml(selectedReceipt as unknown as LibReceiptApi, schoolInfo, selectedReceipt.shop_name ?? user?.shopName, "en")}
-                                    >
-                                        <Download className="h-4 w-4 mr-2" />
-                                        {t("receipts.download", "Save PDF")}
-                                    </Button>
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </DialogContent>
-            </Dialog>
+            <ReceiptDetailDialog
+                receipt={selectedReceipt}
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+            />
         </div>
     );
 };

@@ -1,12 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { IconButton } from "@/components/IconButton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
@@ -18,42 +15,23 @@ import {
     ScanBarcode,
     ShoppingCart,
     Package,
-    CreditCard,
     UserSearch,
     Wallet,
     X,
-    Palette,
-    GripVertical,
     ArrowUpDown,
     Check,
     Printer,
     Loader2,
     MessageSquare,
 } from "lucide-react";
-import {
-    DndContext,
-    closestCenter,
-    PointerSensor,
-    TouchSensor,
-    KeyboardSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-    SortableContext,
-    sortableKeyboardCoordinates,
-    rectSortingStrategy,
-    arrayMove,
-    useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
+import { useProductReorder } from "@/hooks/useProductReorder";
+import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
 
 function storeSpendingLimit(s: { daily_limit_store?: number | null; spent_today_store?: number | null } | null): SpendingLimitData | null {
     if (!s || s.daily_limit_store == null) return null;
@@ -79,202 +57,26 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { PaymentMethodPicker, type CanteenPaymentMethod } from "./canteen/PaymentMethodPicker";
 import { CashPaymentModal } from "./canteen/CashPaymentModal";
 import { QrPaymentModal } from "./canteen/QrPaymentModal";
-import { RfidPaymentModal, type WalletPayer, type StudentLookupResult, type UserPayerLookup } from "./canteen/RfidPaymentModal";
+import { RfidPaymentModal, type WalletPayer, type StudentLookupResult } from "./canteen/RfidPaymentModal";
 import { ReceiptSuccessModal } from "./canteen/ReceiptSuccessModal";
 import { DepartmentPaymentModal, type DepartmentOption } from "./store/DepartmentPaymentModal";
 import { EdcPaymentModal } from "./store/EdcPaymentModal";
-import UserPicker from "@/components/UserPicker";
 import { MemberSearchModal } from "./canteen/MemberSearchModal";
 import { UpToDateSaleButton } from "@/components/canteen/UpToDateSaleButton";
 import { CashierTopupModal } from "@/components/CashierTopupModal";
 import { Switch } from "@/components/ui/switch";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
-import { useRecentColors } from "@/hooks/useRecentColors";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface PricePanel {
-    id: number;
-    name: string;
-    color: string | null;
-}
-
-const panelColorClass: Record<string, string> = {
-    blue: "bg-blue-100 text-blue-700 border-blue-300",
-    green: "bg-green-100 text-green-700 border-green-300",
-    orange: "bg-orange-100 text-orange-700 border-orange-300",
-    red: "bg-red-100 text-red-700 border-red-300",
-    purple: "bg-purple-100 text-purple-700 border-purple-300",
-    gray: "bg-gray-100 text-gray-700 border-gray-300",
-};
-
-interface ExtraBarcode {
-    id: number;
-    barcode: string;
-    label: string | null;
-}
-
-interface Product {
-    id: number;
-    productCode: string;
-    barcode: string;
-    name: string;
-    price: number;
-    internalPrice?: number;
-    stock: number;
-    category: string;
-    subMerchantId: string;
-    photoUrl?: string | null;
-    color?: string | null;
-    extraBarcodes?: ExtraBarcode[];
-    // Bundle / Grade-Set fields (only present when isBundle=true)
-    isBundle?: boolean;
-    bundleId?: number;
-}
-
-type DiscountMode = "amount" | "percent";
-
-// ── Per-item discount shortcut popover (same UX as canteen) ─────────────────
-const DISCOUNT_SHORTCUTS_PCT = [5, 10, 15, 20, 25, 30];
-const DISCOUNT_SHORTCUTS_AMT = [5, 10, 15, 20, 25];
-
-function DiscountShortcutPopover({
-    itemId,
-    currentValue,
-    currentMode,
-    onUpdate,
-}: {
-    itemId: number;
-    currentValue: number | undefined;
-    currentMode: DiscountMode | undefined;
-    onUpdate: (id: number, value: number | null, mode: DiscountMode) => void;
-}) {
-    const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
-    // Local mode lets the user toggle %↔฿ inside the popover without saving
-    // a stale discount. Resets to the persisted mode each time the popover opens.
-    const [localMode, setLocalMode] = useState<DiscountMode>(currentMode ?? "percent");
-    useEffect(() => {
-        if (open) setLocalMode(currentMode ?? "percent");
-    }, [open, currentMode]);
-    const mode = localMode;
-    const shortcuts = mode === "percent" ? DISCOUNT_SHORTCUTS_PCT : DISCOUNT_SHORTCUTS_AMT;
-
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <button
-                    type="button"
-                    className={cn(
-                        "h-7 px-2.5 text-xs font-bold rounded border bg-background transition-colors",
-                        mode === "percent"
-                            ? "border-amber-400 text-amber-700 hover:bg-amber-50"
-                            : "border-border text-foreground hover:bg-muted",
-                    )}
-                >
-                    {mode === "percent" ? "%" : "฿"}
-                </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-4" align="start" side="top" sideOffset={6}>
-                <p className="mb-3 text-sm font-semibold text-muted-foreground">
-                    {t("store.cart.discountHeader")} {mode === "percent" ? "%" : "฿"}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                    {shortcuts.map((q) => (
-                        <button
-                            key={q}
-                            type="button"
-                            onClick={() => { onUpdate(itemId, q, mode); setOpen(false); }}
-                            className={cn(
-                                "h-12 min-w-[4.5rem] rounded-lg border text-base font-bold transition-colors",
-                                currentValue === q && currentMode === mode
-                                    ? "border-amber-500 bg-amber-500 text-white"
-                                    : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
-                            )}
-                        >
-                            {mode === "percent" ? `${q}%` : `฿${q}`}
-                        </button>
-                    ))}
-                </div>
-                <div className="mt-3 flex gap-2">
-                    <button
-                        type="button"
-                        onClick={() => { onUpdate(itemId, null, mode); setOpen(false); }}
-                        className="flex-1 h-10 rounded-lg border border-border bg-background text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-                    >
-                        Clear / 0
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setLocalMode(mode === "percent" ? "amount" : "percent")}
-                        className="h-10 px-4 rounded-lg border border-border bg-background text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-                    >
-                        {mode === "percent" ? t("store.cart.useBaht") : t("store.cart.usePercent")}
-                    </button>
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
-}
-
-interface CartItem extends Product {
-    quantity: number;
-    discountValue?: number;
-    discountMode?: DiscountMode;
-    priceOverride?: number | null;
-}
-
-interface LastReceipt {
-    receiptNumber: string;
-    amount: number;
-    remainingBalance?: number;
-    studentName?: string;
-    studentPhotoUrl?: string;
-    studentGrade?: string;
-}
-
-// ── Sortable card wrapper (must be defined outside Store to avoid hook remounts) ──
-
-function SortableCard({
-    id,
-    reorderMode,
-    children,
-}: {
-    id: number;
-    reorderMode: boolean;
-    children: (handleProps: React.HTMLAttributes<HTMLElement>, isDragging: boolean) => React.ReactNode;
-}) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id: String(id) });
-    return (
-        <div
-            ref={setNodeRef}
-            style={{
-                transform: CSS.Transform.toString(transform),
-                transition,
-                opacity: isDragging ? 0.4 : 1,
-                position: "relative",
-                // Disable native touch gestures only while reorder mode is on,
-                // so cashier scrolling the catalogue normally still works. Once
-                // they enter reorder mode, holding a card for ~250 ms (matches
-                // TouchSensor's delay) initiates drag instead of scroll.
-                touchAction: reorderMode ? "none" : "auto",
-            }}
-        >
-            {children(reorderMode ? { ...attributes, ...listeners } : {}, isDragging)}
-        </div>
-    );
-}
+import { DiscountShortcutPopover } from "./store/DiscountShortcutPopover";
+import { ProductReorderGrid } from "./store/ProductReorderGrid";
+import { ProductSearchDropdown } from "./store/ProductSearchDropdown";
+import { BillDiscountPopover } from "./store/BillDiscountPopover";
+import { ReceiptNoteModal } from "./store/ReceiptNoteModal";
+import { SpecialItemPriceDialog } from "./store/SpecialItemPriceDialog";
+import { panelColorClass } from "./store/storeTypes";
+import type { Product, DiscountMode, CartItem, LastReceipt } from "./store/storeTypes";
 
 const Store = () => {
     const { t } = useTranslation();
@@ -314,162 +116,10 @@ const Store = () => {
     // ── Products + shop metadata ────────────────────────────────────────────
     const [allProducts, setAllProducts] = useState<Product[]>([]);
 
-    // ── Product color editing (quick-edit palette on card) ──────────────────
-    const [colorEditId, setColorEditId] = useState<number | null>(null);
-    const [colorEditValue, setColorEditValue] = useState("#e2e8f0");
-    const [colorSaving, setColorSaving] = useState(false);
-    const { recentColors, addRecentColor } = useRecentColors(user?.shopId ?? "store");
-
-    const saveProductColor = async (product: Product, color: string | null) => {
-        setColorSaving(true);
-        try {
-            if (product.isBundle && product.bundleId != null) {
-                await api.patch(`/shops/${product.subMerchantId}/bundles/${product.bundleId}`, { color });
-            } else {
-                await api.patch(`/shops/${product.subMerchantId}/products/${product.id}`, { color });
-            }
-            setAllProducts((prev) =>
-                prev.map((p) => (p.id === product.id ? { ...p, color } : p)),
-            );
-            toast.success(t("store.colorSaved"));
-            setColorEditId(null);
-        } catch (e) {
-            toast.error(e instanceof ApiError ? e.detail : t("store.colorSaveFailed"));
-        } finally {
-            setColorSaving(false);
-        }
-    };
-    // ── Product reorder ─────────────────────────────────────────────────────
-    const [reorderMode, setReorderMode] = useState(false);
-    const [reorderDirty, setReorderDirty] = useState(false);
-    const [sortVersions, setSortVersions] = useState<Record<string, number>>({});
-    const [reorderSaving, setReorderSaving] = useState(false);
-    const [reorderItems, setReorderItems] = useState<Product[]>([]);
-    const canManageOrder = user?.role === "admin" || user?.role === "manager" || user?.role === "cashier";
-
-    // PointerSensor on its own dispatches via mouse + pen; touch events on
-    // Windows POS terminals don't reliably trigger drag with it (browser
-    // tends to capture the touch as a scroll). Add an explicit TouchSensor
-    // with a long-press delay so a tap-to-select still works but holding
-    // the card for ~250 ms initiates drag mode — clear enough mental model
-    // for cashiers without accidental drags during normal POS browsing.
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-    );
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-        setReorderItems((prev) => {
-            const oldIdx = prev.findIndex((p) => String(p.id) === String(active.id));
-            const newIdx = prev.findIndex((p) => String(p.id) === String(over.id));
-            if (oldIdx === -1 || newIdx === -1) return prev;
-            setReorderDirty(true);
-            return arrayMove(prev, oldIdx, newIdx);
-        });
-    };
-
-    const enterReorderMode = async () => {
-        const sid = user?.shopId;
-        if (!sid) { setReorderMode(true); return; }
-        try {
-            const meta = await api.get<{ products_order_version?: number }>(`/shops/${sid}`);
-            if (meta.products_order_version != null) {
-                setSortVersions((prev) => ({ ...prev, [sid]: meta.products_order_version! }));
-            }
-        } catch { /* use cached version */ }
-        const panelIds = activePanelId !== null ? panelIncluded[activePanelId] : null;
-        const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
-        setReorderItems(panelIds ? shopProds.filter((p) => panelIds.has(p.id)) : shopProds);
-        setReorderMode(true);
-    };
-
-    const saveReorder = async () => {
-        const sid = user?.shopId;
-        if (!sid) return;
-        setReorderSaving(true);
-        try {
-            const panelIds = activePanelId !== null ? panelIncluded[activePanelId] : null;
-            const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
-            const prods = reorderItems.filter((p) => !p.isBundle);
-            const bunds = reorderItems.filter((p) => p.isBundle && p.bundleId != null);
-
-            const productSortMap: Record<string, number> = {};
-            if (panelIds) {
-                const slots: number[] = [];
-                shopProds.filter((p) => !p.isBundle).forEach((p, idx) => {
-                    if (panelIds.has(p.id)) slots.push(idx + 1);
-                });
-                prods.forEach((p, idx) => { productSortMap[String(p.id)] = slots[idx]; });
-            } else {
-                prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
-            }
-            const version = sortVersions[sid] ?? 1;
-            const result = await api.post<{ version: number; updated: number }>(
-                `/shops/${sid}/products/reorder`,
-                { version, sort_map: productSortMap },
-            );
-            setSortVersions((prev) => ({ ...prev, [sid]: result.version }));
-
-            if (bunds.length > 0) {
-                const bundleSortMap: Record<string, number> = {};
-                if (panelIds) {
-                    const bSlots: number[] = [];
-                    shopProds.filter((p) => p.isBundle && p.bundleId != null).forEach((p, idx) => {
-                        if (panelIds.has(p.id)) bSlots.push(idx + 1);
-                    });
-                    bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = bSlots[idx]; });
-                } else {
-                    bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
-                }
-                await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
-            }
-
-            setAllProducts((prev) => {
-                const result = [...prev];
-                if (panelIds) {
-                    const prodSlots = prev
-                        .map((p, idx) => ({ p, idx }))
-                        .filter(({ p }) => p.subMerchantId === sid && !p.isBundle && panelIds.has(p.id))
-                        .map(({ idx }) => idx);
-                    prodSlots.forEach((slot, i) => { result[slot] = prods[i]; });
-                    if (bunds.length > 0) {
-                        const bundSlots = prev
-                            .map((p, idx) => ({ p, idx }))
-                            .filter(({ p }) => p.subMerchantId === sid && p.isBundle && panelIds.has(p.id))
-                            .map(({ idx }) => idx);
-                        bundSlots.forEach((slot, i) => { result[slot] = bunds[i]; });
-                    }
-                } else {
-                    const others = prev.filter((p) => p.subMerchantId !== sid);
-                    return [...reorderItems, ...others];
-                }
-                return result;
-            });
-
-            setReorderMode(false);
-            setReorderDirty(false);
-            setReorderItems([]);
-            toast.success(t("store.orderSaved"));
-        } catch (e: any) {
-            if (e?.status === 409 || e?.detail?.current_version) {
-                toast.error(t("store.orderConflict"));
-                const newVer = e?.detail?.current_version;
-                if (newVer && sid) setSortVersions((prev) => ({ ...prev, [sid]: newVer }));
-            } else {
-                toast.error(e instanceof ApiError ? e.detail : t("store.orderSaveFailed"));
-            }
-        } finally {
-            setReorderSaving(false);
-        }
-    };
-
     const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }>>([]);
 
     // ── Price panels ────────────────────────────────────────────────────────
-    const [panels, setPanels] = useState<PricePanel[]>([]);
+    const [panels, setPanels] = useState<{ id: number; name: string; color: string | null }[]>([]);
     const [activePanelId, setActivePanelId] = useState<number | null>(null);
     // panelPrices: panelId -> productId -> price
     const [panelPrices, setPanelPrices] = useState<Record<number, Record<number, number>>>({});
@@ -477,6 +127,28 @@ const Store = () => {
     const [panelShortNames, setPanelShortNames] = useState<Record<number, Record<number, string>>>({});
     // panelIncluded: panelId -> Set of included product ids
     const [panelIncluded, setPanelIncluded] = useState<Record<number, Set<number>>>({});
+
+    const {
+        reorderMode,
+        reorderDirty,
+        reorderSaving,
+        reorderItems,
+        canManageOrder,
+        sensors,
+        collisionDetection,
+        handleDragEnd,
+        enterReorderMode,
+        cancelReorderMode,
+        saveReorder,
+        setSortVersions,
+    } = useProductReorder({
+        shopId: user?.shopId,
+        role: user?.role,
+        allProducts,
+        setAllProducts,
+        activePanelId,
+        panelIncluded,
+    });
 
     useEffect(() => {
         let cancelled = false;
@@ -554,7 +226,7 @@ const Store = () => {
         let cancelled = false;
         (async () => {
             try {
-                const panelList = await api.get<PricePanel[]>(`/shops/${user.shopId}/price-panels`);
+                const panelList = await api.get<{ id: number; name: string; color: string | null }[]>(`/shops/${user.shopId}/price-panels`);
                 if (cancelled) return;
                 setPanels(panelList);
                 // Fetch items for each panel
@@ -612,14 +284,12 @@ const Store = () => {
     // ── Refs ────────────────────────────────────────────────────────────────
     const searchInputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const specialItemInputRef = useRef<HTMLInputElement>(null);
 
     // ── Cart ────────────────────────────────────────────────────────────────
     const [cart, setCart] = useState<CartItem[]>([]);
     const [lastAddedId, setLastAddedId] = useState<number | null>(null);
 
     // ── Browse + search ─────────────────────────────────────────────────────
-    const [gridCategory, setGridCategory] = useState<string>("All");
     const [searchTerm, setSearchTerm] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -636,7 +306,6 @@ const Store = () => {
     // ── Receipt note (optional cashier memo, saved to receipt.notes) ────────
     const [receiptNote, setReceiptNote] = useState<string>("");
     const [noteModalOpen, setNoteModalOpen] = useState(false);
-    const [localNote, setLocalNote] = useState("");
 
     // ── Customer display broadcast (second-monitor) ─────────────────────────
     const display = useDisplayBroadcast();
@@ -668,144 +337,41 @@ const Store = () => {
     // Increment after each successful checkout to refresh the SpendingLimitChip
     const [chipRefreshKey, setChipRefreshKey] = useState(0);
 
-
-    // ── RFID centered notification ────────────────────────────────────────────
-    const [rfidNotif, setRfidNotif] = useState<{
-        key: number;
-        type: "success" | "error";
-        title: string;
-        sub?: string;
-    } | null>(null);
-    const rfidNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const rfidNotifKey = useRef(0);
-
-    // ── Passive RFID listener (capture phase) ────────────────────────────────
-    // Keystrokes go here when no input/textarea has focus. Click the search box
-    // to type manually — focus returns to body on blur and RFID resumes.
-    const rfidBuffer = useRef<string>("");
-    const rfidLastKey = useRef<number>(0);
-    const allProductsRef = useRef<Product[]>([]);
-    const addToCartRef = useRef<((p: Product) => void) | null>(null);
-
-    useEffect(() => {
-        function userToStudent(u: UserPayerLookup): StudentLookupResult {
-            return {
-                id: u.user_id,
-                name: u.full_name,
-                photo_url: u.photo_url ?? null,
-                customer_code: u.username,
-                wallet_balance: u.wallet_balance,
-                wallet_id: u.wallet_id,
-                customer_kind: u.role,
-                user_id: u.user_id,
-            };
-        }
-
-        function showRfidNotif(notif: { type: "success" | "error"; title: string; sub?: string }) {
-            if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
-            rfidNotifKey.current += 1;
-            setRfidNotif({ ...notif, key: rfidNotifKey.current });
-            rfidNotifTimer.current = setTimeout(() => setRfidNotif(null), 2500);
-        }
-
-        async function lookupAndSet(q: string) {
-            const trimmed = q.trim();
-            if (!trimmed || trimmed.length < 3) return;
-            try {
-                let result: StudentLookupResult | null = null;
-                try {
-                    result = await api.get<StudentLookupResult>(`/customers/by-card/${encodeURIComponent(trimmed)}`);
-                } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                if (!result) {
-                    try {
-                        const u = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(trimmed)}`);
-                        result = userToStudent(u);
-                    } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                }
-                if (!result) {
-                    try {
-                        result = await api.get<StudentLookupResult>(`/customers/by-code/${encodeURIComponent(trimmed)}`);
-                    } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                }
-                if (!result) {
-                    try {
-                        const u = await api.get<UserPayerLookup>(`/users/by-username/${encodeURIComponent(trimmed)}`);
-                        result = userToStudent(u);
-                    } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                }
-                if (result) {
-                    setPreSelectedMember(result);
-                    const bal = result.wallet_balance != null
-                        ? `฿${Number(result.wallet_balance).toFixed(2)}`
-                        : undefined;
-                    showRfidNotif({ type: "success", title: result.name, sub: bal });
-                } else {
-                    showRfidNotif({ type: "error", title: "Card not found" });
-                }
-            } catch {
-                showRfidNotif({ type: "error", title: "Card not found" });
-            }
-        }
-
-        function handleKeyDown(e: KeyboardEvent) {
-            // If the user has explicitly focused a text input (search box, dialog field,
-            // price input, etc.), let keys flow through normally. The RFID handler only
-            // acts when the page has no focused input.
-            const ae = document.activeElement as HTMLElement | null;
-            if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) {
-                return;
-            }
-
-            const now = Date.now();
-            const gap = now - rfidLastKey.current;
-
-            if (e.key === "Enter") {
-                if (rfidBuffer.current.length >= 3) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const captured = rfidBuffer.current;
-                    rfidBuffer.current = "";
-                    rfidLastKey.current = 0;
-                    const scanned = captured.trim().toLowerCase();
-                    const matchedProduct = allProductsRef.current.find(
-                        (p) =>
-                            p.barcode.toLowerCase() === scanned ||
-                            (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase() === scanned),
-                    );
-                    if (matchedProduct) {
-                        addToCartRef.current?.(matchedProduct);
-                    } else {
-                        void lookupAndSet(captured);
-                    }
-                } else {
-                    rfidBuffer.current = "";
-                }
-                return;
-            }
-
-            if (e.key.length !== 1) return;
-
-            // Reset stale buffer if there's been a long pause (>500ms since last key)
-            if (gap > 500 && rfidBuffer.current.length > 0) {
-                rfidBuffer.current = "";
-            }
-
-            rfidLastKey.current = now;
-            rfidBuffer.current += e.key;
-
-            // Always intercept — page has no focused input, so all keystrokes belong to RFID.
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        document.addEventListener("keydown", handleKeyDown, true);
-        return () => document.removeEventListener("keydown", handleKeyDown, true);
-    }, []);
-    // ─────────────────────────────────────────────────────────────────────────
-
     // Special item (price=0) — cashier must enter price before adding
     const [specialItemTarget, setSpecialItemTarget] = useState<Product | null>(null);
-    const [specialItemPrice, setSpecialItemPrice] = useState("");
+
+    // ── Cart actions ────────────────────────────────────────────────────────
+    const addToCart = useCallback(
+        (product: Product) => {
+            // Special items (price=0) must have a cashier-entered price first.
+            // Bundles always have a real price so we skip this check for them.
+            if (product.price === 0 && !product.isBundle) {
+                setSpecialItemTarget(product);
+                return;
+            }
+            // Panel prices only apply to regular products (not bundles).
+            const panelPrice =
+                !product.isBundle && activePanelId != null && panelPrices[activePanelId]?.[product.id] != null
+                    ? panelPrices[activePanelId][product.id]
+                    : null;
+            setCart((prev) => {
+                const existing = prev.find((i) => i.id === product.id);
+                if (existing) {
+                    return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
+                }
+                return [{ ...product, quantity: 1, priceOverride: panelPrice }, ...prev];
+            });
+            setLastAddedId(product.id);
+        },
+        [activePanelId, panelPrices],
+    );
+
+    // ── Passive RFID/barcode listener (page-level, no input focused) ────────
+    const rfidScanner = useStoreRfidScanner({
+        products: allProducts,
+        onProductMatch: addToCart,
+        onMemberFound: setPreSelectedMember,
+    });
 
     // ── Department charge gating ────────────────────────────────────────────
     const canUseDeptCharge = useMemo(() => {
@@ -937,37 +503,6 @@ const Store = () => {
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cart, total, preSelectedMember, paymentModalOpen]);
-
-    // ── Cart actions ────────────────────────────────────────────────────────
-    const addToCart = useCallback(
-        (product: Product) => {
-            // Special items (price=0) must have a cashier-entered price first.
-            // Bundles always have a real price so we skip this check for them.
-            if (product.price === 0 && !product.isBundle) {
-                setSpecialItemTarget(product);
-                setSpecialItemPrice("");
-                return;
-            }
-            // Panel prices only apply to regular products (not bundles).
-            const panelPrice =
-                !product.isBundle && activePanelId != null && panelPrices[activePanelId]?.[product.id] != null
-                    ? panelPrices[activePanelId][product.id]
-                    : null;
-            setCart((prev) => {
-                const existing = prev.find((i) => i.id === product.id);
-                if (existing) {
-                    return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
-                }
-                return [{ ...product, quantity: 1, priceOverride: panelPrice }, ...prev];
-            });
-            setLastAddedId(product.id);
-        },
-        [t, activePanelId, panelPrices],
-    );
-
-    // Keep refs in sync for the RFID/barcode keydown handler (which closes over stale values)
-    useEffect(() => { allProductsRef.current = allProducts; }, [allProducts]);
-    useEffect(() => { addToCartRef.current = addToCart; }, [addToCart]);
 
     const updateQuantity = (id: number, change: number) => {
         setCart((prev) =>
@@ -1672,7 +1207,7 @@ const Store = () => {
                 <div className="flex gap-2">
                     <button
                         type="button"
-                        onClick={() => { setLocalNote(receiptNote); setNoteModalOpen(true); }}
+                        onClick={() => setNoteModalOpen(true)}
                         className={cn(
                             "flex-1 h-9 rounded-xl border text-sm font-semibold transition flex items-center justify-center gap-1.5 relative",
                             receiptNote ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" : "border-border hover:bg-muted",
@@ -1683,99 +1218,22 @@ const Store = () => {
                         {receiptNote && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />}
                     </button>
 
-                    {/* Add Discount popover button */}
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <button
-                                type="button"
-                                disabled={cart.length === 0}
-                                className={cn(
-                                    "flex-1 h-9 rounded-xl border text-sm font-semibold transition",
-                                    "disabled:opacity-50 disabled:cursor-not-allowed",
-                                    billDiscountAmount > 0
-                                        ? "border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                        : "border-amber-400 text-amber-600 hover:bg-amber-50",
-                                )}
-                            >
-                                {billDiscountAmount > 0
-                                    ? `${t("store.billDiscount")} · -฿${billDiscountAmount.toLocaleString()}`
-                                    : t("store.addDiscount", "Add Discount")}
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 space-y-3" side="top">
-                            <p className="text-xs font-semibold text-muted-foreground">{t("store.billDiscount")}</p>
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    placeholder="0"
-                                    value={billDiscountValue}
-                                    onChange={(e) => setBillDiscountValue(e.target.value)}
-                                    className="h-9 text-right text-sm flex-1"
-                                />
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-9 px-3 font-bold shrink-0"
-                                    onClick={() => setBillDiscountMode((m) => (m === "percent" ? "amount" : "percent"))}
-                                >
-                                    {billDiscountMode === "percent" ? "%" : "฿"}
-                                </Button>
-                            </div>
-                            <div className="grid grid-cols-4 gap-1.5">
-                                {(billDiscountMode === "percent" ? [5, 10, 15, 20] : [10, 20, 50, 100]).map((q) => (
-                                    <button
-                                        key={q}
-                                        type="button"
-                                        onClick={() => setBillDiscountValue(String(q))}
-                                        className={cn(
-                                            "h-9 rounded-lg border text-xs font-semibold transition",
-                                            parseFloat(billDiscountValue) === q
-                                                ? "border-amber-500 bg-amber-500 text-white"
-                                                : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
-                                        )}
-                                    >
-                                        {billDiscountMode === "percent" ? `${q}%` : `฿${q}`}
-                                    </button>
-                                ))}
-                            </div>
-                            {billDiscountAmount > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={() => setBillDiscountValue("")}
-                                    className="w-full h-8 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted transition"
-                                >
-                                    Clear
-                                </button>
-                            )}
-                        </PopoverContent>
-                    </Popover>
+                    <BillDiscountPopover
+                        disabled={cart.length === 0}
+                        value={billDiscountValue}
+                        onValueChange={setBillDiscountValue}
+                        mode={billDiscountMode}
+                        onModeToggle={() => setBillDiscountMode((m) => (m === "percent" ? "amount" : "percent"))}
+                        amount={billDiscountAmount}
+                    />
                 </div>
 
-                {/* Note modal */}
-                <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
-                    <DialogContent className="sm:max-w-sm">
-                        <DialogHeader>
-                            <DialogTitle>{t("store.receiptNoteLabel", "Note")}</DialogTitle>
-                        </DialogHeader>
-                        <Textarea
-                            placeholder={t("store.receiptNote", "Add a note to this receipt (optional)")}
-                            value={localNote}
-                            onChange={(e) => setLocalNote(e.target.value)}
-                            rows={4}
-                            maxLength={200}
-                            autoFocus
-                        />
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setNoteModalOpen(false)}>
-                                {t("common.cancel", "Cancel")}
-                            </Button>
-                            <Button onClick={() => { setReceiptNote(localNote); setNoteModalOpen(false); }}>
-                                {t("common.save", "Save")}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <ReceiptNoteModal
+                    open={noteModalOpen}
+                    onOpenChange={setNoteModalOpen}
+                    initialNote={receiptNote}
+                    onSave={setReceiptNote}
+                />
 
                 {/* Total */}
                 <div className="flex justify-between items-baseline pt-2">
@@ -1846,7 +1304,7 @@ const Store = () => {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => { setReorderMode(false); setReorderDirty(false); setReorderItems([]); }}
+                                        onClick={cancelReorderMode}
                                         className="gap-1.5"
                                     >
                                         <X className="h-4 w-4" />
@@ -1889,81 +1347,25 @@ const Store = () => {
                             />
                         </label>
                     </div>
-                    <div ref={dropdownRef} className="relative flex-1 min-w-48">
-                        <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none z-10" />
-                        <Input
-                            ref={searchInputRef}
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                setDropdownOpen(e.target.value.trim().length > 0);
-                                setHighlightedIndex(0);
-                            }}
-                            onKeyDown={handleSearchKeyDown}
-                            onFocus={() => searchTerm.trim() && setDropdownOpen(true)}
-                            placeholder={t("store.searchPlaceholder")}
-                            className="pl-9 font-mono text-sm h-11 text-amber-500 placeholder:text-amber-400/70"
-                            autoComplete="off"
-                        />
-
-                        {dropdownOpen && suggestions.length > 0 && (
-                            <div
-                                role="listbox"
-                                className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
-                            >
-                                {suggestions.map((p, i) => (
-                                    <div
-                                        key={p.id}
-                                        role="option"
-                                        aria-selected={i === highlightedIndex}
-                                        onMouseEnter={() => setHighlightedIndex(i)}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            commitSuggestion(p);
-                                        }}
-                                        className={cn(
-                                            "flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors",
-                                            i === highlightedIndex
-                                                ? "bg-accent text-accent-foreground"
-                                                : "hover:bg-accent/50",
-                                        )}
-                                    >
-                                        {p.photoUrl ? (
-                                            <img
-                                                src={p.photoUrl}
-                                                alt=""
-                                                className="h-10 w-10 rounded-md object-cover border shrink-0"
-                                                loading="lazy"
-                                            />
-                                        ) : (
-                                            <div className="h-10 w-10 rounded-md bg-muted border flex items-center justify-center shrink-0">
-                                                <Package className="h-5 w-5 text-muted-foreground/60" />
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="font-medium text-sm truncate">{p.name}</span>
-                                            <span className="text-xs text-muted-foreground font-mono">{p.barcode}</span>
-                                        </div>
-                                        <div className="text-right ml-2 shrink-0">
-                                            <p className="font-bold text-primary text-sm tabular-nums">
-                                                ฿{(priceMode === "internal"
-                                                    ? p.internalPrice ?? p.price
-                                                    : getPrice(p)
-                                                ).toLocaleString()}
-                                            </p>
-                                            <Badge variant="outline" className="text-xs">{p.category}</Badge>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {dropdownOpen && searchTerm.trim() && suggestions.length === 0 && (
-                            <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover px-4 py-3 text-sm text-muted-foreground shadow-lg">
-                                {t("store.productNotFound")}
-                            </div>
-                        )}
-                    </div>
+                    <ProductSearchDropdown
+                        dropdownRef={dropdownRef}
+                        searchInputRef={searchInputRef}
+                        searchTerm={searchTerm}
+                        onSearchTermChange={(v) => {
+                            setSearchTerm(v);
+                            setDropdownOpen(v.trim().length > 0);
+                            setHighlightedIndex(0);
+                        }}
+                        onKeyDown={handleSearchKeyDown}
+                        onFocus={() => searchTerm.trim() && setDropdownOpen(true)}
+                        dropdownOpen={dropdownOpen}
+                        highlightedIndex={highlightedIndex}
+                        onHighlight={setHighlightedIndex}
+                        suggestions={suggestions}
+                        onCommit={commitSuggestion}
+                        priceMode={priceMode}
+                        getPrice={getPrice}
+                    />
                 </div>
 
 
@@ -2006,176 +1408,23 @@ const Store = () => {
                 )}
 
                 {/* Browse grid */}
-                {allProducts.length > 0 && (() => {
-                    const gridProducts = reorderMode
-                        ? reorderItems
-                        : activePanelId != null && panelIncluded[activePanelId]
-                            ? allProducts.filter((p) => panelIncluded[activePanelId].has(p.id))
-                            : allProducts;
-
-                    const cardContent = (p: Product, handleProps: React.HTMLAttributes<HTMLElement>) => {
-                        const displayPrice = priceMode === "internal"
-                            ? (p.internalPrice ?? p.price)
-                            : getPrice(p);
-                        const zeroStock = p.stock <= 0;
-                        const lowStock = p.stock > 0 && p.stock <= 3;
-                        return (
-                            <button
-                                type="button"
-                                onClick={reorderMode ? undefined : () => addToCart(p)}
-                                data-card-color={p.color ? "true" : undefined}
-                                className={cn(
-                                    "pos-product-tile group relative flex flex-col justify-between rounded-2xl border border-amber-200/60 p-3 text-left transition w-full h-[7.5rem] overflow-hidden",
-                                    !p.color && !reorderMode && "bg-card hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/50 hover:border-amber-300",
-                                    reorderMode && "cursor-default select-none",
-                                )}
-                                style={
-                                    p.color
-                                        ? ({
-                                            "--card-color": p.color,
-                                            backgroundColor: p.color,
-                                        } as React.CSSProperties)
-                                        : undefined
-                                }
-                                {...(reorderMode ? handleProps : {})}
-                            >
-                                {/* Drag handle indicator */}
-                                {reorderMode && (
-                                    <div className="absolute top-1 left-1 z-10 rounded bg-background/80 p-0.5 shadow">
-                                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                                    </div>
-                                )}
-                                {/* Stock badge — top-right for products */}
-                                {!p.isBundle && (
-                                    <span className={cn(
-                                        "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow",
-                                        zeroStock ? "bg-amber-500 text-white" :
-                                            lowStock ? "bg-orange-400 text-white" :
-                                                "bg-background/90 text-foreground",
-                                    )}>
-                                        {`${t("store.stockLabel")} ${p.stock}`}
-                                    </span>
-                                )}
-                                {/* SET badge — top-right for bundles */}
-                                {p.isBundle && (
-                                    <span className="absolute right-1 top-1 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 border border-violet-300 shadow">
-                                        SET
-                                    </span>
-                                )}
-                                <div className={cn(
-                                    // Top margin pushes the name below the absolute Remaining
-                                    // badge so long two-line names don't overlap with it.
-                                    "line-clamp-2 text-sm font-bold leading-tight mt-5",
-                                    p.color ? "text-zinc-900" : "text-foreground",
-                                )}>
-                                    {activePanelId != null && panelShortNames[activePanelId]?.[p.id]
-                                        ? panelShortNames[activePanelId][p.id]
-                                        : p.name}
-                                </div>
-                                <div className="mt-auto pt-1 flex items-end justify-between">
-                                    <span className={cn(
-                                        "text-base font-extrabold tabular-nums",
-                                        p.color ? "text-zinc-900" : "text-primary",
-                                    )}>฿{displayPrice.toLocaleString()}</span>
-                                    <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                                        {!reorderMode && hasRole("manager", "admin") && (
-                                            <Popover
-                                                open={colorEditId === p.id}
-                                                onOpenChange={(open) => {
-                                                    if (open) { setColorEditId(p.id); setColorEditValue(p.color ?? recentColors[0] ?? "#4ade80"); }
-                                                    else { setColorEditId(null); }
-                                                }}
-                                            >
-                                                <PopoverTrigger asChild>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className={cn(
-                                                            "rounded p-0.5 transition",
-                                                            p.color ? "hover:bg-black/10" : "hover:bg-muted",
-                                                        )}
-                                                        title={t("store.cardColorTitle")}
-                                                    >
-                                                        <Palette
-                                                            className={cn(
-                                                                "h-3.5 w-3.5",
-                                                                p.color ? "text-zinc-900" : "text-muted-foreground",
-                                                            )}
-                                                        />
-                                                    </button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-56 p-3 space-y-3" onClick={(e) => e.stopPropagation()} side="top" align="end">
-                                                    <p className="text-xs font-semibold">{t("store.cardColorLabel")}</p>
-                                                    <div className="flex items-center gap-2">
-                                                        <input type="color" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="h-8 w-10 cursor-pointer rounded border p-0.5 shrink-0" />
-                                                        <input type="text" value={colorEditValue} onChange={(e) => setColorEditValue(e.target.value)} className="w-full rounded border border-border px-2 py-1 text-xs font-mono bg-background" placeholder="#4ade80" />
-                                                    </div>
-                                                    {recentColors.length > 0 && (
-                                                        <div>
-                                                            <p className="text-[10px] text-muted-foreground mb-1">{t("store.recentColors", "Recent")}</p>
-                                                            <div className="flex gap-1.5 flex-wrap">
-                                                                {recentColors.map((c) => (
-                                                                    <button key={c} type="button" onClick={() => setColorEditValue(c)}
-                                                                        className={cn("h-6 w-6 rounded-full border-2 transition", colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
-                                                                        style={{ backgroundColor: c }}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex gap-1.5 flex-wrap">
-                                                        {["#f87171", "#fb923c", "#fbbf24", "#4ade80", "#34d399", "#60a5fa", "#a78bfa", "#f472b6", "#94a3b8"].map((c) => (
-                                                            <button key={c} type="button" onClick={() => setColorEditValue(c)}
-                                                                className={cn("h-6 w-6 rounded-full border-2 transition", colorEditValue === c ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
-                                                                style={{ backgroundColor: c }}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button type="button" onClick={() => saveProductColor(p, null)} disabled={colorSaving} className="flex-1 rounded-md border border-border bg-background py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition">{t("store.clearColor")}</button>
-                                                        <button type="button" onClick={() => { addRecentColor(colorEditValue); saveProductColor(p, colorEditValue); }} disabled={colorSaving} className="flex-1 rounded-md bg-primary py-1.5 text-[11px] text-primary-foreground font-semibold hover:bg-primary/90 transition">{colorSaving ? "…" : t("store.saveColor")}</button>
-                                                    </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                        {!p.isBundle && (
-                                            <Badge variant="outline" className="text-[10px] px-1 py-0 shrink min-w-0 overflow-hidden whitespace-nowrap text-ellipsis block max-w-[5rem]">{p.category}</Badge>
-                                        )}
-                                    </div>
-                                </div>
-                            </button>
-                        );
-                    };
-
-                    return (
-                        <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border/60 bg-card/40 p-3 gap-3">
-                            {reorderMode && (
-                                <p className="text-xs text-muted-foreground shrink-0">
-                                    <GripVertical className="inline h-3 w-3 mr-1" />
-                                    {t("store.reorderHint")}
-                                </p>
-                            )}
-                            <div className="flex-1 overflow-y-auto">
-                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                    <SortableContext items={gridProducts.map((p) => String(p.id))} strategy={rectSortingStrategy}>
-                                        <div className="canteen-grid">
-                                            {gridProducts.map((p) => (
-                                                <SortableCard key={p.id} id={p.id} reorderMode={reorderMode}>
-                                                    {(handleProps, _isDragging) => cardContent(p, handleProps)}
-                                                </SortableCard>
-                                            ))}
-                                            {gridProducts.length === 0 && (
-                                                <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-                                                    {t("store.noItemsInCategory", "ไม่มีสินค้าในหมวดหมู่นี้")}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </SortableContext>
-                                </DndContext>
-                            </div>
-                        </div>
-                    );
-                })()}
+                <ProductReorderGrid
+                    allProducts={allProducts}
+                    setAllProducts={setAllProducts}
+                    reorderMode={reorderMode}
+                    reorderItems={reorderItems}
+                    sensors={sensors}
+                    collisionDetection={collisionDetection}
+                    onDragEnd={handleDragEnd}
+                    activePanelId={activePanelId}
+                    panelIncluded={panelIncluded}
+                    panelShortNames={panelShortNames}
+                    priceMode={priceMode}
+                    getPrice={getPrice}
+                    addToCart={addToCart}
+                    shopId={user?.shopId}
+                    canEditColor={hasRole("manager", "admin")}
+                />
             </div>
 
             {/* Desktop cart panel (≥lg) */}
@@ -2339,73 +1588,18 @@ const Store = () => {
             />
 
             {/* Special item — cashier enters price before adding to cart */}
-            <Dialog
-                open={!!specialItemTarget}
-                onOpenChange={(o) => { if (!o) setSpecialItemTarget(null); }}
-            >
-                <DialogContent
-                    className="sm:max-w-xs"
-                    onOpenAutoFocus={(e) => {
-                        e.preventDefault();
-                        setTimeout(() => specialItemInputRef.current?.focus(), 50);
-                    }}
-                >
-                    <DialogHeader>
-                        <DialogTitle>{t("store.setPrice")}</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-2 space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                            {specialItemTarget?.name} — {t("store.enterSellPrice")}
-                        </p>
-                        <Input
-                            ref={specialItemInputRef}
-                            type="number"
-                            min="0"
-                            step="any"
-                            placeholder="0.00"
-                            value={specialItemPrice}
-                            onChange={(e) => setSpecialItemPrice(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && specialItemTarget) {
-                                    const parsed = parseFloat(specialItemPrice);
-                                    if (!isNaN(parsed) && parsed >= 0) {
-                                        setCart((prev) => [
-                                            ...prev,
-                                            { ...specialItemTarget, quantity: 1, priceOverride: parsed },
-                                        ]);
-                                        setLastAddedId(specialItemTarget.id);
-                                        setSpecialItemTarget(null);
-                                    }
-                                }
-                            }}
-                            className="text-lg text-right tabular-nums"
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSpecialItemTarget(null)}>
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                if (!specialItemTarget) return;
-                                const parsed = parseFloat(specialItemPrice);
-                                if (!isNaN(parsed) && parsed >= 0) {
-                                    setCart((prev) => [
-                                        ...prev,
-                                        { ...specialItemTarget, quantity: 1, priceOverride: parsed },
-                                    ]);
-                                    setLastAddedId(specialItemTarget.id);
-                                    setSpecialItemTarget(null);
-                                }
-                            }}
-                            disabled={isNaN(parseFloat(specialItemPrice)) || parseFloat(specialItemPrice) < 0}
-                            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-                        >
-                            {t("store.addToCart")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <SpecialItemPriceDialog
+                product={specialItemTarget}
+                onOpenChange={(open) => { if (!open) setSpecialItemTarget(null); }}
+                onConfirm={(product, price) => {
+                    setCart((prev) => [
+                        ...prev,
+                        { ...product, quantity: 1, priceOverride: price },
+                    ]);
+                    setLastAddedId(product.id);
+                    setSpecialItemTarget(null);
+                }}
+            />
 
             {/* Wallet limit exceeded — prominent AlertDialog */}
             <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
@@ -2425,26 +1619,23 @@ const Store = () => {
             </AlertDialog>
 
             {/* RFID centered auto-dismiss notification */}
-            {rfidNotif && (
+            {rfidScanner.notif && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
                     <div
-                        key={rfidNotif.key}
+                        key={rfidScanner.notif.key}
                         className={cn(
                             "relative rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
                             "animate-in fade-in zoom-in-95 duration-150 pointer-events-auto",
-                            rfidNotif.type === "success"
+                            rfidScanner.notif.type === "success"
                                 ? "bg-amber-50 border-2 border-amber-300"
                                 : "bg-red-50 border-2 border-red-300",
                         )}
                     >
                         <button
-                            onClick={() => {
-                                if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
-                                setRfidNotif(null);
-                            }}
+                            onClick={rfidScanner.dismissNotif}
                             className={cn(
                                 "absolute top-2 right-2 rounded-full p-1 hover:bg-black/10 transition-colors",
-                                rfidNotif.type === "success" ? "text-amber-500" : "text-red-400",
+                                rfidScanner.notif.type === "success" ? "text-amber-500" : "text-red-400",
                             )}
                             aria-label="Close"
                         >
@@ -2452,16 +1643,16 @@ const Store = () => {
                                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                             </svg>
                         </button>
-                        {rfidNotif.type === "success" ? (
+                        {rfidScanner.notif.type === "success" ? (
                             <>
                                 <div className="flex justify-center mb-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
                                     </svg>
                                 </div>
-                                <div className="text-xl font-bold text-amber-900 leading-tight">{rfidNotif.title}</div>
-                                {rfidNotif.sub && (
-                                    <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">{rfidNotif.sub}</div>
+                                <div className="text-xl font-bold text-amber-900 leading-tight">{rfidScanner.notif.title}</div>
+                                {rfidScanner.notif.sub && (
+                                    <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">{rfidScanner.notif.sub}</div>
                                 )}
                             </>
                         ) : (
@@ -2471,7 +1662,7 @@ const Store = () => {
                                         <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
                                     </svg>
                                 </div>
-                                <div className="text-base font-semibold text-red-700">{rfidNotif.title}</div>
+                                <div className="text-base font-semibold text-red-700">{rfidScanner.notif.title}</div>
                             </>
                         )}
                     </div>
