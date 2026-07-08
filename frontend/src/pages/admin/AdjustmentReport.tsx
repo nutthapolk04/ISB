@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -41,8 +43,6 @@ interface AdjustmentRow {
   adjusted_by: string;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 const formatDT = (iso: string) => {
   const d = new Date(iso);
@@ -188,21 +188,19 @@ export default function AdjustmentReport() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1">
               <Label htmlFor="date-from">{t("adjustmentReport.dateFrom", "From")}</Label>
-              <Input
+              <DatePicker
                 id="date-from"
-                type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
+                onChange={setDateFrom}
                 className="w-40"
               />
             </div>
             <div className="space-y-1">
               <Label htmlFor="date-to">{t("adjustmentReport.dateTo", "To")}</Label>
-              <Input
+              <DatePicker
                 id="date-to"
-                type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
+                onChange={setDateTo}
                 className="w-40"
               />
             </div>

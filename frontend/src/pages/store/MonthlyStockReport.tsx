@@ -1,20 +1,14 @@
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import { enUS, th } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 import { CalendarIcon } from "lucide-react";
 import { useMonthlyStockReport } from "@/hooks/useMonthlyStock";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { PaginationBar } from "@/components/PaginationBar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +28,8 @@ function toYMD(d: Date) {
 }
 
 export default function MonthlyStockReport({ shopId }: { shopId: string }) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "th" ? th : enUS;
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const [range, setRange] = useState<DateRange | undefined>({ from: firstOfMonth, to: now });
@@ -110,9 +106,9 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
 
   const triggerLabel = range?.from
     ? range.to
-      ? `${format(range.from, "d MMM yyyy")} — ${format(range.to, "d MMM yyyy")}`
-      : format(range.from, "d MMM yyyy")
-    : "Select date range";
+      ? `${format(range.from, "d MMM yyyy", { locale: dateLocale })} — ${format(range.to, "d MMM yyyy", { locale: dateLocale })}`
+      : format(range.from, "d MMM yyyy", { locale: dateLocale })
+    : t("common.selectDateRange");
 
   return (
     <div className="space-y-4">
@@ -129,7 +125,7 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <div className="p-2 border-b text-sm font-medium text-muted-foreground px-3 py-2">
-              Start Date — End Date
+              {t("common.startEndDate")}
             </div>
             <Calendar
               mode="range"
@@ -142,6 +138,7 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
               }}
               disabled={{ after: now }}
               defaultMonth={firstOfMonth}
+              locale={dateLocale}
             />
           </PopoverContent>
         </Popover>
@@ -212,50 +209,7 @@ export default function MonthlyStockReport({ shopId }: { shopId: string }) {
               <span>
                 {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, rows.length)} of {rows.length} items
               </span>
-              <Pagination className="w-auto mx-0">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                    .reduce<(number | "ellipsis")[]>((acc, p, i, arr) => {
-                      if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("ellipsis");
-                      acc.push(p);
-                      return acc;
-                    }, [])
-                    .map((p, i) =>
-                      p === "ellipsis" ? (
-                        <PaginationItem key={`e-${i}`}>
-                          <PaginationEllipsis />
-                        </PaginationItem>
-                      ) : (
-                        <PaginationItem key={p}>
-                          <PaginationLink
-                            href="#"
-                            isActive={p === currentPage}
-                            onClick={(e) => { e.preventDefault(); setPage(p); }}
-                          >
-                            {p}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ),
-                    )}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+              <PaginationBar currentPage={currentPage} totalPages={totalPages} onPageChange={setPage} className="w-auto mx-0" />
             </div>
           )}
         </div>

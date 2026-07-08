@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,10 +40,6 @@ interface TopupDetailDialogProps {
   onClose: () => void;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 /**
  * Parse a reference code from descriptions like:

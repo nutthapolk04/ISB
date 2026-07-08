@@ -1,6 +1,6 @@
 import type { Context, StatusMap } from "elysia";
 import ResponseStatus from "@/constants/ResponseStatus";
-import { logger } from "@/logger";
+import { logger, logError } from "@/logger";
 import type { RequestContext } from "@/interfaces/ServiceRequest";
 
 type StatusSetter = { status?: number | keyof StatusMap };
@@ -88,7 +88,7 @@ export function errorFromService(ctx: Context, e: unknown) {
 		return errorResponse(ctx, detail, status);
 	}
 
-	logger.error(`[${reqContext.requestId}] Unexpected error from service:`, e);
+	logError(`[${reqContext.requestId}] Unexpected error from service`, e);
 	throw e;
 }
 

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useRefundCandidates, type RefundCandidate } from "@/hooks/useRefund";
 import { fmtDate } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { RefundDialog } from "@/components/refund/RefundDialog";
 import { FamilyLookupCard } from "@/components/refund/FamilyLookupCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,8 +25,6 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 const formatDate = (iso: string | null): string => fmtDate(iso);
 

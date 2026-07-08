@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -81,6 +81,26 @@ interface CashierTopupModalProps {
 
 type ModalStep = "search" | "topup" | "qr" | "success";
 
+interface CashTopupAttempt {
+  key: string;
+  walletId: number;
+  amount: number;
+}
+
+function getCashIdempotencyKey(
+  attemptRef: MutableRefObject<CashTopupAttempt | null>,
+  walletId: number,
+  amount: number,
+): string {
+  const prev = attemptRef.current;
+  if (prev && prev.walletId === walletId && prev.amount === amount) {
+    return prev.key;
+  }
+  const key = crypto.randomUUID();
+  attemptRef.current = { key, walletId, amount };
+  return key;
+}
+
 export function CashierTopupModal({
   open,
   onOpenChange,
@@ -104,6 +124,11 @@ export function CashierTopupModal({
   const [intent, setIntent] = useState<TopupIntent | null>(null);
   const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
   const [confirming, setConfirming] = useState(false);
+  const cashAttemptRef = useRef<CashTopupAttempt | null>(null);
+
+  const clearCashAttempt = useCallback(() => {
+    cashAttemptRef.current = null;
+  }, []);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -119,8 +144,9 @@ export function CashierTopupModal({
       setTopupResult(null);
       setIntent(null);
       setQrStatus("waiting");
+      clearCashAttempt();
     }
-  }, [open]);
+  }, [open, clearCashAttempt]);
 
   // Debounced search
   const searchCustomers = useCallback(async (searchQuery: string) => {
@@ -160,12 +186,14 @@ export function CashierTopupModal({
   }, [query, searchCustomers, step]);
 
   const handleSelectCustomer = (customer: CustomerResult) => {
+    clearCashAttempt();
     setSelectedCustomer(customer);
     setStep("topup");
   };
 
   const handleBack = () => {
     if (step === "topup") {
+      clearCashAttempt();
       setStep("search");
       setAmount("");
       setNotes("");
@@ -174,6 +202,7 @@ export function CashierTopupModal({
       setIntent(null);
       setQrStatus("waiting");
     } else if (step === "success") {
+      clearCashAttempt();
       setStep("search");
       setSelectedCustomer(null);
       setAmount("");
@@ -221,11 +250,18 @@ export function CashierTopupModal({
           : selectedCustomer.user_id
             ? `/users/${selectedCustomer.user_id}/cashier-topup`
             : `/customers/${selectedCustomer.id}/cashier-topup`;
+        const idempotencyKey = getCashIdempotencyKey(
+          cashAttemptRef,
+          selectedCustomer.wallet_id ?? selectedCustomer.id,
+          amountNum,
+        );
         const result = await api.post<TopupSuccessResult>(url, {
           amount: amountNum,
           notes: notes.trim() || null,
+          idempotency_key: idempotencyKey,
         });
 
+        clearCashAttempt();
         setTopupResult(result);
         setStep("success");
         onSuccess?.(result);

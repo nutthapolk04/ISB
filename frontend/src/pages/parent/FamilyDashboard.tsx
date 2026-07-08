@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { fmtDate, fmtTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import {
   AlertCircle, ArrowUpCircle, ArrowDownCircle, Bell,
@@ -99,10 +100,6 @@ interface FamilyCard {
   grade?: string | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 // Role-based card colors — single source of truth: users.role
 // parent → purple, staff → teal, student → orange, fallback → teal
@@ -348,7 +345,7 @@ export default function FamilyDashboard() {
   };
 
   const dateStr = new Date().toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    weekday: "long", day: "numeric", month: "long", year: "numeric", calendar: "gregory",
   });
 
   const displayName = ownWallet?.name ?? studentWallet?.name ?? user?.username ?? "";

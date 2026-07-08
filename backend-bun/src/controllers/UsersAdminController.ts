@@ -1,5 +1,4 @@
 /** Admin users — staff/student accounts, family links (admin) */
-import type { Context } from "elysia";
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";

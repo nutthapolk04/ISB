@@ -2,19 +2,24 @@
 
 ระบบจุดขาย (POS) สำหรับสหกรณ์โรงเรียนนานาชาติ รองรับหลายร้านค้า, หลายวิธีชำระเงิน, ระบบคืน/แลกสินค้า, และการจัดการสต๊อกแบบ Avg Cost / FIFO
 
-> Project documentation for Cursor agents. Developer guidelines: [`AGENTS.md`](../../AGENTS.md) (repo root).
+> Project documentation for Cursor agents. Developer guidelines: [`AGENTS.md`](../../AGENTS.md) (repo root).  
+> Claude Code mirror: [`.claude/doc/`](../../.claude/doc/README.md) + [`.claude/.agents/`](../../.claude/.agents/).
 
 ## Project Structure
 
 ```
 ISB/
 ├── frontend/              React 18 + TypeScript + Vite + shadcn/ui
+├── kiosk/                 Vue 3 + Capacitor — balance check & top-up kiosk
 ├── backend-bun/           Bun + Elysia + Drizzle ORM + PostgreSQL
+├── docs/                  API notes, contracts, ISB payload samples
 ├── AGENTS.md              Developer guidelines (Cursor auto-loads)
 ├── .cursor/
 │   ├── rules/             Role-based agent rules
 │   └── docs/              This folder — specs & guides
-└── BOOKSTORE_POS_SPECIFICATION.md   (see below)
+└── .claude/
+    ├── doc/               Specs & guides (Claude — keep in sync)
+    └── .agents/           Role rules (Claude)
 ```
 
 ## Tech Stack
@@ -22,6 +27,7 @@ ISB/
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router v6, React Query |
+| Kiosk | Vue 3, Pinia, Vite, Capacitor (Android) |
 | Backend | Bun, Elysia, Drizzle ORM, postgres-js, TypeBox |
 | Database | PostgreSQL 15+ |
 | Auth | JWT (`@elysiajs/jwt`, HS256) |
@@ -31,7 +37,7 @@ ISB/
 
 ### Prerequisites
 
-- Node.js 18+ & npm (frontend)
+- Node.js 18+ & npm (frontend, kiosk)
 - Bun >= 1.3 (backend)
 - PostgreSQL 15+
 
@@ -61,6 +67,15 @@ bun run dev             # http://localhost:3001/health
 cd frontend
 npm install
 npm run dev             # http://localhost:5173
+```
+
+### 4. Kiosk (optional)
+
+```bash
+cd kiosk
+cp .env.example .env
+npm install
+npm run dev
 ```
 
 ## Demo Accounts
@@ -102,6 +117,7 @@ http://localhost:3001/docs
 |-----------|----------|---------------|
 | Frontend | Vercel | `frontend/` |
 | Backend | Railway | `backend-bun/` |
+| Kiosk | Capacitor APK | `kiosk/` |
 
 ### Environment Variables
 
@@ -141,18 +157,25 @@ bun test
 bun run db:migrate
 ```
 
+### Kiosk
+
+```bash
+cd kiosk
+npm run dev
+npm run build
+```
+
 ## Architecture
 
 ```
-Browser (React SPA)
-    │
-    │  HTTPS / JSON
-    ▼
-Elysia (Bun) — backend-bun/
-    │
-    │  Drizzle ORM
-    ▼
-PostgreSQL
+Browser (React SPA)          Kiosk (Vue + Capacitor)
+         │                            │
+         └────────────┬───────────────┘
+                      ▼
+         Elysia (Bun) — backend-bun/
+                      │
+                      ▼
+                 PostgreSQL
 ```
 
 ## License

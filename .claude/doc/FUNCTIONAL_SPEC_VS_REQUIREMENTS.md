@@ -1,5 +1,7 @@
 # Schooney Payment System — Functional Specification vs. Customer Requirements
 
+> **Implementation note:** Current backend is `backend-bun/` (Bun + Elysia). Coverage status reflects the live system; legacy `backend/` (Python) paths in older sections may be outdated.
+
 > **System:** Schooney Payment System (ISB Cooperative)
 > **Document type:** Requirement-to-implementation traceability (functional spec)
 > **Audience:** ISB stakeholders, PM, development team, QA
@@ -439,8 +441,8 @@
 
 | # | Override | Source | Status | Applied at |
 |---|----------|--------|:------:|-----------|
-| O1 | Negative wallet balance allowed (per-student cap) | R-OVERRIDE | ✅ | [pos_service.py](../backend/app/services/pos_service.py) + Store.tsx banner |
-| O2 | Negative stock allowed (no block) | R-OVERRIDE | ✅ | [inventory_service.py](../backend/app/services/inventory_service.py) — deduct proceeds, creates phantom FIFO lot |
+| O1 | Negative wallet balance allowed (per-student cap) | R-OVERRIDE | ✅ | `backend-bun/src/services/pos_checkout_service.ts` + Store.tsx banner |
+| O2 | Negative stock allowed (no block) | R-OVERRIDE | ✅ | `backend-bun/src/services/inventory_fifo.ts` — deduct proceeds, creates phantom FIFO lot |
 | O3 | Avg Cost calculation (weighted) | R-OVERRIDE | ✅ | `shop.shop_type = avg_cost` — auto recalc on receive |
 | O4 | Sub-merchant (multi-shop) | R-OVERRIDE | ✅ | `shops` table, per-shop everything |
 | O5 | Family shared wallet | R-OVERRIDE | ⚠️ → per ISB decision: **individual wallets + parent-driven sibling transfer** | `POST /wallets/transfer` |

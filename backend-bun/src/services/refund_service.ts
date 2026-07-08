@@ -1,153 +1,153 @@
-import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { customers, wallets } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
 const VALID_METHODS = new Set(["CASH", "BANK_TRANSFER", "CHEQUE"]);
 const METHOD_LABEL: Record<string, string> = {
-  CASH: "Cash",
-  BANK_TRANSFER: "Bank transfer",
-  CHEQUE: "Cheque",
+    CASH: "Cash",
+    BANK_TRANSFER: "Bank transfer",
+    CHEQUE: "Cheque",
 };
 
 export interface RefundCandidateDTO {
-  id: number;
-  name: string;
-  student_code: string | null;
-  family_code: string | null;
-  is_graduated: boolean;
-  wallet_id: number;
-  wallet_balance: number;
-  enroll_date: string | null;
-  withdraw_date: string | null;
-  // Family aggregation — null when family_code is null. Used by the
-  // frontend to surface "All graduated" vs "Has active students" so the
-  // refund officer can avoid paying out while siblings still attend.
-  family_total_count: number | null;
-  family_active_count: number | null;
+    id: number;
+    name: string;
+    student_code: string | null;
+    family_code: string | null;
+    is_graduated: boolean;
+    wallet_id: number;
+    wallet_balance: number;
+    enroll_date: string | null;
+    withdraw_date: string | null;
+    // Family aggregation — null when family_code is null. Used by the
+    // frontend to surface "All graduated" vs "Has active students" so the
+    // refund officer can avoid paying out while siblings still attend.
+    family_total_count: number | null;
+    family_active_count: number | null;
 }
 
 export interface RefundResponseDTO {
-  transaction_id: number;
-  customer_id: number;
-  wallet_id: number;
-  amount: number;
-  refund_method: string;
-  balance_before: number;
-  balance_after: number;
-  reason: "graduation_refund";
-  notes: string | null;
-  created_at: string;
-  created_by_user_id: number;
+    transaction_id: number;
+    customer_id: number;
+    wallet_id: number;
+    amount: number;
+    refund_method: string;
+    balance_before: number;
+    balance_after: number;
+    reason: "graduation_refund";
+    notes: string | null;
+    created_at: string;
+    created_by_user_id: number;
 }
 
 export async function listRefundCandidates(): Promise<RefundCandidateDTO[]> {
-  const rows = await db
-    .select({ customer: customers, wallet: wallets })
-    .from(customers)
-    .innerJoin(wallets, eq(wallets.customerId, customers.id))
-    .where(
-      and(
-        sql`${wallets.balance} > 0`,
-        eq(wallets.isActive, true),
-        eq(customers.isActive, true),
-      ),
-    )
-    .orderBy(
-      desc(customers.isGraduated),
-      sql`${customers.withdrawDate} DESC NULLS LAST`,
-      asc(customers.name),
+    const rows = await db
+        .select({ customer: customers, wallet: wallets })
+        .from(customers)
+        .innerJoin(wallets, eq(wallets.customerId, customers.id))
+        .where(
+            and(
+                sql`${wallets.balance} > 0`,
+                eq(wallets.isActive, true),
+                eq(customers.isActive, true),
+            ),
+        )
+        .orderBy(
+            desc(customers.isGraduated),
+            sql`${customers.withdrawDate} DESC NULLS LAST`,
+            asc(customers.name),
+        );
+
+    // Aggregate family counts across the customers table (including kids with
+    // zero balance) so the refund officer can tell whether siblings are still
+    // enrolled. is_graduated=false AND is_active=true => still studying.
+    const familyCodes = Array.from(
+        new Set(rows.map((r) => r.customer.familyCode).filter((c): c is string => !!c)),
     );
 
-  // Aggregate family counts across the customers table (including kids with
-  // zero balance) so the refund officer can tell whether siblings are still
-  // enrolled. is_graduated=false AND is_active=true => still studying.
-  const familyCodes = Array.from(
-    new Set(rows.map((r) => r.customer.familyCode).filter((c): c is string => !!c)),
-  );
-
-  const familyTotals = new Map<string, { total: number; active: number }>();
-  if (familyCodes.length > 0) {
-    const counts = await db
-      .select({
-        familyCode: customers.familyCode,
-        total: sql<number>`count(*)::int`,
-        active: sql<number>`count(*) FILTER (WHERE ${customers.isGraduated} = false AND ${customers.isActive} = true)::int`,
-      })
-      .from(customers)
-      .where(inArray(customers.familyCode, familyCodes))
-      .groupBy(customers.familyCode);
-    for (const c of counts) {
-      if (c.familyCode) familyTotals.set(c.familyCode, { total: c.total, active: c.active });
+    const familyTotals = new Map<string, { total: number; active: number }>();
+    if (familyCodes.length > 0) {
+        const counts = await db
+            .select({
+                familyCode: customers.familyCode,
+                total: sql<number>`count(*)::int`,
+                active: sql<number>`count(*) FILTER (WHERE ${customers.isGraduated} = false AND ${customers.isActive} = true)::int`,
+            })
+            .from(customers)
+            .where(inArray(customers.familyCode, familyCodes))
+            .groupBy(customers.familyCode);
+        for (const c of counts) {
+            if (c.familyCode) familyTotals.set(c.familyCode, { total: c.total, active: c.active });
+        }
     }
-  }
 
-  return rows.map(({ customer, wallet }) => {
-    const fc = customer.familyCode;
-    const fam = fc ? familyTotals.get(fc) : undefined;
-    return {
-      id: customer.id,
-      name: customer.name,
-      student_code: customer.studentCode ?? null,
-      family_code: fc ?? null,
-      is_graduated: customer.isGraduated,
-      wallet_id: wallet.id,
-      wallet_balance: pgNumber(wallet.balance) ?? 0,
-      enroll_date: customer.enrollDate ?? null,
-      withdraw_date: customer.withdrawDate ?? null,
-      family_total_count: fam?.total ?? null,
-      family_active_count: fam?.active ?? null,
-    };
-  });
+    return rows.map(({ customer, wallet }) => {
+        const fc = customer.familyCode;
+        const fam = fc ? familyTotals.get(fc) : undefined;
+        return {
+            id: customer.id,
+            name: customer.name,
+            student_code: customer.studentCode ?? null,
+            family_code: fc ?? null,
+            is_graduated: customer.isGraduated,
+            wallet_id: wallet.id,
+            wallet_balance: pgNumber(wallet.balance) ?? 0,
+            enroll_date: customer.enrollDate ?? null,
+            withdraw_date: customer.withdrawDate ?? null,
+            family_total_count: fam?.total ?? null,
+            family_active_count: fam?.active ?? null,
+        };
+    });
 }
 
 export async function createGraduationRefund(args: {
-  customerId: number;
-  amount: number;
-  method: string;
-  notes: string | null;
-  userId: number;
+    customerId: number;
+    amount: number;
+    method: string;
+    notes: string | null;
+    userId: number;
 }): Promise<RefundResponseDTO> {
-  const { customerId, amount, method, notes, userId } = args;
-  if (!Number.isFinite(amount) || amount <= 0) {
-    const err = new Error("Refund amount must be positive");
-    (err as { status?: number }).status = 400;
-    throw err;
-  }
-  if (!VALID_METHODS.has(method)) {
-    const err = new Error(`Invalid refund method '${method}'. Must be one of: CASH, BANK_TRANSFER, CHEQUE`);
-    (err as { status?: number }).status = 400;
-    throw err;
-  }
+    const { customerId, amount, method, notes, userId } = args;
+    if (!Number.isFinite(amount) || amount <= 0) {
+        const err = new Error("Refund amount must be positive");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    if (!VALID_METHODS.has(method)) {
+        const err = new Error(`Invalid refund method '${method}'. Must be one of: CASH, BANK_TRANSFER, CHEQUE`);
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
 
-  return await pgClient.begin(async (sqlTx) => {
-    const wRows = await sqlTx<Array<{ id: number; balance: string; is_active: boolean }>>`
+    return await pgClient.begin(async (sqlTx) => {
+        const wRows = await sqlTx<Array<{ id: number; balance: string; is_active: boolean }>>`
       SELECT id, balance, is_active FROM wallets WHERE customer_id = ${customerId} FOR UPDATE
     `;
-    if (wRows.length === 0) {
-      const err = new Error(`Wallet not found for customer ${customerId}`);
-      (err as { status?: number }).status = 404;
-      throw err;
-    }
-    const wallet = wRows[0];
-    if (!wallet.is_active) {
-      const err = new Error(`Wallet ${wallet.id} is inactive`);
-      (err as { status?: number }).status = 400;
-      throw err;
-    }
-    const balanceBefore = Number(wallet.balance);
-    if (amount > balanceBefore) {
-      const err = new Error(`Refund amount ฿${amount.toFixed(2)} exceeds wallet balance ฿${balanceBefore.toFixed(2)}`);
-      (err as { status?: number }).status = 400;
-      throw err;
-    }
-    const balanceAfter = balanceBefore - amount;
-    await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${wallet.id}`;
+        if (wRows.length === 0) {
+            const err = new Error(`Wallet not found for customer ${customerId}`);
+            (err as { status?: number }).status = 404;
+            throw err;
+        }
+        const wallet = wRows[0];
+        if (!wallet.is_active) {
+            const err = new Error(`Wallet ${wallet.id} is inactive`);
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+        const balanceBefore = Number(wallet.balance);
+        if (amount > balanceBefore) {
+            const err = new Error(`Refund amount ฿${amount.toFixed(2)} exceeds wallet balance ฿${balanceBefore.toFixed(2)}`);
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+        const balanceAfter = balanceBefore - amount;
+        await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${wallet.id}`;
 
-    const notePart = notes && notes.trim() ? ` — ${notes.trim()}` : "";
-    const description = `Graduation refund (${METHOD_LABEL[method]})${notePart}`;
+        const notePart = notes && notes.trim() ? ` — ${notes.trim()}` : "";
+        const description = `Graduation refund (${METHOD_LABEL[method]})${notePart}`;
 
-    const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
+        const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
       INSERT INTO wallet_transactions
         (wallet_id, transaction_type, amount, balance_before, balance_after,
          reference_type, reference_id, description, reason, refund_method, created_by)
@@ -157,18 +157,18 @@ export async function createGraduationRefund(args: {
       RETURNING id, created_at
     `;
 
-    return {
-      transaction_id: txRows[0].id,
-      customer_id: customerId,
-      wallet_id: wallet.id,
-      amount,
-      refund_method: method,
-      balance_before: balanceBefore,
-      balance_after: balanceAfter,
-      reason: "graduation_refund",
-      notes,
-      created_at: pgToIso(txRows[0].created_at)!,
-      created_by_user_id: userId,
-    };
-  });
+        return {
+            transaction_id: txRows[0].id,
+            customer_id: customerId,
+            wallet_id: wallet.id,
+            amount,
+            refund_method: method,
+            balance_before: balanceBefore,
+            balance_after: balanceAfter,
+            reason: "graduation_refund",
+            notes,
+            created_at: pgToIso(txRows[0].created_at)!,
+            created_by_user_id: userId,
+        };
+    });
 }

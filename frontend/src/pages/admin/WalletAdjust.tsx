@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,9 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Minus, Plus, Search, Wallet as WalletIcon, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, ClipboardList } from "lucide-react";
+import { PaginationBar } from "@/components/PaginationBar";
+import { Minus, Plus, Search, Wallet as WalletIcon, FileSpreadsheet, FileText, ClipboardList } from "lucide-react";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 // ── Adjustment Report helpers ────────────────────────────────────────────────
 
@@ -103,9 +106,6 @@ interface Cardholder {
 }
 
 type Direction = "credit" | "debit";
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 function profileHref(c: Cardholder): string {
   if (c.entity_type === "user") return `/users/${c.entity_id}`;
@@ -317,11 +317,11 @@ export default function WalletAdjust() {
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1">
                 <Label htmlFor="rpt-date-from">{t("adjustmentReport.dateFrom", "From")}</Label>
-                <Input id="rpt-date-from" type="date" value={rptDateFrom} onChange={(e) => setRptDateFrom(e.target.value)} className="w-40" />
+                <DatePicker id="rpt-date-from" value={rptDateFrom} onChange={setRptDateFrom} className="w-40" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="rpt-date-to">{t("adjustmentReport.dateTo", "To")}</Label>
-                <Input id="rpt-date-to" type="date" value={rptDateTo} onChange={(e) => setRptDateTo(e.target.value)} className="w-40" />
+                <DatePicker id="rpt-date-to" value={rptDateTo} onChange={setRptDateTo} className="w-40" />
               </div>
               <div className="space-y-1">
                 <Label>{t("adjustmentReport.direction", "Direction")}</Label>
@@ -380,6 +380,7 @@ export default function WalletAdjust() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
                       <TableHead className="whitespace-nowrap">Date / Time</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Name</TableHead>
@@ -396,13 +397,14 @@ export default function WalletAdjust() {
                   <TableBody>
                     {rptRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                           {t("adjustmentReport.noResults", "No adjustments found.")}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      rptRows.map((r) => (
+                      rptRows.map((r, idx) => (
                         <TableRow key={r.id}>
+                          <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{idx + 1}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs font-mono">{formatDT(r.created_at)}</TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entity_type] ?? "bg-gray-100 text-gray-700"}`}>
@@ -454,6 +456,7 @@ export default function WalletAdjust() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
                   <TableHead>{t("admin.walletAdjust.colName")}</TableHead>
                   <TableHead>{t("admin.walletAdjust.colCode")}</TableHead>
                   <TableHead>{t("admin.walletAdjust.colClass")}</TableHead>
@@ -464,13 +467,16 @@ export default function WalletAdjust() {
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                       {t("admin.walletAdjust.noResults")}
                     </TableCell>
                   </TableRow>
                 )}
-                {paged.map((c) => (
+                {paged.map((c, idx) => (
                   <TableRow key={c.key}>
+                    <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                      {(safePage - 1) * PAGE_SIZE + idx + 1}
+                    </TableCell>
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="font-mono text-xs">{c.identifier}</Badge>
@@ -502,7 +508,7 @@ export default function WalletAdjust() {
             </Table>
           )}
 
-          {!loading && totalPages > 1 && (
+          {!loading && filtered.length > 0 && (
             <div className="flex items-center justify-between pt-2">
               <p className="text-sm text-muted-foreground">
                 {t("common.showingOf", {
@@ -512,29 +518,7 @@ export default function WalletAdjust() {
                   defaultValue: `Showing {{from}}–{{to}} of {{total}}`,
                 })}
               </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  {t("common.prev", "Prev")}
-                </Button>
-                <span className="px-3 text-sm">
-                  {safePage} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={safePage === totalPages}
-                >
-                  {t("common.next", "Next")}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+              <PaginationBar currentPage={safePage} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </CardContent>

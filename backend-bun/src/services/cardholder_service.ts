@@ -341,7 +341,6 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
         const ctId = await ensureCustomerTypeId("INTERNAL");
         const initBalance = input.initial_balance ?? 0;
 
-        const customerCode = input.customer_code!;
         const studentName = input.name!;
 
         let custId = 0;
@@ -409,8 +408,6 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
             const sr = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, input.shop_id)).limit(1);
             if (!sr[0]) badRequest(`Shop ${input.shop_id} not found`);
         }
-        const username = input.username!;
-        const displayName = input.name!;
         const hash = await Bun.password.hash(pw, { algorithm: "bcrypt", cost: 12 });
 
         let uid = 0;
@@ -473,7 +470,6 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
     if (kind === "other") {
         if (!input.name) badRequest("name required for other");
         const ctId = await ensureCustomerTypeId("PUBLIC");
-        const otherName = input.name!;
         const code = input.customer_code || `OTH-${Math.floor(Date.now() / 1000)}`;
         let custId = 0;
         let walletId: number | null = null;

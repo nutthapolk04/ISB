@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +118,7 @@ export default function SyncLog() {
                 <TableRow key={l.id}>
                   <TableCell className="font-mono text-xs">#{l.id}</TableCell>
                   <TableCell className="text-xs">
-                    {new Date(l.started_at).toLocaleString()}
+                    {fmtDateTime(l.started_at)}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">{l.sync_type}</Badge>
@@ -162,7 +163,7 @@ export default function SyncLog() {
           <DialogHeader>
             <DialogTitle>Sync #{selected?.id} — {selected?.status}</DialogTitle>
             <DialogDescription>
-              {selected && new Date(selected.started_at).toLocaleString()} • {selected?.sync_type} • {selected?.records_total} records
+              {selected && fmtDateTime(selected.started_at)} • {selected?.sync_type} • {selected?.records_total} records
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">

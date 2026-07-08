@@ -38,6 +38,7 @@ export const topupCashier = {
     body: t.Object({
         amount: t.Number({ exclusiveMinimum: 0 }),
         notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+        idempotency_key: t.Optional(t.Nullable(t.String({ minLength: 8, maxLength: 64 }))),
     }),
     detail: { tags: ["Wallets"], summary: "Cashier wallet top-up" },
 };

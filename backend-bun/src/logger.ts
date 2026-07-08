@@ -62,6 +62,15 @@ const requestId = () => {
     return Date.now().toString() + nanoseconds().toString().substring(0, 7)
 }
 
+/** Log an error with message + stack trace for incident debugging. */
+export function logError(message: string, error: unknown, meta?: Record<string, unknown>) {
+    logger.error(message, {
+        ...meta,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+    })
+}
+
 // Winston logger
 export const logger = createLogger({
     level: level(),
@@ -96,29 +105,34 @@ export const logging = (app: Elysia) =>
         .use(ip({ headersOnly: true }))
         .derive({ as: 'global' }, () => ({
             start: performance.now(),
-            requestID: `${requestId()}`,
+            requestId: `${requestId()}`,
         }))
         .onBeforeHandle({ as: 'global' }, (ctx) => {
+            ctx.set.headers['X-Request-Id'] = ctx.requestId
             logger.debug(
-                `Req:-->[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method} ${ctx.path}`,
+                `Req:-->[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method} ${ctx.path}`,
             )
         })
         .onAfterHandle({ as: 'global' }, (ctx) => {
             if (!ctx.set.status) {
                 logger.error(
-                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method
+                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method
                     } ${ctx.path} [500] in ${(performance.now() - ctx.start).toFixed(2)} ms`,
                 )
             } else {
                 logger.info(
-                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method
+                    `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method
                     } ${ctx.path} [${ctx.set.status}] in ${(performance.now() - ctx.start).toFixed(2)} ms`,
                 )
             }
         })
         .onError({ as: 'global' }, (ctx) => {
-            logger.error(
-                `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestID}] [${ctx.ip}] ${ctx.request.method} ${ctx.path
-                } [${ctx.set.status}] in ${ctx.start ? (performance.now() - ctx.start).toFixed(2) : '-'} ms`,
+            const err = 'error' in ctx ? ctx.error : undefined
+            logError(
+                `Res:<--[${Bun.env.WORKER_ID}:${process.pid}] [${ctx.requestId}] [${ctx.ip}] ${ctx.request.method} ${ctx.path} [${ctx.set.status}]`,
+                err,
+                {
+                    durationMs: ctx.start ? (performance.now() - ctx.start).toFixed(2) : undefined,
+                },
             )
         })

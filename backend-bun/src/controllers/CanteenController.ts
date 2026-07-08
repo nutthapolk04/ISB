@@ -1,5 +1,4 @@
 /** Canteen ops — POST /canteen/:shopId/close-day (admin | manager | cashier) */
-import type { Context } from "elysia";
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";

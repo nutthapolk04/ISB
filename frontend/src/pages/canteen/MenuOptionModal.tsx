@@ -18,7 +18,7 @@ import type { CanteenProduct } from "@/hooks/useCanteenCart";
 import type {
   MenuOptionGroup,
   SelectedOptionGroup,
-} from "./menuOptionTypes";
+} from "@/types/menuOptions";
 
 interface Props {
   shopId: string;

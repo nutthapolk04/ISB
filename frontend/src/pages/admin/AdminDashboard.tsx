@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { format } from "date-fns";
+import { enUS, th } from "date-fns/locale";
 import {
   UtensilsCrossed,
   Store,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { fmtDate } from "@/lib/dateFormat";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
@@ -47,6 +49,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationBar } from "@/components/PaginationBar";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,26 +113,13 @@ const formatTHB = (n: number) =>
 
 const todayIso = () => format(new Date(), "yyyy-MM-dd");
 
-const formatDateLong = (d: Date, _lang: string) =>
-  d.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+const formatDateLong = (d: Date, lang: string) =>
+  format(d, "EEEE d MMMM yyyy", { locale: lang === "th" ? th : enUS });
 
-const formatDateRangeLabel = (from: string, to: string, _lang: string): string => {
+const formatDateRangeLabel = (from: string, to: string): string => {
   if (!from || !to) return "—";
-  const f = new Date(from);
-  const tt = new Date(to);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  if (from === to) return fmt(f);
-  return `${fmt(f)} — ${fmt(tt)}`;
+  if (from === to) return fmtDate(from);
+  return `${fmtDate(from)} — ${fmtDate(to)}`;
 };
 
 const formatRelative = (iso: string, t: TFunction): string => {
@@ -186,6 +176,7 @@ const bucketFromReceipt = (r: ReceiptRow): "canteen" | "store" | "other" => {
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 const STALE = 30_000;
+const RECENT_PAGE_SIZE = 10;
 
 function useRecentReceipts() {
   return useQuery<ReceiptRow[]>({
@@ -406,6 +397,7 @@ export default function AdminDashboard() {
   const [showLowStock, setShowLowStock] = useState(false);
   const lowStockItemsQuery = useLowStockItems(showLowStock);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
+  const [recentPage, setRecentPage] = useState(1);
 
   // Shop id → display name (lower-cased keys) for badges.
   const shopMap: Record<string, string> = Object.fromEntries(
@@ -434,8 +426,17 @@ export default function AdminDashboard() {
     [perShopQuery.data],
   );
 
-  const recent = (receiptsQuery.data ?? []).slice(0, 10);
-  const rangeLabel = formatDateRangeLabel(dateFrom, dateTo, i18n.language);
+  // Recent activity — paginated client-side (data already fetched). Page is
+  // clamped (not reset) so the 30s auto-refetch doesn't yank the user back.
+  const allRecent = receiptsQuery.data ?? [];
+  const recentTotal = allRecent.length;
+  const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
+  const recentCurrentPage = Math.min(recentPage, recentTotalPages);
+  const recent = allRecent.slice(
+    (recentCurrentPage - 1) * RECENT_PAGE_SIZE,
+    recentCurrentPage * RECENT_PAGE_SIZE,
+  );
+  const rangeLabel = formatDateRangeLabel(dateFrom, dateTo);
   const summaryLoading = perShopQuery.isLoading || shopsQuery.isLoading;
 
   const applyPreset = (p: Preset) => {
@@ -720,7 +721,7 @@ export default function AdminDashboard() {
             <ReceiptIcon className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-base font-semibold">{t("admin.dashboard.recentActivity")}</h2>
             <span className="text-xs text-muted-foreground">
-              {t("admin.dashboard.recentLast10")}
+              {t("admin.dashboard.recentCount", { count: recentTotal })}
             </span>
           </div>
 
@@ -734,6 +735,7 @@ export default function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
                   <TableHead>{t("admin.dashboard.colTime")}</TableHead>
                   <TableHead>{t("admin.dashboard.colReceipt")}</TableHead>
                   <TableHead>{t("admin.dashboard.colShop")}</TableHead>
@@ -744,17 +746,18 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recent.length === 0 && (
+                {recentTotal === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="py-8 text-center text-muted-foreground"
                     >
                       {t("admin.dashboard.noRecentActivity")}
                     </TableCell>
                   </TableRow>
                 )}
-                {recent.map((r) => {
+                {recent.map((r, idx) => {
+                  const rowNo = (recentCurrentPage - 1) * RECENT_PAGE_SIZE + idx + 1;
                   const sid =
                     r.shop_id ??
                     (bucketFromReceipt(r) === "canteen"
@@ -777,6 +780,9 @@ export default function AdminDashboard() {
                       }`}
                       onClick={() => setSelectedReceiptId(r.id)}
                     >
+                      <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                        {rowNo}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatRelative(r.created_at, t)}
                       </TableCell>
@@ -807,6 +813,19 @@ export default function AdminDashboard() {
                 })}
               </TableBody>
             </Table>
+          )}
+
+          {!receiptsQuery.isLoading && recentTotal > 0 && (
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {t("admin.dashboard.pageInfo", {
+                  from: (recentCurrentPage - 1) * RECENT_PAGE_SIZE + 1,
+                  to: Math.min(recentCurrentPage * RECENT_PAGE_SIZE, recentTotal),
+                  total: recentTotal.toLocaleString(),
+                })}
+              </p>
+              <PaginationBar currentPage={recentCurrentPage} totalPages={recentTotalPages} onPageChange={setRecentPage} />
+            </div>
           )}
         </CardContent>
       </Card>

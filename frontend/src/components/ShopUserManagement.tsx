@@ -28,6 +28,7 @@ import {
 
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "@/hooks/use-toast";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -603,12 +604,7 @@ function DirectoryTab({ shopId, shopName }: TabProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-
-  useEffect(() => {
-    const h = setTimeout(() => setDebounced(query.trim()), 300);
-    return () => clearTimeout(h);
-  }, [query]);
+  const debounced = useDebounce(query.trim(), 300);
 
   const searchQuery = useQuery({
     queryKey: ["users-directory", debounced],

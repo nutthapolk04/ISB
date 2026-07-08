@@ -20,6 +20,7 @@ You are acting as the **Project Orchestrator** for this project.
    - `@software-architect.mdc` → วาง architecture, API contract, DB schema
    - `@frontend-engineer.mdc` → เขียน React/TypeScript UI
    - `@backend-engineer.mdc` → เขียน API, business logic
+   - `@backend-controller.mdc` → Elysia controllers (`backend-bun/src/controllers/`)
    - `@security-reviewer.mdc` → audit ช่องโหว่, OWASP
    - `@qa-engineer.mdc` → เขียน test case, ทดสอบระบบ
    - `@localization.mdc` → จัดการ i18n, en.json/th.json

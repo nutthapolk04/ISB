@@ -10,6 +10,9 @@
     "start": "vite preview --port $PORT --host"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "capacitor-hardware": "../plugins/capacitor-hardware",
     "lucide-vue-next": "^0.469.0",
     "pinia": "^2.3.0",
     "qrcode": "^1.5.4",
@@ -17,6 +20,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@playwright/test": "^1.60.0",
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^5.2.1",

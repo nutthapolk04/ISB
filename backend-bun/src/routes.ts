@@ -1,10 +1,10 @@
 import { Elysia } from "elysia";
 import { requireAuth } from "@/middleware/AuthMiddleware";
 import { authRateLimit } from "@/middleware/RateLimitMiddleware";
-import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_response";
 import { HealthController } from "@/controllers/HealthController";
 import { AuthController } from "@/controllers/AuthController";
 import { IsbSyncController } from "@/controllers/IsbSyncController";
+import { VendorWalletController } from "@/controllers/VendorWalletController";
 import { BayCallbackController } from "@/controllers/BayCallbackController";
 import { PublicSettingsController } from "@/controllers/PublicSettingsController";
 import { DepartmentController } from "@/controllers/DepartmentController";
@@ -31,9 +31,11 @@ import { CustomerDisplayController } from "@/controllers/CustomerDisplayControll
 import { AdminImportController } from "@/controllers/AdminImportController";
 import { AdminReportsController } from "@/controllers/AdminReportsController";
 import { CanteenController } from "@/controllers/CanteenController";
+import { KioskController } from "@/controllers/KioskController";
 import * as HealthSchema from "@/interfaces/routes/health.schema";
 import * as AuthSchema from "@/interfaces/routes/auth.schema";
 import * as IsbSyncSchema from "@/interfaces/routes/isb_sync.schema";
+import * as VendorWalletSchema from "@/interfaces/routes/vendor_wallet.schema";
 import * as BayCallbackSchema from "@/interfaces/routes/bay_callback.schema";
 import * as AdminSettingsSchema from "@/interfaces/routes/admin_settings.schema";
 import * as CustomerDisplaySchema from "@/interfaces/routes/customer_display.schema";
@@ -59,7 +61,14 @@ import * as CardholderSchema from "@/interfaces/routes/cardholder.schema";
 import * as AdminImportSchema from "@/interfaces/routes/admin_import.schema";
 import * as AdminReportsSchema from "@/interfaces/routes/admin_reports.schema";
 import * as CanteenSchema from "@/interfaces/routes/canteen.schema";
+import * as KioskSchema from "@/interfaces/routes/kiosk.schema";
 
+/**
+ * ISB vendor sync + wallet-adjust-balance — public, x-api-key only (no JWT).
+ * Validation-error formatting for these paths lives in app.ts's root
+ * onError, not here — Elysia 1.4.x always runs the root app's onError for
+ * VALIDATION on nested routes, so a plugin-level handler here never fires.
+ */
 /** Build a BAY return location URL for the matching Vercel React page. */
 const bayReturnLocation = (outcome: "success" | "fail" | "cancel", url: string) => {
     const ref = new URL(url).searchParams.get("ref") ?? "";
@@ -68,14 +77,10 @@ const bayReturnLocation = (outcome: "success" | "fail" | "cancel", url: string) 
 
 /** ISB vendor sync — public, x-api-key only (no JWT). */
 const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
-    .onError(({ code, error, set }) => {
-        if (code === "VALIDATION") {
-            return syncValidationFailed(set, mapValidationError(error));
-        }
-    })
     .post("/sync/staffs", IsbSyncController.staffs, IsbSyncSchema.isbSyncStaffs)
     .post("/sync/families", IsbSyncController.families, IsbSyncSchema.isbSyncFamilies)
-    .post("/sync/departments", IsbSyncController.departments, IsbSyncSchema.isbSyncDepartments);
+    .post("/sync/departments", IsbSyncController.departments, IsbSyncSchema.isbSyncDepartments)
+    .post("/wallet/adjust-balance", VendorWalletController.adjustBalance, VendorWalletSchema.adjustBalance);
 
 /**
  * All authenticated /api/v1 routes in one plugin (Elysia 1.4.x: avoid multiple
@@ -241,6 +246,12 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .post("/topup/:refCode/inquiry", TopupController.inquiry, TopupSchema.topupInquiry)
             .post("/topup/:refCode/cancel", TopupController.cancelIntent, TopupSchema.topupCancelIntent)
             .post("/:id/cashier-topup", TopupController.cashierTopup, TopupSchema.topupCashier)
+    )
+    // ── Kiosk device ──────────────────────────────────────────────────────────
+    .group("/kiosk", (app) =>
+        app
+            .get("/me", KioskController.me, KioskSchema.kioskMe)
+            .patch("/me/location", KioskController.updateLocation, KioskSchema.kioskUpdateLocation)
     )
     .group("/admin/departments", (app) =>
         app

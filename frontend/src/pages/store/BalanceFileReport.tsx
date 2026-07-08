@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookOpen, FileDown, FileText, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { BookOpen, FileDown, FileText, Loader2, PackagePlus } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
@@ -100,6 +101,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
   const lang = i18n.language;
   const { user } = useAuth();
   const school = useSchoolInfo();
+  const navigate = useNavigate();
   const embedded = !!lockedShopId;
   const isAdmin = user?.role === "admin";
 
@@ -215,12 +217,17 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     }
   };
 
+  const goReceiveStock = () => {
+    if (shopId) navigate(`/store/management/${shopId}`);
+    else navigate("/store/management");
+  };
+
   const exportPdf = () => {
     if (!data || data.blocks.length === 0) return;
 
     const periodLabel = formatPeriod(data.month, data.year, lang);
     const shopLabel = data.shop_name ?? shopId;
-    const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US");
+    const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US", { calendar: "gregory" });
     const reportId = "ISB014";
     const schoolName = school.name || "International School Bangkok";
     const logoHtml = school.logoUrl
@@ -498,6 +505,12 @@ ${blocksHtml}
               {t("balanceFile.exportPdf", "Export PDF")}
             </Button>
 
+            {!embedded && (
+              <Button variant="secondary" onClick={goReceiveStock} className="ml-auto">
+                <PackagePlus className="h-4 w-4 mr-1" />
+                {t("balanceFile.goReceive", "Receive Stock")}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -8,60 +8,56 @@
  */
 
 import {
-  calcFifoAvgCost,
-  deductFifoLotsInMemory,
-  genLotId,
-  today,
-  type FifoLotIn,
-  type FifoLotOut,
+    calcFifoAvgCost,
+    deductFifoLotsInMemory,
+    genLotId,
+    today,
+    type FifoLotIn,
+    type FifoLotOut,
 } from "@/lib/fifo";
 import type { SqlTx } from "@/lib/sql_tx";
 
 interface LotRow {
-  id: string;
-  product_id: number;
-  shop_id: string;
-  date: string;
-  qty_remaining: string;
-  cost_per_unit: string;
+    id: string;
+    product_id: number;
+    shop_id: string;
+    date: string;
+    qty_remaining: string;
+    cost_per_unit: string;
 }
 
 function rowToIn(r: LotRow): FifoLotIn {
-  return {
-    id: r.id,
-    productId: r.product_id,
-    shopId: r.shop_id,
-    date: typeof r.date === "string" ? r.date : new Date(r.date).toISOString().slice(0, 10),
-    qtyRemaining: r.qty_remaining,
-    costPerUnit: r.cost_per_unit,
-  };
+    return {
+        id: r.id,
+        productId: r.product_id,
+        shopId: r.shop_id,
+        date: typeof r.date === "string" ? r.date : new Date(r.date).toISOString().slice(0, 10),
+        qtyRemaining: r.qty_remaining,
+        costPerUnit: r.cost_per_unit,
+    };
 }
 
 async function readLots(sqlTx: SqlTx, productId: number): Promise<FifoLotIn[]> {
-  const rows = await sqlTx<LotRow[]>`
+    const rows = await sqlTx<LotRow[]>`
     SELECT id, product_id, shop_id, date::text AS date, qty_remaining, cost_per_unit
     FROM fifo_lots WHERE product_id = ${productId}
   `;
-  return rows.map(rowToIn);
+    return rows.map(rowToIn);
 }
 
 async function replaceLots(sqlTx: SqlTx, productId: number, lots: FifoLotOut[]): Promise<void> {
-  await sqlTx`DELETE FROM fifo_lots WHERE product_id = ${productId}`;
-  for (const l of lots) {
-    await sqlTx`
+    await sqlTx`DELETE FROM fifo_lots WHERE product_id = ${productId}`;
+    for (const l of lots) {
+        await sqlTx`
       INSERT INTO fifo_lots (id, product_id, shop_id, date, qty_remaining, cost_per_unit)
       VALUES (${l.id}, ${l.productId}, ${l.shopId}, ${l.date}, ${l.qtyRemaining}, ${l.costPerUnit})
     `;
-  }
-}
-
-function sumQty(lots: ReadonlyArray<FifoLotIn>): number {
-  return lots.reduce((acc, l) => acc + Number(l.qtyRemaining), 0);
+    }
 }
 
 export interface FifoMutationResult {
-  newStock: number;
-  newAvgCost: number;
+    newStock: number;
+    newAvgCost: number;
 }
 
 /**
@@ -69,20 +65,20 @@ export interface FifoMutationResult {
  * Phantom negative lot if exhausted (negative stock allowed).
  */
 export async function fifoDeductInTx(
-  sqlTx: SqlTx,
-  productId: number,
-  qty: number,
-  shopId: string,
+    sqlTx: SqlTx,
+    productId: number,
+    qty: number,
+    shopId: string,
 ): Promise<FifoMutationResult> {
-  const lots = await readLots(sqlTx, productId);
-  const next = deductFifoLotsInMemory(lots, qty, productId, shopId);
-  await replaceLots(sqlTx, productId, next);
-  const newStock = Math.round(next.reduce((a, l) => a + l.qtyRemaining, 0));
-  const newAvg = round4(calcFifoAvgCost(next.map((l) => ({
-    id: l.id, productId: l.productId, shopId: l.shopId, date: l.date,
-    qtyRemaining: l.qtyRemaining, costPerUnit: l.costPerUnit,
-  }))));
-  return { newStock, newAvgCost: newAvg };
+    const lots = await readLots(sqlTx, productId);
+    const next = deductFifoLotsInMemory(lots, qty, productId, shopId);
+    await replaceLots(sqlTx, productId, next);
+    const newStock = Math.round(next.reduce((a, l) => a + l.qtyRemaining, 0));
+    const newAvg = round4(calcFifoAvgCost(next.map((l) => ({
+        id: l.id, productId: l.productId, shopId: l.shopId, date: l.date,
+        qtyRemaining: l.qtyRemaining, costPerUnit: l.costPerUnit,
+    }))));
+    return { newStock, newAvgCost: newAvg };
 }
 
 /**
@@ -90,14 +86,14 @@ export async function fifoDeductInTx(
  * current avg cost (no receipt linkage = best fallback).
  */
 export async function fifoRefundLot(
-  sqlTx: SqlTx,
-  productId: number,
-  shopId: string,
-  refundQty: number, // positive number
-  receiptNumber: string,
-  fallbackCost: number,
+    sqlTx: SqlTx,
+    productId: number,
+    shopId: string,
+    refundQty: number, // positive number
+    receiptNumber: string,
+    fallbackCost: number,
 ): Promise<void> {
-  await sqlTx`
+    await sqlTx`
     INSERT INTO fifo_lots (id, product_id, shop_id, date, qty_remaining, cost_per_unit)
     VALUES (
       ${`refund-${receiptNumber}-${productId}-${Date.now()}`},
@@ -111,23 +107,23 @@ export async function fifoRefundLot(
  * Returns new stock (caller's existing stock + qty) and new avg.
  */
 export async function fifoReceiveInTx(
-  sqlTx: SqlTx,
-  productId: number,
-  shopId: string,
-  stockBefore: number,
-  qty: number,
-  costPerUnit: number,
+    sqlTx: SqlTx,
+    productId: number,
+    shopId: string,
+    stockBefore: number,
+    qty: number,
+    costPerUnit: number,
 ): Promise<FifoMutationResult> {
-  const lotId = genLotId("recv", productId);
-  await sqlTx`
+    const lotId = genLotId("recv", productId);
+    await sqlTx`
     INSERT INTO fifo_lots (id, product_id, shop_id, date, qty_remaining, cost_per_unit)
     VALUES (${lotId}, ${productId}, ${shopId}, ${today()}, ${qty}, ${costPerUnit})
   `;
-  const lots = await readLots(sqlTx, productId);
-  return {
-    newStock: stockBefore + qty,
-    newAvgCost: round4(calcFifoAvgCost(lots)),
-  };
+    const lots = await readLots(sqlTx, productId);
+    return {
+        newStock: stockBefore + qty,
+        newAvgCost: round4(calcFifoAvgCost(lots)),
+    };
 }
 
 /**
@@ -135,49 +131,49 @@ export async function fifoReceiveInTx(
  * appends a lot at: input cost → latest lot cost → product.avg_cost fallback.
  */
 export async function fifoAdjustInTx(
-  sqlTx: SqlTx,
-  productId: number,
-  shopId: string,
-  delta: number,
-  fallbackAvgCost: number,
-  costPerUnitInput?: number | null,
+    sqlTx: SqlTx,
+    productId: number,
+    shopId: string,
+    delta: number,
+    fallbackAvgCost: number,
+    costPerUnitInput?: number | null,
 ): Promise<FifoMutationResult> {
-  const lots = await readLots(sqlTx, productId);
+    const lots = await readLots(sqlTx, productId);
 
-  if (delta < 0) {
-    const next = deductFifoLotsInMemory(lots, Math.abs(delta), productId, shopId);
-    await replaceLots(sqlTx, productId, next);
-    const newStock = Math.round(next.reduce((a, l) => a + l.qtyRemaining, 0));
-    const newAvg = round4(calcFifoAvgCost(next.map((l) => ({
-      id: l.id, productId: l.productId, shopId: l.shopId, date: l.date,
-      qtyRemaining: l.qtyRemaining, costPerUnit: l.costPerUnit,
-    }))));
-    return { newStock, newAvgCost: newAvg };
-  }
+    if (delta < 0) {
+        const next = deductFifoLotsInMemory(lots, Math.abs(delta), productId, shopId);
+        await replaceLots(sqlTx, productId, next);
+        const newStock = Math.round(next.reduce((a, l) => a + l.qtyRemaining, 0));
+        const newAvg = round4(calcFifoAvgCost(next.map((l) => ({
+            id: l.id, productId: l.productId, shopId: l.shopId, date: l.date,
+            qtyRemaining: l.qtyRemaining, costPerUnit: l.costPerUnit,
+        }))));
+        return { newStock, newAvgCost: newAvg };
+    }
 
-  // delta > 0 → choose cost
-  let lotCost: number;
-  if (costPerUnitInput !== undefined && costPerUnitInput !== null && costPerUnitInput >= 0) {
-    lotCost = costPerUnitInput;
-  } else if (lots.length > 0) {
-    const latest = [...lots].sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
-    lotCost = Number(latest.costPerUnit);
-  } else {
-    lotCost = fallbackAvgCost;
-  }
-  const lotId = genLotId("adj");
-  await sqlTx`
+    // delta > 0 → choose cost
+    let lotCost: number;
+    if (costPerUnitInput !== undefined && costPerUnitInput !== null && costPerUnitInput >= 0) {
+        lotCost = costPerUnitInput;
+    } else if (lots.length > 0) {
+        const latest = [...lots].sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+        lotCost = Number(latest.costPerUnit);
+    } else {
+        lotCost = fallbackAvgCost;
+    }
+    const lotId = genLotId("adj");
+    await sqlTx`
     INSERT INTO fifo_lots (id, product_id, shop_id, date, qty_remaining, cost_per_unit)
     VALUES (${lotId}, ${productId}, ${shopId}, ${today()}, ${delta}, ${lotCost})
   `;
-  const updated = await readLots(sqlTx, productId);
-  const newStock = Math.round(updated.reduce((a, l) => a + Number(l.qtyRemaining), 0));
-  return {
-    newStock,
-    newAvgCost: round4(calcFifoAvgCost(updated)),
-  };
+    const updated = await readLots(sqlTx, productId);
+    const newStock = Math.round(updated.reduce((a, l) => a + Number(l.qtyRemaining), 0));
+    return {
+        newStock,
+        newAvgCost: round4(calcFifoAvgCost(updated)),
+    };
 }
 
 function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
+    return Math.round(n * 10000) / 10000;
 }

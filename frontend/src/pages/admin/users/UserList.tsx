@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -267,11 +268,11 @@ export default function UserList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
+  const debouncedQ = useDebounce(q, 300);
   useEffect(() => {
-    const h = setTimeout(() => void load(), 300);
-    return () => clearTimeout(h);
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [debouncedQ]);
 
   const bucketed = useMemo(() => {
     const map: Record<TabKey, AdminUser[]> = {

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Shield, Lock, CheckCircle2, Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { formatCurrency as formatTHB } from "@/lib/format";
 
 interface Props {
   open: boolean;
@@ -31,8 +32,6 @@ function formatExpiry(v: string) {
   return digits.length > 2 ? digits.slice(0, 2) + "/" + digits.slice(2) : digits;
 }
 
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export function KrungsriGatewayDialog({ open, amount, fee, onSuccess, onCancel }: Props) {
   const [step, setStep] = useState<Step>("card");

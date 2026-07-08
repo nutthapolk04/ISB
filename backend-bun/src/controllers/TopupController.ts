@@ -183,6 +183,7 @@ export const TopupController = {
 				amount: body.amount,
 				cashierUserId: Number(user.sub),
 				notes: body.notes ?? undefined,
+				idempotencyKey: body.idempotency_key ?? undefined,
 			});
 			logger.info(`[${reqContext.requestId} (TP-05)] TopupController.cashierTopup() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

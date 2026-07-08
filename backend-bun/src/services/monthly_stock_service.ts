@@ -2,21 +2,21 @@ import { pgClient } from "@/db/client";
 import * as XLSX from "xlsx";
 
 export interface MonthlyStockRow {
-  product_id: number | null;
-  product_name: string;
-  received: number;
-  sold: number;
-  internal_use: number;
-  adjustment: number;
-  current_stock: number | null;
+    product_id: number | null;
+    product_name: string;
+    received: number;
+    sold: number;
+    internal_use: number;
+    adjustment: number;
+    current_stock: number | null;
 }
 
 export async function getMonthlyStockReport(
-  shopId: string,
-  startDate: string,
-  endDate: string,
+    shopId: string,
+    startDate: string,
+    endDate: string,
 ): Promise<MonthlyStockRow[]> {
-  const rows = await pgClient`
+    const rows = await pgClient`
     SELECT
       sp.id AS product_id,
       sp.name AS product_name,
@@ -34,32 +34,32 @@ export async function getMonthlyStockReport(
     GROUP BY sp.id, sp.name, sp.stock
     ORDER BY sp.name
   `;
-  return rows.map((r: any) => ({
-    product_id: r.product_id,
-    product_name: r.product_name,
-    received: r.received,
-    sold: r.sold,
-    internal_use: r.internal_use,
-    adjustment: r.adjustment,
-    current_stock: r.current_stock ?? null,
-  }));
+    return rows.map((r: any) => ({
+        product_id: r.product_id,
+        product_name: r.product_name,
+        received: r.received,
+        sold: r.sold,
+        internal_use: r.internal_use,
+        adjustment: r.adjustment,
+        current_stock: r.current_stock ?? null,
+    }));
 }
 
 export async function exportMonthlyStockReport(
-  shopId: string,
-  startDate: string,
-  endDate: string,
+    shopId: string,
+    startDate: string,
+    endDate: string,
 ): Promise<Buffer> {
-  const rows = await getMonthlyStockReport(shopId, startDate, endDate);
-  const wb = XLSX.utils.book_new();
-  const data = [
-    ["Product", "Received", "Sold", "Internal Use", "Adjustment", "Net Change", "Current Stock"],
-    ...rows.map((r) => {
-      const net = r.received - r.sold - r.internal_use + r.adjustment;
-      return [r.product_name, r.received, r.sold, r.internal_use, r.adjustment, net, r.current_stock ?? ""];
-    }),
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
-  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    const rows = await getMonthlyStockReport(shopId, startDate, endDate);
+    const wb = XLSX.utils.book_new();
+    const data = [
+        ["Product", "Received", "Sold", "Internal Use", "Adjustment", "Net Change", "Current Stock"],
+        ...rows.map((r) => {
+            const net = r.received - r.sold - r.internal_use + r.adjustment;
+            return [r.product_name, r.received, r.sold, r.internal_use, r.adjustment, net, r.current_stock ?? ""];
+        }),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
+    return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }

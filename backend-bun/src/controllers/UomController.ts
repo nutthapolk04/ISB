@@ -1,5 +1,4 @@
 /** Units of measure — CRUD /seed (auth; write: admin | manager) */
-import type { Context } from "elysia";
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";

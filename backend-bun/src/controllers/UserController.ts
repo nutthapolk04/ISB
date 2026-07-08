@@ -1,5 +1,4 @@
 /** Users — CRUD, lookup by card/username/family (auth) */
-import type { Context } from "elysia";
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import {

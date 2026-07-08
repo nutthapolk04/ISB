@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
+import { getPaginationRange } from "@/lib/pagination";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,9 +146,6 @@ type SortKey = "name" | "children" | "balance";
 type SortDir = "asc" | "desc";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 function unitStatus(u: FamilyUnit): StatusFilter {
   if (u.children.length === 0) return "normal";
@@ -868,22 +867,17 @@ export default function FamilyLinks() {
                       onClick={() => currentPage > 1 && setPage(currentPage - 1)}
                     />
                   </PaginationItem>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                    .map((p, idx, arr) => {
-                      const prev = arr[idx - 1];
-                      const showEllipsis = prev && p - prev > 1;
-                      return (
-                        <span key={p} className="flex items-center">
-                          {showEllipsis && <span className="px-2 text-muted-foreground">…</span>}
-                          <PaginationItem>
-                            <PaginationLink isActive={p === currentPage} className="cursor-pointer" onClick={() => setPage(p)}>
-                              {p}
-                            </PaginationLink>
-                          </PaginationItem>
-                        </span>
-                      );
-                    })}
+                  {getPaginationRange(currentPage, totalPages).map((p, idx) =>
+                    p === "ellipsis" ? (
+                      <span key={`e-${idx}`} className="px-2 text-muted-foreground">…</span>
+                    ) : (
+                      <PaginationItem key={p}>
+                        <PaginationLink isActive={p === currentPage} className="cursor-pointer" onClick={() => setPage(p)}>
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ),
+                  )}
                   <PaginationItem>
                     <PaginationNext
                       className={currentPage >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}

@@ -565,7 +565,9 @@ export const ShopController = {
 					changedBy: Number(user.sub),
 					source: body.source ?? "drag",
 				})
-				.catch(() => {});
+				.catch((e) => {
+					logger.warn(`[${reqContext.requestId} (SH-18)] ShopController.reorderProducts() failed to record product_order_history (non-fatal):`, e);
+				});
 
 			logger.info(`[${reqContext.requestId} (SH-18)] ShopController.reorderProducts() completed.`);
 			return successResponse(reqContext, { version: nextVersion, updated }, ResponseStatus.OK);

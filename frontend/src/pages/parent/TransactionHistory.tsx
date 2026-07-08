@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
-import { fmtDateTime } from "@/lib/dateFormat";
+import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -57,10 +58,6 @@ interface WalletResponse {
   photo_url: string | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatTHB = (n: number) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -214,7 +211,6 @@ export default function TransactionHistory() {
   };
 
   const handleExportPDF = () => {
-    const studentId = profile?.student_code ?? profile?.id ?? "";
     const title = t("parent.transactions.title", { name: profile?.name ?? "" });
     const rows = txs.map((tx) => {
       const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
@@ -400,7 +396,7 @@ export default function TransactionHistory() {
               ? t("parent.transactions.today", "TODAY")
               : new Date(date + "T12:00:00")
                   .toLocaleDateString(i18n.language === "th" ? "th-TH" : "en-US", {
-                    day: "numeric", month: "long", year: "numeric",
+                    day: "numeric", month: "long", year: "numeric", calendar: "gregory",
                   })
                   .toUpperCase();
 

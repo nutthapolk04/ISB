@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>ISB Backend — Performance, Security, Load Test & Incident Readiness</title>
+<style>
+  :root {
+    --amber: #f59e0b;
+    --amber-light: #fef3c7;
+    --slate: #334155;
+    --slate-light: #f1f5f9;
+    --green: #10b981;
+    --green-light: #d1fae5;
+    --red: #ef4444;
+    --red-light: #fee2e2;
+    --orange: #f97316;
+    --orange-light: #ffedd5;
+    --violet: #8b5cf6;
+    --sky: #0ea5e9;
+    --gray: #94a3b8;
+    --gray-light: #f1f5f9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; font-family: "Noto Sans Thai", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: var(--slate); background: #fafafa; line-height: 1.7; }
+  header { background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); color: white; padding: 40px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; opacity: 0.92; font-size: 14px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px; }
+  section { background: white; border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  h2 { margin: 0 0 16px; font-size: 21px; color: #1e293b; display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 2px solid var(--slate-light); }
+  h3 { margin: 20px 0 10px; font-size: 16px; color: #1e293b; }
+  h4 { margin: 14px 0 6px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+  ul { margin: 6px 0 14px; padding-left: 22px; }
+  li { margin: 6px 0; }
+  p { margin: 8px 0; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; font-family: ui-monospace, "SF Mono", monospace; color: #334155; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  th { background: var(--slate-light); font-weight: 600; color: #475569; }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .pill-critical { background: var(--red-light); color: #b91c1c; }
+  .pill-high     { background: var(--orange-light); color: #c2410c; }
+  .pill-medium   { background: var(--amber-light); color: #b45309; }
+  .pill-done     { background: var(--green-light); color: #047857; }
+  .pill-open     { background: #e2e8f0; color: #475569; }
+  .pill-paused   { background: #e0e7ff; color: #4338ca; }
+
+  .status-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .status-row .pill { margin-right: 2px; }
+
+  .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin: 14px 0; }
+  .card.done { border-left: 4px solid var(--green); }
+  .card.open { border-left: 4px solid var(--red); }
+  .card.paused { border-left: 4px solid var(--violet); }
+  .card-title { font-weight: 700; font-size: 14.5px; color: #1e293b; margin-bottom: 6px; }
+  .card p { font-size: 13.5px; color: #475569; margin: 6px 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+  .box { border-radius: 10px; padding: 18px 20px; }
+  .box.ok { background: var(--green-light); }
+  .box.missing { background: var(--red-light); }
+  .box h3 { margin-top: 0; font-size: 15px; }
+  .box ul { padding-left: 20px; }
+  .box li { font-size: 13px; margin: 8px 0; }
+
+  .priority-band { border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+  .priority-band h3 { margin-top: 0; }
+  .p0 { background: var(--red-light); }
+  .p1 { background: var(--orange-light); }
+  .p2 { background: var(--amber-light); }
+  .p3 { background: #e0e7ff; }
+  .priority-band ol { padding-left: 22px; }
+  .priority-band li { font-size: 13.5px; margin: 8px 0; }
+
+  .note { background: var(--slate-light); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #475569; margin-top: 10px; }
+  .lesson { background: #fffbeb; border: 1px dashed var(--amber); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #78350f; margin-top: 14px; }
+  footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
+  a { color: #0ea5e9; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Performance, Security, Load Test &amp; Incident Readiness</h1>
+  <p>ISB Backend (backend-bun + kiosk) · อัปเดตล่าสุด 7 ก.ค. 2026 · Branch <code style="background:rgba(255,255,255,0.2);color:white;">charp</code></p>
+</header>
+<main>
+
+<section>
+  <h2>📋 ภาพรวม</h2>
+  <p>เอกสารนี้สรุป checklist งานที่ต้องทำ เพื่อเตรียมระบบให้พร้อมรับโหลดจริงในโรงเรียน ครอบคลุม 6 หมวด: <strong>Security</strong>, <strong>ความถูกต้องของธุรกรรมการเงิน</strong>, <strong>ความทนทานของระบบ</strong>, <strong>การประเมิน/ทดสอบโหลด</strong>, <strong>Incident Response</strong>, และ <strong>Logging &amp; Observability</strong></p>
+  <p style="font-size:13px;color:#64748b;">มาจากการระดมความคิด (brainstorm) ผสานกับผลตรวจโค้ดจริงใน <code>backend-bun</code> — ไม่ใช่ implementation plan รายละเอียด แต่ละหัวข้อควรถูกแตกเป็น task/spec แยกก่อนเริ่มลงมือทำจริง</p>
+</section>
+
+<section>
+  <h2>🔍 สถานะปัจจุบัน — Code Audit</h2>
+  <div class="two-col">
+    <div class="box ok">
+      <h3>✅ มีแล้ว / ทำถูกต้องแล้ว</h3>
+      <ul>
+        <li><strong>Increment + row lock ครบทุกจุดที่แตะยอดเงิน</strong> — <code>wallet_service.ts</code>, <code>topup_service.ts</code>, <code>pos_checkout_service.ts</code>, <code>pos_service.ts</code>, <code>refund_service.ts</code>, <code>returns_service.ts</code> ทุกจุดใช้ <code>pgClient.begin()</code> + <code>SELECT ... FOR UPDATE</code> คำนวณ <code>balanceAfter = balanceBefore ± amount</code> เสมอ ไม่มีจุดไหน set ยอดทับตรงๆ</li>
+        <li><strong>Timeout บน outbound request ที่มีอยู่ทั้งหมด</strong> — <code>pymt_gateway.ts</code> (BAY) 30s, <code>auth_service.ts</code> (Google OAuth) 10s — ไม่มีจุดไหนยิง fetch แบบไม่ตั้ง timeout</li>
+        <li><strong>Rate limit ระดับ IP+path มีอยู่แล้ว</strong> — global 300 req/min, auth endpoint 30 req/min — ตรงกับเลข baseline ที่ระดมไอเดียไว้พอดี</li>
+        <li><strong>Request timing + request-id logging</strong> — log START/END ทุก request, log แยกไฟล์รายวัน เก็บ 30 วัน</li>
+        <li><strong>Webhook idempotency พื้นฐาน</strong> — เช็ค <code>status === 'confirmed'</code> ก่อนเสมอ ไม่ credit ซ้ำ</li>
+      </ul>
+    </div>
+    <div class="box missing">
+      <h3>❌ ยังไม่มี / เป็นช่องโหว่จริง</h3>
+      <ul>
+        <li><strong>ไม่มี process-level crash guard</strong> — ไม่มี <code>uncaughtException</code>/<code>unhandledRejection</code> handler เลย error จุดเดียวฆ่าทั้ง process ได้</li>
+        <li><strong>ไม่มี CPU/Memory monitoring</strong> — ไม่มี metric endpoint ให้ดู resource จริง</li>
+        <li><strong>ยังไม่มี deploy spec เป็นลายลักษณ์อักษร</strong></li>
+        <li><strong>ไม่มี VA scan / SQLi audit อย่างเป็นทางการ</strong> (โครงสร้างปลอดภัยระดับหนึ่งจาก ORM parameterized)</li>
+        <li><strong>ไม่มี automated test สำหรับ flow การเงินเลย</strong> — จุดเสี่ยงสูงสุดถ้าจะรีแฟคเตอร์ต่อ</li>
+        <li><strong>ไม่มี load test script ในโปรเจกต์</strong></li>
+        <li><strong>ไม่มี incident report template</strong></li>
+        <li><strong>Logging ยังเป็น file/console ล้วน</strong> — ไม่มี central dashboard/APM</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>🔐 1. Security</h2>
+  <ul>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> ทำ <strong>VA scan (Vulnerability Assessment)</strong> ทั้งระบบ (API, dependencies, container image)</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> ตรวจสอบ <strong>SQL injection</strong> อย่างเป็นทางการ (โครงสร้างปลอดภัยอยู่แล้ว — ORM parameterized ทั้งหมด — แต่ยังไม่เคย scan ยืนยัน)</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> กำหนด SLA: <strong>ทุก API ต้องตอบกลับภายใน 1 วินาที</strong> ภายใต้โหลดปกติ (มี timing log อยู่แล้ว รอแค่เกณฑ์วัดผลอัตโนมัติ)</li>
+  </ul>
+
+  <h3>1.1 ช่องโหว่จริงที่เจอจากการอ่านโค้ด + ทดสอบจริง (เรียงตามความรุนแรง)</h3>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-critical">Critical</span><span class="pill pill-done">Mitigated ใน production</span></div>
+    <div class="card-title">BAY webhook ไม่ได้เช็ค signature จริงในทางปฏิบัติ</div>
+    <p><code>BayCallbackController.ts</code> เขียน verify signature ไว้ถูกต้อง (<code>x-pymt-signature</code>, constant-time compare) แต่ทำงานเฉพาะเมื่อ <code>PYMT_WEBHOOK_SECRET</code> ถูกตั้งค่า — ตรวจแล้วพบว่าไม่มีค่านี้อยู่เลยทั้งใน <code>.env</code>/<code>.env.example</code> แปลว่า endpoint รับ webhook แบบไม่เช็ค signature ได้ ใครก็ตามที่รู้/เดา <code>ref_code</code> โพสต์สถานะ <code>COMPLETED</code> ปลอมเข้าไปได้ = เติมเงินปลอมเข้ากระเป๋าใครก็ได้</p>
+    <p><strong>สถานะ:</strong> ผู้ใช้ยืนยันว่าตั้งค่า <code>PYMT_WEBHOOK_SECRET</code> บน production แล้ว จึงไม่ fail-open อีกต่อไปในทางปฏิบัติ — โค้ดยังไม่ได้แก้ให้ fail-closed (ถ้าลบ/ลืมตั้ง env นี้ในอนาคตจะย้อนกลับไปเป็นโหมดไม่เช็ค) เก็บไว้เป็น defense-in-depth ที่ยังไม่เร่งด่วน</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-high">High</span><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">CORS default เป็น wildcard + credentials</div>
+    <p><code>config.ts</code> เดิม default <code>CORS_ORIGINS</code> เป็น <code>"*"</code> ถ้าไม่ตั้งค่า ซึ่ง <code>app.ts</code> แปลงเป็น <code>origin: true</code> (สะท้อนกลับทุก Origin) พร้อม <code>credentials: true</code></p>
+    <p><strong>แก้แล้ว:</strong> เพิ่ม <code>corsOriginsFromEnv()</code> ให้ fail-closed เมื่อ <code>NODE_ENV=production</code> — ถ้าไม่ตั้ง <code>CORS_ORIGINS</code> จะ throw ตอน boot ทันที (เหมือน pattern เดิมของ <code>JWT_SECRET</code>/<code>DATABASE_URL</code>) dev ยังคง default <code>*</code> ได้เหมือนเดิม — ทดสอบจริงครบ 3 เคส (prod ไม่ตั้ง → boot fail, prod ตั้งแล้ว → boot ปกติ, dev ไม่ตั้ง → boot ปกติ) <code>bun test</code> ผ่านครบ</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-critical">Critical</span><span style="font-size:11px;color:#64748b;">(อัปเกรดจาก Medium หลังทดสอบจริง)</span><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">Rate limiter ไม่ทำงานเลยแม้แต่ instance เดียว</div>
+    <p>ตอนแรกประเมินไว้แค่ว่า in-memory store จะไม่รอด scale-out แต่พอเขียน integration test จริงมายิง (<code>scripts/test-rate-limit-scaleout.ts</code>) เจอว่า <code>rateLimitMiddleware</code> ไม่ลิมิตอะไรเลยแม้แต่ process เดียว — สาเหตุ: <code>RateLimitMiddleware.ts</code> เรียก <code>.onBeforeHandle(globalRateLimit)</code> ขาด <code>{ as: "global" }</code> ทำให้ hook ไม่ propagate ไปยัง router จริง → 320 request รัวๆ ผ่านหมด 320/320 ไม่มี 429 เลยสักตัว (ยืนยันด้วย curl กับ dev server จริงด้วย)</p>
+    <p><strong>แก้แล้ว:</strong> เพิ่ม <code>{ as: "global" }</code> — ยืนยันซ้ำ 320 req ได้ <code>ok=300, limited=20</code> ตรงตาม design</p>
+  </div>
+
+  <div class="card paused">
+    <div class="status-row"><span class="pill pill-medium">Medium</span><span class="pill pill-paused">ตั้งใจพักไว้ (known limitation)</span></div>
+    <div class="card-title">Rate limiter เป็น in-memory ต่อ process</div>
+    <p>หลังแก้บั๊ก critical ข้างบนแล้ว รัน <code>scripts/test-rate-limit-scaleout.ts</code> กับ 2 instance สดใหม่ (ไม่แชร์ window กัน) ยืนยันจริงว่า 2 instance รวมกันปล่อยผ่าน <strong>598/700 request</strong> (แทนที่จะ cap ที่ ~300) เพราะ counter อยู่คนละ <code>Map</code> คนละโปรเซส</p>
+    <p><strong>ทางเลือก:</strong> (1) ย้ายไป Redis — มาตรฐาน เร็ว แต่ต้อง provision infra ใหม่ (2) ใช้ Postgres เดิมเป็น shared counter — ไม่ต้องเพิ่ม infra แต่เพิ่ม DB round-trip ทุก request</p>
+    <p><strong>ตัดสินใจ:</strong> ยังไม่ทำตอนนี้ เพราะ <code>backend-bun</code> deploy เป็น instance เดียวอยู่จริง (แม้แต่ <code>fly-deploy.yml</code> ที่มีก็ deploy แค่ <code>backend/</code> เก่า) — ต้องกลับมาแก้ก่อนวันที่จะรันมากกว่า 1 instance จริง (ตรงกับแผน 15 POS ในหมวด 4)</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-medium">Medium</span><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">API key compare ไม่ใช่ constant-time</div>
+    <p><code>checkApiKey()</code> ใน <code>isb_sync_response.ts</code> ใช้ <code>provided === apiKey</code> ตรงๆ ต่างจาก <code>BayCallbackController</code> ที่ทำ constant-time compare ถูกต้อง</p>
+    <p><strong>แก้แล้ว:</strong> ดึง constant-time compare ออกมาเป็น <code>src/lib/crypto.ts::timingSafeEqual()</code> ให้ทั้งสองจุดใช้ตัวเดียวกัน เพิ่ม <code>tests/crypto.test.ts</code> (5 tests, correctness เท่านั้น — ไม่คุ้มเทส timing จริงเพราะ network jitter/JIT/GC กลบสัญญาณ nanosecond)</p>
+  </div>
+
+  <div class="card open">
+    <div class="status-row"><span class="pill pill-medium">Medium</span><span class="pill pill-open">ยังไม่แก้</span></div>
+    <div class="card-title">ไม่มี dependency/secret scanning ใน CI</div>
+    <p>workflow เดียวที่มี (<code>fly-deploy.yml</code>) deploy แค่ <code>backend/</code> (FastAPI เดิม) ไม่ใช่ <code>backend-bun</code> และไม่มี step รัน <code>bun audit</code>/secret scanner เลย ทำให้ VA-scan/SQLi ในเช็คลิสต์กลายเป็นงาน manual ครั้งเดียวแทนที่จะเป็นเกตอัตโนมัติ</p>
+  </div>
+
+  <div class="lesson">
+    💡 <strong>บทเรียนจากรอบนี้:</strong> การวางแผน "จะทดสอบยังไง" แล้วเขียน test จริงเจอบั๊กที่ใหญ่กว่าที่ประเมินจากการอ่านโค้ดอย่างเดียว (severity เปลี่ยนจาก Medium เป็น Critical) — ยืนยันว่าหมวด 6 (ทำ test case ให้ครบ) ควรทำเร็วๆ นี้ ไม่ใช่แค่หมวด security
+  </div>
+</section>
+
+<section>
+  <h2>💰 2. ความถูกต้องของธุรกรรมการเงิน (เติมเงิน/หักเงิน)</h2>
+  <ul>
+    <li><span class="pill pill-done">เสร็จแล้ว</span> เติมเงิน/หักเงินต้องใช้ <strong>increment (บวก/ลบยอด)</strong> ห้าม set ยอดใหม่ทับยอดปัจจุบัน — ทำถูกต้องแล้วทุกจุด</li>
+    <li><span class="pill pill-done">เสร็จแล้ว</span> <strong>Lock resource ระหว่างอัปเดตยอด</strong> — ใช้ <code>SELECT ... FOR UPDATE</code> ในทุก transaction แล้ว</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> <strong>ยังขาด automated test</strong> ที่ยิง concurrent request ซ้อนกันจริงเพื่อยืนยันว่า lock ทำงานถูกต้อง (ตอนนี้ verify ได้แค่จากอ่านโค้ด)</li>
+  </ul>
+</section>
+
+<section>
+  <h2>🛡️ 3. ความทนทานของระบบ (Resilience)</h2>
+  <ul>
+    <li><span class="pill pill-done">เสร็จแล้ว</span> ทุก outbound request ต้องมี <strong>timeout</strong> — มีครบทุกจุด (BAY gateway 30s, Google OAuth 10s)</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> Monitor <strong>CPU/Memory</strong> ของ process — ยังไม่มี metric endpoint ใดๆ</li>
+    <li><span class="pill pill-critical">🔴 ความเสี่ยงสูงสุด</span> <strong>ไม่มี process crash guard</strong> — ยังไม่มี <code>uncaughtException</code>/<code>unhandledRejection</code> handler</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> จัดการเคส <strong>"ยิง request ออกไปแล้วปลายทางไม่ได้รับจริง"</strong> — มี idempotency พื้นฐานที่ webhook แล้ว แต่ยังไม่มี retry policy ที่เป็นระบบ</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> ระบุ <strong>deploy spec</strong> ให้ชัดเจน (จำนวน instance, CPU/RAM, restart policy)</li>
+  </ul>
+</section>
+
+<section>
+  <h2>📊 4. การประเมิน/ทดสอบโหลด (Capacity Planning &amp; Load Test)</h2>
+
+  <h3>4.1 ข้อมูลตั้งต้นที่ต้องรู้</h3>
+  <ul>
+    <li>จำนวนผู้ใช้แต่ละกลุ่ม: <strong>นักเรียน / สต๊าฟ / ผู้ปกครอง</strong></li>
+    <li>จำนวน request ต่อคนต่อมื้อ — เด็กกินข้าวเช้า: อย่างน้อย 2 req (ข้าว+น้ำ) + ขนม 1 req รวม ~3 req; มื้อกลางวัน: เด็กจำนวนมากลงพักพร้อมกัน (สมมติ 2,000 คน) ต้องเช็คว่าลงพร้อมกันจริงหรือแบ่งรอบ</li>
+    <li>เวลาที่แต่ละคนใช้ต่อ transaction (จับเวลาจริงหน้างาน)</li>
+    <li>ช่วงเวลาที่เกิด <strong>peak/normal spike</strong> (เช่น ตอนพักเที่ยง)</li>
+    <li>Capacity ทางกายภาพอ้างอิง: โรงเรียนรัฐ/เอกชนทั่วไปรองรับพักพร้อมกันได้ ~800–1,200 คน</li>
+  </ul>
+
+  <h3>4.2 ตัวอย่าง setup ที่ต้องคำนวณโหลดต่อเครื่อง</h3>
+  <ul>
+    <li>สมมติ 15 ร้าน → POS 15 เครื่อง (แบ่ง ม.ต้น / ม.ปลาย)</li>
+    <li>เด็ก ~800 req กระจายลงกี่เครื่อง → คำนวณโหลดเฉลี่ยต่อเครื่อง POS 1 เครื่อง</li>
+    <li>เข้าใจ flow ว่าแต่ละ request (1 การสั่งซื้อ/1 การสแกนบัตร) ทำงานผ่าน service อะไรบ้าง</li>
+  </ul>
+
+  <h3>4.3 Load test scenarios</h3>
+  <ul>
+    <li>Baseline: 300 req/นาที (ตรงกับ rate limit จริงที่ตั้งไว้)</li>
+    <li>ทดสอบที่ระดับ <strong>1x, 2x, 5x, 6x</strong> ของ baseline</li>
+    <li>เก็บ <strong>timer log</strong>: 1 request ใช้เวลากี่วินาที (p50/p95/p99)</li>
+  </ul>
+  <div class="note">สถานะ: ยังไม่มี load test script ในโปรเจกต์ (ไม่พบ k6/artillery/autocannon) — ต้องสร้างใหม่ทั้งหมด</div>
+</section>
+
+<section>
+  <h2>🚨 5. Incident Response</h2>
+  <ul>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> เมื่อเกิดเหตุ ต้องหาได้ว่า <strong>user ไหน</strong>, <strong>start date / end date</strong> ของช่วงที่มีปัญหา</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> จัดทำ <strong>Incident Report</strong> ตอบ 3 คำถามเสมอ: 1) ทำไมระบบล่ม (root cause) 2) แก้ปัญหาอย่างไร (remediation) 3) มี preventive measure หรือไม่</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> ทำ report เป็น <strong>HTML พร้อมกราฟ</strong> เพื่อใช้คุยกับทีม support/ภายนอกได้ง่าย</li>
+  </ul>
+</section>
+
+<section>
+  <h2>📈 6. Logging &amp; Observability</h2>
+  <ul>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> ประเมินว่า logging ปัจจุบัน (in-system + file) <strong>เพียงพอหรือไม่</strong></li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> เขียน <strong>test case</strong> ให้ครอบคลุม flow สำคัญ (เติมเงิน, หักเงิน, เชื่อม hardware)</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> ทำระบบ <strong>Track/Monitor performance</strong> ไว้ย้อนดูเมื่อเกิดเหตุการณ์ผิดปกติ</li>
+    <li><span class="pill pill-open">ยังไม่ทำ</span> Log ต้องมี <strong>stack trace + error code</strong> ในระดับ API ที่ระบบเราเรียกใช้ (รวม 3rd-party API)</li>
+  </ul>
+</section>
+
+<section>
+  <h2>🎯 7. ลำดับที่ควรเริ่มทำ (Priority)</h2>
+  <p style="font-size:13px;color:#64748b;">เกณฑ์จัดลำดับ: อะไรที่ <strong>ยังไม่มีเลย + เสี่ยงทำระบบล่มทั้งระบบ</strong> มาก่อน อะไรที่ <strong>มีฐานอยู่แล้วแค่ต้องต่อยอด</strong> มาทีหลัง</p>
+
+  <div class="priority-band p0">
+    <h3>🔴 P0 — ทำก่อนสุด (ช่องโหว่จริง ยังไม่มีการป้องกันเลย)</h3>
+    <ol>
+      <li>เพิ่ม <code>process.on('uncaughtException'/'unhandledRejection')</code> guard ใน <code>server.ts</code> — ตอนนี้ error จุดเดียวฆ่าทั้ง process ได้ กระทบทุกร้าน/ทุกเครื่อง POS พร้อมกัน</li>
+      <li>เขียน automated test สำหรับ wallet/topup/pos-checkout รวมเคส concurrent request — ตอนนี้ไม่มี test เงินเลยแม้แต่ไฟล์เดียว</li>
+      <li>เขียน deploy spec เป็นเอกสาร (instance/CPU/RAM/restart policy)</li>
+    </ol>
+  </div>
+
+  <div class="priority-band p1">
+    <h3>🟠 P1 — เตรียม capacity/load test</h3>
+    <ol start="4">
+      <li>เก็บจำนวน user จริง (นักเรียน/สต๊าฟ/ผู้ปกครอง) + เวลาต่อ transaction จากหน้างาน</li>
+      <li>สร้าง load test script (k6/autocannon) ยิงที่ 300 req/min แล้วขยับเป็น 1x/2x/5x/6x</li>
+      <li>เพิ่ม CPU/Memory metric endpoint เพื่อดูผลตอนรัน load test</li>
+    </ol>
+  </div>
+
+  <div class="priority-band p2">
+    <h3>🟡 P2 — VA scan / SQLi / SLA formalize</h3>
+    <ol start="7">
+      <li>รัน VA scan + SQLi scan อย่างเป็นทางการเพื่อ "ยืนยัน" สิ่งที่โครงสร้างโค้ดทำถูกอยู่แล้ว</li>
+      <li>ตั้งเกณฑ์ SLA 1 วิ ให้เป็น automated check (เช่น alert ถ้า p95 &gt; 1s)</li>
+    </ol>
+  </div>
+
+  <div class="priority-band p3">
+    <h3>🔵 P3 — Incident readiness / observability</h3>
+    <ol start="9">
+      <li>ทำ retry policy ที่เป็นระบบสำหรับ outbound request</li>
+      <li>ทำ HTML incident report template + graph</li>
+      <li>พิจารณาต่อ log ปัจจุบันเข้า dashboard กลาง ถ้าทีมเริ่มเจอ incident บ่อยจนอ่าน log ไฟล์ไม่ทัน</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2>🧹 8. Code Cleanup — Dead Code Audit (<code>backend-bun</code>)</h2>
+  <p style="font-size:13px;color:#64748b;">ตรวจทั้ง 137 source files ใน <code>backend-bun</code> หา import/ฟังก์ชัน/ไฟล์/dependency ที่ไม่ได้ใช้งานแล้ว ใช้ <code>tsc --noUnusedLocals --noUnusedParameters</code> + เช็ค import graph + เช็ค dependency usage จริงประกอบกัน</p>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">Unused imports/variables — 55 จุด ใน 25 ไฟล์</div>
+    <p>ลบ import/ตัวแปรที่ไม่ได้ใช้ทั้งหมดตามที่ <code>tsc</code> ชี้ (ยืนยันซ้ำหลังแก้เหลือ 0) ระหว่างทางเจอ 3 จุดที่เป็น "ฟังก์ชันตายทั้งตัว" ไม่ใช่แค่ import เกิน:</p>
+    <ul>
+      <li><code>csvCell()</code> ใน <code>close_month_service.ts</code> — ไม่มีใครเรียกเลย</li>
+      <li><code>sumQty()</code> ใน <code>inventory_fifo.ts</code> — ไม่มีใครเรียกเลย</li>
+      <li><code>todayDeductedForWallet()</code> ใน <code>pos_checkout_service.ts</code> — เวอร์ชันเก่าที่ถูกแทนที่ด้วย <code>todayDeductedByModule()</code> (ตัวที่ export จริงและมีคนใช้อยู่) แต่ตัวเก่าไม่เคยถูกลบทิ้งตอนรีแฟคเตอร์</li>
+    </ul>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">Unused npm dependencies — 2 ตัว</div>
+    <p><code>axios</code> (0 การใช้งานทั้งโปรเจกต์ — ทุกจุดใช้ <code>fetch</code> แทน) และ <code>jose</code> (0 การใช้งาน — JWT ทำผ่าน <code>@elysiajs/jwt</code> แทน) ลบออกจาก <code>package.json</code> แล้วรัน <code>bun install</code> sync lockfile</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">Orphan files — 2 ไฟล์ (ไม่มีใครนำเข้าเลย)</div>
+    <p><code>src/controllers/types.ts</code> — มี comment <code>@deprecated</code> กำกับตัวเองอยู่แล้ว และ <code>src/interfaces/RoutesSchema.ts</code> — barrel re-export ที่ไม่มีที่ไหนใน repo import ผ่านมันเลย ลบทั้งสองไฟล์</p>
+  </div>
+
+  <div class="card open">
+    <div class="status-row"><span class="pill pill-open">ยังไม่แก้ — รอคุยรายละเอียด</span></div>
+    <div class="card-title">Middleware log ซ้ำซ้อนกัน 2 ระบบ</div>
+    <p><code>app.ts</code> เรียกทั้ง <code>timerMiddleware</code> และ <code>logging</code> (จาก <code>logger.ts</code>) ติดกัน — ทั้งคู่ derive request-id/start-time แยกกันคนละชุด (<code>requestId</code> vs <code>requestID</code>) และ log start/end ของทุก request ซ้ำสองรอบ ตรวจแล้วพบว่าทุก controller (30 ไฟล์) อ่านแค่ <code>requestId</code> จาก <code>timerMiddleware</code> เท่านั้น — <code>logging</code> ทำงานซ้ำโดยไม่มีใครใช้ผลลัพธ์เลย แต่ต้องระวังตอนลบเพราะ <code>logging</code> พ่วง <code>.use(ip({headersOnly:true}))</code> มาด้วย ซึ่ง <code>RateLimitMiddleware</code> ใช้ <code>ctx.ip</code> เป็น fallback หา client IP</p>
+  </div>
+
+  <h3>ยืนยันว่าไม่พังหลังแก้</h3>
+  <ul>
+    <li><code>tsc --noUnusedLocals --noUnusedParameters</code> — เหลือ error เดียวคือ type mismatch เดิมใน <code>RateLimitMiddleware.ts</code> (รู้จักอยู่แล้วจากก่อนหน้า ไม่เกี่ยวกับ dead code รอบนี้)</li>
+    <li><code>bun test</code> — 30 pass (เพิ่มจาก 25 เพราะมี <code>crypto.test.ts</code> จากรอบก่อน), 3 fail เดิมที่ไม่เกี่ยวข้อง (schema drift เก่า)</li>
+    <li>บูต server จริง — boot สำเร็จ, 207 routes เท่าเดิม, <code>/health</code> และ <code>/docs</code> ตอบ 200 ปกติ</li>
+  </ul>
+</section>
+
+<section>
+  <h2>🚀 9. Deploy Infrastructure — ย้ายจาก Railway มา self-host EC2 (7 ก.ค. 2026)</h2>
+  <p style="font-size:13px;color:#64748b;">เลิกใช้ Railway เป็นที่ deploy <code>backend-bun</code> ย้ายมารัน Docker เองบน EC2 (Amazon Linux 2023) ต่อผ่าน Termius ทั้งหมด แยก 2 environment คนละ container/พอร์ตบนเครื่องเดียวกัน</p>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">เสร็จแล้ว</span></div>
+    <div class="card-title">Build locally + SFTP แทน git clone/pull บนเซิร์ฟเวอร์</div>
+    <p>เดิม <code>Dockerfile</code> ต้อง build จาก root ของ monorepo (ต้องพึ่ง <code>bun.lock</code> + <code>shared/</code>) เปลี่ยนเป็น: build <code>dist/server.js</code> ด้วย <code>bun run build</code> บนเครื่อง local ก่อน แล้วลากแค่ <code>Dockerfile</code>, <code>deploy.sh</code>, <code>dist/</code>, <code>.env.prod</code>, <code>.env.uat</code> ขึ้นเซิร์ฟเวอร์ผ่าน SFTP — image เหลือแค่ <code>COPY dist ./dist</code> ไม่ต้อง <code>bun install</code> ในเซิร์ฟเวอร์เลย เบากว่าเดิมมาก และไม่ต้องพึ่งทั้ง repo อีกต่อไป</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">เสร็จแล้ว</span></div>
+    <div class="card-title"><code>deploy.sh</code> รองรับ 2 environment บนเครื่องเดียวกัน</div>
+    <p>รับ argument <code>prod</code>/<code>uat</code> → เลือก container name + env file ให้อัตโนมัติ แล้วดึงค่า <code>PORT</code> จากไฟล์ env มาทำ <code>-p PORT:PORT</code> เอง (ไม่ hardcode) เพื่อกันปัญหาพอร์ตข้างใน container กับพอร์ตที่ Docker forward ไม่ตรงกัน</p>
+    <table>
+      <thead><tr><th>Environment</th><th>Container</th><th>Port</th><th>Database</th></tr></thead>
+      <tbody>
+        <tr><td>prod</td><td><code>isb-backend-prod</code></td><td>19510</td><td>Railway (<code>isb</code> db)</td></tr>
+        <tr><td>uat</td><td><code>isb-backend-uat</code></td><td>19500</td><td>self-host Postgres แยกเครื่อง (<code>isb-uat</code> db)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">เสร็จแล้ว</span></div>
+    <div class="card-title">Seed ข้อมูลทดสอบเข้า UAT DB</div>
+    <p><code>pg_dump</code> จาก local DB (ที่ restore มาจาก prod ไว้แล้ว) แล้ว <code>pg_restore</code> เข้า UAT DB หลังเจอปัญหา <code>--clean</code> ลบ object ไม่ตรงลำดับ (type/table depend กัน) แก้ด้วยการ <code>DROP SCHEMA public CASCADE</code> ล้างเกลี้ยงก่อน restore ใหม่ทั้งชุด — ได้ customers 124, users 144, shops 118, products 115, wallets 129 แถว แล้ว reset password ของ user <code>admin</code> ด้วย bcrypt hash ให้ตรงกับที่ <code>AuthUtils.ts</code> ใช้จริง เพื่อ login ทดสอบได้</p>
+  </div>
+
+  <div class="card done">
+    <div class="status-row"><span class="pill pill-done">แก้แล้ว</span></div>
+    <div class="card-title">บั๊ก/ปัญหาที่เจอระหว่างทาง</div>
+    <ul>
+      <li><strong>Docker ไม่ได้ติดตั้งบน EC2</strong> — เครื่องเป็น Amazon Linux 2023 ไม่ใช่ Ubuntu ที่วางแผนไว้แต่แรก ติดตั้งด้วย <code>dnf install docker</code> + เพิ่ม <code>ec2-user</code> เข้า group <code>docker</code></li>
+      <li><strong>Port ชนกันระหว่าง prod/uat</strong> — ตั้ง <code>PORT</code> ใน <code>.env.uat</code> ซ้ำกับ <code>.env.prod</code> (19510 ทั้งคู่) ทำให้ Docker error "port is already allocated" ตอน start container ที่สอง</li>
+      <li><strong>UAT DB password authentication failed</strong> — สลับ username เป็น <code>isb-uat</code> ทั้งที่ role นี้ไม่มีอยู่จริงบน Postgres server ทำให้ container ขึ้น crash loop ตลอด แก้กลับไปใช้ user <code>isb</code> เดิม + แยก database ชื่อ <code>isb-uat</code> แทนแยกที่ user</li>
+      <li><strong>Local dev server ตอบ 500 เพราะ DATABASE_URL ค้างของเก่าใน memory</strong> — process <code>bun run --watch src/server.ts</code> ที่รันมาก่อนหน้าจะเปลี่ยน <code>.env</code> ยังพยายามต่อ <code>localhost:5432</code> เก่าอยู่ ค้าง 10 วิ (connect_timeout) แล้ว throw เป็น 500 — แก้ด้วยการ restart dev process ให้อ่าน env ใหม่</li>
+    </ul>
+  </div>
+
+  <div class="card open">
+    <div class="status-row"><span class="pill pill-medium">Medium</span><span class="pill pill-open">ค้างอยู่ — ต้องทำก่อน go-live จริง</span></div>
+    <div class="card-title">Secret/credential ยังเป็นค่า TEMP ใน <code>.env.prod</code></div>
+    <p><code>JWT_SECRET</code> (ต้องตรงกับ FastAPI <code>SECRET_KEY</code>), <code>PYMT_BASE_URL</code>/<code>PYMT_MERCHANT_TOKEN</code>/<code>PYMT_WEBHOOK_SECRET</code> (ต้องเป็น production credential จริงจาก BAY ไม่ใช่ของ UAT sandbox) ยังไม่ได้กรอกค่าจริง — ตอนนี้ deploy ได้แค่ระดับ "โครงรันติด" (skeleton) เท่านั้น auth ข้าม backend และ payment จริงยังใช้ไม่ได้</p>
+  </div>
+
+  <div class="lesson">
+    💡 <strong>ค้นพบสำคัญระหว่างทาง:</strong> กลไก apply schema จริงของระบบนี้คือ <code>ensureSchema()</code> ที่รันตอน server boot ทุกครั้ง (raw SQL <code>ALTER TABLE ADD COLUMN IF NOT EXISTS</code> แบบ idempotent) <strong>ไม่ใช่ <code>drizzle-kit migrate</code></strong> — อธิบายได้ว่าทำไม migration 0001-0003 ใน <code>drizzle/meta/_journal.json</code> ไม่เคยถูกอัปเดตให้ตรงกับไฟล์ <code>.sql</code> ที่มีอยู่จริง (คนละกลไกกัน ไม่ใช่บั๊ก แค่ทีมไม่ได้พึ่ง drizzle-kit migrate จริงจังตั้งแต่แรก) — schema จริงถูก sync อยู่เสมอผ่าน <code>ensureSchema</code> ทุกครั้งที่ server start ไม่ว่า drizzle journal จะตรงหรือไม่ก็ตาม
+  </div>
+</section>
+
+<section>
+  <h2>📖 สรุปศัพท์เทคนิค</h2>
+  <p style="font-size:13px;color:#64748b;">คำศัพท์ที่ใช้ในเอกสารนี้ เรียงตามหมวดที่พบมากสุดก่อน พร้อมคำอธิบายแบบเข้าใจง่าย</p>
+
+  <h3>ความปลอดภัย (Security)</h3>
+  <table>
+    <thead><tr><th style="width:220px;">คำศัพท์</th><th>คำอธิบาย</th></tr></thead>
+    <tbody>
+      <tr><td><code>VA scan</code><br/>(Vulnerability Assessment)</td><td>การสแกนหาช่องโหว่ความปลอดภัยทั้งระบบแบบอัตโนมัติ ทั้งตัว API เอง, library/dependency ที่ใช้, และ container image — เหมือนตรวจสุขภาพระบบว่ามีจุดอ่อนตรงไหนบ้าง</td></tr>
+      <tr><td>SQL Injection</td><td>การโจมตีโดยแทรกคำสั่ง SQL ปลอมเข้าไปใน input (เช่น ช่อง login) เพื่อหลอกให้ฐานข้อมูลรันคำสั่งที่ไม่ควรรัน — ป้องกันได้ด้วยการใช้ ORM/parameterized query แทนการต่อ string SQL เอง</td></tr>
+      <tr><td>CORS</td><td>(Cross-Origin Resource Sharing) กฎที่เบราว์เซอร์ใช้ควบคุมว่าเว็บไซต์ไหนมีสิทธิ์เรียก API ของเราได้บ้าง ถ้าตั้งเป็น "อนุญาตทุกเว็บ" (wildcard) จะเสี่ยงให้เว็บปลอมเรียก API เราได้</td></tr>
+      <tr><td>Webhook</td><td>กลไกที่ระบบภายนอก (เช่นธนาคาร) ยิง request มาแจ้งระบบเราอัตโนมัติเมื่อมีเหตุการณ์เกิดขึ้น (เช่น "จ่ายเงินสำเร็จแล้ว") ต่างจาก API ปกติที่เราต้องเป็นฝ่ายถามไปก่อน</td></tr>
+      <tr><td>Signature verification</td><td>การตรวจ "ลายเซ็นดิจิทัล" ที่แนบมากับ request เพื่อพิสูจน์ว่า request นั้นมาจากต้นทางจริง (เช่นธนาคาร) ไม่ใช่ของปลอม</td></tr>
+      <tr><td>Constant-time compare<br/>(timing-safe equal)</td><td>วิธีเปรียบเทียบค่าลับ (เช่น password, API key) แบบที่ใช้เวลาเท่ากันเสมอไม่ว่าค่าจะตรงกันแค่ไหน — ป้องกัน "timing attack" ที่คนร้ายอาจเดาค่าลับได้จากการจับเวลาตอบสนอง</td></tr>
+      <tr><td>Fail-closed / Fail-open</td><td>เวลาระบบเจอสถานการณ์ผิดปกติ (เช่น ลืมตั้งค่าที่จำเป็น) จะเลือก "ปิดกั้นไว้ก่อน" (fail-closed = ปลอดภัยกว่า แต่ระบบอาจใช้งานไม่ได้ชั่วคราว) หรือ "ปล่อยผ่านไปก่อน" (fail-open = ใช้งานต่อได้ แต่เสี่ยงด้านความปลอดภัย)</td></tr>
+      <tr><td>JWT</td><td>(JSON Web Token) โทเค็นยืนยันตัวตนแบบเข้ารหัส ใช้แทนการส่ง username/password ซ้ำทุกครั้ง ระบบเราใช้แนบไปกับ header <code>Authorization: Bearer &lt;token&gt;</code></td></tr>
+      <tr><td>Dependency / secret scanning</td><td>เครื่องมืออัตโนมัติที่คอยตรวจว่า library ที่โปรเจกต์ใช้มีช่องโหว่ที่เพิ่งถูกประกาศหรือไม่ หรือมีการเผลอ commit รหัสลับ (secret) ติดเข้าไปในโค้ดหรือเปล่า</td></tr>
+    </tbody>
+  </table>
+
+  <h3>ธุรกรรมการเงินและฐานข้อมูล</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:220px;">Increment</td><td>การบวก/ลบยอดจากค่าปัจจุบัน (เช่น ยอดใหม่ = ยอดเก่า + จำนวนเงิน) แทนที่จะ "set" ยอดใหม่ทับตรงๆ — สำคัญมากเพราะถ้ามี 2 request มาพร้อมกัน การ set ทับจะทำให้ยอดหนึ่งหายไป แต่การ increment ที่ล็อกแถวไว้จะปลอดภัยกว่า</td></tr>
+      <tr><td>Row lock / Resource lock<br/>(<code>SELECT ... FOR UPDATE</code>)</td><td>คำสั่งฐานข้อมูลที่ "ล็อก" แถวข้อมูลไว้ระหว่างทำธุรกรรม ไม่ให้ request อื่นมาอ่าน/แก้ไขแถวเดียวกันพร้อมกัน ป้องกันยอดเงินผิดพลาดเวลามีคนเติม/หักเงินพร้อมกันหลายคน</td></tr>
+      <tr><td>Idempotency / idempotent</td><td>คุณสมบัติของ operation ที่ทำซ้ำกี่ครั้งก็ได้ผลลัพธ์เหมือนเดิม เช่น webhook ที่ธนาคารอาจยิงซ้ำโดยไม่ตั้งใจ ถ้าระบบเรา idempotent จะไม่เผลอเติมเงินซ้ำ</td></tr>
+      <tr><td>Transaction (DB)</td><td>กลุ่มคำสั่งฐานข้อมูลที่ต้อง "สำเร็จทั้งหมดหรือไม่สำเร็จเลย" (all-or-nothing) เช่น หักเงินฝั่งหนึ่งพร้อมบวกเงินอีกฝั่งพร้อมกัน ถ้าขั้นตอนใดพลาด ทุกอย่างจะถูกย้อนกลับ (rollback) ไม่ทิ้งข้อมูลครึ่งๆ กลางๆ</td></tr>
+    </tbody>
+  </table>
+
+  <h3>ความทนทานของระบบ (Resilience)</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:220px;">Timeout</td><td>เวลาสูงสุดที่ยอมรอคำตอบจากปลายทาง ก่อนจะตัดการเชื่อมต่อแล้วถือว่าล้มเหลว — ป้องกันไม่ให้ request ค้างรอไม่มีที่สิ้นสุดเวลาปลายทางไม่ตอบ</td></tr>
+      <tr><td>Process crash guard<br/>(<code>uncaughtException</code> /<br/><code>unhandledRejection</code>)</td><td>กลไกดักจับ error ที่ "หลุด" ออกมาโดยไม่มีใคร catch ไว้ ถ้าไม่มีกลไกนี้ error แบบนี้จะทำให้โปรแกรมทั้งตัว (process) ปิดตัวลงทันที กระทบผู้ใช้ทุกคนที่กำลังใช้งานอยู่ ณ ขณะนั้น</td></tr>
+      <tr><td>CPU/Memory monitoring</td><td>การเฝ้าระวังว่าเครื่อง/โปรแกรมใช้ทรัพยากร (CPU, RAM) มากแค่ไหนแบบเรียลไทม์ เพื่อรู้ล่วงหน้าก่อนที่เครื่องจะทำงานหนักเกินจนล่ม</td></tr>
+      <tr><td>Retry policy /<br/>Exponential backoff</td><td>นโยบายลองส่ง request ใหม่อัตโนมัติเมื่อครั้งแรกล้มเหลว โดย "exponential backoff" หมายถึงเพิ่มเวลารอระหว่างการลองแต่ละครั้งขึ้นเรื่อยๆ (เช่น รอ 1s, 2s, 4s, 8s) ไม่ให้ยิงถี่จนซ้ำเติมปัญหา</td></tr>
+      <tr><td>Deploy spec</td><td>เอกสารที่ระบุรายละเอียดการติดตั้งใช้งานจริง เช่น รันกี่ instance, แต่ละเครื่องมี CPU/RAM เท่าไหร่, มีนโยบาย restart อัตโนมัติเมื่อพังหรือไม่</td></tr>
+    </tbody>
+  </table>
+
+  <h3>โหลดและการสเกล (Load &amp; Scaling)</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:220px;">Rate limiter</td><td>ตัวจำกัดจำนวน request ที่ยอมให้ผ่านต่อช่วงเวลา (เช่น 300 request/นาที ต่อ IP) เพื่อกันไม่ให้คนใดคนหนึ่งยิงถล่มจนระบบล่ม</td></tr>
+      <tr><td>In-memory store</td><td>การเก็บข้อมูล (เช่น ตัวนับของ rate limiter) ไว้ในหน่วยความจำ (RAM) ของโปรแกรมเอง แทนที่จะเก็บในฐานข้อมูล — เร็วมาก แต่มีข้อเสียคือถ้ารันหลาย instance แต่ละตัวจะมีข้อมูลแยกกันคนละชุด ไม่รู้จักกัน</td></tr>
+      <tr><td>Instance / Process</td><td>หนึ่งชุดของโปรแกรมที่กำลังรันอยู่ (เหมือนเปิดแอปเดียวกันหลายหน้าต่างพร้อมกัน) — เวลา "scale-out" คือการเพิ่มจำนวน instance เพื่อรองรับผู้ใช้มากขึ้น</td></tr>
+      <tr><td>Scale-out</td><td>การเพิ่มจำนวนเครื่อง/instance ที่รันแอปพลิเคชันเดียวกันขนานกัน เพื่อรองรับโหลด/จำนวนผู้ใช้ที่มากขึ้น (ตรงข้ามกับ "scale-up" ที่คืออัปเกรดเครื่องเดิมให้แรงขึ้น)</td></tr>
+      <tr><td>Redis</td><td>ฐานข้อมูลแบบ in-memory ความเร็วสูง มักใช้เก็บข้อมูลที่ต้อง "ใช้ร่วมกัน" ระหว่างหลาย instance (เช่น ตัวนับ rate limiter) เพราะเร็วกว่าฐานข้อมูลหลักและทุก instance เห็นข้อมูลชุดเดียวกัน</td></tr>
+      <tr><td>Load test</td><td>การจำลองผู้ใช้จำนวนมากยิง request เข้าระบบพร้อมกัน เพื่อดูว่าระบบรับไหวแค่ไหนก่อนจะเจอสถานการณ์จริง (เช่น k6, Artillery, Autocannon คือเครื่องมือที่ใช้ทำ)</td></tr>
+      <tr><td>p50 / p95 / p99</td><td>ตัวเลขสถิติเวลาตอบสนอง — p95 คือ "95% ของ request ตอบกลับเร็วกว่าเวลานี้" ใช้ดูภาพรวมได้แม่นกว่าค่าเฉลี่ยเฉยๆ เพราะไม่ถูกกลบด้วย request ส่วนน้อยที่เร็วมากๆ</td></tr>
+    </tbody>
+  </table>
+
+  <h3>การตรวจสอบและกู้คืนเหตุการณ์ (Observability &amp; Incident)</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:220px;">SLA</td><td>(Service Level Agreement) ข้อตกลง/เป้าหมายระดับบริการที่ตั้งไว้ล่วงหน้า เช่น "ทุก API ต้องตอบกลับภายใน 1 วินาที" ใช้เป็นเกณฑ์วัดว่าระบบทำงาน "ดีพอ" หรือไม่</td></tr>
+      <tr><td>CI (Continuous Integration)</td><td>กระบวนการอัตโนมัติที่รันตรวจสอบโค้ด (เช่น test, scan ความปลอดภัย) ทุกครั้งที่มีการแก้โค้ด ก่อนจะปล่อยขึ้นใช้งานจริง</td></tr>
+      <tr><td>APM<br/>(Application Performance Monitoring)</td><td>เครื่องมือ/แดชบอร์ดกลางที่รวบรวม log และ performance ของระบบไว้ที่เดียว ให้ค้นหา/ดูย้อนหลังได้ง่ายเวลาต้องสืบว่าเกิดอะไรขึ้น (เช่น Grafana, ELK)</td></tr>
+      <tr><td>Incident report</td><td>รายงานสรุปเหตุการณ์ระบบขัดข้อง ที่ควรตอบ 3 คำถามเสมอ: เกิดจากอะไร (root cause), แก้อย่างไร (remediation), จะป้องกันไม่ให้เกิดซ้ำได้อย่างไร (preventive measure)</td></tr>
+      <tr><td>Priority P0 – P3</td><td>ระดับความสำคัญของงาน เรียงจากเร่งด่วน/กระทบมากที่สุด (P0) ไปจนถึงรอได้ (P3) — ใช้จัดลำดับว่าควรลงมือทำอะไรก่อน-หลัง</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Deploy Infrastructure</h3>
+  <table>
+    <thead><tr><th style="width:220px;">คำศัพท์</th><th>คำอธิบาย</th></tr></thead>
+    <tbody>
+      <tr><td>EC2</td><td>บริการเช่าเซิร์ฟเวอร์เสมือน (VM) ของ AWS — ที่เราใช้รัน Docker container ของ backend เองแทนการใช้ platform สำเร็จรูปอย่าง Railway</td></tr>
+      <tr><td>Termius</td><td>แอปสำหรับต่อเซิร์ฟเวอร์ผ่าน SSH (terminal) และ SFTP (โอนไฟล์) รวมไว้ในที่เดียว ใช้ทั้งรันคำสั่งและลากไฟล์ขึ้นเซิร์ฟเวอร์</td></tr>
+      <tr><td>SSH</td><td>(Secure Shell) โปรโตคอลเข้ารหัสสำหรับต่อเข้าเทอร์มินัลของเครื่องอื่นระยะไกล ใช้ยืนยันตัวตนด้วย key แทน password ได้</td></tr>
+      <tr><td>SFTP</td><td>(SSH File Transfer Protocol) วิธีโอนไฟล์ระหว่างเครื่องผ่านการเชื่อมต่อ SSH เดียวกัน — ใช้แทนการ <code>git pull</code> บนเซิร์ฟเวอร์ในโปรเจกต์นี้</td></tr>
+      <tr><td>Docker image / container</td><td>Image คือ "พิมพ์เขียว" ของแอป (โค้ด + runtime) ที่ build ไว้ครั้งเดียว ส่วน container คือตัวที่รันจริงจาก image นั้น — รันกี่ container จาก image เดียวกันก็ได้ (เช่น prod/uat)</td></tr>
+      <tr><td>Docker build context</td><td>โฟลเดอร์ที่ Docker ใช้เป็นขอบเขตตอน build image (คำสั่ง <code>COPY</code> ใน Dockerfile อ่านไฟล์จากขอบเขตนี้เท่านั้น) — เปลี่ยนจาก root ทั้ง monorepo มาเป็นแค่ <code>backend-bun/</code> ทำให้ build เร็วและง่ายขึ้นมาก</td></tr>
+      <tr><td><code>--env-file</code></td><td>Flag ของ <code>docker run</code> ที่ระบุไฟล์ env (เช่น <code>.env.prod</code>) ให้ inject เป็น environment variable เข้า container ตอนรัน โดยไม่ต้องฝังค่าไว้ใน image</td></tr>
+      <tr><td>Amazon Linux / <code>dnf</code></td><td>Amazon Linux คือ Linux distro ของ AWS เอง (ต่างจาก Ubuntu) ใช้ <code>dnf</code> เป็นตัวจัดการ package แทน <code>apt</code> ของ Ubuntu — คนละคำสั่งติดตั้งโปรแกรมกันคนละ distro</td></tr>
+      <tr><td>Docker group / <code>newgrp</code></td><td>ผู้ใช้ต้องอยู่ใน group <code>docker</code> ถึงจะรันคำสั่ง <code>docker</code> ได้โดยไม่ต้อง <code>sudo</code> — <code>newgrp docker</code> คือคำสั่งให้ session ปัจจุบันรับสิทธิ์ group ใหม่ทันทีโดยไม่ต้อง logout/login</td></tr>
+      <tr><td><code>ensureSchema()</code></td><td>ฟังก์ชันในโค้ดที่รันตอน server start ทุกครั้ง คอย "ปะ" schema ของ DB ให้ตรงกับที่โค้ดคาดหวัง (เพิ่ม column/table/index ที่ยังไม่มี) แบบ idempotent — เป็นกลไกจริงที่ใช้ sync schema ของโปรเจกต์นี้ ไม่ใช่ <code>drizzle-kit migrate</code></td></tr>
+      <tr><td><code>pg_dump</code> / <code>pg_restore</code></td><td>เครื่องมือมาตรฐานของ Postgres สำหรับ "ส่งออก" ฐานข้อมูลทั้งลูกเป็นไฟล์ (<code>pg_dump</code>) แล้ว "นำเข้า" กลับเข้า DB อื่น (<code>pg_restore</code>) ใช้ตอน copy ข้อมูลจาก local ไปใส่ UAT</td></tr>
+      <tr><td>bcrypt</td><td>อัลกอริทึมเข้ารหัสรหัสผ่านทางเดียว (hash) ที่ตั้งใจให้คำนวณช้าโดยตั้งใจ (ปรับด้วยค่า "cost") เพื่อกันการ brute-force เดารหัสผ่าน — ระบบนี้ใช้ cost 10 ผ่าน <code>Bun.password.hash()</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Code Cleanup / Dead Code</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:220px;">Dead code</td><td>โค้ดที่เขียนไว้แต่ไม่มีที่ไหนเรียกใช้งานจริงแล้ว (เช่น ฟังก์ชันเก่าที่ถูกแทนที่ด้วยตัวใหม่แต่ลืมลบ) เก็บไว้ไม่มีประโยชน์ มีแต่ทำให้โค้ดอ่านยากขึ้นและเสี่ยงสับสนว่าอันไหนคือของจริง</td></tr>
+      <tr><td>Unused import/variable</td><td>การ import module หรือประกาศตัวแปรมาแล้วไม่เคยใช้ในไฟล์นั้นเลย — ไม่กระทบการทำงานของโปรแกรม แต่เป็น "ขยะ" ที่ทำให้ไม่รู้ว่าไฟล์นี้ต้องพึ่งอะไรจริงๆ บ้าง</td></tr>
+      <tr><td>Orphan file</td><td>ไฟล์ที่มีอยู่ในโปรเจกต์แต่ไม่มีไฟล์ไหนเลย import เข้าไปใช้ — เหมือนโค้ดที่ถูกลืมทิ้งไว้ ปลอดภัยที่จะลบเพราะไม่มีอะไรอ้างอิงถึง</td></tr>
+      <tr><td>Barrel (re-export)</td><td>ไฟล์ที่ทำหน้าที่รวบรวม export จากหลายไฟล์มาไว้ที่จุดเดียว (เช่น <code>export * from "./a"; export * from "./b";</code>) เพื่อให้ที่อื่น import จากจุดเดียวได้ง่ายขึ้น — แต่ถ้าไม่มีใคร import ผ่าน barrel นี้เลย มันก็กลายเป็น orphan file ไปด้วย</td></tr>
+      <tr><td>@deprecated</td><td>ป้ายกำกับในคอมเมนต์ที่นักพัฒนาติดไว้บนโค้ดเพื่อบอกว่า "เลิกใช้อันนี้แล้ว มีของใหม่มาแทน" เป็นสัญญาณว่าถ้าเจอโค้ดไหนไม่ได้ใช้อยู่แล้วด้วย มักจะลบออกได้ปลอดภัย</td></tr>
+      <tr><td>tsc (TypeScript compiler)</td><td>โปรแกรมที่ตรวจสอบชนิดข้อมูล (type) ในโค้ด TypeScript — flag <code>--noUnusedLocals</code>/<code>--noUnusedParameters</code> สั่งให้มันช่วยหา import/ตัวแปร/parameter ที่ไม่ได้ใช้ให้อัตโนมัติ แทนที่จะไล่หาด้วยตาเอง</td></tr>
+      <tr><td>Lockfile<br/>(เช่น <code>bun.lock</code>)</td><td>ไฟล์ที่บันทึกเวอร์ชันที่แน่นอนของทุก dependency (รวมถึง dependency ของ dependency) ที่โปรเจกต์ติดตั้งไว้จริง เพื่อให้ทุกเครื่อง/ทุกครั้งที่ install ได้เวอร์ชันเดียวกันเป๊ะ ต้องอัปเดตไฟล์นี้ทุกครั้งที่แก้ <code>package.json</code></td></tr>
+      <tr><td>Smoke test</td><td>การทดสอบแบบเร็วๆ ผิวเผิน หลังแก้โค้ด เพื่อเช็คว่า "ระบบยังรันได้ ไม่ได้พังทั้งยวง" (เช่น เปิดเซิร์ฟเวอร์แล้วลองยิง endpoint หลักๆ ดูว่าตอบ 200 ปกติไหม) ไม่ได้ละเอียดเท่า test ชุดเต็ม แต่จับปัญหาใหญ่ๆ ได้ไว</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+<footer>อัปเดตล่าสุด 7 ก.ค. 2026 · ISB Backend (backend-bun) · Performance / Security / Load Test Readiness Plan</footer>
+</body>
+</html>
