@@ -17,6 +17,16 @@ import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 const MAX_WALLET_BALANCE = 50_000;
 const WALLET_USER_ROLES = new Set(["parent", "staff", "cashier", "manager", "kitchen", "admin"]);
 
+/**
+ * A hybrid account (e.g. staff + parent) can hold WALLET_USER_ROLES roles in
+ * any order in the JWT's `roles` array — checking only `roles[0]` would
+ * misclassify them as a student whenever a non-wallet role happened to sort
+ * first. Check membership across the whole array instead.
+ */
+function hasWalletUserRole(roles: string[]): boolean {
+    return roles.some((r) => WALLET_USER_ROLES.has(r.toLowerCase()));
+}
+
 export interface WalletResponseDTO {
     id: number;
     owner_type: "customer" | "user" | "department";
@@ -153,8 +163,7 @@ export async function ensureWalletForCustomer(customerId: number): Promise<Walle
 }
 
 export async function getMyWallet(caller: AccessTokenPayload): Promise<WalletResponseDTO | null> {
-    const role = (caller.roles[0] ?? "").toLowerCase();
-    if (WALLET_USER_ROLES.has(role) || caller.is_superuser) {
+    if (hasWalletUserRole(caller.roles) || caller.is_superuser) {
         const w = await ensureWalletForUser(Number(caller.sub));
         return enrichWallet(w);
     }
@@ -170,8 +179,7 @@ export async function getMyWallet(caller: AccessTokenPayload): Promise<WalletRes
 }
 
 export async function listFamilyWallets(caller: AccessTokenPayload): Promise<WalletResponseDTO[]> {
-    const role = (caller.roles[0] ?? "").toLowerCase();
-    if (role === "student") {
+    if (!hasWalletUserRole(caller.roles) && !caller.is_superuser) {
         const cr = await db
             .select()
             .from(customers)
