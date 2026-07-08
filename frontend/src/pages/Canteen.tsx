@@ -56,8 +56,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
+import { useRfidListener } from "@/hooks/useRfidListener";
+import { usePricePanels } from "@/hooks/usePricePanels";
 import type { SelectedOptionGroup } from "@/types/menuOptions";
 import { ProductGrid } from "./canteen/ProductGrid";
+import { SpecialItemPriceDialog } from "./canteen/SpecialItemPriceDialog";
 import { CanteenCart } from "./canteen/CanteenCart";
 import { DiscountModal } from "./canteen/DiscountModal";
 import MenuOptionModal from "./canteen/MenuOptionModal";
@@ -378,9 +381,8 @@ export default function Canteen() {
     const [optionTarget, setOptionTarget] = useState<CanteenProduct | null>(null);
 
     // Special item (price=0) — cashier must enter price before adding.
+    // (price input state now lives inside SpecialItemPriceDialog)
     const [specialItemTarget, setSpecialItemTarget] = useState<CanteenProduct | null>(null);
-    const [specialItemPrice, setSpecialItemPrice] = useState("");
-    const specialItemInputRef = useRef<HTMLInputElement>(null);
 
     // Mobile cart sheet (shown below lg breakpoint).
     const [cartOpen, setCartOpen] = useState(false);
@@ -390,50 +392,24 @@ export default function Canteen() {
     // success so it doesn't carry over to the next order.
     const [receiptNote, setReceiptNote] = useState<string>("");
 
-    // ── RFID centered notification ────────────────────────────────────────────
-    const [rfidNotif, setRfidNotif] = useState<{
-        key: number;
-        type: "success" | "error";
-        title: string;
-        sub?: string;
-    } | null>(null);
-    const rfidNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const rfidNotifKey = useRef(0);
-
     // ── Passive RFID listener (capture phase) ────────────────────────────────
-    // RFID readers emit keypresses as fast keyboard input, ending with Enter.
-    // Uses capture phase (true) so we intercept BEFORE focused inputs receive chars.
-    // Strategy:
-    //   - Buffer chars arriving < 50 ms apart (RFID speed)
-    //   - On 2nd+ fast char: enter rfidMode → preventDefault to stop chars going into inputs
-    //   - On Enter in rfidMode: lookup and clear search box (first char may have slipped in)
-    //   - Gap > 100 ms resets buffer (human typing)
-    const rfidBuffer = useRef<string>("");
-    const rfidLastKey = useRef<number>(0);
-    const rfidMode = useRef<boolean>(false);
+    // See hooks/useRfidListener.ts for the keystroke-pattern detection itself;
+    // this callback owns the canteen-specific lookup + notification content.
+    function userToStudent(u: UserPayerLookup): StudentLookupResult {
+        return {
+            id: u.user_id,
+            name: u.full_name,
+            photo_url: u.photo_url ?? null,
+            customer_code: u.username,
+            wallet_balance: u.wallet_balance,
+            wallet_id: u.wallet_id,
+            customer_kind: u.role,
+            user_id: u.user_id,
+        };
+    }
 
-    useEffect(() => {
-        function userToStudent(u: UserPayerLookup): StudentLookupResult {
-            return {
-                id: u.user_id,
-                name: u.full_name,
-                photo_url: u.photo_url ?? null,
-                customer_code: u.username,
-                wallet_balance: u.wallet_balance,
-                wallet_id: u.wallet_id,
-                customer_kind: u.role,
-                user_id: u.user_id,
-            };
-        }
-
-        function showRfidNotif(notif: { type: "success" | "error"; title: string; sub?: string }) {
-            if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
-            rfidNotifKey.current += 1;
-            setRfidNotif({ ...notif, key: rfidNotifKey.current });
-            rfidNotifTimer.current = setTimeout(() => setRfidNotif(null), 2500);
-        }
-
-        async function lookupAndSet(q: string) {
+    const rfid = useRfidListener({
+        onCapture: async (q: string) => {
             const trimmed = q.trim();
             if (!trimmed || trimmed.length < 3) return;
             try {
@@ -464,69 +440,19 @@ export default function Canteen() {
                     const bal = result.wallet_balance != null
                         ? `฿${Number(result.wallet_balance).toFixed(2)}`
                         : undefined;
-                    showRfidNotif({ type: "success", title: result.name, sub: bal });
+                    rfid.showNotif({ type: "success", title: result.name, sub: bal });
                 } else {
-                    showRfidNotif({ type: "error", title: "Card not found" });
+                    rfid.showNotif({ type: "error", title: "Card not found" });
                 }
             } catch {
-                showRfidNotif({ type: "error", title: "Card not found" });
+                rfid.showNotif({ type: "error", title: "Card not found" });
             }
-        }
-
-        function handleKeyDown(e: KeyboardEvent) {
-            const now = Date.now();
-            const gap = now - rfidLastKey.current;
-
-            if (e.key === "Enter") {
-                if (rfidMode.current && rfidBuffer.current.length >= 3) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const captured = rfidBuffer.current;
-                    rfidBuffer.current = "";
-                    rfidMode.current = false;
-                    rfidLastKey.current = 0;
-                    void lookupAndSet(captured);
-                } else {
-                    // Not RFID — reset
-                    rfidBuffer.current = "";
-                    rfidMode.current = false;
-                }
-                return;
-            }
-
-            if (e.key.length !== 1) return;
-
-            // Reset if gap too large (human typing pace)
-            if (gap > 100 && rfidBuffer.current.length > 0) {
-                rfidBuffer.current = "";
-                rfidMode.current = false;
-            }
-
-            rfidLastKey.current = now;
-            rfidBuffer.current += e.key;
-
-            // 2nd+ char within 50 ms → RFID reader speed detected
-            if (gap < 50 && rfidBuffer.current.length >= 2) {
-                rfidMode.current = true;
-            }
-
-            // In RFID mode: prevent char from reaching any focused input
-            if (rfidMode.current) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }
-
-        // capture: true — fires before focused element receives the event
-        document.addEventListener("keydown", handleKeyDown, true);
-        return () => document.removeEventListener("keydown", handleKeyDown, true);
-    }, []);
-    // ─────────────────────────────────────────────────────────────────────────
+        },
+    });
 
     const handleProductTap = (product: CanteenProduct) => {
         if (product.price === 0) {
             setSpecialItemTarget(product);
-            setSpecialItemPrice("");
             return;
         }
         if (product.hasOptions) {
@@ -579,77 +505,15 @@ export default function Canteen() {
     }, [CANTEEN_SHOP_ID]);
 
     // ── Price panels (replaces category tabs) ─────────────────────────────
-    const [panels, setPanels] = useState<{ id: number; name: string; color: string | null }[]>([]);
-    const [activePanelId, setActivePanelId] = useState<number | null>(null); // null = All
-    // Cache of included product IDs per panel: panelId → Set<productId>
-    const [panelProductIds, setPanelProductIds] = useState<Record<number, Set<number>>>({});
-    // Cache of short-name overrides per panel: panelId → productId → short_name
-    const [panelShortNames, setPanelShortNames] = useState<Record<number, Record<number, string>>>({});
-    // Cache of panel price overrides per panel: panelId → productId → panel_price (retail only).
-    const [panelPrices, setPanelPrices] = useState<Record<number, Record<number, number>>>({});
-    const [panelTabsLoading, setPanelTabsLoading] = useState(false);
-
-    useEffect(() => {
-        let cancelled = false;
-        setPanelTabsLoading(true);
-        api.get<{ id: number; name: string; color: string | null }[]>(
-            `/shops/${CANTEEN_SHOP_ID}/price-panels`,
-        ).then(async (data) => {
-            if (cancelled) return;
-            setPanels(data);
-            // Pre-fetch all panel product IDs so counts are visible immediately
-            await Promise.all(data.map(async (panel) => {
-                try {
-                    const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null; panel_price?: number | null }[]>(
-                        `/shops/${CANTEEN_SHOP_ID}/price-panels/${panel.id}/items`,
-                    );
-                    if (!cancelled) {
-                        const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
-                        setPanelProductIds((prev) => ({ ...prev, [panel.id]: ids }));
-                        const snMap: Record<number, string> = {};
-                        items.forEach((i) => { if (i.short_name) snMap[i.product_id] = i.short_name; });
-                        setPanelShortNames((prev) => ({ ...prev, [panel.id]: snMap }));
-                        const priceMap: Record<number, number> = {};
-                        items.forEach((i) => {
-                            if (i.panel_price != null) priceMap[i.product_id] = Number(i.panel_price);
-                        });
-                        setPanelPrices((prev) => ({ ...prev, [panel.id]: priceMap }));
-                    }
-                } catch { /* tolerate */ }
-            }));
-        }).catch(() => {
-            // panels optional — fall back to showing all
-        }).finally(() => {
-            if (!cancelled) setPanelTabsLoading(false);
-        });
-        return () => { cancelled = true; };
-    }, [CANTEEN_SHOP_ID]);
-
-    const fetchPanelProducts = async (panelId: number) => {
-        if (panelProductIds[panelId]) return; // already cached
-        try {
-            const items = await api.get<{ product_id: number; included: boolean; short_name?: string | null; panel_price?: number | null }[]>(
-                `/shops/${CANTEEN_SHOP_ID}/price-panels/${panelId}/items`,
-            );
-            const ids = new Set(items.filter((i) => i.included).map((i) => i.product_id));
-            setPanelProductIds((prev) => ({ ...prev, [panelId]: ids }));
-            const snMap: Record<number, string> = {};
-            items.forEach((i) => { if (i.short_name) snMap[i.product_id] = i.short_name; });
-            setPanelShortNames((prev) => ({ ...prev, [panelId]: snMap }));
-            const priceMap: Record<number, number> = {};
-            items.forEach((i) => {
-                if (i.panel_price != null) priceMap[i.product_id] = Number(i.panel_price);
-            });
-            setPanelPrices((prev) => ({ ...prev, [panelId]: priceMap }));
-        } catch {
-            // tolerate — panel just shows all if fetch fails
-        }
-    };
-
-    const handlePanelChange = async (panelId: number | null) => {
-        setActivePanelId(panelId);
-        if (panelId !== null) await fetchPanelProducts(panelId);
-    };
+    const {
+        panels,
+        activePanelId,
+        panelProductIds,
+        panelShortNames,
+        panelPrices,
+        panelTabsLoading,
+        handlePanelChange,
+    } = usePricePanels(CANTEEN_SHOP_ID);
 
     useEffect(() => {
         let cancelled = false;
@@ -1521,64 +1385,14 @@ export default function Canteen() {
             />
 
             {/* Special item — cashier enters price before adding to cart */}
-            <Dialog
-                open={!!specialItemTarget}
+            <SpecialItemPriceDialog
+                product={specialItemTarget}
                 onOpenChange={(o) => { if (!o) setSpecialItemTarget(null); }}
-            >
-                <DialogContent
-                    className="sm:max-w-xs"
-                    onOpenAutoFocus={(e) => {
-                        e.preventDefault();
-                        setTimeout(() => specialItemInputRef.current?.focus(), 50);
-                    }}
-                >
-                    <DialogHeader>
-                        <DialogTitle>{t("canteen.pos.setPrice")}</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-2 space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                            {specialItemTarget?.name} — {t("canteen.pos.enterPriceHint")}
-                        </p>
-                        <Input
-                            ref={specialItemInputRef}
-                            type="number"
-                            min="0"
-                            step="any"
-                            placeholder="0.00"
-                            value={specialItemPrice}
-                            onChange={(e) => setSpecialItemPrice(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    const parsed = parseFloat(specialItemPrice);
-                                    if (!isNaN(parsed) && parsed >= 0 && specialItemTarget) {
-                                        cart.addSpecialItem(specialItemTarget, parsed);
-                                        setSpecialItemTarget(null);
-                                    }
-                                }
-                            }}
-                            className="text-lg text-right tabular-nums"
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSpecialItemTarget(null)}>
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                const parsed = parseFloat(specialItemPrice);
-                                if (!isNaN(parsed) && parsed >= 0 && specialItemTarget) {
-                                    cart.addSpecialItem(specialItemTarget, parsed);
-                                    setSpecialItemTarget(null);
-                                }
-                            }}
-                            disabled={isNaN(parseFloat(specialItemPrice)) || parseFloat(specialItemPrice) < 0}
-                            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-                        >
-                            {t("canteen.addToCart")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                onConfirm={(product, price) => {
+                    cart.addSpecialItem(product, price);
+                    setSpecialItemTarget(null);
+                }}
+            />
 
             {/* Wallet limit exceeded — prominent AlertDialog */}
             <AlertDialog open={!!walletLimitError} onOpenChange={(o) => { if (!o) setWalletLimitError(null); }}>
@@ -1598,26 +1412,23 @@ export default function Canteen() {
             </AlertDialog>
 
             {/* RFID centered auto-dismiss notification */}
-            {rfidNotif && (
+            {rfid.notif && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
                     <div
-                        key={rfidNotif.key}
+                        key={rfid.notif.key}
                         className={cn(
                             "relative rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
                             "animate-in fade-in zoom-in-95 duration-150 pointer-events-auto",
-                            rfidNotif.type === "success"
+                            rfid.notif.type === "success"
                                 ? "bg-amber-50 border-2 border-amber-300"
                                 : "bg-red-50 border-2 border-red-300",
                         )}
                     >
                         <button
-                            onClick={() => {
-                                if (rfidNotifTimer.current) clearTimeout(rfidNotifTimer.current);
-                                setRfidNotif(null);
-                            }}
+                            onClick={rfid.dismissNotif}
                             className={cn(
                                 "absolute top-2 right-2 rounded-full p-1 hover:bg-black/10 transition-colors",
-                                rfidNotif.type === "success" ? "text-amber-500" : "text-red-400",
+                                rfid.notif.type === "success" ? "text-amber-500" : "text-red-400",
                             )}
                             aria-label={t("common.close")}
                         >
@@ -1625,7 +1436,7 @@ export default function Canteen() {
                                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                             </svg>
                         </button>
-                        {rfidNotif.type === "success" ? (
+                        {rfid.notif.type === "success" ? (
                             <>
                                 <div className="flex justify-center mb-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1633,11 +1444,11 @@ export default function Canteen() {
                                     </svg>
                                 </div>
                                 <div className="text-xl font-bold text-amber-900 leading-tight">
-                                    {rfidNotif.title}
+                                    {rfid.notif.title}
                                 </div>
-                                {rfidNotif.sub && (
+                                {rfid.notif.sub && (
                                     <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">
-                                        {rfidNotif.sub}
+                                        {rfid.notif.sub}
                                     </div>
                                 )}
                             </>
@@ -1649,7 +1460,7 @@ export default function Canteen() {
                                     </svg>
                                 </div>
                                 <div className="text-base font-semibold text-red-700">
-                                    {rfidNotif.title}
+                                    {rfid.notif.title}
                                 </div>
                             </>
                         )}

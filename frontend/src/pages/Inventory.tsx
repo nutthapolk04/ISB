@@ -58,185 +58,27 @@ import {
   FolderOpen,
   ScanLine,
   FileSpreadsheet,
-  CheckCircle2,
   HandHelping,
   Printer,
   Barcode,
   CalendarCheck,
   BookOpen,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
+import { calcFifoAvgCost, calcNewAvgCost, type FifoLot } from "@/lib/fifo";
+import { useBatchQueue } from "@/hooks/useBatchQueue";
 import RequisitionDialog from "./store/RequisitionDialog";
 import MonthlyStockReport from "./store/MonthlyStockReport";
 import BalanceFileReport from "./store/BalanceFileReport";
 import { useAuth } from "@/contexts/AuthContext";
 import { PrintBarcodeDialog } from "@/components/PrintBarcodeDialog";
 import { ManageBarcodesDialog } from "@/components/ManageBarcodesDialog";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-interface SubMerchant {
-  id: string;
-  name: string;
-}
-
-interface ExtraBarcode {
-  id: number;
-  barcode: string;
-  label: string | null;
-}
-
-interface Product {
-  id: number;
-  productCode: string;
-  barcode: string;
-  name: string;
-  category: string;
-  subMerchantId: string;
-  externalPrice: number;
-  internalPrice: number;
-  vatPercent: number;
-  avgCost: number;
-  stock: number;
-  minStock: number;
-  color?: string | null;
-
-  extraBarcodes?: ExtraBarcode[];
-}
-
-type MovementType = "receive" | "sale" | "adjustment" | "internal_use" | "void" | "exchange";
-
-interface StockMovement {
-  id: number;
-  date: string;
-  productId: number;
-  productName: string;
-  type: MovementType;
-  quantity: number;
-  stockBefore: number;
-  stockAfter: number;
-  costPerUnit?: number;
-  reference?: string;
-  department?: string;
-  note?: string;
-  reversesId?: number | null;
-  reversedById?: number | null;
-}
-
-interface BatchItem {
-  uid: string;
-  productId: string;
-  qty: string;
-  cost: string;
-  po: string;
-  invoice: string;
-  note: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
-
-interface FifoLot {
-  id: string;
-  productId: number;
-  date: string;
-  qtyRemaining: number;
-  costPerUnit: number;
-}
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-const SUB_MERCHANTS: SubMerchant[] = [
-  { id: "coop",      name: "Coop Shop"   },
-  { id: "sports",    name: "Sports Shop" },
-  { id: "canteen",   name: "ISB Canteen" },
-  { id: "bookstore", name: "Bookstore"   },
-];
-
-const ADJUSTMENT_REASONS = [
-  "Receive stock",
-  "Return from customer",
-  "Damage / write-off",
-  "Manual adjustment",
-  "Stock count correction",
-  "Other",
-] as const;
-
-const INITIAL_CATEGORIES: Record<string, Category[]> = {
-  coop:      [{ id: "bev", name: "Beverages" }, { id: "food", name: "Food" }, { id: "hh", name: "Household" }],
-  sports:    [{ id: "sport", name: "Sports" }, { id: "apparel", name: "Apparel" }],
-  canteen:   [{ id: "meal", name: "Meal" }],
-  bookstore: [{ id: "stat", name: "Stationery" }],
-};
-
-const MOVEMENT_VARIANTS: Record<
-  MovementType,
-  "default" | "secondary" | "success" | "warning" | "destructive"
-> = {
-  receive:      "success",
-  sale:         "secondary",
-  adjustment:   "warning",
-  internal_use: "default",
-  void:         "destructive",
-  exchange:     "secondary",
-};
-
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function calcNewAvgCost(
-  currentStock: number,
-  currentAvgCost: number,
-  newQty: number,
-  newCostPerUnit: number,
-): number {
-  const totalCurrentValue = Math.max(currentStock, 0) * currentAvgCost;
-  const totalQty = Math.max(currentStock, 0) + newQty;
-  if (totalQty === 0) return newCostPerUnit;
-  return (totalCurrentValue + newQty * newCostPerUnit) / totalQty;
-}
-
-function calcFifoAvgCost(lots: FifoLot[]): number {
-  const totalQty = lots.reduce((s, l) => s + l.qtyRemaining, 0);
-  if (totalQty === 0) return 0;
-  return lots.reduce((s, l) => s + l.qtyRemaining * l.costPerUnit, 0) / totalQty;
-}
-
-/** Deduct qty from oldest lots first; removes fully-depleted lots.
- *  If all lots are exhausted and qty still remains (negative stock scenario),
- *  appends a phantom lot with negative qtyRemaining using the latest lot's
- *  costPerUnit as COGS fallback. */
-function deductFifoLots(lots: FifoLot[], qty: number): FifoLot[] {
-  const sorted = [...lots].sort((a, b) => a.date.localeCompare(b.date));
-  let remaining = Math.abs(qty);
-  const result = sorted
-    .map((lot) => {
-      if (remaining <= 0) return lot;
-      const deduct = Math.min(lot.qtyRemaining, remaining);
-      remaining -= deduct;
-      return { ...lot, qtyRemaining: lot.qtyRemaining - deduct };
-    })
-    .filter((lot) => lot.qtyRemaining > 0);
-
-  // Phantom lot: when stock goes negative, record the overshoot with latest lot's cost
-  if (remaining > 0) {
-    const latestLot = sorted[sorted.length - 1];
-    result.push({
-      id: `phantom-${Date.now()}`,
-      productId: latestLot?.productId ?? 0,
-      date: new Date().toISOString().slice(0, 10),
-      qtyRemaining: -remaining,
-      costPerUnit: latestLot?.costPerUnit ?? 0,
-    });
-  }
-
-  return result;
-}
-
+import { SUB_MERCHANTS, type Category, type Product, type StockMovement } from "./inventory/inventoryTypes";
+import { ProductImportDialog } from "./inventory/ProductImportDialog";
+import { CategoryManager } from "./inventory/CategoryManager";
+import { MovementLog } from "./inventory/MovementLog";
+import { StockAdjustDialog } from "./inventory/StockAdjustDialog";
 
 const emptyForm = {
   productCode: "", barcode: "", name: "", category: "",
@@ -288,13 +130,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
 
   // Stock adjustment dialog
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
-  const [adjustQty, setAdjustQty] = useState("");
-  const [adjustReason, setAdjustReason] = useState("");
-  const [adjustCost, setAdjustCost] = useState("");
-
-  // Reverse-adjustment confirm dialog
-  const [reverseTarget, setReverseTarget] = useState<StockMovement | null>(null);
-  const [reverseSubmitting, setReverseSubmitting] = useState(false);
 
   // Staff requisition dialog
   const [requisitionTarget, setRequisitionTarget] = useState<Product | null>(null);
@@ -309,61 +144,12 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
   const [intakeSearch, setIntakeSearch] = useState("");
   const [intakeCostMode, setIntakeCostMode] = useState<"unit" | "total">("unit");
 
-  // Batch queue — persisted in localStorage with a 12 h expiry so:
-  //   - navigate away → back: batch survives (sessionStorage broke when the
-  //     cashier had Inventory in two tabs and closed the active one)
-  //   - close laptop → next morning: stale batch from yesterday gets dropped
-  //     instead of silently re-submitting yesterday's items.
-  const BATCH_KEY = "inventory_batch_queue_v2";
-  const BATCH_TTL_MS = 12 * 60 * 60 * 1000;
-  interface BatchEnvelope { items: BatchItem[]; savedAt: number; }
-  const [batchItems, setBatchItems] = useState<BatchItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(BATCH_KEY);
-      if (!saved) return [];
-      const env = JSON.parse(saved) as BatchEnvelope;
-      if (!env?.savedAt || Date.now() - env.savedAt > BATCH_TTL_MS) {
-        localStorage.removeItem(BATCH_KEY);
-        return [];
-      }
-      return Array.isArray(env.items) ? env.items : [];
-    } catch { return []; }
-  });
-  useEffect(() => {
-    try {
-      if (batchItems.length === 0) {
-        localStorage.removeItem(BATCH_KEY);
-      } else {
-        const env: BatchEnvelope = { items: batchItems, savedAt: Date.now() };
-        localStorage.setItem(BATCH_KEY, JSON.stringify(env));
-      }
-    } catch { /* quota / private mode — ignore */ }
-  }, [batchItems]);
-
-  // Movement log filters
-  const [movTypeFilter, setMovTypeFilter] = useState<MovementType | "all">("all");
-  const [movSearch, setMovSearch] = useState("");
-
   // Categories (per-shop; only active in embedded mode)
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [isAddCatOpen, setIsAddCatOpen] = useState(false);
 
-  // ── Batch CSV import (P2.4) ──
+  // ── Batch CSV import ──
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [csvText, setCsvText] = useState("");
-  const [importPreview, setImportPreview] = useState<Array<Record<string, string>>>([]);
-  const [importParseError, setImportParseError] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{
-    total: number;
-    created: number;
-    skipped: number;
-    errors: Array<{ row: number; product_code?: string; error: string }>;
-  } | null>(null);
-  const [editCat, setEditCat] = useState<Category | null>(null);
-  const [deleteCat, setDeleteCat] = useState<Category | null>(null);
-  const [catForm, setCatForm] = useState("");
 
   // ── API data loading ─────────────────────────────────────────────────────
   const activeShopId = lockedShopId ?? subMerchantFilter;
@@ -418,7 +204,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
       const data = await api.get<any[]>(`/shops/${sid}/movements?limit=200`);
       setMovements(data.map((m: any) => ({
         id: m.id, date: m.date, productId: m.product_id, productName: m.product_name,
-        type: m.type as MovementType, quantity: m.quantity,
+        type: m.type as StockMovement["type"], quantity: m.quantity,
         stockBefore: m.stock_before, stockAfter: m.stock_after,
         costPerUnit: m.cost_per_unit, reference: m.reference, note: m.note,
         reversesId: m.reverses_id ?? null,
@@ -431,24 +217,19 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
+  const refreshAfterMutation = useCallback(() => {
+    fetchProducts();
+    fetchMovements();
+  }, [fetchProducts, fetchMovements]);
+
+  const batchQueue = useBatchQueue(products, refreshAfterMutation);
+
   // FIFO lots: productId → array of lots (oldest date = index 0 after sort)
-  const [fifoLots, setFifoLots] = useState<Record<number, FifoLot[]>>(
+  const [fifoLots] = useState<Record<number, FifoLot[]>>(
     () => ({}),
   );
 
   // ── Derived ─────────────────────────────────────────────────────────────────
-
-  const movementLabels = useMemo<Record<MovementType, string>>(
-    () => ({
-      receive:      t("inventory.movReceive"),
-      sale:         t("inventory.movSale"),
-      adjustment:   t("inventory.movAdjustment"),
-      internal_use: t("inventory.movInternalUse"),
-      void:         t("inventory.movVoid"),
-      exchange:     t("inventory.movExchange"),
-    }),
-    [t],
-  );
 
   /** Products restricted to the currently selected shop (ignores search term) */
   const shopFilteredProducts = useMemo(
@@ -482,24 +263,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
   const totalStockValue = useMemo(
     () => shopFilteredProducts.reduce((sum, p) => sum + Math.max(p.stock, 0) * p.avgCost, 0),
     [shopFilteredProducts],
-  );
-
-  const filteredMovements = useMemo(
-    () =>
-      movements
-        .filter((m) => {
-          const matchType = movTypeFilter === "all" || m.type === movTypeFilter;
-          const matchSearch =
-            movSearch === "" ||
-            m.productName.toLowerCase().includes(movSearch.toLowerCase()) ||
-            (m.reference ?? "").toLowerCase().includes(movSearch.toLowerCase());
-          const matchShop =
-            subMerchantFilter === "all" ||
-            products.find((p) => p.id === m.productId)?.subMerchantId === subMerchantFilter;
-          return matchType && matchSearch && matchShop;
-        })
-        .sort((a, b) => a.id - b.id),
-    [movements, movTypeFilter, movSearch, subMerchantFilter, products],
   );
 
   const intakeProduct = products.find(
@@ -537,9 +300,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
   }, [intakeProduct, intakeQty, intakeUnitCost, shopType, fifoLots]);
 
   // ── Shared helpers ──────────────────────────────────────────────────────────
-
-  const addMovement = (movement: Omit<StockMovement, "id">) =>
-    setMovements((prev) => [...prev, { ...movement, id: Date.now() + Math.random() }]);
 
   const subMerchantName = (id: string) =>
     SUB_MERCHANTS.find((s) => s.id === id)?.name ?? id;
@@ -639,79 +399,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
     }
   };
 
-  // ── Stock adjustment ────────────────────────────────────────────────────────
-
-  const openAdjustDialog = (product: Product) => {
-    setAdjustTarget(product);
-    setAdjustQty("");
-    setAdjustReason("");
-    setAdjustCost("");
-  };
-
-  const handleAdjustStock = async () => {
-    if (!adjustTarget) return;
-    const delta = parseInt(adjustQty);
-    if (isNaN(delta) || delta === 0) {
-      toast.error(t("inventory.errorNonZeroQty"));
-      return;
-    }
-    if (!adjustReason) {
-      toast.error(t("inventory.errorSelectReason"));
-      return;
-    }
-    try {
-      await api.post(`/shops/${adjustTarget.subMerchantId}/adjust`, {
-        product_id: adjustTarget.id,
-        delta,
-        reason: adjustReason,
-        cost_per_unit: adjustCost ? parseFloat(adjustCost) : undefined,
-      });
-      const sign = delta > 0 ? "+" : "";
-      toast.success(`${adjustTarget.name}: ${sign}${delta}`);
-      setAdjustTarget(null);
-      await fetchProducts();
-      await fetchMovements();
-    } catch (err: any) {
-      toast.error(err?.detail ?? "Failed to adjust stock");
-    }
-  };
-
-  // ── Reverse adjustment ─────────────────────────────────────────────────────
-
-  const handleReverseMovement = async () => {
-    if (!reverseTarget) return;
-    const sid =
-      embedded
-        ? lockedShopId
-        : products.find((p) => p.id === reverseTarget.productId)?.subMerchantId;
-    if (!sid) {
-      toast.error(t("inventory.errorReverseFailed", "Cannot determine shop for this movement"));
-      return;
-    }
-    setReverseSubmitting(true);
-    try {
-      await api.post(
-        `/shops/${sid}/movements/${reverseTarget.id}/reverse`,
-        {},
-      );
-      toast.success(
-        t("inventory.reverseSuccess", {
-          id: reverseTarget.id,
-          defaultValue: "Reversed adjustment #{{id}}",
-        }),
-      );
-      setReverseTarget(null);
-      await fetchProducts();
-      await fetchMovements();
-    } catch (err: any) {
-      toast.error(
-        err?.detail ?? t("inventory.errorReverseFailed", "Reverse failed"),
-      );
-    } finally {
-      setReverseSubmitting(false);
-    }
-  };
-
   // ── Receive stock (single) ──────────────────────────────────────────────────
 
   const clearIntakeForm = () => {
@@ -734,18 +421,14 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
       toast.error(t("inventory.errorIntakeValidation"));
       return;
     }
-    setBatchItems((prev) => [
-      ...prev,
-      {
-        uid: `${Date.now()}-${Math.random()}`,
-        productId: intakeProductId,
-        qty: intakeQty,
-        cost: intakeUnitCost.toString(),
-        po: intakePO,
-        invoice: intakeInvoice,
-        note: intakeNote,
-      },
-    ]);
+    batchQueue.addItem({
+      productId: intakeProductId,
+      qty: intakeQty,
+      cost: intakeUnitCost.toString(),
+      po: intakePO,
+      invoice: intakeInvoice,
+      note: intakeNote,
+    });
     toast.success(t("inventory.batchAdded"));
     clearIntakeForm();
   };
@@ -778,91 +461,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
     }
   };
 
-  /** Confirm and process all items in batch queue via API */
-  const handleConfirmAll = async () => {
-    if (batchItems.length === 0) {
-      toast.error(t("inventory.errorBatchEmpty"));
-      return;
-    }
-    // Group batch items by shop
-    const itemsByShop: Record<string, { product_id: number; qty: number; cost_per_unit: number; po?: string; invoice?: string; note?: string }[]> = {};
-    for (const item of batchItems) {
-      const product = products.find((p) => p.id === parseInt(item.productId));
-      if (!product) continue;
-      const sid = product.subMerchantId;
-      if (!itemsByShop[sid]) itemsByShop[sid] = [];
-      itemsByShop[sid].push({
-        product_id: product.id,
-        qty: parseInt(item.qty),
-        cost_per_unit: parseFloat(item.cost),
-        po: item.po || undefined,
-        invoice: item.invoice || undefined,
-        note: item.note || undefined,
-      });
-    }
-    try {
-      for (const [sid, items] of Object.entries(itemsByShop)) {
-        await api.post(`/shops/${sid}/receive`, { items });
-      }
-      toast.success(t("inventory.confirmAll", { count: batchItems.length }).replace("{{count}}", String(batchItems.length)));
-      setBatchItems([]);
-      await fetchProducts();
-      await fetchMovements();
-    } catch (err: any) {
-      toast.error(err?.detail ?? "Failed to receive stock");
-    }
-  };
-
-  // ── Category handlers ────────────────────────────────────────────────────────
-
-  const handleAddCategory = async () => {
-    if (!catForm.trim() || !lockedShopId) { toast.error(t("inventory.fillCategoryName")); return; }
-    const trimmed = catForm.trim();
-    if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      toast.error(t("inventory.categoryDuplicate", `"${trimmed}" already exists`));
-      return;
-    }
-    try {
-      await api.post(`/shops/${lockedShopId}/categories`, { name: trimmed });
-      toast.success(t("inventory.categoryAdded"));
-      setIsAddCatOpen(false);
-      setCatForm("");
-      await fetchCategories();
-    } catch (err: any) {
-      toast.error(err?.detail ?? "Failed to add category");
-    }
-  };
-
-  const handleEditCategory = async () => {
-    if (!editCat || !catForm.trim() || !lockedShopId) { toast.error(t("inventory.fillCategoryName")); return; }
-    const trimmed = catForm.trim();
-    if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase() && c.id !== editCat.id)) {
-      toast.error(t("inventory.categoryDuplicate", `"${trimmed}" already exists`));
-      return;
-    }
-    try {
-      await api.patch(`/shops/${lockedShopId}/categories/${editCat.id}`, { name: trimmed });
-      toast.success(t("inventory.categoryUpdated"));
-      setEditCat(null);
-      setCatForm("");
-      await fetchCategories();
-    } catch (err: any) {
-      toast.error(err?.detail ?? "Failed to update category");
-    }
-  };
-
-  const handleDeleteCategory = async () => {
-    if (!deleteCat || !lockedShopId) return;
-    try {
-      await api.delete(`/shops/${lockedShopId}/categories/${deleteCat.id}`);
-      toast.success(t("inventory.categoryDeleted"));
-      setDeleteCat(null);
-      await fetchCategories();
-    } catch (err: any) {
-      toast.error(err?.detail ?? "Failed to delete category");
-    }
-  };
-
   // ProductFormFields is defined OUTSIDE the component to prevent re-mount on every render.
   // See ProductFormFields below the Inventory component.
 
@@ -875,121 +473,8 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
     </Button>
   );
 
-  // ── CSV parsing (simple — handles commas, quoted cells, CR/LF) ──
-  const parseCsv = (text: string): Array<Record<string, string>> => {
-    const lines = text.replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim().length > 0);
-    if (lines.length === 0) return [];
-    const parseRow = (row: string): string[] => {
-      const cells: string[] = [];
-      let cur = "";
-      let inQuotes = false;
-      for (let i = 0; i < row.length; i++) {
-        const ch = row[i];
-        if (inQuotes) {
-          if (ch === '"' && row[i + 1] === '"') { cur += '"'; i++; }
-          else if (ch === '"') inQuotes = false;
-          else cur += ch;
-        } else {
-          if (ch === '"') inQuotes = true;
-          else if (ch === ",") { cells.push(cur.trim()); cur = ""; }
-          else cur += ch;
-        }
-      }
-      cells.push(cur.trim());
-      return cells;
-    };
-    const header = parseRow(lines[0]).map((h) => h.toLowerCase());
-    return lines.slice(1).map((line) => {
-      const cells = parseRow(line);
-      const obj: Record<string, string> = {};
-      header.forEach((h, idx) => { obj[h] = cells[idx] ?? ""; });
-      return obj;
-    });
-  };
-
-  const handleCsvPaste = (text: string) => {
-    setCsvText(text);
-    setImportResult(null);
-    if (!text.trim()) {
-      setImportPreview([]);
-      setImportParseError(null);
-      return;
-    }
-    try {
-      const rows = parseCsv(text);
-      setImportPreview(rows);
-      setImportParseError(rows.length === 0 ? t("inventory.import.noDataAfterHeader", "No data found after the header row") : null);
-    } catch (e) {
-      setImportParseError(`Parse failed: ${e}`);
-      setImportPreview([]);
-    }
-  };
-
-  const handleCsvFileUpload = async (file: File) => {
-    const text = await file.text();
-    handleCsvPaste(text);
-  };
-
-  const submitImport = async () => {
-    const targetShop = lockedShopId ?? (subMerchantFilter !== "all" ? subMerchantFilter : null);
-    if (!targetShop) {
-      toast.error(t("inventory.import.pickShopFirst", "Select a shop before importing"));
-      return;
-    }
-    const required = ["product_code", "name", "external_price"];
-    const first = importPreview[0] ?? {};
-    const missing = required.filter((k) => !(k in first));
-    if (missing.length) {
-      toast.error(t("inventory.import.missingColumns", { cols: missing.join(", "), defaultValue: "Missing columns: {{cols}}" }));
-      return;
-    }
-    const items = importPreview.map((r) => ({
-      product_code: r.product_code,
-      barcode: r.barcode || null,
-      name: r.name,
-      category: r.category || t("inventory.defaultCategory", "General"),
-      external_price: parseFloat(r.external_price) || 0,
-      internal_price: r.internal_price ? parseFloat(r.internal_price) : null,
-      vat_percent: r.vat_percent ? parseFloat(r.vat_percent) : 7,
-      avg_cost: r.avg_cost ? parseFloat(r.avg_cost) : 0,
-      stock: r.stock ? parseInt(r.stock, 10) : 0,
-      min_stock: r.min_stock ? parseInt(r.min_stock, 10) : 0,
-    }));
-    setImporting(true);
-    try {
-      const result = await api.post<{
-        total: number;
-        created: number;
-        skipped: number;
-        errors: Array<{ row: number; product_code?: string; error: string }>;
-      }>(`/shops/${targetShop}/products/batch`, { items });
-      setImportResult(result);
-      if (result.created > 0) {
-        toast.success(t("inventory.import.successCount", { created: result.created, total: result.total, defaultValue: "Imported {{created}} of {{total}} items" }));
-        // Refresh products list
-        if (embedded && lockedShopId) {
-          const fresh = await api.get<any[]>(`/shops/${lockedShopId}/products`);
-          // fresh update is handled by parent useEffect — just trigger re-render
-          void fresh;
-        }
-      } else {
-        toast.error(t("inventory.import.failedSeeErrors", "Import failed — see errors below"));
-      }
-    } catch (e: any) {
-      toast.error(`Import failed: ${e?.message ?? e}`);
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const importButton = (
-    <Button variant="outline" onClick={() => {
-      setIsImportOpen(true);
-      setImportResult(null);
-      setCsvText("");
-      setImportPreview([]);
-      setImportParseError(null);
-    }}>
+    <Button variant="outline" onClick={() => setIsImportOpen(true)}>
       <FileSpreadsheet className="h-4 w-4 mr-2" />
       Import CSV
     </Button>
@@ -1274,7 +759,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                             <div className="flex items-center justify-center gap-1">
                               <IconButton
                                 tooltip={t("inventory.adjustStock")}
-                                onClick={() => openAdjustDialog(item)}
+                                onClick={() => setAdjustTarget(item)}
                               >
                                 <ArrowUpDown className="h-4 w-4" />
                               </IconButton>
@@ -1565,16 +1050,16 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                 <CardTitle className="flex items-center gap-2 text-base">
                   <ClipboardList className="h-5 w-5 text-primary" />
                   {t("inventory.batchQueue")}
-                  {batchItems.length > 0 && (
-                    <Badge className="ml-1">{batchItems.length}</Badge>
+                  {batchQueue.batchItems.length > 0 && (
+                    <Badge className="ml-1">{batchQueue.batchItems.length}</Badge>
                   )}
                 </CardTitle>
-                {batchItems.length > 0 && (
+                {batchQueue.batchItems.length > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground"
-                    onClick={() => setBatchItems([])}
+                    onClick={batchQueue.clearBatch}
                   >
                     {t("inventory.clearBatch")}
                   </Button>
@@ -1582,7 +1067,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
               </div>
             </CardHeader>
             <CardContent>
-              {batchItems.length === 0 ? (
+              {batchQueue.batchItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
                   {t("inventory.batchEmpty")}
                 </p>
@@ -1602,7 +1087,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {batchItems.map((item, idx) => {
+                      {batchQueue.batchItems.map((item, idx) => {
                         const product = products.find(
                           (p) => p.id === parseInt(item.productId),
                         );
@@ -1634,11 +1119,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                               <IconButton
                                 tooltip={t("inventory.tooltip.removeBatchItem")}
                                 className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() =>
-                                  setBatchItems((prev) =>
-                                    prev.filter((b) => b.uid !== item.uid),
-                                  )
-                                }
+                                onClick={() => batchQueue.removeItem(item.uid)}
                               >
                                 <X className="h-4 w-4" />
                               </IconButton>
@@ -1649,9 +1130,9 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                     </TableBody>
                   </Table>
 
-                  <Button className="w-full" onClick={handleConfirmAll}>
+                  <Button className="w-full" onClick={batchQueue.confirmAll}>
                     <ArrowDownToLine className="h-4 w-4 mr-2" />
-                    {t("inventory.confirmAll", { count: batchItems.length })}
+                    {t("inventory.confirmAll", { count: batchQueue.batchItems.length })}
                   </Button>
                 </div>
               )}
@@ -1675,367 +1156,32 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
 
         {/* ── Tab: Movement Log ─────────────────────────────────────────── */}
         <TabsContent value="movements">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center gap-3">
-                <Input
-                  placeholder={t("inventory.searchMovements")}
-                  value={movSearch}
-                  onChange={(e) => setMovSearch(e.target.value)}
-                  className="w-full sm:max-w-xs"
-                />
-                <Select
-                  value={movTypeFilter}
-                  onValueChange={(v) =>
-                    setMovTypeFilter(v as MovementType | "all")
-                  }
-                >
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("inventory.allTypes")}</SelectItem>
-                    {(Object.keys(movementLabels) as MovementType[]).map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {movementLabels[type]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("inventory.colDate")}</TableHead>
-                      <TableHead>{t("inventory.colName")}</TableHead>
-                      <TableHead className="text-center">{t("inventory.colType")}</TableHead>
-                      <TableHead className="text-right">{t("inventory.colQty")}</TableHead>
-                      <TableHead className="text-right">{t("inventory.colBefore")}</TableHead>
-                      <TableHead className="text-right">{t("inventory.colAfter")}</TableHead>
-                      <TableHead className="text-right">{t("inventory.colCostUnit")}</TableHead>
-                      <TableHead>{t("inventory.colReference")}</TableHead>
-                      <TableHead>{t("inventory.colNote")}</TableHead>
-                      <TableHead className="text-right">{t("inventory.colAction", "Action")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMovements.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={10}
-                          className="h-24 text-center text-muted-foreground"
-                        >
-                          {t("inventory.noMovementsFound")}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredMovements.map((mov) => {
-                        const isReversed = mov.reversedById != null;
-                        const isReversalEntry = mov.reversesId != null;
-                        const canReverse =
-                          mov.type === "adjustment" && !isReversed && !isReversalEntry;
-                        const rowMuted = isReversed ? "opacity-60" : "";
-                        return (
-                        <TableRow key={mov.id} className={rowMuted}>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {mov.date}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div>{mov.productName}</div>
-                            {(isReversed || isReversalEntry) && (
-                              <div className="mt-0.5 flex flex-wrap gap-1">
-                                {isReversed && (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-normal"
-                                  >
-                                    {t("inventory.reversedBadge", {
-                                      id: mov.reversedById,
-                                      defaultValue: "Reversed by #{{id}}",
-                                    })}
-                                  </Badge>
-                                )}
-                                {isReversalEntry && (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-violet-300 bg-violet-50 text-violet-800 text-[10px] font-normal"
-                                  >
-                                    {t("inventory.reversalOfBadge", {
-                                      id: mov.reversesId,
-                                      defaultValue: "Reversal of #{{id}}",
-                                    })}
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge
-                              variant={MOVEMENT_VARIANTS[mov.type]}
-                              className="font-normal text-xs"
-                            >
-                              {movementLabels[mov.type]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell
-                            className={`text-right data-number font-medium ${
-                              isReversed
-                                ? "line-through text-muted-foreground"
-                                : mov.quantity > 0
-                                  ? "text-success"
-                                  : "text-destructive"
-                            }`}
-                          >
-                            {mov.quantity > 0 ? `+${mov.quantity}` : mov.quantity}
-                          </TableCell>
-                          <TableCell className="text-right data-number text-muted-foreground">
-                            {mov.stockBefore}
-                          </TableCell>
-                          <TableCell className="text-right data-number">
-                            {mov.stockAfter}
-                          </TableCell>
-                          <TableCell className="text-right data-number text-muted-foreground">
-                            {mov.costPerUnit != null
-                              ? `฿${mov.costPerUnit.toFixed(2)}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {mov.reference ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {mov.department ? `${mov.department}: ` : ""}
-                            {mov.note ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {canReverse ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setReverseTarget(mov)}
-                              >
-                                {t("inventory.reverseBtn", "Reverse")}
-                              </Button>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <MovementLog
+            movements={movements}
+            products={products}
+            subMerchantFilter={subMerchantFilter}
+            embedded={embedded}
+            lockedShopId={lockedShopId}
+            onReversed={refreshAfterMutation}
+          />
         </TabsContent>
 
         {/* ── Tab: Categories ────────────────────────────────────────────── */}
         {embedded && (
           <TabsContent value="categories" className="space-y-4">
-            <div className="flex justify-end">
-              <Button onClick={() => { setCatForm(""); setIsAddCatOpen(true); }}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("inventory.addCategory")}
-              </Button>
-            </div>
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("inventory.categoryName")}</TableHead>
-                      <TableHead className="text-center">{t("inventory.actions")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {categories.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                          {t("inventory.noCategories")}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      categories.map((cat) => (
-                        <TableRow key={cat.id}>
-                          <TableCell className="font-medium">{cat.name}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <IconButton
-                                tooltip={t("inventory.tooltip.editCategory")}
-                                onClick={() => { setEditCat(cat); setCatForm(cat.name); }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </IconButton>
-                              <IconButton
-                                tooltip={t("inventory.tooltip.deleteCategory")}
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setDeleteCat(cat)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </IconButton>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <CategoryManager shopId={lockedShopId!} categories={categories} onChanged={fetchCategories} />
           </TabsContent>
         )}
       </Tabs>
 
-      {/* ── Batch CSV Import Dialog (P2.4) ──────────────────────────────────── */}
-      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5" /> Import products from CSV
-            </DialogTitle>
-            <DialogDescription>
-              Columns: <code className="text-xs">product_code, name, external_price</code> (required) +{" "}
-              <code className="text-xs">barcode, category, internal_price, vat_percent, avg_cost, stock, min_stock</code> (optional)
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <InfoCallout
-              id="inventory.importCsv"
-              variant="info"
-              title={t("inventory.info.importCsv.title")}
-            >
-              {t("inventory.info.importCsv.body")}
-            </InfoCallout>
-
-            <div className="flex items-center gap-2">
-              <Input
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void handleCsvFileUpload(f);
-                }}
-                className="max-w-xs"
-              />
-              <span className="text-xs text-muted-foreground">{t("inventory.import.orPasteCsv", "Or paste CSV below")}</span>
-            </div>
-
-            <Textarea
-              placeholder={
-                "product_code,name,category,external_price,internal_price,stock,avg_cost\n" +
-                "P999,น้ำดื่ม 500ml,เครื่องดื่ม,8,7,100,4.50\n" +
-                "P998,ขนมปังโฮลวีท,ขนม/อาหาร,25,22,50,15.00"
-              }
-              rows={7}
-              value={csvText}
-              onChange={(e) => handleCsvPaste(e.target.value)}
-              className="font-mono text-xs"
-            />
-
-            {importParseError && (
-              <p className="text-sm text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4" /> {importParseError}
-              </p>
-            )}
-
-            {importPreview.length > 0 && !importResult && (
-              <div className="rounded-md border">
-                <div className="bg-muted/40 px-3 py-1.5 text-xs font-medium">
-                  Preview: {importPreview.length} rows
-                </div>
-                <div className="max-h-48 overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="h-8">code</TableHead>
-                        <TableHead className="h-8">name</TableHead>
-                        <TableHead className="h-8">cat</TableHead>
-                        <TableHead className="h-8 text-right">ext ฿</TableHead>
-                        <TableHead className="h-8 text-right">int ฿</TableHead>
-                        <TableHead className="h-8 text-right">stock</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {importPreview.slice(0, 10).map((r, i) => (
-                        <TableRow key={i} className="text-xs">
-                          <TableCell className="font-mono">{r.product_code}</TableCell>
-                          <TableCell>{r.name}</TableCell>
-                          <TableCell>{r.category || "—"}</TableCell>
-                          <TableCell className="text-right tabular-nums">{r.external_price}</TableCell>
-                          <TableCell className="text-right tabular-nums">{r.internal_price || "—"}</TableCell>
-                          <TableCell className="text-right tabular-nums">{r.stock || "0"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {importPreview.length > 10 && (
-                    <p className="text-xs text-muted-foreground text-center py-1">
-                      ... + {importPreview.length - 10} more rows
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {importResult && (
-              <div className="space-y-2 rounded-md border bg-muted/30 p-3">
-                <div className="flex gap-4 text-sm font-semibold">
-                  <span className="text-green-700 flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4" /> Created: {importResult.created}
-                  </span>
-                  {importResult.skipped > 0 && (
-                    <span className="text-destructive flex items-center gap-1">
-                      <X className="h-4 w-4" /> Skipped: {importResult.skipped}
-                    </span>
-                  )}
-                  <span className="text-muted-foreground">Total: {importResult.total}</span>
-                </div>
-                {importResult.errors.length > 0 && (
-                  <div className="max-h-32 overflow-y-auto rounded border bg-background">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="h-8">row</TableHead>
-                          <TableHead className="h-8">code</TableHead>
-                          <TableHead className="h-8">error</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {importResult.errors.map((e, i) => (
-                          <TableRow key={i} className="text-xs">
-                            <TableCell className="tabular-nums">{e.row + 1}</TableCell>
-                            <TableCell className="font-mono">{e.product_code || "—"}</TableCell>
-                            <TableCell className="text-destructive">{e.error}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsImportOpen(false)} disabled={importing}>
-              {importResult ? "Close" : "Cancel"}
-            </Button>
-            {!importResult && (
-              <Button
-                onClick={submitImport}
-                disabled={importing || importPreview.length === 0 || !!importParseError}
-              >
-                {importing ? t("inventory.import.importing", "Importing…") : t("inventory.import.importCount", { count: importPreview.length, defaultValue: "Import {{count}} items" })}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Batch CSV Import Dialog ──────────────────────────────────────────── */}
+      <ProductImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        targetShopId={activeShopId !== "all" ? activeShopId : null}
+        embedded={embedded}
+        lockedShopId={lockedShopId}
+      />
 
       {/* ── Add Product Dialog ──────────────────────────────────────────────── */}
       <Dialog
@@ -2111,173 +1257,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Reverse Adjustment Confirm ──────────────────────────────────────── */}
-      <AlertDialog
-        open={!!reverseTarget}
-        onOpenChange={(open) => !open && !reverseSubmitting && setReverseTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("inventory.reverseTitle", "Reverse adjustment")}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <div>
-                  {t("inventory.reverseDesc", {
-                    id: reverseTarget?.id,
-                    product: reverseTarget?.productName,
-                    defaultValue:
-                      "Reverse adjustment #{{id}} for {{product}}? This creates a mirror adjustment with the opposite delta.",
-                  })}
-                </div>
-                {reverseTarget && (
-                  <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                    <div>
-                      {t("inventory.reverseOriginalDelta", "Original delta")}:{" "}
-                      <span
-                        className={
-                          reverseTarget.quantity > 0
-                            ? "font-semibold text-success"
-                            : "font-semibold text-destructive"
-                        }
-                      >
-                        {reverseTarget.quantity > 0
-                          ? `+${reverseTarget.quantity}`
-                          : reverseTarget.quantity}
-                      </span>
-                    </div>
-                    <div>
-                      {t("inventory.reverseNewDelta", "Reversal delta")}:{" "}
-                      <span
-                        className={
-                          -reverseTarget.quantity > 0
-                            ? "font-semibold text-success"
-                            : "font-semibold text-destructive"
-                        }
-                      >
-                        {-reverseTarget.quantity > 0
-                          ? `+${-reverseTarget.quantity}`
-                          : -reverseTarget.quantity}
-                      </span>
-                    </div>
-                    {reverseTarget.note && (
-                      <div className="text-muted-foreground mt-1">
-                        {t("inventory.colNote")}: {reverseTarget.note}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={reverseSubmitting}>
-              {t("inventory.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleReverseMovement}
-              disabled={reverseSubmitting}
-            >
-              {reverseSubmitting
-                ? t("inventory.reverseSubmitting", "Reversing…")
-                : t("inventory.reverseConfirm", "Reverse")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* ── Stock Adjust Dialog ─────────────────────────────────────────────── */}
-      <Dialog
-        open={!!adjustTarget}
+      <StockAdjustDialog
+        product={adjustTarget}
         onOpenChange={(open) => !open && setAdjustTarget(null)}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("inventory.adjustStock")}</DialogTitle>
-            <DialogDescription>
-              {adjustTarget?.name} — {t("inventory.previewCurrentStock")}:{" "}
-              {adjustTarget?.stock}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>{t("inventory.adjustmentQuantity")}</Label>
-              {/* Quick shortcut buttons */}
-              <div className="flex gap-1.5 mb-2 flex-wrap">
-                {[-10, -5, -1, +1, +5, +10].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setAdjustQty(String((parseInt(adjustQty) || 0) + v))}
-                    className={`h-8 min-w-[2.75rem] rounded-lg border text-xs font-bold transition-colors ${
-                      v < 0
-                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                        : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                    }`}
-                  >
-                    {v > 0 ? `+${v}` : v}
-                  </button>
-                ))}
-              </div>
-              <Input
-                type="number"
-                value={adjustQty}
-                onChange={(e) => setAdjustQty(e.target.value)}
-                placeholder="+10 or -5"
-                autoFocus
-              />
-              {/* Preview new stock */}
-              {adjustQty !== "" && !isNaN(parseInt(adjustQty)) && parseInt(adjustQty) !== 0 && adjustTarget && (
-                <p className="text-xs mt-1">
-                  <span className="text-muted-foreground">{t("inventory.previewCurrentStock")}: {adjustTarget.stock}</span>
-                  {" → "}
-                  <span className={`font-semibold ${adjustTarget.stock + parseInt(adjustQty) < 0 ? "text-amber-600" : "text-green-700"}`}>
-                    {adjustTarget.stock + parseInt(adjustQty)}
-                  </span>
-                </p>
-              )}
-            </div>
-            {shopType === "fifo" && parseInt(adjustQty) > 0 && (
-              <div>
-                <Label>{t("inventory.adjustCostLabel")}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={adjustCost}
-                  onChange={(e) => setAdjustCost(e.target.value)}
-                  placeholder={t("inventory.adjustCostPlaceholder")}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("inventory.adjustCostHint")}
-                </p>
-              </div>
-            )}
-            <div>
-              <Label>{t("inventory.adjustmentReason")}</Label>
-              <Select value={adjustReason} onValueChange={setAdjustReason}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("inventory.selectProductPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {ADJUSTMENT_REASONS.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjustTarget(null)}>
-              {t("inventory.cancel")}
-            </Button>
-            <Button onClick={handleAdjustStock}>{t("inventory.save")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        shopType={shopType}
+        onAdjusted={refreshAfterMutation}
+      />
 
       {/* ── Staff Requisition Dialog ─────────────────────────────────────────── */}
       <RequisitionDialog
@@ -2297,70 +1283,6 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
           fetchMovements();
         }}
       />
-
-      {/* ── Add Category Dialog ──────────────────────────────────────────────── */}
-      <Dialog open={isAddCatOpen} onOpenChange={setIsAddCatOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("inventory.addCategory")}</DialogTitle>
-          </DialogHeader>
-          <div>
-            <Label>{t("inventory.categoryName")} *</Label>
-            <Input
-              value={catForm}
-              onChange={(e) => setCatForm(e.target.value)}
-              placeholder={t("inventory.categoryNamePlaceholder")}
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddCatOpen(false)}>{t("inventory.cancel")}</Button>
-            <Button onClick={handleAddCategory}>{t("inventory.save")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Edit Category Dialog ─────────────────────────────────────────────── */}
-      <Dialog open={!!editCat} onOpenChange={(open) => !open && setEditCat(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("inventory.editCategory")}</DialogTitle>
-          </DialogHeader>
-          <div>
-            <Label>{t("inventory.categoryName")} *</Label>
-            <Input
-              value={catForm}
-              onChange={(e) => setCatForm(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCat(null)}>{t("inventory.cancel")}</Button>
-            <Button onClick={handleEditCategory}>{t("inventory.save")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Delete Category Confirm ───────────────────────────────────────────── */}
-      <AlertDialog open={!!deleteCat} onOpenChange={(open) => !open && setDeleteCat(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("inventory.deleteCategory")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("inventory.deleteCategoryDesc", { name: deleteCat?.name })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("inventory.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDeleteCategory}
-            >
-              {t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Print Barcode Dialog */}
       <PrintBarcodeDialog
@@ -2406,7 +1328,6 @@ function ProductFormFields({
   shopType,
   embedded,
   categories,
-  lockedShopId,
 }: ProductFormFieldsProps) {
   const { t } = useTranslation();
 
