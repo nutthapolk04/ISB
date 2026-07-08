@@ -368,8 +368,8 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .post("/store", AdminImportController.store, AdminImportSchema.adminImportStore)
     )
     // ── Admin reports ───────────────────────────────────────────────────────
-    .get("/admin/adjustment-report", AdminReportsController.adjustmentReport, AdminReportsSchema.adminAdjustmentReport)
-    .get("/admin/transfer-report", AdminReportsController.transferReport, AdminReportsSchema.adminTransferReport);
+    .get("/wallets/admin/adjustment-report", AdminReportsController.adjustmentReport, AdminReportsSchema.adminAdjustmentReport)
+    .get("/wallets/admin/transfer-report", AdminReportsController.transferReport, AdminReportsSchema.adminTransferReport);
 
 const apiV1Authed = new Elysia({ name: "api-v1-authed", prefix: "/api/v1" })
     .use(requireAuth)
