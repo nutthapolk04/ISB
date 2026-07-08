@@ -12,23 +12,26 @@ interface Props {
 }
 
 function LimitRow({ label, sl }: { label: string; sl: SpendingLimitData }) {
-  const pct = sl.daily_limit > 0 ? Math.min((sl.spent_today / sl.daily_limit) * 100, 100) : 0;
-  const atLimit = pct >= 100;
-  const nearLimit = pct >= 80 && !atLimit;
+  const remaining = Math.max(0, sl.daily_limit - sl.spent_today);
+  const remainingPct = sl.daily_limit > 0 ? Math.max(0, (remaining / sl.daily_limit) * 100) : 100;
+  const atLimit = sl.spent_today >= sl.daily_limit;
+  const nearLimit = remainingPct <= 20 && !atLimit;
   const color = atLimit ? "text-red-600" : nearLimit ? "text-amber-600" : "text-emerald-700";
-  const barColor = atLimit ? "bg-red-500" : nearLimit ? "bg-amber-500" : "bg-emerald-500";
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-base font-medium text-zinc-700">{label}</span>
         <span className={cn("text-lg font-bold tabular-nums", color)}>
-          ฿{sl.spent_today.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          ฿{remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           <span className="text-zinc-400 font-normal"> / </span>
           ฿{sl.daily_limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </span>
       </div>
       <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+        />
       </div>
     </div>
   );
@@ -90,7 +93,7 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
         <div className="px-12 pb-4">
           <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-amber-100 shadow-sm p-5 space-y-3">
             <div className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Daily Spending Limit
+              Daily Spending remaining / limit
             </div>
             {canteen && <LimitRow label="Canteen" sl={canteen} />}
             {store && <LimitRow label="Store" sl={store} />}

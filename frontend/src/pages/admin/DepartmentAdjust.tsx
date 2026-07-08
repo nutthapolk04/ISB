@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
@@ -22,7 +23,8 @@ import {
 } from "@/components/ui/dialog";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { toast } from "@/hooks/use-toast";
-import { Building2, ArrowDownCircle, ArrowUpCircle, History, Loader2, Plus, X, FileText, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Building2, ArrowDownCircle, ArrowUpCircle, History, Loader2, Plus, X, FileText, FileSpreadsheet, Trash2, Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { exportToPDF, exportToExcel, type ReportColumn, type ReportPayload } from "@/lib/reportExport";
 
@@ -79,6 +81,38 @@ export default function DepartmentAdjust() {
   const [dateTo, setDateTo] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editTarget, setEditTarget] = useState<Department | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editing, setEditing] = useState(false);
+
+  const openEditDialog = (d: Department) => {
+    setEditTarget(d);
+    setEditName(d.department_name);
+    setEditActive(d.is_active);
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget) return;
+    setEditing(true);
+    try {
+      const updated = await api.patch<Department>(`/admin/departments/${editTarget.id}`, {
+        department_name: editName.trim(),
+        is_active: editActive,
+      });
+      toast({ title: t("cardholders.deptAdjust.editSuccess", "Department updated") });
+      setDepartments((prev) => prev.map((d) => (d.id === editTarget.id ? { ...d, ...updated } : d)));
+      setEditTarget(null);
+    } catch (e) {
+      toast({
+        title: t("cardholders.deptAdjust.editFailed", "Failed to update department"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setEditing(false);
+    }
+  };
 
   const QUICK_REASONS = useMemo(() => [...DEFAULT_REASONS, ...customShortcuts], [DEFAULT_REASONS, customShortcuts]);
 
@@ -139,12 +173,16 @@ export default function DepartmentAdjust() {
     await saveCustomShortcuts(customShortcuts.filter((s) => s !== text));
   };
 
+  const [searchParams] = useSearchParams();
+  const presetId = Number(searchParams.get("id")) || null;
+
   const loadDepartments = async () => {
     setLoading(true);
     try {
       const data = await api.get<Department[]>("/departments/?active_only=false");
       setDepartments(data);
-      if (data.length > 0 && selectedId == null) setSelectedId(data[0].id);
+      if (presetId && data.some((d) => d.id === presetId)) setSelectedId(presetId);
+      else if (data.length > 0 && selectedId == null) setSelectedId(data[0].id);
     } catch (e) {
       toast({
         title: t("cardholders.deptAdjust.loadFailed"),
@@ -372,9 +410,25 @@ export default function DepartmentAdjust() {
               <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-lg">{selected.department_name}</CardTitle>
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">{selected.department_code}</p>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {selected.department_name}
+                          {!selected.is_active && (
+                            <Badge variant="outline" className="text-[10px]">{t("cardholders.deptAdjust.inactive", "Inactive")}</Badge>
+                          )}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">{selected.department_code}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => openEditDialog(selected)}
+                        title={t("cardholders.deptAdjust.editDept", "Edit department")}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </div>
                     <Badge variant={(selected.wallet_balance ?? 0) < 0 ? "destructive" : "secondary"}>
                       {formatTHB(Number(selected.wallet_balance ?? 0))}
@@ -641,6 +695,51 @@ export default function DepartmentAdjust() {
       </Dialog>
 
       {/* Delete department confirm dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o && !editing) setEditTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" /> {t("cardholders.deptAdjust.editDept", "Edit department")}
+            </DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {editTarget?.department_code} · #{editTarget?.id}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">{t("cardholders.deptAdjust.deptNameLabel", "Department name")}</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                disabled={editing}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <div>
+                <Label htmlFor="edit-active" className="cursor-pointer">{t("cardholders.deptAdjust.activeLabel", "Active")}</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("cardholders.deptAdjust.activeHint", "Inactive departments are hidden from POS")}</p>
+              </div>
+              <Switch
+                id="edit-active"
+                checked={editActive}
+                onCheckedChange={setEditActive}
+                disabled={editing}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={editing}>
+              {t("cardholders.deptAdjust.cancel", "Cancel")}
+            </Button>
+            <Button onClick={handleEdit} disabled={editing || !editName.trim()}>
+              {editing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <DialogContent>
           <DialogHeader>

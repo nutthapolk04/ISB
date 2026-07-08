@@ -47,7 +47,9 @@
     "groupCanteenManagement": "Canteen Management",
     "canteenManagement": "Canteen Management",
     "guide": "User Guide",
-    "refund": "Refund"
+    "refund": "Refund",
+    "groupReports": "Reports",
+    "adminReports": "Reports"
   },
   "serverStatus": {
     "label": "Server",
@@ -611,10 +613,10 @@
     },
     "salesReport": "Sales Report",
     "salesReportDesc": "Daily, monthly and yearly sales summary",
-    "stockReport": "Stock Report",
-    "stockReportDesc": "Current stock and low stock items",
-    "returnReport": "Returns Report",
-    "returnReportDesc": "Returns summary and reasons",
+    "stockReport": "Stock Balance Report",
+    "stockReportDesc": "Current inventory balance and low stock alerts",
+    "returnReport": "Void",
+    "returnReportDesc": "Voided and cancelled transaction records",
     "paymentReport": "Payment Methods Report",
     "paymentReportDesc": "Payment summary by type",
     "topSellingReport": "Top Selling Report",
@@ -650,8 +652,8 @@
     "totalExchange": "Total exchange",
     "stockCardReport": "Stock Card",
     "stockCardReportDesc": "Per-SKU movement history with opening and closing balance",
-    "salesSummaryReport": "Sales Summary",
-    "salesSummaryReportDesc": "Per-receipt summary with payment-method breakdown, filterable by date, customer, family, or receipt range",
+    "salesSummaryReport": "Daily Sales Report",
+    "salesSummaryReportDesc": "Daily sales totals with payment method breakdown by receipt",
     "salesByItemReport": "Sales by Item",
     "salesByItemReportDesc": "Per-item sales activity grouped by SKU with quantity and amount totals",
     "salesByPaymentReport": "Sales by Payment Method",
@@ -1504,6 +1506,10 @@
       "fieldPassword": "Password",
       "fieldRole": "Role",
       "fieldShop": "Shop ID (optional)",
+      "fieldEmails": "Email (optional)",
+      "emailPlaceholder1": "Email 1",
+      "emailPlaceholder2": "Email 2",
+      "emailPlaceholder3": "Email 3",
       "selectRole": "Select role…",
       "addRoleBtn": "Add role",
       "extraRolesHint": "Add more roles on top of the primary role above. Lets a single account act as e.g. manager + cashier.",
@@ -1776,7 +1782,7 @@
       "saveFailed": "Failed to save order"
     },
     "tabAll": "All",
-    "tabPanels": "Price Panels"
+    "tabPanels": "Tab"
   },
   "common": {
     "colNo": "No.",
@@ -2580,10 +2586,12 @@
     },
     "childSettings": {
       "title": "Daily Spending Limits",
+      "todayTitle": "Today's Spending",
       "canteenLabel": "Canteen daily limit",
       "storeLabel": "Store daily limit",
       "unlimitedPlaceholder": "Unlimited",
       "unlimitedHint": "Leave empty for unlimited",
+      "noLimit": "No limit set",
       "save": "Save limits",
       "saving": "Saving...",
       "saveSuccess": "Limits saved",

@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Search,
-  UserCircle2,
   Loader2,
   Wallet,
   ArrowLeft,
@@ -26,6 +25,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 interface CustomerResult {
   id: number;
@@ -37,6 +37,7 @@ interface CustomerResult {
   wallet_balance?: number;
   card_frozen?: boolean;
   wallet_id?: number;
+  user_id?: number | null;
 }
 
 interface TopupSuccessResult {
@@ -213,10 +214,7 @@ export function CashierTopupModal({
   };
 
   const handleSubmitTopup = async () => {
-    if (!selectedCustomer || !selectedCustomer.wallet_id) {
-      toast.error(t("topup.noWallet", "Customer has no wallet"));
-      return;
-    }
+    if (!selectedCustomer) return;
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum < 100 || amountNum > 50000) {
@@ -224,9 +222,16 @@ export function CashierTopupModal({
       return;
     }
 
+    // bay_qr requires an existing wallet — use cash if no wallet yet (QR intent needs wallet_id)
+    const hasWallet = !!selectedCustomer.wallet_id;
+    const effectiveMethod: PaymentMethod = (!hasWallet && paymentMethod === "bay_qr") ? "cash" : paymentMethod;
+    if (!hasWallet && paymentMethod === "bay_qr") {
+      toast.warning(t("topup.noWalletQrFallback", "QR not available — wallet will be created and topped up as cash"));
+    }
+
     setSubmitting(true);
     try {
-      if (paymentMethod === "bay_qr") {
+      if (effectiveMethod === "bay_qr" && hasWallet) {
         const resp = await api.post<TopupIntent>(
           `/wallets/${selectedCustomer.wallet_id}/topup`,
           {
@@ -239,19 +244,22 @@ export function CashierTopupModal({
         setQrStatus("waiting");
         setStep("qr");
       } else {
+        // Cash topup: route to the right endpoint based on entity type
+        const url = hasWallet
+          ? `/wallets/${selectedCustomer.wallet_id}/cashier-topup`
+          : selectedCustomer.user_id
+            ? `/users/${selectedCustomer.user_id}/cashier-topup`
+            : `/customers/${selectedCustomer.id}/cashier-topup`;
         const idempotencyKey = getCashIdempotencyKey(
           cashAttemptRef,
-          selectedCustomer.wallet_id,
+          selectedCustomer.wallet_id ?? selectedCustomer.id,
           amountNum,
         );
-        const result = await api.post<TopupSuccessResult>(
-          `/wallets/${selectedCustomer.wallet_id}/cashier-topup`,
-          {
-            amount: amountNum,
-            notes: notes.trim() || null,
-            idempotency_key: idempotencyKey,
-          }
-        );
+        const result = await api.post<TopupSuccessResult>(url, {
+          amount: amountNum,
+          notes: notes.trim() || null,
+          idempotency_key: idempotencyKey,
+        });
 
         clearCashAttempt();
         setTopupResult(result);
@@ -261,7 +269,7 @@ export function CashierTopupModal({
       }
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed");
-      toast.error(paymentMethod === "bay_qr" ? t("topup.qrCreateFailed", "Failed to create QR") : msg);
+      toast.error(effectiveMethod === "bay_qr" ? t("topup.qrCreateFailed", "Failed to create QR") : msg);
     } finally {
       setSubmitting(false);
     }
@@ -348,7 +356,7 @@ export function CashierTopupModal({
   };
 
   // Quick amount buttons
-  const quickAmounts = [500, 1000, 2000, 5000, 10000, 20000, 50000];
+  const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -394,25 +402,22 @@ export function CashierTopupModal({
                     key={customer.id}
                     type="button"
                     onClick={() => handleSelectCustomer(customer)}
-                    disabled={customer.card_frozen || !customer.wallet_id}
+                    disabled={customer.card_frozen}
                     className={cn(
                       "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
-                      customer.card_frozen || !customer.wallet_id
+                      customer.card_frozen
                         ? "border-red-200 bg-red-50 opacity-60 cursor-not-allowed"
                         : "border-border bg-card hover:border-emerald-400 hover:bg-emerald-50/50"
                     )}
                   >
                     {/* Photo */}
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-                      {customer.photo_url ? (
-                        <img
-                          src={customer.photo_url}
-                          alt={customer.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <UserCircle2 className="h-8 w-8 text-muted-foreground" />
-                      )}
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      <img
+                        src={resolveAvatarUrl(customer.photo_url, customer.name || String(customer.id))}
+                        alt={customer.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(customer.name || String(customer.id)); }}
+                      />
                     </div>
 
                     {/* Info */}
@@ -484,18 +489,13 @@ export function CashierTopupModal({
 
             {/* Customer card */}
             <div className="flex gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-emerald-100 ring-2 ring-emerald-300">
-                {selectedCustomer.photo_url ? (
-                  <img
-                    src={selectedCustomer.photo_url}
-                    alt={selectedCustomer.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-emerald-400">
-                    <UserCircle2 className="h-12 w-12" />
-                  </div>
-                )}
+              <div className="h-32 w-32 shrink-0 overflow-hidden rounded-xl bg-emerald-100 ring-2 ring-emerald-300">
+                <img
+                  src={resolveAvatarUrl(selectedCustomer.photo_url, selectedCustomer.name || String(selectedCustomer.id))}
+                  alt={selectedCustomer.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedCustomer.name || String(selectedCustomer.id)); }}
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-bold truncate">

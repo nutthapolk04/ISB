@@ -55,6 +55,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         const features = [
           "popup=yes",
           "noopener=no",
+          "fullscreen=yes",
           `left=${target.availLeft}`,
           `top=${target.availTop}`,
           `width=${target.availWidth}`,

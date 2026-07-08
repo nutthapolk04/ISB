@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { readBayIntent, clearBayIntent } from "@/pages/payment/MockBayGateway";
+import { api } from "@/lib/api";
 
 // Krungsri garuda — two fan-wings rising from a rounded base, on dark square
 function KrungsriBirdLogo({ className }: { className?: string }) {
@@ -37,12 +37,7 @@ export default function BayOrderSummaryPage() {
   const orderRef = params.get("ref");
   const intent = readBayIntent(orderRef);
 
-  useEffect(() => {
-    if (!orderRef || !intent) navigate("/", { replace: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!intent) return null;
+  if (!intent) return <Navigate to="/" replace />;
 
   const merchantName = intent.merchantName ?? "ISB SCHOOL SHOP";
   const productName  = intent.productName  ?? "Wallet Top-up";
@@ -50,6 +45,7 @@ export default function BayOrderSummaryPage() {
 
   const handleCancel = () => {
     clearBayIntent(intent.orderRef);
+    api.post(`/wallets/topup/${intent.orderRef}/cancel`, {}).catch(() => {});
     navigate(intent.returnUrl, { replace: true });
   };
 

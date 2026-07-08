@@ -8,6 +8,7 @@ import { IdCard } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 interface StudentProfileData {
   id: number;
@@ -62,13 +63,12 @@ export default function StudentProfile() {
           <div className="relative z-10">
             <div className="flex items-start gap-3 pr-24">
               <div className="shrink-0">
-                {profile.photo_url ? (
-                  <img src={profile.photo_url} alt={profile.name} className="h-12 w-12 rounded-full object-cover border-2 border-white/40 shadow-md" />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/25 border-2 border-white/40 shadow-md text-white text-lg font-bold">
-                    {profile.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <img
+                  src={resolveAvatarUrl(profile.photo_url, profile.name || String(profile.id))}
+                  alt={profile.name}
+                  className="h-12 w-12 rounded-full object-cover border-2 border-white/40 shadow-md"
+                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(profile.name || String(profile.id)); }}
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-base font-bold text-white truncate">{profile.name}</p>

@@ -13,6 +13,7 @@ import {
 	updateFamilyProfile,
 	linkStudentToUser,
 	unlinkStudent,
+	adminChangePassword,
 } from "@/services/user_admin_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
@@ -182,6 +183,23 @@ export const UsersAdminController = {
 			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (UA-09)] UsersAdminController.linkStudent() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	changePassword: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (UA-11)] UsersAdminController.changePassword() called.`);
+		const id = parseIntParam(params.user_id, "user id", reqContext.set);
+		if (id === null) {
+			return errorResponse(reqContext, "Invalid user id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			await adminChangePassword(user.roles, id, body.new_password);
+			return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (UA-11)] UsersAdminController.changePassword() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

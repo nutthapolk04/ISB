@@ -58,6 +58,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import CreateCardholderDialog from "./CreateCardholderDialog";
 import SyncRunDialog from "./SyncRunDialog";
+import { getFallbackAvatar, resolveAvatarUrl } from "@/lib/avatarFallback";
 
 type SchoolFilter = "all" | "ES Student" | "MS Student" | "HS Student";
 
@@ -102,7 +103,8 @@ const relativeTime = (iso: string | null | undefined) => {
 function rowDetailHref(c: Cardholder): string {
   if (c.entity_type === "user") return `/users/${c.entity_id}`;
   if (c.entity_type === "customer") return `/admin/customer/${c.entity_id}`;
-  return "#"; // department detail page is out of scope for now
+  if (c.entity_type === "department") return `/admin/department/${c.entity_id}`;
+  return "#";
 }
 
 export default function CardholderList() {
@@ -451,17 +453,12 @@ export default function CardholderList() {
                     {/* Name + avatar */}
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-0">
-                        {c.photo_url ? (
-                          <img
-                            src={c.photo_url}
-                            alt={c.name}
-                            className="h-8 w-8 shrink-0 rounded-full object-cover border border-border bg-muted"
-                          />
-                        ) : (
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                            <UserCircle2 className="h-5 w-5" />
-                          </div>
-                        )}
+                        <img
+                          src={resolveAvatarUrl(c.photo_url, c.name || String(c.entity_id))}
+                          alt={c.name}
+                          className="h-8 w-8 shrink-0 rounded-full object-cover border border-border bg-muted"
+                          onError={(e) => { e.currentTarget.src = getFallbackAvatar(c.name || String(c.entity_id)); }}
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm leading-tight truncate block max-w-[180px]">{c.name}</span>
@@ -518,12 +515,10 @@ export default function CardholderList() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {c.entity_type !== "department" ? (
-                          <Button asChild size="sm" variant="ghost" className="h-7">
-                            <Link to={rowDetailHref(c)}>{t("cardholders.view")}</Link>
-                          </Button>
-                        ) : null}
-                        {canDelete && c.entity_type !== "department" && c.entity_id !== authUser?.id && (
+                        <Button asChild size="sm" variant="ghost" className="h-7">
+                          <Link to={rowDetailHref(c)}>{t("cardholders.view")}</Link>
+                        </Button>
+                        {canDelete && !(c.entity_type === "user" && c.entity_id === authUser?.id) && (
                           <Button
                             variant="ghost"
                             size="icon"

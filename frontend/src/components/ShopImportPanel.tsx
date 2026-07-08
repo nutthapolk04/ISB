@@ -35,13 +35,16 @@ interface ImportResultShape {
   errors: { row: number; reason: string }[];
 }
 
+type ImportPhase = "preview" | "importing" | "done";
+
 interface PreviewState {
   open: boolean;
   kind: "products" | "stock";
   result: ImportResultShape | null;
+  doneResult: ImportResultShape | null;
+  phase: ImportPhase;
   fileName: string;
   file: File | null;
-  confirming: boolean;
 }
 
 interface Props {
@@ -82,7 +85,7 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
     setImportingProducts(true);
     try {
       const result = await callImport("products", file, true);
-      setPreview({ open: true, kind: "products", result, fileName: file.name, file, confirming: false });
+      setPreview({ open: true, kind: "products", result, doneResult: null, phase: "preview", fileName: file.name, file });
     } catch (err: any) {
       toast.error(err?.detail ?? t("shopImport.productsFailed", "Product import failed"));
     } finally {
@@ -97,7 +100,7 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
     setImportingStock(true);
     try {
       const result = await callImport("stock", file, true);
-      setPreview({ open: true, kind: "stock", result, fileName: file.name, file, confirming: false });
+      setPreview({ open: true, kind: "stock", result, doneResult: null, phase: "preview", fileName: file.name, file });
     } catch (err: any) {
       toast.error(err?.detail ?? t("shopImport.stockFailed", "Stock import failed"));
     } finally {
@@ -107,35 +110,13 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
 
   const confirmImport = async () => {
     if (!preview || !preview.file) return;
-    setPreview({ ...preview, confirming: true });
+    setPreview({ ...preview, phase: "importing" });
     try {
       const result = await callImport(preview.kind, preview.file, false);
-      if (preview.kind === "products") {
-        const msg = t("shopImport.successMsg", {
-          created: result.created ?? 0,
-          updated: result.updated ?? 0,
-          defaultValue: "Import complete: created {{created}}, updated {{updated}}",
-        });
-        if (result.errors.length > 0) {
-          toast.warning(`${msg} — ${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}`);
-        } else {
-          toast.success(msg);
-        }
-      } else {
-        const msg = t("shopImport.stockSuccessMsg", {
-          count: result.imported ?? 0,
-          defaultValue: "Stock received: {{count}} item(s)",
-        });
-        if (result.errors.length > 0) {
-          toast.warning(`${msg} — ${t("shopImport.errorsHeader", { count: result.errors.length, defaultValue: "{{count}} error(s)" })}`);
-        } else {
-          toast.success(msg);
-        }
-      }
-      setPreview(null);
+      setPreview((prev) => prev ? { ...prev, phase: "done", doneResult: result } : prev);
     } catch (err: any) {
       toast.error(err?.detail ?? t("shopImport.commitFailed", "Import failed"));
-      setPreview((prev) => (prev ? { ...prev, confirming: false } : prev));
+      setPreview((prev) => (prev ? { ...prev, phase: "preview" } : prev));
     }
   };
 
@@ -279,11 +260,11 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
             />
 
             <span className="text-xs text-muted-foreground ml-auto">
-              {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">product_code, name, barcode, price, cost_price, category, uom, shop_id</code>
+              {t("shopImport.productColumns", "Product columns")}: <code className="bg-muted px-1 rounded text-[11px]">product_code, product_name, barcode, external_price, internal_price, category, uom, shop_id</code>
               {showStockReceive && (
                 <>
                   {" · "}
-                  {t("shopImport.stockColumns", "Stock receive columns")}: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, quantity, cost_per_unit, notes</code>
+                  {t("shopImport.stockColumns", "Stock receive columns")}: <code className="bg-muted px-1 rounded text-[11px]">shop_id, barcode, stock, cost_per_unit, notes</code>
                 </>
               )}
             </span>
@@ -291,7 +272,7 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
         </CardContent>
       </Card>
 
-      <Dialog open={preview?.open ?? false} onOpenChange={(open) => { if (!open) setPreview(null); }}>
+      <Dialog open={preview?.open ?? false} onOpenChange={(open) => { if (!open && preview?.phase !== "importing") setPreview(null); }}>
         <DialogContent
           className="max-w-2xl"
           onInteractOutside={(e) => e.preventDefault()}
@@ -299,12 +280,16 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
         >
           <DialogHeader>
             <DialogTitle>
-              {preview?.kind === "products"
-                ? t("shopImport.previewProductsTitle", "Preview products import")
-                : t("shopImport.previewStockTitle", "Preview stock receipt")}
+              {preview?.phase === "done"
+                ? t("shopImport.doneTitle", "Import complete")
+                : preview?.kind === "products"
+                  ? t("shopImport.previewProductsTitle", "Preview products import")
+                  : t("shopImport.previewStockTitle", "Preview stock receipt")}
             </DialogTitle>
           </DialogHeader>
-          {preview?.result && (
+
+          {/* ── Preview phase ── */}
+          {preview?.phase === "preview" && preview.result && (
             <div className="space-y-3 text-sm">
               <p className="text-xs text-muted-foreground">
                 {t("shopImport.previewFile", "File")}: <span className="font-mono">{preview.fileName}</span>
@@ -336,7 +321,6 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
                   </div>
                 </div>
               </div>
-
               {preview.result.errors.length > 0 ? (
                 <div className="max-h-64 overflow-y-auto rounded border border-red-200 bg-red-50/40 p-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 mb-2">
@@ -362,24 +346,91 @@ export function ShopImportPanel({ shopId, showStockReceive = true }: Props) {
                   {t("shopImport.noErrors", "No errors detected — safe to import.")}
                 </div>
               )}
-
               <p className="text-[11px] text-muted-foreground">
                 {t("shopImport.previewNote", "This is a preview — no data has been saved yet.")}
               </p>
             </div>
           )}
+
+          {/* ── Importing phase ── */}
+          {preview?.phase === "importing" && (
+            <div className="flex flex-col items-center gap-3 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p>{t("shopImport.importing", "Importing…")}</p>
+            </div>
+          )}
+
+          {/* ── Done phase ── */}
+          {preview?.phase === "done" && preview.doneResult && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-3">
+                {preview.kind === "products" ? (
+                  <>
+                    <div className="rounded-md border border-green-200 bg-green-50 p-3">
+                      <div className="text-xs text-green-700">{t("shopImport.statCreatedDone", "Created")}</div>
+                      <div className="text-2xl font-bold text-green-800 tabular-nums">{preview.doneResult.created ?? 0}</div>
+                    </div>
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+                      <div className="text-xs text-blue-700">{t("shopImport.statUpdatedDone", "Updated")}</div>
+                      <div className="text-2xl font-bold text-blue-800 tabular-nums">{preview.doneResult.updated ?? 0}</div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-md border border-green-200 bg-green-50 p-3 col-span-2">
+                    <div className="text-xs text-green-700">{t("shopImport.statImportedDone", "Received")}</div>
+                    <div className="text-2xl font-bold text-green-800 tabular-nums">{preview.doneResult.imported ?? 0}</div>
+                  </div>
+                )}
+                <div className={`rounded-md border p-3 ${preview.doneResult.errors.length > 0 ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
+                  <div className={`text-xs ${preview.doneResult.errors.length > 0 ? "text-red-700" : "text-slate-600"}`}>
+                    {t("shopImport.statErrors", "Errors")}
+                  </div>
+                  <div className={`text-2xl font-bold tabular-nums ${preview.doneResult.errors.length > 0 ? "text-red-800" : "text-slate-700"}`}>
+                    {preview.doneResult.errors.length}
+                  </div>
+                </div>
+              </div>
+              {preview.doneResult.errors.length > 0 ? (
+                <div className="max-h-48 overflow-y-auto rounded border border-red-200 bg-red-50/40 p-2">
+                  <ul className="space-y-1 text-xs">
+                    {preview.doneResult.errors.slice(0, 50).map((e, i) => (
+                      <li key={i} className="text-red-700">
+                        <span className="font-mono mr-1.5">Row {e.row}:</span>{e.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-green-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {t("shopImport.doneNote", "All data saved successfully.")}
+                </div>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPreview(null)} disabled={preview?.confirming}>
-              {t("shopImport.cancel", "Cancel")}
-            </Button>
-            <Button
-              onClick={confirmImport}
-              disabled={preview?.confirming}
-            >
-              {preview?.confirming
-                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{t("shopImport.importing", "Importing…")}</>
-                : t("shopImport.confirmImport", "Confirm import")}
-            </Button>
+            {preview?.phase === "preview" && (
+              <>
+                <Button variant="outline" onClick={() => setPreview(null)}>
+                  {t("shopImport.cancel", "Cancel")}
+                </Button>
+                <Button onClick={confirmImport}>
+                  {t("shopImport.confirmImport", "Confirm import")}
+                </Button>
+              </>
+            )}
+            {preview?.phase === "importing" && (
+              <Button disabled>
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                {t("shopImport.importing", "Importing…")}
+              </Button>
+            )}
+            {preview?.phase === "done" && (
+              <Button onClick={() => setPreview(null)}>
+                {t("shopImport.close", "Done")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

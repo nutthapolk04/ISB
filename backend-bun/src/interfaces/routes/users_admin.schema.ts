@@ -79,6 +79,12 @@ export const linkStudentToUser = {
     detail: { tags: ["Admin"], summary: "Link a student customer to a parent user" },
 };
 
+export const changePassword = {
+    params: t.Object({ user_id: t.String() }),
+    body: t.Object({ new_password: t.String({ minLength: 8 }) }),
+    detail: { tags: ["Admin"], summary: "Admin change password for a user" },
+};
+
 export const unlinkStudent = {
     params: t.Object({
         user_id: t.String(),

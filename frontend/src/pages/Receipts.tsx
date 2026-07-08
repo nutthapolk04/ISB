@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 // ── Scope constants ──────────────────────────────────────────────────────────
 
@@ -1015,11 +1016,7 @@ const Receipts = () => {
                                     {selectedReceipt.payer_detail && (
                                         <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-3">
                                             <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-100 flex items-center justify-center">
-                                                {selectedReceipt.payer_detail.photo_url ? (
-                                                    <img src={selectedReceipt.payer_detail.photo_url} alt={selectedReceipt.payer_detail.name} className="h-full w-full object-cover" />
-                                                ) : (
-                                                    <span className="text-lg text-blue-400 font-bold">{selectedReceipt.payer_detail.name.charAt(0).toUpperCase()}</span>
-                                                )}
+                                                <img src={resolveAvatarUrl(selectedReceipt.payer_detail.photo_url, selectedReceipt.payer_detail.name)} alt={selectedReceipt.payer_detail.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedReceipt.payer_detail?.name); }} />
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <div className="font-semibold text-sm truncate">{selectedReceipt.payer_detail.name}</div>

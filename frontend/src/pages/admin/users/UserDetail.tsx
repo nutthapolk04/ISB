@@ -55,7 +55,10 @@ import {
   Building2,
   ShieldCheck,
   Plus,
+  KeyRound,
 } from "lucide-react";
+import { AdminChangePasswordDialog } from "@/components/AdminChangePasswordDialog";
+import { getFallbackAvatar, resolveAvatarUrl } from "@/lib/avatarFallback";
 
 interface FamilyMember {
   entity_type: "user" | "customer";
@@ -145,6 +148,7 @@ export default function UserDetail() {
   // RFID bind dialog
   const [cardOpen, setCardOpen] = useState(false);
   const [cardInput, setCardInput] = useState("");
+  const [changePwOpen, setChangePwOpen] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
 
   // Notification emails editor
@@ -452,7 +456,7 @@ export default function UserDetail() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <Avatar className="h-24 w-24 shrink-0">
-              {user.photo_url && <AvatarImage src={user.photo_url} alt={user.full_name} />}
+              <AvatarImage src={resolveAvatarUrl(user.photo_url, user.username || user.full_name)} alt={user.full_name} />
               <AvatarFallback className="text-xl">{initials}</AvatarFallback>
             </Avatar>
 
@@ -503,6 +507,16 @@ export default function UserDetail() {
               {user.card_uid && (
                 <p className="text-xs text-muted-foreground font-mono text-center">{user.card_uid}</p>
               )}
+              {user.role !== "parent" && user.role !== "staff" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setChangePwOpen(true)}
+                >
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  Change Password
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -547,7 +561,12 @@ export default function UserDetail() {
                 {editingBasic ? (
                   <Input type="email" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 ) : (
-                  <p className="text-sm">{user.email || <span className="text-muted-foreground italic">—</span>}</p>
+                  <div className="space-y-0.5">
+                    <p className="text-sm">{user.email || <span className="text-muted-foreground italic">—</span>}</p>
+                    {(user.family_profile?.notification_emails ?? []).map((e) => (
+                      <p key={e} className="text-sm text-muted-foreground">{e}</p>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -800,13 +819,12 @@ export default function UserDetail() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {user.family_members.map((m) => (
                 <div key={`${m.entity_type}-${m.id}`} className="flex items-start gap-3 rounded-md border p-3">
-                  {m.photo_url ? (
-                    <img src={m.photo_url} alt="" className="h-12 w-12 rounded-full object-cover border" />
-                  ) : (
-                    <div className="h-12 w-12 rounded-full bg-muted grid place-items-center text-xs font-semibold text-muted-foreground">
-                      {m.name.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                  <img
+                    src={resolveAvatarUrl(m.photo_url, m.name || `${m.entity_type}-${m.id}`)}
+                    alt=""
+                    className="h-12 w-12 rounded-full object-cover border bg-muted"
+                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(m.name || `${m.entity_type}-${m.id}`); }}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 font-medium truncate">
                       {m.parent_rank === "main" && (
@@ -1092,6 +1110,13 @@ export default function UserDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AdminChangePasswordDialog
+        open={changePwOpen}
+        onOpenChange={setChangePwOpen}
+        userId={user.id}
+        userName={user.full_name}
+      />
 
     </div>
     </div>

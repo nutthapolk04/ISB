@@ -628,6 +628,17 @@ export async function updateAdminUser(
     return buildDetail(updated[0]!);
 }
 
+// ── PATCH /{user_id}/password ───────────────────────────────────────────────
+
+export async function adminChangePassword(callerRoles: string[], userId: number, newPassword: string): Promise<void> {
+  requireAdmin(callerRoles);
+  if (!newPassword || newPassword.length < 8) throw statusErr(400, "Password must be at least 8 characters");
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!rows[0]) throw statusErr(404, "User not found");
+  const hashed = await Bun.password.hash(newPassword, { algorithm: "bcrypt", cost: 12 });
+  await db.update(users).set({ hashedPassword: hashed }).where(eq(users.id, userId));
+}
+
 // ── POST /students ──────────────────────────────────────────────────────────
 
 export interface CreateStudentDTO {

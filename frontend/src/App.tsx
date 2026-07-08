@@ -50,6 +50,7 @@ import Transfer from "./pages/parent/Transfer";
 import WalletAdjust from "./pages/admin/WalletAdjust";
 import WalletTransfer from "./pages/admin/WalletTransfer";
 import DepartmentAdjust from "./pages/admin/DepartmentAdjust";
+import DepartmentDetail from "./pages/admin/DepartmentDetail";
 import CustomerDetail from "./pages/admin/CustomerDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/users/UserManagement";
@@ -111,9 +112,9 @@ function AppShell() {
 
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen w-full overflow-x-hidden">
+            <div className="flex h-screen w-full overflow-x-hidden">
                 <AppSidebar />
-                <main className="flex flex-1 flex-col min-w-0 overflow-x-hidden">
+                <main className="flex flex-1 flex-col min-w-0">
                     <header className="app-topbar">
                         <SidebarTrigger />
                         <div className="flex items-center gap-2">
@@ -135,7 +136,7 @@ function AppShell() {
                                             {user.activeRole ?? user.role}
                                         </span>
                                         {user.shopName && (
-                                            <span className="hidden sm:inline rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                            <span className="hidden sm:inline rounded bg-blue-100 border border-blue-300 px-2.5 py-1 text-sm font-bold text-blue-700">
                                                 {user.shopName}
                                             </span>
                                         )}
@@ -353,6 +354,7 @@ const App = () => {
                                                     <Route path="/admin/cards" element={<Navigate to="/users?tab=cards" replace />} />
                                                     <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                                                     <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
+                                                    <Route path="/admin/department/:departmentId" element={<DepartmentDetail />} />
                                                     <Route path="/admin/reports" element={<Reports />} />
                                                 </Route>
 

@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { getPaginationRange } from "@/lib/pagination";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/pagination";
 import { toast } from "@/hooks/use-toast";
 import {
-  Lock, Plus, Search, Trash2, Unlock, Users, UserCircle2,
+  Lock, Plus, Search, Trash2, Unlock, Users,
   ChevronDown, ChevronUp, ChevronRight,
   ArrowUp, ArrowDown, ArrowUpDown, Loader2,
 } from "lucide-react";
@@ -726,13 +727,12 @@ export default function FamilyLinks() {
                             <div key={child.customerId} className="rounded-md border bg-background">
                               <div className="flex items-center gap-3 px-3 py-2.5">
                                 {/* Avatar */}
-                                {child.photoUrl ? (
-                                  <img src={child.photoUrl} alt={child.name} className="h-9 w-9 rounded-full object-cover shrink-0 border" />
-                                ) : (
-                                  <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-semibold text-muted-foreground">
-                                    {child.name.slice(0, 2).toUpperCase()}
-                                  </div>
-                                )}
+                                <img
+                                  src={resolveAvatarUrl(child.photoUrl, child.name || String(child.customerId))}
+                                  alt={child.name}
+                                  className="h-9 w-9 rounded-full object-cover shrink-0 border"
+                                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(child.name || String(child.customerId)); }}
+                                />
 
                                 {/* Info */}
                                 <div className="flex-1 min-w-0">

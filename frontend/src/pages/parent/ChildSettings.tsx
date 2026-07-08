@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Settings, TrendingUp } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
+import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 interface ChildProfile {
   id: number;
@@ -117,13 +118,12 @@ export default function ChildSettings() {
           <div className="px-6 py-5 pr-28">
             <div className="flex items-center gap-4">
               <div className="shrink-0">
-                {profile.photo_url ? (
-                  <img src={profile.photo_url} alt={profile.name} className="h-14 w-14 rounded-full object-cover border-2 border-white/70 shadow-lg" />
-                ) : (
-                  <div className="h-14 w-14 rounded-full bg-white/15 border-2 border-white/70 shadow-lg flex items-center justify-center text-white text-xl font-bold">
-                    {profile.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <img
+                  src={resolveAvatarUrl(profile.photo_url, profile.name || String(profile.id))}
+                  alt={profile.name}
+                  className="h-14 w-14 rounded-full object-cover border-2 border-white/70 shadow-lg"
+                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(profile.name || String(profile.id)); }}
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg sm:text-xl font-bold text-white break-words">{profile.name}</h1>

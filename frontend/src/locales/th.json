@@ -47,7 +47,9 @@
     "groupCanteenManagement": "จัดการโรงอาหาร",
     "canteenManagement": "จัดการโรงอาหาร",
     "guide": "คู่มือการใช้งาน",
-    "refund": "คืนเงิน"
+    "refund": "คืนเงิน",
+    "groupReports": "รายงาน",
+    "adminReports": "รายงาน"
   },
   "serverStatus": {
     "label": "เซิร์ฟเวอร์",
@@ -611,10 +613,10 @@
     },
     "salesReport": "รายงานยอดขาย",
     "salesReportDesc": "สรุปยอดขายรายวัน รายเดือน และรายปี",
-    "stockReport": "รายงานสต็อคสินค้า",
-    "stockReportDesc": "สรุปสต็อคสินค้าคงเหลือและสินค้าใกล้หมด",
-    "returnReport": "รายงานการเปลี่ยนสินค้า",
-    "returnReportDesc": "สรุปการเปลี่ยนสินค้าและสาเหตุการเปลี่ยน",
+    "stockReport": "Stock Balance Report",
+    "stockReportDesc": "Current inventory balance and low stock alerts",
+    "returnReport": "Void",
+    "returnReportDesc": "Voided and cancelled transaction records",
     "paymentReport": "รายงานประเภทการชำระเงิน",
     "paymentReportDesc": "สรุปการชำระเงินแยกตามประเภท",
     "topSellingReport": "รายงานสินค้าขายดี",
@@ -650,8 +652,8 @@
     "totalExchange": "ยอดเปลี่ยนสินค้ารวม",
     "stockCardReport": "Stock Card",
     "stockCardReportDesc": "ประวัติความเคลื่อนไหวสต็อคแยกตาม SKU พร้อมยอดเปิด-ปิด",
-    "salesSummaryReport": "Sales Summary",
-    "salesSummaryReportDesc": "สรุปยอดขายต่อใบเสร็จ แยกตามวิธีชำระเงิน กรองด้วยวันที่ ลูกค้า รหัสครอบครัว หรือเลขใบเสร็จได้",
+    "salesSummaryReport": "Daily Sales Report",
+    "salesSummaryReportDesc": "Daily sales totals with payment method breakdown by receipt",
     "salesByItemReport": "Sales by Item",
     "salesByItemReportDesc": "สรุปการขายต่อรายการสินค้า แยกตาม SKU พร้อมจำนวนและยอดรวม",
     "salesByPaymentReport": "รายงานยอดขายแยกตามวิธีชำระเงิน",
@@ -1504,6 +1506,10 @@
       "fieldPassword": "Password",
       "fieldRole": "Role",
       "fieldShop": "Shop ID (ไม่บังคับ)",
+      "fieldEmails": "อีเมล (ไม่บังคับ)",
+      "emailPlaceholder1": "อีเมล 1",
+      "emailPlaceholder2": "อีเมล 2",
+      "emailPlaceholder3": "อีเมล 3",
       "selectRole": "เลือก role…",
       "addRoleBtn": "เพิ่มสิทธิ์",
       "extraRolesHint": "เพิ่มสิทธิ์อื่นนอกเหนือจากสิทธิ์หลัก เช่น ให้บัญชีเดียวเป็นได้ทั้ง manager และ cashier",
@@ -1776,7 +1782,7 @@
       "saveFailed": "บันทึกลำดับไม่สำเร็จ"
     },
     "tabAll": "ทั้งหมด",
-    "tabPanels": "ตารางราคา"
+    "tabPanels": "Tab"
   },
   "common": {
     "colNo": "ลำดับ",
@@ -2578,10 +2584,12 @@
     },
     "childSettings": {
       "title": "วงเงินใช้จ่ายต่อวัน",
+      "todayTitle": "ใช้จ่ายวันนี้",
       "canteenLabel": "วงเงินโรงอาหารต่อวัน",
       "storeLabel": "วงเงินร้านค้าต่อวัน",
       "unlimitedPlaceholder": "ไม่จำกัด",
       "unlimitedHint": "เว้นว่างคือไม่จำกัด",
+      "noLimit": "ไม่จำกัดวงเงิน",
       "save": "บันทึก",
       "saving": "กำลังบันทึก...",
       "saveSuccess": "บันทึกวงเงินแล้ว",
@@ -3183,8 +3191,8 @@
     "loadFailed": "โหลด Balance File ไม่สำเร็จ",
     "exportFailed": "ส่งออก Excel ไม่สำเร็จ",
     "period": "ช่วงเวลา",
-    "opening": "ยอดยกมา",
-    "summary": "สรุปยอดคงเหลือ",
+    "opening": "Opening Balance",
+    "summary": "Summary Balance",
     "col": {
       "date": "วันที่",
       "desc": "รายการ",
@@ -3198,6 +3206,6 @@
     "viewMode": "มุมมอง",
     "monthly": "รายเดือน",
     "yearly": "รายปี",
-    "closingBalance": "ยอดคงเหลือสุดท้าย"
+    "closingBalance": "Ending Balance"
   }
 }

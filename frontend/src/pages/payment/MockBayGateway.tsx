@@ -16,7 +16,7 @@
  * the URL stays short and bookmark-safe.
  */
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { CreditCard, Lock, Shield, ShieldCheck, Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,15 +39,15 @@ export interface BayPendingIntent {
   productName?: string;
 }
 
-const SS_KEY_PREFIX = "bay_intent_";
+const LS_KEY_PREFIX = "bay_intent_";
 
 export function storeBayIntent(intent: BayPendingIntent) {
-  sessionStorage.setItem(SS_KEY_PREFIX + intent.orderRef, JSON.stringify(intent));
+  localStorage.setItem(LS_KEY_PREFIX + intent.orderRef, JSON.stringify(intent));
 }
 
 export function readBayIntent(orderRef: string | null): BayPendingIntent | null {
   if (!orderRef) return null;
-  const raw = sessionStorage.getItem(SS_KEY_PREFIX + orderRef);
+  const raw = localStorage.getItem(LS_KEY_PREFIX + orderRef);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as BayPendingIntent;
@@ -57,7 +57,7 @@ export function readBayIntent(orderRef: string | null): BayPendingIntent | null 
 }
 
 export function clearBayIntent(orderRef: string) {
-  sessionStorage.removeItem(SS_KEY_PREFIX + orderRef);
+  localStorage.removeItem(LS_KEY_PREFIX + orderRef);
 }
 
 
@@ -83,14 +83,7 @@ export function MockBayPaymentForm() {
   const [nameOnCard, setNameOnCard] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // If someone lands here without a valid pending intent, push them out.
-  useEffect(() => {
-    if (!orderRef || !intent) {
-      navigate("/", { replace: true });
-    }
-  }, [orderRef, intent, navigate]);
-
-  if (!intent) return null;
+  if (!intent) return <Navigate to="/" replace />;
 
   const total = intent.amount + intent.fee;
 
@@ -432,7 +425,9 @@ export function MockBayPaymentCancel() {
   const intent = readBayIntent(orderRef);
 
   useEffect(() => {
-    if (orderRef) clearBayIntent(orderRef);
+    if (!orderRef) return;
+    clearBayIntent(orderRef);
+    api.post(`/wallets/topup/${orderRef}/cancel`, {}).catch(() => {});
   }, [orderRef]);
 
   return (

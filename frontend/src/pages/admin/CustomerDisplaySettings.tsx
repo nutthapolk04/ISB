@@ -7,8 +7,7 @@
  * enforces every limit on the server side too.
  */
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Monitor, Upload, Trash2, GripVertical, Loader2 } from "lucide-react";
+import { Monitor, Upload, Trash2, GripVertical, Loader2 } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -229,11 +228,6 @@ export default function CustomerDisplaySettings() {
     <div className="page-shell">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link to="/admin">
-            <Button variant="ghost" size="sm" className="gap-1">
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Button>
-          </Link>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Monitor className="h-6 w-6 text-amber-500" />
