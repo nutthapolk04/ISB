@@ -69,7 +69,7 @@ Short imperative commit subjects (`Add payment methods UI`, `Fix wallet top-up c
 
 ## Documentation
 
-Detailed specs and guides live in `.cursor/docs/` (Cursor) or `.claude/doc/` (Claude Code). Use `@project-docs.mdc` or read directly:
+Detailed specs and guides live in `.cursor/docs/` (Cursor) or `.claude/doc/` (Claude Code). Use `@project-docs.md` (`.claude/.agents/project-docs.md`) or read directly:
 
 | Document | Purpose |
 |----------|---------|
@@ -79,6 +79,8 @@ Detailed specs and guides live in `.cursor/docs/` (Cursor) or `.claude/doc/` (Cl
 | `BOOKSTORE_POS_SPECIFICATION.md` | Original POS requirement baseline |
 | `PARENT_STUDENT_PORTAL_SPEC.md` | Parent/student portal spec |
 | `SPENDING_LIMIT_PLAN.md` | Spending group / daily limit plan |
+| `INCIDENT_RESPONSE_PLAYBOOK.md` | Investigate wallet/POS/kiosk incidents |
+| `KIOSK_UAT_CHECKLIST.md` | Manual UAT checklist before kiosk go-live |
 
 ## UI Toolkit
 

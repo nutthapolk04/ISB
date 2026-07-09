@@ -10,29 +10,29 @@
 
 ```
 ISB/
-├── frontend/              React 18 + TypeScript + Vite + shadcn/ui (admin / POS / parent portal)
-├── kiosk/                 Vue 3 + Capacitor — balance check & top-up kiosk (Android)
-├── backend-bun/           Bun + Elysia + Drizzle ORM + PostgreSQL (production API)
+├── frontend/              React 18 + TypeScript + Vite + shadcn/ui
+├── kiosk/                 Vue 3 + Capacitor — balance check & top-up kiosk
+├── backend-bun/           Bun + Elysia + Drizzle ORM + PostgreSQL
 ├── docs/                  API notes, contracts, ISB payload samples
 ├── AGENTS.md              Developer guidelines (repo root)
 ├── .cursor/
-│   ├── rules/             Role rules for Cursor (*.mdc)
-│   └── docs/              Specs & guides (Cursor — keep in sync with this folder)
+│   ├── rules/             Role-based agent rules
+│   └── docs/              Specs & guides (Cursor — keep in sync with `.claude/doc/`)
 └── .claude/
-    ├── doc/               This folder — specs & guides for Claude
-    └── .agents/           Role rules for Claude (*.md)
+    ├── doc/               Specs & guides (Claude — keep in sync)
+    └── .agents/           Role rules (Claude)
 ```
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend (admin/POS) | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router v6, React Query |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router v6, React Query |
 | Kiosk | Vue 3, Pinia, Vite, Capacitor (Android) |
 | Backend | Bun, Elysia, Drizzle ORM, postgres-js, TypeBox |
 | Database | PostgreSQL 15+ |
 | Auth | JWT (`@elysiajs/jwt`, HS256) |
-| i18n | react-i18next (EN / TH) — frontend; kiosk EN/TH inline |
+| i18n | react-i18next (EN / TH) |
 
 ## Quick Start
 
@@ -75,10 +75,8 @@ npm run dev             # http://localhost:5173
 ```bash
 cd kiosk
 cp .env.example .env
-# VITE_API_URL=http://localhost:3001/api/v1 (or 10.0.2.2 for Android emulator)
 npm install
-npm run dev             # http://localhost:5174
-# Android: npm run build && npx cap sync android
+npm run dev
 ```
 
 ## Demo Accounts
@@ -95,8 +93,6 @@ npm run dev             # http://localhost:5174
 | `cashier_cafe` | `cashier` | Cashier | Cafeteria |
 | `cashier_book` | `cashier` | Cashier | Bookstore |
 
-Kiosk uses a service account (`VITE_KIOSK_USERNAME` / `VITE_KIOSK_PASSWORD` in `kiosk/.env`) with role `kiosk`.
-
 ## Documentation Index
 
 | File | Description |
@@ -107,28 +103,8 @@ Kiosk uses a service account (`VITE_KIOSK_USERNAME` / `VITE_KIOSK_PASSWORD` in `
 | [BOOKSTORE_POS_SPECIFICATION.md](BOOKSTORE_POS_SPECIFICATION.md) | Original POS requirement baseline |
 | [PARENT_STUDENT_PORTAL_SPEC.md](PARENT_STUDENT_PORTAL_SPEC.md) | Parent/student portal specification |
 | [SPENDING_LIMIT_PLAN.md](SPENDING_LIMIT_PLAN.md) | Spending group / daily limit plan |
-| [AGENTS.md](AGENTS.md) | Coding standards, commands, project layout |
-
-## Agent Rules Index
-
-Role prompts live in [`.claude/.agents/`](../.agents/) (synced from `.cursor/rules/`):
-
-| File | Use when |
-|------|----------|
-| `orchestrator.md` | Triage work and delegate to roles |
-| `project-docs.md` | Find which spec to read |
-| `backend-engineer.md` | API, services, Drizzle |
-| `backend-controller.md` | Elysia controllers in `backend-bun/src/controllers/` |
-| `frontend-engineer.md` | React UI in `frontend/` |
-| `software-architect.md` | Architecture, API contracts, schema |
-| `product-analyst.md` | Requirements, user stories |
-| `qa-engineer.md` | Test cases |
-| `security-reviewer.md` | OWASP / auth audit |
-| `localization.md` | i18n en.json / th.json |
-| `ux-designer.md` | UI/UX flows |
-| `release-manager.md` | Pre-release checklist |
-
-Additional reference: `docs/api/` (ISB vendor sync payloads), `docs/contracts/` (BAY payment).
+| [INCIDENT_RESPONSE_PLAYBOOK.md](INCIDENT_RESPONSE_PLAYBOOK.md) | Investigate wallet/POS/kiosk incidents |
+| [KIOSK_UAT_CHECKLIST.md](KIOSK_UAT_CHECKLIST.md) | Manual UAT checklist before kiosk go-live |
 
 ## API Documentation
 
@@ -144,7 +120,7 @@ http://localhost:3001/docs
 |-----------|----------|---------------|
 | Frontend | Vercel | `frontend/` |
 | Backend | Railway | `backend-bun/` |
-| Kiosk | Capacitor APK / Vercel preview | `kiosk/` |
+| Kiosk | Capacitor APK | `kiosk/` |
 
 ### Environment Variables
 
@@ -159,16 +135,8 @@ VITE_API_BASE_URL=https://<your-backend>.up.railway.app/api/v1
 ```
 DATABASE_URL=<Railway PostgreSQL>
 JWT_SECRET=<production secret>
-CORS_ORIGINS=https://<your-frontend>.vercel.app,https://<your-kiosk>.vercel.app
+CORS_ORIGINS=https://<your-frontend>.vercel.app
 NODE_ENV=production
-```
-
-**Kiosk (build-time):**
-
-```
-VITE_API_URL=https://<your-backend>.up.railway.app/api/v1
-VITE_KIOSK_USERNAME=<kiosk service user>
-VITE_KIOSK_PASSWORD=<kiosk service password>
 ```
 
 ## Project Commands
@@ -205,15 +173,32 @@ npm run build
 ```
 Browser (React SPA)          Kiosk (Vue + Capacitor)
          │                            │
-         │  HTTPS / JSON              │
          └────────────┬───────────────┘
                       ▼
          Elysia (Bun) — backend-bun/
                       │
-                      │  Drizzle ORM
                       ▼
                  PostgreSQL
 ```
+
+## Agent Rules Index
+
+Role prompts live in [`.claude/.agents/`](../.agents/) (synced from `.cursor/rules/`):
+
+| File | Use when |
+|------|----------|
+| `orchestrator.md` | Triage work and delegate to roles |
+| `project-docs.md` | Find which spec to read |
+| `backend-engineer.md` | API, services, Drizzle |
+| `backend-controller.md` | Elysia controllers in `backend-bun/src/controllers/` |
+| `frontend-engineer.md` | React UI in `frontend/` |
+| `software-architect.md` | Architecture, API contracts, schema |
+| `product-analyst.md` | Requirements, user stories |
+| `qa-engineer.md` | Test cases |
+| `security-reviewer.md` | OWASP / auth audit |
+| `localization.md` | i18n en.json / th.json |
+| `ux-designer.md` | UI/UX flows |
+| `release-manager.md` | Pre-release checklist |
 
 ## Keeping Docs in Sync
 
