@@ -275,6 +275,7 @@ const t = {
 
     /* FIX: Runs continuously with a delay so it isn't frantic */
     animation: flash 3s infinite ease-in-out;
+    animation-delay: 1.5s;
 }
 
 @keyframes flash {
@@ -401,7 +402,7 @@ const t = {
 
     20% {
         transform: scale(0.75);
-        opacity: 0.1;
+        opacity: 0.3;
         background-color: var(--primary);
     }
 
