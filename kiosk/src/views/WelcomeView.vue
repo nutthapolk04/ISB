@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import KioskOverlay from '../components/KioskOverlay.vue';
-import { CreditCard, Languages, Wrench } from 'lucide-vue-next';
+import { Languages, Wrench } from 'lucide-vue-next';
 
 const router = useRouter();
 
@@ -146,8 +146,9 @@ const t = {
 
         <div class="welcome-content">
             <div class="rfid-animation mb-8">
-                <div class="card-icon pulse-animation" :class="{ 'card-error': rfidError }">
-                    <CreditCard :size="120" stroke-width="1.5" />
+                <div :class="['card-icon', { 'card-error': rfidError }]">
+                    <!-- <CreditCard :size="120" stroke-width="1.5" /> -->
+                    <img src="/images/decor-card.png" alt="Card icon" class="object-cover" />
                 </div>
                 <div class="rfid-waves">
                     <div class="wave"></div>
@@ -166,13 +167,20 @@ const t = {
 
 <style scoped>
 .welcome-view {
-    justify-content: flex-start;
+    /* justify-content: flex-mi; */
+    justify-content: center;
+    height: 100%;
     padding: 3rem 2rem 2rem;
 }
 
 .lang-switch-container {
     width: 100%;
     display: flex;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
@@ -219,9 +227,9 @@ const t = {
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;
+    /* flex: 1; */
     justify-content: center;
-    cursor: pointer;
+    /* cursor: pointer; */
 }
 
 .rfid-animation {
@@ -234,6 +242,67 @@ const t = {
     /* background: rgba(37, 99, 235, 0.1); */
     padding: 3rem;
     border-radius: 3rem;
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+/* Keep the decorative card image from overflowing its container */
+.card-icon img {
+    width: 160px;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+    display: block;
+    transform-origin: left bottom;
+    animation: card-icon-animation 3s infinite ease-in-out;
+}
+
+/* The Flare Overlay */
+.card-icon::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.4) 50%,
+            rgba(255, 255, 255, 0) 100%);
+    transform: skewX(-25deg);
+    pointer-events: none;
+
+    /* FIX: Runs continuously with a delay so it isn't frantic */
+    animation: flash 3s infinite ease-in-out;
+}
+
+@keyframes flash {
+
+    0%,
+    70% {
+        /* Keeps the flare hidden for 70% of the loop duration */
+        left: -150%;
+    }
+
+    100% {
+        left: 150%;
+        /* Sweeps across the card at the end of the loop */
+    }
+}
+
+@keyframes card-icon-animation {
+    0% {
+        transform: rotate(-10deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(-10deg);
+    }
 }
 
 .mb-4 {
