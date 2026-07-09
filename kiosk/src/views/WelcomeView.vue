@@ -157,8 +157,8 @@ const t = {
                 </div>
             </div>
 
-            <h1 class="mb-4" style="font-size: 2.5rem; font-weight: 800;">{{ currT.welcome }}</h1>
-            <p class=" text-center mb-12 text-breathe" style="font-size: 1.25rem; font-weight: 200; ">{{ currT.sub
+            <h1 class="mb-4">{{ currT.welcome }}</h1>
+            <p class=" text-center mb-12 text-breathe" style="font-size: 1.75rem; font-weight: 300; ">{{ currT.sub
                 }}
             </p>
             <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
@@ -254,7 +254,7 @@ const t = {
 
 /* Keep the decorative card image from overflowing its container */
 .card-icon img {
-    width: 160px;
+    width: 200px;
     max-width: 100%;
     max-height: 100%;
     object-fit: cover;
@@ -348,7 +348,7 @@ const t = {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
 }
 
 .school-logo {
@@ -417,20 +417,21 @@ const t = {
 }
 
 .text-breathe {
+    color: var(--text-muted);
     animation: breathe 3s infinite linear;
 }
 
 @keyframes breathe {
     0% {
-        opacity: 0.5;
+        opacity: 0.8;
     }
 
     50% {
-        opacity: 0.3;
+        opacity: 0.5;
     }
 
     100% {
-        opacity: 0.5;
+        opacity: 0.8;
     }
 }
 </style>
