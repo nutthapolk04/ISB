@@ -157,8 +157,10 @@ const t = {
                 </div>
             </div>
 
-            <h1 class="mb-4">{{ currT.welcome }}</h1>
-            <p class="text-muted text-center mb-12">{{ currT.sub }}</p>
+            <h1 class="mb-4" style="font-size: 2.5rem; font-weight: 800;">{{ currT.welcome }}</h1>
+            <p class=" text-center mb-12 text-breathe" style="font-size: 1.25rem; font-weight: 200; ">{{ currT.sub
+                }}
+            </p>
             <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
             <p v-if="rfidNetworkError" class="rfid-error-msg">{{ currT.networkError }}</p>
         </div>
@@ -239,12 +241,15 @@ const t = {
 
 .card-icon {
     color: var(--primary);
-    /* background: rgba(37, 99, 235, 0.1); */
-    padding: 3rem;
-    border-radius: 3rem;
+    background: rgb(0, 81, 255);
+    /* padding: 3rem; */
+    border-radius: 1rem;
     position: relative;
     overflow: hidden;
     display: inline-block;
+
+    transform-origin: left bottom;
+    animation: card-icon-animation 3s infinite ease-in-out;
 }
 
 /* Keep the decorative card image from overflowing its container */
@@ -254,8 +259,6 @@ const t = {
     max-height: 100%;
     object-fit: cover;
     display: block;
-    transform-origin: left bottom;
-    animation: card-icon-animation 3s infinite ease-in-out;
 }
 
 /* The Flare Overlay */
@@ -345,7 +348,7 @@ const t = {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 2rem;
 }
 
 .school-logo {
@@ -410,6 +413,24 @@ const t = {
         transform: scale(1.5);
         opacity: 0;
         background-color: #EACB46;
+    }
+}
+
+.text-breathe {
+    animation: breathe 3s infinite linear;
+}
+
+@keyframes breathe {
+    0% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 0.5;
     }
 }
 </style>
