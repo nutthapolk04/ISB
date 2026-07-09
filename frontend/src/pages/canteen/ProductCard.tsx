@@ -54,8 +54,7 @@ export function ProductCard({
   const displayPrice =
     priceMode === "internal" ? product.internalPrice : product.price;
   const isInternal = priceMode === "internal";
-  // Canteen-wide: color tint disabled (request — uniform card appearance across all shops).
-  const hasColor = false;
+  const hasColor = !!product.color;
   const showColorPicker = !!onSaveColor;
 
   // Local draft color for the palette popover (reset every time it opens).

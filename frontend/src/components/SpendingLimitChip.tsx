@@ -28,6 +28,8 @@ interface Props {
   member: Member | null;
   /** Bump to force a fresh /customers/{id} fetch (e.g. after checkout). */
   refreshKey?: number;
+  /** Restrict which limit row to render. Omit to show both. */
+  shopKind?: "canteen" | "store";
 }
 
 const fmt = (n: number | null | undefined) =>
@@ -57,7 +59,7 @@ function LimitRow({ label, limit, spent }: { label: string; limit: number; spent
   );
 }
 
-export function SpendingLimitChip({ member, refreshKey = 0 }: Props) {
+export function SpendingLimitChip({ member, refreshKey = 0, shopKind }: Props) {
   const { t } = useTranslation();
   const [latest, setLatest] = useState<Member | null>(member);
 
@@ -83,8 +85,10 @@ export function SpendingLimitChip({ member, refreshKey = 0 }: Props) {
   // Users (parent/staff) and Departments don't carry per-shop daily limits.
   if (latest.user_id != null || latest.customer_kind === "department") return null;
 
-  const ct = latest.daily_limit_canteen ?? null;
-  const st = latest.daily_limit_store ?? null;
+  const showCanteen = shopKind !== "store";
+  const showStore = shopKind !== "canteen";
+  const ct = showCanteen ? latest.daily_limit_canteen ?? null : null;
+  const st = showStore ? latest.daily_limit_store ?? null : null;
   if (ct == null && st == null) return null;
 
   return (

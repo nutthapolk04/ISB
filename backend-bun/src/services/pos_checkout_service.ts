@@ -424,7 +424,7 @@ export async function checkout(input: CheckoutInput) {
               (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
                cost_per_unit, reference, note, created_by)
             VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, ${movementType},
-                    ${deductQty}, ${stockBefore}, ${stockAfter},
+                    ${-deductQty}, ${stockBefore}, ${stockAfter},
                     ${pgNumber(sub.unit_price) ?? 0}, ${receiptNumber},
                     ${input.notes ?? null}, ${input.userId})
           `;
@@ -482,7 +482,7 @@ export async function checkout(input: CheckoutInput) {
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
            cost_per_unit, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, ${movementType},
-                ${qty}, ${stockBefore}, ${stockAfter},
+                ${-qty}, ${stockBefore}, ${stockAfter},
                 ${unitPrice}, ${receiptNumber}, ${input.notes ?? null}, ${input.userId})
       `;
 
