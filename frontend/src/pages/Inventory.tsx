@@ -375,6 +375,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         category: editForm.category || t("inventory.defaultCategory", "General"),
         external_price: parseFloat(editForm.externalPrice),
         internal_price: editForm.internalPrice ? parseFloat(editForm.internalPrice) : parseFloat(editForm.externalPrice),
+        avg_cost: editForm.avgCost ? parseFloat(editForm.avgCost) : 0,
         vat_percent: parseFloat(editForm.vatPercent) || 0,
         min_stock: parseInt(editForm.minStock) || 0,
         color: editForm.color || null,

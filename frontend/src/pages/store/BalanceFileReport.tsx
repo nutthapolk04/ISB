@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, FileDown, FileText, Loader2, PackagePlus } from "lucide-react";
+import { BookOpen, FileDown, FileText, Loader2, PackagePlus, Search } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -114,10 +115,24 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
   const [shopId, setShopId] = useState<string>(lockedShopId ?? "");
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [productId, setProductId] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [data, setData] = useState<BalanceFileReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Client-side search on top of the already-loaded blocks — the product
+  // Select above filters at the API level, this filters what's on screen.
+  const filteredBlocks = useMemo(() => {
+    if (!data) return [];
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return data.blocks;
+    return data.blocks.filter(
+      (b) =>
+        (b.product_code ?? "").toLowerCase().includes(q) ||
+        b.product_name.toLowerCase().includes(q),
+    );
+  }, [data, searchTerm]);
 
   // Load shops list (admin only, non-embedded); embedded uses lockedShopId; non-admin uses own shopId
   useEffect(() => {
@@ -460,6 +475,19 @@ ${blocksHtml}
               </Select>
             </div>
 
+            <div className="space-y-1">
+              <Label>{t("balanceFile.search", "Search")}</Label>
+              <div className="relative w-56">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t("balanceFile.searchPlaceholder", "Product code or name")}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+
             {viewMode === "monthly" && (
               <div className="space-y-1">
                 <Label>{t("balanceFile.month", "Month")}</Label>
@@ -516,7 +544,7 @@ ${blocksHtml}
       </Card>
 
       {/* Ledger */}
-      {data && data.blocks.map((block) => (
+      {data && filteredBlocks.map((block) => (
         <Card key={block.product_id}>
           <CardHeader>
             <CardTitle className="text-base">
@@ -593,6 +621,14 @@ ${blocksHtml}
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             {t("balanceFile.empty", "No data for the selected period.")}
+          </CardContent>
+        </Card>
+      )}
+
+      {data && data.blocks.length > 0 && filteredBlocks.length === 0 && (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            {t("balanceFile.searchEmpty", "No products match your search.")}
           </CardContent>
         </Card>
       )}

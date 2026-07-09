@@ -10,6 +10,8 @@ import {
   customers,
   customerTypes,
   users,
+  productBundles,
+  bundleItems,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
@@ -300,6 +302,106 @@ export async function stockReport(args: {
   };
 }
 
+// ── /bundle-report ──────────────────────────────────────────────────────────
+
+export interface BundleReportComponent {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  qty_per_bundle: number;
+  stock: number;
+}
+
+export interface BundleReportRow {
+  bundle_id: number;
+  bundle_code: string;
+  bundle_name: string;
+  shop_id: string;
+  shop_name: string | null;
+  external_price: number;
+  internal_price: number;
+  // How many bundles can be assembled right now — the smallest
+  // floor(component.stock / qty_per_bundle) across all components.
+  sellable_qty: number;
+  components: BundleReportComponent[];
+}
+
+export interface BundleReport {
+  shop_id: string | null;
+  rows: BundleReportRow[];
+}
+
+export async function bundleReport(args: {
+  user: AccessTokenPayload;
+  shopId?: string;
+  module?: string;
+}): Promise<BundleReport> {
+  const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
+  const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+
+  const conds = [eq(productBundles.isActive, true)];
+  if (effectiveShopId) {
+    conds.push(eq(productBundles.shopId, effectiveShopId));
+  } else if (effMod) {
+    conds.push(eq(shops.module, effMod));
+  }
+
+  const bundles = await db
+    .select({
+      id: productBundles.id,
+      bundle_code: productBundles.bundleCode,
+      name: productBundles.name,
+      shop_id: productBundles.shopId,
+      shop_name: shops.name,
+      external_price: productBundles.externalPrice,
+      internal_price: productBundles.internalPrice,
+    })
+    .from(productBundles)
+    .innerJoin(shops, eq(shops.id, productBundles.shopId))
+    .where(and(...conds))
+    .orderBy(asc(productBundles.shopId), asc(productBundles.sortOrder), asc(productBundles.name));
+
+  const rows: BundleReportRow[] = [];
+  for (const b of bundles) {
+    const items = await db
+      .select({
+        product_id: bundleItems.productId,
+        quantity: bundleItems.quantity,
+        product_code: shopProducts.productCode,
+        product_name: shopProducts.name,
+        stock: shopProducts.stock,
+      })
+      .from(bundleItems)
+      .innerJoin(shopProducts, eq(shopProducts.id, bundleItems.productId))
+      .where(eq(bundleItems.bundleId, b.id))
+      .orderBy(asc(bundleItems.sortOrder));
+
+    const sellableQty = items.length > 0
+      ? Math.min(...items.map((i) => Math.floor(i.stock / i.quantity)))
+      : 0;
+
+    rows.push({
+      bundle_id: b.id,
+      bundle_code: b.bundle_code,
+      bundle_name: b.name,
+      shop_id: b.shop_id,
+      shop_name: b.shop_name,
+      external_price: pgNumber(b.external_price) ?? 0,
+      internal_price: pgNumber(b.internal_price) ?? 0,
+      sellable_qty: sellableQty,
+      components: items.map((i) => ({
+        product_id: i.product_id,
+        product_code: i.product_code,
+        product_name: i.product_name,
+        qty_per_bundle: i.quantity,
+        stock: i.stock,
+      })),
+    });
+  }
+
+  return { shop_id: effectiveShopId, rows };
+}
+
 // ── /returns ────────────────────────────────────────────────────────────────
 
 export interface ReturnRow {
@@ -577,10 +679,16 @@ async function buildProductBlock(
 
   for (const m of movements) {
     const typeStr = m.type;
-    const signed = m.quantity;
     const cost = m.costPerUnit !== null ? pgNumber(m.costPerUnit) ?? lastCost : lastCost;
-    const qtyIn = signed >= 0 ? signed : 0;
-    const qtyOut = signed < 0 ? -signed : 0;
+    // Bucket by the actual stock change (stock_after - stock_before), not by
+    // the sign of `quantity` — `quantity`'s sign convention isn't consistent
+    // across movement types (e.g. a 'sale'/'internal_use' row always stores
+    // the positive qty sold/issued, which is an outflow, not an inflow; a
+    // negative qty there — refund-via-POS or a stock-return requisition —
+    // is an inflow). The stock delta is unambiguous regardless of type.
+    const delta = m.stockAfter - m.stockBefore;
+    const qtyIn = delta > 0 ? delta : 0;
+    const qtyOut = delta < 0 ? -delta : 0;
     const amountIn = Math.round(qtyIn * cost * 100) / 100;
     const amountOut = Math.round(qtyOut * cost * 100) / 100;
     const balance = m.stockAfter;
@@ -912,6 +1020,7 @@ export interface SalesByItemRow {
   transaction_date: string;
   item_no: string | null;
   item_name: string;
+  is_bundle: boolean;
   receipt_number: string;
   customer_id: string | null;
   customer_name: string | null;
@@ -1003,11 +1112,22 @@ export async function salesByItemReport(args: {
       custId = payer.externalId ?? payer.username;
       custName = payer.fullName;
     }
+    // Bundle sale lines don't have a product_variant_id pointing at a real
+    // shop_products row (checkout stores the bundle's own name/code in
+    // receipt_items.options instead) — the shopProducts join above misses
+    // them, so resolve the name from options rather than falling back to
+    // "(unknown)". Same pattern as returns_service.ts's receiptToSearchDto.
+    const opts = (item.options ?? {}) as Record<string, unknown>;
+    const isBundle = Boolean(opts.is_bundle);
+    const bundleCode = isBundle && typeof opts.bundle_code === "string" ? opts.bundle_code : null;
+    const bundleName = isBundle && typeof opts.bundle_name === "string" ? opts.bundle_name : null;
+
     rows.push({
       seq: idx + 1,
       transaction_date: pgToIso(r.transactionDate)!,
-      item_no: product?.productCode ?? null,
-      item_name: product?.name ?? "(unknown)",
+      item_no: isBundle ? bundleCode : (product?.productCode ?? null),
+      item_name: isBundle ? (bundleName ?? "(unknown)") : (product?.name ?? "(unknown)"),
+      is_bundle: isBundle,
       receipt_number: r.receiptNumber,
       customer_id: custId,
       customer_name: custName,

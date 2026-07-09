@@ -24,13 +24,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
-import { Plus, Minus, Trash2, ShoppingCart, HandHelping } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, HandHelping, ScanBarcode } from "lucide-react";
 import UserPicker from "@/components/UserPicker";
 import type { DepartmentOption } from "./DepartmentPaymentModal";
+import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
+import { cn } from "@/lib/utils";
+import type { Product as StoreProduct } from "@/pages/store/storeTypes";
 
 interface Product {
   id: number;
   productCode: string;
+  barcode: string;
   name: string;
   stock: number;
   category: string;
@@ -65,7 +69,11 @@ export default function StoreRequisition() {
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [requesterId, setRequesterId] = useState<number | null>(null);
-  const [payMode, setPayMode] = useState<PayMode>("free");
+  // Defaults to "department" — most requisitions are charged to a
+  // department, so this saves the extra pick on every checkout. Shops that
+  // don't allow department charge already disable that option below, so the
+  // cashier just picks something else in that case.
+  const [payMode, setPayMode] = useState<PayMode>("department");
   const [deptId, setDeptId] = useState<number | null>(null);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [notes, setNotes] = useState("");
@@ -100,6 +108,7 @@ export default function StoreRequisition() {
           data.map((p) => ({
             id: p.id,
             productCode: p.product_code,
+            barcode: p.barcode ?? "",
             name: p.name,
             stock: p.stock,
             category: p.category,
@@ -148,11 +157,29 @@ export default function StoreRequisition() {
     });
   };
 
+  // Passive barcode/RFID scan — same behavior as the Store POS page. There's
+  // no "member" concept in requisition, so member lookups are a no-op. The
+  // hook's Product type (price/subMerchantId) differs from this page's own
+  // (externalPrice/internalPrice/shopId) — cast at this one boundary rather
+  // than reshaping either type.
+  const rfidScanner = useStoreRfidScanner({
+    products: products as unknown as StoreProduct[],
+    onProductMatch: (p) => addToCart(p as unknown as Product),
+    onMemberFound: () => {},
+  });
+
+  // Manager/admin can push a line negative — meaning stock is being
+  // returned/added back rather than issued out. Cashiers keep the original
+  // "can't go below 1, remove instead" behavior. Negative is only reachable
+  // by decrementing past zero, so for manager/admin the auto-remove-at-zero
+  // cleanup is skipped entirely (they use the trash button instead).
+  const canGoNegative = user?.role === "manager" || user?.role === "admin";
+
   const updateQty = (id: number, delta: number) => {
     setCart((prev) =>
       prev
         .map((x) => (x.id === id ? { ...x, qty: x.qty + delta } : x))
-        .filter((x) => x.qty > 0),
+        .filter((x) => (canGoNegative ? true : x.qty > 0)),
     );
   };
 
@@ -169,7 +196,7 @@ export default function StoreRequisition() {
       return;
     }
     setRequesterId(null);
-    setPayMode("free");
+    setPayMode("department");
     setDeptId(null);
     setNotes("");
     setCheckoutOpen(true);
@@ -234,11 +261,15 @@ export default function StoreRequisition() {
           )}
         </div>
 
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("requisition.searchPlaceholder", "Search by name / code / category")}
-        />
+        <div className="relative">
+          <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("requisition.searchPlaceholder", "Search or scan a barcode")}
+            className="pl-9"
+          />
+        </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filteredProducts.map((p) => (
@@ -389,6 +420,57 @@ export default function StoreRequisition() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* RFID/barcode scan auto-dismiss notification — same styling as Store POS */}
+      {rfidScanner.notif && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div
+            key={rfidScanner.notif.key}
+            className={cn(
+              "relative rounded-2xl px-8 py-6 shadow-2xl text-center min-w-[260px] max-w-[340px]",
+              "animate-in fade-in zoom-in-95 duration-150 pointer-events-auto",
+              rfidScanner.notif.type === "success"
+                ? "bg-amber-50 border-2 border-amber-300"
+                : "bg-red-50 border-2 border-red-300",
+            )}
+          >
+            <button
+              onClick={rfidScanner.dismissNotif}
+              className={cn(
+                "absolute top-2 right-2 rounded-full p-1 hover:bg-black/10 transition-colors",
+                rfidScanner.notif.type === "success" ? "text-amber-500" : "text-red-400",
+              )}
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            {rfidScanner.notif.type === "success" ? (
+              <>
+                <div className="flex justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <div className="text-xl font-bold text-amber-900 leading-tight">{rfidScanner.notif.title}</div>
+                {rfidScanner.notif.sub && (
+                  <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">{rfidScanner.notif.sub}</div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <div className="text-base font-semibold text-red-700">{rfidScanner.notif.title}</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -31,6 +31,7 @@ interface SalesByItemRow {
   transaction_date: string;
   item_no: string | null;
   item_name: string;
+  is_bundle: boolean;
   receipt_number: string;
   customer_id: string | null;
   customer_name: string | null;
@@ -182,7 +183,12 @@ export function SalesByItemReport({
         filters: buildSalesByItemFilterLines(),
       },
       columns,
-      rows: siData.rows as unknown as Record<string, unknown>[],
+      // Exports read item_name directly (no JSX), so bake the bundle suffix
+      // into the value itself rather than relying on the table's <span>.
+      rows: siData.rows.map((r) => ({
+        ...r,
+        item_name: r.is_bundle ? `${r.item_name}${t("reports.bundleSuffix", " (BUNDLE)")}` : r.item_name,
+      })) as unknown as Record<string, unknown>[],
       totals: {
         sales_qty: siData.totals.sales_qty,
         sales_amt: siData.totals.sales_amt,
@@ -336,7 +342,12 @@ export function SalesByItemReport({
                           <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
                           <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
-                          <td className="px-2 py-1.5">{r.item_name}</td>
+                          <td className="px-2 py-1.5">
+                            {r.item_name}
+                            {r.is_bundle && (
+                              <span className="text-muted-foreground">{t("reports.bundleSuffix", " (BUNDLE)")}</span>
+                            )}
+                          </td>
                           <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
                           <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
                           <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>

@@ -2,7 +2,6 @@ declare const __APP_VERSION__: string;
 
 import {
   Store,
-  RefreshCw,
   Receipt,
   History,
   Building2,
@@ -121,8 +120,6 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.storePos",         url: "/store",                icon: Store,       roles: ["manager", "cashier"] },
       { titleKey: "nav.storeRequisition", url: "/store/requisition",    icon: HandHelping, roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReceipts",    url: "/store/receipts",       icon: Receipt,     roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,      roles: ["admin", "manager", "cashier"] },
       { titleKey: "nav.storeBalanceFile", url: "/store/balance-file",   icon: BookOpen,    roles: ["admin"] },
     ],

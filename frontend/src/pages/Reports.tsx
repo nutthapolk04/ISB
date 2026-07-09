@@ -39,6 +39,7 @@ import { buildVendorSections, isMultiVendor, type CanteenShop } from "./reports/
 import { StockCardReport } from "./reports/StockCardReport";
 import { SalesSummaryReport } from "./reports/SalesSummaryReport";
 import { SalesByItemReport } from "./reports/SalesByItemReport";
+import { BundleReport } from "./reports/BundleReport";
 
 interface SalesRow {
   product_name: string;
@@ -92,6 +93,7 @@ const STORE_ONLY_REPORTS = [
   { type: "stockReport",     icon: Package,        needsRange: false },
   { type: "returnReport",    icon: ArrowLeftRight, needsRange: true  },
   { type: "stockCardReport", icon: ClipboardList,  needsRange: true  },
+  { type: "bundleReport",    icon: Package,        needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
 const REPORT_DEFS = [...COMMON_REPORTS, ...STORE_ONLY_REPORTS];
@@ -133,6 +135,7 @@ const Reports = () => {
         stockReport:          "ISB011",
         returnReport:         "ISB012",
         stockCardReport:      "ISB013",
+        bundleReport:         "ISB014",
       };
   const visibleReports = useMemo(
     () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
@@ -162,7 +165,8 @@ const Reports = () => {
     if (
       reportType === "stockCardReport" ||
       reportType === "salesSummaryReport" ||
-      reportType === "salesByItemReport"
+      reportType === "salesByItemReport" ||
+      reportType === "bundleReport"
     ) {
       setSelectedReportType(reportType);
       setReportOpenNonce((n) => n + 1);
@@ -476,6 +480,13 @@ const Reports = () => {
           selectedStall={selectedStall}
           onSelectedStallChange={setSelectedStall}
           canteenStalls={canteenStalls}
+        />
+      )}
+
+      {selectedReportType === "bundleReport" && (
+        <BundleReport
+          key={reportOpenNonce}
+          reportId={REPORT_ID_MAP["bundleReport"]}
         />
       )}
 
