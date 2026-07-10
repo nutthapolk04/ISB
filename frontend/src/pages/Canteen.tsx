@@ -982,7 +982,7 @@ export default function Canteen() {
                                 role="group"
                                 aria-label="Price mode"
                             >
-                                <button
+                                {/* <button
                                     type="button"
                                     onClick={() => cart.setPriceMode("retail")}
                                     className={cn(
@@ -1005,7 +1005,7 @@ export default function Canteen() {
                                     )}
                                 >
                                     Internal
-                                </button>
+                                </button> */}
                             </div>
                         )}
                         <Button
@@ -1017,7 +1017,7 @@ export default function Canteen() {
                             <UserSearch className="h-4 w-4" />
                             <span className="hidden sm:inline">{t("canteen.pos.searchMember")}</span>
                         </Button>
-                        {hasRole("cashier", "manager", "admin") && CANTEEN_SHOP_ID && (
+                        {hasRole("manager") && CANTEEN_SHOP_ID && (
                             <UpToDateSaleButton
                                 shopId={CANTEEN_SHOP_ID}
                                 shopName={user?.shopName}

@@ -44,6 +44,7 @@ export interface ReceiptItemApi {
     variant_name: string | null;
     barcode: string | null;
   } | null;
+  price_override?: number | null;
 }
 
 export interface PayerDetail {
@@ -204,7 +205,8 @@ export function buildReceiptHtml(
     const discountLine = item.discount > 0
       ? `<div class="row disc"><span>${lbl.itemDiscount}</span><span>-฿${item.discount.toLocaleString()}</span></div>`
       : "";
-    const unitPriceLine = `<div class="item-sub">${isEn ? "Unit price" : "ราคา/ชิ้น"}: ฿${item.unit_price.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })} &nbsp;·&nbsp; ${isEn ? "Total" : "รวม"}: ฿${item.line_total.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</div>`;
+    const totalLabel = item.price_override != null ? (isEn ? "Change price" : "แก้ไขราคา") : (isEn ? "Total" : "รวม");
+    const unitPriceLine = `<div class="item-sub">${isEn ? "Unit price" : "ราคา/ชิ้น"}: ฿${item.unit_price.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })} &nbsp;·&nbsp; ${totalLabel}: ฿${item.line_total.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</div>`;
     return `
       <div class="row">
         <span>${name} ×${item.quantity}</span>

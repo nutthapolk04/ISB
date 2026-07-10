@@ -211,10 +211,10 @@ export function useCanteenCart(): CanteenCartState {
 
   const decrementLine = useCallback((cartLineId: string) => {
     setItems((prev) =>
-      prev.flatMap((i) => {
-        if (i.cartLineId !== cartLineId) return [i];
+      prev.map((i) => {
+        if (i.cartLineId !== cartLineId) return i;
         const next = i.quantity - 1;
-        return next <= 0 ? [] : [{ ...i, quantity: next }];
+        return { ...i, quantity: next === 0 ? -1 : next };
       }),
     );
   }, []);

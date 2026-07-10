@@ -121,8 +121,8 @@ const menuGroups: MenuGroup[] = [
       { titleKey: "nav.storePos",         url: "/store",                icon: Store,       roles: ["manager", "cashier"] },
       { titleKey: "nav.storeRequisition", url: "/store/requisition",    icon: HandHelping, roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReceipts",    url: "/store/receipts",       icon: Receipt,     roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
-      { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
+      // { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
+      // { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
       { titleKey: "nav.storeReports",    url: "/store/reports",        icon: BarChart3,      roles: ["admin", "manager", "cashier"] },
       { titleKey: "nav.storeBalanceFile", url: "/store/balance-file",   icon: BookOpen,    roles: ["admin"] },
     ],
@@ -196,7 +196,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="h-auto px-4 py-4">
             {open && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center gap-3 ">
                 {school.logoUrl ? (
                   <img
                     src={school.logoUrl}
@@ -210,7 +210,7 @@ export function AppSidebar() {
                     className="h-11 w-11 shrink-0 rounded-md object-contain"
                   />
                 )}
-                <span className="text-sidebar-foreground text-[1.518rem] font-bold">
+                <span  className="text-sidebar-foreground text-sm font-bold -mt-[15px]">
                   {school.name || t("nav.systemTitle")}
                 </span>
               </div>

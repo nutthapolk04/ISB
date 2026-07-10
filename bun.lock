@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "isb-monorepo",
+      "dependencies": {
+        "postgres": "^3.4.9",
+      },
     },
     "backend-bun": {
       "name": "@isb/backend-bun",
