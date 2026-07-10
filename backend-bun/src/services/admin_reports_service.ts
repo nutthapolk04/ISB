@@ -2,7 +2,7 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, desc, eq, gte, isNull, like, lt } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { walletTransactions, wallets, customers, users, departments } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
@@ -172,9 +172,15 @@ export async function transferReport(args: {
     page: number;
     pageSize: number;
 }): Promise<TransferReportResponseDTO> {
+    // transferWithinFamily() writes two legs per transfer (DEDUCTION on the
+    // source wallet, TOPUP on the destination) sharing referenceType
+    // 'family_transfer'. Filtering to just the DEDUCTION leg gives exactly
+    // one row per transfer with the correct from→to direction — the TOPUP
+    // leg's walletId/referenceId are the same pair reversed, so including
+    // both would double-count every transfer and show half of them backwards.
     const conds = [
         eq(walletTransactions.referenceType, "family_transfer"),
-        like(walletTransactions.description, "Family transfer →%"),
+        eq(walletTransactions.transactionType, "DEDUCTION"),
     ];
     if (args.dateFrom) conds.push(gte(walletTransactions.createdAt, args.dateFrom));
     if (args.dateTo) {

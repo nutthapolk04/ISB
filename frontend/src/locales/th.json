@@ -1193,7 +1193,7 @@
     },
     "walletTransfer": {
       "title": "โอนเงินระหว่างกระเป๋า",
-      "description": "โอนเงินระหว่างกระเป๋าของผู้ปกครองกับกระเป๋าของเด็ก",
+      "description": "โอนเงินระหว่างกระเป๋าคู่ไหนก็ได้ — ค้นหาผู้ใช้งาน หรือโอนภายในครอบครัวของเขา",
       "searchTitle": "ค้นหาผู้ใช้งาน",
       "searchPlaceholder": "กรอกรหัสผู้ใช้งาน / รหัสพนักงาน / รหัสผู้ปกครอง / รหัสนักเรียน",
       "search": "ค้นหา",
@@ -1224,7 +1224,14 @@
       "historyTitle": "ประวัติการโอน",
       "noHistory": "ยังไม่มีการโอน",
       "tapToTransfer": "แตะเพื่อโอน",
-      "transferringForStudent": "โอนสำหรับนักเรียน"
+      "transferringForStudent": "โอนสำหรับนักเรียน",
+      "recipientSearchTitle": "ค้นหาผู้รับโอน",
+      "recipientSearchPlaceholder": "กรอกรหัสผู้ใช้งาน / รหัสพนักงาน / รหัสผู้ปกครอง / รหัสนักเรียน",
+      "recipientSearchHint": "โอนให้ผู้ใช้งานคนไหนก็ได้ — ไม่จำกัดแค่ครอบครัวของบัญชีนี้",
+      "recipientLookupFailed": "ไม่พบผู้ใช้งาน",
+      "recipientSameAsSource": "เป็นบัญชีเดียวกับที่ค้นหาไว้ด้านบนแล้ว",
+      "selectAsRecipient": "เลือกเป็นผู้รับโอน",
+      "recipientSelected": "เลือกผู้รับโอนแล้ว"
     },
     "cards": {
       "title": "จัดการบัตร (UID Mapping)",

@@ -101,10 +101,45 @@ interface ChildSummary {
   wallet_balance?: number | null;
 }
 
-interface TransferTarget {
-  child: ChildSummary;
-  direction: "parent_to_child" | "child_to_parent";
+// Normalized shape for "the other side" of a transfer — built either from a
+// family member (ChildSummary, via the linked-children/siblings cards) or
+// from an independently-searched user (ParentInfo, via the recipient search
+// box). Both feed the same transfer panel below.
+interface Counterparty {
+  key: string;
+  name: string;
+  code: string;
+  photo_url: string | null;
+  wallet_id: number | null;
+  wallet_balance: number | null;
+  card_frozen?: boolean;
+  grade?: string | null;
 }
+
+interface TransferTarget {
+  counterparty: Counterparty;
+  direction: "a_to_b" | "b_to_a";
+}
+
+const counterpartyFromChild = (child: ChildSummary): Counterparty => ({
+  key: `child-${child.customer_id}`,
+  name: child.name,
+  code: child.student_code ?? child.customer_code,
+  photo_url: child.photo_url ?? null,
+  wallet_id: child.wallet_id ?? null,
+  wallet_balance: child.wallet_balance ?? null,
+  card_frozen: child.card_frozen,
+  grade: child.grade,
+});
+
+const counterpartyFromUser = (u: ParentInfo): Counterparty => ({
+  key: `user-${u.user_id}`,
+  name: u.full_name ?? u.username,
+  code: u.username,
+  photo_url: u.photo_url,
+  wallet_id: u.wallet_id,
+  wallet_balance: u.wallet_balance,
+});
 
 interface ParentSummary {
   user_id: number;
@@ -197,6 +232,13 @@ export default function WalletTransfer() {
   const [note, setNote] = useState("");
   const [transferring, setTransferring] = useState(false);
 
+  // Independent recipient search — transfer to ANY user, not just someone
+  // shown in the searched account's family/context cards above.
+  const [recipientInput, setRecipientInput] = useState("");
+  const [recipientSearching, setRecipientSearching] = useState(false);
+  const [recipientError, setRecipientError] = useState<string | null>(null);
+  const [recipientResult, setRecipientResult] = useState<ParentInfo | null>(null);
+
   const handleSearch = async () => {
     const q = searchInput.trim();
     if (!q) return;
@@ -207,6 +249,9 @@ export default function WalletTransfer() {
     setTarget(null);
     setStudentContext(null);
     setStudentSnapshot(null);
+    setRecipientInput("");
+    setRecipientError(null);
+    setRecipientResult(null);
     try {
       const p = await api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(q)}`);
       setParent(p);
@@ -268,20 +313,52 @@ export default function WalletTransfer() {
       is_active: true,
     });
     setStudentContext(null);
-    setTarget({ child: studentChild, direction: "parent_to_child" });
+    setTarget({ counterparty: counterpartyFromChild(studentChild), direction: "a_to_b" });
+    setAmount("");
+    setNote("");
+  };
+
+  // Independent recipient search — finds ANY user by username, regardless of
+  // family relation to the account searched above. This is the escape hatch
+  // for transferring between two unrelated wallets (e.g. two students who
+  // aren't siblings); the family cards above remain a same-page shortcut for
+  // the common case.
+  const handleRecipientSearch = async () => {
+    const q = recipientInput.trim();
+    if (!q) return;
+    setRecipientSearching(true);
+    setRecipientError(null);
+    setRecipientResult(null);
+    try {
+      const r = await api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(q)}`);
+      if (parent && r.wallet_id === parent.wallet_id) {
+        setRecipientError(t("admin.walletTransfer.recipientSameAsSource"));
+        return;
+      }
+      setRecipientResult(r);
+    } catch (e) {
+      setRecipientError(e instanceof ApiError ? e.detail : t("admin.walletTransfer.recipientLookupFailed"));
+    } finally {
+      setRecipientSearching(false);
+    }
+  };
+
+  const handleSelectRecipient = () => {
+    if (!recipientResult) return;
+    setTarget({ counterparty: counterpartyFromUser(recipientResult), direction: "a_to_b" });
     setAmount("");
     setNote("");
   };
 
   const handleTransfer = async () => {
-    if (!parent || !target || !target.child.wallet_id) return;
+    if (!parent || !target || !target.counterparty.wallet_id) return;
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return;
 
     const fromWalletId =
-      target.direction === "parent_to_child" ? parent.wallet_id : target.child.wallet_id;
+      target.direction === "a_to_b" ? parent.wallet_id : target.counterparty.wallet_id;
     const toWalletId =
-      target.direction === "parent_to_child" ? target.child.wallet_id : parent.wallet_id;
+      target.direction === "a_to_b" ? target.counterparty.wallet_id : parent.wallet_id;
 
     setTransferring(true);
     try {
@@ -297,23 +374,41 @@ export default function WalletTransfer() {
         description: t("admin.walletTransfer.successDesc", {
           amount: formatTHB(amt),
           from:
-            target.direction === "parent_to_child"
+            target.direction === "a_to_b"
               ? (parent.full_name ?? parent.username)
-              : target.child.name,
+              : target.counterparty.name,
           to:
-            target.direction === "parent_to_child"
-              ? target.child.name
+            target.direction === "a_to_b"
+              ? target.counterparty.name
               : (parent.full_name ?? parent.username),
         }),
       });
 
-      // Re-fetch updated balances
-      const [updatedParent, updatedChildren] = await Promise.all([
-        api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(parent.username)}`),
-        api.get<{ children: ChildSummary[]; coparents: unknown[] }>(`/family/by-user/${parent.user_id}`),
-      ]);
+      // Re-fetch updated balances. Party A's own family context depends on
+      // whether they're a student (parents/siblings) or a parent/staff
+      // (children) — same branch as handleSearch.
+      const updatedParent = await api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(parent.username)}`);
       setParent(updatedParent);
-      setChildren(updatedChildren.children);
+      if (updatedParent.role === "student") {
+        try {
+          const ctx = await api.get<StudentFamilyContext>(`/family/context/${encodeURIComponent(updatedParent.username)}`);
+          setStudentContext(ctx);
+        } catch {
+          // No family linked — fine, just show empty
+        }
+      } else {
+        const { children: ch } = await api.get<{ children: ChildSummary[]; coparents: unknown[] }>(`/family/by-user/${updatedParent.user_id}`);
+        setChildren(ch);
+      }
+      // Refresh the independently-searched recipient's balance too, if used.
+      if (target.counterparty.key.startsWith("user-") && recipientResult) {
+        try {
+          const updatedRecipient = await api.get<ParentInfo>(`/users/by-username/${encodeURIComponent(recipientResult.username)}`);
+          setRecipientResult(updatedRecipient);
+        } catch {
+          // best-effort refresh only
+        }
+      }
       setTarget(null);
       setAmount("");
       setNote("");
@@ -330,17 +425,17 @@ export default function WalletTransfer() {
 
   const amt = parseFloat(amount) || 0;
   const fromBalance =
-    target?.direction === "parent_to_child"
+    target?.direction === "a_to_b"
       ? parent?.wallet_balance ?? 0
-      : target?.child.wallet_balance ?? 0;
+      : target?.counterparty.wallet_balance ?? 0;
   const toBalance =
-    target?.direction === "parent_to_child"
-      ? target?.child.wallet_balance ?? 0
+    target?.direction === "a_to_b"
+      ? target?.counterparty.wallet_balance ?? 0
       : parent?.wallet_balance ?? 0;
   const willGoNegative = fromBalance - amt < 0;
   const canTransfer =
     target !== null &&
-    target.child.wallet_id != null &&
+    target.counterparty.wallet_id != null &&
     amt > 0 &&
     note.trim().length > 0 &&
     !transferring;
@@ -578,7 +673,7 @@ export default function WalletTransfer() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             {children.map((child) => {
-              const isSelected = target?.child.customer_id === child.customer_id;
+              const isSelected = target?.counterparty.key === `child-${child.customer_id}`;
               return (
                 <Card
                   key={child.customer_id}
@@ -591,7 +686,7 @@ export default function WalletTransfer() {
                     if (isSelected) {
                       setTarget(null);
                     } else {
-                      setTarget({ child, direction: "parent_to_child" });
+                      setTarget({ counterparty: counterpartyFromChild(child), direction: "a_to_b" });
                       setAmount("");
                       setNote("");
                     }
@@ -644,6 +739,74 @@ export default function WalletTransfer() {
         </div>
       )}
 
+      {/* Independent recipient search — transfer to anyone, not just family */}
+      {parent && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t("admin.walletTransfer.recipientSearchTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">{t("admin.walletTransfer.recipientSearchHint")}</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder={t("admin.walletTransfer.recipientSearchPlaceholder")}
+                value={recipientInput}
+                onChange={(e) => setRecipientInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRecipientSearch()}
+                className="flex-1"
+              />
+              <Button onClick={handleRecipientSearch} disabled={recipientSearching || !recipientInput.trim()}>
+                <Search className="h-4 w-4 mr-1" />
+                {recipientSearching ? t("admin.walletTransfer.searching") : t("admin.walletTransfer.search")}
+              </Button>
+            </div>
+            {recipientError && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                {recipientError}
+              </p>
+            )}
+            {recipientResult && (
+              <Card
+                className={`transition-all ${
+                  target?.counterparty.key === `user-${recipientResult.user_id}`
+                    ? "ring-2 ring-primary border-primary"
+                    : "border-amber-200 bg-amber-50/50 cursor-pointer hover:border-primary/40"
+                }`}
+                onClick={handleSelectRecipient}
+              >
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={resolveAvatarUrl(recipientResult.photo_url, recipientResult.username || recipientResult.full_name)}
+                      alt={recipientResult.full_name ?? recipientResult.username}
+                      className="h-10 w-10 shrink-0 rounded-full object-cover border-2 border-amber-300"
+                      onError={(e) => { e.currentTarget.src = getFallbackAvatar(recipientResult.username || recipientResult.full_name); }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{recipientResult.full_name ?? recipientResult.username}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Badge variant="outline" className="text-xs font-mono bg-white">{recipientResult.username}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-900 capitalize">{recipientResult.role}</Badge>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-muted-foreground">{t("admin.walletTransfer.balance")}</p>
+                      <p className="font-bold text-sm text-amber-900">{formatTHB(recipientResult.wallet_balance)}</p>
+                      <p className="text-[10px] text-primary mt-0.5">
+                        {target?.counterparty.key === `user-${recipientResult.user_id}`
+                          ? t("admin.walletTransfer.recipientSelected")
+                          : t("admin.walletTransfer.selectAsRecipient")}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Transfer panel */}
       {target && parent && (
         <Card className="border-primary/40">
@@ -657,9 +820,9 @@ export default function WalletTransfer() {
             {/* Direction toggle */}
             <div className="grid grid-cols-2 gap-2">
               <Button
-                variant={target.direction === "parent_to_child" ? "default" : "outline"}
+                variant={target.direction === "a_to_b" ? "default" : "outline"}
                 className="h-auto py-2 px-3 flex flex-col items-start gap-0.5 text-left"
-                onClick={() => setTarget({ ...target, direction: "parent_to_child" })}
+                onClick={() => setTarget({ ...target, direction: "a_to_b" })}
               >
                 <span className="text-xs opacity-70">{t("admin.walletTransfer.from")}</span>
                 <span className="font-medium text-sm truncate w-full">
@@ -667,15 +830,15 @@ export default function WalletTransfer() {
                 </span>
                 <ArrowRight className="h-3.5 w-3.5 self-center opacity-60" />
                 <span className="text-xs opacity-70">{t("admin.walletTransfer.to")}</span>
-                <span className="font-medium text-sm truncate w-full">{target.child.name}</span>
+                <span className="font-medium text-sm truncate w-full">{target.counterparty.name}</span>
               </Button>
               <Button
-                variant={target.direction === "child_to_parent" ? "default" : "outline"}
+                variant={target.direction === "b_to_a" ? "default" : "outline"}
                 className="h-auto py-2 px-3 flex flex-col items-start gap-0.5 text-left"
-                onClick={() => setTarget({ ...target, direction: "child_to_parent" })}
+                onClick={() => setTarget({ ...target, direction: "b_to_a" })}
               >
                 <span className="text-xs opacity-70">{t("admin.walletTransfer.from")}</span>
-                <span className="font-medium text-sm truncate w-full">{target.child.name}</span>
+                <span className="font-medium text-sm truncate w-full">{target.counterparty.name}</span>
                 <ArrowRight className="h-3.5 w-3.5 self-center opacity-60" />
                 <span className="text-xs opacity-70">{t("admin.walletTransfer.to")}</span>
                 <span className="font-medium text-sm truncate w-full">
@@ -728,9 +891,9 @@ export default function WalletTransfer() {
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">
-                    {target.direction === "parent_to_child"
+                    {target.direction === "a_to_b"
                       ? (parent.full_name ?? parent.username)
-                      : target.child.name}
+                      : target.counterparty.name}
                   </span>
                   <span className="font-mono">
                     {formatTHB(fromBalance)} →{" "}
@@ -741,8 +904,8 @@ export default function WalletTransfer() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">
-                    {target.direction === "parent_to_child"
-                      ? target.child.name
+                    {target.direction === "a_to_b"
+                      ? target.counterparty.name
                       : (parent.full_name ?? parent.username)}
                   </span>
                   <span className="font-mono">

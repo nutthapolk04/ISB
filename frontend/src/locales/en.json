@@ -1193,7 +1193,7 @@
     },
     "walletTransfer": {
       "title": "Wallet Transfer",
-      "description": "Transfer balance between a parent's wallet and their children's wallets",
+      "description": "Transfer balance between any two wallets — search for a user, or transfer within their family",
       "searchTitle": "Look up user",
       "searchPlaceholder": "Enter username / staff code / parent code / student code",
       "search": "Search",
@@ -1224,7 +1224,14 @@
       "historyTitle": "Transfer History",
       "noHistory": "No transfers yet.",
       "tapToTransfer": "Tap to transfer",
-      "transferringForStudent": "Transferring for student"
+      "transferringForStudent": "Transferring for student",
+      "recipientSearchTitle": "Search recipient",
+      "recipientSearchPlaceholder": "Enter username / staff code / parent code / student code",
+      "recipientSearchHint": "Transfer to any user — not limited to this account's family",
+      "recipientLookupFailed": "User not found",
+      "recipientSameAsSource": "This is the same account you already searched above",
+      "selectAsRecipient": "Select as recipient",
+      "recipientSelected": "Recipient selected"
     },
     "cards": {
       "title": "Card Management (UID Mapping)",
