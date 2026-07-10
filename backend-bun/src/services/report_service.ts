@@ -856,6 +856,7 @@ export interface SalesSummaryRow {
   remark: string | null;
   shop_id: string;
   shop_name: string | null;
+  bundle_names: string | null;
 }
 
 export interface SalesSummaryTotals {
@@ -940,6 +941,28 @@ export async function salesSummaryReport(args: {
     .where(and(...filterConds))
     .orderBy(asc(shops.name), desc(receipts.transactionDate), desc(receipts.id));
 
+  // Bundle sale lines don't have their own row in this receipt-level report,
+  // so collect the bundle name(s) per receipt from receiptItems.options
+  // (same is_bundle/bundle_name shape used by salesByItemReport) to surface
+  // as a "Bundle" column instead of leaving bundle sales invisible here.
+  const receiptIds = allRows.map(({ receipt: r }) => r.id);
+  const bundleNamesByReceiptId = new Map<number, string[]>();
+  if (receiptIds.length > 0) {
+    const bundleItemRows = await db
+      .select({ receiptId: receiptItems.receiptId, options: receiptItems.options })
+      .from(receiptItems)
+      .where(inArray(receiptItems.receiptId, receiptIds));
+    for (const item of bundleItemRows) {
+      const opts = (item.options ?? {}) as Record<string, unknown>;
+      if (!opts.is_bundle) continue;
+      const bundleName = typeof opts.bundle_name === "string" ? opts.bundle_name : null;
+      if (!bundleName) continue;
+      const list = bundleNamesByReceiptId.get(item.receiptId) ?? [];
+      list.push(bundleName);
+      bundleNamesByReceiptId.set(item.receiptId, list);
+    }
+  }
+
   const rows: SalesSummaryRow[] = [];
   const totals: SalesSummaryTotals = {
     amt_receive: 0,
@@ -973,7 +996,7 @@ export async function salesSummaryReport(args: {
     const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
     const buckets: Omit<
       SalesSummaryRow,
-      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name"
+      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name" | "bundle_names"
     > = {
       amt_billing: 0,
       amt_cash: 0,
@@ -983,6 +1006,8 @@ export async function salesSummaryReport(args: {
       amt_other: 0,
     };
     (buckets as Record<string, number>)[col] = amtReceive;
+
+    const bundleNames = bundleNamesByReceiptId.get(r.id);
 
     rows.push({
       seq: idx + 1,
@@ -995,6 +1020,7 @@ export async function salesSummaryReport(args: {
       remark: r.notes ?? null,
       shop_id: r.shopId ?? "",
       shop_name: shop?.name ?? null,
+      bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
       ...buckets,
     });
 

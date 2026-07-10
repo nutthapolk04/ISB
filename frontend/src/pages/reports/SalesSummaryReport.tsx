@@ -47,6 +47,7 @@ interface SalesSummaryRow {
   remark: string | null;
   shop_id: string;
   shop_name: string | null;
+  bundle_names: string | null;
 }
 
 interface SalesSummaryTotals {
@@ -216,6 +217,7 @@ export function SalesSummaryReport({
       { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
       { header: "Amt. Other",       key: "amt_other",        format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
+      { header: "Bundle",           key: "bundle_names",     width: 90  },
     ];
 
     const multi = isMultiVendor(ssData.rows);
@@ -224,6 +226,7 @@ export function SalesSummaryReport({
     if (multi) {
       bodyRows = buildVendorSections(ssData.rows, (shopRows) => ({
         customer_name: "Subtotal",
+        bundle_names: "",
         amt_receive:      shopRows.reduce((s, r) => s + r.amt_receive,     0),
         amt_change:       shopRows.reduce((s, r) => s + r.amt_change,      0),
         amt_billing:      shopRows.reduce((s, r) => s + r.amt_billing,     0),
@@ -444,12 +447,13 @@ export function SalesSummaryReport({
                       <th className="px-2 py-2 text-right">Amt. QR Code</th>
                       <th className="px-2 py-2 text-right">Amt. Other</th>
                       <th className="px-2 py-2 text-left">Remark</th>
+                      <th className="px-2 py-2 text-left">Bundle</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ssData.rows.length === 0 ? (
                       <tr>
-                        <td colSpan={14} className="px-3 py-4 text-center text-muted-foreground">
+                        <td colSpan={15} className="px-3 py-4 text-center text-muted-foreground">
                           No receipts match these filters.
                         </td>
                       </tr>
@@ -470,6 +474,7 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code > 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_other > 0 ? r.amt_other.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{r.bundle_names ?? ""}</td>
                         </tr>
                       ))
                     )}
@@ -486,6 +491,7 @@ export function SalesSummaryReport({
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_credit_card.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_other.toFixed(2)}</td>
+                        <td />
                         <td />
                       </tr>
                     </tfoot>
