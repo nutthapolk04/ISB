@@ -1194,8 +1194,8 @@
     "walletTransfer": {
       "title": "Wallet Transfer",
       "description": "Transfer balance between a parent's wallet and their children's wallets",
-      "searchTitle": "Look up parent",
-      "searchPlaceholder": "Enter parent username / staff code",
+      "searchTitle": "Look up user",
+      "searchPlaceholder": "Enter username / staff code / parent code / student code",
       "search": "Search",
       "searching": "Searching…",
       "lookupFailed": "User not found",
