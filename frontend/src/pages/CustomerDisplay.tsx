@@ -24,78 +24,78 @@ import { FailedScreen } from "./customer-display/FailedScreen";
 const TERMINAL_DWELL_MS = 5000;
 
 export default function CustomerDisplay() {
-  const display = useDisplayState();
-  const [forceStandby, setForceStandby] = useState(false);
+    const display = useDisplayState();
+    const [forceStandby, setForceStandby] = useState(false);
 
-  useEffect(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
-  }, []);
+    useEffect(() => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => { });
+        }
+    }, []);
 
-  // Whenever a fresh non-terminal state arrives, clear the "force standby"
-  // override so the next transaction is rendered normally.
-  useEffect(() => {
-    if (display.state !== "success" && display.state !== "failed") {
-      setForceStandby(false);
-    }
-  }, [display.state]);
+    // Whenever a fresh non-terminal state arrives, clear the "force standby"
+    // override so the next transaction is rendered normally.
+    useEffect(() => {
+        if (display.state !== "success" && display.state !== "failed") {
+            setForceStandby(false);
+        }
+    }, [display.state]);
 
-  // Auto-return to Standby 5 s after a terminal state lands. We don't push
-  // a "standby" broadcast from here — that's the POS's job. We just stop
-  // rendering the result locally so the customer sees the standby rotation
-  // again until the next transaction.
-  useEffect(() => {
-    if (display.state !== "success" && display.state !== "failed") return;
-    const id = window.setTimeout(() => setForceStandby(true), TERMINAL_DWELL_MS);
-    return () => window.clearTimeout(id);
-  }, [display]);
+    // Auto-return to Standby 5 s after a terminal state lands. We don't push
+    // a "standby" broadcast from here — that's the POS's job. We just stop
+    // rendering the result locally so the customer sees the standby rotation
+    // again until the next transaction.
+    useEffect(() => {
+        if (display.state !== "success" && display.state !== "failed") return;
+        const id = window.setTimeout(() => setForceStandby(true), TERMINAL_DWELL_MS);
+        return () => window.clearTimeout(id);
+    }, [display]);
 
-  const screen = (() => {
-    if (forceStandby) return <StandbyScreen />;
-    switch (display.state) {
-      case "review":
-        return (
-          <OrderReviewScreen
-            items={display.items}
-            total={display.total}
-            payer={display.payer}
-          />
-        );
-      case "qr":
-        return (
-          <QRScreen
-            items={display.items}
-            total={display.total}
-            qrPayload={display.qrPayload}
-            expiresAt={display.expiresAt}
-          />
-        );
-      case "processing":
-        return (
-          <ProcessingScreen
-            items={display.items}
-            total={display.total}
-            payer={display.payer}
-            method={display.method}
-          />
-        );
-      case "success":
-        return (
-          <SuccessScreen
-            total={display.total}
-            payer={display.payer}
-            method={display.method}
-            receiptNumber={display.receiptNumber}
-          />
-        );
-      case "failed":
-        return <FailedScreen reason={display.reason} payer={display.payer ?? null} />;
-      case "standby":
-      default:
-        return <StandbyScreen />;
-    }
-  })();
+    const screen = (() => {
+        if (forceStandby) return <StandbyScreen />;
+        switch (display.state) {
+            case "review":
+                return (
+                    <OrderReviewScreen
+                        items={display.items}
+                        total={display.total}
+                        payer={display.payer}
+                    />
+                );
+            case "qr":
+                return (
+                    <QRScreen
+                        items={display.items}
+                        total={display.total}
+                        qrPayload={display.qrPayload}
+                        expiresAt={display.expiresAt}
+                    />
+                );
+            case "processing":
+                return (
+                    <ProcessingScreen
+                        items={display.items}
+                        total={display.total}
+                        payer={display.payer}
+                        method={display.method}
+                    />
+                );
+            case "success":
+                return (
+                    <SuccessScreen
+                        total={display.total}
+                        payer={display.payer}
+                        method={display.method}
+                        receiptNumber={display.receiptNumber}
+                    />
+                );
+            case "failed":
+                return <FailedScreen reason={display.reason} payer={display.payer ?? null} />;
+            case "standby":
+            default:
+                return <StandbyScreen />;
+        }
+    })();
 
-  return screen;
+    return screen;
 }

@@ -2,19 +2,19 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -27,13 +27,13 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
-  exportToPDF,
-  exportToExcel,
-  buildDateFilterLine,
-  SECTION_KEY,
-  EMPHASIS_KEY,
-  type ReportColumn,
-  type ReportPayload,
+    exportToPDF,
+    exportToExcel,
+    buildDateFilterLine,
+    SECTION_KEY,
+    EMPHASIS_KEY,
+    type ReportColumn,
+    type ReportPayload,
 } from "@/lib/reportExport";
 import { buildVendorSections, isMultiVendor, type CanteenShop } from "./reports/reportHelpers";
 import { StockCardReport } from "./reports/StockCardReport";
@@ -42,12 +42,12 @@ import { SalesByItemReport } from "./reports/SalesByItemReport";
 import { BundleReport } from "./reports/BundleReport";
 
 interface SalesRow {
-  product_name: string;
-  quantity: number;
-  total: number;
-  shop_id: string;
-  shop_name: string | null;
-  status: string;
+    product_name: string;
+    quantity: number;
+    total: number;
+    shop_id: string;
+    shop_name: string | null;
+    status: string;
 }
 interface SalesReportData { rows: SalesRow[]; grand_total: number; receipt_count: number; }
 
@@ -55,36 +55,36 @@ interface StockRow { product_code: string | null; product_name: string; stock_qt
 interface StockReportData { rows: StockRow[]; }
 
 interface ReturnRow {
-  id: number; return_date: string; receipt_number: string;
-  product_name: string; quantity: number;
-  refund_amount: number; exchange_amount: number; status: string;
+    id: number; return_date: string; receipt_number: string;
+    product_name: string; quantity: number;
+    refund_amount: number; exchange_amount: number; status: string;
 }
 interface ReturnReportData { rows: ReturnRow[]; total_refund: number; total_exchange: number; }
 
 interface SalesByPaymentRow {
-  payment_method: string;
-  receipt_count: number;
-  total: number;
-  shop_id: string;
-  shop_name: string | null;
-  status: string;
+    payment_method: string;
+    receipt_count: number;
+    total: number;
+    shop_id: string;
+    shop_name: string | null;
+    status: string;
 }
 interface SalesByPaymentReportData {
-  rows: SalesByPaymentRow[];
-  grand_total: number;
-  total_receipts: number;
-  retail_total: number;
-  department_total: number;
-  department_receipts: number;
+    rows: SalesByPaymentRow[];
+    grand_total: number;
+    total_receipts: number;
+    retail_total: number;
+    department_total: number;
+    department_receipts: number;
 }
 
 // Reports that apply to BOTH modules (canteen + store).
 const COMMON_REPORTS = [
-  { type: "salesReport",          icon: FileText,        needsRange: true  },
-  { type: "topSellingReport",     icon: TrendingUp,      needsRange: true  },
-  { type: "salesByPaymentReport", icon: CreditCard,      needsRange: true  },
-  { type: "salesSummaryReport",   icon: FileText,        needsRange: false },
-  { type: "salesByItemReport",    icon: Package,         needsRange: false },
+    { type: "salesReport", icon: FileText, needsRange: true },
+    { type: "topSellingReport", icon: TrendingUp, needsRange: true },
+    { type: "salesByPaymentReport", icon: CreditCard, needsRange: true },
+    { type: "salesSummaryReport", icon: FileText, needsRange: false },
+    { type: "salesByItemReport", icon: Package, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
 // Store-only reports — these don't make sense in a canteen context.
@@ -92,509 +92,509 @@ const COMMON_REPORTS = [
 // daily prep rather than SKU-level stock tracking, so per-SKU stock and
 // stock-card reports belong to the store/coop module only.
 const STORE_ONLY_REPORTS = [
-  { type: "stockReport",     icon: Package,        needsRange: false },
-  { type: "returnReport",    icon: ArrowLeftRight, needsRange: true  },
-  { type: "stockCardReport", icon: ClipboardList,  needsRange: true  },
-  { type: "bundleReport",    icon: Package,        needsRange: false },
+    { type: "stockReport", icon: Package, needsRange: false },
+    { type: "returnReport", icon: ArrowLeftRight, needsRange: true },
+    { type: "stockCardReport", icon: ClipboardList, needsRange: true },
+    { type: "bundleReport", icon: Package, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
 const REPORT_DEFS = [...COMMON_REPORTS, ...STORE_ONLY_REPORTS];
 
 const Reports = () => {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const school = useSchoolInfo();
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [selectedReportType, setSelectedReportType] = useState<string>("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [exporting, setExporting] = useState(false);
-  // Bumped on every report-tile click so the inline panel components below
-  // remount (via `key`) and reset their internal state — this preserves the
-  // old behavior where re-clicking an already-open report cleared its data.
-  const [reportOpenNonce, setReportOpenNonce] = useState(0);
+    const { t } = useTranslation();
+    const { user } = useAuth();
+    const school = useSchoolInfo();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [selectedReportType, setSelectedReportType] = useState<string>("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [exporting, setExporting] = useState(false);
+    // Bumped on every report-tile click so the inline panel components below
+    // remount (via `key`) and reset their internal state — this preserves the
+    // old behavior where re-clicking an already-open report cleared its data.
+    const [reportOpenNonce, setReportOpenNonce] = useState(0);
 
-  // Determine which module's Reports page we're rendering. /canteen/reports
-  // narrows the visible cards to canteen-relevant ones; /store/reports and
-  // /admin/reports get every report.
-  const location = useLocation();
-  const isCanteenReportsPage = location.pathname.startsWith("/canteen/");
+    // Determine which module's Reports page we're rendering. /canteen/reports
+    // narrows the visible cards to canteen-relevant ones; /store/reports and
+    // /admin/reports get every report.
+    const location = useLocation();
+    const isCanteenReportsPage = location.pathname.startsWith("/canteen/");
 
-  const REPORT_ID_MAP: Record<string, string> = isCanteenReportsPage
-    ? {
-        salesReport:          "ISB001",
-        topSellingReport:     "ISB002",
-        salesByPaymentReport: "ISB003",
-        salesSummaryReport:   "ISB004",
-        salesByItemReport:    "ISB005",
-      }
-    : {
-        salesReport:          "ISB006",
-        topSellingReport:     "ISB007",
-        salesByPaymentReport: "ISB008",
-        salesSummaryReport:   "ISB009",
-        salesByItemReport:    "ISB010",
-        stockReport:          "ISB011",
-        returnReport:         "ISB012",
-        stockCardReport:      "ISB013",
-        bundleReport:         "ISB014",
-      };
-  const visibleReports = useMemo(
-    () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
-    [isCanteenReportsPage],
-  );
+    const REPORT_ID_MAP: Record<string, string> = isCanteenReportsPage
+        ? {
+            salesReport: "ISB001",
+            topSellingReport: "ISB002",
+            salesByPaymentReport: "ISB003",
+            salesSummaryReport: "ISB004",
+            salesByItemReport: "ISB005",
+        }
+        : {
+            salesReport: "ISB006",
+            topSellingReport: "ISB007",
+            salesByPaymentReport: "ISB008",
+            salesSummaryReport: "ISB009",
+            salesByItemReport: "ISB010",
+            stockReport: "ISB011",
+            returnReport: "ISB012",
+            stockCardReport: "ISB013",
+            bundleReport: "ISB014",
+        };
+    const visibleReports = useMemo(
+        () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
+        [isCanteenReportsPage],
+    );
 
-  // Shop selector visibility:
-  //  - admin: pick any shop in the current module (canteen vs store)
-  //  - canteen area manager (no shopId, shopModule=canteen): pick a canteen stall
-  //  - other shop users: locked to their own shop (no selector)
-  const isAdmin = user?.role === "admin";
-  const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && !isAdmin;
-  const needsShopSelector = isAdmin || isCanteenAreaMgr;
-  const [canteenStalls, setCanteenStalls] = useState<CanteenShop[]>([]);
-  const [selectedStall, setSelectedStall] = useState<string>("all");
+    // Shop selector visibility:
+    //  - admin: pick any shop in the current module (canteen vs store)
+    //  - canteen area manager (no shopId, shopModule=canteen): pick a canteen stall
+    //  - other shop users: locked to their own shop (no selector)
+    const isAdmin = user?.role === "admin";
+    const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && !isAdmin;
+    const needsShopSelector = isAdmin || isCanteenAreaMgr;
+    const [canteenStalls, setCanteenStalls] = useState<CanteenShop[]>([]);
+    const [selectedStall, setSelectedStall] = useState<string>("all");
 
-  useEffect(() => {
-    if (!needsShopSelector) return;
-    const module = isCanteenReportsPage ? "canteen" : "store";
-    api.get<CanteenShop[]>(`/shops?module=${module}`).then(setCanteenStalls).catch(() => {});
-  }, [needsShopSelector, isCanteenReportsPage]);
+    useEffect(() => {
+        if (!needsShopSelector) return;
+        const module = isCanteenReportsPage ? "canteen" : "store";
+        api.get<CanteenShop[]>(`/shops?module=${module}`).then(setCanteenStalls).catch(() => { });
+    }, [needsShopSelector, isCanteenReportsPage]);
 
-  const currentDef = REPORT_DEFS.find((d) => d.type === selectedReportType);
-  const needsRange = currentDef?.needsRange ?? true;
+    const currentDef = REPORT_DEFS.find((d) => d.type === selectedReportType);
+    const needsRange = currentDef?.needsRange ?? true;
 
-  const handleReportClick = (reportType: string) => {
-    if (
-      reportType === "stockCardReport" ||
-      reportType === "salesSummaryReport" ||
-      reportType === "salesByItemReport" ||
-      reportType === "bundleReport"
-    ) {
-      setSelectedReportType(reportType);
-      setReportOpenNonce((n) => n + 1);
-      return;
-    }
-    setSelectedReportType(reportType);
-    setStartDate("");
-    setEndDate("");
-    setSelectedStall("all");
-    setIsDatePickerOpen(true);
-  };
+    const handleReportClick = (reportType: string) => {
+        if (
+            reportType === "stockCardReport" ||
+            reportType === "salesSummaryReport" ||
+            reportType === "salesByItemReport" ||
+            reportType === "bundleReport"
+        ) {
+            setSelectedReportType(reportType);
+            setReportOpenNonce((n) => n + 1);
+            return;
+        }
+        setSelectedReportType(reportType);
+        setStartDate("");
+        setEndDate("");
+        setSelectedStall("all");
+        setIsDatePickerOpen(true);
+    };
 
-  // Build scope query param
-  const shopParam = (() => {
-    if (needsShopSelector) {
-      if (selectedStall === "all") {
-        return `&module=${isCanteenReportsPage ? "canteen" : "store"}`;
-      }
-      return `&shop_id=${encodeURIComponent(selectedStall)}`;
-    }
-    return user?.shopId ? `&shop_id=${encodeURIComponent(user.shopId)}` : "";
-  })();
+    // Build scope query param
+    const shopParam = (() => {
+        if (needsShopSelector) {
+            if (selectedStall === "all") {
+                return `&module=${isCanteenReportsPage ? "canteen" : "store"}`;
+            }
+            return `&shop_id=${encodeURIComponent(selectedStall)}`;
+        }
+        return user?.shopId ? `&shop_id=${encodeURIComponent(user.shopId)}` : "";
+    })();
 
-  const buildDialogReportPayload = async (): Promise<{
-    payload: ReportPayload<Record<string, unknown>>;
-    baseFilename: string;
-  } | null> => {
-    if (needsRange && (!startDate || !endDate)) {
-      toast.error(t("reports.selectDateRangeDesc"));
-      return null;
-    }
+    const buildDialogReportPayload = async (): Promise<{
+        payload: ReportPayload<Record<string, unknown>>;
+        baseFilename: string;
+    } | null> => {
+        if (needsRange && (!startDate || !endDate)) {
+            toast.error(t("reports.selectDateRangeDesc"));
+            return null;
+        }
 
-    const dateFilter = buildDateFilterLine("Date", startDate, endDate);
-    const filters = dateFilter ? [dateFilter] : [];
-    const dateLabel = needsRange ? `_${startDate}_${endDate}` : "";
+        const dateFilter = buildDateFilterLine("Date", startDate, endDate);
+        const filters = dateFilter ? [dateFilter] : [];
+        const dateLabel = needsRange ? `_${startDate}_${endDate}` : "";
 
-    if (selectedReportType === "salesReport" || selectedReportType === "topSellingReport") {
-      const data = await api.get<SalesReportData>(
-        `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-      );
-      const isTopSelling = selectedReportType === "topSellingReport";
-      // Top Selling is a ranking of actual sales — a voided line never
-      // "sold", so exclude it entirely rather than showing it in the ranking.
-      // The plain Sales Report keeps voided rows visible (tagged via status).
-      const sortedRows = isTopSelling
-        ? data.rows.filter((r) => r.status === "ACTIVE").sort((a, b) => b.quantity - a.quantity)
-        : data.rows;
+        if (selectedReportType === "salesReport" || selectedReportType === "topSellingReport") {
+            const data = await api.get<SalesReportData>(
+                `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+            );
+            const isTopSelling = selectedReportType === "topSellingReport";
+            // Top Selling is a ranking of actual sales — a voided line never
+            // "sold", so exclude it entirely rather than showing it in the ranking.
+            // The plain Sales Report keeps voided rows visible (tagged via status).
+            const sortedRows = isTopSelling
+                ? data.rows.filter((r) => r.status === "ACTIVE").sort((a, b) => b.quantity - a.quantity)
+                : data.rows;
 
-      // Group by vendor only for the plain Sales Report when the result spans
-      // more than one shop. Top Selling is a single global ranking by design.
-      const multi = !isTopSelling && isMultiVendor(sortedRows);
-      const bodyRows = multi
-        ? buildVendorSections(sortedRows, (shopRows) => {
-            const active = shopRows.filter((r) => r.status === "ACTIVE");
+            // Group by vendor only for the plain Sales Report when the result spans
+            // more than one shop. Top Selling is a single global ranking by design.
+            const multi = !isTopSelling && isMultiVendor(sortedRows);
+            const bodyRows = multi
+                ? buildVendorSections(sortedRows, (shopRows) => {
+                    const active = shopRows.filter((r) => r.status === "ACTIVE");
+                    return {
+                        product_name: "Subtotal",
+                        quantity: active.reduce((s, r) => s + r.quantity, 0),
+                        total: active.reduce((s, r) => s + r.total, 0),
+                    };
+                })
+                : (sortedRows as unknown as Record<string, unknown>[]);
+
+            const reportFilters = [...filters];
+            if (!multi && sortedRows.length > 0) {
+                reportFilters.push(`Shop: ${sortedRows[0].shop_name ?? sortedRows[0].shop_id}`);
+            }
+
             return {
-              product_name: "Subtotal",
-              quantity: active.reduce((s, r) => s + r.quantity, 0),
-              total: active.reduce((s, r) => s + r.total, 0),
+                payload: {
+                    meta: {
+                        title: t(`reports.${selectedReportType}`),
+                        schoolName: school.name,
+                        schoolLogoUrl: school.logoUrl || undefined,
+                        reportId: REPORT_ID_MAP[selectedReportType],
+                        filters: reportFilters,
+                        runByName: user?.fullName ?? user?.username,
+                    },
+                    columns: isTopSelling
+                        ? [
+                            { header: t("reports.colProduct"), key: "product_name", width: 45 },
+                            { header: t("reports.colQuantity"), key: "quantity", format: "number", align: "right", width: 12 },
+                            { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
+                        ]
+                        : [
+                            { header: t("reports.colProduct"), key: "product_name", width: 40 },
+                            { header: t("reports.colQuantity"), key: "quantity", format: "number", align: "right", width: 12 },
+                            { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
+                            { header: "Status", key: "status", width: 15 },
+                        ],
+                    rows: bodyRows,
+                    totals: { total: data.grand_total },
+                },
+                baseFilename: `${isTopSelling ? "TopSellingReport" : "SalesReport"}${dateLabel}`,
             };
-          })
-        : (sortedRows as unknown as Record<string, unknown>[]);
-
-      const reportFilters = [...filters];
-      if (!multi && sortedRows.length > 0) {
-        reportFilters.push(`Shop: ${sortedRows[0].shop_name ?? sortedRows[0].shop_id}`);
-      }
-
-      return {
-        payload: {
-          meta: {
-            title: t(`reports.${selectedReportType}`),
-            schoolName: school.name,
-            schoolLogoUrl: school.logoUrl || undefined,
-            reportId: REPORT_ID_MAP[selectedReportType],
-            filters: reportFilters,
-            runByName: user?.fullName ?? user?.username,
-          },
-          columns: isTopSelling
-            ? [
-                { header: t("reports.colProduct"),  key: "product_name", width: 45 },
-                { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
-                { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
-              ]
-            : [
-                { header: t("reports.colProduct"),  key: "product_name", width: 40 },
-                { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
-                { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
-                { header: "Status",                 key: "status",       width: 15 },
-              ],
-          rows: bodyRows,
-          totals: { total: data.grand_total },
-        },
-        baseFilename: `${isTopSelling ? "TopSellingReport" : "SalesReport"}${dateLabel}`,
-      };
-    }
-
-    if (selectedReportType === "salesByPaymentReport") {
-      const data = await api.get<SalesByPaymentReportData>(
-        `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-      );
-
-      // Helper: render a single shop's rows (retail block → Department
-      // sub-section → optional dept row). Reused for both single-vendor and
-      // multi-vendor admin layouts.
-      const renderShopBlock = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
-        const retail = shopRows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
-        const dept = shopRows.filter((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
-        const block: Record<string, unknown>[] = [
-          ...retail.map((r) => ({
-            payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
-            receipt_count: r.receipt_count,
-            total: r.total,
-            status: r.status,
-          })),
-          { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
-        ];
-        for (const d of dept) {
-          block.push({ payment_method: "Department Use", receipt_count: d.receipt_count, total: d.total, status: d.status });
         }
-        return block;
-      };
 
-      const multi = isMultiVendor(data.rows);
-      let bodyRows: Record<string, unknown>[];
-      const reportFilters = [...filters];
+        if (selectedReportType === "salesByPaymentReport") {
+            const data = await api.get<SalesByPaymentReportData>(
+                `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+            );
 
-      if (multi) {
-        const byShop = new Map<string, { name: string | null; rows: SalesByPaymentRow[] }>();
-        for (const r of data.rows) {
-          const e = byShop.get(r.shop_id);
-          if (e) e.rows.push(r);
-          else byShop.set(r.shop_id, { name: r.shop_name, rows: [r] });
+            // Helper: render a single shop's rows (retail block → Department
+            // sub-section → optional dept row). Reused for both single-vendor and
+            // multi-vendor admin layouts.
+            const renderShopBlock = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
+                const retail = shopRows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
+                const dept = shopRows.filter((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
+                const block: Record<string, unknown>[] = [
+                    ...retail.map((r) => ({
+                        payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
+                        receipt_count: r.receipt_count,
+                        total: r.total,
+                        status: r.status,
+                    })),
+                    { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
+                ];
+                for (const d of dept) {
+                    block.push({ payment_method: "Department Use", receipt_count: d.receipt_count, total: d.total, status: d.status });
+                }
+                return block;
+            };
+
+            const multi = isMultiVendor(data.rows);
+            let bodyRows: Record<string, unknown>[];
+            const reportFilters = [...filters];
+
+            if (multi) {
+                const byShop = new Map<string, { name: string | null; rows: SalesByPaymentRow[] }>();
+                for (const r of data.rows) {
+                    const e = byShop.get(r.shop_id);
+                    if (e) e.rows.push(r);
+                    else byShop.set(r.shop_id, { name: r.shop_name, rows: [r] });
+                }
+                bodyRows = [];
+                for (const [shopId, { name, rows: shopRows }] of byShop) {
+                    const activeShopRows = shopRows.filter((r) => r.status === "ACTIVE");
+                    bodyRows.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
+                    bodyRows.push(...renderShopBlock(shopRows));
+                    bodyRows.push({
+                        [EMPHASIS_KEY]: "subtotal" as const,
+                        payment_method: "Subtotal",
+                        receipt_count: activeShopRows.reduce((s, r) => s + r.receipt_count, 0),
+                        total: activeShopRows.reduce((s, r) => s + r.total, 0),
+                    });
+                }
+            } else {
+                bodyRows = renderShopBlock(data.rows);
+                if (data.rows.length > 0) {
+                    reportFilters.push(`Shop: ${data.rows[0].shop_name ?? data.rows[0].shop_id}`);
+                }
+            }
+
+            return {
+                payload: {
+                    meta: {
+                        title: t("reports.salesByPaymentReport"),
+                        schoolName: school.name,
+                        schoolLogoUrl: school.logoUrl || undefined,
+                        reportId: REPORT_ID_MAP["salesByPaymentReport"],
+                        filters: reportFilters,
+                        runByName: user?.fullName ?? user?.username,
+                    },
+                    columns: [
+                        { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
+                        { header: t("reports.colReceiptCount") || "Receipt Count", key: "receipt_count", format: "number", align: "right", width: 15 },
+                        { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
+                        { header: "Status", key: "status", width: 15 },
+                    ],
+                    rows: bodyRows,
+                    totals: { total: data.retail_total },
+                },
+                baseFilename: `SalesByPaymentReport${dateLabel}`,
+            };
         }
-        bodyRows = [];
-        for (const [shopId, { name, rows: shopRows }] of byShop) {
-          const activeShopRows = shopRows.filter((r) => r.status === "ACTIVE");
-          bodyRows.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
-          bodyRows.push(...renderShopBlock(shopRows));
-          bodyRows.push({
-            [EMPHASIS_KEY]: "subtotal" as const,
-            payment_method: "Subtotal",
-            receipt_count: activeShopRows.reduce((s, r) => s + r.receipt_count, 0),
-            total: activeShopRows.reduce((s, r) => s + r.total, 0),
-          });
+
+        if (selectedReportType === "stockReport") {
+            const stockShopParam = shopParam.replace(/^&/, "?");
+            const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);
+            return {
+                payload: {
+                    meta: {
+                        title: t("reports.stockReport"),
+                        schoolName: school.name,
+                        schoolLogoUrl: school.logoUrl || undefined,
+                        reportId: REPORT_ID_MAP["stockReport"],
+                        filters: [],
+                    },
+                    columns: [
+                        { header: t("reports.colShop"), key: "shop_name", width: 25 },
+                        { header: t("reports.colProductCode"), key: "product_code", width: 18 },
+                        { header: t("reports.colProduct"), key: "product_name", width: 45 },
+                        { header: t("reports.colStock"), key: "stock_qty", format: "number", align: "right", width: 12 },
+                    ],
+                    rows: data.rows.map((r) => ({ ...r, shop_name: r.shop_name ?? r.shop_id })) as unknown as Record<string, unknown>[],
+                },
+                baseFilename: `StockBalanceReport`,
+            };
         }
-      } else {
-        bodyRows = renderShopBlock(data.rows);
-        if (data.rows.length > 0) {
-          reportFilters.push(`Shop: ${data.rows[0].shop_name ?? data.rows[0].shop_id}`);
+
+        if (selectedReportType === "returnReport") {
+            const data = await api.get<{ rows: Record<string, unknown>[]; total_voided: number }>(
+                `/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+            );
+            return {
+                payload: {
+                    meta: {
+                        title: t("reports.returnReport"),
+                        schoolName: school.name,
+                        schoolLogoUrl: school.logoUrl || undefined,
+                        reportId: REPORT_ID_MAP["returnReport"],
+                        filters,
+                    },
+                    columns: [
+                        { header: t("reports.colId"), key: "id", format: "number", align: "right", width: 8 },
+                        { header: t("reports.colDate"), key: "voided_at", format: "datetime", width: 18 },
+                        { header: t("reports.colReceipt"), key: "receipt_number", width: 20 },
+                        { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 14 },
+                        { header: "Voided By", key: "voided_by_name", width: 20 },
+                        { header: "Reason", key: "voided_reason", width: 30 },
+                    ],
+                    rows: data.rows,
+                    totals: { total: data.total_voided },
+                },
+                baseFilename: `VoidReport${dateLabel}`,
+            };
         }
-      }
 
-      return {
-        payload: {
-          meta: {
-            title: t("reports.salesByPaymentReport"),
-            schoolName: school.name,
-            schoolLogoUrl: school.logoUrl || undefined,
-            reportId: REPORT_ID_MAP["salesByPaymentReport"],
-            filters: reportFilters,
-            runByName: user?.fullName ?? user?.username,
-          },
-          columns: [
-            { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
-            { header: t("reports.colReceiptCount")  || "Receipt Count",  key: "receipt_count", format: "number",   align: "right", width: 15 },
-            { header: t("reports.colTotal"),                              key: "total",         format: "currency", align: "right", width: 15 },
-            { header: "Status",                                          key: "status",        width: 15 },
-          ],
-          rows: bodyRows,
-          totals: { total: data.retail_total },
-        },
-        baseFilename: `SalesByPaymentReport${dateLabel}`,
-      };
-    }
+        return null;
+    };
 
-    if (selectedReportType === "stockReport") {
-      const stockShopParam = shopParam.replace(/^&/, "?");
-      const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);
-      return {
-        payload: {
-          meta: {
-            title: t("reports.stockReport"),
-            schoolName: school.name,
-            schoolLogoUrl: school.logoUrl || undefined,
-            reportId: REPORT_ID_MAP["stockReport"],
-            filters: [],
-          },
-          columns: [
-            { header: t("reports.colShop"),        key: "shop_name",    width: 25 },
-            { header: t("reports.colProductCode"), key: "product_code", width: 18 },
-            { header: t("reports.colProduct"),     key: "product_name", width: 45 },
-            { header: t("reports.colStock"),       key: "stock_qty",    format: "number", align: "right", width: 12 },
-          ],
-          rows: data.rows.map((r) => ({ ...r, shop_name: r.shop_name ?? r.shop_id })) as unknown as Record<string, unknown>[],
-        },
-        baseFilename: `StockBalanceReport`,
-      };
-    }
+    const handleExportExcel = async () => {
+        setExporting(true);
+        try {
+            const result = await buildDialogReportPayload();
+            if (!result) return;
+            exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
+            toast.success(t("reports.exportSuccess"));
+            setIsDatePickerOpen(false);
+        } catch (err) {
+            const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
+            toast.error(detail);
+        } finally {
+            setExporting(false);
+        }
+    };
 
-    if (selectedReportType === "returnReport") {
-      const data = await api.get<{ rows: Record<string, unknown>[]; total_voided: number }>(
-        `/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-      );
-      return {
-        payload: {
-          meta: {
-            title: t("reports.returnReport"),
-            schoolName: school.name,
-            schoolLogoUrl: school.logoUrl || undefined,
-            reportId: REPORT_ID_MAP["returnReport"],
-            filters,
-          },
-          columns: [
-            { header: t("reports.colId"),       key: "id",              format: "number",   align: "right", width: 8  },
-            { header: t("reports.colDate"),      key: "voided_at",       format: "datetime",                 width: 18 },
-            { header: t("reports.colReceipt"),   key: "receipt_number",                                      width: 20 },
-            { header: t("reports.colTotal"),     key: "total",           format: "currency", align: "right", width: 14 },
-            { header: "Voided By",               key: "voided_by_name",                                      width: 20 },
-            { header: "Reason",                  key: "voided_reason",                                       width: 30 },
-          ],
-          rows: data.rows,
-          totals: { total: data.total_voided },
-        },
-        baseFilename: `VoidReport${dateLabel}`,
-      };
-    }
-
-    return null;
-  };
-
-  const handleExportExcel = async () => {
-    setExporting(true);
-    try {
-      const result = await buildDialogReportPayload();
-      if (!result) return;
-      exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
-      toast.success(t("reports.exportSuccess"));
-      setIsDatePickerOpen(false);
-    } catch (err) {
-      const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
-      toast.error(detail);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    setExporting(true);
-    try {
-      const result = await buildDialogReportPayload();
-      if (!result) return;
-      await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
-      toast.success(t("reports.exportSuccess"));
-      setIsDatePickerOpen(false);
-    } catch (err) {
-      const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
-      toast.error(detail);
-    } finally {
-      setExporting(false);
-    }
-  };
+    const handleExportPdf = async () => {
+        setExporting(true);
+        try {
+            const result = await buildDialogReportPayload();
+            if (!result) return;
+            await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
+            toast.success(t("reports.exportSuccess"));
+            setIsDatePickerOpen(false);
+        } catch (err) {
+            const detail = err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric");
+            toast.error(detail);
+        } finally {
+            setExporting(false);
+        }
+    };
 
 
-  return (
-    <div className="page-shell">
-      <div className="page-header">
-        <h1 className="page-title mb-2">{t("reports.title")}</h1>
-        <p className="page-description">{t("reports.description")}</p>
-      </div>
-
-      <InfoCallout
-        id="reports.exportFormat"
-        variant="info"
-        title={t("reports.info.exportFormat.title")}
-      >
-        {t("reports.info.exportFormat.body")}
-      </InfoCallout>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visibleReports.map(({ type, icon: Icon }) => (
-          <Card
-            key={type}
-            className="interactive-card"
-            onClick={() => handleReportClick(type)}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Icon className="h-5 w-5 mr-2 text-primary" />
-                {t(`reports.${type}`)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {t(`reports.${type}Desc`)}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {selectedReportType === "stockCardReport" && (
-        <StockCardReport
-          key={reportOpenNonce}
-          reportId={REPORT_ID_MAP["stockCardReport"]}
-          isCanteenReportsPage={isCanteenReportsPage}
-        />
-      )}
-
-      {selectedReportType === "salesSummaryReport" && (
-        <SalesSummaryReport
-          key={reportOpenNonce}
-          reportId={REPORT_ID_MAP["salesSummaryReport"]}
-          needsShopSelector={needsShopSelector}
-          isCanteenReportsPage={isCanteenReportsPage}
-          selectedStall={selectedStall}
-          onSelectedStallChange={setSelectedStall}
-          canteenStalls={canteenStalls}
-        />
-      )}
-
-      {selectedReportType === "salesByItemReport" && (
-        <SalesByItemReport
-          key={reportOpenNonce}
-          reportId={REPORT_ID_MAP["salesByItemReport"]}
-          needsShopSelector={needsShopSelector}
-          isCanteenReportsPage={isCanteenReportsPage}
-          selectedStall={selectedStall}
-          onSelectedStallChange={setSelectedStall}
-          canteenStalls={canteenStalls}
-        />
-      )}
-
-      {selectedReportType === "bundleReport" && (
-        <BundleReport
-          key={reportOpenNonce}
-          reportId={REPORT_ID_MAP["bundleReport"]}
-        />
-      )}
-
-      {/* Date Picker Dialog for Excel Export */}
-      <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileDown className="h-6 w-6 text-primary" />
-              {needsRange ? t("reports.selectDateRange") : t("reports.exportExcel")}
-            </DialogTitle>
-            <DialogDescription>
-              {needsRange ? t("reports.selectDateRangeDesc") : t("reports.stockReportDesc")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {needsShopSelector && (
-              <div className="space-y-2">
-                <Label>{t("reports.canteenScope")}</Label>
-                <Select value={selectedStall} onValueChange={setSelectedStall}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("reports.canteenScopeAll")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{isCanteenReportsPage ? t("reports.canteenScopeAll") : "All shops"}</SelectItem>
-                    {canteenStalls.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {needsRange && (
-              <div className="space-y-2">
-                <Label htmlFor="dateRange">
-                  {t("reports.startDate")} — {t("reports.endDate")}
-                </Label>
-                <DateRangePicker
-                  id="dateRange"
-                  startDate={startDate}
-                  endDate={endDate}
-                  onStartChange={setStartDate}
-                  onEndChange={setEndDate}
-                />
-              </div>
-            )}
-
-            <div className="bg-secondary p-3 rounded-lg">
-              <p className="text-sm font-medium">
-                {selectedReportType && t(`reports.${selectedReportType}`)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {selectedReportType && t(`reports.${selectedReportType}Desc`)}
-              </p>
+    return (
+        <div className="page-shell">
+            <div className="page-header">
+                <h1 className="page-title mb-2">{t("reports.title")}</h1>
+                <p className="page-description">{t("reports.description")}</p>
             </div>
 
-            {selectedReportType === "salesByPaymentReport" && (
-              <div className="border border-dashed border-muted-foreground/40 bg-muted/40 rounded-lg p-3 space-y-1">
-                <p className="text-sm font-semibold text-muted-foreground">
-                  Department Use (Internal)
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t("reports.deptUseSeparated", "Department Use is tracked separately from normal sales.")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t("reports.deptUseExcludedFromGrand", "Grand Total in this report covers normal sales only — Department Use is excluded.")}
-                </p>
-              </div>
-            )}
-          </div>
+            <InfoCallout
+                id="reports.exportFormat"
+                variant="info"
+                title={t("reports.info.exportFormat.title")}
+            >
+                {t("reports.info.exportFormat.body")}
+            </InfoCallout>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDatePickerOpen(false)} disabled={exporting}>
-              {t("common.cancel")}
-            </Button>
-            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
-              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-              {t("reports.exportPdf", "Export PDF")}
-            </Button>
-            <Button onClick={handleExportExcel} disabled={exporting}>
-              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
-              {t("reports.exportExcel")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {visibleReports.map(({ type, icon: Icon }) => (
+                    <Card
+                        key={type}
+                        className="interactive-card"
+                        onClick={() => handleReportClick(type)}
+                    >
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <Icon className="h-5 w-5 mr-2 text-primary" />
+                                {t(`reports.${type}`)}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                {t(`reports.${type}Desc`)}
+                            </p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {selectedReportType === "stockCardReport" && (
+                <StockCardReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["stockCardReport"]}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                />
+            )}
+
+            {selectedReportType === "salesSummaryReport" && (
+                <SalesSummaryReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["salesSummaryReport"]}
+                    needsShopSelector={needsShopSelector}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                    selectedStall={selectedStall}
+                    onSelectedStallChange={setSelectedStall}
+                    canteenStalls={canteenStalls}
+                />
+            )}
+
+            {selectedReportType === "salesByItemReport" && (
+                <SalesByItemReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["salesByItemReport"]}
+                    needsShopSelector={needsShopSelector}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                    selectedStall={selectedStall}
+                    onSelectedStallChange={setSelectedStall}
+                    canteenStalls={canteenStalls}
+                />
+            )}
+
+            {selectedReportType === "bundleReport" && (
+                <BundleReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["bundleReport"]}
+                />
+            )}
+
+            {/* Date Picker Dialog for Excel Export */}
+            <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <FileDown className="h-6 w-6 text-primary" />
+                            {needsRange ? t("reports.selectDateRange") : t("reports.exportExcel")}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {needsRange ? t("reports.selectDateRangeDesc") : t("reports.stockReportDesc")}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {needsShopSelector && (
+                            <div className="space-y-2">
+                                <Label>{t("reports.canteenScope")}</Label>
+                                <Select value={selectedStall} onValueChange={setSelectedStall}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("reports.canteenScopeAll")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{isCanteenReportsPage ? t("reports.canteenScopeAll") : "All shops"}</SelectItem>
+                                        {canteenStalls.map((s) => (
+                                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {needsRange && (
+                            <div className="space-y-2">
+                                <Label htmlFor="dateRange">
+                                    {t("reports.startDate")} — {t("reports.endDate")}
+                                </Label>
+                                <DateRangePicker
+                                    id="dateRange"
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    onStartChange={setStartDate}
+                                    onEndChange={setEndDate}
+                                />
+                            </div>
+                        )}
+
+                        <div className="bg-secondary p-3 rounded-lg">
+                            <p className="text-sm font-medium">
+                                {selectedReportType && t(`reports.${selectedReportType}`)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {selectedReportType && t(`reports.${selectedReportType}Desc`)}
+                            </p>
+                        </div>
+
+                        {selectedReportType === "salesByPaymentReport" && (
+                            <div className="border border-dashed border-muted-foreground/40 bg-muted/40 rounded-lg p-3 space-y-1">
+                                <p className="text-sm font-semibold text-muted-foreground">
+                                    Department Use (Internal)
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("reports.deptUseSeparated", "Department Use is tracked separately from normal sales.")}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("reports.deptUseExcludedFromGrand", "Grand Total in this report covers normal sales only — Department Use is excluded.")}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDatePickerOpen(false)} disabled={exporting}>
+                            {t("common.cancel")}
+                        </Button>
+                        <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+                            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                            {t("reports.exportPdf", "Export PDF")}
+                        </Button>
+                        <Button onClick={handleExportExcel} disabled={exporting}>
+                            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
+                            {t("reports.exportExcel")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
 };
 
 export default Reports;
