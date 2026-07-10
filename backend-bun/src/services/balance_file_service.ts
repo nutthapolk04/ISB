@@ -85,12 +85,17 @@ function formatBE(isoDate: string): string {
 }
 
 function descriptionFor(m: RawMovement, productName: string): string {
+  // Direction is by delta (stock_after - stock_before), not by raw quantity
+  // sign — quantity's sign convention isn't uniform across movement types
+  // (e.g. a manager returning stock via a negative-qty requisition still has
+  // type "internal_use" but moves stock IN, not out).
+  const isReturn = m.stock_after > m.stock_before;
   switch (m.type) {
     case "receive":      return `Goods Received - ${productName}`;
-    case "sale":         return "Sales";
-    case "internal_use": return "Internal Use";
-    case "exchange":     return "Exchange";
-    case "adjustment":   return m.stock_after > m.stock_before ? "Adj Increase" : "Adj Decrease";
+    case "sale":         return isReturn ? "Sales Return" : "Sales";
+    case "internal_use": return isReturn ? "Internal Use Return" : "Internal Use";
+    case "exchange":     return isReturn ? "Exchange Return" : "Exchange";
+    case "adjustment":   return isReturn ? "Adj Increase" : "Adj Decrease";
     case "void":         return "VOID";
     default:             return m.type;
   }
@@ -240,24 +245,49 @@ export async function getBalanceFile(
         totals.in_qty += m.quantity;
         totals.in_amount += inAmount;
       } else if (m.type === "sale" || m.type === "internal_use" || m.type === "exchange") {
-        // Out at prevailing avg (state BEFORE was the relevant avg; applyMovement doesn't change avg here)
-        const outAvg = before.avg;
-        const outAmount = Math.round(m.quantity * outAvg * 100) / 100;
-        rows.push({
-          date: formatBE(m.date),
-          description: descriptionFor(m, p.name),
-          doc_no: m.reference ?? null,
-          in_qty: null, in_unit_cost: null, in_amount: null,
-          out_qty: m.quantity,
-          out_avg_cost: outAvg,
-          out_amount: outAmount,
-          bal_qty: state.qty,
-          bal_avg_cost: state.avg,
-          bal_total_value: balValue,
-          note: m.note ?? null,
-        });
-        totals.out_qty += m.quantity;
-        totals.out_amount += outAmount;
+        // Direction by delta, not raw quantity sign — quantity's sign
+        // convention isn't uniform across these types (e.g. a manager
+        // returning stock via a negative-qty requisition is still
+        // type "internal_use" but moves stock IN).
+        const delta = m.stock_after - m.stock_before;
+        const avgCost = before.avg;
+        if (delta < 0) {
+          const outQty = -delta;
+          const outAmount = Math.round(outQty * avgCost * 100) / 100;
+          rows.push({
+            date: formatBE(m.date),
+            description: descriptionFor(m, p.name),
+            doc_no: m.reference ?? null,
+            in_qty: null, in_unit_cost: null, in_amount: null,
+            out_qty: outQty,
+            out_avg_cost: avgCost,
+            out_amount: outAmount,
+            bal_qty: state.qty,
+            bal_avg_cost: state.avg,
+            bal_total_value: balValue,
+            note: m.note ?? null,
+          });
+          totals.out_qty += outQty;
+          totals.out_amount += outAmount;
+        } else if (delta > 0) {
+          const inQty = delta;
+          const inAmount = Math.round(inQty * avgCost * 100) / 100;
+          rows.push({
+            date: formatBE(m.date),
+            description: descriptionFor(m, p.name),
+            doc_no: m.reference ?? null,
+            in_qty: inQty,
+            in_unit_cost: avgCost,
+            in_amount: inAmount,
+            out_qty: null, out_avg_cost: null, out_amount: null,
+            bal_qty: state.qty,
+            bal_avg_cost: state.avg,
+            bal_total_value: balValue,
+            note: m.note ?? null,
+          });
+          totals.in_qty += inQty;
+          totals.in_amount += inAmount;
+        }
       } else if (m.type === "adjustment") {
         const delta = m.stock_after - m.stock_before;
         if (delta >= 0) {

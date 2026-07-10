@@ -24,6 +24,7 @@ module.exports = {
             watch: false,
             env: {
                 NODE_ENV: "production",
+                APP_ENV: "prod",
             },
             out_file: "./logs/pm2-out.log",
             error_file: "./logs/pm2-error.log",

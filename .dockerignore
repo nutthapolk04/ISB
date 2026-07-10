@@ -1,0 +1,31 @@
+# Backend-bun Railway image — build context is repo root.
+node_modules
+**/node_modules
+.git
+.gitignore
+.cursor
+.claude
+docs
+
+# Other apps — keep package.json for bun workspaces, exclude sources
+frontend/**
+!frontend/package.json
+kiosk/**
+!kiosk/package.json
+plugins/**
+!plugins/capacitor-hardware/package.json
+!plugins/capacitor-hardware/dist/**
+backend/**
+
+# Local / secrets
+.env
+.env.*
+**/.env
+**/.env.*
+*.log
+logs
+logs-*
+
+# Build artifacts (rebuilt inside Docker)
+backend-bun/dist
+**/.gradle

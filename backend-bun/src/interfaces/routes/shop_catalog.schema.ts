@@ -156,6 +156,7 @@ export const updateShopProduct = {
         category: t.Optional(t.Nullable(t.String())),
         external_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
         internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        avg_cost: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
         vat_percent: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
         min_stock: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
         is_active: t.Optional(t.Nullable(t.Boolean())),

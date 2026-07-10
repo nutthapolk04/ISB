@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import KioskOverlay from '../components/KioskOverlay.vue';
-import { CreditCard, Languages, Settings, Wrench } from 'lucide-vue-next';
+import { Languages, Wrench } from 'lucide-vue-next';
 
 const router = useRouter();
 
@@ -140,15 +140,15 @@ const t = {
 
         <!-- School branding -->
         <div class="school-brand">
-            <img v-if="store.schoolInfo.school_logo_url" :src="store.schoolInfo.school_logo_url" class="school-logo"
-                alt="School logo" />
+            <img src="/isb-logo%201.svg" class="school-logo" alt="School logo" />
             <h2 v-if="store.schoolInfo.school_name" class="school-name">{{ store.schoolInfo.school_name }}</h2>
         </div>
 
         <div class="welcome-content">
             <div class="rfid-animation mb-8">
-                <div class="card-icon pulse-animation" :class="{ 'card-error': rfidError }">
-                    <CreditCard :size="120" stroke-width="1.5" />
+                <div :class="['card-icon', { 'card-error': rfidError }]">
+                    <!-- <CreditCard :size="120" stroke-width="1.5" /> -->
+                    <img src="/images/decor-card.png" alt="Card icon" class="object-cover" />
                 </div>
                 <div class="rfid-waves">
                     <div class="wave"></div>
@@ -158,30 +158,31 @@ const t = {
             </div>
 
             <h1 class="mb-4">{{ currT.welcome }}</h1>
-            <p class="text-muted text-center mb-12">{{ currT.sub }}</p>
+            <p class=" text-center mb-12 text-breathe" style="font-size: 1.75rem; font-weight: 300; ">{{ currT.sub
+                }}
+            </p>
             <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
             <p v-if="rfidNetworkError" class="rfid-error-msg">{{ currT.networkError }}</p>
-        </div>
-
-        <!-- Bottom bar: gear icon + machine name -->
-        <div class="bottom-bar">
-            <button class="settings-btn" type="button" @click="router.push('/settings')">
-                <Settings :size="20" />
-                <span v-if="store.machineName" class="machine-name-label">{{ store.machineName }}</span>
-            </button>
         </div>
     </div>
 </template>
 
 <style scoped>
 .welcome-view {
-    justify-content: flex-start;
+    /* justify-content: flex-mi; */
+    justify-content: center;
+    height: 100%;
     padding: 3rem 2rem 2rem;
 }
 
 .lang-switch-container {
     width: 100%;
     display: flex;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
@@ -208,8 +209,8 @@ const t = {
 
 .lang-btn {
     background: none;
-    border: 2px solid var(--text-muted);
-    color: var(--text-color);
+    border: 2px solid #94a3b8;
+    color: var(--text-muted);
     padding: 0.75rem 1.5rem;
     border-radius: 3rem;
     display: flex;
@@ -228,9 +229,9 @@ const t = {
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;
+    /* flex: 1; */
     justify-content: center;
-    cursor: pointer;
+    /* cursor: pointer; */
 }
 
 .rfid-animation {
@@ -240,9 +241,72 @@ const t = {
 
 .card-icon {
     color: var(--primary);
-    background: rgba(37, 99, 235, 0.1);
-    padding: 3rem;
-    border-radius: 3rem;
+    background: rgb(0, 81, 255);
+    /* padding: 3rem; */
+    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+
+    transform-origin: left bottom;
+    animation: card-icon-animation 3s infinite ease-in-out;
+}
+
+/* Keep the decorative card image from overflowing its container */
+.card-icon img {
+    width: 200px;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* The Flare Overlay */
+.card-icon::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.4) 50%,
+            rgba(255, 255, 255, 0) 100%);
+    transform: skewX(-25deg);
+    pointer-events: none;
+
+    /* FIX: Runs continuously with a delay so it isn't frantic */
+    animation: flash 3s infinite ease-in-out;
+    animation-delay: 1.5s;
+}
+
+@keyframes flash {
+
+    0%,
+    70% {
+        /* Keeps the flare hidden for 70% of the loop duration */
+        left: -150%;
+    }
+
+    100% {
+        left: 150%;
+        /* Sweeps across the card at the end of the loop */
+    }
+}
+
+@keyframes card-icon-animation {
+    0% {
+        transform: rotate(-10deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(-10deg);
+    }
 }
 
 .mb-4 {
@@ -284,7 +348,7 @@ const t = {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 3rem;
 }
 
 .school-logo {
@@ -303,39 +367,6 @@ const t = {
     opacity: 0.9;
 }
 
-.bottom-bar {
-  width: 100%;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding-bottom: 1.5rem;
-}
-
-.settings-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  opacity: 0.4;
-  cursor: pointer;
-  padding: 0.5rem 0.25rem;
-  border-radius: 0.5rem;
-  transition: opacity 0.2s;
-}
-
-.settings-btn:hover,
-.settings-btn:active {
-  opacity: 0.8;
-}
-
-.machine-name-label {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-
 .rfid-waves {
     position: absolute;
     top: 50%;
@@ -346,14 +377,15 @@ const t = {
 
 .wave {
     position: absolute;
-    border: 4px solid var(--primary);
+    border: 4px solid transparent;
+
     opacity: 0;
     border-radius: 50%;
     width: 300px;
     height: 300px;
     top: -150px;
     left: -150px;
-    animation: wave-animation 3s infinite;
+    animation: wave-animation 3s infinite linear;
 }
 
 .wave:nth-child(2) {
@@ -367,12 +399,39 @@ const t = {
 @keyframes wave-animation {
     0% {
         transform: scale(0.5);
-        opacity: 0.5;
+        opacity: 0;
+        background-color: var(--primary);
+    }
+
+    20% {
+        transform: scale(0.75);
+        opacity: 0.3;
+        background-color: var(--primary);
     }
 
     100% {
         transform: scale(1.5);
         opacity: 0;
+        background-color: #EACB46;
+    }
+}
+
+.text-breathe {
+    color: var(--text-muted);
+    animation: breathe 3s infinite linear;
+}
+
+@keyframes breathe {
+    0% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 0.8;
     }
 }
 </style>

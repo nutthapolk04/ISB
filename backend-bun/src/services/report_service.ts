@@ -1,4 +1,5 @@
 import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   receipts,
@@ -10,6 +11,8 @@ import {
   customers,
   customerTypes,
   users,
+  productBundles,
+  bundleItems,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
@@ -67,6 +70,7 @@ export interface SalesRow {
   total: number;
   shop_id: string;
   shop_name: string | null;
+  status: string;
 }
 
 export interface SalesReport {
@@ -89,10 +93,12 @@ export async function salesReport(args: {
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
   const { start, end } = dateRange(args.dateFrom, args.dateTo);
 
+  // No status filter here — voided receipts are included as their own rows
+  // (tagged via `status`) so they're visible in the report, but excluded
+  // from grand_total/receipt_count below.
   const receiptConds = [
     gte(receipts.transactionDate, start),
     lte(receipts.transactionDate, end),
-    eq(receipts.status, "ACTIVE"),
   ];
   if (effectiveShopId) {
     receiptConds.push(eq(receipts.shopId, effectiveShopId));
@@ -102,10 +108,11 @@ export async function salesReport(args: {
   }
 
   const receiptIdRows = await db
-    .select({ id: receipts.id })
+    .select({ id: receipts.id, status: receipts.status })
     .from(receipts)
     .where(and(...receiptConds));
   const receiptIds = receiptIdRows.map((r) => r.id);
+  const activeReceiptCount = receiptIdRows.filter((r) => r.status === "ACTIVE").length;
 
   let rows: SalesRow[] = [];
   let grandTotal = 0;
@@ -117,23 +124,25 @@ export async function salesReport(args: {
         total: sql<string>`SUM(${receiptItems.lineTotal})`,
         shop_id: shopProducts.shopId,
         shop_name: shops.name,
+        status: receipts.status,
       })
       .from(receiptItems)
       .innerJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
       .innerJoin(shops, eq(shops.id, shopProducts.shopId))
       .innerJoin(receipts, eq(receipts.id, receiptItems.receiptId))
       .where(inArray(receiptItems.receiptId, receiptIds))
-      .groupBy(shopProducts.shopId, shops.name, shopProducts.name)
+      .groupBy(shopProducts.shopId, shops.name, shopProducts.name, receipts.status)
       .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receiptItems.lineTotal}) DESC`);
     rows = agg.map((r) => {
       const total = pgNumber(r.total) ?? 0;
-      grandTotal += total;
+      if (r.status === "ACTIVE") grandTotal += total;
       return {
         product_name: r.name,
         quantity: Number(r.qty) || 0,
         total,
         shop_id: r.shop_id,
         shop_name: r.shop_name,
+        status: r.status,
       };
     });
   }
@@ -144,7 +153,7 @@ export async function salesReport(args: {
     shop_id: effectiveShopId,
     rows,
     grand_total: grandTotal,
-    receipt_count: receiptIds.length,
+    receipt_count: activeReceiptCount,
   };
 }
 
@@ -156,6 +165,7 @@ export interface SalesByPaymentRow {
   total: number;
   shop_id: string;
   shop_name: string | null;
+  status: string;
 }
 
 export interface SalesByPaymentReport {
@@ -181,10 +191,11 @@ export async function salesByPaymentReport(args: {
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
   const { start, end } = dateRange(args.dateFrom, args.dateTo);
 
+  // No status filter — voided receipts show as their own rows (tagged via
+  // `status`) but are excluded from grand/retail/dept totals below.
   const conds = [
     gte(receipts.transactionDate, start),
     lte(receipts.transactionDate, end),
-    eq(receipts.status, "ACTIVE"),
   ];
   if (effectiveShopId) {
     conds.push(eq(receipts.shopId, effectiveShopId));
@@ -200,11 +211,12 @@ export async function salesByPaymentReport(args: {
       total: sql<string>`SUM(${receipts.total})`,
       shop_id: receipts.shopId,
       shop_name: shops.name,
+      status: receipts.status,
     })
     .from(receipts)
     .innerJoin(shops, eq(shops.id, receipts.shopId))
     .where(and(...conds))
-    .groupBy(receipts.shopId, shops.name, receipts.paymentMethod)
+    .groupBy(receipts.shopId, shops.name, receipts.paymentMethod, receipts.status)
     .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receipts.total}) DESC`);
 
   let grand = 0;
@@ -215,13 +227,15 @@ export async function salesByPaymentReport(args: {
   const rows: SalesByPaymentRow[] = agg.map((r) => {
     const total = pgNumber(r.total) ?? 0;
     const count = Number(r.receipt_count) || 0;
-    grand += total;
-    totalRec += count;
-    if (r.payment_method === "DEPARTMENT") {
-      dept += total;
-      deptRec += count;
-    } else {
-      retail += total;
+    if (r.status === "ACTIVE") {
+      grand += total;
+      totalRec += count;
+      if (r.payment_method === "DEPARTMENT") {
+        dept += total;
+        deptRec += count;
+      } else {
+        retail += total;
+      }
     }
     return {
       payment_method: r.payment_method,
@@ -229,6 +243,7 @@ export async function salesByPaymentReport(args: {
       total,
       shop_id: r.shop_id ?? "",
       shop_name: r.shop_name,
+      status: r.status,
     };
   });
 
@@ -298,6 +313,106 @@ export async function stockReport(args: {
       shop_name: r.shop_name,
     })),
   };
+}
+
+// ── /bundle-report ──────────────────────────────────────────────────────────
+
+export interface BundleReportComponent {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  qty_per_bundle: number;
+  stock: number;
+}
+
+export interface BundleReportRow {
+  bundle_id: number;
+  bundle_code: string;
+  bundle_name: string;
+  shop_id: string;
+  shop_name: string | null;
+  external_price: number;
+  internal_price: number;
+  // How many bundles can be assembled right now — the smallest
+  // floor(component.stock / qty_per_bundle) across all components.
+  sellable_qty: number;
+  components: BundleReportComponent[];
+}
+
+export interface BundleReport {
+  shop_id: string | null;
+  rows: BundleReportRow[];
+}
+
+export async function bundleReport(args: {
+  user: AccessTokenPayload;
+  shopId?: string;
+  module?: string;
+}): Promise<BundleReport> {
+  const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
+  const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+
+  const conds = [eq(productBundles.isActive, true)];
+  if (effectiveShopId) {
+    conds.push(eq(productBundles.shopId, effectiveShopId));
+  } else if (effMod) {
+    conds.push(eq(shops.module, effMod));
+  }
+
+  const bundles = await db
+    .select({
+      id: productBundles.id,
+      bundle_code: productBundles.bundleCode,
+      name: productBundles.name,
+      shop_id: productBundles.shopId,
+      shop_name: shops.name,
+      external_price: productBundles.externalPrice,
+      internal_price: productBundles.internalPrice,
+    })
+    .from(productBundles)
+    .innerJoin(shops, eq(shops.id, productBundles.shopId))
+    .where(and(...conds))
+    .orderBy(asc(productBundles.shopId), asc(productBundles.sortOrder), asc(productBundles.name));
+
+  const rows: BundleReportRow[] = [];
+  for (const b of bundles) {
+    const items = await db
+      .select({
+        product_id: bundleItems.productId,
+        quantity: bundleItems.quantity,
+        product_code: shopProducts.productCode,
+        product_name: shopProducts.name,
+        stock: shopProducts.stock,
+      })
+      .from(bundleItems)
+      .innerJoin(shopProducts, eq(shopProducts.id, bundleItems.productId))
+      .where(eq(bundleItems.bundleId, b.id))
+      .orderBy(asc(bundleItems.sortOrder));
+
+    const sellableQty = items.length > 0
+      ? Math.min(...items.map((i) => Math.floor(i.stock / i.quantity)))
+      : 0;
+
+    rows.push({
+      bundle_id: b.id,
+      bundle_code: b.bundle_code,
+      bundle_name: b.name,
+      shop_id: b.shop_id,
+      shop_name: b.shop_name,
+      external_price: pgNumber(b.external_price) ?? 0,
+      internal_price: pgNumber(b.internal_price) ?? 0,
+      sellable_qty: sellableQty,
+      components: items.map((i) => ({
+        product_id: i.product_id,
+        product_code: i.product_code,
+        product_name: i.product_name,
+        qty_per_bundle: i.quantity,
+        stock: i.stock,
+      })),
+    });
+  }
+
+  return { shop_id: effectiveShopId, rows };
 }
 
 // ── /returns ────────────────────────────────────────────────────────────────
@@ -577,10 +692,16 @@ async function buildProductBlock(
 
   for (const m of movements) {
     const typeStr = m.type;
-    const signed = m.quantity;
     const cost = m.costPerUnit !== null ? pgNumber(m.costPerUnit) ?? lastCost : lastCost;
-    const qtyIn = signed >= 0 ? signed : 0;
-    const qtyOut = signed < 0 ? -signed : 0;
+    // Bucket by the actual stock change (stock_after - stock_before), not by
+    // the sign of `quantity` — `quantity`'s sign convention isn't consistent
+    // across movement types (e.g. a 'sale'/'internal_use' row always stores
+    // the positive qty sold/issued, which is an outflow, not an inflow; a
+    // negative qty there — refund-via-POS or a stock-return requisition —
+    // is an inflow). The stock delta is unambiguous regardless of type.
+    const delta = m.stockAfter - m.stockBefore;
+    const qtyIn = delta > 0 ? delta : 0;
+    const qtyOut = delta < 0 ? -delta : 0;
     const amountIn = Math.round(qtyIn * cost * 100) / 100;
     const amountOut = Math.round(qtyOut * cost * 100) / 100;
     const balance = m.stockAfter;
@@ -748,6 +869,8 @@ export interface SalesSummaryRow {
   remark: string | null;
   shop_id: string;
   shop_name: string | null;
+  bundle_names: string | null;
+  status: string;
 }
 
 export interface SalesSummaryTotals {
@@ -786,7 +909,9 @@ export async function salesSummaryReport(args: {
   const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
-  const conds = [eq(receipts.status, "ACTIVE")];
+  // No status filter — voided receipts are included as their own rows
+  // (tagged via `status`) and excluded from totals below.
+  const conds: SQL[] = [];
   if (args.dateFrom) conds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
   if (args.dateTo) conds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
   if (effectiveShopId) {
@@ -832,6 +957,28 @@ export async function salesSummaryReport(args: {
     .where(and(...filterConds))
     .orderBy(asc(shops.name), desc(receipts.transactionDate), desc(receipts.id));
 
+  // Bundle sale lines don't have their own row in this receipt-level report,
+  // so collect the bundle name(s) per receipt from receiptItems.options
+  // (same is_bundle/bundle_name shape used by salesByItemReport) to surface
+  // as a "Bundle" column instead of leaving bundle sales invisible here.
+  const receiptIds = allRows.map(({ receipt: r }) => r.id);
+  const bundleNamesByReceiptId = new Map<number, string[]>();
+  if (receiptIds.length > 0) {
+    const bundleItemRows = await db
+      .select({ receiptId: receiptItems.receiptId, options: receiptItems.options })
+      .from(receiptItems)
+      .where(inArray(receiptItems.receiptId, receiptIds));
+    for (const item of bundleItemRows) {
+      const opts = (item.options ?? {}) as Record<string, unknown>;
+      if (!opts.is_bundle) continue;
+      const bundleName = typeof opts.bundle_name === "string" ? opts.bundle_name : null;
+      if (!bundleName) continue;
+      const list = bundleNamesByReceiptId.get(item.receiptId) ?? [];
+      list.push(bundleName);
+      bundleNamesByReceiptId.set(item.receiptId, list);
+    }
+  }
+
   const rows: SalesSummaryRow[] = [];
   const totals: SalesSummaryTotals = {
     amt_receive: 0,
@@ -865,7 +1012,7 @@ export async function salesSummaryReport(args: {
     const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
     const buckets: Omit<
       SalesSummaryRow,
-      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name"
+      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name" | "bundle_names" | "status"
     > = {
       amt_billing: 0,
       amt_cash: 0,
@@ -875,6 +1022,8 @@ export async function salesSummaryReport(args: {
       amt_other: 0,
     };
     (buckets as Record<string, number>)[col] = amtReceive;
+
+    const bundleNames = bundleNamesByReceiptId.get(r.id);
 
     rows.push({
       seq: idx + 1,
@@ -887,13 +1036,17 @@ export async function salesSummaryReport(args: {
       remark: r.notes ?? null,
       shop_id: r.shopId ?? "",
       shop_name: shop?.name ?? null,
+      bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
+      status: r.status,
       ...buckets,
     });
 
-    totals.amt_receive += amtReceive;
-    totals.amt_change += amtChange;
-    if (col !== "amt_receive" && col !== "amt_change") {
-      totals[col] += amtReceive;
+    if (r.status === "ACTIVE") {
+      totals.amt_receive += amtReceive;
+      totals.amt_change += amtChange;
+      if (col !== "amt_receive" && col !== "amt_change") {
+        totals[col] += amtReceive;
+      }
     }
   });
 
@@ -903,7 +1056,7 @@ export async function salesSummaryReport(args: {
     shop_id: effectiveShopId,
     rows,
     totals,
-    receipt_count: rows.length,
+    receipt_count: rows.filter((r) => r.status === "ACTIVE").length,
   };
 }
 
@@ -912,6 +1065,7 @@ export interface SalesByItemRow {
   transaction_date: string;
   item_no: string | null;
   item_name: string;
+  is_bundle: boolean;
   receipt_number: string;
   customer_id: string | null;
   customer_name: string | null;
@@ -919,6 +1073,7 @@ export interface SalesByItemRow {
   sales_amt: number;
   receive_type: string;
   remark: string | null;
+  status: string;
 }
 
 export interface SalesByItemTotals {
@@ -951,7 +1106,9 @@ export async function salesByItemReport(args: {
   const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
-  const conds = [eq(receipts.status, "ACTIVE")];
+  // No status filter — voided receipts are included as their own rows
+  // (tagged via `status`) and excluded from totals below.
+  const conds: SQL[] = [];
   if (args.dateFrom) conds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
   if (args.dateTo) conds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
   if (effectiveShopId) {
@@ -1003,11 +1160,22 @@ export async function salesByItemReport(args: {
       custId = payer.externalId ?? payer.username;
       custName = payer.fullName;
     }
+    // Bundle sale lines don't have a product_variant_id pointing at a real
+    // shop_products row (checkout stores the bundle's own name/code in
+    // receipt_items.options instead) — the shopProducts join above misses
+    // them, so resolve the name from options rather than falling back to
+    // "(unknown)". Same pattern as returns_service.ts's receiptToSearchDto.
+    const opts = (item.options ?? {}) as Record<string, unknown>;
+    const isBundle = Boolean(opts.is_bundle);
+    const bundleCode = isBundle && typeof opts.bundle_code === "string" ? opts.bundle_code : null;
+    const bundleName = isBundle && typeof opts.bundle_name === "string" ? opts.bundle_name : null;
+
     rows.push({
       seq: idx + 1,
       transaction_date: pgToIso(r.transactionDate)!,
-      item_no: product?.productCode ?? null,
-      item_name: product?.name ?? "(unknown)",
+      item_no: isBundle ? bundleCode : (product?.productCode ?? null),
+      item_name: isBundle ? (bundleName ?? "(unknown)") : (product?.name ?? "(unknown)"),
+      is_bundle: isBundle,
       receipt_number: r.receiptNumber,
       customer_id: custId,
       customer_name: custName,
@@ -1015,9 +1183,12 @@ export async function salesByItemReport(args: {
       sales_amt: amt,
       receive_type: PAYMENT_METHOD_LABEL[r.paymentMethod] ?? "Other",
       remark: r.notes ?? null,
+      status: r.status,
     });
-    totals.sales_qty += qty;
-    totals.sales_amt += amt;
+    if (r.status === "ACTIVE") {
+      totals.sales_qty += qty;
+      totals.sales_amt += amt;
+    }
   });
 
   return {
@@ -1026,6 +1197,6 @@ export async function salesByItemReport(args: {
     shop_id: effectiveShopId,
     rows,
     totals,
-    line_count: rows.length,
+    line_count: rows.filter((r) => r.status === "ACTIVE").length,
   };
 }

@@ -62,13 +62,27 @@ interface PrintBarcodeDialogProps {
   selectedProduct?: Product | null;
 }
 
-type LabelSize = "small" | "medium" | "large";
+type LabelSize = "small" | "medium" | "large" | "sticker_a10";
 
 const LABEL_SIZES: { value: LabelSize; label: string; width: string; height: string }[] = [
   { value: "small", label: "Small (30x20mm)", width: "30mm", height: "20mm" },
   { value: "medium", label: "Medium (50x30mm)", width: "50mm", height: "30mm" },
   { value: "large", label: "Large (70x40mm)", width: "70mm", height: "40mm" },
+  { value: "sticker_a10", label: "Sticker Sheet A10 (25x50mm, 4x11, A4)", width: "50mm", height: "25mm" },
 ];
+
+// A10 sticker sheet: A4 page, 4 columns x 11 rows, 25mm x 50mm per sticker,
+// 44 stickers per sheet. Grid fits exactly inside A4 (210x297mm) with
+// 5mm side margins and 11mm top/bottom margins — no gaps between cells,
+// matching pre-cut commercial A10 label sheets.
+const STICKER_A10 = {
+  page: { width: "210mm", height: "297mm" },
+  margin: { x: "5mm", y: "11mm" },
+  cell: { width: "50mm", height: "25mm" },
+  columns: 4,
+  rows: 11,
+  perSheet: 44,
+};
 
 export function PrintBarcodeDialog({
   open,
@@ -195,51 +209,115 @@ export function PrintBarcodeDialog({
       return;
     }
 
+    const isSticker = labelSize === "sticker_a10";
     const sizeConfig = LABEL_SIZES.find((s) => s.value === labelSize) || LABEL_SIZES[1];
-    const fontSize = { small: { name: "6pt", code: "5pt", price: "6pt" }, medium: { name: "8pt", code: "7pt", price: "8pt" }, large: { name: "10pt", code: "9pt", price: "10pt" } }[labelSize];
+    const fontSize = {
+      small: { name: "6pt", code: "5pt", price: "6pt" },
+      medium: { name: "8pt", code: "7pt", price: "8pt" },
+      large: { name: "10pt", code: "9pt", price: "10pt" },
+      sticker_a10: { name: "6.5pt", code: "5.5pt", price: "6.5pt" },
+    }[labelSize];
 
-    let labelsHtml = "";
+    // Content shared by every layout mode — barcode canvas + text stack.
+    // Sticker mode uses a slightly wider barcode (cell is 50x25mm landscape)
+    // and skips the dashed border / free-flow margin used by the loose-label modes.
+    const labelInner = (item: PrintItem, canvas: HTMLCanvasElement) => `
+      <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        ${item.product.name}
+      </div>
+      ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #666; text-align: center;">${item.barcodeLabel}</div>` : ""}
+      <img src="${canvas.toDataURL("image/png")}" style="max-width: 90%; height: auto;" />
+      <div style="font-size: ${fontSize.code}; font-family: monospace;">${item.barcodeValue}</div>
+      ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
+      ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #666;">${item.product.productCode}</div>` : ""}
+    `;
+
+    const cells: string[] = [];
     printItems.forEach((item) => {
       for (let i = 0; i < item.quantity; i++) {
         const canvas = document.createElement("canvas");
         try {
           JsBarcode(canvas, item.barcodeValue, {
             format: "CODE128",
-            width: labelSize === "small" ? 1 : labelSize === "medium" ? 1.5 : 2,
-            height: labelSize === "small" ? 30 : labelSize === "medium" ? 40 : 50,
+            width: labelSize === "small" ? 1 : labelSize === "medium" ? 1.5 : isSticker ? 1.2 : 2,
+            height: labelSize === "small" ? 30 : labelSize === "medium" ? 40 : isSticker ? 25 : 50,
             displayValue: false,
             margin: 2,
           });
-          const barcodeImg = canvas.toDataURL("image/png");
-          labelsHtml += `
-            <div class="label" style="
-              width: ${sizeConfig.width};
-              height: ${sizeConfig.height};
-              padding: 2mm;
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              page-break-inside: avoid;
-              border: 1px dashed #ccc;
-              margin: 1mm;
-            ">
-              <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${item.product.name}
-              </div>
-              ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #666; text-align: center;">${item.barcodeLabel}</div>` : ""}
-              <img src="${barcodeImg}" style="max-width: 90%; height: auto;" />
-              <div style="font-size: ${fontSize.code}; font-family: monospace;">${item.barcodeValue}</div>
-              ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
-              ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #666;">${item.product.productCode}</div>` : ""}
-            </div>
-          `;
+          cells.push(labelInner(item, canvas));
         } catch (e) {
           console.error("Failed to generate barcode:", item.barcodeValue, e);
         }
       }
     });
+
+    let bodyHtml: string;
+    let pageStyle: string;
+
+    if (isSticker) {
+      // Chunk into sheets of 44 (4 cols x 11 rows) so each sheet lands
+      // exactly on a pre-cut A10 sticker page — no gaps, no dashed borders.
+      const sheets: string[][] = [];
+      for (let i = 0; i < cells.length; i += STICKER_A10.perSheet) {
+        sheets.push(cells.slice(i, i + STICKER_A10.perSheet));
+      }
+      bodyHtml = sheets
+        .map(
+          (sheetCells, idx) => `
+        <div class="sheet" style="
+          width: ${STICKER_A10.page.width};
+          height: ${STICKER_A10.page.height};
+          padding: ${STICKER_A10.margin.y} ${STICKER_A10.margin.x};
+          box-sizing: border-box;
+          display: grid;
+          grid-template-columns: repeat(${STICKER_A10.columns}, ${STICKER_A10.cell.width});
+          grid-template-rows: repeat(${STICKER_A10.rows}, ${STICKER_A10.cell.height});
+          ${idx < sheets.length - 1 ? "page-break-after: always;" : ""}
+        ">
+          ${sheetCells
+            .map(
+              (inner) => `
+            <div class="cell" style="
+              width: ${STICKER_A10.cell.width};
+              height: ${STICKER_A10.cell.height};
+              padding: 1mm 2mm;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            ">${inner}</div>
+          `,
+            )
+            .join("")}
+        </div>
+      `,
+        )
+        .join("");
+      pageStyle = `@page { size: A4; margin: 0; } body { margin: 0; }`;
+    } else {
+      bodyHtml = cells
+        .map(
+          (inner) => `
+        <div class="label" style="
+          width: ${sizeConfig.width};
+          height: ${sizeConfig.height};
+          padding: 2mm;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          page-break-inside: avoid;
+          border: 1px dashed #ccc;
+          margin: 1mm;
+        ">${inner}</div>
+      `,
+        )
+        .join("");
+      pageStyle = `@media print { @page { margin: 5mm; } body { margin: 0; } } body { display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; }`;
+    }
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -247,12 +325,12 @@ export function PrintBarcodeDialog({
       <head>
         <title>Print Barcodes</title>
         <style>
-          @media print { @page { margin: 5mm; } body { margin: 0; } }
-          body { font-family: Arial, sans-serif; display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; }
+          body { font-family: Arial, sans-serif; }
+          ${pageStyle}
         </style>
       </head>
       <body>
-        ${labelsHtml}
+        ${bodyHtml}
         <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };<\/script>
       </body>
       </html>

@@ -23,7 +23,6 @@ export const useKioskStore = defineStore('kiosk', () => {
     const schoolInfo = ref<{ school_name: string; school_logo_url: string }>({ school_name: '', school_logo_url: '' });
     const deviceProfile = ref<KioskProfile | null>(null);
     const loginSource = ref<'rfid' | 'manual'>('rfid');
-    const machineName = ref<string>(localStorage.getItem('kiosk_machine_name') ?? '');
     // Index of the wallet whose transactions are currently loaded (-1 = parent's active wallet)
     const transactionWalletIndex = ref(-1);
 
@@ -190,11 +189,6 @@ export const useKioskStore = defineStore('kiosk', () => {
         }
     }
 
-    function setMachineName(name: string) {
-        machineName.value = name.trim();
-        localStorage.setItem('kiosk_machine_name', machineName.value);
-    }
-
     return {
         currentUser,
         currentWallet,
@@ -208,7 +202,6 @@ export const useKioskStore = defineStore('kiosk', () => {
         lastActivity,
         isAuthenticated,
         loginSource,
-        machineName,
         transactionWalletIndex,
         setLanguage,
         setActiveWallet,
@@ -223,6 +216,5 @@ export const useKioskStore = defineStore('kiosk', () => {
         deviceProfile,
         fetchDeviceProfile,
         updateDeviceLocation,
-        setMachineName,
     };
 });

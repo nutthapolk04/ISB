@@ -69,6 +69,10 @@ describe("GET /api/v1/shops contract", () => {
       "products_order_version",
       "created_at",
       "spending_group_id",
+      "receipt_header",
+      "receipt_footer",
+      "void_shortcuts",
+      "shop_number",
     ].sort();
 
     const shop = body[0]!;

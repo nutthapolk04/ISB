@@ -976,6 +976,38 @@ export default function Canteen() {
                         </Button>
                     )}
                     <div className="flex items-center gap-2 shrink-0">
+                        {usesDualPricing && (
+                            <div
+                                className="flex items-center gap-1 rounded-full bg-muted p-1"
+                                role="group"
+                                aria-label="Price mode"
+                            >
+                                {/* <button
+                                    type="button"
+                                    onClick={() => cart.setPriceMode("retail")}
+                                    className={cn(
+                                        "px-3 py-1 text-xs font-semibold rounded-full transition",
+                                        cart.priceMode === "retail"
+                                            ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow"
+                                            : "text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    Retail
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => cart.setPriceMode("internal")}
+                                    className={cn(
+                                        "px-3 py-1 text-xs font-semibold rounded-full transition",
+                                        cart.priceMode === "internal"
+                                            ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow"
+                                            : "text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    Internal
+                                </button> */}
+                            </div>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
@@ -985,7 +1017,7 @@ export default function Canteen() {
                             <UserSearch className="h-4 w-4" />
                             <span className="hidden sm:inline">{t("canteen.pos.searchMember")}</span>
                         </Button>
-                        {hasRole("cashier", "manager", "admin") && CANTEEN_SHOP_ID && (
+                        {hasRole("manager") && CANTEEN_SHOP_ID && (
                             <UpToDateSaleButton
                                 shopId={CANTEEN_SHOP_ID}
                                 shopName={user?.shopName}

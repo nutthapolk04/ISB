@@ -54,6 +54,7 @@ export function ProductCard({
   const displayPrice =
     priceMode === "internal" ? product.internalPrice : product.price;
   const isInternal = priceMode === "internal";
+  // Canteen-wide: color tint enabled — show product color on card.
   const hasColor = !!product.color;
   const showColorPicker = !!onSaveColor;
 

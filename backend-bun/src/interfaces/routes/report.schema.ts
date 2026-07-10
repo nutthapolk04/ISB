@@ -77,3 +77,14 @@ export const salesByItemReport = {
     query: t.Object(salesFilterQuery),
     detail: { tags: ["Reports"], summary: "Per-receipt-item sales breakdown with totals" },
 };
+
+export const bundleReport = {
+    query: t.Object({
+        shop_id: t.Optional(t.Nullable(t.String())),
+        module: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: {
+        tags: ["Reports"],
+        summary: "Bundles with component breakdown and current sellable quantity",
+    },
+};

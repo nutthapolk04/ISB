@@ -1,256 +1,70 @@
+
 {
-  "families": [
-    {
-      "familyCode": 85001,
-      "notificationEmails": [
-        "p.bunluesin@gmail.com",
-        "pbtestacc02@gmail.com"
-      ],
-      "mainParent": {
-        "customerId": 85001,
-        "customerType": "Parent",
-        "firstName": "John",
-        "lastName": "Wick",
-        "profileImage": "85001_OT.jpg",
-        "login": "85001@parents.isb.ac.th",
-        "smartCard": {
-          "cardNumber": "9FEA7DD1"
-        }
-      },
-      "secondaryParent": {
-        "customerId": 85002,
-        "customerType": "Parent",
-        "firstName": "Kate",
-        "lastName": "Wick",
-        "profileImage": "85002_OT.jpg",
-        "login": "85002@parents.isb.ac.th",
-        "smartCard": {
-          "cardNumber": "0F8883D1"
-        }
-      },
-      "students": [
-        {
-          "customerId": 35001,
-          "customerType": "Student",
-          "firstName": "Zbling",
-          "lastName": "TESTLNAME",
-          "grade": "04",
-          "schoolType": "ES Student",
-          "profileImage": "35001_ST.jpg",
+    "families": [
+      {
+        "familyCode": 70753,
+        "notificationEmails": [
+          "amrittrading2@gmail.com",
+          "mamta.sach@gmail.com"
+        ],
+        "mainParent": {
+          "customerId": 70753,
+          "customerType": "Parent",
+          "firstName": "Vivek",
+          "lastName": "DAWAR",
+          "profileImage": "70753_OT.jpg",
+          "login": [
+            "70753@parents.isb.ac.th"
+          ],
           "smartCard": {
-            "cardNumber": "BFB187D1"
-          }
-        }
-      ]
-    },
-    {
-      "familyCode": 85003,
-      "notificationEmails": [
-        "pbtestacc04gmail.com"
-      ],
-      "mainParent": {
-        "customerId": 85003,
-        "customerType": "Parent",
-        "firstName": "Brad",
-        "lastName": "Pitt",
-        "profileImage": "85003_OT.jpg",
-        "login": "85003@parents.isb.ac.th",
-        "smartCard": {
-          "cardNumber": "9FAD7ED1"
-        }
-      },
-      "secondaryParent": null,
-      "students": [
-        {
-          "customerId": 35002,
-          "customerType": "Student",
-          "firstName": "TESTLNAME3",
-          "lastName": "Student3",
-          "grade": "04",
-          "schoolType": "ES Student",
-          "profileImage": "35002_ST.jpg",
-          "smartCard": {
-            "cardNumber": "EF307DD1"
-          }
-        }
-      ]
-    },
-    {
-      "familyCode": 202301,
-      "notificationEmails": [
-        "somchair@isb.ac.th",
-        "malee.rakdee@gmail.com"
-      ],
-      "mainParent": {
-        "customerId": 202301,
-        "customerType": "Staff",
-        "firstName": "Somchai",
-        "lastName": "RAKDEE",
-        "profileImage": "202301_SF.jpg",
-        "login": "somchair@isb.ac.th",
-        "smartCard": {
-          "cardNumber": "AA1100BB"
-        }
-      },
-      "secondaryParent": {
-        "customerId": 70699,
-        "customerType": "Parent",
-        "firstName": "Malee",
-        "lastName": "RAKDEE",
-        "profileImage": "70699_OT.jpg",
-        "login": "70699@parents.isb.ac.th",
-        "smartCard": {
-          "cardNumber": "AA1101BB"
-        }
-      },
-      "students": [
-        {
-          "customerId": 35003,
-          "customerType": "Student",
-          "firstName": "Nong",
-          "lastName": "RAKDEE",
-          "grade": "08",
-          "schoolType": "MS Student",
-          "profileImage": "35003_ST.jpg",
-          "smartCard": {
-            "cardNumber": "ST1001AA"
+            "cardNumber": "E4D50238"
           }
         },
-        {
-          "customerId": 35004,
-          "customerType": "Student",
-          "firstName": "Nid",
-          "lastName": "RAKDEE",
-          "grade": "05",
-          "schoolType": "ES Student",
-          "profileImage": "35004_ST.jpg",
+        "secondaryParent": {
+          "customerId": 70754,
+          "customerType": "Parent",
+          "firstName": "Mamta",
+          "lastName": "SACHDEV",
+          "profileImage": "70754_OT.jpg",
+          "login": [
+            "70754@parents.isb.ac.th"
+          ],
           "smartCard": {
-            "cardNumber": "ST1002AA"
+            "cardNumber": "F4F23438"
           }
         },
-        {
-          "customerId": 35005,
-          "customerType": "Student",
-          "firstName": "Lek",
-          "lastName": "RAKDEE",
-          "grade": "02",
-          "schoolType": "ES Student",
-          "profileImage": "35005_ST.jpg",
-          "smartCard": {
-            "cardNumber": "ST1003AA"
+        "students": [
+          {
+            "customerId": 20679,
+            "customerType": "Student",
+            "firstName": "Adarsh",
+            "lastName": "DAWAR",
+            "grade": "08",
+            "schoolType": "MS Student",
+            "enrollmentDate": "2018-08-16",
+            "withdrawDate": "",
+            "profileImage": "20679_ST.jpg",
+            "smartCard": {
+              "cardNumber": "8FA85ED1"
+            }
+          },
+          {
+            "customerId": 23026,
+            "customerType": "Student",
+            "firstName": "Adira",
+            "lastName": "DAWAR",
+            "grade": "02",
+            "schoolType": "ES Student",
+            "enrollmentDate": "2023-08-11",
+            "withdrawDate": "",
+            "profileImage": "23026_ST.jpg",
+            "smartCard": {
+              "cardNumber": "654D7B96"
+            }
           }
-        }
-      ]
-    },
-    {
-      "familyCode": 202303,
-      "notificationEmails": [
-        "prasitj@isb.ac.th",
-        "wanidaj@isb.ac.th"
-      ],
-      "mainParent": {
-        "customerId": 202303,
-        "customerType": "Staff",
-        "firstName": "Prasit",
-        "lastName": "JAIDEE",
-        "profileImage": "202303_SF.jpg",
-        "login": "prasitj@isb.ac.th",
-        "smartCard": {
-          "cardNumber": "BB2200CC"
-        }
-      },
-      "secondaryParent": {
-        "customerId": 202304,
-        "customerType": "Staff",
-        "firstName": "Wanida",
-        "lastName": "JAIDEE",
-        "profileImage": "202304_SF.jpg",
-        "login": "wanidaj@isb.ac.th",
-        "smartCard": {
-          "cardNumber": "BB2201CC"
-        }
-      },
-      "students": [
-        {
-          "customerId": 35006,
-          "customerType": "Student",
-          "firstName": "Beam",
-          "lastName": "JAIDEE",
-          "grade": "07",
-          "schoolType": "MS Student",
-          "profileImage": "35006_ST.jpg",
-          "smartCard": {
-            "cardNumber": "ST2001BB"
-          }
-        },
-        {
-          "customerId": 35007,
-          "customerType": "Student",
-          "firstName": "Fah",
-          "lastName": "JAIDEE",
-          "grade": "04",
-          "schoolType": "ES Student",
-          "profileImage": "35007_ST.jpg",
-          "smartCard": {
-            "cardNumber": "ST2002BB"
-          }
-        }
-      ]
-    },
-    {
-      "familyCode": 70652,
-      "notificationEmails": [
-        "kritsada.suwan@gmail.com",
-        "porntips@isb.ac.th"
-      ],
-      "mainParent": {
-        "customerId": 70652,
-        "customerType": "Parent",
-        "firstName": "Kritsada",
-        "lastName": "SUWAN",
-        "profileImage": "70652_OT.jpg",
-        "login": "70652@parents.isb.ac.th",
-        "smartCard": {
-          "cardNumber": "CC3300DD"
-        }
-      },
-      "secondaryParent": {
-        "customerId": 202306,
-        "customerType": "Staff",
-        "firstName": "Pornthip",
-        "lastName": "SUWAN",
-        "profileImage": "202306_SF.jpg",
-        "login": "porntips@isb.ac.th",
-        "smartCard": {
-          "cardNumber": "CC3301DD"
-        }
-      },
-      "students": [
-        {
-          "customerId": 35008,
-          "customerType": "Student",
-          "firstName": "Kao",
-          "lastName": "SUWAN",
-          "grade": "09",
-          "schoolType": "HS Student",
-          "profileImage": "35008_ST.jpg",
-          "smartCard": {
-            "cardNumber": "ST3001CC"
-          }
-        },
-        {
-          "customerId": 35009,
-          "customerType": "Student",
-          "firstName": "Pim",
-          "lastName": "SUWAN",
-          "grade": "06",
-          "schoolType": "MS Student",
-          "profileImage": "35009_ST.jpg",
-          "smartCard": {
-            "cardNumber": "ST3002CC"
-          }
-        }
-      ]
-    }
-  ]
-}
+        ]
+      }
+    ]
+  }
+
+    

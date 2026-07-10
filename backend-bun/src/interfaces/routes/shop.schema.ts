@@ -151,7 +151,10 @@ export const shopRequisition = {
     params: shopIdParams,
     body: t.Object({
         items: t.Array(
-            t.Object({ product_id: t.Number(), qty: t.Number({ minimum: 1 }) }),
+            // Negative qty (manager/admin only, enforced by the frontend)
+            // means stock is being returned/added back rather than issued
+            // out — checkout() already rejects exactly 0.
+            t.Object({ product_id: t.Number(), qty: t.Number() }),
             { minItems: 1 },
         ),
         requester_user_id: t.Number(),

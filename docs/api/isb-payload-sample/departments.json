@@ -1,12 +1,12 @@
 {
   "departments": [
     {
-      "departmentId": 520,
+      "departmentId": "520",
       "customerType": "Department",
       "departmentDescription": "ED-TECH"
     },
     {
-      "departmentId": 521,
+      "departmentId": "521",
       "customerType": "Department",
       "departmentDescription": "ADMISSIONS",
       "login": {

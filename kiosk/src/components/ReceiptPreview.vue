@@ -504,7 +504,7 @@ const handlePrint = async () => {
 .r-value-large {
   font-size: 2.5rem;
   font-weight: 800;
-  color: #2563eb;
+  color: var(--primary);
   letter-spacing: -0.02em;
 }
 
@@ -583,11 +583,11 @@ const handlePrint = async () => {
 }
 
 .print-btn {
-  background: #2563eb;
+  background: var(--primary);
   color: white;
 }
 .print-btn:hover {
-  background: #1d4ed8;
+  background: var(--primary-dark);
 }
 
 .close-action-btn {

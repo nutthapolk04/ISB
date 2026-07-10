@@ -138,7 +138,7 @@ export const WalletController = {
 				initiatorUserId: Number(user.sub),
 				initiatorIsAdmin: hasRole(user.roles, "admin") || user.is_superuser,
 				initiatorRoles: user.roles,
-				note: body.note ?? undefined,
+				note: body.note,
 			});
 			logger.info(`[${reqContext.requestId} (WL-06)] WalletController.transfer() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

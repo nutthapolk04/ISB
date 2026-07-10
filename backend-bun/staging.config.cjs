@@ -29,6 +29,7 @@ module.exports = {
             watch: false,
             env: {
                 NODE_ENV: "production",
+                APP_ENV: "uat",
             },
             out_file: "./logs/pm2-staging-out.log",
             error_file: "./logs/pm2-staging-error.log",

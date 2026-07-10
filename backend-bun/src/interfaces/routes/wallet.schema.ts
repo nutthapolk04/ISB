@@ -37,7 +37,7 @@ export const walletTransfer = {
         from_wallet_id: t.Number(),
         to_wallet_id: t.Number(),
         amount: t.Number({ exclusiveMinimum: 0 }),
-        note: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+        note: t.String({ minLength: 1, maxLength: 500 }),
     }),
-    detail: { tags: ["Wallets"], summary: "Transfer within family" },
+    detail: { tags: ["Wallets"], summary: "Transfer between wallets (note required, no department destinations)" },
 };

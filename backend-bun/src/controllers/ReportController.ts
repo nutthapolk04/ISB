@@ -10,6 +10,7 @@ import {
 	stockCardReport,
 	salesSummaryReport,
 	salesByItemReport,
+	bundleReport,
 } from "@/services/report_service";
 import { errorFromService, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
@@ -192,6 +193,25 @@ export const ReportController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (RP-07)] ReportController.salesByItem() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	bundle: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (RP-08)] ReportController.bundle() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (RP-08)] ReportController.bundle() calling bundleReport().`);
+			const result = await bundleReport({
+				user,
+				shopId: query.shop_id ?? undefined,
+				module: query.module ?? undefined,
+			});
+			logger.info(`[${reqContext.requestId} (RP-08)] ReportController.bundle() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (RP-08)] ReportController.bundle() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
