@@ -408,6 +408,682 @@ const Store = () => {
         toast.error(t("store.productNotFound"));
     };
 
+    // ── Checkout ────────────────────────────────────────────────────────────
+    interface CheckoutCtx {
+        payer?: WalletPayer;
+        deptId?: number;
+        empCode?: string | null;
+        edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string };
+        cashReceived?: number;
+    }
+
+    const doCheckout = async (method: CanteenPaymentMethod, ctx: CheckoutCtx = {}) => {
+        setConfirming(true);
+        // Tell the customer display the payment is going through. Payer info
+        // resolved best-effort so the screen can show the balance preview.
+        const displayMethod = paymentMethodForDisplay(method);
+        const displayPayer =
+            method === "wallet" && ctx.payer
+                ? ctx.payer.kind === "customer"
+                    ? payerForCustomer({ ...ctx.payer.student, spendingLimit: storeSpendingLimit(ctx.payer.student) }, total)
+                    : ctx.payer.kind === "department"
+                        ? payerForDepartment(ctx.payer.department, total)
+                        : payerForUser({ ...ctx.payer.user, spendingLimit: null }, total)
+                : method === "department" && ctx.deptId
+                    ? (() => {
+                        const d = departmentOptions.find((x) => x.id === ctx.deptId);
+                        return d ? payerForDepartment(d, total) : null;
+                    })()
+                    : null;
+        display.processing({
+            items: buildDisplayItems(),
+            total,
+            payer: displayPayer,
+            method: displayMethod,
+        });
+        try {
+            const isWallet = method === "wallet";
+            const isDept = method === "department";
+            const isEdc = method === "edc";
+
+            let backendMethod: string;
+            let payerKind: "customer" | "user" | "department" = "customer";
+            let customer_id: number | undefined;
+            let payer_user_id: number | undefined;
+            let payer_department_id: number | undefined;
+            let studentNameForReceipt: string | undefined;
+            let studentPhotoForReceipt: string | undefined;
+            let studentGradeForReceipt: string | undefined;
+
+            if (isWallet && ctx.payer) {
+                if (ctx.payer.kind === "customer") {
+                    backendMethod = "wallet";
+                    payerKind = "customer";
+                    customer_id = ctx.payer.student.id;
+                    studentNameForReceipt = ctx.payer.student.name;
+                    studentPhotoForReceipt = ctx.payer.student.photo_url ?? undefined;
+                    studentGradeForReceipt = ctx.payer.student.grade ?? undefined;
+                } else if (ctx.payer.kind === "department") {
+                    // Department account tapped via RFID — treat as department charge
+                    backendMethod = "department";
+                    payerKind = "department";
+                    payer_department_id = ctx.payer.department.id;
+                    studentNameForReceipt = ctx.payer.department.department_name;
+                } else {
+                    backendMethod = "wallet";
+                    payerKind = "user";
+                    payer_user_id = ctx.payer.user.user_id;
+                    studentNameForReceipt = ctx.payer.user.full_name;
+                    studentPhotoForReceipt = ctx.payer.user.photo_url ?? undefined;
+                }
+            } else if (isDept) {
+                backendMethod = "department";
+                payerKind = "department";
+                payer_department_id = ctx.deptId;
+            } else if (isEdc) {
+                backendMethod = "edc";
+            } else if (method === "cash") {
+                backendMethod = "cash";
+            } else {
+                backendMethod = "other";
+            }
+
+            if (priceMode === "internal" && !requesterUserId) {
+                toast.error(t("requisition.errorRequester", "Please select a requester"));
+                setConfirming(false);
+                return;
+            }
+
+            const payload = {
+                transaction_mode: priceMode === "internal" ? "internal_issue" : "sale",
+                payment_method: backendMethod,
+                payer_kind: payerKind,
+                customer_id,
+                payer_user_id,
+                payer_department_id,
+                requester_user_id: priceMode === "internal" ? requesterUserId : undefined,
+                // Explicit shop scope — required when bundle-only carts ship a
+                // sentinel product_variant_id=0 that backend can't introspect.
+                shop_id: user?.shopId ?? undefined,
+                cash_received:
+                    backendMethod === "cash" && ctx.cashReceived !== undefined && total > 0
+                        ? ctx.cashReceived
+                        : undefined,
+                items: cart.map((item) => {
+                    const catalogPrice =
+                        priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price;
+                    if (item.isBundle && item.bundleId != null) {
+                        return {
+                            // product_variant_id is unused by the backend for bundle items,
+                            // but the field is required by the schema — send 0 as sentinel.
+                            product_variant_id: 0,
+                            quantity: item.quantity,
+                            unit_price: catalogPrice,
+                            price_override: item.priceOverride ?? null,
+                            discount: getItemDiscountAmount(item),
+                            is_bundle: true,
+                            bundle_id: item.bundleId,
+                        };
+                    }
+                    return {
+                        product_variant_id: item.id,
+                        quantity: item.quantity,
+                        unit_price: catalogPrice,
+                        price_override: item.priceOverride ?? null,
+                        discount: getItemDiscountAmount(item),
+                    };
+                }),
+                discount: billDiscountAmount,
+                notes: (() => {
+                    const parts: string[] = [];
+                    if (isDept) parts.push(`Dept: ${ctx.deptId ?? ""}${ctx.empCode ? ` · Emp: ${ctx.empCode}` : ""}`);
+                    if (receiptNote.trim()) parts.push(receiptNote.trim());
+                    return parts.length > 0 ? parts.join(" | ") : undefined;
+                })(),
+                edc_terminal_ref: ctx.edcRefs?.terminal_ref,
+                edc_approval_code: ctx.edcRefs?.approval_code,
+                edc_masked_card: ctx.edcRefs?.masked_card,
+            };
+
+            const receipt = await api.post<{ receipt_number: string; total: number }>(
+                "/pos/checkout",
+                payload,
+            );
+
+            // Compute remaining balance for wallet payments to show in success modal
+            let remaining: number | undefined;
+            if (isWallet && ctx.payer) {
+                const before =
+                    ctx.payer.kind === "customer"
+                        ? (ctx.payer.student.wallet_balance ?? 0)
+                        : ctx.payer.kind === "user"
+                            ? ctx.payer.user.wallet_balance
+                            : (ctx.payer.department.wallet_balance ?? 0);
+                remaining = before - receipt.total;
+            }
+
+            setLastReceipt({
+                receiptNumber: receipt.receipt_number,
+                amount: receipt.total,
+                remainingBalance: remaining,
+                studentName: studentNameForReceipt,
+                studentPhotoUrl: studentPhotoForReceipt,
+                studentGrade: studentGradeForReceipt,
+            });
+
+            // Auto-print receipt — fires once per completed sale. Silent printing
+            // requires Chromium launched with --kiosk-printing on the cashier station.
+            // Skipped entirely when the per-station auto-print toggle is off.
+            if (autoPrint) {
+                try {
+                    printReceipt(
+                        {
+                            ...(receipt as unknown as ReceiptApi),
+                            cash_received: backendMethod === "cash" ? (ctx.cashReceived ?? null) : null,
+                            notes: (() => {
+                                const parts: string[] = [];
+                                if (isDept) parts.push(`Dept: ${ctx.deptId ?? ""}${ctx.empCode ? ` · Emp: ${ctx.empCode}` : ""}`);
+                                if (receiptNote.trim()) parts.push(receiptNote.trim());
+                                return parts.length > 0 ? parts.join(" | ") : null;
+                            })(),
+                        },
+                        schoolInfo,
+                        user?.shopName,
+                        // School is international — receipt is always English on paper,
+                        // regardless of the cashier's UI language.
+                        "en",
+                        shopReceipt ?? undefined,
+                    );
+                } catch (printErr) {
+                    console.warn("Auto-print failed:", printErr);
+                }
+            }
+
+            // Refresh stock locally (skip bundles — they use a sentinel stock value)
+            setAllProducts((prev) =>
+                prev.map((p) => {
+                    if (p.isBundle) return p;
+                    const inCart = cart.find((c) => c.id === p.id);
+                    return inCart ? { ...p, stock: p.stock - inCart.quantity } : p;
+                }),
+            );
+
+            // Reset cart + close all payment modals + open success
+            setCart([]);
+            setLastAddedId(null);
+            setRequesterUserId(null);
+            setBillDiscountValue("");
+            setBillDiscountMode("amount");
+            setReceiptNote("");
+            setPreSelectedMember(null);
+            setMethodPickerOpen(false);
+            setWalletOpen(false);
+            setCashOpen(false);
+            setQrOpen(false);
+            setDeptOpen(false);
+            setEdcOpen(false);
+            setSuccessOpen(true);
+            setChipRefreshKey((k) => k + 1);
+
+            // Customer display: payment landed. The display window auto-returns
+            // to Standby 5 s after this success message.
+            display.success({
+                total: receipt.total,
+                payer: ["wallet"].includes(method) ? afterPaymentPayer(displayPayer, receipt.total, "store") : displayPayer,
+                method: displayMethod,
+                receiptNumber: receipt.receipt_number,
+            });
+        } catch (err: any) {
+            if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
+                setWalletLimitError(err.detail);
+            } else {
+                const detail = err instanceof ApiError ? err.detail : err?.message ?? "";
+                toast.error(t("checkout.failed", "Checkout failed"), {
+                    description: detail || t("checkout.failedHint", "Please try again or check your network."),
+                });
+            }
+            // Customer display: surface the failure with the same message the
+            // cashier sees, so the customer can react accordingly.
+            const reason =
+                err instanceof ApiError
+                    ? err.detail
+                    : err?.message ?? "Payment could not be completed.";
+            display.failed({ reason: String(reason), method: displayMethod, payer: displayPayer });
+            // QR modal was closed immediately on confirm — reopen so cashier can retry
+            if (method === "qr") setQrOpen(true);
+        } finally {
+            setConfirming(false);
+        }
+    };
+
+    // ── Open payment picker ─────────────────────────────────────────────────
+    const handleOpenPayment = async () => {
+        if (cart.length === 0) {
+            toast.error(t("store.pleaseAddProducts"));
+            return;
+        }
+
+        // Customer display: surface "Your Order" the moment the cashier moves
+        // to the payment step (whether the picker opens or a fast-path wallet
+        // charge runs immediately for a pre-selected member).
+        display.review({
+            items: buildDisplayItems(),
+            total,
+            payer:
+                preSelectedMember != null
+                    ? payerForCustomer({ ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) }, total)
+                    : null,
+        });
+
+        // If member is pre-selected, charge directly via wallet
+        if (preSelectedMember) {
+            setConfirming(true);
+            try {
+                const currentBalance = Number(preSelectedMember.wallet_balance ?? 0);
+                await doCheckout("wallet", {
+                    payer:
+                        preSelectedMember.user_id != null
+                            ? {
+                                kind: "user",
+                                user: {
+                                    user_id: preSelectedMember.user_id,
+                                    username: preSelectedMember.customer_code ?? "",
+                                    full_name: preSelectedMember.name,
+                                    role: preSelectedMember.customer_kind ?? "parent",
+                                    photo_url: preSelectedMember.photo_url ?? null,
+                                    wallet_id: preSelectedMember.wallet_id ?? 0,
+                                    wallet_balance: preSelectedMember.wallet_balance ?? 0,
+                                    is_active: true,
+                                },
+                            }
+                            : { kind: "customer", student: preSelectedMember },
+                });
+                setPreSelectedMember(null);
+            } catch (e) {
+                // Error already handled in doCheckout
+            } finally {
+                setConfirming(false);
+            }
+            return;
+        }
+
+        setMethodPickerOpen(true);
+    };
+
+    const handlePickMethod = (method: CanteenPaymentMethod) => {
+        setMethodPickerOpen(false);
+        if (method === "wallet") setWalletOpen(true);
+        else if (method === "cash") setCashOpen(true);
+        else if (method === "qr") {
+            setQrOpen(true);
+            // QR is special: the customer needs to see the code before confirming.
+            // Push it to the second monitor the moment the QR modal opens.
+            display.qr({
+                items: buildDisplayItems(),
+                total,
+                // No real PromptPay integration yet — encode the amount so the
+                // customer-display QR renders something deterministic.
+                qrPayload: `PROMPTPAY|AMOUNT|${total.toFixed(2)}`,
+                expiresAt: null,
+            });
+        }
+        else if (method === "department") setDeptOpen(true);
+        else if (method === "edc") setEdcOpen(true);
+    };
+
+    const handleBackToPicker = () => {
+        setWalletOpen(false);
+        setCashOpen(false);
+        setQrOpen(false);
+        setDeptOpen(false);
+        setEdcOpen(false);
+        setMethodPickerOpen(true);
+    };
+
+    // ── Per-method confirm shortcuts ────────────────────────────────────────
+    const handleConfirmWallet = (payer: WalletPayer) => doCheckout("wallet", { payer });
+    const handleConfirmCash = (cashReceived: number) =>
+        doCheckout("cash", { cashReceived });
+    // QR PromptPay now lives entirely inside QrPaymentModal (BAY intent +
+    // polling + auto-receipt via webhook). handleConfirmQr no longer needed.
+    const handleConfirmDept = (deptId: number, empCode: string | null) =>
+        doCheckout("department", { deptId, empCode });
+    const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) =>
+        doCheckout("edc", { edcRefs: refs });
+
+    // ── Available payment methods ───────────────────────────────────────────
+    const availableMethods: CanteenPaymentMethod[] = ["wallet", "cash", "qr", "edc"];
+
+    // ── Cart panel renderer (reused for desktop + mobile sheet) ─────────────
+    // NOTE: this is a plain render-fn, NOT a React component. Defining a
+    // component inside the parent re-creates its identity each render, which
+    // causes React to unmount/remount the entire subtree (and any children's
+    // local state, focus, etc.). A render fn returning JSX side-steps that.
+    const renderCartPanel = (asSheet: boolean) => (
+        <div className={asSheet ? "canteen-cart-sheet" : "canteen-cart-panel"}>
+            {/* Header */}
+
+
+            {/* Selected Member */}
+            {preSelectedMember && (
+                <div className="mx-3 mt-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+                    <div className="flex items-center gap-3">
+                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+                            <img
+                                src={resolveAvatarUrl(preSelectedMember.photo_url, preSelectedMember.name || String(preSelectedMember.id))}
+                                alt={preSelectedMember.name}
+                                className="h-full w-full object-cover"
+                                onError={(e) => { e.currentTarget.src = getFallbackAvatar(preSelectedMember.name || String(preSelectedMember.id)); }}
+                            />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-sm truncate">{preSelectedMember.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                                {preSelectedMember.student_code ?? preSelectedMember.customer_code}
+                                {preSelectedMember.grade && ` · Grade ${preSelectedMember.grade}`}
+                            </div>
+                            <div className="text-sm font-bold tabular-nums text-emerald-600">
+                                ฿{(preSelectedMember.wallet_balance ?? 0).toFixed(2)}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setPreSelectedMember(null)}
+                            className="shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
+                            aria-label={t("common.cancel")}
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                    {/* Daily Spending Limit panel */}
+                    {preSelectedMember.customer_kind !== "department" && preSelectedMember.user_id == null && (() => {
+                        const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                        const rows: { label: string; limit: number; spent: number }[] = [];
+                        if (preSelectedMember.daily_limit_canteen != null)
+                            rows.push({ label: "Canteen", limit: Number(preSelectedMember.daily_limit_canteen), spent: Number(preSelectedMember.spent_today_canteen ?? 0) });
+                        if (preSelectedMember.daily_limit_store != null)
+                            rows.push({ label: "Store", limit: Number(preSelectedMember.daily_limit_store), spent: Number(preSelectedMember.spent_today_store ?? 0) });
+                        if (rows.length === 0) return null;
+                        return (
+                            <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
+                                <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                                    Daily Spending Limit
+                                </div>
+                                {rows.map(({ label, limit, spent }) => {
+                                    const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                                    const over = spent >= limit;
+                                    const warn = pct >= 80;
+                                    const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
+                                    const barColor = over ? "bg-red-500" : "bg-amber-500";
+                                    return (
+                                        <div key={label} className="space-y-1">
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-foreground font-medium">{label}</span>
+                                                <span className={cn("font-bold tabular-nums", valueColor)}>
+                                                    {fmt(spent)}{" "}
+                                                    <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                                                <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
+            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+                <div>
+                    <h2 className="text-base font-bold leading-none">{t("store.order", "Order")}</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {t("store.itemCount", { count: itemCount })}
+                    </p>
+                </div>
+                {cart.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={clearCart}
+                        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {t("store.clearAll", "Clear all")}
+                    </button>
+                )}
+            </div>
+            {/* Cart items */}
+            <div className="flex-1 overflow-y-auto">
+                {cart.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground py-12">
+                        <ScanBarcode className="h-16 w-16 opacity-15" />
+                        <p className="text-sm">{t("store.emptyCart")}</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-border/40">
+                        {cart.map((item) => (
+                            <div
+                                key={item.id}
+                                className={cn(
+                                    "px-4 py-3 transition-colors",
+                                    item.id === lastAddedId && "bg-primary/5",
+                                )}
+                            >
+                                <div className="flex items-start gap-2.5">
+                                    {item.photoUrl ? (
+                                        <img
+                                            src={item.photoUrl}
+                                            alt=""
+                                            className="h-10 w-10 rounded object-cover border shrink-0"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="h-10 w-10 rounded bg-muted border flex items-center justify-center shrink-0">
+                                            <Package className="h-4 w-4 text-muted-foreground/60" />
+                                        </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-sm leading-snug truncate">{item.name}</p>
+                                            {item.quantity < 0 && (
+                                                <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-rose-700">
+                                                    {t("store.refundBadge", "Refund")}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground font-mono">{item.barcode}</p>
+                                        <div className="flex items-center justify-between mt-1.5">
+                                            <div className="flex items-center gap-1">
+                                                <IconButton
+                                                    tooltip={t("store.tooltip.qtyDec")}
+                                                    variant="outline"
+                                                    className="h-6 w-6"
+                                                    onClick={() => updateQuantity(item.id, -1)}
+                                                >
+                                                    <Minus className="h-3 w-3" />
+                                                </IconButton>
+                                                <span className={cn(
+                                                    "w-7 text-center text-sm font-bold tabular-nums",
+                                                    item.quantity < 0 && "text-rose-600",
+                                                )}>
+                                                    {item.quantity}
+                                                </span>
+                                                <IconButton
+                                                    tooltip={t("store.tooltip.qtyInc")}
+                                                    variant="outline"
+                                                    className="h-6 w-6"
+                                                    onClick={() => updateQuantity(item.id, 1)}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                </IconButton>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const current = getPriceForItem(item);
+                                                    const input = window.prompt(
+                                                        t("store.priceOverridePrompt"),
+                                                        String(current),
+                                                    );
+                                                    if (input === null) return;
+                                                    const trimmed = input.trim();
+                                                    if (trimmed === "") {
+                                                        setCart((prev) =>
+                                                            prev.map((c) => (c.id === item.id ? { ...c, priceOverride: null } : c)),
+                                                        );
+                                                        return;
+                                                    }
+                                                    const parsed = parseFloat(trimmed);
+                                                    if (!isNaN(parsed) && parsed >= 0) {
+                                                        setCart((prev) =>
+                                                            prev.map((c) => (c.id === item.id ? { ...c, priceOverride: parsed } : c)),
+                                                        );
+                                                    }
+                                                }}
+                                                className="text-xs tabular-nums hover:underline"
+                                            >
+                                                ฿{getPriceForItem(item).toLocaleString()}
+                                                {item.priceOverride != null && (
+                                                    <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-medium text-amber-900">
+                                                        {t("store.priceEdited", "แก้ไข")}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </div>
+                                        {/* Line discount row */}
+                                        <div className="flex items-center justify-between mt-1.5 text-xs">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-muted-foreground">
+                                                    {t("store.tableDiscount", "ส่วนลด")}:
+                                                </span>
+                                                {(item.discountValue ?? 0) > 0 && (
+                                                    <span className="text-xs font-semibold text-amber-700">
+                                                        −{item.discountValue}{item.discountMode === "percent" ? "%" : "฿"}
+                                                    </span>
+                                                )}
+                                                <DiscountShortcutPopover
+                                                    itemId={item.id}
+                                                    currentValue={item.discountValue}
+                                                    currentMode={item.discountMode}
+                                                    onUpdate={(id, value, mode) =>
+                                                        setCart((prev) =>
+                                                            prev.map((c) =>
+                                                                c.id === id
+                                                                    ? { ...c, discountValue: value ?? 0, discountMode: mode }
+                                                                    : c,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                                {(item.discountValue ?? 0) > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setCart((prev) =>
+                                                                prev.map((c) => c.id === item.id ? { ...c, discountValue: 0 } : c),
+                                                            )
+                                                        }
+                                                        className="h-5 px-1 text-[10px] text-destructive rounded hover:bg-destructive/10"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span className="font-bold text-primary tabular-nums">
+                                                ฿{getItemLineTotal(item).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <IconButton
+                                        tooltip={t("store.tooltip.removeItem")}
+                                        className="h-6 w-6 shrink-0"
+                                        onClick={() => removeFromCart(item.id)}
+                                    >
+                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                    </IconButton>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Footer — always shown (Charge button disabled when cart empty) */}
+            <div className="border-t border-border/60 px-5 py-5 space-y-3">
+                {/* Subtotal */}
+                <div className="flex justify-between items-baseline text-base text-muted-foreground">
+                    <span>{t("store.subtotal", "ยอดรวม")}</span>
+                    <span className="tabular-nums font-semibold text-foreground">฿{subtotal.toLocaleString()}</span>
+                </div>
+
+                {/* Bill discount row (shown when active) */}
+                {billDiscountAmount > 0 && (
+                    <div className="flex justify-between text-base text-destructive">
+                        <span>{t("store.billDiscount")}</span>
+                        <span className="tabular-nums font-semibold">-฿{billDiscountAmount.toLocaleString()}</span>
+                    </div>
+                )}
+
+                {/* Note + Add Discount — side by side */}
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setNoteModalOpen(true)}
+                        className={cn(
+                            "flex-1 h-9 rounded-xl border text-sm font-semibold transition flex items-center justify-center gap-1.5 relative",
+                            receiptNote ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" : "border-border hover:bg-muted",
+                        )}
+                    >
+                        <MessageSquare className="h-4 w-4" />
+                        {t("store.receiptNoteLabel", "Note")}
+                        {receiptNote && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />}
+                    </button>
+
+                    <BillDiscountPopover
+                        disabled={cart.length === 0}
+                        value={billDiscountValue}
+                        onValueChange={setBillDiscountValue}
+                        mode={billDiscountMode}
+                        onModeToggle={() => setBillDiscountMode((m) => (m === "percent" ? "amount" : "percent"))}
+                        amount={billDiscountAmount}
+                    />
+                </div>
+
+                <ReceiptNoteModal
+                    open={noteModalOpen}
+                    onOpenChange={setNoteModalOpen}
+                    initialNote={receiptNote}
+                    onSave={setReceiptNote}
+                />
+
+                {/* Total */}
+                <div className="flex justify-between items-baseline pt-2">
+                    <span className="text-lg font-bold">{t("store.tableTotal")}</span>
+                    <span className="text-3xl font-extrabold text-primary tabular-nums">
+                        ฿{total.toLocaleString()}
+                    </span>
+                </div>
+
+                {/* Charge button */}
+                <Button
+                    onClick={() => {
+                        if (asSheet) setCartSheetOpen(false);
+                        handleOpenPayment();
+                    }}
+                    disabled={cart.length === 0 || confirming}
+                    className="mt-2 w-full h-16 text-lg font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-400/40"
+                >
+                    {confirming ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                        `${t("store.charge", "Charge")} ฿${total.toLocaleString()}`
+                    )}
+                </Button>
+            </div>
+        </div>
+    );
+
     // ── Render ──────────────────────────────────────────────────────────────
     return (
         <div className="canteen-layout">
