@@ -2,17 +2,15 @@
   "name": "isb-monorepo",
   "private": true,
   "version": "0.1.0",
-  "description": "Schooney Payment System - frontend + backend (FastAPI legacy, Elysia new) + kiosk + shared types",
+  "description": "Schooney Payment System - frontend + backend (Elysia) + shared types",
   "workspaces": [
     "frontend",
     "backend-bun",
-    "shared",
-    "kiosk"
+    "shared"
   ],
   "scripts": {
     "dev:backend": "bun --cwd backend-bun dev",
     "dev:frontend": "bun --cwd frontend dev",
-    "dev:kiosk": "bun --cwd kiosk dev",
     "test:backend": "bun --cwd backend-bun test"
   },
   "engines": {

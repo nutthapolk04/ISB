@@ -11,6 +11,9 @@ COPY package.json bun.lock ./
 COPY shared/package.json ./shared/
 COPY backend-bun/package.json ./backend-bun/
 COPY frontend/package.json ./frontend/
+COPY kiosk/package.json ./kiosk/
+# kiosk links this local plugin via file: — must exist before `bun install`.
+COPY plugins/capacitor-hardware/package.json ./plugins/capacitor-hardware/
 
 RUN bun install --frozen-lockfile
 
