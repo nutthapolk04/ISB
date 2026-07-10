@@ -15,6 +15,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
@@ -39,6 +40,7 @@ interface SalesByItemRow {
     sales_amt: number;
     receive_type: string;
     remark: string | null;
+    status: string;
 }
 
 interface SalesByItemTotals {
@@ -116,8 +118,10 @@ export function SalesByItemReport({
             const to = siItemNoTo.trim();
             const isSingleItem = from !== "" && to !== "" && from.toLowerCase() === to.toLowerCase();
             if (!isSingleItem && data.rows.length > 0) {
+                // Voided lines don't count toward "best selling" ranking weight.
                 const qtyByItem = new Map<string, number>();
                 for (const row of data.rows) {
+                    if (row.status !== "ACTIVE") continue;
                     const key = row.item_no ?? "";
                     qtyByItem.set(key, (qtyByItem.get(key) ?? 0) + row.sales_qty);
                 }
@@ -173,6 +177,7 @@ export function SalesByItemReport({
             { header: "Sales AMT.", key: "sales_amt", format: "currency", align: "right", width: 60 },
             { header: "Receive Type", key: "receive_type", width: 65 },
             { header: "Remark", key: "remark", width: 60 },
+            { header: "Status", key: "status", width: 50 },
         ];
         return {
             meta: {
@@ -327,18 +332,19 @@ export function SalesByItemReport({
                                             <th className="px-2 py-2 text-right">Sales AMT.</th>
                                             <th className="px-2 py-2 text-left">Receive Type</th>
                                             <th className="px-2 py-2 text-left">Remark</th>
+                                            <th className="px-2 py-2 text-left">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {siData.rows.length === 0 ? (
                                             <tr>
-                                                <td colSpan={11} className="px-3 py-4 text-center text-muted-foreground">
+                                                <td colSpan={12} className="px-3 py-4 text-center text-muted-foreground">
                                                     No line items match these filters.
                                                 </td>
                                             </tr>
                                         ) : (
                                             siData.rows.map((r) => (
-                                                <tr key={r.seq} className="border-t">
+                                                <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                                                     <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
                                                     <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
@@ -355,6 +361,13 @@ export function SalesByItemReport({
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
                                                     <td className="px-2 py-1.5">{r.receive_type}</td>
                                                     <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
+                                                    <td className="px-2 py-1.5">
+                                                        {r.status === "ACTIVE" ? (
+                                                            <span className="text-muted-foreground">Active</span>
+                                                        ) : (
+                                                            <span className="font-semibold text-destructive">Voided</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}
@@ -365,7 +378,7 @@ export function SalesByItemReport({
                                                 <td colSpan={7} className="px-2 py-2 text-left">TOTAL By Item</td>
                                                 <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
-                                                <td colSpan={2} />
+                                                <td colSpan={3} />
                                             </tr>
                                         </tfoot>
                                     )}

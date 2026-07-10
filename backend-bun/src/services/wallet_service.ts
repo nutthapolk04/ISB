@@ -792,7 +792,7 @@ export async function transferWithinFamily(args: {
     initiatorUserId: number;
     initiatorIsAdmin: boolean;
     initiatorRoles: string[];
-    note?: string;
+    note: string;
 }): Promise<FamilyTransferDTO> {
     const { fromWalletId, toWalletId, amount, initiatorUserId, initiatorIsAdmin, note } = args;
     if (amount <= 0) {
@@ -802,6 +802,11 @@ export async function transferWithinFamily(args: {
     }
     if (fromWalletId === toWalletId) {
         const err = new Error("Cannot transfer to the same wallet");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    if (!note || !note.trim()) {
+        const err = new Error("A note is required for wallet transfers");
         (err as { status?: number }).status = 400;
         throw err;
     }
@@ -822,9 +827,23 @@ export async function transferWithinFamily(args: {
             throw err;
         }
 
-        // Authorization: admin bypass; otherwise both wallets must be reachable.
+        // Department wallets are out of scope for this peer-to-peer transfer
+        // endpoint (even for admins) — they have their own dedicated
+        // adjustment flow (DepartmentAdjust) that keeps institutional billing
+        // separate from personal wallet-to-wallet transfers.
+        if (toW.department_id !== null) {
+            const err = new Error("Cannot transfer to a department wallet");
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+
+        // Authorization: admin bypass. Otherwise the initiator must own (or be
+        // the linked parent of) the SOURCE wallet — that's ordinary spending
+        // authorization and is unrelated to who the recipient is. The
+        // destination can be any non-department wallet (student, parent, or
+        // staff) — no longer restricted to the initiator's own family.
         if (!initiatorIsAdmin) {
-            const reach = async (w: typeof fromW): Promise<boolean> => {
+            const reachSource = async (w: typeof fromW): Promise<boolean> => {
                 if (w.user_id === initiatorUserId) return true;
                 if (w.customer_id !== null) {
                     const link = await sqlTx<Array<{ id: number }>>`
@@ -834,11 +853,10 @@ export async function transferWithinFamily(args: {
           `;
                     return link.length > 0;
                 }
-                if (w.department_id !== null) return false;
                 return false;
             };
-            if (!(await reach(fromW)) || !(await reach(toW))) {
-                const err = new Error("Not authorized for one or both wallets");
+            if (!(await reachSource(fromW))) {
+                const err = new Error("Not authorized for source wallet");
                 (err as { status?: number }).status = 403;
                 throw err;
             }

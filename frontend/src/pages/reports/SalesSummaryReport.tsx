@@ -15,6 +15,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
@@ -48,6 +49,7 @@ interface SalesSummaryRow {
   shop_id: string;
   shop_name: string | null;
   bundle_names: string | null;
+  status: string;
 }
 
 interface SalesSummaryTotals {
@@ -218,24 +220,28 @@ export function SalesSummaryReport({
       { header: "Amt. Other",       key: "amt_other",        format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
       { header: "Bundle",           key: "bundle_names",     width: 90  },
+      { header: "Status",           key: "status",           width: 55  },
     ];
 
     const multi = isMultiVendor(ssData.rows);
     const filterLines = buildSalesSummaryFilterLines();
     let bodyRows: Record<string, unknown>[];
     if (multi) {
-      bodyRows = buildVendorSections(ssData.rows, (shopRows) => ({
-        customer_name: "Subtotal",
-        bundle_names: "",
-        amt_receive:      shopRows.reduce((s, r) => s + r.amt_receive,     0),
-        amt_change:       shopRows.reduce((s, r) => s + r.amt_change,      0),
-        amt_billing:      shopRows.reduce((s, r) => s + r.amt_billing,     0),
-        amt_cash:         shopRows.reduce((s, r) => s + r.amt_cash,        0),
-        amt_campus_card:  shopRows.reduce((s, r) => s + r.amt_campus_card, 0),
-        amt_credit_card:  shopRows.reduce((s, r) => s + r.amt_credit_card, 0),
-        amt_qr_code:      shopRows.reduce((s, r) => s + r.amt_qr_code,     0),
-        amt_other:        shopRows.reduce((s, r) => s + r.amt_other,       0),
-      }));
+      bodyRows = buildVendorSections(ssData.rows, (shopRows) => {
+        const active = shopRows.filter((r) => r.status === "ACTIVE");
+        return {
+          customer_name: "Subtotal",
+          bundle_names: "",
+          amt_receive:      active.reduce((s, r) => s + r.amt_receive,     0),
+          amt_change:       active.reduce((s, r) => s + r.amt_change,      0),
+          amt_billing:      active.reduce((s, r) => s + r.amt_billing,     0),
+          amt_cash:         active.reduce((s, r) => s + r.amt_cash,        0),
+          amt_campus_card:  active.reduce((s, r) => s + r.amt_campus_card, 0),
+          amt_credit_card:  active.reduce((s, r) => s + r.amt_credit_card, 0),
+          amt_qr_code:      active.reduce((s, r) => s + r.amt_qr_code,     0),
+          amt_other:        active.reduce((s, r) => s + r.amt_other,       0),
+        };
+      });
     } else {
       bodyRows = ssData.rows as unknown as Record<string, unknown>[];
       if (ssData.rows.length > 0) {
@@ -448,18 +454,19 @@ export function SalesSummaryReport({
                       <th className="px-2 py-2 text-right">Amt. Other</th>
                       <th className="px-2 py-2 text-left">Remark</th>
                       <th className="px-2 py-2 text-left">Bundle</th>
+                      <th className="px-2 py-2 text-left">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ssData.rows.length === 0 ? (
                       <tr>
-                        <td colSpan={15} className="px-3 py-4 text-center text-muted-foreground">
+                        <td colSpan={16} className="px-3 py-4 text-center text-muted-foreground">
                           No receipts match these filters.
                         </td>
                       </tr>
                     ) : (
                       ssData.rows.map((r) => (
-                        <tr key={r.seq} className="border-t">
+                        <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                           <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
                           <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
@@ -475,6 +482,13 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_other > 0 ? r.amt_other.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.bundle_names ?? ""}</td>
+                          <td className="px-2 py-1.5">
+                            {r.status === "ACTIVE" ? (
+                              <span className="text-muted-foreground">Active</span>
+                            ) : (
+                              <span className="font-semibold text-destructive">Voided</span>
+                            )}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -491,6 +505,7 @@ export function SalesSummaryReport({
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_credit_card.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_other.toFixed(2)}</td>
+                        <td />
                         <td />
                         <td />
                       </tr>

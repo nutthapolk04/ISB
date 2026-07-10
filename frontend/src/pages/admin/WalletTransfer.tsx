@@ -289,7 +289,7 @@ export default function WalletTransfer() {
         from_wallet_id: fromWalletId,
         to_wallet_id: toWalletId,
         amount: amt,
-        note: note.trim() || undefined,
+        note: note.trim(),
       });
 
       toast({
@@ -342,6 +342,7 @@ export default function WalletTransfer() {
     target !== null &&
     target.child.wallet_id != null &&
     amt > 0 &&
+    note.trim().length > 0 &&
     !transferring;
 
   return (
@@ -711,7 +712,7 @@ export default function WalletTransfer() {
 
             {/* Note */}
             <div className="space-y-1.5">
-              <Label>{t("admin.walletTransfer.noteLabel")}</Label>
+              <Label>{t("admin.walletTransfer.noteLabel")} *</Label>
               <Input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}

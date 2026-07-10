@@ -1,4 +1,5 @@
 import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   receipts,
@@ -69,6 +70,7 @@ export interface SalesRow {
   total: number;
   shop_id: string;
   shop_name: string | null;
+  status: string;
 }
 
 export interface SalesReport {
@@ -91,10 +93,12 @@ export async function salesReport(args: {
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
   const { start, end } = dateRange(args.dateFrom, args.dateTo);
 
+  // No status filter here — voided receipts are included as their own rows
+  // (tagged via `status`) so they're visible in the report, but excluded
+  // from grand_total/receipt_count below.
   const receiptConds = [
     gte(receipts.transactionDate, start),
     lte(receipts.transactionDate, end),
-    eq(receipts.status, "ACTIVE"),
   ];
   if (effectiveShopId) {
     receiptConds.push(eq(receipts.shopId, effectiveShopId));
@@ -104,10 +108,11 @@ export async function salesReport(args: {
   }
 
   const receiptIdRows = await db
-    .select({ id: receipts.id })
+    .select({ id: receipts.id, status: receipts.status })
     .from(receipts)
     .where(and(...receiptConds));
   const receiptIds = receiptIdRows.map((r) => r.id);
+  const activeReceiptCount = receiptIdRows.filter((r) => r.status === "ACTIVE").length;
 
   let rows: SalesRow[] = [];
   let grandTotal = 0;
@@ -119,23 +124,25 @@ export async function salesReport(args: {
         total: sql<string>`SUM(${receiptItems.lineTotal})`,
         shop_id: shopProducts.shopId,
         shop_name: shops.name,
+        status: receipts.status,
       })
       .from(receiptItems)
       .innerJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
       .innerJoin(shops, eq(shops.id, shopProducts.shopId))
       .innerJoin(receipts, eq(receipts.id, receiptItems.receiptId))
       .where(inArray(receiptItems.receiptId, receiptIds))
-      .groupBy(shopProducts.shopId, shops.name, shopProducts.name)
+      .groupBy(shopProducts.shopId, shops.name, shopProducts.name, receipts.status)
       .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receiptItems.lineTotal}) DESC`);
     rows = agg.map((r) => {
       const total = pgNumber(r.total) ?? 0;
-      grandTotal += total;
+      if (r.status === "ACTIVE") grandTotal += total;
       return {
         product_name: r.name,
         quantity: Number(r.qty) || 0,
         total,
         shop_id: r.shop_id,
         shop_name: r.shop_name,
+        status: r.status,
       };
     });
   }
@@ -146,7 +153,7 @@ export async function salesReport(args: {
     shop_id: effectiveShopId,
     rows,
     grand_total: grandTotal,
-    receipt_count: receiptIds.length,
+    receipt_count: activeReceiptCount,
   };
 }
 
@@ -158,6 +165,7 @@ export interface SalesByPaymentRow {
   total: number;
   shop_id: string;
   shop_name: string | null;
+  status: string;
 }
 
 export interface SalesByPaymentReport {
@@ -183,10 +191,11 @@ export async function salesByPaymentReport(args: {
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
   const { start, end } = dateRange(args.dateFrom, args.dateTo);
 
+  // No status filter — voided receipts show as their own rows (tagged via
+  // `status`) but are excluded from grand/retail/dept totals below.
   const conds = [
     gte(receipts.transactionDate, start),
     lte(receipts.transactionDate, end),
-    eq(receipts.status, "ACTIVE"),
   ];
   if (effectiveShopId) {
     conds.push(eq(receipts.shopId, effectiveShopId));
@@ -202,11 +211,12 @@ export async function salesByPaymentReport(args: {
       total: sql<string>`SUM(${receipts.total})`,
       shop_id: receipts.shopId,
       shop_name: shops.name,
+      status: receipts.status,
     })
     .from(receipts)
     .innerJoin(shops, eq(shops.id, receipts.shopId))
     .where(and(...conds))
-    .groupBy(receipts.shopId, shops.name, receipts.paymentMethod)
+    .groupBy(receipts.shopId, shops.name, receipts.paymentMethod, receipts.status)
     .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receipts.total}) DESC`);
 
   let grand = 0;
@@ -217,13 +227,15 @@ export async function salesByPaymentReport(args: {
   const rows: SalesByPaymentRow[] = agg.map((r) => {
     const total = pgNumber(r.total) ?? 0;
     const count = Number(r.receipt_count) || 0;
-    grand += total;
-    totalRec += count;
-    if (r.payment_method === "DEPARTMENT") {
-      dept += total;
-      deptRec += count;
-    } else {
-      retail += total;
+    if (r.status === "ACTIVE") {
+      grand += total;
+      totalRec += count;
+      if (r.payment_method === "DEPARTMENT") {
+        dept += total;
+        deptRec += count;
+      } else {
+        retail += total;
+      }
     }
     return {
       payment_method: r.payment_method,
@@ -231,6 +243,7 @@ export async function salesByPaymentReport(args: {
       total,
       shop_id: r.shop_id ?? "",
       shop_name: r.shop_name,
+      status: r.status,
     };
   });
 
@@ -857,6 +870,7 @@ export interface SalesSummaryRow {
   shop_id: string;
   shop_name: string | null;
   bundle_names: string | null;
+  status: string;
 }
 
 export interface SalesSummaryTotals {
@@ -895,7 +909,9 @@ export async function salesSummaryReport(args: {
   const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
-  const conds = [eq(receipts.status, "ACTIVE")];
+  // No status filter — voided receipts are included as their own rows
+  // (tagged via `status`) and excluded from totals below.
+  const conds: SQL[] = [];
   if (args.dateFrom) conds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
   if (args.dateTo) conds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
   if (effectiveShopId) {
@@ -996,7 +1012,7 @@ export async function salesSummaryReport(args: {
     const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
     const buckets: Omit<
       SalesSummaryRow,
-      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name" | "bundle_names"
+      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name" | "bundle_names" | "status"
     > = {
       amt_billing: 0,
       amt_cash: 0,
@@ -1021,13 +1037,16 @@ export async function salesSummaryReport(args: {
       shop_id: r.shopId ?? "",
       shop_name: shop?.name ?? null,
       bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
+      status: r.status,
       ...buckets,
     });
 
-    totals.amt_receive += amtReceive;
-    totals.amt_change += amtChange;
-    if (col !== "amt_receive" && col !== "amt_change") {
-      totals[col] += amtReceive;
+    if (r.status === "ACTIVE") {
+      totals.amt_receive += amtReceive;
+      totals.amt_change += amtChange;
+      if (col !== "amt_receive" && col !== "amt_change") {
+        totals[col] += amtReceive;
+      }
     }
   });
 
@@ -1037,7 +1056,7 @@ export async function salesSummaryReport(args: {
     shop_id: effectiveShopId,
     rows,
     totals,
-    receipt_count: rows.length,
+    receipt_count: rows.filter((r) => r.status === "ACTIVE").length,
   };
 }
 
@@ -1054,6 +1073,7 @@ export interface SalesByItemRow {
   sales_amt: number;
   receive_type: string;
   remark: string | null;
+  status: string;
 }
 
 export interface SalesByItemTotals {
@@ -1086,7 +1106,9 @@ export async function salesByItemReport(args: {
   const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
-  const conds = [eq(receipts.status, "ACTIVE")];
+  // No status filter — voided receipts are included as their own rows
+  // (tagged via `status`) and excluded from totals below.
+  const conds: SQL[] = [];
   if (args.dateFrom) conds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
   if (args.dateTo) conds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
   if (effectiveShopId) {
@@ -1161,9 +1183,12 @@ export async function salesByItemReport(args: {
       sales_amt: amt,
       receive_type: PAYMENT_METHOD_LABEL[r.paymentMethod] ?? "Other",
       remark: r.notes ?? null,
+      status: r.status,
     });
-    totals.sales_qty += qty;
-    totals.sales_amt += amt;
+    if (r.status === "ACTIVE") {
+      totals.sales_qty += qty;
+      totals.sales_amt += amt;
+    }
   });
 
   return {
@@ -1172,6 +1197,6 @@ export async function salesByItemReport(args: {
     shop_id: effectiveShopId,
     rows,
     totals,
-    line_count: rows.length,
+    line_count: rows.filter((r) => r.status === "ACTIVE").length,
   };
 }

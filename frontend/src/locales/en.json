@@ -1206,7 +1206,7 @@
       "from": "From",
       "to": "To",
       "amountLabel": "Amount (THB)",
-      "noteLabel": "Note (optional)",
+      "noteLabel": "Note",
       "notePlaceholder": "e.g. monthly allowance",
       "preview": "Balance after transfer",
       "negativeWarning": "Source wallet will go negative",

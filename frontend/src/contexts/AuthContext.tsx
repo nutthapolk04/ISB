@@ -2,9 +2,10 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { API_BASE_URL } from "@/lib/constants";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
-// Multi-role / Switch role feature — re-enabled; HomeHub is the landing hub
-// for accounts holding more than one role (see HomeHub.tsx).
-const MULTI_ROLE_ENABLED = true;
+// Multi-role / Switch role feature — disabled per request. Flip back to
+// `true` to restore (RolePicker, HomeHub role tiles, and the header's
+// "Switch role" button all key off this single flag).
+const MULTI_ROLE_ENABLED = false;
 
 export type UserRole =
     | "admin"

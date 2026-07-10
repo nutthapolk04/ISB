@@ -47,6 +47,7 @@ interface SalesRow {
   total: number;
   shop_id: string;
   shop_name: string | null;
+  status: string;
 }
 interface SalesReportData { rows: SalesRow[]; grand_total: number; receipt_count: number; }
 
@@ -66,6 +67,7 @@ interface SalesByPaymentRow {
   total: number;
   shop_id: string;
   shop_name: string | null;
+  status: string;
 }
 interface SalesByPaymentReportData {
   rows: SalesByPaymentRow[];
@@ -208,19 +210,25 @@ const Reports = () => {
         `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
       );
       const isTopSelling = selectedReportType === "topSellingReport";
+      // Top Selling is a ranking of actual sales — a voided line never
+      // "sold", so exclude it entirely rather than showing it in the ranking.
+      // The plain Sales Report keeps voided rows visible (tagged via status).
       const sortedRows = isTopSelling
-        ? [...data.rows].sort((a, b) => b.quantity - a.quantity)
+        ? data.rows.filter((r) => r.status === "ACTIVE").sort((a, b) => b.quantity - a.quantity)
         : data.rows;
 
       // Group by vendor only for the plain Sales Report when the result spans
       // more than one shop. Top Selling is a single global ranking by design.
       const multi = !isTopSelling && isMultiVendor(sortedRows);
       const bodyRows = multi
-        ? buildVendorSections(sortedRows, (shopRows) => ({
-            product_name: "Subtotal",
-            quantity: shopRows.reduce((s, r) => s + r.quantity, 0),
-            total: shopRows.reduce((s, r) => s + r.total, 0),
-          }))
+        ? buildVendorSections(sortedRows, (shopRows) => {
+            const active = shopRows.filter((r) => r.status === "ACTIVE");
+            return {
+              product_name: "Subtotal",
+              quantity: active.reduce((s, r) => s + r.quantity, 0),
+              total: active.reduce((s, r) => s + r.total, 0),
+            };
+          })
         : (sortedRows as unknown as Record<string, unknown>[]);
 
       const reportFilters = [...filters];
@@ -238,11 +246,18 @@ const Reports = () => {
             filters: reportFilters,
             runByName: user?.fullName ?? user?.username,
           },
-          columns: [
-            { header: t("reports.colProduct"),  key: "product_name", width: 45 },
-            { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
-            { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
-          ],
+          columns: isTopSelling
+            ? [
+                { header: t("reports.colProduct"),  key: "product_name", width: 45 },
+                { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
+                { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
+              ]
+            : [
+                { header: t("reports.colProduct"),  key: "product_name", width: 40 },
+                { header: t("reports.colQuantity"), key: "quantity",     format: "number",   align: "right", width: 12 },
+                { header: t("reports.colTotal"),    key: "total",        format: "currency", align: "right", width: 15 },
+                { header: "Status",                 key: "status",       width: 15 },
+              ],
           rows: bodyRows,
           totals: { total: data.grand_total },
         },
@@ -260,17 +275,18 @@ const Reports = () => {
       // multi-vendor admin layouts.
       const renderShopBlock = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
         const retail = shopRows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
-        const dept = shopRows.find((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
+        const dept = shopRows.filter((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
         const block: Record<string, unknown>[] = [
           ...retail.map((r) => ({
             payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
             receipt_count: r.receipt_count,
             total: r.total,
+            status: r.status,
           })),
           { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
         ];
-        if (dept) {
-          block.push({ payment_method: "Department Use", receipt_count: dept.receipt_count, total: dept.total });
+        for (const d of dept) {
+          block.push({ payment_method: "Department Use", receipt_count: d.receipt_count, total: d.total, status: d.status });
         }
         return block;
       };
@@ -288,13 +304,14 @@ const Reports = () => {
         }
         bodyRows = [];
         for (const [shopId, { name, rows: shopRows }] of byShop) {
+          const activeShopRows = shopRows.filter((r) => r.status === "ACTIVE");
           bodyRows.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
           bodyRows.push(...renderShopBlock(shopRows));
           bodyRows.push({
             [EMPHASIS_KEY]: "subtotal" as const,
             payment_method: "Subtotal",
-            receipt_count: shopRows.reduce((s, r) => s + r.receipt_count, 0),
-            total: shopRows.reduce((s, r) => s + r.total, 0),
+            receipt_count: activeShopRows.reduce((s, r) => s + r.receipt_count, 0),
+            total: activeShopRows.reduce((s, r) => s + r.total, 0),
           });
         }
       } else {
@@ -318,6 +335,7 @@ const Reports = () => {
             { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
             { header: t("reports.colReceiptCount")  || "Receipt Count",  key: "receipt_count", format: "number",   align: "right", width: 15 },
             { header: t("reports.colTotal"),                              key: "total",         format: "currency", align: "right", width: 15 },
+            { header: "Status",                                          key: "status",        width: 15 },
           ],
           rows: bodyRows,
           totals: { total: data.retail_total },

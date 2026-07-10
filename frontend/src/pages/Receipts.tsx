@@ -132,7 +132,10 @@ const Receipts = () => {
         if (moduleScope === "canteen") {
             if (user?.shopId) return `?shop_id=${user.shopId}`;
             if (pickedCanteenShop !== "all") return `?shop_id=${pickedCanteenShop}`;
-            return `?shop_ids=${CANTEEN_SHOPS.join(",")}`;
+            const ids = canteenStalls.length > 0
+                ? canteenStalls.map((s) => s.id).join(",")
+                : CANTEEN_SHOPS.join(",");
+            return `?shop_ids=${ids}`;
         }
         // Store scope
         if (!user?.shopId) {
@@ -145,7 +148,7 @@ const Receipts = () => {
         }
         // manager / cashier on store: lock to their own shop
         return `?shop_id=${user.shopId}`;
-    }, [moduleScope, user, pickedStoreShop, pickedCanteenShop, storeShops]);
+    }, [moduleScope, user, pickedStoreShop, pickedCanteenShop, storeShops, canteenStalls]);
 
     // ── Fetch receipts from API ─────────────────────────────────────────────
     const fetchReceipts = useCallback(async () => {
