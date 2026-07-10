@@ -368,8 +368,11 @@ const App = () => {
                                                     <Route path="/parent/settings/:customerId" element={<ChildSettings />} />
                                                 </Route>
 
-                                                {/* Transfer — parent-initiated transfers disabled (admin-only per policy) */}
-                                                <Route element={<RequireRole roles={["staff", "admin"]} />}>
+                                                {/* Transfer within family — parents can transfer between their own
+                                                    wallet and linked children's wallets (never to an unrelated wallet;
+                                                    that broader "transfer to anyone" capability is admin-only, see
+                                                    /admin/wallet-transfer). */}
+                                                <Route element={<RequireRole roles={["parent", "staff", "admin"]} />}>
                                                     <Route path="/parent/transfer" element={<Transfer />} />
                                                 </Route>
 

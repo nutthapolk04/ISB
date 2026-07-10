@@ -837,13 +837,14 @@ export async function transferWithinFamily(args: {
             throw err;
         }
 
-        // Authorization: admin bypass. Otherwise the initiator must own (or be
-        // the linked parent of) the SOURCE wallet — that's ordinary spending
-        // authorization and is unrelated to who the recipient is. The
-        // destination can be any non-department wallet (student, parent, or
-        // staff) — no longer restricted to the initiator's own family.
+        // Authorization: admin bypass — admins can transfer between any two
+        // non-department wallets (see /admin/wallet-transfer). Everyone else
+        // (parents, and staff using this same family-scoped flow) is
+        // restricted to their OWN family: both wallets must be either their
+        // own or a linked child's. This is "transfer within family", not
+        // "transfer to anyone" — the broader capability is admin-only.
         if (!initiatorIsAdmin) {
-            const reachSource = async (w: typeof fromW): Promise<boolean> => {
+            const reachFamily = async (w: typeof fromW): Promise<boolean> => {
                 if (w.user_id === initiatorUserId) return true;
                 if (w.customer_id !== null) {
                     const link = await sqlTx<Array<{ id: number }>>`
@@ -855,8 +856,8 @@ export async function transferWithinFamily(args: {
                 }
                 return false;
             };
-            if (!(await reachSource(fromW))) {
-                const err = new Error("Not authorized for source wallet");
+            if (!(await reachFamily(fromW)) || !(await reachFamily(toW))) {
+                const err = new Error("Not authorized for one or both wallets");
                 (err as { status?: number }).status = 403;
                 throw err;
             }
@@ -871,7 +872,7 @@ export async function transferWithinFamily(args: {
         }
         const toBalanceAfter = toBalanceBefore + amount;
         if (toBalanceAfter > MAX_WALLET_BALANCE) {
-            const err = new Error(`Destination wallet would exceed max balance ฿${MAX_WALLET_BALANCE.toLocaleString()}`);
+            const err = new Error(`Maximum wallet balance: ${MAX_WALLET_BALANCE.toLocaleString()} THB`);
             (err as { status?: number }).status = 400;
             throw err;
         }

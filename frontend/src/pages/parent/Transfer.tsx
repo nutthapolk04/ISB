@@ -116,7 +116,7 @@ export default function Transfer() {
   const sameWallet = fromKey && toKey && fromKey === toKey;
   const fromBalance = fromWallet?.balance ?? 0;
   const toBalance = toWallet?.balance ?? 0;
-  const canSubmit = fromWallet && toWallet && !sameWallet && amt >= 100 && amt <= 50000 && !submitting;
+  const canSubmit = fromWallet && toWallet && !sameWallet && amt >= 100 && amt <= 50000 && note.trim().length > 0 && !submitting;
 
   const handleSubmit = async () => {
     if (!fromWallet || !toWallet) return;
@@ -126,7 +126,7 @@ export default function Transfer() {
         from_wallet_id: fromWallet.walletId,
         to_wallet_id: toWallet.walletId,
         amount: amt,
-        note: note.trim() || undefined,
+        note: note.trim(),
       });
       toast({
         title: t("parent.transfer.success"),
@@ -266,7 +266,7 @@ export default function Transfer() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="note">{t("parent.transfer.noteLabel")}</Label>
+            <Label htmlFor="note">{t("parent.transfer.noteLabel")} *</Label>
             <Textarea
               id="note"
               value={note}
@@ -274,6 +274,9 @@ export default function Transfer() {
               placeholder="e.g. lunch money"
               rows={2}
             />
+            <p className="text-xs text-muted-foreground">
+              {t("parent.transfer.noteRequired", "Required — helps everyone recognize this transfer later.")}
+            </p>
           </div>
 
           {fromWallet && toWallet && amt > 0 && !sameWallet && (
