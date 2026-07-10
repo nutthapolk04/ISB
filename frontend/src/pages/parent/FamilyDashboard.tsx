@@ -10,7 +10,7 @@ import { fmtDate, fmtTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import {
-  AlertCircle, ArrowUpCircle, ArrowDownCircle, Bell,
+  AlertCircle, ArrowLeftRight, ArrowUpCircle, ArrowDownCircle, Bell,
   ChevronLeft, ChevronRight, GraduationCap, Lock,
   Settings, UserRound, Wallet as WalletIcon,
 } from "lucide-react";
@@ -574,6 +574,12 @@ export default function FamilyDashboard() {
                     `/parent/wallet/${activeCard.customerId}`
                   }
                   disabled={activeCard.kind === "child" && !activeCard.walletId}
+                />
+
+                <ActionButton
+                  icon={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100"><ArrowLeftRight className="h-5 w-5 text-indigo-600" /></div>}
+                  label={t("parent.dashboard.transfer", "Transfer")}
+                  to="/parent/transfer"
                 />
 
                 <ActionButton

@@ -148,7 +148,6 @@ const menuGroups: MenuGroup[] = [
         module: null,
         items: [
             { titleKey: "nav.familyDashboard", url: "/parent/dashboard", icon: Users, roles: ["parent"] },
-            { titleKey: "nav.parentTransfer", url: "/parent/transfer", icon: ArrowLeftRight, roles: ["parent"] },
         ],
     },
 ];
