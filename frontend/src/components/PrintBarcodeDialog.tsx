@@ -95,7 +95,7 @@ export function PrintBarcodeDialog({
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [printItems, setPrintItems] = useState<PrintItem[]>([]);
-    const [labelSize, setLabelSize] = useState<LabelSize>("medium");
+    const [labelSize, setLabelSize] = useState<LabelSize>("sticker_a10");
     const [showPrice, setShowPrice] = useState(true);
     const [showProductCode, setShowProductCode] = useState(true);
 
