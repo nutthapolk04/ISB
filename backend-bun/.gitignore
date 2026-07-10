@@ -1,6 +1,8 @@
 node_modules
 .env
 .env.local
+.env.prod
+.env.uat
 *.log
 bun.lockb
 .DS_Store

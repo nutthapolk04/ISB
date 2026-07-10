@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import {
   Dialog,
   DialogContent,
@@ -148,6 +149,16 @@ export function RfidPaymentModal({
   const [cardInput, setCardInput] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+
+  // RFID listener for card tap
+  const rfid = useRfidListener({
+    onCapture: async (code: string) => {
+      if (stage === "detect") {
+        setCardInput(code);
+        await lookup(code);
+      }
+    },
+  });
   // Mirror the inline error as a modal popup so the cashier can't miss
   // "code not found" while looking at the cart.
   const [notFoundOpen, setNotFoundOpen] = useState(false);

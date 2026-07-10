@@ -344,9 +344,9 @@ const Login = () => {
                 <div className="w-full max-w-sm space-y-6">
                     {/* Logo + title */}
                     <div className="flex flex-col items-center gap-3">
-                        <img src="/isb-logo.svg" alt="ISB" className="h-16 w-16 rounded-xl object-contain" />
+                        <img src="/ISB_LogoN2025.png" alt="ISB" className="rounded-lg object-contain" />
                         <div className="text-center">
-                            <h1 className="text-2xl font-bold tracking-tight">Schooney</h1>
+                            <h1 className="text-3xl font-bold tracking-tight">Schooney</h1>
                             <p className="text-sm text-muted-foreground">ISB SCHOONEY SYSTEM</p>
                         </div>
                     </div>

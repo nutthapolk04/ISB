@@ -195,36 +195,10 @@ export function CanteenCart({
   return (
     <aside className={asSheet ? "canteen-cart-sheet" : "canteen-cart-panel"}>
       {/* Spending limit chip slot (injected by Canteen.tsx) */}
-      {headerSlot && <div className="px-3 pt-3">{headerSlot}</div>}
+      {/* {headerSlot && <div className="px-3 pt-3">{headerSlot}</div>} */}
 
       {/* Header */}
-      <div className="px-5 pt-5 pb-3 flex items-start justify-between">
-        <div>
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            Order
-            {priceMode === "internal" && (
-              <span className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white shadow">
-                Staff
-              </span>
-            )}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {items.reduce((s, i) => s + i.quantity, 0)} item
-            {items.reduce((s, i) => s + i.quantity, 0) === 1 ? "" : "s"}
-          </p>
-        </div>
-        {!isEmpty && (
-          <button
-            type="button"
-            onClick={onClearCart}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
-            aria-label="Clear all items"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Clear all
-          </button>
-        )}
-      </div>
+      
 
       {/* Selected Member */}
       {selectedMember && (
@@ -302,7 +276,33 @@ export function CanteenCart({
           })()}
         </div>
       )}
-
+      <div className="px-5 pt-5 pb-3 flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            Order
+            {priceMode === "internal" && (
+              <span className="rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white shadow">
+                Staff
+              </span>
+            )}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {items.reduce((s, i) => s + i.quantity, 0)} item
+            {items.reduce((s, i) => s + i.quantity, 0) === 1 ? "" : "s"}
+          </p>
+        </div>
+        {!isEmpty && (
+          <button
+            type="button"
+            onClick={onClearCart}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+            aria-label="Clear all items"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear all
+          </button>
+        )}
+      </div>
       <Separator />
 
       {/* Items */}
@@ -331,8 +331,9 @@ export function CanteenCart({
                     <div
                       className={cn(
                         "h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br",
-                        fb.gradient,
+                        !item.color && fb.gradient,
                       )}
+                      style={item.color ? { backgroundColor: item.color } : undefined}
                     >
                       {img ? (
                         <img
@@ -349,6 +350,11 @@ export function CanteenCart({
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold flex items-center gap-1.5">
                         <span className="truncate">{item.name}</span>
+                        {item.quantity < 0 && (
+                          <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-rose-700">
+                            {t("store.refundBadge", "Refund")}
+                          </span>
+                        )}
                         {item.priceOverride != null && (
                           <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">
                             {t("canteen.cart.editedBadge")}
@@ -423,33 +429,46 @@ export function CanteenCart({
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {item.quantity === 1 ? (
-                        <IconButton
-                          tooltip={t("canteen.tooltip.removeItem", "ลบออกจากตะกร้า")}
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => onRemove(item.cartLineId)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </IconButton>
-                      ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <IconButton
                           tooltip={t("canteen.tooltip.qtyDec", "ลดจำนวน")}
-                          className="h-8 w-8"
-                          onClick={() => onDecrement(item.cartLineId)}
+                          variant="outline"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDecrement(item.cartLineId);
+                          }}
                         >
-                          <Minus className="h-4 w-4" />
+                          <Minus className="h-3 w-3" />
                         </IconButton>
-                      )}
-                      <span className="w-6 text-center text-sm font-bold tabular-nums">
-                        {item.quantity}
-                      </span>
+                        <span className={cn("w-7 text-center text-sm font-bold tabular-nums", item.quantity < 0 && "text-rose-600")}>
+                          {item.quantity}
+                        </span>
+                        <IconButton
+                          tooltip={t("canteen.tooltip.qtyInc", "เพิ่มจำนวน")}
+                          variant="outline"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onIncrement(item.cartLineId);
+                          }}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </IconButton>
+                      </div>
                       <IconButton
-                        tooltip={t("canteen.tooltip.qtyInc", "เพิ่มจำนวน")}
-                        className="h-8 w-8"
-                        onClick={() => onIncrement(item.cartLineId)}
+                        tooltip={t("canteen.tooltip.removeItem", "ลบออกจากตะกร้า")}
+                        className="h-6 w-6 shrink-0"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onRemove(item.cartLineId);
+                        }}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3 text-destructive" />
                       </IconButton>
                     </div>
                   </div>

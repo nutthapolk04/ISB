@@ -296,7 +296,7 @@ export function SalesSummaryReport({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
-            Sales Summary Report
+            Daily Sales Report
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             All filters are optional. Leave any field blank to skip that filter.
