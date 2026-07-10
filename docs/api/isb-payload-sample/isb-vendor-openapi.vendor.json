@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ISB → Vendor Sync API",
-    "description": "\nISB pushes **Staff**, **Family**, and **Department** master data to the vendor as\nsequential JSON batches. **ISB owns this request contract; the vendor implements\nan API that accepts exactly these request bodies.**\n\n### Endpoints\n- `POST /v1/sync/staffs` — one Staff batch `{\"staffs\": [...]}`\n- `POST /v1/sync/families` — one Family batch `{\"families\": [...]}`\n- `POST /v1/sync/departments` — one Department batch `{\"departments\": [...]}`\n\n### Authentication\nEach request carries the API key in the **`x-api-key`** HTTP header. *(Please confirm your endpoints accept `x-api-key`.)*\n\n### Batching\n- One batch per request, sent **sequentially** (no parallel calls).\n- Staff counts staff members; Family counts **family objects**; Department counts departments.\n- Current batch size: **up to 500 records per request** (please confirm acceptable + any rate limit).\n\n### Response contract *(to be finalised with vendor)*\n- Success: **HTTP 200** + `{\"status\":\"SUCCESS\",\"code\":\"200\",\"message\":\"Accepted\"}`.\n- Failure: `{\"status\":\"FAILED\",\"code\":\"...\",\"message\":\"...\"}`; bad/missing key → **401**, body not matching this schema → **422**.\n\n### Key field rules\n- All ids (`customerId`, `familyCode`, `departmentId`) are **integers** — never `202468.0`.\n- **Staff `login` is an object** `{loginId, email}`; **family parent `login` is a string** — intentional.\n- `secondaryParent` is `null` for single-parent families (the key is always present).\n- `smartCard.cardNumber` is `\"\"` when a person has no card; the `smartCard` object is **never omitted** (ISB decision).\n- **Department** carries **no `smartCard`** today (charged per department, not per card); a department `smartCard` may be added later (optional, **not sent currently** — please design to accept it without a breaking change). Optional `login` is an **object** like Staff.\n- Idempotency: re-sending the same `customerId` is an **upsert**; on conflict use **last-write-wins**.\n- `notificationEmails` may contain malformed addresses — accept them, do not reject.\n",
+    "description": "\nISB pushes **Staff**, **Family**, and **Department** master data to the vendor as\nsequential JSON batches. **ISB owns this request contract; the vendor implements\nan API that accepts exactly these request bodies.**\n\n### Endpoints\n- `POST /v1/sync/staffs` — one Staff batch `{\"staffs\": [...]}`\n- `POST /v1/sync/families` — one Family batch `{\"families\": [...]}`\n- `POST /v1/sync/departments` — one Department batch `{\"departments\": [...]}`\n\n### Authentication\nEach request carries the API key in the **`x-api-key`** HTTP header. *(Please confirm your endpoints accept `x-api-key`.)*\n\n### Batching\n- One batch per request, sent **sequentially** (no parallel calls).\n- Staff counts staff members; Family counts **family objects**; Department counts departments.\n- Current batch size: **up to 500 records per request** (please confirm acceptable + any rate limit).\n\n### Response contract *(to be finalised with vendor)*\n- Success: **HTTP 200** + `{\"status\":\"SUCCESS\",\"code\":\"200\",\"message\":\"Accepted\"}`.\n- Failure: `{\"status\":\"FAILED\",\"code\":\"...\",\"message\":\"...\"}`; bad/missing key → **401**, body not matching this schema → **422**.\n\n### Key field rules\n- `customerId` and `familyCode` are **integers** — never `202468.0`. `departmentId` is a **string**.\n- **Staff `login` is an object** `{loginId, email}`; **family parent `login` is a string** — intentional.\n- `secondaryParent` is `null` for single-parent families (the key is always present).\n- `smartCard.cardNumber` is `\"\"` when a person has no card; the `smartCard` object is **never omitted** (ISB decision).\n- **Department** carries **no `smartCard`** today (charged per department, not per card); a department `smartCard` may be added later (optional, **not sent currently** — please design to accept it without a breaking change). Optional `login` is an **object** like Staff.\n- Idempotency: re-sending the same `customerId` is an **upsert**; on conflict use **last-write-wins**.\n- `notificationEmails` may contain malformed addresses — accept them, do not reject.\n",
     "contact": {
       "name": "ISB Ed-Tech Center"
     },
@@ -342,12 +342,12 @@
                   "value": {
                     "departments": [
                       {
-                        "departmentId": 520,
+                        "departmentId": "520",
                         "customerType": "Department",
                         "departmentDescription": "ED-TECH"
                       },
                       {
-                        "departmentId": 521,
+                        "departmentId": "521",
                         "customerType": "Department",
                         "departmentDescription": "ADMISSIONS",
                         "login": {
@@ -429,11 +429,11 @@
       "Department": {
         "properties": {
           "departmentId": {
-            "type": "integer",
+            "type": "string",
             "title": "Departmentid",
-            "description": "Integer department id (never 520.0).",
+            "description": "String department id.",
             "examples": [
-              520
+              "520"
             ]
           },
           "customerType": {

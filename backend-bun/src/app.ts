@@ -13,6 +13,53 @@ import { version } from "../package.json";
 
 const SYNC_PATHS = new Set(["/api/v1/sync/staffs", "/api/v1/sync/families", "/api/v1/sync/departments"]);
 
+/**
+ * Shared onError handler — exported so tests/helpers.ts can wire the same
+ * error-response shapes into its minimal test app. Duplicating this inline
+ * in two places let them drift silently (the ISB sync tests were asserting
+ * against a test app that never saw this handler at all).
+ */
+export function buildOnErrorHandler() {
+    return ({ code, error, set, requestId, path }: {
+        code: string | number;
+        error: unknown;
+        set: { status?: number | string };
+        requestId?: string;
+        path: string;
+    }) => {
+        if (code === "VALIDATION") {
+            // NOTE: plugin-level .onError() never fires for VALIDATION on nested
+            // routes in Elysia 1.4.x — the root app's handler always wins. Any
+            // route needing a custom validation-error shape must branch here.
+            if (path === "/api/v1/wallet/adjust-balance") {
+                set.status = 400;
+                return {
+                    status: "FAILED" as const,
+                    code: "INVALID_REQUEST" as const,
+                    message: "Request body does not match the expected schema.",
+                    errors: mapValidationError(error as Error),
+                };
+            }
+            if (SYNC_PATHS.has(path)) {
+                return syncValidationFailed(set, mapValidationError(error as Error));
+            }
+            set.status = 422;
+            return { detail: (error as Error).message };
+        }
+        if (code === "NOT_FOUND") {
+            set.status = 404;
+            return { detail: "Not found" };
+        }
+        if (set.status === 401 || set.status === 403) {
+            return { detail: error instanceof Error ? error.message : "Unauthorized" };
+        }
+        const rid = requestId ?? "unknown";
+        logError(`[${rid}] Unhandled error (${String(code)})`, error);
+        set.status = set.status === 200 ? 500 : set.status;
+        return { detail: error instanceof Error ? error.message : "Internal error" };
+    };
+}
+
 export async function initializeServices() {
     logger.info("🚀 Starting ISB backend...");
     try {
@@ -85,38 +132,7 @@ const app = new Elysia()
         }),
     )
     .use(logging)
-    .onError(({ code, error, set, requestId, path }) => {
-        if (code === "VALIDATION") {
-            // NOTE: plugin-level .onError() never fires for VALIDATION on nested
-            // routes in Elysia 1.4.x — the root app's handler always wins. Any
-            // route needing a custom validation-error shape must branch here.
-            if (path === "/api/v1/wallet/adjust-balance") {
-                set.status = 400;
-                return {
-                    status: "FAILED" as const,
-                    code: "INVALID_REQUEST" as const,
-                    message: "Request body does not match the expected schema.",
-                    errors: mapValidationError(error),
-                };
-            }
-            if (SYNC_PATHS.has(path)) {
-                return syncValidationFailed(set, mapValidationError(error));
-            }
-            set.status = 422;
-            return { detail: error.message };
-        }
-        if (code === "NOT_FOUND") {
-            set.status = 404;
-            return { detail: "Not found" };
-        }
-        if (set.status === 401 || set.status === 403) {
-            return { detail: error instanceof Error ? error.message : "Unauthorized" };
-        }
-        const rid = requestId ?? "unknown";
-        logError(`[${rid}] Unhandled error (${String(code)})`, error);
-        set.status = set.status === 200 ? 500 : set.status;
-        return { detail: error instanceof Error ? error.message : "Internal error" };
-    })
+    .onError(buildOnErrorHandler())
     .use(rateLimitMiddleware)
     .use(router);
 

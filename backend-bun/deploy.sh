@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
+# Server deploy (prod / uat) — run ON THE SERVER after SFTP'ing dist/.
+#
+# Prerequisites on server:
+#   - backend-bun/dist/server.js  (from ./build-dist.sh + SFTP)
+#   - backend-bun/.env.prod or .env.uat
+#   - Docker installed
+#
+# Usage:
+#   ./deploy.sh prod
+#   ./deploy.sh uat
 set -euo pipefail
-# Context is backend-bun/ itself now — the image only needs dist/, built
-# locally beforehand (`bun run build`) and dragged over along with this file.
+
 cd "$(dirname "$0")"
 
 ENV="${1:?Usage: ./deploy.sh <prod|uat>}"
 IMAGE="isb-backend"
+DOCKERFILE="Dockerfile.server"
 
 case "$ENV" in
   prod) CONTAINER="isb-backend-prod"; ENV_FILE=".env.prod" ;;
@@ -19,7 +29,9 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if [ ! -f "dist/server.js" ]; then
-  echo "Missing dist/server.js — run 'bun run build' locally and drag dist/ over first."
+  echo "Missing dist/server.js"
+  echo "On your dev machine run: ./backend-bun/build-dist.sh"
+  echo "Then SFTP backend-bun/dist/ to this server."
   exit 1
 fi
 
@@ -31,8 +43,8 @@ if [ -z "$APP_PORT" ]; then
   exit 1
 fi
 
-echo "==> Building image"
-docker build -t "$IMAGE" .
+echo "==> Building image from pre-built dist/ ($DOCKERFILE)"
+docker build -f "$DOCKERFILE" -t "$IMAGE" .
 
 echo "==> Restarting container ($CONTAINER)"
 docker stop "$CONTAINER" 2>/dev/null || true

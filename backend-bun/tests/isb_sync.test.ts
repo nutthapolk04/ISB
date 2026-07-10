@@ -129,7 +129,7 @@ describe("ISB sync API — validation", () => {
       {
         departments: [
           {
-            departmentId: 999001,
+            departmentId: "999001",
             customerType: "Department",
             departmentDescription: "TEST",
             smartCard: { cardNumber: "ABC" },

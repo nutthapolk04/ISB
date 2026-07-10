@@ -1,5 +1,7 @@
 # Railway deploy — Bun backend
 
+See also [deploy.md](./deploy.md) for the full demo / prod / uat matrix.
+
 ## One-time setup
 
 1. **Create a new Railway service** in the same project as the FastAPI backend

@@ -46,7 +46,7 @@ const studentSchema = t.Object({
 });
 
 const departmentItemSchema = t.Object({
-    departmentId: t.Number(),
+    departmentId: t.String(),
     customerType: t.Literal("Department"),
     departmentDescription: t.String(),
     login: t.Optional(t.Nullable(staffLoginSchema)),

@@ -261,7 +261,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
 // ── Department batch ──────────────────────────────────────────────────────
 
 interface IsbDepartment {
-    departmentId: number;
+    departmentId: string;
     customerType: "Department";
     departmentDescription: string;
     login?: { loginId: string; email: string } | null;
@@ -280,7 +280,7 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
     for (let i = 0; i < depts.length; i++) {
         const d = depts[i];
         try {
-            const code = String(d.departmentId);
+            const code = d.departmentId;
             const existing = await db
                 .select()
                 .from(departments)

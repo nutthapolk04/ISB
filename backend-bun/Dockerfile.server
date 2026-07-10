@@ -1,0 +1,14 @@
+# Server deploy (prod / uat) — build context = backend-bun/
+#
+# dist/ must already exist on the server (built locally via ./build-dist.sh,
+# then SFTP'd). This image only packages the bundle — no compile step.
+
+FROM oven/bun:1.3-alpine
+WORKDIR /app
+
+COPY dist ./dist
+
+ENV PORT=3001
+EXPOSE 3001
+
+CMD ["bun", "dist/server.js"]
