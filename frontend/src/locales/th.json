@@ -3196,6 +3196,7 @@
     "search": "ค้นหา",
     "searchPlaceholder": "รหัสสินค้า หรือ ชื่อสินค้า",
     "searchEmpty": "ไม่พบสินค้าที่ค้นหา",
+    "noProductsFound": "ไม่พบสินค้า",
     "month": "เดือน",
     "year": "ปี",
     "load": "โหลด",

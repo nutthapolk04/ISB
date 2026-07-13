@@ -3198,6 +3198,7 @@
     "search": "Search",
     "searchPlaceholder": "Product code or name",
     "searchEmpty": "No products match your search.",
+    "noProductsFound": "No products found",
     "month": "Month",
     "year": "Year",
     "load": "Load",

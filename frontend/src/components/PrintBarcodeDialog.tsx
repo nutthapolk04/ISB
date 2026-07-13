@@ -91,7 +91,6 @@ export function PrintBarcodeDialog({
     selectedProduct,
 }: PrintBarcodeDialogProps) {
     const { t } = useTranslation();
-
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [printItems, setPrintItems] = useState<PrintItem[]>([]);
