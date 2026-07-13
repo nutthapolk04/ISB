@@ -793,8 +793,16 @@ export async function transferWithinFamily(args: {
     initiatorIsAdmin: boolean;
     initiatorRoles: string[];
     note: string;
+    // Kiosk-only: the RFID-identified parent's user id. When the initiator has
+    // the "kiosk" role, the family-link check below runs against THIS id
+    // instead of initiatorUserId (the kiosk service account itself has no
+    // family links). Ignored for every other caller so this can't be used to
+    // impersonate another user's family.
+    actingUserId?: number;
 }): Promise<FamilyTransferDTO> {
-    const { fromWalletId, toWalletId, amount, initiatorUserId, initiatorIsAdmin, note } = args;
+    const { fromWalletId, toWalletId, amount, initiatorUserId, initiatorIsAdmin, initiatorRoles, note } = args;
+    const familyCheckUserId =
+        initiatorRoles.includes("kiosk") && args.actingUserId != null ? args.actingUserId : initiatorUserId;
     if (amount <= 0) {
         const err = new Error("Transfer amount must be positive");
         (err as { status?: number }).status = 400;
@@ -845,11 +853,11 @@ export async function transferWithinFamily(args: {
         // "transfer to anyone" — the broader capability is admin-only.
         if (!initiatorIsAdmin) {
             const reachFamily = async (w: typeof fromW): Promise<boolean> => {
-                if (w.user_id === initiatorUserId) return true;
+                if (w.user_id === familyCheckUserId) return true;
                 if (w.customer_id !== null) {
                     const link = await sqlTx<Array<{ id: number }>>`
             SELECT id FROM parent_child_links
-            WHERE parent_user_id = ${initiatorUserId} AND child_customer_id = ${w.customer_id}
+            WHERE parent_user_id = ${familyCheckUserId} AND child_customer_id = ${w.customer_id}
             LIMIT 1
           `;
                     return link.length > 0;

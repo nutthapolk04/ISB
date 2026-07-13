@@ -38,6 +38,11 @@ export const walletTransfer = {
         to_wallet_id: t.Number(),
         amount: t.Number({ exclusiveMinimum: 0 }),
         note: t.String({ minLength: 1, maxLength: 500 }),
+        // Only honored when the caller has the "kiosk" role — lets the kiosk
+        // service account perform a transfer on behalf of whichever parent
+        // tapped their card, while the family-link check still runs against
+        // this id (not the kiosk's own). Ignored for all other callers.
+        acting_user_id: t.Optional(t.Number()),
     }),
     detail: { tags: ["Wallets"], summary: "Transfer between wallets (note required, no department destinations)" },
 };

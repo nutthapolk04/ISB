@@ -516,32 +516,48 @@ export function useStoreCheckout({
             total,
             payer:
                 preSelectedMember != null
-                    ? payerForCustomer({ ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) }, total)
+                    ? preSelectedMember.customer_kind === "department"
+                        ? payerForDepartment(
+                            {
+                                department_code: preSelectedMember.customer_code ?? null,
+                                department_name: preSelectedMember.name,
+                                wallet_balance: preSelectedMember.wallet_balance ?? null,
+                            },
+                            total,
+                        )
+                        : payerForCustomer({ ...preSelectedMember, spendingLimit: storeSpendingLimit(preSelectedMember) }, total)
                     : null,
         });
 
-        // If member is pre-selected, charge directly via wallet
+        // If member is pre-selected, charge directly — department members
+        // route through the dedicated department-charge path (institutional
+        // billing, not a customer/user wallet deduction); everyone else pays
+        // by wallet.
         if (preSelectedMember) {
             setConfirming(true);
             try {
-                await doCheckout("wallet", {
-                    payer:
-                        preSelectedMember.user_id != null
-                            ? {
-                                kind: "user",
-                                user: {
-                                    user_id: preSelectedMember.user_id,
-                                    username: preSelectedMember.customer_code ?? "",
-                                    full_name: preSelectedMember.name,
-                                    role: preSelectedMember.customer_kind ?? "parent",
-                                    photo_url: preSelectedMember.photo_url ?? null,
-                                    wallet_id: preSelectedMember.wallet_id ?? 0,
-                                    wallet_balance: preSelectedMember.wallet_balance ?? 0,
-                                    is_active: true,
-                                },
-                            }
-                            : { kind: "customer", student: preSelectedMember },
-                });
+                if (preSelectedMember.customer_kind === "department") {
+                    await doCheckout("department", { deptId: preSelectedMember.id, empCode: null });
+                } else {
+                    await doCheckout("wallet", {
+                        payer:
+                            preSelectedMember.user_id != null
+                                ? {
+                                    kind: "user",
+                                    user: {
+                                        user_id: preSelectedMember.user_id,
+                                        username: preSelectedMember.customer_code ?? "",
+                                        full_name: preSelectedMember.name,
+                                        role: preSelectedMember.customer_kind ?? "parent",
+                                        photo_url: preSelectedMember.photo_url ?? null,
+                                        wallet_id: preSelectedMember.wallet_id ?? 0,
+                                        wallet_balance: preSelectedMember.wallet_balance ?? 0,
+                                        is_active: true,
+                                    },
+                                }
+                                : { kind: "customer", student: preSelectedMember },
+                    });
+                }
                 setPreSelectedMember(null);
             } catch (e) {
                 // Error already handled in doCheckout

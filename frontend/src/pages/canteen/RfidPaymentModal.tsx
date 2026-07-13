@@ -180,7 +180,20 @@ export function RfidPaymentModal({
     if (open) {
       // If we have a pre-selected member, skip to identity stage
       if (preSelectedMember) {
-        if (preSelectedMember.user_id != null) {
+        if (preSelectedMember.customer_kind === "department") {
+          // Department found via search — not a customer/user wallet.
+          setDepartmentPayer({
+            id: preSelectedMember.id,
+            department_code: preSelectedMember.customer_code,
+            department_name: preSelectedMember.name,
+            is_active: true,
+            wallet_id: preSelectedMember.wallet_id ?? null,
+            wallet_balance: preSelectedMember.wallet_balance ?? null,
+          });
+          setStudent(null);
+          setUserPayer(null);
+          setPayerKind("department");
+        } else if (preSelectedMember.user_id != null) {
           // User-based payer (parent / staff / teacher) found via search
           setUserPayer({
             user_id: preSelectedMember.user_id,
@@ -193,10 +206,12 @@ export function RfidPaymentModal({
             is_active: true,
           });
           setStudent(null);
+          setDepartmentPayer(null);
           setPayerKind("user");
         } else {
           setStudent(preSelectedMember);
           setUserPayer(null);
+          setDepartmentPayer(null);
           setPayerKind("customer");
         }
         setStage("identity");

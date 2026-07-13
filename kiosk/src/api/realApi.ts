@@ -420,6 +420,29 @@ export const realApi = {
         return request(`/wallets/topup/${refCode}/status`);
     },
 
+    /**
+     * Transfer money from the tapped parent's wallet to a linked family
+     * member's wallet (child only — matches the parent-portal transfer
+     * feature's family-link check). `actingUserId` is the RFID-identified
+     * parent's user id; the backend verifies the family link against THAT
+     * id rather than the kiosk service account's own id.
+     */
+    async transfer(
+        fromWalletId: string,
+        toWalletId: string,
+        amount: number,
+        note: string,
+        actingUserId: number,
+    ): Promise<{ from_balance_after: number; to_balance_after: number }> {
+        return requestPost(`/wallets/transfer`, {
+            from_wallet_id: Number(fromWalletId),
+            to_wallet_id: Number(toWalletId),
+            amount,
+            note,
+            acting_user_id: actingUserId,
+        });
+    },
+
     async getPublicSettings(): Promise<{ school_name: string; school_logo_url: string }> {
         try {
             const res = await fetch(`${BASE_URL}/admin/settings/public`);

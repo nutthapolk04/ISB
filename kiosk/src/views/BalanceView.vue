@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { User, LogOut, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle } from 'lucide-vue-next';
+import { User, LogOut, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle, ArrowLeftRight } from 'lucide-vue-next';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -24,6 +24,7 @@ const t = {
         cardId: 'Card ID',
         menuTitle: 'Please select the service you need',
         topup: 'Top-up',
+        transfer: 'Transfer to Family',
         history: 'Transaction History',
         personal: 'Personal',
         child: "Child's",
@@ -42,6 +43,7 @@ const t = {
         cardId: 'เลขบัตร',
         menuTitle: 'โปรดเลือกรายการที่ท่านต้องการ',
         topup: 'เติมเงิน',
+        transfer: 'โอนเงินให้ครอบครัว',
         history: 'ประวัติการทำรายการ',
         personal: 'ส่วนตัว',
         child: 'ของบุตร',
@@ -67,6 +69,18 @@ const goToTopup = () => {
         return;
     }
     router.push('/topup');
+};
+
+// Transfer is only offered to parents who have at least one linked child
+// wallet to send money to — mirrors the parent-portal Transfer page, which
+// hides itself when there's nothing to transfer to.
+const canTransfer = computed(() => {
+    return store.currentUser?.role === 'parent'
+        && (store.currentUser?.wallets ?? []).some(w => w.type === 'child');
+});
+
+const goToTransfer = () => {
+    router.push('/transfer');
 };
 
 const goToHistory = async () => {
@@ -272,6 +286,16 @@ onUnmounted(() => {
                         <Wallet :size="28" />
                     </div>
                     <span>{{ currT.topup }}</span>
+                </div>
+                <ChevronRight :size="24" class="chevron" />
+            </button>
+
+            <button v-if="canTransfer" class="menu-item transfer" @click="goToTransfer">
+                <div class="menu-item-left">
+                    <div class="menu-icon transfer-icon">
+                        <ArrowLeftRight :size="28" />
+                    </div>
+                    <span>{{ currT.transfer }}</span>
                 </div>
                 <ChevronRight :size="24" class="chevron" />
             </button>
@@ -611,6 +635,15 @@ onUnmounted(() => {
 
 .menu-item.history {
     border-color: rgba(234, 203, 70, 0.5);
+}
+
+.transfer-icon {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: #fff;
+}
+
+.menu-item.transfer {
+    border-color: rgba(212, 54, 42, 0.15);
 }
 
 .menu-item:active {

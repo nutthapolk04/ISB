@@ -4,6 +4,7 @@ import TechnicianView from '../views/TechnicianView.vue';
 import BalanceView from '../views/BalanceView.vue';
 import TransactionHistoryView from '../views/TransactionHistoryView.vue';
 import TopUpView from '../views/TopUpView.vue';
+import TransferView from '../views/TransferView.vue';
 
 const routes = [
     {
@@ -34,6 +35,11 @@ const routes = [
         path: '/topup',
         name: 'topup',
         component: TopUpView
+    },
+    {
+        path: '/transfer',
+        name: 'transfer',
+        component: TransferView
     },
     // Catch all - redirect to welcome
     {
