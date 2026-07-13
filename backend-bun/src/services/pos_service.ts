@@ -15,6 +15,7 @@ import {
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { fifoRefundLot } from "@/services/inventory_fifo";
+import { dateRange } from "@/services/report_service";
 
 export interface ReceiptItemDTO {
     id: number;
@@ -312,8 +313,12 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ReceiptDTO[]>
         conds.push(eq(receipts.transactionMode, p.transactionMode as typeof receipts.$inferSelect.transactionMode));
     }
     if (p.requesterUserId !== undefined) conds.push(eq(receipts.requesterUserId, p.requesterUserId));
-    if (p.dateFrom) conds.push(gte(receipts.transactionDate, p.dateFrom));
-    if (p.dateTo) conds.push(lte(receipts.transactionDate, p.dateTo));
+    // receipts.transaction_date is timestamptz — a bare YYYY-MM-DD compares
+    // against UTC midnight, not end-of-day Bangkok time, silently excluding
+    // most of the business day (Bangkok is UTC+7). Anchor both bounds to
+    // Asia/Bangkok like report_service.ts's dateRange() does.
+    if (p.dateFrom) conds.push(gte(receipts.transactionDate, dateRange(p.dateFrom, p.dateFrom).start));
+    if (p.dateTo) conds.push(lte(receipts.transactionDate, dateRange(p.dateTo, p.dateTo).end));
 
     const rows = await db
         .select()

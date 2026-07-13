@@ -225,7 +225,7 @@ const defaultAlign = (col: ReportColumn): ColumnAlign =>
  */
 async function loadImageDataUrl(
   src: string,
-): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" | "JPEG" } | null> {
+): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" | "JPEG" | "WEBP" } | null> {
   try {
     const url = src.startsWith("http") ? src : new URL(src, window.location.origin).toString();
     const res = await fetch(url);
@@ -244,12 +244,23 @@ async function loadImageDataUrl(
       i.onerror = reject;
       i.src = dataUrl;
     });
-    const isJpeg = blob.type.includes("jpeg") || blob.type.includes("jpg");
+    // Admin can upload any browser-renderable image type (accept="image/*"),
+    // but jsPDF's addImage only decodes a handful of raster formats — map
+    // what we can and let the caller skip the logo for anything else (e.g.
+    // SVG, GIF, HEIC) rather than mislabeling it and having addImage throw.
+    const format = blob.type.includes("jpeg") || blob.type.includes("jpg")
+      ? "JPEG"
+      : blob.type.includes("webp")
+        ? "WEBP"
+        : blob.type.includes("png")
+          ? "PNG"
+          : null;
+    if (!format) return null;
     return {
       dataUrl,
       width: img.naturalWidth,
       height: img.naturalHeight,
-      format: isJpeg ? "JPEG" : "PNG",
+      format,
     };
   } catch {
     return null;
@@ -295,10 +306,16 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
 
   let textStartX = marginX;
   if (logo) {
-    const targetH = 52;           // bigger logo
-    const targetW = (logo.width / logo.height) * targetH;
-    doc.addImage(logo.dataUrl, logo.format, marginX, cursorY, targetW, targetH);
-    textStartX = marginX + targetW + 10;
+    try {
+      const targetH = 52;           // bigger logo
+      const targetW = (logo.width / logo.height) * targetH;
+      doc.addImage(logo.dataUrl, logo.format, marginX, cursorY, targetW, targetH);
+      textStartX = marginX + targetW + 10;
+    } catch (e) {
+      // A malformed/corrupt image must not take down the whole export —
+      // fall back to the no-logo layout (textStartX stays at marginX).
+      console.warn("PDF logo embed failed, continuing without it:", e);
+    }
   }
 
   // School name + title — left-aligned, right of logo

@@ -9,7 +9,6 @@ import {
   shopMovements,
   returnRequests,
   customers,
-  customerTypes,
   users,
   productBundles,
   bundleItems,
@@ -943,9 +942,18 @@ export async function salesSummaryReport(args: {
 
   const filterConds = [...conds];
   if (args.customerType && args.customerType !== "all") {
-    filterConds.push(
-      sql`EXISTS (SELECT 1 FROM ${customerTypes} ct WHERE ct.id = ${customers.customerTypeId} AND ct.type_name = ${args.customerType})`,
-    );
+    // "Customer Type" here means who the payer IS (parent/student/staff/
+    // guest) — unrelated to customer_types.type_name, which is a billing
+    // price-level enum (PUBLIC/INTERNAL only) and throws a Postgres enum
+    // cast error for any of these values. Parents/staff pay from their own
+    // user wallet (receipts.payer_user_id → users.role); students/guests
+    // pay from a customer wallet (receipts.customer_id → customers.customer_kind,
+    // where "guest" is stored as customer_kind 'other').
+    if (args.customerType === "parent" || args.customerType === "staff") {
+      filterConds.push(eq(users.role, args.customerType));
+    } else {
+      filterConds.push(eq(customers.customerKind, args.customerType === "guest" ? "other" : args.customerType));
+    }
   }
   if (args.familyCode) filterConds.push(eq(customers.familyCode, args.familyCode));
   if (args.userName) {

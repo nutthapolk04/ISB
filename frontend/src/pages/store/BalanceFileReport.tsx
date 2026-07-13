@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Check, ChevronsUpDown, FileDown, FileText, Loader2, PackagePlus, Search } from "lucide-react";
+import { BookOpen, ChevronsUpDown, FileDown, FileText, Loader2, PackagePlus } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import { API_BASE_URL } from "@/lib/constants";
@@ -9,12 +9,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Command, CommandEmpty, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
@@ -118,26 +118,37 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     const [shops, setShops] = useState<ShopOption[]>([]);
     const [shopId, setShopId] = useState<string>(lockedShopId ?? "");
     const [products, setProducts] = useState<ProductOption[]>([]);
-    const [productId, setProductId] = useState<string>("all");
+    const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
     const [productPickerOpen, setProductPickerOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
 
     const [data, setData] = useState<BalanceFileReportData | null>(null);
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
 
-    // Client-side search on top of the already-loaded blocks — the product
-    // Select above filters at the API level, this filters what's on screen.
+    const allSelected = products.length > 0 && selectedProductIds.size === products.length;
+    const noneSelected = selectedProductIds.size === 0;
+
+    const toggleProduct = (id: number) => {
+        setSelectedProductIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleAllProducts = () => {
+        setSelectedProductIds(allSelected ? new Set() : new Set(products.map((p) => p.id)));
+    };
+
+    // Shown ledger cards follow the checked products — the report itself is
+    // always loaded for the whole shop (the backend has no multi-product
+    // filter), this just narrows what's rendered/exported on screen.
     const filteredBlocks = useMemo(() => {
         if (!data) return [];
-        const q = searchTerm.trim().toLowerCase();
-        if (!q) return data.blocks;
-        return data.blocks.filter(
-            (b) =>
-                (b.product_code ?? "").toLowerCase().includes(q) ||
-                b.product_name.toLowerCase().includes(q),
-        );
-    }, [data, searchTerm]);
+        if (allSelected) return data.blocks;
+        return data.blocks.filter((b) => selectedProductIds.has(b.product_id));
+    }, [data, selectedProductIds, allSelected]);
 
     // Load shops list (admin only, non-embedded); embedded uses lockedShopId; non-admin uses own shopId
     useEffect(() => {
@@ -155,23 +166,21 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [embedded, isAdmin, user?.shopId]);
 
-    // Load products when shop changes
+    // Load products when shop changes — default to all products checked.
     useEffect(() => {
         if (!shopId) {
             setProducts([]);
+            setSelectedProductIds(new Set());
             return;
         }
         api.get<ProductOption[]>(`/shops/${shopId}/products?include_inactive=false`)
-            .then(setProducts)
+            .then((rows) => {
+                setProducts(rows);
+                setSelectedProductIds(new Set(rows.map((p) => p.id)));
+            })
             .catch(() => setProducts([]));
-        setProductId("all");
         setData(null);
     }, [shopId]);
-
-    const selectedProduct = useMemo(
-        () => products.find((p) => String(p.id) === productId) ?? null,
-        [products, productId],
-    );
 
     const yearOptions = useMemo(() => {
         const current = now.getFullYear();
@@ -189,7 +198,6 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
         try {
             const params = new URLSearchParams({ year: String(year) });
             if (viewMode === "monthly") params.set("month", String(month));
-            if (productId !== "all") params.set("product_id", productId);
             const res = await api.get<BalanceFileReportData>(
                 `/shops/${shopId}/balance-file?${params.toString()}`,
             );
@@ -214,7 +222,6 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
         try {
             const params = new URLSearchParams({ year: String(year) });
             if (viewMode === "monthly") params.set("month", String(month));
-            if (productId !== "all") params.set("product_id", productId);
             const token = localStorage.getItem("access_token");
             const res = await fetch(
                 `${API_BASE_URL}/shops/${shopId}/balance-file/export?${params.toString()}`,
@@ -248,7 +255,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
     };
 
     const exportPdf = () => {
-        if (!data || data.blocks.length === 0) return;
+        if (!data || filteredBlocks.length === 0) return;
 
         const periodLabel = formatPeriod(data.month, data.year, lang);
         const shopLabel = data.shop_name ?? shopId;
@@ -263,7 +270,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
         const colOut = t("balanceFile.col.out");
         const colBal = t("balanceFile.col.balance");
 
-        const blocksHtml = data.blocks.map((block) => {
+        const blocksHtml = filteredBlocks.map((block) => {
             const heading = block.product_code
                 ? `${block.product_code} — ${block.product_name}`
                 : block.product_name;
@@ -479,12 +486,14 @@ ${blocksHtml}
                                         variant="outline"
                                         role="combobox"
                                         aria-expanded={productPickerOpen}
-                                        className="w-64 justify-between font-normal"
+                                        className="w-64 justify-between font-normal flex"
                                     >
                                         <span className="truncate">
-                                            {selectedProduct
-                                                ? (selectedProduct.product_code ? `${selectedProduct.product_code} — ${selectedProduct.name}` : selectedProduct.name)
-                                                : t("balanceFile.allProducts", "All products")}
+                                            {allSelected
+                                                ? t("balanceFile.allProducts", "All products")
+                                                : noneSelected
+                                                    ? t("balanceFile.selectProducts", "Select products")
+                                                    : t("balanceFile.nSelected", "{{count}} selected", { count: selectedProductIds.size })}
                                         </span>
                                         <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
                                     </Button>
@@ -506,26 +515,28 @@ ${blocksHtml}
                                             <CommandEmpty>{t("balanceFile.noProductsFound", "No products found")}</CommandEmpty>
                                             <CommandItem
                                                 value="all"
-                                                onSelect={() => {
-                                                    setProductId("all");
-                                                    setProductPickerOpen(false);
-                                                }}
+                                                onSelect={toggleAllProducts}
                                                 className="flex items-center gap-2"
                                             >
-                                                <Check className={cn("h-4 w-4 shrink-0", productId === "all" ? "opacity-100" : "opacity-0")} />
-                                                <span className="text-sm">{t("balanceFile.allProducts", "All products")}</span>
+                                                <Checkbox
+                                                    checked={allSelected ? true : noneSelected ? false : "indeterminate"}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onCheckedChange={toggleAllProducts}
+                                                />
+                                                <span className="text-sm font-medium">{t("balanceFile.allProducts", "All products")}</span>
                                             </CommandItem>
                                             {products.map((p) => (
                                                 <CommandItem
                                                     key={p.id}
                                                     value={String(p.id)}
-                                                    onSelect={() => {
-                                                        setProductId(String(p.id));
-                                                        setProductPickerOpen(false);
-                                                    }}
+                                                    onSelect={() => toggleProduct(p.id)}
                                                     className="flex items-center gap-2"
                                                 >
-                                                    <Check className={cn("h-4 w-4 shrink-0", productId === String(p.id) ? "opacity-100" : "opacity-0")} />
+                                                    <Checkbox
+                                                        checked={selectedProductIds.has(p.id)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onCheckedChange={() => toggleProduct(p.id)}
+                                                    />
                                                     <div className="flex-1 min-w-0">
                                                         <p className="truncate text-sm">{p.name}</p>
                                                         {p.product_code && <p className="truncate text-xs text-muted-foreground">{p.product_code}</p>}
@@ -536,19 +547,6 @@ ${blocksHtml}
                                     </Command>
                                 </PopoverContent>
                             </Popover>
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label>{t("balanceFile.search", "Search")}</Label>
-                            <div className="relative w-56">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder={t("balanceFile.searchPlaceholder", "Product code or name")}
-                                    className="pl-8"
-                                />
-                            </div>
                         </div>
 
                         {viewMode === "monthly" && (
@@ -591,7 +589,7 @@ ${blocksHtml}
                             {t("balanceFile.exportExcel", "Export Excel")}
                         </Button>
 
-                        <Button variant="outline" onClick={exportPdf} disabled={!data || data.blocks.length === 0}>
+                        <Button variant="outline" onClick={exportPdf} disabled={!data || filteredBlocks.length === 0}>
                             <FileText className="h-4 w-4 mr-1" />
                             {t("balanceFile.exportPdf", "Export PDF")}
                         </Button>
@@ -691,7 +689,7 @@ ${blocksHtml}
             {data && data.blocks.length > 0 && filteredBlocks.length === 0 && (
                 <Card>
                     <CardContent className="py-10 text-center text-muted-foreground">
-                        {t("balanceFile.searchEmpty", "No products match your search.")}
+                        {t("balanceFile.noProductsSelected", "No products checked — tick at least one product above.")}
                     </CardContent>
                 </Card>
             )}

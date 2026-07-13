@@ -788,7 +788,7 @@ const overpayExceedsCap = computed(() => {
                             <strong>
                                 ฿{{ (bill.overpayPending.value?.collectedThb ?? 0) +
                                     (bill.overpayPending.value?.billAmountThb
-                                ?? 0) }}
+                                        ?? 0) }}
                             </strong>
                         </div>
                     </div>
@@ -1535,7 +1535,6 @@ const overpayExceedsCap = computed(() => {
     box-shadow: var(--shadow);
     text-align: center;
     border: 3px solid #86efac;
-    max-width: 450px;
     width: 100%;
     display: flex;
     flex-direction: column;

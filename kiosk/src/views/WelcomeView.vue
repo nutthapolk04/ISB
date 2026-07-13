@@ -352,8 +352,7 @@ const t = {
 }
 
 .school-logo {
-    height: 72px;
-    width: auto;
+    height: 150px;
     max-width: 200px;
     object-fit: contain;
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
