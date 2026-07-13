@@ -862,6 +862,18 @@ export async function transferWithinFamily(args: {
           `;
                     return link.length > 0;
                 }
+                if (w.user_id !== null) {
+                    // Co-parent's own wallet — same family_code, active,
+                    // non-student (mirrors myCoparents()'s definition).
+                    const coParent = await sqlTx<Array<{ id: number }>>`
+            SELECT u2.id FROM users u1
+            JOIN users u2 ON u2.family_code = u1.family_code AND u1.family_code IS NOT NULL
+            WHERE u1.id = ${familyCheckUserId} AND u2.id = ${w.user_id}
+              AND u2.is_active = true AND u2.role != 'student'
+            LIMIT 1
+          `;
+                    return coParent.length > 0;
+                }
                 return false;
             };
             if (!(await reachFamily(fromW)) || !(await reachFamily(toW))) {

@@ -31,6 +31,14 @@ interface ChildSummary {
   card_frozen?: boolean;
 }
 
+interface CoParentSummary {
+  user_id: number;
+  full_name: string;
+  username?: string | null;
+  wallet_id?: number | null;
+  wallet_balance?: number | null;
+}
+
 interface OwnWallet {
   id: number;
   owner_type: "user" | "customer";
@@ -67,9 +75,10 @@ export default function Transfer() {
   useEffect(() => {
     (async () => {
       try {
-        const [children, mine] = await Promise.all([
+        const [children, mine, coparents] = await Promise.all([
           api.get<ChildSummary[]>("/family/me"),
           api.get<OwnWallet | null>("/wallets/me").catch(() => null),
+          api.get<CoParentSummary[]>("/family/me/coparents").catch(() => []),
         ]);
         const opts: WalletOption[] = [];
         if (mine && mine.owner_type === "user") {
@@ -88,6 +97,16 @@ export default function Transfer() {
             walletId: c.wallet_id,
             rawName: c.name,
             balance: c.wallet_balance ?? 0,
+            isSelf: false,
+          });
+        }
+        for (const cp of coparents) {
+          if (!cp.wallet_id) continue;
+          opts.push({
+            key: `coparent-${cp.user_id}`,
+            walletId: cp.wallet_id,
+            rawName: cp.full_name || cp.username || "",
+            balance: cp.wallet_balance ?? 0,
             isSelf: false,
           });
         }
