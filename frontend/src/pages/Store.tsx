@@ -758,6 +758,7 @@ const Store = () => {
             {/* Receipt success */}
             <ReceiptSuccessModal
                 open={checkout.successOpen}
+                autoCloseMs={1000}
                 onClose={() => {
                     checkout.setSuccessOpen(false);
                     // Cashier acknowledged the receipt — release the customer
