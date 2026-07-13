@@ -1361,6 +1361,7 @@ export default function Canteen() {
                 remainingBalance={lastReceipt?.remainingBalance ?? null}
                 studentName={lastReceipt?.studentName ?? null}
                 studentPhotoUrl={lastReceipt?.studentPhotoUrl ?? null}
+                autoCloseMs={1000}
                 studentGrade={lastReceipt?.studentGrade ?? null}
             />
             <MemberSearchModal
