@@ -5,13 +5,16 @@
   "type": "module",
   "main": "rfid-server.ts",
   "scripts": {
-    "start": "bun run rfid-server.ts"
+    "start": "node rfid-server.js"
   },
   "dependencies": {
-    "ws": "^8.14.2",
-    "nfc-pcsc": "^0.11.0"
+    "nfc-pcsc": "latest",
+    "ws": "^8.14.2"
   },
   "engines": {
     "bun": ">=1.3.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }

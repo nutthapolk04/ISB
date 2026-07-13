@@ -29,7 +29,7 @@ export function ReceiptSuccessModal({
   studentName,
   studentPhotoUrl,
   studentGrade,
-  autoCloseMs = 4500,
+  autoCloseMs = 500,
 }: ReceiptSuccessModalProps) {
   useEffect(() => {
     if (!open) return;

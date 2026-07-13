@@ -195,21 +195,21 @@ export function AppSidebar() {
                 <SidebarGroup>
                     <SidebarGroupLabel className="h-auto px-4 py-4">
                         {open && (
-                            <div className="flex flex-col items-center gap-3 ">
+                            <div className="flex flex-col items-center gap-4">
                                 {school.logoUrl ? (
                                     <img
                                         src={school.logoUrl}
                                         alt="school logo"
-                                        className="h-11 w-11 shrink-0 rounded-md object-contain"
+                                        className="h-14 w-14 shrink-0 rounded-md object-contain"
                                     />
                                 ) : (
                                     <img
                                         src="/isb-logo.svg"
                                         alt="ISB logo"
-                                        className="h-11 w-11 shrink-0 rounded-md object-contain"
+                                        className="h-14 w-14 shrink-0 rounded-md object-contain"
                                     />
                                 )}
-                                <span className="text-sidebar-foreground text-sm font-bold -mt-[15px]">
+                                <span className="text-sidebar-foreground text-sm font-bold -mt-5">
                                     {school.name || t("nav.systemTitle")}
                                 </span>
                             </div>

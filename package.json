@@ -11,6 +11,12 @@
   "scripts": {
     "dev:backend": "bun --cwd backend-bun dev",
     "dev:frontend": "bun --cwd frontend dev",
+    "dev:rfid-bridge": "npm --prefix rfid-bridge start",
+    "dev:frontend:rfid": "concurrently \"bun --cwd frontend dev\" \"npm --prefix rfid-bridge start\"",
+    "dev:backend:rfid": "concurrently \"bun --cwd backend-bun dev\" \"npm --prefix rfid-bridge start\"",
+    "dev:all": "concurrently \"bun --cwd backend-bun dev\" \"bun --cwd frontend dev\" \"npm --prefix rfid-bridge start\"",
+    "start": "npm --prefix rfid-bridge start",
+    "start:rfid-bridge": "npm --prefix rfid-bridge start",
     "test:backend": "bun --cwd backend-bun test"
   },
   "engines": {
@@ -18,5 +24,8 @@
   },
   "dependencies": {
     "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }
