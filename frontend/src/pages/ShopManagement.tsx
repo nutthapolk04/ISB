@@ -173,7 +173,7 @@ const ShopManagement = () => {
         try {
             setSaving(true);
             await api.post("/shops/", {
-                id: shopForm.id.trim().toLowerCase().replace(/\s+/g, "_"),
+                id: shopForm.id.trim().replace(/\s+/g, "_"),
                 name: shopForm.name.trim(),
                 description: shopForm.description.trim() || null,
                 shop_type: shopForm.shopType,
