@@ -1,0 +1,17 @@
+{
+  "name": "isb-rfid-bridge",
+  "version": "1.0.0",
+  "description": "PC/SC RFID bridge for ACR1252U — reads card UID via pcsclite and broadcasts via WebSocket",
+  "type": "module",
+  "main": "rfid-server.ts",
+  "scripts": {
+    "start": "bun run rfid-server.ts"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "nfc-pcsc": "^0.11.0"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  }
+}
