@@ -1,6 +1,5 @@
 {
-  "installCommand": "npm install --no-workspaces",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "installCommand": "cd ../plugins/capacitor-hardware && npm ci && npm run build && cd ../../kiosk && npm install --no-workspaces",
+  "buildCommand": "npm run build",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
