@@ -940,7 +940,6 @@
     "addShopStoreDesc": "Coop/retail shop — retail POS, supports department charge",
     "noShopsCanteen": "No canteen shops yet",
     "noShopsStore": "No coop / retail shops yet",
-    "deptCharge": "Dept charge",
     "shopId": "Shop ID",
     "shopIdHint": "Unique code, lowercase, no spaces",
     "deleteDialogTitle": "Delete shop \"{{name}}\"?",

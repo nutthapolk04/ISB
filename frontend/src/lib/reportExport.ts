@@ -227,6 +227,35 @@ async function loadImageDataUrl(
   src: string,
 ): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" | "JPEG" | "WEBP" } | null> {
   try {
+    // If the logo is already stored as a Data URL (base64), don't try to
+    // resolve it as a relative URL — just embed it directly.
+    if (src.startsWith("data:")) {
+      const mime = src.slice(5, src.indexOf(";")).toLowerCase();
+      const format =
+        mime.includes("jpeg") || mime.includes("jpg")
+          ? "JPEG"
+          : mime.includes("webp")
+            ? "WEBP"
+            : mime.includes("png")
+              ? "PNG"
+              : null;
+      if (!format) return null;
+
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = src;
+      });
+
+      return {
+        dataUrl: src,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        format,
+      };
+    }
+
     const url = src.startsWith("http") ? src : new URL(src, window.location.origin).toString();
     const res = await fetch(url);
     if (!res.ok) return null;

@@ -347,7 +347,6 @@ export default function Canteen() {
 
     // ── Departments (for department payment option) ──────────────────────────
     const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
-    const [shopAllowsDept, setShopAllowsDept] = useState(false);
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -356,10 +355,9 @@ export default function Canteen() {
                 if (!cancelled) setDepartmentOptions(data);
             } catch { /* tolerate */ }
             try {
-                const meta = await api.get<{ name?: string; allow_department_charge?: boolean; products_order_version?: number; uses_dual_pricing?: boolean }>(`/shops/${CANTEEN_SHOP_ID}`);
+                const meta = await api.get<{ name?: string; products_order_version?: number; uses_dual_pricing?: boolean }>(`/shops/${CANTEEN_SHOP_ID}`);
                 if (!cancelled) {
                     if (meta.name) setShopDisplayName(meta.name);
-                    setShopAllowsDept(meta.allow_department_charge ?? false);
                     if (meta.products_order_version != null) setProductsOrderVersion(meta.products_order_version);
                 }
             } catch { /* tolerate */ }

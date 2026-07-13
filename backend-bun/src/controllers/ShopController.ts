@@ -412,13 +412,9 @@ export const ShopController = {
 						ResponseStatus.UNPROCESSABLE,
 					);
 				}
-				if (!shop.allow_department_charge) {
-					return errorResponse(
-						reqContext,
-						`Shop '${params.shopId}' does not accept department charges`,
-						ResponseStatus.BAD_REQUEST,
-					);
-				}
+				// Department budget charges are allowed at every shop — no
+				// per-shop opt-in flag anymore (previously gated on
+				// shop.allow_department_charge).
 			}
 
 			const items: Array<{

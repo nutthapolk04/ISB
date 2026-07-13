@@ -56,7 +56,6 @@ interface ShopApiResponse {
     is_active: boolean;
     created_at: string;
     module: ShopModule;
-    allow_department_charge: boolean;
     spending_group_id: number | null;
     shop_number: number | null;
 }
@@ -75,7 +74,6 @@ interface Shop {
     productCount: number;
     shopType: "avg_cost" | "fifo";
     module: ShopModule;
-    allowDepartmentCharge: boolean;
     spendingGroupId: number | null;
     shopNumber: number | null;
 }
@@ -87,7 +85,6 @@ const emptyShopForm = {
     isActive: "active" as "active" | "inactive",
     shopType: "fifo" as "avg_cost" | "fifo",
     module: "store" as ShopModule,
-    allowDepartmentCharge: true,
     spendingGroupId: "" as string,
     shopNumber: "" as string,
 };
@@ -144,7 +141,6 @@ const ShopManagement = () => {
                         productCount: stats.total_products,
                         shopType: s.shop_type,
                         module: s.module ?? "store",
-                        allowDepartmentCharge: s.allow_department_charge ?? false,
                         spendingGroupId: s.spending_group_id ?? null,
                         shopNumber: s.shop_number ?? null,
                     };
@@ -182,7 +178,6 @@ const ShopManagement = () => {
                 description: shopForm.description.trim() || null,
                 shop_type: shopForm.shopType,
                 module: shopForm.module,
-                allow_department_charge: shopForm.allowDepartmentCharge,
                 spending_group_id: shopForm.spendingGroupId ? parseInt(shopForm.spendingGroupId) : null,
                 shop_number: shopForm.shopNumber ? parseInt(shopForm.shopNumber) : null,
             });
@@ -208,7 +203,6 @@ const ShopManagement = () => {
             isActive: shop.isActive ? "active" : "inactive",
             shopType: shop.shopType,
             module: shop.module,
-            allowDepartmentCharge: shop.allowDepartmentCharge,
             spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
             shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
         });
@@ -278,7 +272,6 @@ const ShopManagement = () => {
         setShopForm({
             ...emptyShopForm,
             module,
-            allowDepartmentCharge: module === "store",
             shopType: module === "canteen" ? "avg_cost" : "fifo",
         });
         setIsAddOpen(true);
@@ -449,11 +442,6 @@ const ShopManagement = () => {
                     >
                         {shop.shopType === "fifo" ? t("management.shopTypeFifo", "FIFO") : t("management.shopTypeAvgCost", "Avg Cost")}
                     </Badge>
-                    {shop.allowDepartmentCharge && (
-                        <Badge className="text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                            {t("management.deptCharge", "Dept charge")}
-                        </Badge>
-                    )}
                 </div>
                 <div className="flex items-center justify-between">
                     <div className="flex gap-2">

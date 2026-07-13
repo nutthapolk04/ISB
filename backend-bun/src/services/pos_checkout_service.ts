@@ -287,7 +287,7 @@ export async function checkout(input: CheckoutInput) {
   let effectiveShopModule: string | null = null;
   if (effectiveShopId) {
     const sr = await db
-      .select({ shopType: shops.shopType, allowDept: shops.allowDepartmentCharge, module: shops.module })
+      .select({ shopType: shops.shopType, module: shops.module })
       .from(shops)
       .where(eq(shops.id, effectiveShopId))
       .limit(1);
@@ -298,13 +298,9 @@ export async function checkout(input: CheckoutInput) {
     }
     effectiveShopType = sr[0].shopType as "fifo" | "avg_cost";
     effectiveShopModule = sr[0].module ?? null;
-    if (isDepartmentPayment && !sr[0].allowDept) {
-      const err = new Error(
-        `Shop '${effectiveShopId}' does not accept department charges (only coop shops can issue goods on department budget)`,
-      );
-      (err as { status?: number }).status = 400;
-      throw err;
-    }
+    // Department budget charges are allowed at every shop — no per-shop
+    // opt-in flag anymore (removed per product decision; was previously
+    // gated on shops.allow_department_charge).
   } else if (isDepartmentPayment) {
     const err = new Error("Department charge requires a shop context");
     (err as { status?: number }).status = 400;

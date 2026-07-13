@@ -53,7 +53,6 @@ interface ShopApiResponse {
   description: string | null;
   is_active: boolean;
   module: string;
-  allow_department_charge: boolean;
   spending_group_id: number | null;
   shop_number: number | null;
 }
@@ -69,7 +68,6 @@ interface Shop {
   isActive: boolean;
   productCount: number;
   shopType: "avg_cost" | "fifo";
-  allowDepartmentCharge: boolean;
   spendingGroupId: number | null;
   shopNumber: number | null;
 }
@@ -80,7 +78,6 @@ const emptyForm = {
   description: "",
   isActive: "active" as "active" | "inactive",
   shopType: "avg_cost" as "avg_cost" | "fifo",
-  allowDepartmentCharge: false,
   spendingGroupId: "" as string,
   shopNumber: "" as string,
 };
@@ -124,7 +121,6 @@ export default function CanteenManagementOverview() {
               isActive: s.is_active,
               productCount: stats.total_products,
               shopType: s.shop_type,
-              allowDepartmentCharge: s.allow_department_charge ?? false,
               spendingGroupId: s.spending_group_id ?? null,
               shopNumber: s.shop_number ?? null,
             };
@@ -166,7 +162,6 @@ export default function CanteenManagementOverview() {
         description: addForm.description.trim() || null,
         shop_type: addForm.shopType,
         module: "canteen",
-        allow_department_charge: addForm.allowDepartmentCharge,
         spending_group_id: addForm.spendingGroupId ? parseInt(addForm.spendingGroupId) : null,
         shop_number: addForm.shopNumber ? parseInt(addForm.shopNumber) : null,
       });
@@ -191,7 +186,6 @@ export default function CanteenManagementOverview() {
       description: shop.description,
       isActive: shop.isActive ? "active" : "inactive",
       shopType: shop.shopType,
-      allowDepartmentCharge: shop.allowDepartmentCharge,
       spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
       shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
     });
@@ -305,11 +299,6 @@ export default function CanteenManagementOverview() {
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
                   <Package className="h-3.5 w-3.5" />
                   <span>{shop.productCount} {t("management.products", "products")}</span>
-                  {shop.allowDepartmentCharge && (
-                    <Badge className="ml-1 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-xs">
-                      {t("management.deptCharge", "Dept charge")}
-                    </Badge>
-                  )}
                 </div>
 
                 <div className="flex items-center justify-between">

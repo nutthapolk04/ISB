@@ -940,7 +940,6 @@
     "addShopStoreDesc": "ร้านสหกรณ์/ค้าปลีก — POS สำหรับค้าปลีก รองรับการเบิกแผนกได้",
     "noShopsCanteen": "ยังไม่มีร้านในโรงอาหาร",
     "noShopsStore": "ยังไม่มีร้านสหกรณ์/ค้าปลีก",
-    "deptCharge": "เบิกแผนก",
     "shopId": "Shop ID",
     "shopIdHint": "รหัสไม่ซ้ำ ตัวพิมพ์เล็ก ไม่มีช่องว่าง",
     "deleteDialogTitle": "ลบร้าน \"{{name}}\"?",

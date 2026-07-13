@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,7 +96,7 @@ const Store = () => {
     // ── Products + shop metadata ────────────────────────────────────────────
     const [allProducts, setAllProducts] = useState<Product[]>([]);
 
-    const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }>>([]);
+    const [shopsMeta, setShopsMeta] = useState<Array<{ id: string; products_order_version?: number }>>([]);
 
     // ── Price panels ────────────────────────────────────────────────────────
     const [panels, setPanels] = useState<{ id: number; name: string; color: string | null }[]>([]);
@@ -134,9 +134,9 @@ const Store = () => {
         let cancelled = false;
         (async () => {
             const result: Product[] = [];
-            let shopsList: Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }> = [];
+            let shopsList: Array<{ id: string; products_order_version?: number }> = [];
             try {
-                shopsList = await api.get<Array<{ id: string; allow_department_charge: boolean; products_order_version?: number }>>(
+                shopsList = await api.get<Array<{ id: string; products_order_version?: number }>>(
                     "/shops/?active_only=true",
                 );
                 if (!cancelled) {
@@ -305,21 +305,6 @@ const Store = () => {
         onProductMatch: checkout.addToCart,
         onMemberFound: checkout.setPreSelectedMember,
     });
-
-    // ── Department charge gating ────────────────────────────────────────────
-    const canUseDeptCharge = useMemo(() => {
-        if (shopsMeta.length === 0) return true;
-        const cartShopIds = new Set(checkout.cart.map((i) => i.subMerchantId).filter(Boolean) as string[]);
-        if (cartShopIds.size > 0) {
-            return Array.from(cartShopIds).every(
-                (sid) => shopsMeta.find((s) => s.id === sid)?.allow_department_charge === true,
-            );
-        }
-        if (user?.shopId) {
-            return shopsMeta.find((s) => s.id === user.shopId)?.allow_department_charge === true;
-        }
-        return shopsMeta.some((s) => s.allow_department_charge);
-    }, [shopsMeta, checkout.cart, user?.shopId]);
 
     // ── Outside click closes search dropdown ────────────────────────────────
     useEffect(() => {
