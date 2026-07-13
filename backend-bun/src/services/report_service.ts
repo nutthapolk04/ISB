@@ -517,11 +517,17 @@ export interface VoidRow {
   voided_reason: string | null;
 }
 
+export interface VoidReportDaily {
+  date: string;
+  rows: VoidRow[];
+  daily_total: number;
+}
+
 export interface VoidReport {
   date_from: string;
   date_to: string;
   shop_id: string | null;
-  rows: VoidRow[];
+  daily: VoidReportDaily[];
   total_voided: number;
 }
 
@@ -577,11 +583,29 @@ export async function voidReport(args: {
     };
   });
 
+  // Group by date for daily breakdown
+  const dailyMap = new Map<string, VoidRow[]>();
+  mapped.forEach((row) => {
+    const date = row.voided_at.split("T")[0]; // YYYY-MM-DD
+    if (!dailyMap.has(date)) {
+      dailyMap.set(date, []);
+    }
+    dailyMap.get(date)!.push(row);
+  });
+
+  const daily: VoidReportDaily[] = Array.from(dailyMap.entries())
+    .sort(([dateA], [dateB]) => dateB.localeCompare(dateA)) // Newest first
+    .map(([date, dayRows]) => ({
+      date,
+      rows: dayRows,
+      daily_total: dayRows.reduce((sum, row) => sum + row.total, 0),
+    }));
+
   return {
     date_from: args.dateFrom,
     date_to: args.dateTo,
     shop_id: effectiveShopId,
-    rows: mapped,
+    daily,
     total_voided: totalVoided,
   };
 }
