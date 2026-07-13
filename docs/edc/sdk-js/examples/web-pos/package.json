@@ -1,0 +1,16 @@
+{
+  "name": "@paywire/web-pos-example",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes esbuild pos.ts --bundle --outfile=pos.js --sourcemap --watch --servedir=.",
+    "build": "npx --yes esbuild pos.ts --bundle --outfile=pos.js --minify"
+  },
+  "dependencies": {
+    "@paywire/sdk-js": "file:../.."
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,164 @@
+:root {
+  --color-ok: #22c55e;
+  --color-warn: #f59e0b;
+  --color-err: #ef4444;
+  --color-bg: #f8fafc;
+  --color-card: #ffffff;
+  --color-text: #1e293b;
+  --color-muted: #64748b;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+/* ── Banner ───────────────────────────────────────────────────────────────── */
+.banner {
+  padding: .75rem 1.5rem;
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  transition: background .3s;
+}
+.banner-ok          { background: var(--color-ok);   color: #fff; }
+.banner-warn        { background: var(--color-warn);  color: #fff; }
+.banner-disconnected{ background: var(--color-err);   color: #fff; }
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+main {
+  max-width: 720px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.card h2 {
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--color-muted);
+  margin-bottom: .75rem;
+}
+
+/* ── Amount display ───────────────────────────────────────────────────────── */
+.amount-display {
+  font-size: 3rem;
+  font-weight: 700;
+  text-align: right;
+  letter-spacing: .04em;
+  margin-bottom: 1rem;
+  font-variant-numeric: tabular-nums;
+  min-height: 3.5rem;
+}
+
+/* ── Keypad ───────────────────────────────────────────────────────────────── */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+}
+
+.key {
+  padding: .875rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius);
+  background: #fff;
+  cursor: pointer;
+  transition: background .1s;
+}
+.key:hover  { background: #f1f5f9; }
+.key:active { background: #e2e8f0; }
+.key-clear      { color: var(--color-err); }
+.key-backspace  { font-size: 1rem; }
+
+/* ── Button grids ─────────────────────────────────────────────────────────── */
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: .5rem;
+}
+
+.btn {
+  padding: .75rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s, filter .15s;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:not(:disabled):hover { filter: brightness(1.06); }
+.btn:not(:disabled):active { filter: brightness(.94); }
+
+.btn-primary   { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #8b5cf6; color: #fff; }
+.btn-warn      { background: var(--color-warn); color: #fff; }
+.btn-danger    { background: var(--color-err); color: #fff; }
+.btn-info      { background: #0ea5e9; color: #fff; }
+
+/* ── Event log ────────────────────────────────────────────────────────────── */
+.event-card { max-height: 280px; display: flex; flex-direction: column; }
+
+.reqid {
+  font-size: .7rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  font-family: monospace;
+  margin-left: .5rem;
+}
+
+#event-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+#event-list li {
+  font-size: .875rem;
+  padding: .35rem .5rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  font-family: monospace;
+}
+
+#event-list li.event-result-ok   { background: #dcfce7; }
+#event-list li.event-result-fail  { background: #fee2e2; }
+
+/* ── Receipt ──────────────────────────────────────────────────────────────── */
+.receipt-card dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .25rem .75rem;
+  font-size: .875rem;
+}
+.receipt-card dt {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+.receipt-card dd {
+  font-family: monospace;
+  word-break: break-all;
+}

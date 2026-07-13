@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@paywire/sdk-js — Web POS Integration Guide</title>
+<meta name="description" content="Human-readable integration guide for the Paywire browser SDK: connect a cloud Web POS to a local VTI (Verifone) or LinkPOS (Newland) EDC." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#E7EBE8; --panel:#FBFCFB; --panel-2:#F2F5F2; --ink:#10161B; --ink-2:#39444C; --ink-3:#6C7780;
+    --cobalt:#1B43D1; --cobalt-deep:#0E2A8A; --cobalt-wash:#E9EEFB;
+    --amber:#B9781A; --amber-wash:#FBF1DC; --teal:#0F7A6C; --teal-wash:#DFF1ED;
+    --green:#2E7D32; --green-wash:#E4F1E4; --red:#BB3326;
+    --line:#C7CFCA; --line-2:#D9E0DB; --grid:rgba(16,40,90,.055);
+    --shadow:0 1px 0 rgba(16,22,27,.04), 0 14px 34px -22px rgba(16,22,27,.45);
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --sans:'IBM Plex Sans',system-ui,sans-serif; --disp:'Archivo',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.62;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:26px 26px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 clamp(18px,4vw,40px) 100px}
+  a{color:var(--cobalt);text-decoration:none} a:hover{text-decoration:underline}
+  code,.mono{font-family:var(--mono)}
+  code{background:var(--panel-2);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;font-size:.9em}
+  pre{background:#0E1726;color:#E6ECF5;border-radius:10px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;box-shadow:var(--shadow)}
+  pre code{background:none;border:0;padding:0;color:inherit;font-size:inherit}
+  .hero{padding:54px 0 10px}
+  .titleblock{position:relative;background:var(--panel);border:1.5px solid var(--ink);box-shadow:var(--shadow);padding:28px clamp(20px,3vw,42px) 32px}
+  .titleblock::before,.titleblock::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cobalt)}
+  .titleblock::before{top:-2px;left:-2px;border-right:0;border-bottom:0}.titleblock::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);display:inline-block;align-self:center}
+  h1{font-family:var(--disp);font-weight:900;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.03em;margin:.1em 0 .2em}
+  h1 .accent{color:var(--cobalt)}
+  .lede{font-size:18px;color:var(--ink-2);max-width:64ch;margin:0}
+  .lede b{color:var(--ink)}
+  h2{font-family:var(--disp);font-weight:800;font-size:clamp(22px,3vw,30px);letter-spacing:-.02em;margin:46px 0 4px;padding-top:18px;border-top:1px solid var(--line)}
+  .num{font-family:var(--mono);color:var(--cobalt);font-size:.6em;font-weight:600;margin-right:10px}
+  h3{font-family:var(--disp);font-weight:700;font-size:18px;margin:26px 0 6px}
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  th{background:var(--panel-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  tr:last-child td{border-bottom:0}
+  .tbl{overflow-x:auto}
+  .callout{border-left:4px solid var(--cobalt);background:var(--cobalt-wash);padding:13px 18px;border-radius:0 8px 8px 0;margin:18px 0;font-size:14.5px}
+  .callout.warn{border-left-color:var(--amber);background:var(--amber-wash)}
+  .callout.ok{border-left-color:var(--green);background:var(--green-wash)}
+  .callout .ct{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;color:var(--cobalt-deep)}
+  .callout.warn .ct{color:#8a5a13}.callout.ok .ct{color:#1d5e20}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px}
+  .pill.n{background:var(--teal-wash);color:var(--teal);border:1px solid #b6dcd5}
+  .pill.v{background:var(--cobalt-wash);color:var(--cobalt-deep);border:1px solid #c9d6f5}
+  ul{padding-left:22px} li{margin:5px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="titleblock">
+      <div class="eyebrow"><span class="dot"></span> @paywire/sdk-js · Integration <span>·</span> VTI (Verifone) + LinkPOS (Newland) <span>·</span> v0.1</div>
+      <h1>Connect your Web POS to <span class="accent">the terminal</span></h1>
+      <p class="lede">Paywire runs on each till PC and bridges your cloud Web POS to the local EDC. This SDK is the browser-side client. The same calls work whether the till has a <b>Verifone VTI</b> or a <b>Newland LinkPOS</b> terminal — the bridge maps each call to the device's wire protocol. You feature-detect; you don't branch on brand.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">01</span>Install &amp; connect</h2>
+  <pre><code>import { EdcClient } from "@paywire/sdk-js";
+
+const edc = new EdcClient({
+  domain: "bridge.schooney.tech",   // production; or "127.0.0.1" for local mock testing
+  acceptedDevices: [
+    { brand: "newland",  protocol: "linkpos-bay-v1.05" },
+    { brand: "verifone", protocol: "vti-bay-aycap-v10.4.14" },
+  ],
+});
+await edc.ready();                  // throws UnsupportedDeviceError if the paired device isn't accepted
+
+edc.bridgeId;          // "POS-N910"  (per-till id; never shown to the cashier)
+edc.device;            // { brand, model, protocol, firmware, connected, capabilities }
+edc.capabilities;      // ["sale","qrSale.thaiqr","walletSale.alipay","query","settle", …]</code></pre>
+  <div class="callout"><span class="ct">The golden rule</span>Build your UI from <code>edc.capabilities</code>, not from the brand. A method whose capability is missing throws <code>UnsupportedCapabilityError</code> <b>synchronously</b>, before it ever reaches the terminal — so feature-detect and hide what isn't supported.</div>
+
+  <h2><span class="num">02</span>Device matrix</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Dimension</th><th>VTI (Verifone) <span class="pill v">vti</span></th><th>LinkPOS (Newland) <span class="pill n">linkpos</span></th></tr></thead>
+    <tbody>
+      <tr><td>Transport</td><td>USB-CDC serial 115200 8-N-1</td><td>USB serial 9600 8-O-1 (also LAN/Wi-Fi/BT)</td></tr>
+      <tr><td>Mid-txn events</td><td>Yes — chip-inserted, pin-required, qr-shown…</td><td><b>No</b> — single final result; prompts shown on the terminal</td></tr>
+      <tr><td>Card sale</td><td>✓ <code>sale</code></td><td>✓ <code>sale</code></td></tr>
+      <tr><td>QR</td><td>promptpay / alipay / wechat</td><td>thaiqr / qrvisa / qrmc</td></tr>
+      <tr><td>Wallets</td><td>alipay / wechat / linepay</td><td>alipay / wechat / truemoney / linepay / airpay / dolfin</td></tr>
+      <tr><td>Void</td><td>by invoice (field 50)</td><td>by <code>posRef</code></td></tr>
+      <tr><td>Timeout recovery</td><td><code>DI</code> on retry (same key)</td><td><code>query</code> + <code>DR</code> on retry (same key)</td></tr>
+      <tr><td>Host re-check</td><td>—</td><td><code>verify</code> (TRANSVER) for QR/wallet</td></tr>
+      <tr><td>Card data exposed</td><td>masked PAN (field 30)</td><td><code>payerId</code> — pre-masked by the EDC</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2><span class="num">03</span>Commands</h2>
+  <p>Every command is an async generator yielding events; the terminal one is always <code>kind:"result"</code>. Always pass a unique <code>idempotencyKey</code>.</p>
+  <pre><code>// Card sale
+for await (const ev of edc.sale({ amount: 10000, idempotencyKey: key, posRef })) {
+  if (ev.kind === "result") { /* ev.responseCode, ev.approvalCode, ev.payerId, ev.responseMessage */ }
+}
+
+// QR / wallet — canonical selector; the bridge maps it to the device wire value
+await edc.qrSale({ amount: 5000, idempotencyKey: key, payment: "thaiqr" });
+await edc.walletSale({ amount: 5000, idempotencyKey: key, payment: "alipay" });
+
+// Management
+await edc.void({ posRef: lastPosRef, idempotencyKey: key });     // or { invoice: "000001" } on VTI
+await edc.refund({ amount: 5000, posRef, idempotencyKey: key });
+await edc.settle();
+await edc.commsTest();
+
+// LinkPOS-only (capability-gated) — see §05
+await edc.query({ posRef: lastPosRef, idempotencyKey: key });    // timeout recovery
+await edc.verify({ posRef: lastPosRef, payment: "thaiqr", idempotencyKey: key });</code></pre>
+  <div class="callout warn"><span class="ct">No events on LinkPOS</span>Newland terminals don't stream <code>chip-inserted</code>/<code>pin-required</code> — the customer interacts with the terminal directly. Show a "Follow the prompts on the terminal…" status and wait for the final <code>result</code>. Code that only reads <code>result</code> works on both device families.</div>
+
+  <div class="callout warn"><span class="ct">Void is cardholder-present AND payment-type-limited</span>
+    <b>VOID/REFUND require a tap/confirm on the terminal</b> — treat them like a sale (long timeout, "follow the prompts…"). A void needs the original sale's <code>invoice</code> + <code>approvalCode</code> (retain them from the SALE result); the terminal TID is <b>not</b> required.
+    <b>Crucially, only Card and local e-wallets (Alipay, WeChat, TrueMoney, LINE Pay, AirPay, Dolfin) can be voided by command. Thai QR, QR Visa and QR Mastercard CANNOT be voided via the API</b> — they must be voided on the terminal itself. <b>Gate your Void button by the last sale's payment type</b> (the <code>examples/web-pos</code> disables Void after a Thai QR sale). Card REFUND may return <code>NS</code> "Transaction is Not Support" when refunds aren't enabled on the terminal/merchant profile.</div>
+
+  <h2><span class="num">04</span>Response codes</h2>
+  <h3>LinkPOS (Newland)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Code</th><th>Meaning</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td><code>00</code></td><td>Approved</td><td>Show approval + receipt</td></tr>
+      <tr><td><code>01</code>–<code>96</code></td><td>Issuer/host decline family</td><td>Show <code>responseMessage</code>; try another card/tender</td></tr>
+      <tr><td><code>DR</code></td><td>Duplicate POS reference</td><td>Prior result applies — treat as success</td></tr>
+      <tr><td><code>NE</code></td><td>Transaction does not exist (query)</td><td>Safe to issue a fresh transaction</td></tr>
+      <tr><td><code>UC</code></td><td>Cancelled by user</td><td>Let the cashier retry</td></tr>
+      <tr><td><code>PT</code> / <code>ER</code></td><td>Bad payment type / bad request</td><td>Programming error — check parameters</td></tr>
+      <tr><td><code>NS</code></td><td>Transaction not supported (e.g. refund not enabled) — real N910, not in the doc</td><td>Don't retry — needs terminal/acquirer enablement</td></tr>
+      <tr><td><code>EA</code></td><td>Refund exceeds original</td><td>Lower the refund amount</td></tr>
+      <tr><td><code>CE</code> / <code>LE</code></td><td>Comms / link error</td><td>Transient — retry</td></tr>
+    </tbody>
+  </table></div>
+  <h3>VTI (Verifone)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>00</code></td><td>Approved</td></tr>
+      <tr><td><code>ND</code> / <code>01</code></td><td>Declined / refer to issuer</td></tr>
+      <tr><td><code>EN</code> / <code>TO</code></td><td>Network / timeout — retry</td></tr>
+      <tr><td><code>DI</code></td><td>Duplicate invoice — return prior result as success</td></tr>
+      <tr><td><code>Y1</code>/<code>Y3</code> · <code>Z1</code>/<code>Z3</code></td><td>Offline approved · offline declined</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2><span class="num">05</span>Idempotency &amp; timeout recovery</h2>
+  <ul>
+    <li><b>Retry with the same key.</b> On a network blip, replay the <em>same</em> <code>idempotencyKey</code>. The EDC returns <code>DR</code> (LinkPOS) or <code>DI</code> (VTI) and you surface the prior result as success — no double charge. New transaction → new key.</li>
+    <li><b>LinkPOS <code>query</code>.</b> If a sale times out, don't re-charge blindly. Call <code>query({ posRef })</code>: <code>00</code> means it went through (show the receipt); <code>NE</code> means it never happened (safe to retry).</li>
+    <li><b>LinkPOS <code>verify</code>.</b> For Alipay/WeChat/Thai-QR, if the customer insists they paid, <code>verify({ posRef, payment })</code> asks the EDC to re-check with the acquirer host (it opens its camera to scan the QR/receipt).</li>
+  </ul>
+
+  <h2><span class="num">06</span>Local development — no certissuer, no TLS</h2>
+  <div class="callout ok"><span class="ct">✓ Certificates are a production-only concern</span>For local testing you need <b>no certissuer and no TLS</b>. The SDK uses <code>http://</code>/<code>ws://</code> automatically when your page is served over plain HTTP, and the bridge runs plain HTTP on <code>127.0.0.1:7331</code> in mock mode.</div>
+  <pre><code># 1. Run the bridge against the in-process mock (no hardware, no certs):
+cd paywire
+dotnet run --project src/Paywire.Host -- --config paywire.linkpos.mock.yaml --mode mock --no-tray
+
+# 2. Build the SDK and serve the example Web POS:
+cd sdk-js &amp;&amp; npm install &amp;&amp; npm run build
+cd examples/web-pos &amp;&amp; npm install &amp;&amp; npm run dev      # serves on http://127.0.0.1:5173
+
+# 3. Open the page → EdcClient({ domain: "127.0.0.1" }) → ring up a sale.</code></pre>
+  <p>The only non-cert prerequisite: the bridge's CORS allowlist (<code>listen.cors_origins</code> in the YAML) must include your dev origin — the sample config already lists <code>http://localhost:5173</code> and <code>http://127.0.0.1:5173</code>.</p>
+
+  <h2><span class="num">07</span>Hard rules (PCI &amp; safety)</h2>
+  <ul>
+    <li><b>Never log or display</b> full PAN, track2, CVV, PIN, or cardholder name. <code>maskedPan</code> / <code>payerId</code> are the only card-ish values, and both are already masked.</li>
+    <li><b>Never build the bridge URL by hand</b> — use <code>new EdcClient({ domain })</code>. Hard-coding <code>127.0.0.1</code> breaks production (the real hostname resolves to loopback on each till via public DNS).</li>
+    <li><b>Never hard-code <code>bridgeId</code></b> — read it from <code>/whoami</code>.</li>
+    <li><b>Always pass <code>idempotencyKey</code></b> and retry with the same key.</li>
+    <li><b>Feature-detect</b> with <code>edc.capabilities</code> before showing buttons.</li>
+  </ul>
+
+  <p style="margin-top:36px;color:var(--ink-3);font-size:13.5px;border-top:1px dashed var(--line);padding-top:16px">
+    Machine-readable companion: <a href="GUIDELINE.md">GUIDELINE.md</a> · Runnable demo: <a href="examples/web-pos">examples/web-pos</a> (capability-driven; works against the mock bridge over plain HTTP).
+  </p>
+</div>
+</body>
+</html>
