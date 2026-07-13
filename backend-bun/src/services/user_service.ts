@@ -195,8 +195,11 @@ export async function getUser(
 }
 
 async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLookupDTO> {
+    console.log("[payerView] START: userId=", target.id);
     const walletRows = await db.select().from(wallets).where(eq(wallets.userId, target.id)).limit(1);
+    console.log("[payerView] walletRows query result:", walletRows);
     const wallet = walletRows[0];
+    console.log("[payerView] wallet found:", wallet?.id, "balance:", wallet?.balance);
     let deptCode: string | null = null;
     let deptName: string | null = null;
     if (target.departmentId !== null) {
@@ -211,10 +214,12 @@ async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLo
         }
     }
     if (!wallet) {
+        console.log("[payerView] ERROR: wallet is null/undefined!");
         const err = new Error("Wallet not provisioned for this user yet");
         (err as { status?: number }).status = 409;
         throw err;
     }
+    console.log("[payerView] OK: wallet found, returning payerView");
     return {
         user_id: target.id,
         username: target.username,
@@ -246,7 +251,9 @@ export async function getUserPayerByUsername(username: string): Promise<UserPaye
 }
 
 export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDTO> {
+    console.log("[getUserPayerByCard] START: uid=", uid);
     const candidates = expandCardUidCandidates(uid);
+    console.log("[getUserPayerByCard] candidates=", candidates);
     if (candidates.length === 0) {
         const err = new Error("Card not found");
         (err as { status?: number }).status = 404;
@@ -258,6 +265,7 @@ export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDT
         .from(users)
         .where(or(...candidates.map((c) => ilike(users.cardUid, c))))
         .limit(1);
+    console.log("[getUserPayerByCard] user found:", rows[0]?.id, "isActive:", rows[0]?.isActive);
     if (!rows[0]) {
         const err = new Error("Card not found");
         (err as { status?: number }).status = 404;
@@ -268,6 +276,7 @@ export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDT
         (err as { status?: number }).status = 400;
         throw err;
     }
+    console.log("[getUserPayerByCard] calling payerView...");
     return payerView(rows[0]);
 }
 

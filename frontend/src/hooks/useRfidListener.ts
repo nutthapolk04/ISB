@@ -9,35 +9,42 @@ export interface RfidNotif {
 
 interface UseRfidListenerOptions {
   /** Called with the captured code once a fast-typed Enter-terminated
-   *  sequence is detected. Caller owns the actual lookup/business logic —
-   *  this hook only detects the RFID-reader keystroke pattern. */
+   *  sequence is detected (keyboard path), or immediately when PC/SC bridge
+   *  broadcasts a card UID (PC/SC WebSocket path). Caller owns the actual
+   *  lookup/business logic — this hook only detects the RFID pattern. */
   onCapture: (code: string) => void | Promise<void>;
   /** Minimum buffered length before a captured sequence is treated as RFID
-   *  input rather than a stray Enter press. */
+   *  input rather than a stray Enter press (keyboard path only). */
   minLength?: number;
 }
 
 /**
- * Passive RFID listener (capture phase). RFID readers emit keypresses as
- * fast keyboard input, ending with Enter. Uses capture phase (true) so we
- * intercept BEFORE focused inputs receive chars.
+ * Dual-path RFID listener: WebSocket PC/SC bridge + keyboard fallback.
  *
- * Strategy:
- *   - Buffer chars arriving < 50 ms apart (RFID speed)
- *   - On 2nd+ fast char: enter rfidMode → preventDefault to stop chars going into inputs
- *   - On Enter in rfidMode: call onCapture with the buffered code
- *   - Gap > 100 ms resets buffer (human typing)
+ * **Path 1 (PC/SC)**: If rfid-bridge service is running on ws://localhost:9001,
+ * listen for card_detected messages. Transparent to the rest of the app.
+ *
+ * **Path 2 (Keyboard)**: Fallback for keyboard-emulation RFID readers or manual
+ * input. Buffer chars arriving < 50 ms apart, then emit on Enter.
+ *
+ * Both paths call onCapture(uid) identically, so the frontend pages don't need
+ * separate logic for which reader type is connected.
  */
 export function useRfidListener({ onCapture, minLength = 3 }: UseRfidListenerOptions) {
   const [notif, setNotif] = useState<RfidNotif | null>(null);
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notifKey = useRef(0);
 
+  // Keyboard path state
   const buffer = useRef<string>("");
   const lastKey = useRef<number>(0);
   const mode = useRef<boolean>(false);
 
-  // Keep the latest onCapture in a ref so the listener effect below doesn't
+  // WebSocket path state
+  const wsRef = useRef<WebSocket | null>(null);
+  const wsReconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the latest onCapture in a ref so the listener effects below don't
   // need to re-subscribe every render when callers pass an inline function.
   const onCaptureRef = useRef(onCapture);
   useEffect(() => { onCaptureRef.current = onCapture; }, [onCapture]);
@@ -53,6 +60,58 @@ export function useRfidListener({ onCapture, minLength = 3 }: UseRfidListenerOpt
     if (notifTimer.current) clearTimeout(notifTimer.current);
     setNotif(null);
   };
+
+  // PC/SC WebSocket path — try to connect to rfid-bridge on ws://localhost:9001
+  useEffect(() => {
+    const connectWebSocket = () => {
+      try {
+        const ws = new WebSocket("ws://localhost:9001");
+
+        ws.onopen = () => {
+          console.log("✅ Connected to RFID PC/SC bridge");
+          wsRef.current = ws;
+          // Clear any pending reconnect timer
+          if (wsReconnectTimer.current) clearTimeout(wsReconnectTimer.current);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "card_detected" && data.uid) {
+              void onCaptureRef.current(data.uid);
+            }
+          } catch (err) {
+            console.warn("Failed to parse WebSocket message:", err);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.debug("RFID WebSocket error (PC/SC bridge may not be running):", err);
+        };
+
+        ws.onclose = () => {
+          wsRef.current = null;
+          // Retry connection every 3 seconds if bridge is running
+          if (!wsReconnectTimer.current) {
+            wsReconnectTimer.current = setTimeout(connectWebSocket, 3000);
+          }
+        };
+      } catch (err) {
+        console.debug("Failed to create WebSocket:", err);
+        // Retry on error
+        if (!wsReconnectTimer.current) {
+          wsReconnectTimer.current = setTimeout(connectWebSocket, 3000);
+        }
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (wsReconnectTimer.current) clearTimeout(wsReconnectTimer.current);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

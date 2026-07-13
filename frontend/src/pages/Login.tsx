@@ -346,8 +346,8 @@ const Login = () => {
                     <div className="flex flex-col items-center gap-3">
                         <img src="/ISB_LogoN2025.png" alt="ISB" className="rounded-lg object-contain" />
                         <div className="text-center">
-                            <h1 className="text-3xl font-bold tracking-tight">Schooney</h1>
-                            <p className="text-sm text-muted-foreground">ISB SCHOONEY SYSTEM</p>
+                            {/* <h1 className="text-3xl font-bold tracking-tight">Schooney</h1>
+                            <p className="text-sm text-muted-foreground">ISB SCHOONEY SYSTEM</p> */}
                         </div>
                     </div>
 

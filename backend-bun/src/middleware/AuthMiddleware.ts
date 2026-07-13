@@ -38,6 +38,7 @@ export const requireAuth = new Elysia({ name: "require-auth" })
 			throw new Error("Missing Bearer token");
 		}
 		const token = header.slice(7);
+		console.log("Token:", token);
 		const payload = (await ctx.jwt.verify(token)) as AccessTokenPayload | false;
 		if (!payload || payload.type !== "access") {
 			ctx.set.status = 401;
