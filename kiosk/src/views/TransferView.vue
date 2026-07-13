@@ -23,12 +23,12 @@ if (!store.isAuthenticated) {
 type Step = 'recipient' | 'amount' | 'confirm' | 'success' | 'fail';
 
 const step = ref<Step>('recipient');
-const selectedChildId = ref<string | null>(null);
+const selectedRecipientId = ref<string | null>(null);
 const enteredAmount = ref('0');
 const isProcessing = ref(false);
 const failMessage = ref('');
 const successAmount = ref(0);
-const successChildName = ref('');
+const successRecipientName = ref('');
 
 const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 50000;
@@ -40,12 +40,14 @@ const SHORTCUTS = [500, 1000, 2000, 5000, 10000, 20000, 50000];
 // flow to a single, unambiguous direction rather than mirroring the portal's
 // full from/to picker.
 const fromWallet = computed(() => store.currentUser?.wallets.find(w => w.type === 'personal') ?? null);
-const children = computed(() => store.currentUser?.wallets.filter(w => w.type === 'child') ?? []);
-const selectedChild = computed(() => children.value.find(c => c.id === selectedChildId.value) ?? null);
+// Recipients mirror the parent-portal Transfer page: linked children AND
+// co-parents (same family_code) — not just children.
+const recipients = computed(() => store.currentUser?.wallets.filter(w => w.type === 'child' || w.type === 'coparent') ?? []);
+const selectedRecipient = computed(() => recipients.value.find(c => c.id === selectedRecipientId.value) ?? null);
 
 onMounted(() => {
     // Nothing to transfer to — bounce back rather than show an empty screen.
-    if (children.value.length === 0) {
+    if (recipients.value.length === 0) {
         router.push('/balance');
     }
 });
@@ -55,13 +57,13 @@ const amountNumber = computed(() => {
     return isNaN(n) ? 0 : n;
 });
 
-const headroom = computed(() => Math.max(0, MAX_BALANCE - (selectedChild.value?.balance ?? 0)));
+const headroom = computed(() => Math.max(0, MAX_BALANCE - (selectedRecipient.value?.balance ?? 0)));
 const effectiveMax = computed(() => Math.min(MAX_AMOUNT, fromWallet.value?.balance ?? 0, headroom.value));
 
 const isAmountValid = computed(() => amountNumber.value >= MIN_AMOUNT && amountNumber.value <= effectiveMax.value);
 
 const fromBalanceAfter = computed(() => (fromWallet.value?.balance ?? 0) - amountNumber.value);
-const toBalanceAfter = computed(() => (selectedChild.value?.balance ?? 0) + amountNumber.value);
+const toBalanceAfter = computed(() => (selectedRecipient.value?.balance ?? 0) + amountNumber.value);
 
 const formatCurrency = (val: number) => {
     return new Intl.NumberFormat(store.language === 'TH' ? 'th-TH' : 'en-US', {
@@ -79,8 +81,8 @@ const nowFormatted = computed(() => {
     });
 });
 
-const selectChild = (childId: string) => {
-    selectedChildId.value = childId;
+const selectRecipient = (recipientId: string) => {
+    selectedRecipientId.value = recipientId;
     enteredAmount.value = '0';
     step.value = 'amount';
 };
@@ -96,20 +98,20 @@ const confirmAmount = () => {
 };
 
 const submitTransfer = async () => {
-    if (isProcessing.value || !fromWallet.value || !selectedChild.value) return;
+    if (isProcessing.value || !fromWallet.value || !selectedRecipient.value) return;
     isProcessing.value = true;
     try {
-        const child = selectedChild.value;
+        const recipient = selectedRecipient.value;
         const amount = amountNumber.value;
         await realApi.transfer(
             fromWallet.value.id,
-            child.id,
+            recipient.id,
             amount,
-            `Transfer via kiosk to ${child.holderName}`,
+            `Transfer via kiosk to ${recipient.holderName}`,
             Number(store.currentUser!.id),
         );
         successAmount.value = amount;
-        successChildName.value = child.holderName;
+        successRecipientName.value = recipient.holderName;
         await store.refreshBalance();
         step.value = 'success';
     } catch (e) {
@@ -161,6 +163,9 @@ const t = {
         failTitle: 'Transfer Failed',
         retry: 'Try Again',
         close: 'Close',
+        roleParent: 'Parent / Guardian',
+        roleStaff: 'Staff / Teacher',
+        roleStudent: 'Student',
     },
     TH: {
         title: 'โอนเงินให้ครอบครัว',
@@ -181,12 +186,25 @@ const t = {
         failTitle: 'โอนเงินไม่สำเร็จ',
         retry: 'ลองอีกครั้ง',
         close: 'ปิด',
+        roleParent: 'ผู้ปกครอง / ผู้ดูแล',
+        roleStaff: 'บุคลากร / ครู',
+        roleStudent: 'นักเรียน',
     },
 };
 
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
 const maxHintText = computed(() => currT.value.maxTopupHint.replace('{n}', effectiveMax.value.toLocaleString()));
+
+// Per-wallet role label — mirrors BalanceView.vue's walletRoleLabel so a
+// mixed recipient list (children + co-parents) reads unambiguously.
+const walletRoleLabel = (role: string | null | undefined): string => {
+    const r = (role ?? '').toLowerCase();
+    if (r.includes('parent') || r.includes('guardian')) return currT.value.roleParent;
+    if (r.includes('staff') || r.includes('teacher') || r.includes('employee')) return currT.value.roleStaff;
+    if (r.includes('student') || r.includes('child')) return currT.value.roleStudent;
+    return currT.value.roleParent;
+};
 </script>
 
 <template>
@@ -217,15 +235,16 @@ const maxHintText = computed(() => currT.value.maxTopupHint.replace('{n}', effec
         <div v-if="step === 'recipient'" class="recipient-list">
             <p class="sub-heading">{{ currT.selectRecipient }}</p>
 
-            <button v-for="child in children" :key="child.id" class="recipient-item" @click="selectChild(child.id)">
+            <button v-for="recipient in recipients" :key="recipient.id" class="recipient-item" @click="selectRecipient(recipient.id)">
                 <div class="recipient-left">
                     <div class="recipient-avatar">
-                        <img v-if="child.photoUrl" :src="child.photoUrl" class="avatar-photo-sm" alt="photo" />
+                        <img v-if="recipient.photoUrl" :src="recipient.photoUrl" class="avatar-photo-sm" alt="photo" />
                         <User v-else :size="28" />
                     </div>
                     <div class="recipient-info">
-                        <span class="recipient-name">{{ child.holderName }}</span>
-                        <span class="recipient-balance">฿{{ formatCurrency(child.balance) }}</span>
+                        <span class="recipient-name">{{ recipient.holderName }}</span>
+                        <span class="recipient-role">{{ walletRoleLabel(recipient.role) }}</span>
+                        <span class="recipient-balance">฿{{ formatCurrency(recipient.balance) }}</span>
                     </div>
                 </div>
                 <ChevronRight :size="24" class="chevron" />
@@ -279,10 +298,10 @@ const maxHintText = computed(() => currT.value.maxTopupHint.replace('{n}', effec
 
                 <div class="confirm-row">
                     <span class="confirm-label">{{ currT.toLabel }}</span>
-                    <span class="confirm-value">{{ selectedChild?.holderName }}</span>
+                    <span class="confirm-value">{{ selectedRecipient?.holderName }}</span>
                 </div>
                 <div class="confirm-balance-change">
-                    <span>฿{{ formatCurrency(selectedChild?.balance ?? 0) }}</span>
+                    <span>฿{{ formatCurrency(selectedRecipient?.balance ?? 0) }}</span>
                     <ArrowLeftRight :size="16" />
                     <span class="positive">฿{{ formatCurrency(toBalanceAfter) }}</span>
                 </div>
@@ -313,7 +332,7 @@ const maxHintText = computed(() => currT.value.maxTopupHint.replace('{n}', effec
             <div class="result-details">
                 <div class="result-row">
                     <span class="result-label">{{ currT.toLabel }}</span>
-                    <span class="result-value">{{ successChildName }}</span>
+                    <span class="result-value">{{ successRecipientName }}</span>
                 </div>
                 <div class="result-row">
                     <span class="result-label">{{ currT.successDate }}</span>
@@ -492,6 +511,13 @@ const maxHintText = computed(() => currT.value.maxTopupHint.replace('{n}', effec
 .recipient-name {
     font-size: 1.3rem;
     font-weight: 700;
+}
+
+.recipient-role {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary);
+    opacity: 0.75;
 }
 
 .recipient-balance {

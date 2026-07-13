@@ -144,6 +144,7 @@ async function upsertProductRow(
   ctx: ProcessCtx,
   errors: ImportRowError[],
   catCache?: Set<string>,
+  validShopIds?: Set<string>,
 ): Promise<{ product: typeof shopProducts.$inferSelect; wasCreated: boolean } | null> {
   const rowShopId = coerceStr(row.shop_id) || ctx.defaultShopId;
   if (!rowShopId) {
@@ -155,13 +156,19 @@ async function upsertProductRow(
     return null;
   }
 
-  // Skip per-row shop DB lookup when called from processProductRows (pre-validated).
-  if (!catCache) {
+  // `validShopIds` caches shops already confirmed to exist — seeded with
+  // ctx.defaultShopId when the caller pre-validated it. A row may still
+  // override shop_id with a different (or stale/deleted) shop, so that case
+  // always needs its own existence check — otherwise a bad row_shop_id flows
+  // straight into the shop_categories/shop_products insert and surfaces as a
+  // raw FK-violation 500 instead of a friendly per-row error.
+  if (!validShopIds?.has(rowShopId)) {
     const shopRows = await db.select().from(shops).where(eq(shops.id, rowShopId)).limit(1);
     if (!shopRows[0]) {
       errors.push({ row: rowIdx, reason: `ไม่พบร้าน '${rowShopId}' ในระบบ` });
       return null;
     }
+    validShopIds?.add(rowShopId);
   }
 
   const name = coerceStr(row.product_name ?? row.name);
@@ -286,6 +293,7 @@ async function processProductRows(rows: Row[], ctx: ProcessCtx): Promise<Product
   const errors: ImportRowError[] = [];
 
   // Pre-validate shop once — avoids N identical DB lookups inside the loop.
+  const validShopIds = new Set<string>();
   if (ctx.defaultShopId) {
     const shopRow = await db.select({ id: shops.id }).from(shops)
       .where(eq(shops.id, ctx.defaultShopId)).limit(1);
@@ -293,6 +301,7 @@ async function processProductRows(rows: Row[], ctx: ProcessCtx): Promise<Product
       errors.push({ row: 2, reason: `ไม่พบร้าน '${ctx.defaultShopId}' ในระบบ` });
       return { created, updated, errors };
     }
+    validShopIds.add(ctx.defaultShopId);
   }
 
   // Category cache: load all existing categories for this shop up-front.
@@ -309,7 +318,7 @@ async function processProductRows(rows: Row[], ctx: ProcessCtx): Promise<Product
   for (let start = 0; start < rows.length; start += BATCH) {
     const batch = rows.slice(start, start + BATCH);
     const batchResults = await Promise.all(
-      batch.map((row, i) => upsertProductRow(start + i + 2, row, ctx, errors, catCache))
+      batch.map((row, i) => upsertProductRow(start + i + 2, row, ctx, errors, catCache, validShopIds))
     );
     allResults.push(...batchResults);
   }
@@ -500,6 +509,7 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
   const stockResult: StockImportResult = { imported: 0, errors: [] };
 
   // Pre-validate shop once.
+  const validShopIds = new Set<string>();
   if (ctx.defaultShopId) {
     const shopRow = await db.select({ id: shops.id }).from(shops)
       .where(eq(shops.id, ctx.defaultShopId)).limit(1);
@@ -507,6 +517,7 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
       productResult.errors.push({ row: 2, reason: `ไม่พบร้าน '${ctx.defaultShopId}' ในระบบ` });
       return { products: productResult, stock: stockResult };
     }
+    validShopIds.add(ctx.defaultShopId);
   }
 
   // Pre-load category cache.
@@ -547,7 +558,7 @@ async function processCombinedRows(rows: Row[], ctx: ProcessCtx): Promise<StoreI
       let product: typeof shopProducts.$inferSelect | undefined;
 
       if (hasProductData) {
-        const r = await upsertProductRow(rowIdx, row, ctx, productResult.errors, catCache);
+        const r = await upsertProductRow(rowIdx, row, ctx, productResult.errors, catCache, validShopIds);
         if (!r) return;
         if (r.wasCreated) productResult.created += 1;
         else productResult.updated += 1;

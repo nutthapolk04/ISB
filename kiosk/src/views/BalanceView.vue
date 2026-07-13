@@ -72,12 +72,13 @@ const goToTopup = () => {
 };
 
 // Transfer is only offered to whoever has at least one linked child wallet
-// to send money to — mirrors the parent-portal Transfer page, which hides
-// itself when there's nothing to transfer to. Not gated on role: a coparent
-// (e.g. a staff member linked as a child's guardian) can have child wallets
-// too, and the backend enforces the real family-link check either way.
+// or co-parent wallet to send money to — mirrors the parent-portal Transfer
+// page, which hides itself when there's nothing to transfer to. Not gated on
+// role: a coparent (e.g. a staff member linked as a child's guardian) can
+// have child wallets too, and the backend enforces the real family-link
+// check either way.
 const canTransfer = computed(() => {
-    return (store.currentUser?.wallets ?? []).some(w => w.type === 'child');
+    return (store.currentUser?.wallets ?? []).some(w => w.type === 'child' || w.type === 'coparent');
 });
 
 const goToTransfer = () => {
