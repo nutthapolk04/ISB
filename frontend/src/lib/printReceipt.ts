@@ -232,8 +232,12 @@ export function buildReceiptHtml(
   const notesSection = r.notes?.trim()
     ? `<hr/><div class="notes-block"><span class="notes-label">${isEn ? "Note" : "หมายเหตุ"}</span><span class="notes-text">${r.notes.trim()}</span></div>`
     : "";
+  const voidedReasonLine = r.voided_reason
+    ? `<div class="row small" style="margin-bottom:4px;"><span>${isEn ? "Reason" : "เหตุผล"}</span><span>${r.voided_reason}</span></div>`
+    : "";
   const voidedSection = r.status !== "active"
-    ? `<div class="voided">${lbl.voided}</div>`
+    ? `<div class="voided">${lbl.voided}</div>
+       ${voidedReasonLine}`
     : "";
 
   const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;

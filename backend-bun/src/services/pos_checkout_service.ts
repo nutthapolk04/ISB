@@ -218,12 +218,18 @@ export const DEFAULT_DAILY_LIMIT_STORE = 25_000;
 export async function todayDeductedByModule(walletId: number, shopModule: string): Promise<number> {
   const today = new Date().toISOString().slice(0, 10);
   const rows = await db.execute(sql`
-    SELECT COALESCE(SUM(wt.amount), 0) AS total
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN wt.transaction_type = 'DEDUCTION' THEN wt.amount
+        WHEN wt.transaction_type = 'VOID' THEN -wt.amount
+        ELSE 0
+      END
+    ), 0) AS total
     FROM wallet_transactions wt
     JOIN receipts r ON r.id = CAST(wt.reference_id AS integer) AND wt.reference_type = 'receipt'
     JOIN shops s ON s.id = r.shop_id
     WHERE wt.wallet_id = ${walletId}
-      AND wt.transaction_type = 'DEDUCTION'
+      AND wt.transaction_type IN ('DEDUCTION', 'VOID')
       AND wt.created_at >= ${today + "T00:00:00+07:00"}
       AND wt.created_at <= ${today + "T23:59:59.999999+07:00"}
       AND s.module = ${shopModule}

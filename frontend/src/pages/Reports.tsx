@@ -369,8 +369,15 @@ const Reports = () => {
         }
 
         if (selectedReportType === "returnReport") {
-            const data = await api.get<{ rows: Record<string, unknown>[]; total_voided: number }>(
+            const data = await api.get<{
+                daily: Array<{ date: string; rows: Record<string, unknown>[]; daily_total: number }>;
+                total_voided: number;
+            }>(
                 `/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`,
+            );
+            // Flatten daily breakdown for Excel export
+            const allRows = data.daily.flatMap((day) =>
+                day.rows.map((row) => ({ ...row, _daily_date: day.date })),
             );
             return {
                 payload: {
@@ -389,7 +396,7 @@ const Reports = () => {
                         { header: "Voided By", key: "voided_by_name", width: 20 },
                         { header: "Reason", key: "voided_reason", width: 30 },
                     ],
-                    rows: data.rows,
+                    rows: allRows as Record<string, unknown>[],
                     totals: { total: data.total_voided },
                 },
                 baseFilename: `VoidReport${dateLabel}`,
