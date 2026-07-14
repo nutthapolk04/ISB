@@ -1,5 +1,9 @@
 {
 	"appId": "com.okontek.app",
 	"appName": "Kiosk Balance App",
-	"webDir": "dist"
+	"webDir": "dist",
+	"server": {
+		"url": "https://isb-kiosk.vercel.app/",
+		"cleartext": false
+	}
 }

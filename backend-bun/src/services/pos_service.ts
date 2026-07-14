@@ -359,6 +359,11 @@ export async function voidReceipt(args: {
             : typeof args.reason === "string"
                 ? args.reason
                 : String(args.reason);
+    if (!reason || !reason.trim()) {
+        const err = new Error("Void reason is required");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
     const callerId = Number(caller.sub);
 
     const rRows = await db.select().from(receipts).where(eq(receipts.id, receiptId)).limit(1);

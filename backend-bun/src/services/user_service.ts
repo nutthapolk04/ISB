@@ -506,7 +506,13 @@ export async function updateUser(
         }
     });
 
-    return getUser(caller, userId);
+    const updatedRows = await db
+        .select({ user: users, shop: shops })
+        .from(users)
+        .leftJoin(shops, eq(shops.id, users.shopId))
+        .where(eq(users.id, userId))
+        .limit(1);
+    return userRow(updatedRows[0].user, updatedRows[0].shop);
 }
 
 export async function deleteUser(caller: AccessTokenPayload, userId: number): Promise<void> {

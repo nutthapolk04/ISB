@@ -29,6 +29,7 @@ interface SalesByPaymentRow {
     payment_method: string;
     receipt_count: number;
     total: number;
+    status: string;
 }
 
 interface SalesByPaymentReportData {
@@ -353,8 +354,13 @@ export default function ShopDashboard() {
                         <p className="text-center text-muted-foreground py-4 text-sm">No transactions today</p>
                     ) : (() => {
                         const allRows = paymentData?.rows ?? [];
-                        const positiveRows = [...allRows.filter((r) => r.total > 0)].sort((a, b) => b.total - a.total);
-                        const negativeRows = [...allRows.filter((r) => r.total <= 0)].sort((a, b) => a.total - b.total);
+                        // Split by status, not by total's sign — the backend returns a
+                        // VOIDED row alongside the ACTIVE row for the same payment_method
+                        // (voiding a receipt never negates its stored total), so splitting
+                        // on `total > 0` put both in the "positive" bucket and rendered as
+                        // two duplicate bars for the same channel (e.g. two "Cash" rows).
+                        const positiveRows = [...allRows.filter((r) => r.status === "ACTIVE" && r.total > 0)].sort((a, b) => b.total - a.total);
+                        const negativeRows = [...allRows.filter((r) => r.status !== "ACTIVE" || r.total <= 0)].sort((a, b) => a.total - b.total);
                         // Use sum of positive channel totals as denominator so bars are meaningful even when returns exist
                         const positiveTotal = positiveRows.reduce((s, r) => s + r.total, 0);
                         return (

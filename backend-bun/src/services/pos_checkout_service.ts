@@ -233,6 +233,7 @@ export async function todayDeductedByModule(walletId: number, shopModule: string
       AND wt.created_at >= ${today + "T00:00:00+07:00"}
       AND wt.created_at <= ${today + "T23:59:59.999999+07:00"}
       AND s.module = ${shopModule}
+      AND r.status = 'ACTIVE'
   `);
   const row = (rows as unknown as Array<{ total: string | number }>)[0];
   return pgNumber(String(row?.total ?? "0")) ?? 0;

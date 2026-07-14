@@ -70,7 +70,9 @@ export const posCheckout = {
 
 export const posVoidReceipt = {
     params: t.Object({ id: t.String() }),
-    body: t.Optional(t.Object({ reason: t.Optional(t.Nullable(t.String())) })),
+    // Reason is mandatory — frontend already enforces this, but the schema
+    // must too so a direct API call can't void without one.
+    body: t.Object({ reason: t.String({ minLength: 1 }) }),
     detail: { tags: ["POS"], summary: "Void receipt" },
 };
 

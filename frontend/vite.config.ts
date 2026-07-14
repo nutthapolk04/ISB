@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => ({
     server: {
         host: "::",
         port: 8080,
+        allowedHosts: ["localhost", "127.0.0.1", "0.0.0.0", "juhkcbiukr.a.pinggy.link"],
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {
@@ -35,7 +36,4 @@ export default defineConfig(({ mode }) => ({
         environment: "jsdom",
         setupFiles: ["./src/test/setup.ts"],
     },
-    server: {
-        allowedHosts: ["localhost", "127.0.0.1", "0.0.0.0", "juhkcbiukr.a.pinggy.link"]
-    }
 }));

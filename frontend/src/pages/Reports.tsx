@@ -370,15 +370,32 @@ const Reports = () => {
 
         if (selectedReportType === "returnReport") {
             const data = await api.get<{
-                daily: Array<{ date: string; rows: Record<string, unknown>[]; daily_total: number }>;
+                rows: Array<{ id: number; voided_at: string; receipt_number: string; total: number; voided_by_name: string | null; voided_reason: string | null }>;
                 total_voided: number;
-            }>(
-                `/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`,
-            );
-            // Flatten daily breakdown for Excel export
-            const allRows = data.daily.flatMap((day) =>
-                day.rows.map((row) => ({ ...row, _daily_date: day.date })),
-            );
+            }>(`/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`);
+
+            // Group by calendar day (voided_at's date part) so the export shows a
+            // subtotal per day, not just one grand total for the whole range.
+            // Rows arrive most-recent-first from the backend, so days come out
+            // most-recent-first too — insertion order into the Map preserves it.
+            const byDay = new Map<string, typeof data.rows>();
+            for (const r of data.rows) {
+                const day = r.voided_at.slice(0, 10);
+                const arr = byDay.get(day);
+                if (arr) arr.push(r);
+                else byDay.set(day, [r]);
+            }
+            const bodyRows: Record<string, unknown>[] = [];
+            for (const [day, dayRows] of byDay) {
+                bodyRows.push({ [SECTION_KEY]: day });
+                bodyRows.push(...(dayRows as unknown as Record<string, unknown>[]));
+                bodyRows.push({
+                    [EMPHASIS_KEY]: "subtotal" as const,
+                    receipt_number: `Subtotal (${dayRows.length})`,
+                    total: dayRows.reduce((s, r) => s + r.total, 0),
+                });
+            }
+
             return {
                 payload: {
                     meta: {
@@ -396,7 +413,7 @@ const Reports = () => {
                         { header: "Voided By", key: "voided_by_name", width: 20 },
                         { header: "Reason", key: "voided_reason", width: 30 },
                     ],
-                    rows: allRows as Record<string, unknown>[],
+                    rows: bodyRows,
                     totals: { total: data.total_voided },
                 },
                 baseFilename: `VoidReport${dateLabel}`,
