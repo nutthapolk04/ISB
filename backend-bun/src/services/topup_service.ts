@@ -185,8 +185,11 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
         (err as { status?: number }).status = 404;
         throw err;
     }
-    if (input.amount < 100 || input.amount > 50000) {
-        const err = new Error("Top-up amount must be between ฿100 and ฿50,000");
+    // QR top-up's floor was lowered to ฿1 — bay_easypay/credit_card keep the
+    // ฿100 floor since that request wasn't about those methods.
+    const minAmount = paymentMethod === "bay_qr" ? 1 : 100;
+    if (input.amount < minAmount || input.amount > 50000) {
+        const err = new Error(`Top-up amount must be between ฿${minAmount} and ฿50,000`);
         (err as { status?: number }).status = 400;
         throw err;
     }

@@ -76,6 +76,9 @@ export default function WalletDetail() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>("100");
   const [paymentMethod, setPaymentMethod] = useState<"qr_promptpay" | "credit_card">("qr_promptpay");
+  // QR top-up has no backend minimum floor beyond ฿1 (see topup_service.ts);
+  // credit_card (bay_easypay) keeps the ฿100 floor since that's unaffected.
+  const minTopupAmount = paymentMethod === "qr_promptpay" ? 1 : 100;
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [intent, setIntent] = useState<TopupIntent | null>(null);
@@ -187,7 +190,7 @@ export default function WalletDetail() {
   const handleCreateTopup = async () => {
     if (!profile?.wallet_id) return;
     const amt = parseFloat(amount);
-    if (!amt || amt < 100 || amt > MAX_TOPUP_THB) {
+    if (!amt || amt < minTopupAmount || amt > MAX_TOPUP_THB) {
       toast({ title: t("parent.wallet.invalidAmount"), variant: "destructive" });
       return;
     }
@@ -502,7 +505,7 @@ export default function WalletDetail() {
                   <Input
                     id="amount"
                     type="number"
-                    min="100"
+                    min={minTopupAmount}
                     max={MAX_TOPUP_THB}
                     step="1"
                     value={amount}

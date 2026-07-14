@@ -120,6 +120,10 @@ export function CashierTopupModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [submitting, setSubmitting] = useState(false);
 
+  // QR top-up has no backend minimum floor beyond ฿1 (see topup_service.ts);
+  // cash keeps the ฿100 floor since that's a separate, unaffected backend path.
+  const minTopupAmount = paymentMethod === "bay_qr" ? 1 : 100;
+
   const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
   const [intent, setIntent] = useState<TopupIntent | null>(null);
   const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
@@ -560,7 +564,7 @@ export function CashierTopupModal({
                 <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="number"
-                  min="100"
+                  min={minTopupAmount}
                   max="50000"
                   step="any"
                   value={amount}
@@ -625,7 +629,7 @@ export function CashierTopupModal({
             {/* Submit button */}
             <Button
               onClick={handleSubmitTopup}
-              disabled={submitting || !amount || parseFloat(amount) < 100 || parseFloat(amount) > 50000}
+              disabled={submitting || !amount || parseFloat(amount) < minTopupAmount || parseFloat(amount) > 50000}
               className="w-full h-12 text-base font-bold bg-emerald-500 hover:bg-emerald-600"
             >
               {submitting ? (
