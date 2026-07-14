@@ -120,7 +120,22 @@ export async function listUsers(p: ListUsersParams): Promise<UserListResponseDTO
             (err as { status?: number }).status = 403;
             throw err;
         }
-        shopId = p.caller.shop_id;
+        if (shopId && shopId !== p.caller.shop_id) {
+            // "Current Team" scopes to the manager's own shop by passing
+            // shop_id explicitly — allow that, but never someone else's roster.
+            const err = new Error("Managers may only view their own shop's roster");
+            (err as { status?: number }).status = 403;
+            throw err;
+        }
+        // The "Directory" search (ShopUserManagement.tsx) omits shop_id on
+        // purpose — it needs to find any user (unassigned, or currently at
+        // another shop) so a manager can (re)assign them into their own
+        // shop. Previously this branch force-set shopId = own shop for every
+        // manager call, so a bare Directory search silently narrowed to the
+        // manager's own roster and could never surface someone just
+        // unassigned from it. Only clamp `unassigned` (admin-only) here —
+        // leave shopId as-is (own shop if the caller asked for it, unset for
+        // a global Directory search).
         unassigned = false;
     }
 
