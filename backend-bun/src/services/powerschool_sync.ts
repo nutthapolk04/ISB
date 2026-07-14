@@ -251,6 +251,13 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
             photoUrl: existing!.photoUrl ?? photoUrl,
             lastSyncedAt: new Date().toISOString(),
         };
+        // Only overwrite email/username once ISB actually reports a real
+        // login this round — a still-blank round must never clobber a real
+        // address (or a prior synthetic one) back to a fresh placeholder.
+        if (logins.length > 0) {
+            updates.email = email;
+            updates.username = username;
+        }
         if (cardUid) updates.cardUid = cardUid;
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
@@ -304,6 +311,13 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
             photoUrl: existing!.photoUrl ?? photoUrl,
             lastSyncedAt: new Date().toISOString(),
         };
+        // Only overwrite email/username once ISB actually reports a real
+        // login this round — a still-blank round must never clobber a real
+        // address (or a prior synthetic one) back to a fresh placeholder.
+        if (logins.length > 0) {
+            updates.email = email;
+            updates.username = username;
+        }
         if (cardUid) updates.cardUid = cardUid;
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
