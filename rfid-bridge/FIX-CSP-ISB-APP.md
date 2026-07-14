@@ -53,32 +53,39 @@ connect-src 'self' https://accounts.google.com ws://localhost:9001
 
 ## 3. หาจุดแก้ยังไง
 
-CSP อาจถูกตั้งไว้ที่ใดที่หนึ่งต่อไปนี้ รันคำสั่งค้นหาใน root ของโปรเจกต์:
+**อัปเดต 14 ก.ค. 2026:** ได้ CSP ตัวเต็มจาก response header จริงแล้ว:
 
-```powershell
-# Windows (PowerShell)
-Get-ChildItem -Recurse -Include *.js,*.ts,*.json,*.html,*.toml,*.conf,*.yaml,*.yml |
-  Select-String -Pattern "connect-src|Content-Security-Policy" -List |
-  Select-Object Path
+```
+default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src https://accounts.google.com
 ```
 
-```bash
-# macOS / Linux
-grep -ril "connect-src\|Content-Security-Policy" . --include="*.{js,ts,json,html,toml,conf,yaml,yml}"
+ค้นใน repo frontend ด้วยคำว่า "csp" แล้ว**ไม่เจอ** — CSP นี้เป็นของเขียนเอง (custom)
+จึงต้องอยู่ที่ไหนสักแห่ง ให้ค้นด้วย**ข้อความในตัวนโยบาย**แทน:
+
+```
+frame-ancestors
+connect-src
+connectSrc          <- แบบ camelCase (helmet ใน Node/Express)
+cdn.jsdelivr.net
 ```
 
-จุดที่พบบ่อยตามชนิดโปรเจกต์:
+และขยายขอบเขตค้นเกิน repo frontend:
 
-| ชนิดแอป | ไฟล์ที่มักตั้ง CSP |
+| ที่ซ่อนบ่อย | ดูตรงไหน |
 |---|---|
-| Next.js | `next.config.js` / `next.config.mjs` — ฟังก์ชัน `headers()` หรือ middleware (`middleware.ts`) |
-| Vite/React ธรรมดา | `index.html` — แท็ก `<meta http-equiv="Content-Security-Policy">` |
-| nginx | site config — บรรทัด `add_header Content-Security-Policy` |
-| Vercel | `vercel.json` — ส่วน `headers` |
-| Netlify | `netlify.toml` หรือไฟล์ `_headers` |
-| Express/Node | `helmet` middleware — `contentSecurityPolicy.directives.connectSrc` |
+| โค้ด backend ที่เสิร์ฟหน้าเว็บ | ค้น `helmet` / `connectSrc` ใน repo ฝั่ง server |
+| nginx บนเซิร์ฟเวอร์ (ไม่อยู่ใน repo) | `/etc/nginx/sites-enabled/`, `/etc/nginx/conf.d/` — ค้น `add_header` |
+| Docker / compose | Dockerfile, docker-compose.yml, ไฟล์ conf ที่ mount เข้า container |
+| IIS (โฮสต์บน Windows) | `web.config` — ส่วน `<customHeaders>` |
+| Cloudflare / hosting panel | ตั้งใน dashboard — เช็ค Response Header / Transform Rules |
 
 > เจอมากกว่า 1 จุด: แก้ทุกจุดที่มีผลกับหน้า production ที่เครื่อง POS ใช้จริง
+
+**บรรทัดที่ต้องได้หลังแก้** (เปลี่ยนเฉพาะท่อน connect-src ที่เหลือคงเดิม):
+
+```
+connect-src 'self' https://accounts.google.com ws://localhost:9001
+```
 
 ## 4. งานแถม (แนะนำให้ทำพร้อมกัน): auto-reconnect
 

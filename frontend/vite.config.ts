@@ -34,8 +34,5 @@ export default defineConfig(({ mode }) => ({
         globals: true,
         environment: "jsdom",
         setupFiles: ["./src/test/setup.ts"],
-    },
-    server: {
-        allowedHosts: ["localhost", "127.0.0.1", "0.0.0.0", "juhkcbiukr.a.pinggy.link"]
     }
 }));
