@@ -15,6 +15,7 @@ import { db } from "@/db/client";
 import { departments, syncLogs } from "@/db/schema";
 import {
     getInternalTypeId,
+    reconcileParentLinks,
     upsertFamilyProfile,
     upsertLink,
     upsertParent,
@@ -245,6 +246,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                 for (const { userId, rank } of parentRows) {
                     await upsertLink(userId, customer.id, rank);
                 }
+                await reconcileParentLinks(customer.id, parentRows.map((p) => p.userId));
             }
 
             success++;

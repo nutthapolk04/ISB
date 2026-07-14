@@ -8,7 +8,7 @@
  * The Cloudinary photo upload chain is NOT ported — Bun uses the realistic
  * portrait fallback URL (same as FastAPI does on photo-upload failure).
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     users, customers, wallets, syncLogs, syncAuditLogs, parentChildLinks,
@@ -468,6 +468,28 @@ export async function upsertLink(parentId: number, childId: number, parentRank: 
     }
 }
 
+/**
+ * A family's mainParent/secondaryParent is authoritative per sync — at most
+ * one of each. If a parent's FTID changes (same person, new external_id),
+ * the old id's row is never in `currentParentUserIds`, so this drops its
+ * main/secondary link to the child. The old user/wallet themselves are never
+ * touched here — they simply stop being linked to this child (orphaned from
+ * the family, not deleted).
+ */
+export async function reconcileParentLinks(
+    childCustomerId: number,
+    currentParentUserIds: number[],
+): Promise<void> {
+    if (currentParentUserIds.length === 0) return;
+    await db.delete(parentChildLinks).where(
+        and(
+            eq(parentChildLinks.childCustomerId, childCustomerId),
+            inArray(parentChildLinks.parentRank, ["main", "secondary"]),
+            notInArray(parentChildLinks.parentUserId, currentParentUserIds),
+        ),
+    );
+}
+
 // ── Family orchestration ──────────────────────────────────────────────────
 
 interface FamilyPayload {
@@ -548,6 +570,7 @@ async function processFamily(args: {
                 for (const { user, rank } of parentUserRows) {
                     await upsertLink(user.id, student.id, rank);
                 }
+                await reconcileParentLinks(student.id, parentUserRows.map((p) => p.user.id));
                 success += 1;
             } catch (e) {
                 failed += 1;
