@@ -376,8 +376,18 @@ async function findUserByAnyLoginEmail(email: string): Promise<typeof users.$inf
 }
 
 // ── Mock SSO (lookup by email) ────────────────────────────────────────────
+//
+// Dev/demo convenience only — logs in as any registered email with zero
+// credential check. Must never be reachable on the real production server
+// (APP_ENV=prod, set via .env.prod — see backend-bun/deploy.sh), now that
+// real Google SSO is live there too.
 
 export async function mockSso(email: string): Promise<TokenResponseDTO> {
+    if (process.env.APP_ENV === "prod") {
+        const err = new Error("Not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !trimmed.includes("@")) {
         const err = new Error("Valid email required");
