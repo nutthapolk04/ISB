@@ -19,7 +19,15 @@ export const CardholderController = {
 		const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 500) : 50;
 		try {
 			logger.info(`[${reqContext.requestId} (CH-01)] CardholderController.list() calling listCardholders().`);
-			const result = await listCardholders({ kind: query.kind ?? null, q: query.q ?? null, page, pageSize });
+			const result = await listCardholders({
+				kind: query.kind ?? null,
+				q: query.q ?? null,
+				schoolType: query.school_type ?? null,
+				grade: query.grade ?? null,
+				shopId: query.shop_id ?? null,
+				page,
+				pageSize,
+			});
 			logger.info(`[${reqContext.requestId} (CH-01)] CardholderController.list() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {

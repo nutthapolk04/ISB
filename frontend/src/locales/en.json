@@ -59,7 +59,7 @@
   },
   "resync": {
     "trigger": "Sync",
-    "title": "Sync data from PowerSchool",
+    "title": "Sync data from API Data Sync",
     "description": "Pull the latest staff / parent / student records from the school system.",
     "info": {
       "schedule": {
@@ -77,7 +77,7 @@
     "daysAgo": "{{count}} days ago",
     "syncNow": "Sync Now",
     "loadingTitle": "Syncing data...",
-    "loadingDescription": "Pulling data from PowerSchool — please wait.",
+    "loadingDescription": "Pulling data from API Data Sync — please wait.",
     "successTitle": "Sync complete",
     "errorTitle": "Sync failed",
     "retry": "Retry",

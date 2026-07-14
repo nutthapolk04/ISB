@@ -4,6 +4,9 @@ export const cardholderList = {
     query: t.Object({
         kind: t.Optional(t.Nullable(t.String())),
         q: t.Optional(t.Nullable(t.String())),
+        school_type: t.Optional(t.Nullable(t.String())),
+        grade: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
     }),

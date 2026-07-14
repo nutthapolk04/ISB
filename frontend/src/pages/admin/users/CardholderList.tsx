@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   useCardholders,
   useFamilyLinks,
@@ -108,22 +109,39 @@ function rowDetailHref(c: Cardholder): string {
 }
 
 export default function CardholderList() {
-  // Single source of truth — fetch unfiltered list from server, filter by kind
-  // on the client. This keeps the chip counts accurate regardless of which
-  // filter is active (otherwise selecting "ผู้ปกครอง" zeros out other counts).
+  // Kind / search / sub-filters / page all go to the server — see
+  // useCardholders.ts and cardholder_service.ts. A school's combined
+  // cardholder count can run into the thousands, so this can never go back to
+  // "fetch everything once and filter client-side" (that's exactly what
+  // silently dropped whole kinds off the page before).
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   // ?shop=<shopId> from ShopDetail "Manage shop staff" link — pre-filters by shop_id
   const shopFilter = searchParams.get("shop") ?? null;
   const initialKind = (searchParams.get("kind") as Cardholder["kind"] | "all") || (shopFilter ? "staff" : "all");
 
-  const cardholdersQuery = useCardholders();
+  const [kind, setKind] = useState<Cardholder["kind"] | "all">(initialKind);
+  const [q, setQ] = useState("");
+  const debouncedQ = useDebounce(q, 300);
+  const [school, setSchool] = useState<SchoolFilter>("all");
+  const [grade, setGrade] = useState<string>("all");
+  const [page, setPage] = useState(1);
+
+  const cardholdersQuery = useCardholders({
+    kind,
+    q: debouncedQ,
+    schoolType: kind === "student" && school !== "all" ? school : null,
+    grade: kind === "student" && grade !== "all" ? grade : null,
+    shopId: shopFilter,
+    page,
+    pageSize: PAGE_SIZE,
+  });
   const familyLinksQuery = useFamilyLinks();
   const deleteCardholder = useDeleteCardholder();
   const linkStudent = useLinkStudent();
   const unlinkFamily = useUnlinkFamily();
 
-  const allItems = cardholdersQuery.data?.items ?? [];
+  const items = cardholdersQuery.data?.items ?? [];
   const familyLinks = familyLinksQuery.data ?? [];
   const loading = cardholdersQuery.isLoading;
 
@@ -145,20 +163,28 @@ export default function CardholderList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardholdersQuery.isError]);
 
-  const [kind, setKind] = useState<Cardholder["kind"] | "all">(initialKind);
-  const [q, setQ] = useState("");
-  const [school, setSchool] = useState<SchoolFilter>("all");
-  const [grade, setGrade] = useState<string>("all");
-  const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [linkStudentFor, setLinkStudentFor] = useState<Cardholder | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
+  const debouncedStudentSearch = useDebounce(studentSearch, 300);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [linkStudentRelation, setLinkStudentRelation] = useState("parent");
   const [unlinkingFamilyId, setUnlinkingFamilyId] = useState<number | null>(null);
   const linkingStudent = linkStudent.isPending;
+
+  // Independent of the main table's kind/page — this dialog must be able to
+  // find a student regardless of which tab/page is currently on screen, so it
+  // runs its own small server-side search rather than filtering `items`.
+  const studentPickerQuery = useCardholders({
+    kind: "student",
+    q: debouncedStudentSearch,
+    pageSize: 20,
+    page: 1,
+    enabled: !!linkStudentFor && debouncedStudentSearch.trim().length >= 1,
+  });
+  const studentPickerResults = studentPickerQuery.data?.items ?? [];
 
   // Delete cardholder (admin only). Customers go through /customers DELETE,
   // user accounts go through /users DELETE. Department cardholders are
@@ -202,66 +228,32 @@ export default function CardholderList() {
     }
   };
 
-  // Display list filtered by chip selection, student sub-filters, and the
-  // free-text search box — all client-side so results update as you type.
-  const items = useMemo(() => {
-    let rows = kind === "all" ? allItems : allItems.filter((c) => c.kind === kind);
-    if (kind === "student") {
-      if (school !== "all") rows = rows.filter((c) => c.school_type === school);
-      if (grade !== "all") rows = rows.filter((c) => c.grade === grade);
-    }
-    if (shopFilter) rows = rows.filter((c) => c.shop_id === shopFilter);
-    const query = q.trim().toLowerCase();
-    if (query) {
-      rows = rows.filter((c) =>
-        [c.name, c.identifier, c.family_code, c.external_id, c.card_uid, c.department_code]
-          .some((field) => field?.toLowerCase().includes(query)),
-      );
-    }
-    return rows;
-  }, [allItems, kind, school, grade, shopFilter, q]);
-  const total = items.length;
+  // `items` is already exactly the page the server returned — kind, search,
+  // school/grade sub-filters, and the shop pre-filter are all applied there.
+  const total = cardholdersQuery.data?.total ?? 0;
 
-  // Reset to page 1 whenever the filtered set changes underneath the user.
+  // Reset to page 1 whenever any filter changes underneath the user.
   useEffect(() => {
     setPage(1);
-  }, [kind, school, grade, shopFilter, q, allItems]);
+  }, [kind, school, grade, shopFilter, debouncedQ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = useMemo(
-    () => items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [items, currentPage],
-  );
+  const pagedItems = items;
 
-  // Stats always count the full unfiltered list so chip badges stay correct.
-  const stats = useMemo(() => {
-    const counts: Record<string, number> = {
-      student: 0, parent: 0, staff: 0, department: 0, other: 0,
-    };
-    for (const c of allItems) counts[c.kind] = (counts[c.kind] ?? 0) + 1;
-    return counts;
-  }, [allItems]);
-  const totalAll = allItems.length;
+  // Stats come from the backend's full-set counts (always school-wide,
+  // independent of the active kind tab) — a kind-scoped `total` from the main
+  // query is not a substitute, since that only reflects whichever tab is
+  // currently selected.
+  const stats = cardholdersQuery.data?.counts ?? {
+    student: 0, parent: 0, staff: 0, department: 0, other: 0,
+  };
+  const totalAll = Object.values(stats).reduce((sum, n) => sum + n, 0);
 
-  // Student-specific KPIs + grade list — only computed when relevant.
-  const studentRows = useMemo(
-    () => allItems.filter((c) => c.kind === "student"),
-    [allItems],
-  );
-  const studentStats = useMemo(
-    () => ({
-      total: studentRows.length,
-      withCard: studentRows.filter((c) => c.card_uid).length,
-      noFamilyCode: studentRows.filter((c) => !c.family_code).length,
-    }),
-    [studentRows],
-  );
-  const grades = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of studentRows) if (c.grade) set.add(c.grade);
-    return Array.from(set).sort();
-  }, [studentRows]);
+  // Student-specific KPIs + grade list — always full-roster from the server,
+  // never derived from whatever page happens to be loaded.
+  const studentStats = cardholdersQuery.data?.studentStats ?? { total: 0, withCard: 0, noFamilyCode: 0 };
+  const grades = cardholdersQuery.data?.grades ?? [];
 
   const toggleExpand = (key: string) => {
     setExpandedRows((prev) => {
@@ -437,13 +429,12 @@ export default function CardholderList() {
                 const rowNo = (currentPage - 1) * PAGE_SIZE + idx + 1;
                 const isExpandable = (c.kind === "parent" || c.kind === "staff") && c.entity_type === "user";
                 const isExpanded = expandedRows.has(c.key);
+                // FamilyLink already carries child_name/child_student_code denormalized,
+                // so this never needs to cross-reference the (now paginated, not-full)
+                // cardholder list to render — the linked child may not even be on the
+                // currently loaded page/kind tab.
                 const childLinks = isExpandable
-                  ? familyLinks
-                      .filter((l) => l.parent_user_id === c.entity_id)
-                      .map((l) => ({
-                        link: l,
-                        child: allItems.find((a) => a.entity_type === "customer" && a.entity_id === l.child_customer_id) ?? null,
-                      }))
+                  ? familyLinks.filter((l) => l.parent_user_id === c.entity_id)
                   : [];
 
                 const mainRow = (
@@ -574,35 +565,25 @@ export default function CardholderList() {
                           </p>
                         ) : (
                           <div className="space-y-1">
-                            {childLinks.map(({ link, child }) => (
+                            {childLinks.map((link) => (
                               <div
                                 key={link.id}
                                 className="flex items-center justify-between rounded border bg-background px-3 py-2 text-sm"
                               >
                                 <div className="min-w-0 flex-1">
                                   <span className="font-medium">
-                                    {child?.name ?? link.child_name ?? `#${link.child_customer_id}`}
+                                    {link.child_name ?? `#${link.child_customer_id}`}
                                   </span>
-                                  {child?.grade && (
-                                    <span className="ml-2 text-xs text-muted-foreground">{child.grade}</span>
-                                  )}
-                                  {(link.child_student_code || child?.identifier) && (
+                                  {link.child_student_code && (
                                     <span className="ml-2 font-mono text-xs text-muted-foreground">
-                                      {link.child_student_code ?? child?.identifier}
+                                      {link.child_student_code}
                                     </span>
                                   )}
                                   <span className="ml-2 text-xs text-muted-foreground">· {link.relation}</span>
                                 </div>
-                                {child?.wallet_balance != null && (
-                                  <span className="mr-3 font-mono text-xs tabular-nums">
-                                    {formatTHB(Number(child.wallet_balance))}
-                                  </span>
-                                )}
-                                {child?.entity_type === "customer" && (
-                                  <Button asChild size="sm" variant="ghost" className="h-6 px-2 text-xs mr-1">
-                                    <Link to={`/admin/customer/${child.entity_id}`}>{t("cardholders.view")}</Link>
-                                  </Button>
-                                )}
+                                <Button asChild size="sm" variant="ghost" className="h-6 px-2 text-xs mr-1">
+                                  <Link to={`/admin/customer/${link.child_customer_id}`}>{t("cardholders.view")}</Link>
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -678,33 +659,28 @@ export default function CardholderList() {
               />
               {studentSearch.trim().length >= 1 && (
                 <div className="mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover shadow-sm">
-                  {allItems
-                    .filter((c) => c.kind === "student" && c.entity_type === "customer")
-                    .filter((c) => {
-                      const q = studentSearch.toLowerCase();
-                      return c.name.toLowerCase().includes(q) || (c.identifier ?? "").toLowerCase().includes(q);
-                    })
-                    .slice(0, 20)
-                    .map((c) => (
-                      <button
-                        key={c.key}
-                        type="button"
-                        className={cn(
-                          "w-full text-left px-3 py-2 text-sm hover:bg-muted",
-                          selectedStudentId === String(c.entity_id) ? "bg-primary/10 font-medium" : "",
-                        )}
-                        onClick={() => { setSelectedStudentId(String(c.entity_id)); setStudentSearch(c.name); }}
-                      >
-                        <span className="font-medium">{c.name}</span>
-                        {c.grade && <span className="ml-1.5 text-xs text-muted-foreground">{c.grade}</span>}
-                        {c.identifier && <span className="ml-1.5 font-mono text-xs text-muted-foreground">{c.identifier}</span>}
-                      </button>
-                    ))}
-                  {allItems.filter((c) => {
-                    if (c.kind !== "student" || c.entity_type !== "customer") return false;
-                    const q = studentSearch.toLowerCase();
-                    return c.name.toLowerCase().includes(q) || (c.identifier ?? "").toLowerCase().includes(q);
-                  }).length === 0 && (
+                  {studentPickerQuery.isFetching && (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">
+                      <Loader2 className="inline h-3.5 w-3.5 animate-spin mr-1.5" />
+                      {t("common.loading", "Loading…")}
+                    </p>
+                  )}
+                  {!studentPickerQuery.isFetching && studentPickerResults.map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm hover:bg-muted",
+                        selectedStudentId === String(c.entity_id) ? "bg-primary/10 font-medium" : "",
+                      )}
+                      onClick={() => { setSelectedStudentId(String(c.entity_id)); setStudentSearch(c.name); }}
+                    >
+                      <span className="font-medium">{c.name}</span>
+                      {c.grade && <span className="ml-1.5 text-xs text-muted-foreground">{c.grade}</span>}
+                      {c.identifier && <span className="ml-1.5 font-mono text-xs text-muted-foreground">{c.identifier}</span>}
+                    </button>
+                  ))}
+                  {!studentPickerQuery.isFetching && studentPickerResults.length === 0 && (
                     <p className="px-3 py-2 text-sm text-muted-foreground">
                       {t("cardholders.studentNotFound", "No matching students")}
                     </p>
