@@ -200,11 +200,19 @@ async function syncLoginEmails(userId: number, emails: (string | undefined | nul
 export async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     const logins = payload.login ?? [];
-    const email = (logins[0] ?? "").trim().toLowerCase();
+    // Staff with no SSO login on file yet (e.g. new hires) would otherwise get
+    // email="" — every such record collides on the unique email/username index,
+    // failing the whole batch after the first one. Fall back to a synthetic,
+    // externalId-scoped address (same pattern as upsertStaffParentRef) so it's
+    // always unique per person.
+    const email = (logins[0] ?? `${(payload.firstName || "staff").toLowerCase()}${extId}@isb.ac.th`).trim().toLowerCase();
     const username = email.split("@")[0].trim().toLowerCase();
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
     const familyCode = String(payload.familyCode);
-    const cardUid = payload.smartCard?.cardNumber ?? null;
+    // "" (no card on file) must become null, not stored as-is — card_uid has a
+    // unique index, so multiple cardless records would collide on "" the same
+    // way blank logins collided on email (see upsertStaff's email fallback).
+    const cardUid = payload.smartCard?.cardNumber || null;
 
     // Match priority: external_id → email → username
     let existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
@@ -261,7 +269,10 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
 export async function upsertParent(payload: StaffPayload, familyCode: string, logins: string[], syncLogId: number): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-    const cardUid = payload.smartCard?.cardNumber ?? null;
+    // "" (no card on file) must become null, not stored as-is — card_uid has a
+    // unique index, so multiple cardless records would collide on "" the same
+    // way blank logins collided on email (see upsertStaff's email fallback).
+    const cardUid = payload.smartCard?.cardNumber || null;
     const email = (logins[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase();
     const username = email.split("@")[0].trim().toLowerCase();
 
@@ -326,7 +337,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
             role: "staff", status: "active",
             externalId: extId, customerType: "Staff",
             familyCode,
-            cardUid: payload.smartCard?.cardNumber ?? null,
+            cardUid: payload.smartCard?.cardNumber || null,
             lastSyncedAt: new Date().toISOString(),
         }).returning();
         userRow = u;
@@ -364,7 +375,10 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
     const grade = payload.grade ?? null;
     const schoolType = payload.schoolType ?? null;
-    const cardUid = payload.smartCard?.cardNumber ?? null;
+    // "" (no card on file) must become null, not stored as-is — card_uid has a
+    // unique index, so multiple cardless records would collide on "" the same
+    // way blank logins collided on email (see upsertStaff's email fallback).
+    const cardUid = payload.smartCard?.cardNumber || null;
 
     let existing = (await db.select().from(customers).where(eq(customers.externalId, extId)).limit(1))[0];
     if (!existing) existing = (await db.select().from(customers).where(eq(customers.studentCode, extId)).limit(1))[0];

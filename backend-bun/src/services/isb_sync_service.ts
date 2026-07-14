@@ -12,7 +12,7 @@
 
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { departments, syncLogs } from "@/db/schema";
+import { customers, departments, syncLogs, users } from "@/db/schema";
 import {
     getInternalTypeId,
     reconcileParentLinks,
@@ -93,6 +93,23 @@ interface IsbStaff {
     login: string[];
 }
 
+// Bounded concurrency for per-record upserts — matches the DB pool size
+// (db/client.ts: max 10) so batches of hundreds of records don't run fully
+// sequentially (which was slow enough to trip nginx's proxy_read_timeout on
+// large ISB syncs) while still capping how many connections a single sync
+// request can hold at once.
+const SYNC_CONCURRENCY = 10;
+
+async function processInChunks<T>(
+    items: T[],
+    worker: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+    for (let start = 0; start < items.length; start += SYNC_CONCURRENCY) {
+        const chunk = items.slice(start, start + SYNC_CONCURRENCY);
+        await Promise.all(chunk.map((item, i) => worker(item, start + i)));
+    }
+}
+
 export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult> {
     if (staffs.length === 0) {
         return { success: 0, failed: 0, errors: [] };
@@ -101,8 +118,7 @@ export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
 
-    for (let i = 0; i < staffs.length; i++) {
-        const s = staffs[i];
+    await processInChunks(staffs, async (s, i) => {
         try {
             const payload: StaffPayload = {
                 customerId: s.customerId,
@@ -121,7 +137,6 @@ export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult
             // Override photoUrl with ISB filename (upsertStaff sets randomuser portrait)
             const photoUrl = resolvePhotoUrl(s.profileImage);
             if (photoUrl && user.photoUrl !== photoUrl) {
-                const { users } = await import("@/db/schema");
                 await db.update(users).set({ photoUrl }).where(eq(users.id, user.id));
             }
 
@@ -130,7 +145,7 @@ export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult
             failed++;
             errors.push({ index: i, id: s.customerId, error: (e as Error).message });
         }
-    }
+    });
 
     await finishSyncLog(logId, staffs.length, success, failed, errors.map((e) => `staff[${e.index}] ${e.id}: ${e.error}`));
     return { success, failed, errors };
@@ -177,8 +192,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
 
-    for (let i = 0; i < families.length; i++) {
-        const fam = families[i];
+    await processInChunks(families, async (fam, i) => {
         const familyCode = String(fam.familyCode);
 
         try {
@@ -217,7 +231,6 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                 // Override photo with ISB filename
                 const photoUrl = resolvePhotoUrl(parent.profileImage);
                 if (photoUrl && user.photoUrl !== photoUrl) {
-                    const { users } = await import("@/db/schema");
                     await db.update(users).set({ photoUrl }).where(eq(users.id, user.id));
                 }
 
@@ -239,7 +252,6 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                 // Override photo
                 const photoUrl = resolvePhotoUrl(st.profileImage);
                 if (photoUrl && customer.photoUrl !== photoUrl) {
-                    const { customers } = await import("@/db/schema");
                     await db.update(customers).set({ photoUrl }).where(eq(customers.id, customer.id));
                 }
 
@@ -254,7 +266,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
             failed++;
             errors.push({ index: i, id: fam.familyCode, error: (e as Error).message });
         }
-    }
+    });
 
     await finishSyncLog(logId, families.length, success, failed, errors.map((e) => `family[${e.index}] ${e.id}: ${e.error}`));
     return { success, failed, errors };
@@ -279,8 +291,7 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
     const errors: BatchResult["errors"] = [];
     const currentYear = new Date().getFullYear();
 
-    for (let i = 0; i < depts.length; i++) {
-        const d = depts[i];
+    await processInChunks(depts, async (d, i) => {
         try {
             const code = d.departmentId;
             const existing = await db
@@ -308,7 +319,7 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
             failed++;
             errors.push({ index: i, id: d.departmentId, error: (e as Error).message });
         }
-    }
+    });
 
     await finishSyncLog(logId, depts.length, success, failed, errors.map((e) => `dept[${e.index}] ${e.id}: ${e.error}`));
     return { success, failed, errors };
