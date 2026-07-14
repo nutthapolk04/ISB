@@ -217,7 +217,7 @@ export function SalesSummaryReport({
       { header: "Amt. Campus card", key: "amt_campus_card",  format: "currency", width: 58 },
       { header: "Amt. Credit card", key: "amt_credit_card",  format: "currency", width: 58 },
       { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
-      { header: "Amt. Other",       key: "amt_other",        format: "currency", width: 48 },
+      { header: "Internal Used",       key: "amt_other",        format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
       { header: "Bundle",           key: "bundle_names",     width: 90  },
       { header: "Status",           key: "status",           width: 55  },
@@ -451,7 +451,7 @@ export function SalesSummaryReport({
                       <th className="px-2 py-2 text-right">Amt. Campus card</th>
                       <th className="px-2 py-2 text-right">Amt. Credit card</th>
                       <th className="px-2 py-2 text-right">Amt. QR Code</th>
-                      <th className="px-2 py-2 text-right">Amt. Other</th>
+                      <th className="px-2 py-2 text-right">Internal Used</th>
                       <th className="px-2 py-2 text-left">Remark</th>
                       <th className="px-2 py-2 text-left">Bundle</th>
                       <th className="px-2 py-2 text-left">Status</th>
