@@ -8,7 +8,7 @@
  * The Cloudinary photo upload chain is NOT ported — Bun uses the realistic
  * portrait fallback URL (same as FastAPI does on photo-upload failure).
  */
-import { and, eq, inArray, notInArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     users, customers, wallets, syncLogs, syncAuditLogs, parentChildLinks,
@@ -21,6 +21,65 @@ import { createHash } from "node:crypto";
 
 const PARENT_DEFAULT_PASSWORD = "parent";
 const FAILURE_RATE = 0.08;
+
+/**
+ * bcrypt cost for sync-created placeholder accounts (this file only — real,
+ * user-chosen passwords elsewhere in the app keep cost 12, see
+ * AuthUtils.hashPassword / user_service.ts / user_admin_service.ts).
+ *
+ * Every account this file creates gets the SAME well-known constant
+ * password (PARENT_DEFAULT_PASSWORD = "parent") — never a user-chosen or
+ * per-user-random one — so there is no secret entropy for a higher cost to
+ * protect here; each hash still gets its own random bcrypt salt (no hash
+ * reuse across accounts, so no loss of per-account uniqueness). Cost 10 is
+ * not a novel choice for this codebase — it's the same cost AuthUtils.ts
+ * already uses for real cashier/admin login passwords — it's simply ~4x
+ * cheaper than cost 12 (bcrypt cost is exponential: each +1 doubles work).
+ * Benchmarked: 500 cost-12 hashes ≈ 12s vs 500 cost-10 hashes ≈ 3s on this
+ * machine — bcrypt was CPU-bound (confirmed via UV_THREADPOOL_SIZE having
+ * no effect), so this was the only real lever short of removing salting.
+ */
+const PLACEHOLDER_ACCOUNT_BCRYPT_COST = 10;
+
+/**
+ * Placeholder-account password hashes, precomputed in parallel BEFORE the
+ * per-record DB-write loop (see isb_sync_service.ts::processFamilyBatch).
+ * Computing N hashes via Promise.all ahead of time lets Bun's native bcrypt
+ * spread across all CPU cores instead of one blocking each sequential
+ * per-record DB round-trip (this was the single largest contributor to ISB
+ * family-sync latency — see docs/uat-issues-2026-07-15.md follow-up).
+ */
+export async function precomputeParentPasswordHashes(count: number): Promise<string[]> {
+    if (count <= 0) return [];
+    return Promise.all(
+        Array.from({ length: count }, () => Bun.password.hash(PARENT_DEFAULT_PASSWORD, { algorithm: "bcrypt", cost: PLACEHOLDER_ACCOUNT_BCRYPT_COST })),
+    );
+}
+
+function takeHash(pool: string[] | undefined): Promise<string> | string {
+    if (pool && pool.length > 0) return pool.pop()!;
+    return Bun.password.hash(PARENT_DEFAULT_PASSWORD, { algorithm: "bcrypt", cost: PLACEHOLDER_ACCOUNT_BCRYPT_COST });
+}
+
+/**
+ * Bulk-prefetched lookup maps for a whole family batch, built once up front
+ * (a handful of `WHERE x IN (...)` queries) instead of 2-3 SELECTs per
+ * record. Passing `ctx` into the upsert functions below makes them read
+ * from these maps instead of hitting the DB — falling back to the original
+ * per-record SELECT whenever a given map isn't supplied, so every existing
+ * call site (runSync/processFamily, processStaffBatch) that doesn't pass a
+ * ctx keeps its exact original behavior.
+ */
+export interface FamilyBatchCtx {
+    familyProfiles?: Map<string, typeof familyProfiles.$inferSelect>;
+    usersByExtId?: Map<string, typeof users.$inferSelect>;
+    usersByEmail?: Map<string, typeof users.$inferSelect>;
+    customersByExtId?: Map<string, typeof customers.$inferSelect>;
+    customersByStudentCode?: Map<string, typeof customers.$inferSelect>;
+    studentLoginUsersByUsername?: Map<string, { id: number }>;
+    links?: Map<string, typeof parentChildLinks.$inferSelect>;
+    hashPool?: string[];
+}
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
@@ -190,11 +249,16 @@ export interface StaffPayload {
 async function syncLoginEmails(userId: number, emails: (string | undefined | null)[]): Promise<void> {
     const cleaned = [...new Set(emails.map((e) => (e ?? "").trim().toLowerCase()).filter(Boolean))];
     if (cleaned.length === 0) return;
-    for (const email of cleaned) {
-        await db.insert(userLoginEmails)
-            .values({ userId, email })
-            .onConflictDoUpdate({ target: userLoginEmails.email, set: { userId } });
-    }
+    // Each email is a distinct conflict target (unique index on email) so
+    // these upserts never contend with each other — safe to fire together
+    // instead of paying N sequential round-trips.
+    await Promise.all(
+        cleaned.map((email) =>
+            db.insert(userLoginEmails)
+                .values({ userId, email })
+                .onConflictDoUpdate({ target: userLoginEmails.email, set: { userId } }),
+        ),
+    );
 }
 
 export async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
@@ -273,7 +337,7 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
     return userRow;
 }
 
-export async function upsertParent(payload: StaffPayload, familyCode: string, logins: string[], syncLogId: number): Promise<typeof users.$inferSelect> {
+export async function upsertParent(payload: StaffPayload, familyCode: string, logins: string[], syncLogId: number, ctx?: FamilyBatchCtx): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
     // "" (no card on file) must become null, not stored as-is — card_uid has a
@@ -283,8 +347,13 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
     const email = (logins[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase();
     const username = email.split("@")[0].trim().toLowerCase();
 
-    let existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
-    if (!existing) existing = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
+    let existing: typeof users.$inferSelect | undefined;
+    if (ctx?.usersByExtId || ctx?.usersByEmail) {
+        existing = ctx.usersByExtId?.get(extId) ?? ctx.usersByEmail?.get(email);
+    } else {
+        existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
+        if (!existing) existing = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
+    }
 
     const created = !existing;
     const before = snapshot(existing as unknown as Record<string, unknown> | null, USER_AUDIT_FIELDS);
@@ -292,7 +361,7 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
     const photoUrl = realisticPhoto("parent", extId);
     let userRow: typeof users.$inferSelect;
     if (created) {
-        const hash = await Bun.password.hash(PARENT_DEFAULT_PASSWORD, { algorithm: "bcrypt", cost: 12 });
+        const hash = await takeHash(ctx?.hashPool);
         const [u] = await db.insert(users).values({
             username, email, fullName,
             hashedPassword: hash,
@@ -330,12 +399,16 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
     await syncLoginEmails(userRow.id, logins.length > 0 ? logins : [email]);
+    ctx?.usersByExtId?.set(extId, userRow);
+    ctx?.usersByEmail?.set(email, userRow);
     return userRow;
 }
 
-export async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number, logins: string[] = []): Promise<typeof users.$inferSelect> {
+export async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number, logins: string[] = [], ctx?: FamilyBatchCtx): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
-    let existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
+    let existing = ctx?.usersByExtId
+        ? ctx.usersByExtId.get(extId)
+        : (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
     const created = !existing;
     const before = snapshot(existing as unknown as Record<string, unknown> | null, USER_AUDIT_FIELDS);
 
@@ -343,7 +416,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
     if (created) {
         const fullName = `${payload.firstName} ${payload.lastName}`.trim();
         const email = `${(payload.firstName ?? "staff").toLowerCase()}${extId}@isb.ac.th`;
-        const hash = await Bun.password.hash(PARENT_DEFAULT_PASSWORD, { algorithm: "bcrypt", cost: 12 });
+        const hash = await takeHash(ctx?.hashPool);
         const [u] = await db.insert(users).values({
             username: `staff_${extId}`, email, fullName,
             hashedPassword: hash,
@@ -372,6 +445,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
     await syncLoginEmails(userRow.id, logins);
+    ctx?.usersByExtId?.set(extId, userRow);
     return userRow;
 }
 
@@ -384,7 +458,7 @@ export interface StudentPayload {
     smartCard?: { cardNumber?: string };
 }
 
-export async function upsertStudent(payload: StudentPayload, familyCode: string, internalTypeId: number, syncLogId: number): Promise<typeof customers.$inferSelect> {
+export async function upsertStudent(payload: StudentPayload, familyCode: string, internalTypeId: number, syncLogId: number, ctx?: FamilyBatchCtx): Promise<typeof customers.$inferSelect> {
     const extId = String(payload.customerId);
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
     const grade = payload.grade ?? null;
@@ -394,8 +468,13 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     // way blank logins collided on email (see upsertStaff's email fallback).
     const cardUid = payload.smartCard?.cardNumber || null;
 
-    let existing = (await db.select().from(customers).where(eq(customers.externalId, extId)).limit(1))[0];
-    if (!existing) existing = (await db.select().from(customers).where(eq(customers.studentCode, extId)).limit(1))[0];
+    let existing: typeof customers.$inferSelect | undefined;
+    if (ctx?.customersByExtId || ctx?.customersByStudentCode) {
+        existing = ctx.customersByExtId?.get(extId) ?? ctx.customersByStudentCode?.get(extId);
+    } else {
+        existing = (await db.select().from(customers).where(eq(customers.externalId, extId)).limit(1))[0];
+        if (!existing) existing = (await db.select().from(customers).where(eq(customers.studentCode, extId)).limit(1))[0];
+    }
 
     const created = !existing;
     const before = snapshot(existing as unknown as Record<string, unknown> | null, CUSTOMER_AUDIT_FIELDS);
@@ -442,10 +521,12 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     });
 
     // Ensure student User login row exists
-    const studentUser = (await db.select({ id: users.id }).from(users).where(eq(users.username, extId)).limit(1))[0];
+    const studentUser = ctx?.studentLoginUsersByUsername
+        ? ctx.studentLoginUsersByUsername.get(extId)
+        : (await db.select({ id: users.id }).from(users).where(eq(users.username, extId)).limit(1))[0];
     if (!studentUser) {
-        const hash = await Bun.password.hash(PARENT_DEFAULT_PASSWORD, { algorithm: "bcrypt", cost: 12 });
-        await db.insert(users).values({
+        const hash = await takeHash(ctx?.hashPool);
+        const [su] = await db.insert(users).values({
             username: extId,
             email: `${extId}@students.isb.ac.th`,
             fullName,
@@ -456,13 +537,18 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             externalId: extId, familyCode,
             photoUrl: custRow.photoUrl,
             lastSyncedAt: new Date().toISOString(),
-        });
+        }).returning({ id: users.id });
+        ctx?.studentLoginUsersByUsername?.set(extId, su);
     }
+    ctx?.customersByExtId?.set(extId, custRow);
+    ctx?.customersByStudentCode?.set(custRow.studentCode ?? extId, custRow);
     return custRow;
 }
 
-export async function upsertFamilyProfile(familyCode: string, notificationEmails: string[], loginIds: string[]): Promise<void> {
-    const existing = (await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, familyCode)).limit(1))[0];
+export async function upsertFamilyProfile(familyCode: string, notificationEmails: string[], loginIds: string[], ctx?: FamilyBatchCtx): Promise<void> {
+    const existing = ctx?.familyProfiles
+        ? ctx.familyProfiles.get(familyCode)
+        : (await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, familyCode)).limit(1))[0];
     if (existing) {
         await db.update(familyProfiles).set({
             notificationEmails, loginIds,
@@ -474,25 +560,34 @@ export async function upsertFamilyProfile(familyCode: string, notificationEmails
             lastSyncedAt: new Date().toISOString(),
         });
     }
+    // Mark present so a second family record in the same batch sharing this
+    // family_code (edge case) takes the update path, matching what a real
+    // re-SELECT would now find.
+    ctx?.familyProfiles?.set(familyCode, { familyCode } as typeof familyProfiles.$inferSelect);
 }
 
-export async function upsertLink(parentId: number, childId: number, parentRank: string, relation = "guardian"): Promise<void> {
-    const existing = (await db.select().from(parentChildLinks).where(
-        and(
-            eq(parentChildLinks.parentUserId, parentId),
-            eq(parentChildLinks.childCustomerId, childId),
-        ),
-    ).limit(1))[0];
+export async function upsertLink(parentId: number, childId: number, parentRank: string, relation = "guardian", ctx?: FamilyBatchCtx): Promise<void> {
+    const key = `${parentId}:${childId}`;
+    const existing = ctx?.links
+        ? ctx.links.get(key)
+        : (await db.select().from(parentChildLinks).where(
+            and(
+                eq(parentChildLinks.parentUserId, parentId),
+                eq(parentChildLinks.childCustomerId, childId),
+            ),
+        ).limit(1))[0];
     if (existing) {
         const updates: Record<string, unknown> = { parentRank };
         if (relation && existing.relation === "guardian") updates.relation = relation;
         await db.update(parentChildLinks).set(updates).where(eq(parentChildLinks.id, existing.id));
+        ctx?.links?.set(key, { ...existing, ...updates } as typeof parentChildLinks.$inferSelect);
     } else {
-        await db.insert(parentChildLinks).values({
+        const [row] = await db.insert(parentChildLinks).values({
             parentUserId: parentId,
             childCustomerId: childId,
             relation, parentRank,
-        });
+        }).returning();
+        ctx?.links?.set(key, row);
     }
 }
 
@@ -503,19 +598,91 @@ export async function upsertLink(parentId: number, childId: number, parentRank: 
  * main/secondary link to the child. The old user/wallet themselves are never
  * touched here — they simply stop being linked to this child (orphaned from
  * the family, not deleted).
+ *
+ * The join-table row was always the correct thing being deleted here — the
+ * bug was one level up: `users.family_code` (a denormalized column read by
+ * myCoparents()/userCanAccessWallet()/transferWithinFamily()'s non-admin
+ * family check) was never cleared for the parent losing their last link, so
+ * they kept passing every "same family" check even though parent_child_links
+ * no longer connected them to anyone. Once a removed parent has ZERO
+ * remaining links anywhere (not just to this child), clear their
+ * family_code too — same clearing rule family_service.ts::deleteLink
+ * already applies to the manual link-removal path.
  */
 export async function reconcileParentLinks(
     childCustomerId: number,
     currentParentUserIds: number[],
 ): Promise<void> {
     if (currentParentUserIds.length === 0) return;
+
+    const staleCondition = and(
+        eq(parentChildLinks.childCustomerId, childCustomerId),
+        inArray(parentChildLinks.parentRank, ["main", "secondary"]),
+        notInArray(parentChildLinks.parentUserId, currentParentUserIds),
+    );
+    const toRemove = await db.select({ parentUserId: parentChildLinks.parentUserId })
+        .from(parentChildLinks)
+        .where(staleCondition);
+    if (toRemove.length === 0) return;
+    const removedParentIds = [...new Set(toRemove.map((r) => r.parentUserId))];
+
+    await db.delete(parentChildLinks).where(staleCondition);
+
+    await clearFamilyCodeForOrphanedParents(removedParentIds);
+}
+
+/** Shared by reconcileParentLinks and any other link-removal path — clears
+ * users.family_code for exactly the ids in `candidateParentIds` that have
+ * zero parent_child_links rows left anywhere. */
+async function clearFamilyCodeForOrphanedParents(candidateParentIds: number[]): Promise<void> {
+    if (candidateParentIds.length === 0) return;
+    const stillLinkedRows = await db.selectDistinct({ parentUserId: parentChildLinks.parentUserId })
+        .from(parentChildLinks)
+        .where(inArray(parentChildLinks.parentUserId, candidateParentIds));
+    const stillLinked = new Set(stillLinkedRows.map((r) => r.parentUserId));
+    const trulyOrphaned = candidateParentIds.filter((id) => !stillLinked.has(id));
+    if (trulyOrphaned.length > 0) {
+        await db.update(users).set({ familyCode: null }).where(inArray(users.id, trulyOrphaned));
+    }
+}
+
+/**
+ * Student-side counterpart of reconcileParentLinks: a family's `students`
+ * array is the authoritative current roster per sync. If a student's
+ * external id is swapped out (e.g. a customerId correction — the new kid
+ * replaces the old one in the payload), the old student's row is never in
+ * `currentStudentCustomerIds`. Drop its sync-owned (main/secondary) parent
+ * links and, once it has zero links left, clear customers.family_code —
+ * same orphan semantics as the parent side (wallet/customer preserved).
+ */
+export async function reconcileFamilyStudents(
+    familyCode: string,
+    currentStudentCustomerIds: number[],
+): Promise<void> {
+    if (!familyCode) return;
+    const conds = [eq(customers.familyCode, familyCode), isNotNull(customers.studentCode)];
+    if (currentStudentCustomerIds.length > 0) {
+        conds.push(notInArray(customers.id, currentStudentCustomerIds));
+    }
+    const staleStudents = await db.select({ id: customers.id }).from(customers).where(and(...conds));
+    if (staleStudents.length === 0) return;
+    const staleIds = staleStudents.map((s) => s.id);
+
     await db.delete(parentChildLinks).where(
         and(
-            eq(parentChildLinks.childCustomerId, childCustomerId),
+            inArray(parentChildLinks.childCustomerId, staleIds),
             inArray(parentChildLinks.parentRank, ["main", "secondary"]),
-            notInArray(parentChildLinks.parentUserId, currentParentUserIds),
         ),
     );
+
+    const stillLinkedRows = await db.selectDistinct({ childCustomerId: parentChildLinks.childCustomerId })
+        .from(parentChildLinks)
+        .where(inArray(parentChildLinks.childCustomerId, staleIds));
+    const stillLinked = new Set(stillLinkedRows.map((r) => r.childCustomerId));
+    const trulyOrphaned = staleIds.filter((id) => !stillLinked.has(id));
+    if (trulyOrphaned.length > 0) {
+        await db.update(customers).set({ familyCode: null }).where(inArray(customers.id, trulyOrphaned));
+    }
 }
 
 // ── Family orchestration ──────────────────────────────────────────────────

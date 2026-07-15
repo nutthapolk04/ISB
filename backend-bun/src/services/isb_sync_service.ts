@@ -10,11 +10,14 @@
  * automatically once known.
  */
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { customers, departments, syncLogs, users } from "@/db/schema";
+import { customers, departments, familyProfiles, parentChildLinks, syncLogs, users } from "@/db/schema";
+import { logger } from "@/logger";
 import {
     getInternalTypeId,
+    precomputeParentPasswordHashes,
+    reconcileFamilyStudents,
     reconcileParentLinks,
     upsertFamilyProfile,
     upsertLink,
@@ -22,6 +25,7 @@ import {
     upsertStaff,
     upsertStaffParentRef,
     upsertStudent,
+    type FamilyBatchCtx,
     type StaffPayload,
     type StudentPayload,
 } from "@/services/powerschool_sync";
@@ -183,15 +187,131 @@ interface IsbFamily {
     students: IsbStudent[];
 }
 
+/**
+ * Bulk-prefetch every row this batch could possibly need in a handful of
+ * `WHERE x IN (...)` queries, instead of the 2-3 sequential SELECTs per
+ * parent/student that upsertParent/upsertStaffParentRef/upsertStudent/
+ * upsertLink/upsertFamilyProfile otherwise each run individually. Also
+ * counts exactly how many NEW placeholder-password accounts this batch will
+ * create, so their bcrypt hashes can be computed in parallel up front (see
+ * precomputeParentPasswordHashes) instead of one at a time, serially, inside
+ * the per-record write path — bcrypt cost=12 was the single largest
+ * contributor to family-sync latency (~150-300ms per new account).
+ */
+async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCtx> {
+    const familyCodes = new Set<string>();
+    const parentExtIds = new Set<string>();
+    const parentEmails = new Set<string>();
+    const staffParentExtIds = new Set<string>();
+    const studentExtIds = new Set<string>();
+
+    for (const fam of families) {
+        familyCodes.add(String(fam.familyCode));
+        for (const parent of [fam.mainParent, fam.secondaryParent]) {
+            if (!parent) continue;
+            const extId = String(parent.customerId);
+            if (parent.customerType === "Staff") {
+                staffParentExtIds.add(extId);
+            } else {
+                parentExtIds.add(extId);
+                parentEmails.add((parent.login[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase());
+            }
+        }
+        for (const st of fam.students) {
+            studentExtIds.add(String(st.customerId));
+        }
+    }
+
+    const [
+        familyProfileRows,
+        parentUsersByExtId,
+        parentUsersByEmail,
+        staffParentUsersByExtId,
+        studentsByExtId,
+        studentsByCode,
+    ] = await Promise.all([
+        familyCodes.size ? db.select().from(familyProfiles).where(inArray(familyProfiles.familyCode, [...familyCodes])) : Promise.resolve([]),
+        parentExtIds.size ? db.select().from(users).where(inArray(users.externalId, [...parentExtIds])) : Promise.resolve([]),
+        parentEmails.size ? db.select().from(users).where(inArray(users.email, [...parentEmails])) : Promise.resolve([]),
+        staffParentExtIds.size ? db.select().from(users).where(inArray(users.externalId, [...staffParentExtIds])) : Promise.resolve([]),
+        studentExtIds.size ? db.select().from(customers).where(inArray(customers.externalId, [...studentExtIds])) : Promise.resolve([]),
+        studentExtIds.size ? db.select().from(customers).where(inArray(customers.studentCode, [...studentExtIds])) : Promise.resolve([]),
+    ]);
+    const studentLoginUsers = studentExtIds.size
+        ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.username, [...studentExtIds]))
+        : [];
+
+    const usersByExtId = new Map<string, typeof users.$inferSelect>();
+    for (const r of parentUsersByExtId) if (r.externalId) usersByExtId.set(r.externalId, r);
+    for (const r of staffParentUsersByExtId) if (r.externalId) usersByExtId.set(r.externalId, r);
+    const usersByEmail = new Map(parentUsersByEmail.map((r) => [r.email, r] as const));
+    const customersByExtId = new Map<string, typeof customers.$inferSelect>();
+    for (const r of studentsByExtId) if (r.externalId) customersByExtId.set(r.externalId, r);
+    const customersByStudentCode = new Map<string, typeof customers.$inferSelect>();
+    for (const r of studentsByCode) if (r.studentCode) customersByStudentCode.set(r.studentCode, r);
+    const studentLoginUsersByUsername = new Map(studentLoginUsers.map((r) => [r.username, { id: r.id }] as const));
+
+    // Existing parent_child_links for every student we already know about —
+    // covers the upsertLink() existence check for the common "resync" case.
+    const knownStudentIds = new Set<number>();
+    for (const r of customersByExtId.values()) knownStudentIds.add(r.id);
+    for (const r of customersByStudentCode.values()) knownStudentIds.add(r.id);
+    const linkRows = knownStudentIds.size
+        ? await db.select().from(parentChildLinks).where(inArray(parentChildLinks.childCustomerId, [...knownStudentIds]))
+        : [];
+    const links = new Map(linkRows.map((r) => [`${r.parentUserId}:${r.childCustomerId}`, r] as const));
+
+    // Exact count of NEW placeholder-password accounts this batch will
+    // create — parents/staff-parents not found above, plus students whose
+    // login `users` row doesn't exist yet. Any undercount just falls back
+    // to an inline hash (see takeHash in powerschool_sync.ts) — never a
+    // correctness issue, only a (rare) perf one.
+    let neededHashes = 0;
+    for (const fam of families) {
+        for (const parent of [fam.mainParent, fam.secondaryParent]) {
+            if (!parent) continue;
+            const extId = String(parent.customerId);
+            if (parent.customerType === "Staff") {
+                if (!usersByExtId.has(extId)) neededHashes++;
+            } else {
+                const email = (parent.login[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase();
+                if (!usersByExtId.has(extId) && !usersByEmail.has(email)) neededHashes++;
+            }
+        }
+        for (const st of fam.students) {
+            const extId = String(st.customerId);
+            if (!studentLoginUsersByUsername.has(extId)) neededHashes++;
+        }
+    }
+    const hashPool = await precomputeParentPasswordHashes(neededHashes);
+
+    return {
+        familyProfiles: new Map(familyProfileRows.map((r) => [r.familyCode, r] as const)),
+        usersByExtId,
+        usersByEmail,
+        customersByExtId,
+        customersByStudentCode,
+        studentLoginUsersByUsername,
+        links,
+        hashPool,
+    };
+}
+
 export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchResult> {
     if (families.length === 0) {
         return { success: 0, failed: 0, errors: [] };
     }
+    const batchStart = performance.now();
     const logId = await createSyncLog("isb_family");
     const internalTypeId = await getInternalTypeId();
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
 
+    const prefetchStart = performance.now();
+    const ctx = await buildFamilyBatchCtx(families);
+    const prefetchMs = performance.now() - prefetchStart;
+
+    const upsertStart = performance.now();
     await processInChunks(families, async (fam, i) => {
         const familyCode = String(fam.familyCode);
 
@@ -201,6 +321,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                 familyCode,
                 fam.notificationEmails,
                 [...fam.mainParent.login, ...(fam.secondaryParent?.login ?? [])],
+                ctx,
             );
 
             // Parents
@@ -223,9 +344,9 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
 
                 let user;
                 if (parent.customerType === "Staff") {
-                    user = await upsertStaffParentRef(payload, familyCode, logId, parent.login);
+                    user = await upsertStaffParentRef(payload, familyCode, logId, parent.login, ctx);
                 } else {
-                    user = await upsertParent(payload, familyCode, parent.login, logId);
+                    user = await upsertParent(payload, familyCode, parent.login, logId, ctx);
                 }
 
                 // Override photo with ISB filename
@@ -238,6 +359,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
             }
 
             // Students
+            const studentCustomerIds: number[] = [];
             for (const st of fam.students) {
                 const studentPayload: StudentPayload = {
                     customerId: st.customerId,
@@ -247,7 +369,8 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                     schoolType: st.schoolType,
                     smartCard: { cardNumber: st.smartCard.cardNumber || "" },
                 };
-                const customer = await upsertStudent(studentPayload, familyCode, internalTypeId, logId);
+                const customer = await upsertStudent(studentPayload, familyCode, internalTypeId, logId, ctx);
+                studentCustomerIds.push(customer.id);
 
                 // Override photo
                 const photoUrl = resolvePhotoUrl(st.profileImage);
@@ -256,10 +379,14 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                 }
 
                 for (const { userId, rank } of parentRows) {
-                    await upsertLink(userId, customer.id, rank);
+                    await upsertLink(userId, customer.id, rank, "guardian", ctx);
                 }
                 await reconcileParentLinks(customer.id, parentRows.map((p) => p.userId));
             }
+            // A student swapped out of this family's roster (e.g. customerId
+            // correction) never appears in the loop above — reconcile against
+            // the whole family_code so the old student orphans cleanly too.
+            await reconcileFamilyStudents(familyCode, studentCustomerIds);
 
             success++;
         } catch (e) {
@@ -267,8 +394,18 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
             errors.push({ index: i, id: fam.familyCode, error: (e as Error).message });
         }
     });
+    const upsertMs = performance.now() - upsertStart;
 
     await finishSyncLog(logId, families.length, success, failed, errors.map((e) => `family[${e.index}] ${e.id}: ${e.error}`));
+    const totalMs = performance.now() - batchStart;
+    logger.info("isb family sync batch timing", {
+        families: families.length,
+        success,
+        failed,
+        totalMs: Math.round(totalMs),
+        prefetchMs: Math.round(prefetchMs),
+        upsertMs: Math.round(upsertMs),
+    });
     return { success, failed, errors };
 }
 
