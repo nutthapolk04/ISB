@@ -25,6 +25,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { paymentIntents, receipts } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { logger } from "@/logger";
 import { createQrPayment, isPymtConfigured, PymtGatewayError } from "@/services/pymt_gateway";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
 
@@ -196,11 +197,22 @@ export async function getPosQrIntent(refCode: string): Promise<PosQrIntentDTO> {
  * That's the realistic safest tradeoff under at-least-once webhook delivery.
  */
 export async function confirmPosQrSale(refCode: string): Promise<number | null> {
+    // Timing instrumentation (UAT complaint: "QR callback ช้ามาก" — cashier
+    // screen slow to reflect payment). Logs one structured line per call so
+    // we can see, once deployed, whether the slow part is the claim-row
+    // transaction (phase A, lock contention), the checkout() business logic
+    // (phase B, stock/wallet writes), or the final status-flip UPDATE
+    // (phase C) — vs. the delay being upstream (gateway webhook latency,
+    // logged separately in BayCallbackController) or downstream (frontend
+    // poll interval).
+    const tStart = performance.now();
+
     // ── Phase A: claim ─────────────────────────────────────────────────────
     type Claim =
         | { kind: "skip"; receiptId: number | null }
         | { kind: "go"; intentId: number; createdBy: number | null; cart: Omit<CheckoutInput, "payment_method"> & { userId?: number } };
 
+    const tPhaseA = performance.now();
     const claim: Claim = await pgClient.begin(async (sqlTx) => {
         const rows = await sqlTx<Array<{
             id: number;
@@ -254,9 +266,20 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
         };
     });
 
-    if (claim.kind === "skip") return claim.receiptId;
+    const phaseAMs = performance.now() - tPhaseA;
+
+    if (claim.kind === "skip") {
+        logger.info("[POS QR] confirmPosQrSale timing", {
+            refCode,
+            outcome: "skip",
+            phaseAMs: Math.round(phaseAMs),
+            totalMs: Math.round(performance.now() - tStart),
+        });
+        return claim.receiptId;
+    }
 
     // ── Phase B: run checkout (its own tx) ────────────────────────────────
+    const tPhaseB = performance.now();
     const checkoutInput: CheckoutInput = {
         ...claim.cart,
         payment_method: "qr_promptpay",
@@ -264,11 +287,13 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
     };
     const receipt = await checkout(checkoutInput);
     const receiptId = receipt.id;
+    const phaseBMs = performance.now() - tPhaseB;
 
     // ── Phase C: stamp receipt + flip status (guarded UPDATE) ─────────────
     // WHERE receipt_id IS NULL means a parallel retry that somehow slipped
     // the Phase A guard still can't overwrite. confirmed_via flips from the
     // claim sentinel back to the final value.
+    const tPhaseC = performance.now();
     await db.execute(
         sql`UPDATE payment_intents
         SET status = 'confirmed',
@@ -278,6 +303,17 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
         WHERE id = ${claim.intentId}
           AND receipt_id IS NULL`,
     );
+    const phaseCMs = performance.now() - tPhaseC;
+
+    logger.info("[POS QR] confirmPosQrSale timing", {
+        refCode,
+        outcome: "go",
+        receiptId,
+        phaseAMs: Math.round(phaseAMs),
+        phaseBMs: Math.round(phaseBMs),
+        phaseCMs: Math.round(phaseCMs),
+        totalMs: Math.round(performance.now() - tStart),
+    });
 
     return receiptId;
 }

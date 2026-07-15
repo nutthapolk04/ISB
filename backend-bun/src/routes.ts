@@ -133,6 +133,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
         .put("/settings/school", AdminSettingsController.setSchoolSettings, AdminSettingsSchema.setSchoolSettings)
         .put("/settings/:key", AdminSettingsController.setValue, AdminSettingsSchema.setSettingValue)
         .post("/settings/test-email", AdminSettingsController.testEmail, AdminSettingsSchema.testEmail)
+        .post("/topups/reconcile", TopupController.reconcile, TopupSchema.topupReconcile)
     )
     // ── Customers ───────────────────────────────────────────────────────────
     .group("/customers", (app) =>

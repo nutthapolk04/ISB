@@ -94,3 +94,15 @@ export const topupUpdateDepartment = {
     }),
     detail: { tags: ["Wallets"], summary: "Update department info" },
 };
+
+export const topupReconcile = {
+    body: t.Optional(t.Object({
+        older_than_minutes: t.Optional(t.Number({ minimum: 1 })),
+        limit: t.Optional(t.Number({ minimum: 1, maximum: 500 })),
+        dry_run: t.Optional(t.Boolean()),
+    })),
+    detail: {
+        tags: ["Admin"],
+        summary: "Reconcile pending top-up intents against the BAY gateway (dry_run defaults to true)",
+    },
+};

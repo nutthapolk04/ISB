@@ -137,9 +137,16 @@ export const PosController = {
 		}
 	},
 
+	// This is the endpoint the cashier's QrPaymentModal polls every ~2s while
+	// waiting for payment (see frontend QrPaymentModal.tsx POLL_INTERVAL_MS).
+	// Timed so we can see, once deployed, whether poll latency itself is
+	// ever a meaningful contributor to the "QR callback ช้ามาก" complaint —
+	// expected to be a few ms (single indexed SELECT by ref_code) and NOT
+	// the bottleneck, but measure rather than assume.
 	getQrIntentStatus: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
+		const t0 = performance.now();
 		logger.info(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() called.`);
 		if (!hasRole(user.roles, ...POS_ROLES)) {
 			logger.warn(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() forbidden.`);
@@ -148,6 +155,11 @@ export const PosController = {
 		try {
 			logger.info(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() calling getPosQrIntent().`);
 			const result = await getPosQrIntent(params.refCode);
+			logger.info("[POS QR] status-poll timing", {
+				refCode: params.refCode,
+				status: result.status,
+				durationMs: Math.round(performance.now() - t0),
+			});
 			logger.info(`[${reqContext.requestId} (PC-06)] PosController.getQrIntentStatus() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
