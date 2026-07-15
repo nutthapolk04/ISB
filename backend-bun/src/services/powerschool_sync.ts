@@ -505,6 +505,10 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, name: fullName, grade, schoolType,
             customerType: "Student", customerKind: "student",
+            // Appearing in a current sync means ISB considers them enrolled —
+            // reactivate in case a prior sync deactivated them for having
+            // dropped out of every family roster (see reconcileFamilyMembership).
+            isActive: true,
             photoUrl: existing!.photoUrl ?? photoUrl,
             powerschoolSyncAt: new Date().toISOString(),
         };
@@ -685,6 +689,46 @@ export async function reconcileFamilyStudents(
     }
 }
 
+/**
+ * reconcileParentLinks() above only runs per child, inside the students
+ * loop — so if a sync round for a family doesn't happen to include a
+ * student in the very same request as a parent's ID swap (a "just retest
+ * the parent" payload, no student attached), it never fires at all, and the
+ * stale link survives untouched. It also never clears the abandoned old
+ * row's own `family_code` column, which is what actually matters to
+ * anything that checks family membership by column match instead of by
+ * relation — myCoparents() and the wallet peer-to-peer transfer's co-parent
+ * check (wallet_service.ts) both trust `users.family_code` directly, so an
+ * "orphaned" parent kept showing up as a live family member and stayed
+ * transfer-eligible even once their link was gone.
+ *
+ * Call this once per family (not per child), after all of this round's
+ * parents/staff and students have been upserted, with the CURRENT full
+ * roster of each — independent of whether reconcileParentLinks happened to
+ * run this round. For anyone still tagged with this family_code but absent
+ * from the current roster: drop every parent_child_links row referencing
+ * them (as parent or as child), and:
+ *   - a parent/staff: clear their family_code (orphaned, not deleted — they
+ *     keep logging in and using their own wallet, just detached from this
+ *     family). Admin can still move money out of an orphan's wallet via the
+ *     admin Wallet Transfer page (search by username — admin bypasses the
+ *     family-scope check entirely).
+ *   - a student: clear family_code AND deactivate (is_active=false) — per
+ *     2026-07 review, a student dropped from every family roster shouldn't
+ *     keep spending at POS. upsertStudent() re-activates them automatically
+ *     if ISB ever brings them back into a family's roster.
+ *
+ * Skips a side entirely when its roster is empty, mirroring
+ * reconcileParentLinks' own guard — an empty roster more likely means an
+ * incomplete payload than "nobody is in this family now", and detaching
+ * everyone on that basis would be worse than doing nothing.
+ *
+ * Known gap: a student's own login user row (role="student", created by
+ * upsertStudent's companion-user block) is not touched here, since nothing
+ * that checks family membership (myCoparents/reachFamily) looks at student
+ * logins anyway — only the `customers` row and non-student `users` rows
+ * matter for this fix.
+ */
 export async function reconcileFamilyMembership(
     familyCode: string,
     currentParentUserIds: number[],
@@ -721,7 +765,11 @@ export async function reconcileFamilyMembership(
         if (staleStudents.length > 0) {
             const staleIds = staleStudents.map((s) => s.id);
             await db.delete(parentChildLinks).where(inArray(parentChildLinks.childCustomerId, staleIds));
-            await db.update(customers).set({ familyCode: null }).where(inArray(customers.id, staleIds));
+            // Deactivate rather than just orphan (per 2026-07 review) — a
+            // student dropped from every family roster shouldn't keep
+            // spending at POS. upsertStudent() re-activates them if ISB ever
+            // brings them back into a family's roster.
+            await db.update(customers).set({ familyCode: null, isActive: false }).where(inArray(customers.id, staleIds));
         }
     }
 }

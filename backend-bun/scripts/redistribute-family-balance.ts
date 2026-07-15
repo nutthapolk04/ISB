@@ -38,6 +38,13 @@
  *   4. Duplicate Family Code rows (same code appears >1 time under Customer
  *      Type="Family") are deduped by keeping the row with the latest
  *      Transaction DateTime.
+ *   5. Zero Campus Balance families are skipped (adjustBalance rejects amount
+ *      0). Logged to `.skipped_zero.csv`. Per-child shares that round to 0
+ *      are also skipped without calling adjustBalance.
+ *   6. Resume-safe: when --execute is used, wallets that already have a
+ *      wallet_transactions row with the same --ticket are skipped
+ *      (executed=already) so a crashed mid-run can be re-run without
+ *      double-crediting.
  *
  * Money movement goes through the existing audited adjustBalance() path
  * (wallet_transactions + audit_logs) — never a raw UPDATE.
@@ -51,16 +58,17 @@
  *     --admin-user-id=<id> [--execute] [--ticket=<ref>]
  *
  * Output (written next to the input xlsx, same basename):
- *   <name>.distributed.csv          family_code, customer, school_type, share, wallet_id, executed
+ *   <name>.distributed.csv          family_code, customer, school_type, share, executed
  *   <name>.unmatched.csv            family_code not found in DB at all
  *   <name>.no_eligible_children.csv family found, but 0 eligible children
  *   <name>.skipped_negative.csv     family balance < 0, skipped (per decision)
+ *   <name>.skipped_zero.csv         family balance === 0, skipped
  */
 
 import { and, asc, eq, isNull, ne, or } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import * as path from "path";
-import { customers, users, wallets } from "../drizzle/schema";
+import { customers, users, wallets, walletTransactions } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
 import { adjustBalance } from "../src/services/wallet_service";
 
@@ -249,28 +257,48 @@ async function getEligibleChildren(familyCode: string): Promise<EligibleChild[]>
     return rows;
 }
 
+/** Wallets already credited under this ticket (for crash resume / re-run). */
+async function walletsAlreadyDoneForTicket(ticket: string): Promise<Set<number>> {
+    const rows = await db
+        .selectDistinct({ walletId: walletTransactions.walletId })
+        .from(walletTransactions)
+        .where(eq(walletTransactions.referenceTicket, ticket));
+    return new Set(rows.map((r) => r.walletId));
+}
+
 // ── main ─────────────────────────────────────────────────────────────────
 
 async function main() {
     const args = parseArgs();
     console.log(args.execute ? "*** EXECUTE MODE — wallets WILL be adjusted ***" : "DRY RUN — no wallet will be touched (pass --execute to actually move money)");
+    console.log(`Ticket: ${args.ticket}`);
     console.log(`Reading ${args.xlsxPath} ...`);
 
     const allRows = readFamilyRows(args.xlsxPath);
     console.log(`Found ${allRows.length} "Family" type row(s).`);
 
     const negative = allRows.filter((r) => r.campusBalance < 0);
-    const nonNegative = allRows.filter((r) => r.campusBalance >= 0);
+    const zeroBalance = allRows.filter((r) => r.campusBalance === 0);
+    const positive = allRows.filter((r) => r.campusBalance > 0);
     console.log(`Skipping ${negative.length} row(s) with a negative balance (per decision — logged separately, not processed).`);
+    console.log(`Skipping ${zeroBalance.length} row(s) with a zero balance (adjustBalance rejects amount 0).`);
 
-    const deduped = dedupeByLatestTransaction(nonNegative);
+    const deduped = dedupeByLatestTransaction(positive);
     console.log(`${deduped.length} unique family_code(s) after de-duplicating by latest Transaction DateTime.`);
+
+    const alreadyDone = await walletsAlreadyDoneForTicket(args.ticket);
+    if (alreadyDone.size > 0) {
+        console.log(`Resume: ${alreadyDone.size} wallet(s) already have reference_ticket='${args.ticket}' — will skip.`);
+    }
 
     const distributed: Array<[string, string, number, string, string, number, string, string]> = [];
     const unmatched: Array<[string, string, number, string]> = [];
     const noEligible: Array<[string, string, number, string]> = [];
 
     let totalDistributed = 0;
+    let newlyExecuted = 0;
+    let skippedAlready = 0;
+    let skippedZeroShare = 0;
 
     for (const fam of deduped) {
         const exists = await familyExistsInDb(fam.familyCode);
@@ -296,6 +324,36 @@ async function main() {
                 continue;
             }
 
+            if (share === 0) {
+                skippedZeroShare += 1;
+                distributed.push([
+                    fam.familyCode,
+                    fam.name,
+                    fam.campusBalance,
+                    String(child.customerId),
+                    child.name,
+                    share,
+                    child.schoolType ?? "(null)",
+                    "skipped_zero_share",
+                ]);
+                continue;
+            }
+
+            if (alreadyDone.has(child.walletId)) {
+                skippedAlready += 1;
+                distributed.push([
+                    fam.familyCode,
+                    fam.name,
+                    fam.campusBalance,
+                    String(child.customerId),
+                    child.name,
+                    share,
+                    child.schoolType ?? "(null)",
+                    "already",
+                ]);
+                continue;
+            }
+
             if (args.execute && args.adminUserId) {
                 await adjustBalance({
                     walletId: child.walletId,
@@ -304,7 +362,9 @@ async function main() {
                     reason: "Family balance redistribution to student members",
                     referenceTicket: args.ticket,
                 });
+                alreadyDone.add(child.walletId);
                 executed = "yes";
+                newlyExecuted += 1;
             }
             totalDistributed += share;
             distributed.push([
@@ -346,6 +406,13 @@ async function main() {
             negative.map((r): [string, string, number, string] => [r.familyCode, r.name, r.campusBalance, r.transactionDateTime?.toISOString() ?? ""]),
         ),
     );
+    await Bun.write(
+        path.join(dir, `${stem}.skipped_zero.csv`),
+        toCsv(
+            ["family_code", "family_name", "family_balance", "transaction_datetime"],
+            zeroBalance.map((r): [string, string, number, string] => [r.familyCode, r.name, r.campusBalance, r.transactionDateTime?.toISOString() ?? ""]),
+        ),
+    );
 
     console.log("");
     console.log("── Summary ──────────────────────────────");
@@ -353,7 +420,13 @@ async function main() {
     console.log(`Unmatched (not in DB)    : ${unmatched.length}`);
     console.log(`No eligible children     : ${noEligible.length}`);
     console.log(`Skipped (negative)       : ${negative.length}`);
-    console.log(`Total amount distributed : ${totalDistributed.toFixed(2)}${args.execute ? "" : " (dry run — not actually written)"}`);
+    console.log(`Skipped (zero balance)   : ${zeroBalance.length}`);
+    console.log(`Skipped (zero share)     : ${skippedZeroShare}`);
+    console.log(`Skipped (already ticket) : ${skippedAlready}`);
+    if (args.execute) {
+        console.log(`Newly executed this run  : ${newlyExecuted}`);
+    }
+    console.log(`Total amount (new shares): ${totalDistributed.toFixed(2)}${args.execute ? "" : " (dry run — not actually written)"}`);
     console.log(`Reports written next to ${args.xlsxPath} (basename: ${stem}.*.csv)`);
 }
 
