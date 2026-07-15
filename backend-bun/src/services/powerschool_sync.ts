@@ -8,7 +8,7 @@
  * The Cloudinary photo upload chain is NOT ported — Bun uses the realistic
  * portrait fallback URL (same as FastAPI does on photo-upload failure).
  */
-import { and, eq, inArray, notInArray } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     users, customers, wallets, syncLogs, syncAuditLogs, parentChildLinks,
@@ -516,6 +516,47 @@ export async function reconcileParentLinks(
             notInArray(parentChildLinks.parentUserId, currentParentUserIds),
         ),
     );
+}
+
+export async function reconcileFamilyMembership(
+    familyCode: string,
+    currentParentUserIds: number[],
+    currentStudentCustomerIds: number[],
+): Promise<void> {
+    if (currentParentUserIds.length > 0) {
+        const staleParents = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+                and(
+                    eq(users.familyCode, familyCode),
+                    ne(users.role, "student"),
+                    notInArray(users.id, currentParentUserIds),
+                ),
+            );
+        if (staleParents.length > 0) {
+            const staleIds = staleParents.map((p) => p.id);
+            await db.delete(parentChildLinks).where(inArray(parentChildLinks.parentUserId, staleIds));
+            await db.update(users).set({ familyCode: null }).where(inArray(users.id, staleIds));
+        }
+    }
+    if (currentStudentCustomerIds.length > 0) {
+        const staleStudents = await db
+            .select({ id: customers.id })
+            .from(customers)
+            .where(
+                and(
+                    eq(customers.familyCode, familyCode),
+                    eq(customers.customerKind, "student"),
+                    notInArray(customers.id, currentStudentCustomerIds),
+                ),
+            );
+        if (staleStudents.length > 0) {
+            const staleIds = staleStudents.map((s) => s.id);
+            await db.delete(parentChildLinks).where(inArray(parentChildLinks.childCustomerId, staleIds));
+            await db.update(customers).set({ familyCode: null }).where(inArray(customers.id, staleIds));
+        }
+    }
 }
 
 // ── Family orchestration ──────────────────────────────────────────────────

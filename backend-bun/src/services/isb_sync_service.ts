@@ -15,6 +15,7 @@ import { db } from "@/db/client";
 import { customers, departments, syncLogs, users } from "@/db/schema";
 import {
     getInternalTypeId,
+    reconcileFamilyMembership,
     reconcileParentLinks,
     upsertFamilyProfile,
     upsertLink,
@@ -238,6 +239,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
             }
 
             // Students
+            const studentCustomerIds: number[] = [];
             for (const st of fam.students) {
                 const studentPayload: StudentPayload = {
                     customerId: st.customerId,
@@ -248,6 +250,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                     smartCard: { cardNumber: st.smartCard.cardNumber || "" },
                 };
                 const customer = await upsertStudent(studentPayload, familyCode, internalTypeId, logId);
+                studentCustomerIds.push(customer.id);
 
                 // Override photo
                 const photoUrl = resolvePhotoUrl(st.profileImage);
@@ -260,6 +263,13 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                 }
                 await reconcileParentLinks(customer.id, parentRows.map((p) => p.userId));
             }
+
+            // A parent/staff whose identity changed (re-issued external_id),
+            // or a student who was superseded by a new customerId, leaves
+            // behind an old row that's no longer in this round's roster —
+            // clear ITS family_code too, not just its per-child link (see
+            // reconcileFamilyMembership's own comment for why this matters).
+            await reconcileFamilyMembership(familyCode, parentRows.map((p) => p.userId), studentCustomerIds);
 
             success++;
         } catch (e) {
