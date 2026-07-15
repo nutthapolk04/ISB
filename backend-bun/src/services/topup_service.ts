@@ -6,10 +6,11 @@
  * not implemented. `payment_method=qr_promptpay` (mock QR) works fully;
  * `bay_qr` / `bay_easypay` return 501 — callers route those through FastAPI.
  */
-import { and, desc, eq, like } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { logger } from "@/logger";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import {
     createQrPayment,
@@ -358,13 +359,22 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
     // Sync local status if gateway says something different
     if (intent.status === "pending") {
         if (result.status === "confirmed") {
-            // Reuse the webhook path — same idempotent confirmTopup call
-            const confirmerId = intent.createdBy ?? null;
-            if (confirmerId !== null) {
-                try {
-                    await confirmTopup({ refCode: intent.refCode, confirmerId, confirmedVia: "gateway_inquiry" });
-                } catch {
-                    // best-effort; client can retry
+            // Reuse the webhook path — same idempotent confirmTopup call.
+            // Same rule as the webhook: never skip crediting just because
+            // created_by is null — the gateway already confirmed payment.
+            const confirmerId = intent.createdBy ?? await getOrCreatePaymentGatewayServiceUser();
+            try {
+                const confirmed = await confirmTopup({ refCode: intent.refCode, confirmerId, confirmedVia: "gateway_inquiry" });
+                logger.info(
+                    `[gateway inquiry] Wallet credited ref=${intent.refCode} walletId=${confirmed.wallet_id} amount=${confirmed.amount} confirmerId=${confirmerId}`,
+                );
+            } catch (e) {
+                const err = e as { code?: string };
+                if (err.code !== "ALREADY_PROCESSED") {
+                    // best-effort: the caller (manual "check again") still
+                    // gets the freshly-inquired gateway status back below;
+                    // log loudly so ops can see the credit didn't land.
+                    logger.error(`[gateway inquiry] confirmTopup failed for ref=${intent.refCode} confirmerId=${confirmerId}`, e);
                 }
             }
         } else if (result.status === "cancelled") {
@@ -381,6 +391,193 @@ export async function inquireTopupFromGateway(refCode: string): Promise<TopupInq
         status: after[0]?.status ?? intent.status,
         gateway: result,
     };
+}
+
+// ── Reconciliation sweep ──────────────────────────────────────────────────
+//
+// Damage-control net for the created_by=null hotfix: finds top-up intents
+// that are still `pending` locally well past the point BAY should have
+// answered (webhook missed/delayed, or predates the hotfix), inquires the
+// gateway directly, and — for anything the gateway says COMPLETED — credits
+// the wallet via the same idempotent confirmTopup() path. Never touches
+// intent_type='pos_sale' rows (those are POS QR sales, not wallet top-ups,
+// and are reconciled by their own flow in pos_qr_service.ts).
+
+const DEFAULT_RECONCILE_OLDER_THAN_MINUTES = 15;
+const DEFAULT_RECONCILE_LIMIT = 50;
+/** Sequential delay between gateway inquiries — don't hammer BAY. */
+const RECONCILE_GATEWAY_DELAY_MS = 300;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export interface ReconcileTopupItem {
+    ref_code: string;
+    wallet_id: number;
+    /** Human-readable owner label (customer name/code, username, or department id) for damage-assessment reading. */
+    wallet_owner: string | null;
+    amount: number;
+    created_at: string;
+    payment_method: string;
+    /** Raw gateway status string (COMPLETED / FAILED / PENDING / ...), or a local marker (e.g. INQUIRY_ERROR). */
+    gateway_status: string;
+    reason?: string;
+}
+
+export interface ReconcileTopupsSummary {
+    dry_run: boolean;
+    scanned: number;
+    /** Confirmed COMPLETED at the gateway — credited (or, if dryRun, would-be-credited). */
+    credited: ReconcileTopupItem[];
+    /** Gateway says FAILED/EXPIRED/CANCELLED — marked cancelled (or would be, if dryRun). */
+    failed: ReconcileTopupItem[];
+    /** Still pending at the gateway, no gateway txn_no, inquiry error, or raced to already-processed — left untouched. */
+    skipped: ReconcileTopupItem[];
+}
+
+async function describeWalletOwner(walletId: number | null): Promise<string | null> {
+    if (walletId == null) return null;
+    const wRows = await db
+        .select({ customerId: wallets.customerId, userId: wallets.userId, departmentId: wallets.departmentId })
+        .from(wallets)
+        .where(eq(wallets.id, walletId))
+        .limit(1);
+    const w = wRows[0];
+    if (!w) return null;
+    if (w.customerId != null) {
+        const c = (await db.select({ name: customers.name, code: customers.studentCode }).from(customers).where(eq(customers.id, w.customerId)).limit(1))[0];
+        return c ? `${c.name} (${c.code ?? "-"})` : `customer#${w.customerId}`;
+    }
+    if (w.userId != null) {
+        const u = (await db.select({ name: users.fullName, username: users.username }).from(users).where(eq(users.id, w.userId)).limit(1))[0];
+        return u ? `${u.name} (@${u.username})` : `user#${w.userId}`;
+    }
+    if (w.departmentId != null) return `department#${w.departmentId}`;
+    return null;
+}
+
+/**
+ * Scan for top-up intents stuck `pending` past `olderThanMinutes`, inquire
+ * BAY for each, and (unless dryRun) credit the wallet for anything the
+ * gateway confirms COMPLETED — reusing the same idempotent confirmTopup()
+ * path as the webhook and the manual "check again" inquiry, including the
+ * created_by=null → system-user fallback. dryRun defaults to TRUE so the
+ * first run is always a damage assessment, not a mutation.
+ */
+export async function reconcilePendingTopups(args: {
+    olderThanMinutes?: number;
+    limit?: number;
+    dryRun?: boolean;
+}): Promise<ReconcileTopupsSummary> {
+    const olderThanMinutes = args.olderThanMinutes ?? DEFAULT_RECONCILE_OLDER_THAN_MINUTES;
+    const limit = args.limit ?? DEFAULT_RECONCILE_LIMIT;
+    const dryRun = args.dryRun ?? true;
+    const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
+
+    // Wallet top-ups only: intent_type is NULL (legacy rows, pre-migration)
+    // or 'wallet_topup' (current default) — never 'pos_sale'. Must have a
+    // gateway txn_no to inquire (mock qr_promptpay / cash / plain credit_card
+    // rows with no BAY leg have nothing to reconcile against).
+    const candidates = await db
+        .select()
+        .from(paymentIntents)
+        .where(and(
+            eq(paymentIntents.status, "pending"),
+            or(isNull(paymentIntents.intentType), eq(paymentIntents.intentType, "wallet_topup")),
+            isNotNull(paymentIntents.txnNo),
+            lt(paymentIntents.createdAt, cutoff),
+        ))
+        .orderBy(paymentIntents.createdAt)
+        .limit(limit);
+
+    const summary: ReconcileTopupsSummary = {
+        dry_run: dryRun,
+        scanned: candidates.length,
+        credited: [],
+        failed: [],
+        skipped: [],
+    };
+
+    for (const intent of candidates) {
+        const base: ReconcileTopupItem = {
+            ref_code: intent.refCode,
+            wallet_id: intent.walletId ?? 0,
+            wallet_owner: await describeWalletOwner(intent.walletId),
+            amount: pgNumber(intent.amount) ?? 0,
+            created_at: pgToIso(intent.createdAt) ?? intent.createdAt,
+            payment_method: intent.paymentMethod,
+            gateway_status: "UNKNOWN",
+        };
+
+        if (intent.walletId == null || !intent.txnNo) {
+            // Defensive — the WHERE clause already requires txn_no; walletId
+            // should never be null for a wallet_topup intent.
+            summary.skipped.push({ ...base, reason: "missing wallet_id or txn_no" });
+            continue;
+        }
+
+        let gw: InquiryResult;
+        try {
+            if (intent.paymentMethod === "bay_easypay") {
+                gw = await easyPayInquiry({ transactionNo: intent.txnNo });
+            } else if (intent.paymentMethod === "bay_qr") {
+                gw = await qrInquiry({ transactionNo: intent.txnNo });
+            } else {
+                summary.skipped.push({ ...base, reason: `payment_method '${intent.paymentMethod}' has no gateway inquiry` });
+                continue;
+            }
+        } catch (e) {
+            logger.error(`[reconcile] gateway inquiry failed for ref=${intent.refCode}`, e);
+            summary.skipped.push({
+                ...base,
+                gateway_status: "INQUIRY_ERROR",
+                reason: e instanceof Error ? e.message : String(e),
+            });
+            await sleep(RECONCILE_GATEWAY_DELAY_MS);
+            continue;
+        }
+
+        base.gateway_status = gw.raw_status;
+
+        if (gw.status === "confirmed") {
+            if (dryRun) {
+                summary.credited.push({ ...base, reason: "would credit (dry run)" });
+            } else {
+                const confirmerId = intent.createdBy ?? await getOrCreatePaymentGatewayServiceUser();
+                try {
+                    const confirmed = await confirmTopup({ refCode: intent.refCode, confirmerId, confirmedVia: "reconcile_sweep" });
+                    logger.info(
+                        `[reconcile] Wallet credited ref=${intent.refCode} walletId=${confirmed.wallet_id} amount=${confirmed.amount} confirmerId=${confirmerId}`,
+                    );
+                    summary.credited.push(base);
+                } catch (e) {
+                    const err = e as { code?: string };
+                    if (err.code === "ALREADY_PROCESSED") {
+                        // Raced the webhook (or another sweep) between our SELECT
+                        // and confirmTopup's row lock — already handled elsewhere.
+                        summary.skipped.push({ ...base, reason: "already processed by another path" });
+                    } else {
+                        logger.error(`[reconcile] confirmTopup failed for ref=${intent.refCode}`, e);
+                        summary.failed.push({ ...base, reason: e instanceof Error ? e.message : String(e) });
+                    }
+                }
+            }
+        } else if (gw.status === "cancelled") {
+            // Reuses the same transition inquireTopupFromGateway already
+            // performs for a gateway-cancelled result — no new status invented.
+            if (!dryRun) {
+                await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, intent.id));
+            }
+            summary.failed.push({ ...base, reason: dryRun ? "gateway reports failed/expired (would mark cancelled)" : "marked cancelled" });
+        } else {
+            summary.skipped.push({ ...base, reason: "still pending at gateway" });
+        }
+
+        await sleep(RECONCILE_GATEWAY_DELAY_MS);
+    }
+
+    return summary;
 }
 
 // ── Status + parent-confirm ──────────────────────────────────────────────
@@ -437,6 +634,40 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
         },
         walletId: requireIntentWalletId(intent.walletId, refCode),
     };
+}
+
+let gatewayServiceUserIdCache: number | null = null;
+
+/**
+ * Self-healing system account attributed as wallet_transactions.created_by
+ * when a gateway webhook needs to confirm a top-up whose intent has no
+ * created_by (nullable column — legacy rows / defensive edge case). Money has
+ * already left the customer's card by the time COMPLETED arrives, so crediting
+ * the wallet must never be skipped just because there's no human actor to
+ * attribute it to. Mirrors getOrCreateVendorApiServiceUser's lazy-create
+ * pattern in wallet_service.ts. Inactive + random password — never usable for
+ * interactive login.
+ */
+async function getOrCreatePaymentGatewayServiceUser(): Promise<number> {
+    if (gatewayServiceUserIdCache !== null) return gatewayServiceUserIdCache;
+    const existing = (await db.select({ id: users.id }).from(users).where(eq(users.username, "payment_gateway_service")).limit(1))[0];
+    if (existing) {
+        gatewayServiceUserIdCache = existing.id;
+        return existing.id;
+    }
+    const hash = await Bun.password.hash(crypto.randomUUID(), { algorithm: "bcrypt", cost: 12 });
+    const [created] = await db.insert(users).values({
+        username: "payment_gateway_service",
+        email: "payment-gateway-service@isb-coop.local",
+        fullName: "Payment Gateway Service Account",
+        hashedPassword: hash,
+        isActive: false,
+        isSuperuser: false,
+        role: "staff",
+        status: "active",
+    }).returning({ id: users.id });
+    gatewayServiceUserIdCache = created.id;
+    return created.id;
 }
 
 /**
@@ -497,21 +728,52 @@ export async function handleBayCallback(body: {
                 // and topup_service (POS QR calls into pymt_gateway via topup land).
                 const { confirmPosQrSale } = await import("@/services/pos_qr_service");
                 await confirmPosQrSale(refCode);
-            } catch {
-                // best-effort; webhook will retry
+            } catch (e) {
+                logger.error(
+                    `[BAY callback] confirmPosQrSale failed for ref=${refCode} txnNo=${body.transactionNo ?? "-"} amount=${body.amount}`,
+                    e,
+                );
+                // Do NOT swallow: confirmPosQrSale is already idempotent (FOR
+                // UPDATE + status guard), so a thrown error here is a genuine
+                // failure, not a duplicate-delivery no-op. Rethrow so the
+                // controller returns 5xx and the gateway retries the webhook.
+                throw e;
             }
             return { received: true };
         }
 
-        // wallet_transactions.created_by is NOT NULL with FK → users(id). Use
-        // the intent's creator as the confirmer when webhook fires.
+        // wallet_transactions.created_by is NOT NULL with FK → users(id).
+        // Prefer the intent's creator; if it's null (legacy row / defensive
+        // edge case) fall back to a self-healing system service account
+        // instead of skipping the credit — the gateway has already taken the
+        // customer's money by the time COMPLETED arrives, so this must never
+        // be silently skipped.
         const creatorRows = await db.select({ createdBy: paymentIntents.createdBy }).from(paymentIntents).where(eq(paymentIntents.refCode, refCode)).limit(1);
-        const confirmerId = creatorRows[0]?.createdBy ?? null;
-        if (confirmerId !== null) {
-            try {
-                await confirmTopup({ refCode, confirmerId, confirmedVia: "gateway_webhook" });
-            } catch {
-                // swallow — webhook retries; FastAPI rolls back same way
+        const confirmerId = creatorRows[0]?.createdBy ?? await getOrCreatePaymentGatewayServiceUser();
+
+        try {
+            const confirmed = await confirmTopup({ refCode, confirmerId, confirmedVia: "gateway_webhook" });
+            logger.info(
+                `[BAY callback] Wallet credited ref=${refCode} walletId=${confirmed.wallet_id} amount=${confirmed.amount} confirmerId=${confirmerId}`,
+            );
+        } catch (e) {
+            const err = e as { status?: number; code?: string; message?: string };
+            if (err.code === "ALREADY_PROCESSED") {
+                // Duplicate webhook delivery raced another delivery (or a
+                // manual gateway-inquiry sync) that already confirmed this
+                // intent under the same row lock in confirmTopup — idempotent
+                // no-op, not a failure. Do not retry.
+                logger.info(`[BAY callback] Duplicate COMPLETED callback for ref=${refCode} — already processed, skipping.`);
+            } else {
+                logger.error(
+                    `[BAY callback] confirmTopup failed for ref=${refCode} txnNo=${body.transactionNo ?? "-"} amount=${body.amount} confirmerId=${confirmerId}`,
+                    e,
+                );
+                // Do NOT swallow: the card was charged but the wallet credit
+                // failed. Rethrow so the controller returns 5xx and the
+                // gateway retries the webhook instead of treating this as
+                // delivered.
+                throw e;
             }
         }
     } else if (body.status === "FAILED") {
@@ -539,8 +801,14 @@ export async function confirmTopup(args: {
             throw err;
         }
         if (intent.status !== "pending") {
+            // Idempotency guard: row is locked FOR UPDATE above, so under
+            // concurrent/duplicate webhook or gateway-inquiry callers, only
+            // the first transaction observes status='pending' and credits
+            // the wallet — every later one lands here and no-ops instead of
+            // double-crediting.
             const err = new Error(`Intent already ${intent.status}`);
-            (err as { status?: number }).status = 400;
+            (err as { status?: number; code?: string }).status = 400;
+            (err as { status?: number; code?: string }).code = "ALREADY_PROCESSED";
             throw err;
         }
         const wRows = await sqlTx<Array<{ id: number; balance: string }>>`

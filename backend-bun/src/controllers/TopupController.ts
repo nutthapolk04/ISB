@@ -9,6 +9,7 @@ import {
 	confirmTopup,
 	userCanAccessWallet,
 	inquireTopupFromGateway,
+	reconcilePendingTopups,
 } from "@/services/topup_service";
 import {
 	cashierTopup,
@@ -329,6 +330,38 @@ export const TopupController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	/**
+	 * Damage-control net for the created_by=null hotfix: scans pending
+	 * top-up intents older than a threshold, inquires BAY directly, and
+	 * credits anything the gateway confirms COMPLETED. dry_run defaults to
+	 * TRUE so the first call is a damage assessment, not a mutation.
+	 */
+	reconcile: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (TP-10)] TopupController.reconcile() called.`);
+		if (!hasRole(user.roles, "admin")) {
+			logger.warn(`[${reqContext.requestId} (TP-10)] TopupController.reconcile() forbidden.`);
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			logger.info(`[${reqContext.requestId} (TP-10)] TopupController.reconcile() calling reconcilePendingTopups().`);
+			const result = await reconcilePendingTopups({
+				olderThanMinutes: body?.older_than_minutes ?? undefined,
+				limit: body?.limit ?? undefined,
+				dryRun: body?.dry_run ?? true,
+			});
+			logger.info(
+				`[${reqContext.requestId} (TP-10)] TopupController.reconcile() completed. ` +
+				`dryRun=${result.dry_run} scanned=${result.scanned} credited=${result.credited.length} failed=${result.failed.length} skipped=${result.skipped.length}`,
+			);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (TP-10)] TopupController.reconcile() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
