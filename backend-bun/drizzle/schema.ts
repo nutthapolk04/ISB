@@ -79,6 +79,11 @@ export const familyProfiles = pgTable("family_profiles", {
 	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	// False once family_sweep_service's staleness sweep decides ISB has
+	// stopped reporting this family_code at all (see that file for why a
+	// per-batch-call check isn't safe). Reactivated automatically the next
+	// time upsertFamilyProfile() sees this family_code again.
+	isActive: boolean("is_active").default(true).notNull(),
 });
 
 export const roles = pgTable("roles", {
@@ -189,6 +194,10 @@ export const userLoginEmails = pgTable("user_login_emails", {
 	userId: integer("user_id").notNull(),
 	email: varchar({ length: 255 }).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// Which sync channel registered this row ("staff" | "family") — NULL for
+	// rows that pre-date this column. See ensure_schema.ts for why this needs
+	// to stay scoped per-channel.
+	source: varchar({ length: 20 }),
 }, (table) => [
 	uniqueIndex("ix_user_login_emails_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
 	index("ix_user_login_emails_user_id").using("btree", table.userId.asc().nullsLast().op("int4_ops")),
@@ -238,6 +247,11 @@ export const departments = pgTable("departments", {
 	isActive: boolean("is_active").notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	// Touched ONLY by processDepartmentBatch (ISB sync) — admin's own
+	// updateDepartment() never sets this, so department_sweep_service.ts can
+	// tell "ISB stopped reporting this department" apart from "an admin just
+	// edited its name/active flag by hand".
+	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	uniqueIndex("ix_departments_department_code").using("btree", table.departmentCode.asc().nullsLast().op("text_ops")),
 	index("ix_departments_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),

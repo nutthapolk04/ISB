@@ -17,6 +17,7 @@ import {
     XCircle,
     Info,
     Search,
+    Bug,
 } from 'lucide-vue-next';
 import { useKioskStore } from '../stores/kioskStore';
 import { realApi } from '../api/realApi';
@@ -30,9 +31,11 @@ import {
     type KioskLogEntry,
     type KioskLogLevel,
 } from '../lib/kioskLog';
+import { useKioskDebugMode } from '../lib/debugMode';
 
 const router = useRouter();
 const store = useKioskStore();
+const debugMode = useKioskDebugMode();
 
 const unlocked = ref(false);
 const password = ref('');
@@ -109,6 +112,10 @@ const t = computed(() => ({
         warnings: 'Warnings',
         errors: 'Errors',
         day: 'Day',
+        debugMode: 'Debug mode',
+        debugModeHint: 'Lower top-up minimum to ฿1 for QR testing. Stored on this device only.',
+        debugOn: 'On',
+        debugOff: 'Off',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -143,6 +150,10 @@ const t = computed(() => ({
         warnings: 'คำเตือน',
         errors: 'ข้อผิดพลาด',
         day: 'วันที่',
+        debugMode: 'โหมดดีบัก',
+        debugModeHint: 'ลดยอดเติมขั้นต่ำเหลือ 1 บาท สำหรับทดสอบ QR — เก็บในเครื่องนี้เท่านั้น',
+        debugOn: 'เปิด',
+        debugOff: 'ปิด',
     },
 }[store.language]));
 
@@ -242,6 +253,14 @@ async function copyLogs() {
 
 function goBack() {
     router.push('/');
+}
+
+function toggleDebugMode() {
+    const next = !debugMode.value;
+    debugMode.value = next;
+    logKioskEvent('system', 'info', next ? 'Debug mode enabled' : 'Debug mode disabled', {
+        minTopup: next ? 1 : 100,
+    });
 }
 </script>
 
@@ -370,6 +389,31 @@ function goBack() {
                             <CheckCircle2 :size="14" />
                             {{ saveMessage }}
                         </p>
+                    </div>
+
+                    <div class="debug-block">
+                        <div class="debug-row">
+                            <div class="debug-copy">
+                                <div class="field-label with-icon debug-label">
+                                    <Bug :size="14" />
+                                    {{ t.debugMode }}
+                                    <span class="debug-state" :class="debugMode ? 'is-on' : 'is-off'">
+                                        {{ debugMode ? t.debugOn : t.debugOff }}
+                                    </span>
+                                </div>
+                                <p class="debug-hint">{{ t.debugModeHint }}</p>
+                            </div>
+                            <button
+                                class="debug-switch"
+                                type="button"
+                                role="switch"
+                                :aria-checked="debugMode"
+                                :class="{ 'is-on': debugMode }"
+                                @click="toggleDebugMode"
+                            >
+                                <span class="debug-knob" />
+                            </button>
+                        </div>
                     </div>
 
                     <p class="retention-line">
@@ -918,6 +962,94 @@ function goBack() {
     font-size: 0.75rem;
     font-weight: 600;
     color: #059669;
+}
+
+.debug-block {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.debug-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.debug-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.debug-label {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+}
+
+.debug-state {
+    margin-left: 0.375rem;
+    border-radius: 9999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.debug-state.is-on {
+    background: #ecfdf5;
+    color: #047857;
+    box-shadow: inset 0 0 0 1px #a7f3d0;
+}
+
+.debug-state.is-off {
+    background: #f1f5f9;
+    color: #64748b;
+    box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+
+.debug-hint {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #64748b;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+}
+
+.debug-switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 3rem;
+    height: 1.75rem;
+    border: none;
+    border-radius: 9999px;
+    background: #cbd5e1;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.debug-switch.is-on {
+    background: #059669;
+}
+
+.debug-knob {
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+    transition: transform 0.2s;
+}
+
+.debug-switch.is-on .debug-knob {
+    transform: translateX(1.25rem);
 }
 
 .retention-line {

@@ -8,6 +8,7 @@ import { config, APP_VERSION } from "@/lib/config";
 import { rateLimitMiddleware } from "@/middleware/RateLimitMiddleware";
 import { logError, logger, logging } from "@/logger";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
+import { startIsbSyncSweepScheduler } from "@/services/isb_sync_sweep_scheduler";
 import { startTopupReconcileScheduler } from "@/services/topup_reconcile_scheduler";
 import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_response";
 import { version } from "../package.json";
@@ -68,6 +69,7 @@ export async function initializeServices() {
         await connectDB();
         startLowBalanceScheduler();
         startTopupReconcileScheduler();
+        startIsbSyncSweepScheduler();
         logger.info(
             `✅ Ready on port ${config.port} (env=${config.nodeEnv}, version=${APP_VERSION})`,
         );

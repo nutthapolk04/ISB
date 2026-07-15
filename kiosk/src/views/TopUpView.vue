@@ -7,6 +7,7 @@ import { realApi } from '../api/realApi';
 import { useBillAcceptor } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
 import { logKioskEvent } from '../lib/kioskLog';
+import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import QRCode from 'qrcode';
 
@@ -31,7 +32,7 @@ const t = {
         enterAmount: 'Select top-up amount',
         maxAmount: 'Max 50,000 Baht per transaction',
         maxTopupHint: 'Top up up to {n} Baht',
-        limitReachedHint: 'Remaining limit is below the 100 Baht minimum',
+        limitReachedHint: 'Remaining limit is below the {n} Baht minimum',
         overpayCapExceeded: 'Accepting would exceed the 50,000 Baht limit',
         confirm: 'Confirm',
         clear: 'C',
@@ -50,7 +51,7 @@ const t = {
         failServerCode: 'Service Unavailable',
         retry: 'Try Again',
         close: 'Close',
-        minAmount: 'Minimum top-up: 100 Baht',
+        minAmount: 'Minimum top-up: {n} Baht',
         timeRemaining: 'Time remaining',
         qrExpired: 'QR Code has expired',
         qrExpiredSub: 'Please try again to generate a new QR code.',
@@ -104,7 +105,7 @@ const t = {
         enterAmount: 'เลือกจำนวนเงินที่ต้องการเติม',
         maxAmount: 'เติมได้สูงสุด 50,000 บาท / ครั้ง',
         maxTopupHint: 'เติมได้สูงสุด {n} บาท',
-        limitReachedHint: 'วงเงินคงเหลือต่ำกว่าขั้นต่ำ 100 บาท',
+        limitReachedHint: 'วงเงินคงเหลือต่ำกว่าขั้นต่ำ {n} บาท',
         overpayCapExceeded: 'หากรับจะเกินวงเงิน 50,000 บาท',
         confirm: 'ยืนยัน',
         clear: 'C',
@@ -123,7 +124,7 @@ const t = {
         failServerCode: '503 Service Unavailable',
         retry: 'ลองอีกครั้ง',
         close: 'ปิด',
-        minAmount: 'เติมเงินขั้นต่ำ 100 บาท',
+        minAmount: 'เติมเงินขั้นต่ำ {n} บาท',
         timeRemaining: 'เวลาที่เหลือ',
         qrExpired: 'QR Code หมดอายุ',
         qrExpiredSub: 'กรุณาทำรายการใหม่อีกครั้ง',
@@ -187,8 +188,13 @@ const showCashCancelConfirm = ref(false);
 let pollInterval: number | null = null;
 
 const MAX_AMOUNT = 50000;
-const MIN_AMOUNT = 100;
-const SHORTCUTS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+const BASE_SHORTCUTS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+
+/** Reactive — follows technician debug toggle (localStorage). */
+const minAmount = computed(() => getMinTopupAmount());
+const shortcuts = computed(() =>
+    isKioskDebugMode() ? [1, ...BASE_SHORTCUTS] : BASE_SHORTCUTS,
+);
 
 const amountNumber = computed(() => {
     const n = parseFloat(enteredAmount.value);
@@ -196,7 +202,7 @@ const amountNumber = computed(() => {
 });
 
 const isAmountValid = computed(() => {
-    return amountNumber.value >= MIN_AMOUNT && amountNumber.value <= effectiveMax.value;
+    return amountNumber.value >= minAmount.value && amountNumber.value <= effectiveMax.value;
 });
 
 const formattedAmount = computed(() => {
@@ -567,7 +573,9 @@ const currT = computed(() => t[store.language as 'EN' | 'TH']);
 // Amount-screen hint: shows the remaining allowance, or a warning if it's below the minimum.
 const maxHintText = computed(() => {
     const tt = currT.value;
-    if (effectiveMax.value < MIN_AMOUNT) return tt.limitReachedHint;
+    if (effectiveMax.value < minAmount.value) {
+        return tt.limitReachedHint.replace('{n}', minAmount.value.toLocaleString());
+    }
     return tt.maxTopupHint.replace('{n}', effectiveMax.value.toLocaleString());
 });
 
@@ -637,7 +645,7 @@ const overpayExceedsCap = computed(() => {
             </div>
 
             <div class="shortcut-grid">
-                <button v-for="s in SHORTCUTS" :key="s" type="button" class="shortcut-btn"
+                <button v-for="s in shortcuts" :key="s" type="button" class="shortcut-btn"
                     :class="{ active: amountNumber === s }" :disabled="s > effectiveMax" @click="selectShortcut(s)">
                     ฿{{ s.toLocaleString() }}
                 </button>

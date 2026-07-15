@@ -74,6 +74,9 @@ export interface FamilyBatchCtx {
     familyProfiles?: Map<string, typeof familyProfiles.$inferSelect>;
     usersByExtId?: Map<string, typeof users.$inferSelect>;
     usersByEmail?: Map<string, typeof users.$inferSelect>;
+    /** Keyed by user_login_emails.email — catches a match whose users.email
+     * column is a synthetic placeholder (see upsertParent/upsertStaffParentRef). */
+    usersByLoginEmail?: Map<string, typeof users.$inferSelect>;
     customersByExtId?: Map<string, typeof customers.$inferSelect>;
     customersByStudentCode?: Map<string, typeof customers.$inferSelect>;
     studentLoginUsersByUsername?: Map<string, { id: number }>;
@@ -245,9 +248,31 @@ export interface StaffPayload {
  * auth_service's SSO lookup can resolve any of them to this same user/wallet.
  * "Last write wins" on conflict — matches the ISB vendor sync's own
  * documented upsert semantics (an email can move to a different person).
+ *
+ * `source` identifies which sync channel is calling — "staff" for
+ * upsertStaff (/sync/staffs), "family" for upsertParent/upsertStaffParentRef
+ * (/sync/families). A staff+parent person is synced through BOTH channels
+ * independently, each only ever reporting its own half of that person's
+ * logins, so this round's list is authoritative *only within its own
+ * source* — anything previously registered under the SAME source that isn't
+ * in this round's list gets dropped (per 2026-07 review: an empty list is
+ * also authoritative — "no logins this round" from that channel means wipe
+ * that channel's emails, not "no update"). Rows from the OTHER source, or
+ * legacy rows with source=NULL (pre-dates this column), are left untouched
+ * — otherwise the two channels would alternately wipe each other's emails
+ * out every time only one of them runs.
  */
-async function syncLoginEmails(userId: number, emails: (string | undefined | null)[]): Promise<void> {
+async function syncLoginEmails(
+    userId: number,
+    emails: (string | undefined | null)[],
+    source: "staff" | "family",
+): Promise<void> {
     const cleaned = [...new Set(emails.map((e) => (e ?? "").trim().toLowerCase()).filter(Boolean))];
+    await db.delete(userLoginEmails).where(
+        cleaned.length > 0
+            ? and(eq(userLoginEmails.userId, userId), eq(userLoginEmails.source, source), notInArray(userLoginEmails.email, cleaned))
+            : and(eq(userLoginEmails.userId, userId), eq(userLoginEmails.source, source)),
+    );
     if (cleaned.length === 0) return;
     // Each email is a distinct conflict target (unique index on email) so
     // these upserts never contend with each other — safe to fire together
@@ -255,8 +280,8 @@ async function syncLoginEmails(userId: number, emails: (string | undefined | nul
     await Promise.all(
         cleaned.map((email) =>
             db.insert(userLoginEmails)
-                .values({ userId, email })
-                .onConflictDoUpdate({ target: userLoginEmails.email, set: { userId } }),
+                .values({ userId, email, source })
+                .onConflictDoUpdate({ target: userLoginEmails.email, set: { userId, source } }),
         ),
     );
 }
@@ -333,7 +358,7 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
         entityName: userRow.fullName, externalId: extId,
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
-    await syncLoginEmails(userRow.id, logins);
+    await syncLoginEmails(userRow.id, logins, "staff");
     return userRow;
 }
 
@@ -348,11 +373,25 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
     const username = email.split("@")[0].trim().toLowerCase();
 
     let existing: typeof users.$inferSelect | undefined;
-    if (ctx?.usersByExtId || ctx?.usersByEmail) {
-        existing = ctx.usersByExtId?.get(extId) ?? ctx.usersByEmail?.get(email);
+    if (ctx?.usersByExtId || ctx?.usersByEmail || ctx?.usersByLoginEmail) {
+        existing = ctx.usersByExtId?.get(extId) ?? ctx.usersByEmail?.get(email) ?? ctx.usersByLoginEmail?.get(email);
     } else {
         existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
         if (!existing) existing = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
+        // Falls back to user_login_emails — matches even when the row's own
+        // `users.email` is a synthetic placeholder (e.g. this same person was
+        // previously created via upsertStaffParentRef, whose email column is
+        // never the real one) but this address was already on file as a
+        // known SSO login from an earlier round.
+        if (!existing) {
+            const viaLogin = await db
+                .select({ user: users })
+                .from(userLoginEmails)
+                .innerJoin(users, eq(users.id, userLoginEmails.userId))
+                .where(eq(userLoginEmails.email, email))
+                .limit(1);
+            existing = viaLogin[0]?.user;
+        }
     }
 
     const created = !existing;
@@ -398,7 +437,7 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         entityName: userRow.fullName, externalId: extId,
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
-    await syncLoginEmails(userRow.id, logins.length > 0 ? logins : [email]);
+    await syncLoginEmails(userRow.id, logins.length > 0 ? logins : [email], "family");
     ctx?.usersByExtId?.set(extId, userRow);
     ctx?.usersByEmail?.set(email, userRow);
     return userRow;
@@ -406,15 +445,31 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
 
 export async function upsertStaffParentRef(payload: StaffPayload, familyCode: string, syncLogId: number, logins: string[] = [], ctx?: FamilyBatchCtx): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
-    let existing = ctx?.usersByExtId
-        ? ctx.usersByExtId.get(extId)
-        : (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
+    const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+    const loginEmail = logins[0]?.trim().toLowerCase();
+    let existing: typeof users.$inferSelect | undefined;
+    if (ctx?.usersByExtId || ctx?.usersByLoginEmail) {
+        existing = ctx?.usersByExtId?.get(extId) ?? (loginEmail ? ctx?.usersByLoginEmail?.get(loginEmail) : undefined);
+    } else {
+        existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
+        // Same fallback as upsertParent — reuses the same row across a
+        // Parent→Staff transition (external_id changed) as long as this
+        // person's login email was already known from a prior round.
+        if (!existing && loginEmail) {
+            const viaLogin = await db
+                .select({ user: users })
+                .from(userLoginEmails)
+                .innerJoin(users, eq(users.id, userLoginEmails.userId))
+                .where(eq(userLoginEmails.email, loginEmail))
+                .limit(1);
+            existing = viaLogin[0]?.user;
+        }
+    }
     const created = !existing;
     const before = snapshot(existing as unknown as Record<string, unknown> | null, USER_AUDIT_FIELDS);
 
     let userRow: typeof users.$inferSelect;
     if (created) {
-        const fullName = `${payload.firstName} ${payload.lastName}`.trim();
         const email = `${(payload.firstName ?? "staff").toLowerCase()}${extId}@isb.ac.th`;
         const hash = await takeHash(ctx?.hashPool);
         const [u] = await db.insert(users).values({
@@ -429,8 +484,21 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
         }).returning();
         userRow = u;
     } else {
+        // externalId/role/customerType must be set here too, not just
+        // familyCode — the user_login_emails fallback above can match a row
+        // that was last upserted as a plain Parent (e.g. a Parent→Staff
+        // transition where the customerId also changed), and without this
+        // the row would keep its old external_id and role="parent" forever
+        // despite ISB now reporting this person as Staff.
         const updates: Record<string, unknown> = {
-            familyCode,
+            externalId: extId, familyCode, fullName,
+            role: "staff", customerType: "Staff",
+            // Reactivate — being listed as this family's Staff-type parent
+            // is itself proof of life for staff_sweep_service.ts's purposes
+            // (see that file's shared-lastSyncedAt reasoning), so a prior
+            // staff-sweep deactivation must be reversed here too, not just
+            // by a plain /sync/staffs touch.
+            isActive: true,
             lastSyncedAt: new Date().toISOString(),
         };
         if (payload.smartCard?.cardNumber) updates.cardUid = payload.smartCard.cardNumber;
@@ -444,7 +512,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
         entityName: userRow.fullName, externalId: extId,
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
-    await syncLoginEmails(userRow.id, logins);
+    await syncLoginEmails(userRow.id, logins, "family");
     ctx?.usersByExtId?.set(extId, userRow);
     return userRow;
 }
@@ -557,6 +625,10 @@ export async function upsertFamilyProfile(familyCode: string, notificationEmails
         await db.update(familyProfiles).set({
             notificationEmails, loginIds,
             lastSyncedAt: new Date().toISOString(),
+            // Reactivate — ISB reporting this family_code again after the
+            // staleness sweep (family_sweep_service.ts) deactivated it means
+            // it's back, per "รอบหน้ามีก็กลับมา active เหมือนเดิม".
+            isActive: true,
         }).where(eq(familyProfiles.familyCode, familyCode));
     } else {
         await db.insert(familyProfiles).values({
@@ -656,8 +728,14 @@ async function clearFamilyCodeForOrphanedParents(candidateParentIds: number[]): 
  * external id is swapped out (e.g. a customerId correction — the new kid
  * replaces the old one in the payload), the old student's row is never in
  * `currentStudentCustomerIds`. Drop its sync-owned (main/secondary) parent
- * links and, once it has zero links left, clear customers.family_code —
- * same orphan semantics as the parent side (wallet/customer preserved).
+ * links and, once it has zero links left, clear customers.family_code AND
+ * deactivate (is_active=false) — per 2026-07 review, a student dropped from
+ * every family roster shouldn't keep spending at POS while orphaned. This
+ * runs before reconcileFamilyMembership() in processFamilyBatch, so it must
+ * set is_active itself — by the time reconcileFamilyMembership looks, the
+ * family_code is already cleared and its own (redundant) student branch
+ * finds nothing left to act on. upsertStudent() re-activates them
+ * automatically if ISB ever brings them back into a family's roster.
  */
 export async function reconcileFamilyStudents(
     familyCode: string,
@@ -685,7 +763,7 @@ export async function reconcileFamilyStudents(
     const stillLinked = new Set(stillLinkedRows.map((r) => r.childCustomerId));
     const trulyOrphaned = staleIds.filter((id) => !stillLinked.has(id));
     if (trulyOrphaned.length > 0) {
-        await db.update(customers).set({ familyCode: null }).where(inArray(customers.id, trulyOrphaned));
+        await db.update(customers).set({ familyCode: null, isActive: false }).where(inArray(customers.id, trulyOrphaned));
     }
 }
 

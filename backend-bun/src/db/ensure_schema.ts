@@ -192,6 +192,32 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
       ON CONFLICT (email) DO NOTHING`,
         label: "backfill user_login_emails from users.email",
     },
+    // ── user_login_emails.source: a staff+parent person is synced through
+    // TWO independent channels (/sync/staffs and /sync/families), each only
+    // knowing its own half of that person's login emails. Reconciling stale
+    // emails (dropping ones no longer sent) must stay scoped to whichever
+    // channel wrote them, or the two channels wipe each other's emails out
+    // on alternating runs. NULL = pre-dates this column (legacy backfill
+    // above) — left alone by both channels' reconcile.
+    {
+        sql: `ALTER TABLE user_login_emails ADD COLUMN IF NOT EXISTS source VARCHAR(20)`,
+        label: "user_login_emails.source",
+    },
+    // ── family_profiles.is_active: ISB's vendor sync never signals "this is
+    // the last batch of the run" (batches are independent, arbitrary order),
+    // so a family missing from any one HTTP call can't safely be treated as
+    // "gone" — see family_sweep_service.ts for the staleness-sweep approach
+    // this backs instead.
+    {
+        sql: `ALTER TABLE family_profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true`,
+        label: "family_profiles.is_active",
+    },
+    // ── departments.last_synced_at: same reasoning as family_profiles above,
+    // extended to the department sync channel — see department_sweep_service.ts.
+    {
+        sql: `ALTER TABLE departments ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`,
+        label: "departments.last_synced_at",
+    },
     // ── Vendor wallet-adjust-balance API idempotency (POST /api/v1/wallet/adjust-balance) ──
     {
         sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_wallet_tx_vendor_idempotency

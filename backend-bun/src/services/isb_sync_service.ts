@@ -12,7 +12,7 @@
 
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { customers, departments, familyProfiles, parentChildLinks, syncLogs, users } from "@/db/schema";
+import { customers, departments, familyProfiles, parentChildLinks, syncLogs, userLoginEmails, users } from "@/db/schema";
 import { logger } from "@/logger";
 import {
     getInternalTypeId,
@@ -205,6 +205,9 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
     const parentEmails = new Set<string>();
     const staffParentExtIds = new Set<string>();
     const studentExtIds = new Set<string>();
+    // Every parent/staff-parent's reported login[0] — covers the
+    // user_login_emails fallback match (catches a synthetic users.email).
+    const loginEmailCandidates = new Set<string>();
 
     for (const fam of families) {
         familyCodes.add(String(fam.familyCode));
@@ -213,9 +216,12 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
             const extId = String(parent.customerId);
             if (parent.customerType === "Staff") {
                 staffParentExtIds.add(extId);
+                if (parent.login[0]) loginEmailCandidates.add(parent.login[0].trim().toLowerCase());
             } else {
                 parentExtIds.add(extId);
-                parentEmails.add((parent.login[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase());
+                const email = (parent.login[0] ?? `${extId}@parents.isb.ac.th`).trim().toLowerCase();
+                parentEmails.add(email);
+                loginEmailCandidates.add(email);
             }
         }
         for (const st of fam.students) {
@@ -230,6 +236,7 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
         staffParentUsersByExtId,
         studentsByExtId,
         studentsByCode,
+        loginEmailRows,
     ] = await Promise.all([
         familyCodes.size ? db.select().from(familyProfiles).where(inArray(familyProfiles.familyCode, [...familyCodes])) : Promise.resolve([]),
         parentExtIds.size ? db.select().from(users).where(inArray(users.externalId, [...parentExtIds])) : Promise.resolve([]),
@@ -237,6 +244,12 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
         staffParentExtIds.size ? db.select().from(users).where(inArray(users.externalId, [...staffParentExtIds])) : Promise.resolve([]),
         studentExtIds.size ? db.select().from(customers).where(inArray(customers.externalId, [...studentExtIds])) : Promise.resolve([]),
         studentExtIds.size ? db.select().from(customers).where(inArray(customers.studentCode, [...studentExtIds])) : Promise.resolve([]),
+        loginEmailCandidates.size
+            ? db.select({ email: userLoginEmails.email, user: users })
+                .from(userLoginEmails)
+                .innerJoin(users, eq(users.id, userLoginEmails.userId))
+                .where(inArray(userLoginEmails.email, [...loginEmailCandidates]))
+            : Promise.resolve([]),
     ]);
     const studentLoginUsers = studentExtIds.size
         ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.username, [...studentExtIds]))
@@ -246,6 +259,7 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
     for (const r of parentUsersByExtId) if (r.externalId) usersByExtId.set(r.externalId, r);
     for (const r of staffParentUsersByExtId) if (r.externalId) usersByExtId.set(r.externalId, r);
     const usersByEmail = new Map(parentUsersByEmail.map((r) => [r.email, r] as const));
+    const usersByLoginEmail = new Map(loginEmailRows.map((r) => [r.email, r.user] as const));
     const customersByExtId = new Map<string, typeof customers.$inferSelect>();
     for (const r of studentsByExtId) if (r.externalId) customersByExtId.set(r.externalId, r);
     const customersByStudentCode = new Map<string, typeof customers.$inferSelect>();
@@ -290,6 +304,7 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
         familyProfiles: new Map(familyProfileRows.map((r) => [r.familyCode, r] as const)),
         usersByExtId,
         usersByEmail,
+        usersByLoginEmail,
         customersByExtId,
         customersByStudentCode,
         studentLoginUsersByUsername,
@@ -449,6 +464,11 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
                 await db.update(departments).set({
                     departmentName: d.departmentDescription,
                     updatedAt: new Date().toISOString(),
+                    lastSyncedAt: new Date().toISOString(),
+                    // Reactivate — ISB reporting this department again after
+                    // department_sweep_service.ts deactivated it means it's
+                    // back (mirrors upsertFamilyProfile's own reactivation).
+                    isActive: true,
                 }).where(eq(departments.departmentCode, code));
             } else {
                 await db.insert(departments).values({
@@ -457,6 +477,7 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
                     annualBudget: "0",
                     currentYear,
                     isActive: true,
+                    lastSyncedAt: new Date().toISOString(),
                 });
             }
             success++;
