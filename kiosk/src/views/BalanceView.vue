@@ -71,6 +71,9 @@ const goToTopup = () => {
     router.push('/topup');
 };
 
+// Feature flag — set true to re-enable family transfer on the balance menu.
+const TRANSFER_ENABLED = false;
+
 // Transfer is only offered to whoever has at least one linked child wallet
 // or co-parent wallet to send money to — mirrors the parent-portal Transfer
 // page, which hides itself when there's nothing to transfer to. Not gated on
@@ -78,6 +81,7 @@ const goToTopup = () => {
 // have child wallets too, and the backend enforces the real family-link
 // check either way.
 const canTransfer = computed(() => {
+    if (!TRANSFER_ENABLED) return false;
     return (store.currentUser?.wallets ?? []).some(w => w.type === 'child' || w.type === 'coparent');
 });
 

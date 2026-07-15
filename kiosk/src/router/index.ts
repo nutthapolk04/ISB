@@ -4,7 +4,9 @@ import TechnicianView from '../views/TechnicianView.vue';
 import BalanceView from '../views/BalanceView.vue';
 import TransactionHistoryView from '../views/TransactionHistoryView.vue';
 import TopUpView from '../views/TopUpView.vue';
-import TransferView from '../views/TransferView.vue';
+// TransferView kept (feature disabled) — flip TRANSFER_ENABLED in BalanceView
+// and restore this route when re-enabling family transfer.
+// import TransferView from '../views/TransferView.vue';
 
 const routes = [
     {
@@ -37,9 +39,10 @@ const routes = [
         component: TopUpView
     },
     {
+        // Disabled for now — TransferView.vue remains in the repo.
         path: '/transfer',
         name: 'transfer',
-        component: TransferView
+        redirect: '/balance',
     },
     // Catch all - redirect to welcome
     {
