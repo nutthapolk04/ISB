@@ -55,6 +55,9 @@ export function EdcPaymentModal({
   const [declineInfo, setDeclineInfo] = useState<DeclineInfo | null>(null);
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [qrShown, setQrShown] = useState(false);
+  const [terminalStatus, setTerminalStatus] = useState<"connected" | "disconnected" | "unknown">(
+    "unknown",
+  );
 
   // Guards against setState after the modal is closed/unmounted mid-transaction —
   // any in-flight attempt bumps this ref to invalidate itself before touching state.
@@ -81,6 +84,35 @@ export function EdcPaymentModal({
       attemptRef.current += 1;
     };
   }, []);
+
+  // Live terminal status while the modal is open: eagerly connect the bridge
+  // (readyEdc is cached/shared) and mirror the /status stream into a pill.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setTerminalStatus("unknown");
+
+    const edc = getEdcClient();
+    // Subscribe before ready() so the first /status message is never missed.
+    const unsubscribe = edc.onTerminalStatus((s) => {
+      if (!active) return;
+      setTerminalStatus(s.state === "connected" ? "connected" : "disconnected");
+    });
+
+    readyEdc()
+      .then(() => {
+        if (!active) return;
+        setTerminalStatus(edc.terminalConnected ? "connected" : "disconnected");
+      })
+      .catch(() => {
+        if (active) setTerminalStatus("disconnected");
+      });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [open]);
 
   const resetAttemptState = () => {
     setDeclineInfo(null);
@@ -233,6 +265,22 @@ export function EdcPaymentModal({
             <span className="text-violet-600 tabular-nums">฿{total.toFixed(2)}</span>
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
+          <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                terminalStatus === "connected"
+                  ? "bg-emerald-500"
+                  : terminalStatus === "disconnected"
+                    ? "bg-red-500"
+                    : "bg-muted-foreground/40 animate-pulse"
+              }`}
+            />
+            {terminalStatus === "connected"
+              ? t("storePos.edcTerminalConnected", "EDC connected")
+              : terminalStatus === "disconnected"
+                ? t("storePos.edcTerminalDisconnected", "EDC not connected")
+                : t("storePos.edcTerminalConnecting", "Connecting to EDC…")}
+          </div>
         </DialogHeader>
 
         {step === "choice" && (
