@@ -1,0 +1,13 @@
+{
+  "name": "paywire-mock-bridge",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Tiny local mock of the Paywire bridge HTTP/WS API for @paywire/sdk-js (no .NET, no EDC hardware).",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}

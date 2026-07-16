@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISB POS — EDC Payment Integration Guide (Paywire)</title>
+<style>
+  :root {
+    --accent: #7c3aed;
+    --accent-light: #f3e8ff;
+    --text: #1f2430;
+    --text-muted: #5b6472;
+    --border: #e4e2ea;
+    --code-bg: #f5f4f8;
+    --bg: #ffffff;
+    --pill-green: #16a34a;
+    --pill-red: #dc2626;
+    --pill-gray: #6b7280;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    font-family: "Sukhumvit Set", "Noto Sans Thai", "IBM Plex Sans Thai", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header.doc-header {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  header.doc-header .kicker {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 30px;
+    line-height: 1.35;
+    margin: 0 0 8px;
+    color: var(--text);
+    font-weight: 800;
+  }
+
+  header.doc-header p.subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 48px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    flex: 0 0 auto;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 28px 0 10px;
+    color: var(--accent);
+  }
+
+  p { margin: 0 0 14px; }
+
+  ul, ol {
+    margin: 0 0 16px;
+    padding-left: 22px;
+  }
+
+  li { margin-bottom: 8px; }
+
+  a { color: var(--accent); }
+
+  strong { color: var(--text); }
+
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.88em;
+    color: #4c1d95;
+  }
+
+  pre {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 18px;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  .note, .warn {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 0 0 18px;
+    font-size: 14.5px;
+    border: 1px solid var(--border);
+  }
+
+  .note {
+    background: var(--accent-light);
+    border-color: #ddd0fb;
+  }
+
+  .warn {
+    background: #fff7ed;
+    border-color: #fed7aa;
+  }
+
+  .diagram {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0 24px;
+    padding: 20px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .diagram .box {
+    flex: 1 1 160px;
+    min-width: 150px;
+    background: #fff;
+    border: 1.5px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .diagram .box small {
+    display: block;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  .diagram .arrow {
+    flex: 0 0 auto;
+    color: var(--accent);
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 0 0 20px;
+  }
+
+  @media (max-width: 620px) {
+    .cards { grid-template-columns: 1fr; }
+    .diagram { flex-direction: column; }
+    .diagram .arrow { transform: rotate(90deg); }
+  }
+
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  .card h4 {
+    margin: 0 0 8px;
+    font-size: 14.5px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .card p { margin: 0; font-size: 14px; color: var(--text-muted); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .pill.green { background: var(--pill-green); }
+  .pill.red { background: var(--pill-red); }
+  .pill.gray { background: var(--pill-gray); }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+    margin: 0 0 20px;
+  }
+
+  .steps > li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 42px;
+    margin-bottom: 22px;
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .steps > li > .step-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 20px;
+    font-size: 14px;
+  }
+
+  caption {
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  thead th {
+    background: var(--accent);
+    color: #fff;
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+
+  thead th:first-child { border-top-left-radius: 6px; }
+  thead th:last-child { border-top-right-radius: 6px; }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: #faf9fc; }
+
+  tbody td:first-child {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 12.8px;
+    color: #4c1d95;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .toc {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 0 8px;
+    background: #fbfaff;
+  }
+
+  .toc .toc-title {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
+
+  .toc li { margin-bottom: 4px; }
+
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer.doc-footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  hr.sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-header">
+    <span class="kicker">ISB POS · Internal Doc</span>
+    <h1>ISB POS — EDC Payment Integration Guide (Paywire)</h1>
+    <p class="subtitle">คู่มืออธิบายการเชื่อมต่อระบบชำระเงินผ่านเครื่องรูดบัตร (EDC) ด้วย Paywire bridge สำหรับทีมพัฒนา ISB POS</p>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-title">สารบัญ</div>
+    <ol>
+      <li><a href="#sec1">ภาพรวมสถาปัตยกรรม</a></li>
+      <li><a href="#sec2">การเชื่อมต่อทำงานยังไง</a></li>
+      <li><a href="#sec3">สิ่งที่ทำไปเมื่อ 2026-07-16</a></li>
+      <li><a href="#sec4">วิธีรัน/ทดสอบบนเครื่อง dev</a></li>
+      <li><a href="#sec5">การใช้งานบน POS จริง (Windows)</a></li>
+      <li><a href="#sec6">อภิธานศัพท์</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ SECTION 1 ============ -->
+  <h2 id="sec1"><span class="num">1</span>ภาพรวมสถาปัตยกรรม</h2>
+
+  <p>
+    ระบบชำระเงินผ่าน EDC (card terminal) ของ ISB POS เชื่อมต่อผ่านห่วงโซ่ 4 ชั้น
+    เริ่มจากหน้าเว็บ POS ไปจนถึงตัวเครื่อง EDC จริงที่หน้าร้าน:
+  </p>
+
+  <div class="diagram">
+    <div class="box">หน้าเว็บ POS<br><small>React / Vite (frontend)</small></div>
+    <div class="arrow">→</div>
+    <div class="box">Vendored SDK client<br><small><code>frontend/src/lib/paywire/</code></small></div>
+    <div class="arrow">→</div>
+    <div class="box">Paywire bridge<br><small>HTTP + WebSocket<br><code>127.0.0.1:7331</code> หรือ<br><code>pos.local.bridge.schooney.tech:7331</code></small></div>
+    <div class="arrow">→</div>
+    <div class="box">เครื่อง EDC จริง<br><small>Verifone VTI / Newland LinkPOS</small></div>
+  </div>
+
+  <p>Bridge ที่อยู่ตรงกลางห่วงโซ่นี้มีอยู่ 2 แบบ ใช้แทนกันได้ตามสถานการณ์:</p>
+
+  <div class="cards">
+    <div class="card">
+      <h4>Bridge ตัวจริง — <code>paywire.exe</code></h4>
+      <p>
+        แอป .NET 8 รันเฉพาะบน Windows x64 เท่านั้น ทำงานเป็น tray app บนเครื่อง POS
+        พูดคุยกับเครื่อง EDC ด้วย protocol <code>linkpos-bay-v1.05</code> และ
+        <code>vti-bay-aycap-v10.4.14</code> ขึ้นอยู่กับยี่ห้อเครื่อง
+      </p>
+    </div>
+    <div class="card">
+      <h4>Bridge ตัวจำลอง — Mock bridge</h4>
+      <p>
+        Node server อยู่ที่ <code>docs/edc/sdk-js/mock-bridge/server.js</code> จำลอง
+        protocol ของ bridge จริงครบทุกจุด ใช้พัฒนาบน Mac ได้โดยไม่ต้องมีเครื่อง EDC
+        จริง โดยจำลองเป็นเครื่อง Newland N910 (LinkPOS) พร้อมจำลอง timing
+        ของเครื่องจริง และอนุมัติรายการด้วย <code>responseCode: "00"</code>
+        (ยกเว้นยอดลงท้าย 99 สตางค์ที่จำลองการปฏิเสธ — ดูหัวข้อ 4)
+      </p>
+    </div>
+  </div>
+
+  <div class="note">
+    หมายเหตุ: ทั้งสอง bridge เปิด API รูปแบบเดียวกันทุกประการ (HTTP endpoints +
+    WebSocket) ฝั่งหน้าเว็บ POS จึงไม่ต้องรู้เลยว่ากำลังคุยกับ bridge ตัวไหน —
+    สลับได้แค่เปลี่ยนค่า env ตัวเดียว (ดูหัวข้อ 2 และ 4)
+  </div>
+
+  <!-- ============ SECTION 2 ============ -->
+  <h2 id="sec2"><span class="num">2</span>การเชื่อมต่อทำงานยังไง</h2>
+
+  <h3>2.1 การเลือก scheme และ domain</h3>
+  <p>
+    <code>EdcClient</code> (ใน <code>frontend/src/lib/paywire/client.ts</code>)
+    เลือก scheme ในการเชื่อมต่อโดยดูจาก protocol ของหน้าเว็บเองอัตโนมัติ:
+  </p>
+  <ul>
+    <li>หน้าเว็บเปิดด้วย <code>http://</code> → ใช้ <code>http://</code> + <code>ws://</code> คุยกับ bridge</li>
+    <li>หน้าเว็บเปิดด้วย <code>https://</code> → ใช้ <code>https://</code> + <code>wss://</code> คุยกับ bridge</li>
+  </ul>
+  <p>
+    ส่วน domain ของ bridge มาจาก environment variable
+    <code>VITE_EDC_BRIDGE_DOMAIN</code> (ตั้งค่าใน <code>frontend/.env</code>)
+    ถ้าไม่ได้ตั้งค่าไว้ ระบบจะใช้ค่า default เป็น
+    <code>pos.local.bridge.schooney.tech</code> พอร์ต <code>7331</code>
+    เสมอ
+  </p>
+
+  <h3>2.2 ขั้นตอนการเตรียมพร้อม (ready)</h3>
+  <ol>
+    <li>เรียก <code>GET /whoami</code> ไปที่ bridge เพื่อขอข้อมูลตัวเอง จะได้ผลลัพธ์รูปแบบ:</li>
+  </ol>
+  <pre><code>{
+  bridgeId: string,
+  device: {
+    brand: string,
+    protocol: string,
+    connected: boolean,
+    capabilities: string[]
+  },
+  version: string
+}</code></pre>
+  <ol start="2">
+    <li>จากนั้นเปิด WebSocket ที่ <code>/status</code> ค้างไว้ตลอดเพื่อฟังสถานะเครื่อง EDC แบบ real-time</li>
+  </ol>
+
+  <h3>2.3 สถานะการเชื่อมต่อ (WebSocket /status)</h3>
+  <p>WS <code>/status</code> จะส่ง message รูปแบบ:</p>
+  <pre><code>{ kind: "edc", edc: { state: "connected" | "disconnected", port, firmware, ... } }</code></pre>
+  <p>
+    modal <code>EdcPaymentModal</code>
+    (<code>frontend/src/pages/store/EdcPaymentModal.tsx</code>) จะแปลงค่านี้เป็น
+    pill สถานะบน UI:
+  </p>
+  <p>
+    <span class="pill green">● EDC connected</span> &nbsp;
+    <span class="pill red">● EDC not connected</span> &nbsp;
+    <span class="pill gray">● กำลังเชื่อมต่อ (กะพริบ)</span>
+  </p>
+  <p>
+    ถ้า WebSocket หลุดการเชื่อมต่อ ระบบจะพยายาม reconnect เองอัตโนมัติทุก
+    <strong>3 วินาที</strong>
+  </p>
+
+  <h3>2.4 การชำระเงิน (sale / qrSale)</h3>
+  <p>เมื่อลูกค้าจะจ่ายเงิน modal จะเรียกเมธอดใดเมธอดหนึ่งของ SDK:</p>
+  <ul>
+    <li><code>edc.sale()</code> — สำหรับชำระด้วยบัตร (รูดบัตร/แตะบัตร)</li>
+    <li><code>edc.qrSale({ payment: "thaiqr" })</code> — สำหรับชำระด้วย Thai QR</li>
+  </ul>
+  <p>ขั้นตอนภายในของ SDK เมื่อเรียกเมธอดใดเมธอดหนึ่ง:</p>
+  <ol>
+    <li>เปิด WebSocket ที่ <code>/events?reqId=&lt;idempotencyKey&gt;</code> เพื่อรับ mid-transaction events ระหว่างทาง (เช่น event <code>qr-shown</code> ตอนที่เครื่อง EDC แสดง QR code บนหน้าจอ)</li>
+    <li>ยิง <code>POST /txn/sale</code> หรือ <code>POST /txn/qrsale</code> พร้อม header <code>Idempotency-Key</code></li>
+  </ol>
+  <p>
+    SDK จะ <strong>stream mid-transaction events แบบ live</strong> ระหว่างที่
+    POST ยังค้างรอผลอยู่ — modal จึงขึ้นข้อความอย่าง
+    "QR code is now shown on the terminal" ได้ทันทีที่ QR ขึ้นจอเครื่อง EDC จริง ๆ
+    ไม่ใช่มาแสดงย้อนหลังหลังจบรายการเหมือนเวอร์ชันก่อน
+  </p>
+  <p>Timeline ของรายการ QR โดยรวมจึงเป็นแบบนี้:</p>
+  <pre><code>กดปุ่ม QR CODE
+  → ยอดถูกส่งไปที่เครื่อง EDC ทันที
+  → QR ขึ้นบนจอเครื่อง (event "qr-shown" → modal ขึ้นข้อความแจ้ง)
+  → รอลูกค้าสแกน + ธนาคารตอบกลับ
+  → อนุมัติ (responseCode "00" + approval code)
+  → modal ขึ้น APPROVED แล้วบันทึกใบเสร็จอัตโนมัติ</code></pre>
+  <div class="warn">
+    <strong>ข้อควรระวัง:</strong> ผลสุดท้ายของรายการ (อนุมัติ/ปฏิเสธ) อยู่ใน
+    <strong>HTTP response body</strong> ของ <code>POST /txn/...</code>
+    เท่านั้น รูปแบบ <code>{ responseCode, approvalCode, fields }</code> —
+    <u>ไม่ใช่</u> ข้อมูลที่มาจาก WebSocket โดย <code>responseCode === "00"</code>
+    หมายถึงรายการได้รับการอนุมัติ
+  </div>
+  <p>
+    เมื่อเครื่อง EDC อนุมัติรายการ (<code>responseCode === "00"</code> และมี
+    approval code ตอบกลับมา) modal จะ <strong>auto-confirm ทันที</strong> —
+    เข้าสู่ step ใหม่ชื่อ <code>"approved"</code> แสดงกล่องสีเขียว
+    <strong>APPROVED</strong> พร้อม spinner "Recording receipt…" แล้ว
+    <strong>บันทึกใบเสร็จให้อัตโนมัติ</strong> โดยแคชเชียร์<u>ไม่ต้องกรอกข้อมูลใด ๆ
+    และไม่ต้องกดปุ่ม Confirm charge</u> อีกต่อไป
+  </p>
+  <p>
+    ฟอร์มกรอกข้อมูลด้วยมือ (manual entry form) ยังคงมีอยู่ แต่เป็นเพียง
+    <strong>fallback</strong> ใน 2 กรณีเท่านั้น:
+  </p>
+  <ol>
+    <li>เชื่อมต่อ bridge ไม่ได้ (bridge unreachable)</li>
+    <li>ได้ผลอนุมัติกลับมาแต่<strong>ไม่มี approval code</strong> แนบมาด้วย</li>
+  </ol>
+
+  <h3>2.5 หน่วยเงิน: บาท vs สตางค์</h3>
+  <p>
+    ระบบ ISB เก็บจำนวนเงินเป็น <strong>บาท (decimal)</strong> แต่ SDK ของ
+    Paywire ต้องการหน่วยเป็น <strong>สตางค์ (integer)</strong> — modal จึงต้อง
+    แปลงหน่วยก่อนส่งเสมอด้วยสูตร:
+  </p>
+  <pre><code>const satang = Math.round(total * 100);</code></pre>
+
+  <h3>2.6 จุดที่เรียกใช้ modal</h3>
+  <p>
+    หน้า canteen (<code>frontend/src/pages/Canteen.tsx</code>) เปิด
+    <code>PaymentMethodPicker</code> ให้ผู้ใช้เลือกวิธีชำระเงิน เมื่อเลือก EDC
+    ระบบจะเปิด <code>EdcPaymentModal</code> — หน้า Store ก็ใช้ modal ตัวเดียวกันนี้
+    ร่วมกัน ไม่มีการแยกโค้ด modal คนละชุด
+  </p>
+
+  <!-- ============ SECTION 3 ============ -->
+  <h2 id="sec3"><span class="num">3</span>สิ่งที่ทำไปเมื่อ 2026-07-16</h2>
+  <ul>
+    <li>
+      Vendor mock bridge จาก <code>~/Downloads/sdk-js/mock-bridge</code> เข้ามาไว้ใน
+      repo ที่ <code>docs/edc/sdk-js/mock-bridge/</code> (ประกอบด้วย
+      <code>server.js</code>, <code>package.json</code>, <code>package-lock.json</code>
+      โดยมี dependency เดียวคือ <code>ws</code>)
+    </li>
+    <li>
+      เพิ่ม <code>VITE_EDC_BRIDGE_DOMAIN=127.0.0.1</code> ใน
+      <code>frontend/.env</code> เพื่อให้ SDK ชี้ไปที่ mock bridge บนเครื่อง dev
+      (Mac) แทน domain จริง
+    </li>
+    <li>รีสตาร์ต Vite dev server (<strong>จำเป็น</strong> — Vite จะอ่านค่า env ตอน start เท่านั้น การแก้ <code>.env</code> ระหว่างรันอยู่จะไม่มีผล)</li>
+    <li>
+      ตรวจสอบผลแล้ว: <code>GET /whoami</code> ตอบกลับ <code>connected: true</code>,
+      WebSocket <code>/status</code> ส่ง <code>state: "connected"</code> ทันที →
+      pill ใน modal ขึ้นเป็นสีเขียว <span class="pill green">● EDC connected</span>
+    </li>
+    <li>
+      ปรับ mock bridge ให้จำลอง timing จริง และปรับ SDK ให้ stream events แบบ live
+      — ทดสอบ end-to-end แล้ว: <code>qr-shown</code> มาที่ +1.5s, อนุมัติที่
+      +10.1s, ยอด <code>฿10.99</code> ถูกปฏิเสธด้วย code 51 ตามที่ออกแบบ
+    </li>
+  </ul>
+
+  <!-- ============ SECTION 4 ============ -->
+  <h2 id="sec4"><span class="num">4</span>วิธีรัน/ทดสอบบนเครื่อง dev</h2>
+  <p>ขั้นตอนแนะนำสำหรับพัฒนาและทดสอบบนเครื่อง dev (เช่น Mac) โดยไม่ต้องมีฮาร์ดแวร์ EDC จริง:</p>
+
+  <ol class="steps">
+    <li>
+      <div class="step-title">รัน mock bridge</div>
+      <p>ครั้งแรกให้ <code>npm install</code> ในโฟลเดอร์นั้นก่อน แล้วค่อยรันเซิร์ฟเวอร์:</p>
+      <pre><code>cd docs/edc/sdk-js/mock-bridge
+npm install   # ครั้งแรกครั้งเดียว
+node server.js</code></pre>
+      <p>เมื่อรันสำเร็จ mock bridge จะฟังอยู่ที่ <code>http://127.0.0.1:7331</code></p>
+      <p>
+        Mock จำลอง timing ของเครื่องจริง (ปรับได้ผ่าน env):
+      </p>
+      <pre><code># default: qrsale อนุมัติที่ ~10s, sale (บัตร) ที่ ~5s
+MOCK_QR_DELAY_MS=10000 MOCK_SALE_DELAY_MS=5000 node server.js
+
+# อยากให้เร็วขึ้นตอน dev เช่น
+MOCK_QR_DELAY_MS=3000 node server.js</code></pre>
+      <p>
+        ระหว่างทำรายการ terminal ที่รัน mock จะ log เหตุการณ์เป็นขั้น ๆ ให้ดูตาม
+        (showing QR → waiting for scan + bank → approved/declined)
+      </p>
+    </li>
+    <li>
+      <div class="step-title">ตรวจ env ของ frontend</div>
+      <p>เช็คว่า <code>frontend/.env</code> มีบรรทัดนี้อยู่:</p>
+      <pre><code>VITE_EDC_BRIDGE_DOMAIN=127.0.0.1</code></pre>
+    </li>
+    <li>
+      <div class="step-title">รัน dev server ของ frontend</div>
+      <pre><code>cd frontend
+bun run dev</code></pre>
+      <p>ถ้าเพิ่งแก้ <code>.env</code> ต้อง<strong>รีสตาร์ต</strong> dev server ใหม่เสมอ</p>
+    </li>
+    <li>
+      <div class="step-title">ทดสอบบน UI</div>
+      <p>
+        เปิดหน้า canteen → กดชำระเงิน → เลือกวิธีชำระเป็น EDC → เช็คว่า pill
+        ขึ้นสีเขียว → กดปุ่ม <strong>QR CODE</strong> หรือ
+        <strong>CREDIT CARD</strong> → ยอดถูกส่งไปที่ mock bridge ทันที
+      </p>
+      <p>Timing ที่จะเห็นจริง (ค่า default):</p>
+      <ul>
+        <li><strong>QR CODE:</strong> ~1.5 วินาที modal ขึ้นข้อความ
+          "QR code is now shown on the terminal" (event <code>qr-shown</code>)
+          → รอจำลองลูกค้าสแกน + ธนาคารตอบ → อนุมัติที่ ~10 วินาที</li>
+        <li><strong>CREDIT CARD:</strong> อนุมัติที่ ~5 วินาที</li>
+      </ul>
+      <p>
+        เมื่ออนุมัติ modal จะขึ้น <strong>APPROVED</strong>
+        แล้วบันทึกใบเสร็จให้อัตโนมัติ (ไม่ต้องกรอกข้อมูล ไม่ต้องกด Confirm) →
+        เห็น <code>ReceiptSuccessModal</code> เป็นอันจบรายการ
+      </p>
+    </li>
+    <li>
+      <div class="step-title">ทดสอบกรณีปฏิเสธ (declined)</div>
+      <p>
+        ใช้ยอดที่<strong>ลงท้าย 99 สตางค์</strong> เช่น <code>฿10.99</code> —
+        mock จะจำลองธนาคารปฏิเสธด้วย code <code>51 INSUFFICIENT FUNDS</code>
+        ใช้ทดสอบหน้าจอ <strong>DECLINED</strong> และปุ่ม Try again ได้
+      </p>
+    </li>
+    <li>
+      <div class="step-title">ทดสอบด้วย curl (เสริม)</div>
+      <pre><code>curl http://127.0.0.1:7331/whoami</code></pre>
+    </li>
+  </ol>
+
+  <!-- ============ SECTION 5 ============ -->
+  <h2 id="sec5"><span class="num">5</span>การใช้งานบน POS จริง (Windows) — Production notes</h2>
+  <ul>
+    <li>
+      ลบหรือคอมเมนต์บรรทัด <code>VITE_EDC_BRIDGE_DOMAIN</code> ออกจาก
+      <code>.env</code> เพื่อกลับไปใช้ค่า default
+      <code>pos.local.bridge.schooney.tech</code>
+    </li>
+    <li>
+      ติดตั้ง <code>paywire.exe</code> (จากชุด <code>Paywire_1.0.0</code>) และ
+      EDC USB driver (<code>whql_Driver2020.zip</code>) บนเครื่อง POS ที่รัน
+      Windows
+    </li>
+    <li>
+      <code>paywire.exe</code> มี mock mode ในตัวเองด้วย สามารถรันแบบไม่มีฮาร์ดแวร์จริงได้:
+      <pre><code>paywire --mode=mock</code></pre>
+    </li>
+    <li>
+      หน้าเว็บที่เสิร์ฟผ่าน HTTPS จะคุยกับ bridge แบบ <code>https/wss</code> —
+      bridge ต้องมี certificate (wildcard cert) ติดตั้งไว้ และถ้าเว็บมี CSP
+      (Content-Security-Policy) ต้องเพิ่ม <code>connect-src</code> ให้ครอบคลุม
+      domain:7331 ของ bridge ด้วย
+    </li>
+    <li>
+      สามารถทดสอบจากเครื่อง POS จริงได้ผ่าน hosted test Web POS ที่:
+      <code>https://isb-pos.schooney.tech</code>
+    </li>
+  </ul>
+
+  <h3>งานที่ยังเหลือ (roadmap)</h3>
+  <p>ลำดับงานที่ยังต้องทำต่อ:</p>
+  <ol>
+    <li>
+      เพิ่มคอลัมน์ในฐานข้อมูล: <code>rrn</code>, <code>invoice_no</code>,
+      <code>payer_id</code>, <code>idempotency_key</code>,
+      <code>payment_selector</code>, <code>response_code</code>
+    </li>
+    <li>ทำ void gating (รายการ Thai QR / QR-card ห้าม void)</li>
+    <li>ทำ void/refund จริง (ของจริง ไม่ใช่ mock)</li>
+    <li>ทำ settle สิ้นวัน</li>
+  </ol>
+
+  <!-- ============ SECTION 6 ============ -->
+  <h2 id="sec6"><span class="num">6</span>อภิธานศัพท์ (Glossary)</h2>
+
+  <table>
+    <caption>คำศัพท์ที่ใช้บ่อยในระบบ EDC integration และความหมายโดยย่อ</caption>
+    <thead>
+      <tr>
+        <th>ศัพท์</th>
+        <th>ความหมาย</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>EDC</td><td>ย่อจาก Electronic Data Capture คือเครื่องรูด/แตะบัตรชำระเงินที่หน้าร้าน</td></tr>
+      <tr><td>Bridge (paywire.exe)</td><td>โปรแกรมตัวกลาง (.NET 8, tray app) ที่รันบนเครื่อง POS Windows เพื่อคุยกับเครื่อง EDC จริงผ่าน protocol เฉพาะยี่ห้อ</td></tr>
+      <tr><td>SDK (@paywire/sdk-js)</td><td>ไลบรารี JavaScript ฝั่ง frontend ที่ห่อการเรียก HTTP/WebSocket ไปยัง bridge ให้ใช้งานง่าย</td></tr>
+      <tr><td>Mock bridge</td><td>เซิร์ฟเวอร์ Node.js จำลองพฤติกรรมของ bridge จริงทั้งหมด ใช้พัฒนา/ทดสอบโดยไม่ต้องมีเครื่อง EDC</td></tr>
+      <tr><td>whoami</td><td>HTTP endpoint <code>GET /whoami</code> ที่ bridge ใช้บอกข้อมูลตัวเองและสถานะเครื่อง EDC ที่ต่ออยู่</td></tr>
+      <tr><td>WebSocket /status</td><td>ช่องทาง WS ที่ bridge ใช้แจ้งสถานะการเชื่อมต่อของเครื่อง EDC แบบ real-time</td></tr>
+      <tr><td>/events</td><td>ช่องทาง WS ที่ใช้รับ mid-transaction events ระหว่างทำรายการ เช่นตอนแสดง QR code บนจอเครื่อง EDC</td></tr>
+      <tr><td>Idempotency-Key</td><td>HTTP header ที่ใช้กันการทำรายการซ้ำซ้อนโดยไม่ตั้งใจ ค่าคือ reqId เดียวกับที่ใช้เปิด WS /events</td></tr>
+      <tr><td>responseCode ("00")</td><td>รหัสผลลัพธ์รายการที่ได้จาก HTTP response ของ <code>/txn/...</code> ค่า "00" หมายถึงอนุมัติสำเร็จ</td></tr>
+      <tr><td>Approval code</td><td>รหัสอนุมัติรายการที่ธนาคาร/ผู้ให้บริการชำระเงินออกให้เมื่อรายการสำเร็จ — ระบบใช้บันทึกใบเสร็จอัตโนมัติ ถ้าไม่มีค่านี้จึงจะเปิดฟอร์มกรอกด้วยมือ</td></tr>
+      <tr><td>Auto-confirm</td><td>การบันทึกใบเสร็จอัตโนมัติทันทีหลังเครื่อง EDC อนุมัติรายการ (responseCode "00" + approval code) โดยไม่ต้องกรอกหรือกดยืนยันด้วยมือ</td></tr>
+      <tr><td>RRN</td><td>Retrieval Reference Number รหัสอ้างอิงรายการที่ใช้ตรวจสอบหรือกระทบยอดในภายหลัง</td></tr>
+      <tr><td>Masked PAN / payer_id</td><td>เลขบัตรที่ถูกปิดบางส่วน (เช่น 4-4-4) เพื่อความปลอดภัย ใช้ระบุตัวผู้จ่ายโดยไม่เก็บเลขบัตรเต็ม</td></tr>
+      <tr><td>Invoice no</td><td>เลขที่ใบกำกับ/รายการที่เครื่อง EDC หรือระบบ POS ออกให้ต่อธุรกรรม</td></tr>
+      <tr><td>สตางค์ (satang) vs บาท</td><td>หน่วยเงินไทย — ระบบ ISB เก็บเป็นบาท (decimal) แต่ SDK ต้องการสตางค์ (integer) ต้องคูณ 100 ก่อนส่ง</td></tr>
+      <tr><td>LinkPOS</td><td>Protocol ที่ใช้คุยกับเครื่อง EDC ยี่ห้อ Newland (เช่นรุ่น N910)</td></tr>
+      <tr><td>VTI</td><td>Protocol ที่ใช้คุยกับเครื่อง EDC ยี่ห้อ Verifone</td></tr>
+      <tr><td>Capability</td><td>ความสามารถของเครื่อง EDC ที่ bridge ประกาศไว้ใน whoami เช่นรองรับ qrSale.thaiqr หรือไม่</td></tr>
+      <tr><td>qrSale / walletSale</td><td>เมธอดของ SDK สำหรับทำรายการชำระผ่าน QR code หรือ e-wallet ตามลำดับ</td></tr>
+      <tr><td>Void</td><td>การยกเลิกรายการที่เพิ่งทำสำเร็จ (ยังไม่ตัดยอดจริง) — บางประเภทการชำระ เช่น Thai QR ห้าม void</td></tr>
+      <tr><td>Refund</td><td>การคืนเงินให้ลูกค้าสำหรับรายการที่ตัดยอดไปแล้ว</td></tr>
+      <tr><td>Settle</td><td>กระบวนการปิดยอดรายการทั้งหมดของวันกับผู้ให้บริการชำระเงิน (batch settlement)</td></tr>
+      <tr><td>Terminal</td><td>อีกชื่อหนึ่งของเครื่อง EDC ที่ใช้รับชำระเงินหน้าร้าน</td></tr>
+      <tr><td>CSP</td><td>Content-Security-Policy นโยบายความปลอดภัยของเบราว์เซอร์ที่ต้องอนุญาต domain ของ bridge ไว้ใน connect-src</td></tr>
+      <tr><td>Vite env (VITE_*)</td><td>ตัวแปรแวดล้อมที่ขึ้นต้นด้วย VITE_ ใน <code>.env</code> ซึ่ง Vite จะอ่านตอน build/start เท่านั้น แก้แล้วต้องรีสตาร์ต dev server</td></tr>
+      <tr><td>MOCK_QR_DELAY_MS / MOCK_SALE_DELAY_MS</td><td>env ของ mock bridge ใช้ปรับเวลาจำลองก่อนอนุมัติรายการ QR (default 10000 ms) และรายการบัตร (default 5000 ms)</td></tr>
+      <tr><td>Decline trigger (.99)</td><td>กติกาของ mock bridge — ยอดที่ลงท้าย 99 สตางค์ (เช่น ฿10.99) จะถูกจำลองปฏิเสธด้วย code 51 INSUFFICIENT FUNDS ไว้ทดสอบหน้า DECLINED</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="sep">
+
+  <footer class="doc-footer">
+    อัปเดตล่าสุด 2026-07-16 · branch charp
+  </footer>
+
+</div>
+</body>
+</html>

@@ -251,22 +251,32 @@ export class EdcClient {
     };
   }
 
-  /// Opens the events WebSocket, fires the POST, streams any mid-transaction events,
-  /// then yields a final `result` event built from the HTTP response body. The result
-  /// is the POST body (not a WS message); the WS carries only mid-txn events.
+  /// Opens the events WebSocket, fires the POST, and yields mid-transaction events
+  /// LIVE while the POST is still pending — a QR sale can wait many seconds for the
+  /// customer to scan, and `qr-shown` must surface immediately, not after the result.
+  /// The final `result` event is still built from the HTTP response body and always
+  /// yielded last (the WS carries only mid-txn events); fetch errors close the WS and
+  /// rethrow. A WS error/close can never hang the loop — the fetch settling ends it.
   private async *_txnStream(
     cmd: string,
     idempotencyKey: string,
     body: { amount?: string; fields: Record<string, string> }
   ): AsyncGenerator<TxnEvent> {
     const reqId = idempotencyKey;
+
+    // Push-queue + notifier: the WS handler pushes and wakes the loop below.
     const queue: TxnEvent[] = [];
+    let wake: (() => void) | null = null;
+    const notify = () => { const w = wake; wake = null; w?.(); };
 
     let ws: WebSocket | null = null;
     try {
       ws = new WebSocket(`${this.wsBase}/events?reqId=${encodeURIComponent(reqId)}`);
       ws.addEventListener("message", (ev: MessageEvent) => {
-        try { queue.push(JSON.parse(ev.data as string) as TxnEvent); } catch { /* ignore */ }
+        try {
+          queue.push(JSON.parse(ev.data as string) as TxnEvent);
+          notify();
+        } catch { /* ignore */ }
       });
       // Wait (briefly) for the socket to open so we don't miss early events;
       // proceed regardless — events are best-effort, the result is the POST body.
@@ -281,26 +291,46 @@ export class EdcClient {
       ws = null;
     }
 
-    let raw: RawTxnResponse;
+    // try/finally so an abandoned generator (consumer breaks/returns out of its
+    // for-await mid-stream — generator.return() runs finally blocks) still closes
+    // the /events WebSocket instead of leaking it until page reload.
     try {
-      const res = await fetch(`${this.baseUrl}/txn/${cmd}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": reqId },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`/txn/${cmd} returned HTTP ${res.status}`);
-      raw = (await res.json()) as RawTxnResponse;
-    } catch (err) {
+      // Start the POST without awaiting so events stream while it is pending.
+      const fetchPromise: Promise<RawTxnResponse> = (async () => {
+        const res = await fetch(`${this.baseUrl}/txn/${cmd}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": reqId },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`/txn/${cmd} returned HTTP ${res.status}`);
+        return (await res.json()) as RawTxnResponse;
+      })();
+      // Track settlement separately so the loop ends on error too — the rejection
+      // itself is consumed (and rethrown) by the `await fetchPromise` below.
+      let settled = false;
+      const fetchSettled = fetchPromise.then(() => { settled = true; }, () => { settled = true; });
+
+      // Drain the queue, then sleep until either a new event or the fetch settling.
+      while (!settled) {
+        while (queue.length > 0) yield queue.shift()!;
+        if (settled) break;
+        await Promise.race([
+          fetchSettled,
+          new Promise<void>(resolve => { wake = resolve; }),
+        ]);
+      }
+
+      const raw = await fetchPromise;
+
+      // Brief grace for any trailing mid-txn events still in flight on the WS.
+      await new Promise<void>(r => setTimeout(r, 50));
+
+      // Final drain, then the result — nothing is ever yielded after the result.
+      while (queue.length > 0) yield queue.shift()!;
+      yield this._toResult(reqId, raw);
+    } finally {
       ws?.close();
-      throw err;
     }
-
-    // Brief grace for any trailing mid-txn events still in flight on the WS.
-    await new Promise<void>(r => setTimeout(r, 50));
-    ws?.close();
-
-    for (const ev of queue) yield ev;
-    yield this._toResult(reqId, raw);
   }
 
   private _toResult(reqId: string, raw: RawTxnResponse): ResultEvent {
