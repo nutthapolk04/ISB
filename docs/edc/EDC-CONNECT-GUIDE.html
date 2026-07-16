@@ -677,9 +677,32 @@ bun run dev</code></pre>
     </li>
     <li>
       หน้าเว็บที่เสิร์ฟผ่าน HTTPS จะคุยกับ bridge แบบ <code>https/wss</code> —
-      bridge ต้องมี certificate (wildcard cert) ติดตั้งไว้ และถ้าเว็บมี CSP
-      (Content-Security-Policy) ต้องเพิ่ม <code>connect-src</code> ให้ครอบคลุม
-      domain:7331 ของ bridge ด้วย
+      bridge ต้องมี certificate (wildcard cert) ติดตั้งไว้ และ CSP
+      (Content-Security-Policy) ของแอปต้องอนุญาต bridge ใน
+      <code>connect-src</code> ด้วย
+      <p style="margin-top:10px;">
+        <strong>ผลตรวจจริง (2026-07-16):</strong> แอปที่เครื่อง POS ใช้เสิร์ฟอยู่ที่
+        <code>https://isb.schooney.tech</code> — <code>connect-src</code>
+        ปัจจุบัน (จาก response header สด) คือ
+      </p>
+      <pre><code>connect-src 'self' https://accounts.google.com ws://localhost:9001</code></pre>
+      <p>
+        ซึ่งบล็อกการเชื่อมต่อไปยัง bridge (pill ขึ้นแดง "EDC not connected"
+        ทั้งที่ paywire.exe ทำงานปกติ) — ต้องแก้ให้เป็นบรรทัดนี้เป๊ะ
+        (เพิ่มทั้ง <code>https://</code> สำหรับ REST และ <code>wss://</code>
+        สำหรับ WebSocket, ระบุ port :7331 ชัดเจน, ห้ามใช้ wildcard):
+      </p>
+      <pre><code>connect-src 'self' https://accounts.google.com ws://localhost:9001 https://pos.local.bridge.schooney.tech:7331 wss://pos.local.bridge.schooney.tech:7331</code></pre>
+      <p>
+        จุดอ้างอิงที่ทำถูกแล้ว: หน้าเทส <code>https://isb-pos.schooney.tech</code>
+        (infra ชุดเดียวกัน) มี entry ของ bridge ทั้งสองรายการใน CSP อยู่แล้ว
+        — copy มาใส่ isb.schooney.tech ได้เลย
+      </p>
+      <p>
+        รายละเอียดงานแก้ + วิธีตรวจรับอยู่ในเอกสารส่งมอบ
+        <a href="./FIX-CSP-EDC-BRIDGE.md"><code>docs/edc/FIX-CSP-EDC-BRIDGE.md</code></a>
+        (จุดแก้เป็นจุดเดียวกับงาน RFID CSP เมื่อ 2026-07-14 — CSP นี้ไม่อยู่ใน repo)
+      </p>
     </li>
     <li>
       สามารถทดสอบจากเครื่อง POS จริงได้ผ่าน hosted test Web POS ที่:
