@@ -46,7 +46,9 @@ export function EdcPaymentModal({
   confirming,
 }: EdcPaymentModalProps) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<"choice" | "processing" | "declined" | "form">("choice");
+  const [step, setStep] = useState<"choice" | "processing" | "approved" | "declined" | "form">(
+    "choice",
+  );
   const [edcMode, setEdcMode] = useState<EdcMode | null>(null);
   const [approvalCode, setApprovalCode] = useState("");
   const [terminalRef, setTerminalRef] = useState("");
@@ -63,6 +65,9 @@ export function EdcPaymentModal({
   // any in-flight attempt bumps this ref to invalidate itself before touching state.
   const attemptRef = useRef(0);
   const idempotencyKeyRef = useRef("");
+  // Guards onConfirm against double-fires from both the auto-confirm path
+  // (runAttempt) and the manual fallback path (handleConfirm).
+  const pendingRef = useRef(false);
 
   useEffect(() => {
     if (!open) {
@@ -162,11 +167,44 @@ export function EdcPaymentModal({
 
         if (ev.kind === "result") {
           if (ev.responseCode === "00") {
-            setApprovalCode(ev.approvalCode ?? "");
-            setTerminalRef(ev.fields?.["invoice_no"] ?? ev.rrn ?? "");
-            setMaskedCard(ev.maskedPan ?? ev.payerId ?? "");
-            setApproved(true);
-            setStep("form");
+            const nextApprovalCode = ev.approvalCode ?? "";
+            const nextTerminalRef = ev.fields?.["invoice_no"] ?? ev.rrn ?? "";
+            const nextMaskedCard = ev.maskedPan ?? ev.payerId ?? "";
+
+            // Stale results (cashier cancelled or closed the modal mid-transaction)
+            // are ignored, matching handleCancelProcessing's contract — the
+            // terminal-side charge, if any, is reconciled manually.
+            if (isCurrent()) {
+              setApprovalCode(nextApprovalCode);
+              setTerminalRef(nextTerminalRef);
+              setMaskedCard(nextMaskedCard);
+              setApproved(true);
+
+              if (nextApprovalCode.trim().length > 0) {
+                // Auto-confirm — no manual entry needed when the terminal already
+                // gave us an approval code.
+                setStep("approved");
+                if (!pendingRef.current) {
+                  pendingRef.current = true;
+                  try {
+                    await onConfirm({
+                      approval_code: nextApprovalCode.trim(),
+                      terminal_ref: nextTerminalRef.trim() || undefined,
+                      masked_card: nextMaskedCard.trim() || undefined,
+                    });
+                  } catch (err) {
+                    // onConfirm already closes the modal and shows its own error
+                    // toast — this catch only prevents an unhandled rejection.
+                    console.error("[EDC] auto-confirm error", err);
+                  } finally {
+                    pendingRef.current = false;
+                  }
+                }
+              } else {
+                // No approval code to auto-confirm with — fall back to manual entry.
+                setStep("form");
+              }
+            }
           } else {
             setDeclineInfo({
               code: String(ev.responseCode),
@@ -215,7 +253,6 @@ export function EdcPaymentModal({
 
   const canConfirm = step === "form" && approvalCode.trim().length > 0 && !confirming;
 
-  const pendingRef = useRef(false);
   const handleConfirm = async () => {
     if (pendingRef.current || !canConfirm) return;
     pendingRef.current = true;
@@ -243,11 +280,13 @@ export function EdcPaymentModal({
       ? t("storePos.edcModeChoiceDesc", "Choose how the customer will pay.")
       : step === "processing"
         ? t("storePos.edcProcessingDesc", "Waiting for the terminal…")
-        : step === "declined"
-          ? t("storePos.edcDeclinedDesc", "The transaction was not approved.")
-          : approved
-            ? t("storePos.edcApprovedDesc", "Transaction approved — confirm to record the receipt.")
-            : t("storePos.edcManualDesc", "Enter the approval code manually.");
+        : step === "approved"
+          ? t("storePos.edcAutoConfirmDesc", "Transaction approved — recording the receipt…")
+          : step === "declined"
+            ? t("storePos.edcDeclinedDesc", "The transaction was not approved.")
+            : approved
+              ? t("storePos.edcApprovedDesc", "Transaction approved — confirm to record the receipt.")
+              : t("storePos.edcManualDesc", "Enter the approval code manually.");
 
   const footerBackDisabled = confirming;
   const footerBackLabel =
@@ -327,6 +366,21 @@ export function EdcPaymentModal({
                   {t("storePos.edcQrShown", "QR code is now shown on the terminal.")}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {step === "approved" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-50 p-3 text-center dark:bg-emerald-950/30">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                {t("storePos.edcApproved", "APPROVED")}
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("storePos.edcRecording", "Recording receipt…")}
             </div>
           </div>
         )}
@@ -417,14 +471,16 @@ export function EdcPaymentModal({
         )}
 
         <DialogFooter className="gap-2">
-          <Button
-            variant="outline"
-            onClick={handleFooterBack}
-            disabled={footerBackDisabled}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            {footerBackLabel}
-          </Button>
+          {step !== "approved" && (
+            <Button
+              variant="outline"
+              onClick={handleFooterBack}
+              disabled={footerBackDisabled}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              {footerBackLabel}
+            </Button>
+          )}
           {step === "form" && (
             <Button
               onClick={handleConfirm}
