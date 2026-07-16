@@ -67,7 +67,7 @@ export async function sweepStaleStaff(cutoffHours: number): Promise<StaffSweepRe
     if (staleStaff.length > 0) {
         const staleIds = staleStaff.map((s) => s.id);
         await db.delete(parentChildLinks).where(inArray(parentChildLinks.parentUserId, staleIds));
-        await db.update(users).set({ isActive: false, familyCode: null }).where(inArray(users.id, staleIds));
+        await db.update(users).set({ isActive: false, status: "inactive", familyCode: null }).where(inArray(users.id, staleIds));
         logger.info(
             `[staff sweep] ${staleStaff.length} staff account(s) stale (>${cutoffHours}h) — deactivated`,
             { externalIds: staleStaff.map((s) => s.externalId) },

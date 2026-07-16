@@ -339,6 +339,16 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
             psDepartment: payload.department ?? existing!.psDepartment ?? null,
             photoUrl: existing!.photoUrl ?? photoUrl,
             lastSyncedAt: new Date().toISOString(),
+            // Reactivate — appearing in a current /sync/staffs batch is proof
+            // of life for staff_sweep_service.ts's purposes (its own comment
+            // already claimed this path does this; it didn't, until now — a
+            // staff-sweep deactivation would otherwise never be reversed for
+            // anyone who only ever appears via the plain staff channel, never
+            // as a family's Staff-type parent). Set `status` alongside
+            // `is_active` for the same reason as upsertStaffParentRef: two
+            // separate columns that must never drift apart.
+            isActive: true,
+            status: "active",
         };
         // Only overwrite email/username once ISB actually reports a real
         // login this round — a still-blank round must never clobber a real
@@ -522,8 +532,16 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
             // is itself proof of life for staff_sweep_service.ts's purposes
             // (see that file's shared-lastSyncedAt reasoning), so a prior
             // staff-sweep deactivation must be reversed here too, not just
-            // by a plain /sync/staffs touch.
+            // by a plain /sync/staffs touch. `status` is a separate, mostly-
+            // redundant string column that only the admin-manual PATCH path
+            // used to keep in sync with `is_active` — sync must set both
+            // together too, or a staff-sweep-deactivated (status="inactive")
+            // account that gets reactivated here would show "Active" on the
+            // admin Cardholders list (reads is_active) but still "Inactive"
+            // on the User Detail page (reads status) until an admin happens
+            // to touch it manually.
             isActive: true,
+            status: "active",
             lastSyncedAt: new Date().toISOString(),
         };
         if (payload.smartCard?.cardNumber) updates.cardUid = payload.smartCard.cardNumber;
@@ -752,12 +770,16 @@ async function clearFamilyCodeForOrphanedParents(candidateParentIds: number[]): 
  * array is the authoritative current roster per sync. If a student's
  * external id is swapped out (e.g. a customerId correction — the new kid
  * replaces the old one in the payload), the old student's row is never in
- * `currentStudentCustomerIds`. Drop its sync-owned (main/secondary) parent
- * links and, once it has zero links left, clear customers.family_code AND
- * deactivate (is_active=false) — per 2026-07 review, a student dropped from
- * every family roster shouldn't keep spending at POS while orphaned. This
- * runs before reconcileFamilyMembership() in processFamilyBatch, so it must
- * set is_active itself — by the time reconcileFamilyMembership looks, the
+ * `currentStudentCustomerIds`. Drop ALL its parent links (regardless of
+ * parent_rank — a manually-linked row with no rank, or any rank other than
+ * main/secondary, must go too, otherwise it survives this cleanup and keeps
+ * the old student showing up anywhere that resolves family membership via
+ * parent_child_links, e.g. the admin Family Group card) and, once it has
+ * zero links left, clear customers.family_code AND deactivate (is_active=
+ * false) — per 2026-07 review, a student dropped from every family roster
+ * shouldn't keep spending at POS while orphaned. This runs before
+ * reconcileFamilyMembership() in processFamilyBatch, so it must set
+ * is_active itself — by the time reconcileFamilyMembership looks, the
  * family_code is already cleared and its own (redundant) student branch
  * finds nothing left to act on. upsertStudent() re-activates them
  * automatically if ISB ever brings them back into a family's roster.
@@ -775,12 +797,7 @@ export async function reconcileFamilyStudents(
     if (staleStudents.length === 0) return;
     const staleIds = staleStudents.map((s) => s.id);
 
-    await db.delete(parentChildLinks).where(
-        and(
-            inArray(parentChildLinks.childCustomerId, staleIds),
-            inArray(parentChildLinks.parentRank, ["main", "secondary"]),
-        ),
-    );
+    await db.delete(parentChildLinks).where(inArray(parentChildLinks.childCustomerId, staleIds));
 
     const stillLinkedRows = await db.selectDistinct({ childCustomerId: parentChildLinks.childCustomerId })
         .from(parentChildLinks)

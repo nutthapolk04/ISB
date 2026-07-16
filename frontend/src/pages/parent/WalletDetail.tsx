@@ -76,9 +76,7 @@ export default function WalletDetail() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>("100");
   const [paymentMethod, setPaymentMethod] = useState<"qr_promptpay" | "credit_card">("qr_promptpay");
-  // QR top-up has no backend minimum floor beyond ฿1 (see topup_service.ts);
-  // credit_card (bay_easypay) keeps the ฿100 floor since that's unaffected.
-  const minTopupAmount = paymentMethod === "qr_promptpay" ? 1 : 100;
+  const minTopupAmount = 1;
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [intent, setIntent] = useState<TopupIntent | null>(null);

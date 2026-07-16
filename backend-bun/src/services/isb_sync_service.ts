@@ -119,10 +119,25 @@ export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult
     if (staffs.length === 0) {
         return { success: 0, failed: 0, errors: [] };
     }
+    const batchStart = performance.now();
     const logId = await createSyncLog("isb_staff");
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
 
+    // Snapshot is_active BEFORE upserting, keyed by external_id, so we can
+    // tell reactivation (was inactive, sync just flipped it back) apart from
+    // an ordinary already-active touch — see this function's timing log
+    // below. Deactivation never happens here (only staff_sweep_service.ts's
+    // scheduled sweep does that — a single batch can't safely tell "not in
+    // this batch" apart from "genuinely gone", see that file's own comment).
+    const extIds = staffs.map((s) => String(s.customerId));
+    const wasActiveByExtId = new Map(
+        (await db.select({ externalId: users.externalId, isActive: users.isActive }).from(users).where(inArray(users.externalId, extIds)))
+            .filter((r): r is { externalId: string; isActive: boolean } => r.externalId !== null)
+            .map((r) => [r.externalId, r.isActive] as const),
+    );
+
+    let reactivated = 0;
     await processInChunks(staffs, async (s, i) => {
         try {
             const payload: StaffPayload = {
@@ -138,6 +153,9 @@ export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult
                 hasChildren: s.hasChildren,
             };
             const user = await upsertStaff(payload, logId);
+            if (wasActiveByExtId.get(String(s.customerId)) === false && user.isActive) {
+                reactivated++;
+            }
 
             // Override photoUrl with ISB filename (upsertStaff sets randomuser portrait)
             const photoUrl = resolvePhotoUrl(s.profileImage);
@@ -153,6 +171,14 @@ export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult
     });
 
     await finishSyncLog(logId, staffs.length, success, failed, errors.map((e) => `staff[${e.index}] ${e.id}: ${e.error}`));
+    const totalMs = performance.now() - batchStart;
+    logger.info("isb staff sync batch timing", {
+        staffs: staffs.length,
+        success,
+        failed,
+        reactivated,
+        totalMs: Math.round(totalMs),
+    });
     return { success, failed, errors };
 }
 
@@ -446,6 +472,7 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
     if (depts.length === 0) {
         return { success: 0, failed: 0, errors: [] };
     }
+    const batchStart = performance.now();
     const logId = await createSyncLog("isb_department");
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
@@ -488,5 +515,12 @@ export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<Ba
     });
 
     await finishSyncLog(logId, depts.length, success, failed, errors.map((e) => `dept[${e.index}] ${e.id}: ${e.error}`));
+    const totalMs = performance.now() - batchStart;
+    logger.info("isb department sync batch timing", {
+        departments: depts.length,
+        success,
+        failed,
+        totalMs: Math.round(totalMs),
+    });
     return { success, failed, errors };
 }
