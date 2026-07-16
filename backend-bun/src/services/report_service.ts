@@ -14,6 +14,7 @@ import {
   bundleItems,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { nextCostState } from "@/services/balance_file_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
 /**
@@ -661,13 +662,29 @@ async function buildProductBlock(
   const startBkk = `${dateFrom}T00:00:00+07:00`;
   const { end } = dateRange(dateFrom, dateTo);
 
-  const lastBeforeRows = await db
+  // Replay the FULL movement history before the period (not just peek at the
+  // last row) to get an opening avg cost — same approach as
+  // balance_file_service.ts's ledger, sharing its nextCostState formula so
+  // the two reports can never quietly disagree again. Neither trusts a
+  // single historical row's stored cost_per_unit at face value for a
+  // non-receive movement (a sale/internal_use row may never have been
+  // backed by a real cost there — see the pos_checkout_service.ts fix that
+  // used to store the selling price instead of avg_cost).
+  const historyBefore = await db
     .select()
     .from(shopMovements)
     .where(and(eq(shopMovements.productId, product.id), sql`${shopMovements.createdAt} < ${startBkk}`))
-    .orderBy(desc(shopMovements.createdAt))
-    .limit(1);
-  const lastBefore = lastBeforeRows[0];
+    .orderBy(asc(shopMovements.createdAt));
+
+  let state = { qty: 0, avg: 0 };
+  for (const m of historyBefore) {
+    state = nextCostState(state, {
+      type: m.type,
+      quantity: m.quantity,
+      costPerUnit: m.costPerUnit !== null ? pgNumber(m.costPerUnit) : null,
+      stockAfter: m.stockAfter,
+    });
+  }
 
   const movements = await db
     .select()
@@ -681,16 +698,17 @@ async function buildProductBlock(
     )
     .orderBy(asc(shopMovements.createdAt));
 
-  // When no movement exists before the period, derive opening qty from the first
-  // in-period movement's stock_before (0 if the period has no movements at all).
-  // Falling back to product.stock was wrong: it used the *current* live stock.
-  const openingQty = lastBefore
-    ? lastBefore.stockAfter
+  // When no movement exists before the period at all (brand new product,
+  // first-ever movement lands inside the period), derive opening qty from
+  // the first in-period movement's stock_before and fall back to the
+  // product's current avg_cost — matches the old behavior for that edge
+  // case. Falling back to product.stock was wrong: it used the *current*
+  // live stock, not the stock as of the period start.
+  const openingQty = historyBefore.length > 0
+    ? state.qty
     : (movements.length > 0 ? movements[0].stockBefore : 0);
-  const openingCost =
-    lastBefore && lastBefore.costPerUnit !== null
-      ? pgNumber(lastBefore.costPerUnit) ?? 0
-      : pgNumber(product.avgCost) ?? 0;
+  const openingCost = historyBefore.length > 0 ? state.avg : (pgNumber(product.avgCost) ?? 0);
+  state = { qty: openingQty, avg: openingCost };
 
   const rows: StockCardRowDTO[] = [
     {
@@ -711,11 +729,23 @@ async function buildProductBlock(
   let totalQtyOut = 0;
   let totalAmountIn = 0;
   let totalAmountOut = 0;
-  let lastCost = openingCost;
 
   for (const m of movements) {
     const typeStr = m.type;
-    const cost = m.costPerUnit !== null ? pgNumber(m.costPerUnit) ?? lastCost : lastCost;
+    const receivedCost = m.costPerUnit !== null ? pgNumber(m.costPerUnit) ?? 0 : 0;
+    const avgBefore = state.avg;
+    state = nextCostState(state, {
+      type: typeStr,
+      quantity: m.quantity,
+      costPerUnit: m.costPerUnit !== null ? pgNumber(m.costPerUnit) : null,
+      stockAfter: m.stockAfter,
+    });
+    // A "receive" row shows what was actually paid for that specific
+    // delivery; every other movement type shows the avg cost basis in
+    // effect at that moment (the value COGS is valued at) — never the
+    // selling price or any other per-row value. Matches
+    // balance_file_service.ts's in_unit_cost / out_avg_cost split.
+    const cost = typeStr === "receive" ? receivedCost : avgBefore;
     // Bucket by the actual stock change (stock_after - stock_before), not by
     // the sign of `quantity` — `quantity`'s sign convention isn't consistent
     // across movement types (e.g. a 'sale'/'internal_use' row always stores
@@ -738,16 +768,21 @@ async function buildProductBlock(
       amount_in: amountIn,
       amount_out: amountOut,
       cost_per_unit: cost,
-      amount_balance: Math.round(balance * cost * 100) / 100,
+      // Running balance is always valued at the CURRENT weighted-average
+      // cost (state.avg after this movement) — for a receive row that's the
+      // blended average across old + new stock, not just this delivery's
+      // own cost, since the remaining balance also includes stock bought at
+      // other prices.
+      amount_balance: Math.round(balance * state.avg * 100) / 100,
     });
     totalQtyIn += qtyIn;
     totalQtyOut += qtyOut;
     totalAmountIn += amountIn;
     totalAmountOut += amountOut;
-    lastCost = cost;
   }
 
   const closingQty = movements.length > 0 ? movements[movements.length - 1].stockAfter : openingQty;
+  const closingCost = state.avg;
   rows.push({
     date: null,
     description: "Closing Balance",
@@ -757,8 +792,8 @@ async function buildProductBlock(
     qty_balance: closingQty,
     amount_in: 0,
     amount_out: 0,
-    cost_per_unit: lastCost,
-    amount_balance: Math.round(closingQty * lastCost * 100) / 100,
+    cost_per_unit: closingCost,
+    amount_balance: Math.round(closingQty * closingCost * 100) / 100,
   });
 
   return {

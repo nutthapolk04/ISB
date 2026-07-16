@@ -399,8 +399,8 @@ export async function checkout(input: CheckoutInput) {
         }
         let anchorProductId: number | null = null;
         for (const bi of biRows) {
-          const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; unit_price: string }>>`
-            SELECT id, name, shop_id, stock, external_price AS unit_price
+          const subRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string }>>`
+            SELECT id, name, shop_id, stock, avg_cost::text AS avg_cost
             FROM shop_products WHERE id = ${bi.product_id} FOR UPDATE
           `;
           const sub = subRows[0];
@@ -422,13 +422,16 @@ export async function checkout(input: CheckoutInput) {
             stockAfter = stockBefore - deductQty;
             await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${sub.id}`;
           }
+          // cost_per_unit on a sale movement must be the cost basis (avg_cost),
+          // not the selling price — this is what the Stock Card report's
+          // COGS columns are valued from, same as the void/refund path below.
           await sqlTx`
             INSERT INTO shop_movements
               (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
                cost_per_unit, reference, note, created_by)
             VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, ${movementType},
                     ${-deductQty}, ${stockBefore}, ${stockAfter},
-                    ${pgNumber(sub.unit_price) ?? 0}, ${receiptNumber},
+                    ${pgNumber(sub.avg_cost) ?? 0}, ${receiptNumber},
                     ${input.notes ?? null}, ${input.userId})
           `;
         }
@@ -453,8 +456,8 @@ export async function checkout(input: CheckoutInput) {
       }
 
       // ── Normal item ───────────────────────────────────────────────
-      const prodRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number }>>`
-        SELECT id, name, shop_id, stock FROM shop_products
+      const prodRows = await sqlTx<Array<{ id: number; name: string; shop_id: string; stock: number; avg_cost: string }>>`
+        SELECT id, name, shop_id, stock, avg_cost::text AS avg_cost FROM shop_products
         WHERE id = ${item.product_variant_id} FOR UPDATE
       `;
       const product = prodRows[0];
@@ -480,13 +483,17 @@ export async function checkout(input: CheckoutInput) {
         stockAfter = stockBefore - qty;
         await sqlTx`UPDATE shop_products SET stock = ${stockAfter}, updated_at = NOW() WHERE id = ${product.id}`;
       }
+      // cost_per_unit on a sale movement must be the cost basis (avg_cost),
+      // not the selling price (unitPrice) — this is what the Stock Card
+      // report's COGS columns are valued from, same as the void/refund path
+      // in pos_service.ts.
       await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
            cost_per_unit, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, ${movementType},
                 ${-qty}, ${stockBefore}, ${stockAfter},
-                ${unitPrice}, ${receiptNumber}, ${input.notes ?? null}, ${input.userId})
+                ${pgNumber(product.avg_cost) ?? 0}, ${receiptNumber}, ${input.notes ?? null}, ${input.userId})
       `;
 
       prepared.push({

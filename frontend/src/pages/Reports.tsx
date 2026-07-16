@@ -369,30 +369,28 @@ const Reports = () => {
         }
 
         if (selectedReportType === "returnReport") {
+            // Backend already groups by calendar day and provides a per-day
+            // subtotal (VoidReport.daily[].daily_total) — this used to be
+            // re-derived client-side from a flat `rows` array the backend
+            // no longer returns, which made `data.rows` undefined and threw
+            // inside this branch (silently caught as a generic export error).
             const data = await api.get<{
-                rows: Array<{ id: number; voided_at: string; receipt_number: string; total: number; voided_by_name: string | null; voided_reason: string | null }>;
+                daily: Array<{
+                    date: string;
+                    rows: Array<{ id: number; voided_at: string; receipt_number: string; total: number; voided_by_name: string | null; voided_reason: string | null }>;
+                    daily_total: number;
+                }>;
                 total_voided: number;
             }>(`/reports/voids?date_from=${startDate}&date_to=${endDate}${shopParam}`);
 
-            // Group by calendar day (voided_at's date part) so the export shows a
-            // subtotal per day, not just one grand total for the whole range.
-            // Rows arrive most-recent-first from the backend, so days come out
-            // most-recent-first too — insertion order into the Map preserves it.
-            const byDay = new Map<string, typeof data.rows>();
-            for (const r of data.rows) {
-                const day = r.voided_at.slice(0, 10);
-                const arr = byDay.get(day);
-                if (arr) arr.push(r);
-                else byDay.set(day, [r]);
-            }
             const bodyRows: Record<string, unknown>[] = [];
-            for (const [day, dayRows] of byDay) {
-                bodyRows.push({ [SECTION_KEY]: day });
+            for (const { date, rows: dayRows, daily_total } of data.daily) {
+                bodyRows.push({ [SECTION_KEY]: date });
                 bodyRows.push(...(dayRows as unknown as Record<string, unknown>[]));
                 bodyRows.push({
                     [EMPHASIS_KEY]: "subtotal" as const,
                     receipt_number: `Subtotal (${dayRows.length})`,
-                    total: dayRows.reduce((s, r) => s + r.total, 0),
+                    total: daily_total,
                 });
             }
 

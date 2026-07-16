@@ -63,18 +63,38 @@ interface State {
   avg: number;
 }
 
-function applyMovement(state: State, m: RawMovement): State {
-  const cost = m.cost_per_unit !== null ? Number(m.cost_per_unit) : 0;
-  if (m.type === "receive") {
-    const newQty = state.qty + m.quantity;
+/**
+ * Shared avg-cost state machine — also used by report_service.ts's Stock
+ * Card report so both reports are backed by the same formula and can never
+ * quietly drift apart again. Only "receive" ever moves the average (a
+ * weighted blend of what's on hand with what just came in); every other
+ * movement type (sale/internal_use/exchange/adjustment/void) leaves avg
+ * unchanged — selling stock changes quantity, not your cost basis.
+ */
+export function nextCostState(
+  state: State,
+  args: { type: string; quantity: number; costPerUnit: number | null; stockAfter: number },
+): State {
+  const cost = args.costPerUnit !== null ? args.costPerUnit : 0;
+  if (args.type === "receive") {
+    const newQty = state.qty + args.quantity;
     const newAvg = newQty > 0
-      ? (state.qty * state.avg + m.quantity * cost) / newQty
+      ? (state.qty * state.avg + args.quantity * cost) / newQty
       : cost;
     return { qty: newQty, avg: newAvg };
   }
   // sale / internal_use / exchange / adjustment / void — avg unchanged per user rule
   // Use stock_after directly to handle adjustments cleanly.
-  return { qty: m.stock_after, avg: state.avg };
+  return { qty: args.stockAfter, avg: state.avg };
+}
+
+function applyMovement(state: State, m: RawMovement): State {
+  return nextCostState(state, {
+    type: m.type,
+    quantity: m.quantity,
+    costPerUnit: m.cost_per_unit !== null ? Number(m.cost_per_unit) : null,
+    stockAfter: m.stock_after,
+  });
 }
 
 function formatBE(isoDate: string): string {
