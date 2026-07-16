@@ -528,6 +528,28 @@ export async function reconcilePendingTopups(args: {
                 continue;
             }
         } catch (e) {
+            // A 404 from the gateway's own inquiry endpoint means it has no
+            // record of this transaction at all — definitive, not transient
+            // (unlike a 5xx/timeout, which might still resolve on the next
+            // sweep). Left as a generic skip-and-retry-forever before, this
+            // meant an abandoned EasyPay/QR attempt (customer never
+            // completed payment, gateway purged the incomplete transaction)
+            // re-logged this same error every 10 minutes indefinitely with
+            // no way to ever reach a final state. Treat it the same as the
+            // gateway explicitly reporting "cancelled" below.
+            if (e instanceof PymtGatewayError && e.status === 404) {
+                logger.warn(`[reconcile] gateway has no record of ref=${intent.refCode} (404) — marking cancelled, no further retries`);
+                if (!dryRun) {
+                    await db.update(paymentIntents).set({ status: "cancelled" }).where(eq(paymentIntents.id, intent.id));
+                }
+                summary.failed.push({
+                    ...base,
+                    gateway_status: "NOT_FOUND",
+                    reason: dryRun ? "gateway has no record of this transaction (would mark cancelled)" : "gateway has no record of this transaction — marked cancelled",
+                });
+                await sleep(RECONCILE_GATEWAY_DELAY_MS);
+                continue;
+            }
             logger.error(`[reconcile] gateway inquiry failed for ref=${intent.refCode}`, e);
             summary.skipped.push({
                 ...base,

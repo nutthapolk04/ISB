@@ -413,11 +413,19 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         }).returning();
         userRow = u;
     } else {
+        // Staff→Parent transition detected (existing row WAS staff, is now
+        // becoming plain parent this round).
+        const wasStaff = existing!.role === "staff";
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, fullName,
             customerType: "Parent", role: "parent",
             photoUrl: existing!.photoUrl ?? photoUrl,
             lastSyncedAt: new Date().toISOString(),
+            // Staff-only metadata must not linger once this row is no longer
+            // staff — a stale staffType/psDepartment would misrepresent this
+            // person as still employed in some department to any admin
+            // screen that displays it.
+            ...(wasStaff ? { staffType: null, psDepartment: null } : {}),
         };
         // Only overwrite email/username once ISB actually reports a real
         // login this round — a still-blank round must never clobber a real
@@ -429,6 +437,23 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         if (cardUid) updates.cardUid = cardUid;
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
+
+        // Purge any source="staff" login emails for this user_id immediately
+        // — this can't wait for a future /sync/staffs touch, because the
+        // whole point of this transition is that /sync/staffs will never
+        // mention this person again. Confirmed 2026-07: the old staff email
+        // (e.g. name@isb.ac.th) stayed valid for SSO indefinitely without
+        // this, even after being fully absent from the staff batch, because
+        // a shared email between the two channels (both send it during the
+        // overlap round) can end up tagged source="staff" (unique index on
+        // email — whichever channel wrote it last wins the tag), and
+        // family's own reconcile only ever touches rows tagged
+        // source="family", so nothing else would ever clear it.
+        if (wasStaff) {
+            await db.delete(userLoginEmails).where(
+                and(eq(userLoginEmails.userId, existing!.id), eq(userLoginEmails.source, "staff")),
+            );
+        }
     }
 
     const after = snapshot(userRow as unknown as Record<string, unknown>, USER_AUDIT_FIELDS);

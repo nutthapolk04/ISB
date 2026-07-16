@@ -217,7 +217,7 @@ export function SalesSummaryReport({
       { header: "Amt. Campus card", key: "amt_campus_card",  format: "currency", width: 58 },
       { header: "Amt. Credit card", key: "amt_credit_card",  format: "currency", width: 58 },
       { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
-      { header: "Internal Used",       key: "amt_other",        format: "currency", width: 48 },
+      { header: "Amt. Department",       key: "amt_other",        format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
       { header: "Bundle",           key: "bundle_names",     width: 90  },
       { header: "Status",           key: "status",           width: 55  },
@@ -244,14 +244,19 @@ export function SalesSummaryReport({
       });
     } else {
       bodyRows = ssData.rows as unknown as Record<string, unknown>[];
-      if (ssData.rows.length > 0) {
+      // Only fill Shop from row data when the UI filter didn't already name it
+      // (avoids duplicate "Shop: …" lines in PDF/Excel headers).
+      if (
+        ssData.rows.length > 0
+        && !filterLines.some((l) => l.startsWith("Shop:"))
+      ) {
         filterLines.push(`Shop: ${ssData.rows[0].shop_name ?? ssData.rows[0].shop_id}`);
       }
     }
 
     return {
       meta: {
-        title: "Sales Summary Report",
+        title: "Daily Sales Report",
         schoolName: school.name,
         schoolLogoUrl: school.logoUrl || undefined,
         reportId,
@@ -451,7 +456,7 @@ export function SalesSummaryReport({
                       <th className="px-2 py-2 text-right">Amt. Campus card</th>
                       <th className="px-2 py-2 text-right">Amt. Credit card</th>
                       <th className="px-2 py-2 text-right">Amt. QR Code</th>
-                      <th className="px-2 py-2 text-right">Internal Used</th>
+                      <th className="px-2 py-2 text-right">Amt. Department</th>
                       <th className="px-2 py-2 text-left">Remark</th>
                       <th className="px-2 py-2 text-left">Bundle</th>
                       <th className="px-2 py-2 text-left">Status</th>
