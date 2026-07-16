@@ -150,9 +150,9 @@ export const UserController = {
 		}
 		try {
 			logger.info(`[${reqContext.requestId} (UC-08)] UserController.remove() calling deleteUser().`);
-			await deleteUser(user, id);
+			const result = await deleteUser(user, id);
 			logger.info(`[${reqContext.requestId} (UC-08)] UserController.remove() completed.`);
-			return successResponse(reqContext, undefined, ResponseStatus.NO_CONTENT);
+			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (UC-08)] UserController.remove() error:`, e);
 			return errorFromService(reqContext, e);

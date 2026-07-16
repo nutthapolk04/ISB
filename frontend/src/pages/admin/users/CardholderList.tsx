@@ -197,11 +197,23 @@ export default function CardholderList() {
   const handleDeleteCardholder = () => {
     if (!deleting) return;
     deleteCardholder.mutate(deleting, {
-      onSuccess: () => {
-        toast({
-          title: t("cardholders.deleteSuccess", "User deleted"),
-          description: deleting.name,
-        });
+      onSuccess: (result) => {
+        const deactivated =
+          !!result && typeof result === "object" && (result as { deactivated?: boolean }).deactivated;
+        if (deactivated) {
+          toast({
+            title: t("cardholders.deactivatedInstead", "User deactivated"),
+            description: t(
+              "cardholders.deactivatedInsteadDesc",
+              "This account has transaction/audit history, so it was deactivated instead of deleted.",
+            ),
+          });
+        } else {
+          toast({
+            title: t("cardholders.deleteSuccess", "User deleted"),
+            description: deleting.name,
+          });
+        }
         setDeleting(null);
       },
       onError: (e) => {
@@ -725,7 +737,7 @@ export default function CardholderList() {
             <AlertDialogDescription>
               {t(
                 "cardholders.deleteDesc",
-                "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
+                "If this account has no transaction/audit history it will be permanently deleted; otherwise it will be deactivated instead so existing records stay intact. This cannot be undone.",
               )}
               <div className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm font-medium">
                 {deleting?.name} <span className="text-muted-foreground">· {deleting?.identifier}</span>

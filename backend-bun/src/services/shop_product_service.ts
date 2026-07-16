@@ -289,7 +289,6 @@ export interface UpdateShopProductInput {
     category?: string | null;
     external_price?: number | null;
     internal_price?: number | null;
-    avg_cost?: number | null;
     vat_percent?: number | null;
     min_stock?: number | null;
     is_active?: boolean | null;
@@ -327,9 +326,15 @@ export async function updateShopProduct(
         external_price: pgNumber(product.externalPrice) ?? 0,
         internal_price: pgNumber(product.internalPrice) ?? 0,
     };
-    const oldAvgCost = pgNumber(product.avgCost) ?? 0;
 
     const updates: Record<string, unknown> = {};
+    // avg_cost is deliberately NOT editable through this endpoint (per
+    // 2026-07 review) — it must only ever change via receiveStock()/
+    // adjustStock(), which already cascade it into internal_price
+    // themselves. This create/edit form path used to accept a direct
+    // avg_cost write and cascade it into internal_price too, which was the
+    // bug being fixed: an admin could silently override the real weighted
+    // average by hand-typing a number in the edit form.
     const map: Array<[keyof UpdateShopProductInput, keyof typeof shopProducts.$inferInsert]> = [
         ["product_code", "productCode"],
         ["barcode", "barcode"],
@@ -337,7 +342,6 @@ export async function updateShopProduct(
         ["category", "category"],
         ["external_price", "externalPrice"],
         ["internal_price", "internalPrice"],
-        ["avg_cost", "avgCost"],
         ["vat_percent", "vatPercent"],
         ["min_stock", "minStock"],
         ["is_active", "isActive"],
@@ -351,22 +355,10 @@ export async function updateShopProduct(
         if (input[inKey] !== undefined) {
             let v: unknown = input[inKey];
             if (dbKey === "uomId" && v === 0) v = null; // 0 means clear
-            if ((dbKey === "externalPrice" || dbKey === "internalPrice" || dbKey === "avgCost" || dbKey === "vatPercent") && v !== null) {
+            if ((dbKey === "externalPrice" || dbKey === "internalPrice" || dbKey === "vatPercent") && v !== null) {
                 v = String(v);
             }
             updates[dbKey] = v;
-        }
-    }
-
-    // Avg cost changed on an avg-cost-type shop (FIFO shops track cost per
-    // lot instead) — cascade to internal/staff price the same way
-    // receiveStock() and adjustStock() already do, so the edit form doesn't
-    // silently drift the two apart.
-    if (updates.avgCost !== undefined && updates.avgCost !== null) {
-        const shop = await shopOrThrow(shopId);
-        const newAvgCost = pgNumber(updates.avgCost as string) ?? 0;
-        if (shop.shopType !== "fifo" && newAvgCost !== oldAvgCost) {
-            updates.internalPrice = String(newAvgCost);
         }
     }
 
@@ -476,7 +468,7 @@ export async function receiveStock(args: {
             await sqlTx`UPDATE shop_products
         SET stock = ${newStock},
             avg_cost = ${newAvgRounded},
-            internal_price = CASE WHEN ${avgChanged} THEN ${newAvgRounded} ELSE internal_price END,
+            internal_price = CASE WHEN ${avgChanged} AND NOT ${isFifo} THEN ${newAvgRounded} ELSE internal_price END,
             updated_at = NOW()
         WHERE id = ${product.id}`;
             await sqlTx`

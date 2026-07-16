@@ -462,8 +462,17 @@ export async function updateUser(
             (err as { status?: number }).status = 403;
             throw err;
         }
-        if (target.shopId !== caller.shop_id) {
-            const err = new Error("Manager can only manage users inside their own shop");
+        // A manager may touch a user OUTSIDE their shop only when the update
+        // itself is claiming that user INTO their shop (the Directory tab's
+        // Assign/Reassign action — target is currently unassigned or at
+        // another shop). Otherwise the target must already be one of their
+        // own team members. Without the first branch, assigning a brand-new
+        // (not-yet-in-any-shop) user was impossible — target.shopId could
+        // never equal caller.shop_id before the very update meant to set it.
+        const targetAlreadyInShop = target.shopId === caller.shop_id;
+        const assigningIntoOwnShop = input.shop_id !== undefined && input.shop_id === caller.shop_id;
+        if (!targetAlreadyInShop && !assigningIntoOwnShop) {
+            const err = new Error("Manager can only manage users inside their own shop, or assign an unassigned/other-shop user into their own shop");
             (err as { status?: number }).status = 403;
             throw err;
         }
@@ -530,7 +539,34 @@ export async function updateUser(
     return userRow(updatedRows[0].user, updatedRows[0].shop);
 }
 
-export async function deleteUser(caller: AccessTokenPayload, userId: number): Promise<void> {
+// 23503 = foreign_key_violation, 23514 = check_violation. The latter shows
+// up here because wallets.user_id is ON DELETE SET NULL, but the wallets
+// table also has chk_wallet_owner (exactly one of customer_id/user_id/
+// department_id must be set) — nulling user_id on a user's own wallet trips
+// that check instead of a plain FK error.
+function isPgDeleteBlockingViolation(err: unknown): boolean {
+    if (!err || typeof err !== "object") return false;
+    const code = (err as { code?: string }).code;
+    if (code === "23503" || code === "23514") return true;
+    const cause = (err as { cause?: unknown }).cause;
+    return isPgDeleteBlockingViolation(cause);
+}
+
+async function deactivateUser(userId: number): Promise<void> {
+    await db
+        .update(users)
+        .set({ isActive: false, status: "inactive", sessionToken: null })
+        .where(eq(users.id, userId));
+}
+
+export interface DeleteUserResult {
+    // true when the account had transaction/audit history and was
+    // deactivated instead of removed (see comment below); false when it was
+    // actually deleted.
+    deactivated: boolean;
+}
+
+export async function deleteUser(caller: AccessTokenPayload, userId: number): Promise<DeleteUserResult> {
     if (!userIsAdmin(caller)) {
         const err = new Error("Admin only");
         (err as { status?: number }).status = 403;
@@ -552,7 +588,74 @@ export async function deleteUser(caller: AccessTokenPayload, userId: number): Pr
         (err as { status?: number }).status = 403;
         throw err;
     }
-    await db.delete(users).where(eq(users.id, userId));
+
+    // ~20 tables (receipts, wallet_transactions, audit_logs, credit_notes,
+    // payment_intents, stock_movements, ...) reference users.id with no ON
+    // DELETE cascade/set null, by design — they are financial/audit records
+    // that must never silently disappear. Any account that has actually
+    // been used (processed a sale, adjusted stock, approved something, ...)
+    // will hit one of these, so a hard DELETE would either throw a raw FK
+    // violation or (worse) require cascading away real transaction history.
+    // Deactivate instead: this honors the admin's intent (account should
+    // stop working) without destroying data other records depend on.
+    const [{ has_refs }] = await pgClient<Array<{ has_refs: boolean }>>`
+        SELECT EXISTS (
+            SELECT 1 FROM receipts WHERE created_by = ${userId} OR payer_user_id = ${userId} OR requester_user_id = ${userId} OR voided_by = ${userId}
+            UNION ALL SELECT 1 FROM budget_transactions WHERE created_by = ${userId}
+            UNION ALL SELECT 1 FROM approval_requests WHERE approved_by = ${userId} OR requested_by = ${userId}
+            UNION ALL SELECT 1 FROM audit_logs WHERE user_id = ${userId}
+            UNION ALL SELECT 1 FROM shop_movements WHERE created_by = ${userId}
+            UNION ALL SELECT 1 FROM product_order_history WHERE changed_by = ${userId}
+            UNION ALL SELECT 1 FROM identity_mappings WHERE changed_by = ${userId}
+            UNION ALL SELECT 1 FROM sync_logs WHERE triggered_by = ${userId}
+            UNION ALL SELECT 1 FROM system_settings WHERE updated_by = ${userId}
+            UNION ALL SELECT 1 FROM stock_levels WHERE updated_by = ${userId}
+            UNION ALL SELECT 1 FROM inventory_transactions WHERE created_by = ${userId}
+            UNION ALL SELECT 1 FROM stock_movements WHERE created_by = ${userId}
+            UNION ALL SELECT 1 FROM wallet_transactions WHERE created_by = ${userId}
+            UNION ALL SELECT 1 FROM credit_notes WHERE approved_by = ${userId} OR created_by = ${userId}
+            UNION ALL SELECT 1 FROM payment_intents WHERE confirmed_by = ${userId} OR created_by = ${userId}
+            UNION ALL SELECT 1 FROM stock_period_closes WHERE closed_by = ${userId}
+            -- Reached via the user's OWN wallet rather than a *_by column —
+            -- a wallet with a nonzero balance, transactions, or payment
+            -- intents is real financial history, even for a role (parent/
+            -- staff/cashier/manager/kitchen/admin) that gets an auto-created
+            -- wallet on account creation.
+            UNION ALL SELECT 1 FROM wallets w WHERE w.user_id = ${userId} AND (
+                w.balance <> 0
+                OR EXISTS (SELECT 1 FROM wallet_transactions wt WHERE wt.wallet_id = w.id)
+                OR EXISTS (SELECT 1 FROM payment_intents pi WHERE pi.wallet_id = w.id)
+            )
+        ) AS has_refs
+    `;
+
+    if (has_refs) {
+        await deactivateUser(userId);
+        return { deactivated: true };
+    }
+
+    try {
+        await pgClient.begin(async (sqlTx) => {
+            // An empty wallet (zero balance, no transactions/intents — the
+            // only kind that reaches this point) has nothing worth keeping.
+            // Remove it explicitly so ON DELETE SET NULL doesn't trip
+            // wallets.chk_wallet_owner (exactly one of customer_id/user_id/
+            // department_id must be non-null) when the user row disappears.
+            await sqlTx`DELETE FROM wallets WHERE user_id = ${userId}`;
+            await sqlTx`DELETE FROM users WHERE id = ${userId}`;
+        });
+    } catch (e) {
+        // Belt-and-suspenders: if some other constraint we didn't enumerate
+        // above blocks the delete (e.g. a table added later), fall back to
+        // the same safe deactivate path instead of leaking a raw Postgres
+        // error to the admin.
+        if (isPgDeleteBlockingViolation(e)) {
+            await deactivateUser(userId);
+            return { deactivated: true };
+        }
+        throw e;
+    }
+    return { deactivated: false };
 }
 
 export async function familyLookup(q: string): Promise<FamilyLookupResponseDTO> {

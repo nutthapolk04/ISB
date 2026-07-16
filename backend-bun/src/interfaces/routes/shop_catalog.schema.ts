@@ -156,7 +156,9 @@ export const updateShopProduct = {
         category: t.Optional(t.Nullable(t.String())),
         external_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
         internal_price: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
-        avg_cost: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+        // avg_cost is deliberately not accepted here (2026-07 review) — it
+        // may only change via receive-stock/adjust-stock, never a direct
+        // product edit. See updateShopProduct() in shop_product_service.ts.
         vat_percent: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
         min_stock: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
         is_active: t.Optional(t.Nullable(t.Boolean())),

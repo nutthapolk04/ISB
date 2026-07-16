@@ -817,6 +817,7 @@
     "fifoInitialLotCostHint": "Becomes the first FIFO lot for this product",
     "fifoAvgCostReadonly": "Displayed avg cost",
     "fifoAvgCostReadonlyHint": "Auto-calculated from FIFO lots — edit via Receive Stock or Adjustment",
+    "avgCostStockReadonlyHint": "Avg cost and stock update automatically via Receive Stock or Adjustment — not editable here",
     "previewNewTotal": "New stock total",
     "previewEmpty": "Select a product to preview cost calculation",
     "addToBatch": "Add to Batch",
@@ -1464,6 +1465,8 @@
       "deleteWarning": "This action cannot be undone.",
       "deleteSuccess": "User deleted",
       "deleteError": "Failed to delete user",
+      "deactivatedInstead": "User deactivated",
+      "deactivatedInsteadDesc": "This account has transaction/audit history, so it was deactivated instead of deleted.",
       "deleting": "Deleting…",
       "confirmDelete": "Delete",
       "cardUidHex": "Card UID (hex)",
@@ -1535,7 +1538,7 @@
       "deleteFailed": "Failed to delete user",
       "deleteTitle": "Delete user",
       "deleteConfirmTitle": "Confirm user deletion",
-      "deleteConfirmDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone."
+      "deleteConfirmDesc": "If this account has no transaction/audit history it will be permanently deleted; otherwise it will be deactivated instead so existing records stay intact. This cannot be undone."
     }
   },
   "canteen": {
@@ -2263,9 +2266,11 @@
     "unlinkStudent": "Unlink",
     "deleteSuccess": "User deleted",
     "deleteFailed": "Failed to delete user",
+    "deactivatedInstead": "User deactivated",
+    "deactivatedInsteadDesc": "This account has transaction/audit history, so it was deactivated instead of deleted.",
     "delete": "Delete",
     "deleteTitle": "Confirm deletion",
-    "deleteDesc": "Deletion will remove the wallet, audit records, and all linked data. This cannot be undone.",
+    "deleteDesc": "If this account has no transaction/audit history it will be permanently deleted; otherwise it will be deactivated instead so existing records stay intact. This cannot be undone.",
     "deleteConfirm": "Delete"
   },
   "audit": {

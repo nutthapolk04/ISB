@@ -375,7 +375,9 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                 category: editForm.category || t("inventory.defaultCategory", "General"),
                 external_price: parseFloat(editForm.externalPrice),
                 internal_price: editForm.internalPrice ? parseFloat(editForm.internalPrice) : parseFloat(editForm.externalPrice),
-                avg_cost: editForm.avgCost ? parseFloat(editForm.avgCost) : 0,
+                // avg_cost and stock are intentionally omitted — both are
+                // read-only on edit (only Receive Stock/Adjustment can change
+                // them) and the backend no longer accepts avg_cost here at all.
                 vat_percent: parseFloat(editForm.vatPercent) || 0,
                 min_stock: parseInt(editForm.minStock) || 0,
                 color: editForm.color || null,
@@ -1411,41 +1413,40 @@ function ProductFormFields({
             </div>
             <div className="grid grid-cols-3 gap-x-4 gap-y-1 items-end">
                 <div className="pb-0">
-                    {shopType === "fifo" ? (
-                        <>
-                            <Label className="leading-snug">
-                                {isEdit
-                                    ? t("inventory.fifoAvgCostReadonly")
-                                    : t("inventory.fifoInitialLotCost")}{" "}
-                                (฿)
-                            </Label>
-                            <Input
-                                type="number"
-                                value={form.avgCost}
-                                onChange={(e) => !isEdit && setForm({ ...form, avgCost: e.target.value })}
-                                placeholder="0.00"
-                                readOnly={isEdit}
-                                className={isEdit ? "bg-muted cursor-not-allowed" : undefined}
-                            />
-                        </>
-                    ) : (
-                        <>
-                            <Label>{t("inventory.avgCost")} (฿)</Label>
-                            <Input
-                                type="number"
-                                value={form.avgCost}
-                                onChange={(e) => setForm({ ...form, avgCost: e.target.value })}
-                                placeholder="0.00"
-                            />
-                        </>
-                    )}
+                    {/* Avg cost is never directly editable once a product exists — for
+                        EITHER shop type. It must only ever move through Receive Stock /
+                        Adjustment (which recalculate the real weighted average and cascade
+                        it into internal_price themselves). Editable here only at create
+                        time, to seed an opening cost. */}
+                    <Label className="leading-snug">
+                        {isEdit
+                            ? t("inventory.fifoAvgCostReadonly")
+                            : shopType === "fifo"
+                                ? t("inventory.fifoInitialLotCost")
+                                : t("inventory.avgCost")}{" "}
+                        (฿)
+                    </Label>
+                    <Input
+                        type="number"
+                        value={form.avgCost}
+                        onChange={(e) => !isEdit && setForm({ ...form, avgCost: e.target.value })}
+                        placeholder="0.00"
+                        readOnly={isEdit}
+                        className={isEdit ? "bg-muted cursor-not-allowed" : undefined}
+                    />
                 </div>
                 <div>
-                    <Label>{t("inventory.stock")} *</Label>
+                    <Label>{t("inventory.stock")}{!isEdit && " *"}</Label>
+                    {/* Same reasoning as avg cost — stock only ever moves through
+                        Receive Stock / Adjustment once a product exists; editing it
+                        here used to be silently dropped on save anyway (the update
+                        payload never included it), which just looked like a bug. */}
                     <Input
                         type="number"
                         value={form.stock}
-                        onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                        onChange={(e) => !isEdit && setForm({ ...form, stock: e.target.value })}
+                        readOnly={isEdit}
+                        className={isEdit ? "bg-muted cursor-not-allowed" : undefined}
                     />
                 </div>
                 <div>
@@ -1457,13 +1458,13 @@ function ProductFormFields({
                     />
                 </div>
             </div>
-            {shopType === "fifo" && (
-                <p className="text-xs text-muted-foreground -mt-2">
-                    {isEdit
-                        ? t("inventory.fifoAvgCostReadonlyHint")
-                        : t("inventory.fifoInitialLotCostHint")}
-                </p>
-            )}
+            <p className="text-xs text-muted-foreground -mt-2">
+                {isEdit
+                    ? t("inventory.avgCostStockReadonlyHint")
+                    : shopType === "fifo"
+                        ? t("inventory.fifoInitialLotCostHint")
+                        : null}
+            </p>
             <div>
                 <Label>{t("canteen.products.colorLabel")}</Label>
                 <div className="mt-1 flex items-center gap-2">

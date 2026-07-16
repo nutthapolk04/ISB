@@ -168,11 +168,21 @@ export default function UserList() {
     if (!deleting) return;
     setDeleteBusy(true);
     try {
-      await api.delete(`/users/${deleting.id}`);
-      toast({
-        title: t("admin.users.deleteSuccess", "User deleted"),
-        description: deleting.full_name || deleting.username,
-      });
+      const result = await api.delete<{ deactivated: boolean }>(`/users/${deleting.id}`);
+      if (result?.deactivated) {
+        toast({
+          title: t("admin.users.deactivatedInstead", "User deactivated"),
+          description: t(
+            "admin.users.deactivatedInsteadDesc",
+            "This account has transaction/audit history, so it was deactivated instead of deleted.",
+          ),
+        });
+      } else {
+        toast({
+          title: t("admin.users.deleteSuccess", "User deleted"),
+          description: deleting.full_name || deleting.username,
+        });
+      }
       setDeleting(null);
       // Refresh by remounting the row data — simplest is to re-trigger the
       // existing effect via search update; instead just hide locally.
