@@ -42,7 +42,8 @@ const t = {
         successDate: 'Date & Time',
         successMethod: 'Method',
         successAmount: 'Amount',
-        backToBalance: 'Back to Balance',
+        backToBalance: 'Done',
+        autoLogoutHint: 'Returning to welcome in {n}s…',
         failTitle: 'Top-up Failed',
         failNoInternet: 'Unable to connect to the internet',
         failNoInternetSub: 'Please collect your money and try again.',
@@ -115,7 +116,8 @@ const t = {
         successDate: 'วันที่และเวลาทำรายการ',
         successMethod: 'ช่องทาง',
         successAmount: 'จำนวนเงิน',
-        backToBalance: 'กลับไปหน้าเติมเงิน',
+        backToBalance: 'เสร็จสิ้น',
+        autoLogoutHint: 'กลับหน้าต้อนรับใน {n} วินาที…',
         failTitle: 'เกิดข้อผิดพลาด',
         failNoInternet: 'ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้',
         failNoInternetSub: 'กรุณารับเงินคืน และลองทำรายการใหม่อีกครั้ง',
@@ -367,7 +369,47 @@ const stopPolling = () => {
     }
 };
 
+/** After a successful top-up, free the kiosk for the next member quickly. */
+const SUCCESS_LOGOUT_MS = 3_000;
+let successLogoutTimer: number | null = null;
+const successLogoutSecondsLeft = ref(0);
+let successLogoutTick: number | null = null;
+
+const clearSuccessLogoutTimer = () => {
+    if (successLogoutTimer != null) {
+        clearTimeout(successLogoutTimer);
+        successLogoutTimer = null;
+    }
+    if (successLogoutTick != null) {
+        clearInterval(successLogoutTick);
+        successLogoutTick = null;
+    }
+    successLogoutSecondsLeft.value = 0;
+};
+
+const finishAndLogout = () => {
+    clearSuccessLogoutTimer();
+    clearQrTimer();
+    stopPolling();
+    void bill.stop();
+    store.logout();
+    router.push('/');
+};
+
+const scheduleSuccessLogout = () => {
+    clearSuccessLogoutTimer();
+    successLogoutSecondsLeft.value = Math.ceil(SUCCESS_LOGOUT_MS / 1000);
+    successLogoutTick = window.setInterval(() => {
+        successLogoutSecondsLeft.value = Math.max(0, successLogoutSecondsLeft.value - 1);
+    }, 1000);
+    successLogoutTimer = window.setTimeout(() => {
+        logKioskEvent('auth', 'info', 'Auto logout after successful top-up');
+        finishAndLogout();
+    }, SUCCESS_LOGOUT_MS);
+};
+
 onUnmounted(() => {
+    clearSuccessLogoutTimer();
     clearQrTimer();
     stopPolling();
     void bill.stop();
@@ -438,6 +480,11 @@ const goBack = () => {
 };
 
 const goBackToBalance = () => {
+    // Success screen: free the terminal for the next member immediately.
+    if (currentStep.value === 'success') {
+        finishAndLogout();
+        return;
+    }
     clearQrTimer();
     router.push('/balance');
 };
@@ -544,11 +591,17 @@ const printReceipt = async () => {
 
 // Auto-print once when the success screen appears. printReceipt lazily connects if needed,
 // so this also recovers when the boot-time printer connect failed.
+// Also schedule a short auto-logout so the next member can tap in right away.
 watch(currentStep, (step) => {
-    if (step === 'success' && !autoPrinted) {
-        autoPrinted = true;
-        void printReceipt();
+    if (step === 'success') {
+        if (!autoPrinted) {
+            autoPrinted = true;
+            void printReceipt();
+        }
+        scheduleSuccessLogout();
+        return;
     }
+    clearSuccessLogoutTimer();
 });
 
 const selectedColor = (prop: 'colorBg' | 'colorText' | 'border') => {
@@ -859,6 +912,9 @@ const overpayExceedsCap = computed(() => {
                 </button>
             </div>
 
+            <p v-if="successLogoutSecondsLeft > 0" class="auto-logout-hint">
+                {{ currT.autoLogoutHint.replace('{n}', String(successLogoutSecondsLeft)) }}
+            </p>
             <button class="kiosk-btn btn-primary" style="margin-top: 1rem;" @click="goBackToBalance">
                 {{ currT.backToBalance }}
             </button>
@@ -1372,6 +1428,13 @@ const overpayExceedsCap = computed(() => {
 /* Success */
 .success-screen {
     text-align: center;
+}
+
+.auto-logout-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
 .success-icon-wrap {

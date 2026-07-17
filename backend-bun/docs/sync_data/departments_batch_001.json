@@ -1,0 +1,984 @@
+{
+  "departments": [
+    {
+      "departmentId": "001",
+      "customerType": "Department",
+      "departmentDescription": "ELEMENTARY SCHOOL OFFICE - 001"
+    },
+    {
+      "departmentId": "002",
+      "customerType": "Department",
+      "departmentDescription": "ART - 002"
+    },
+    {
+      "departmentId": "003",
+      "customerType": "Department",
+      "departmentDescription": "EAL/LSS-LEARNING SUPPORT - 003"
+    },
+    {
+      "departmentId": "004",
+      "customerType": "Department",
+      "departmentDescription": "LIBRARY (ES) - 004"
+    },
+    {
+      "departmentId": "005",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH AS ADDITIONAL LANGUAGE - 005"
+    },
+    {
+      "departmentId": "006",
+      "customerType": "Department",
+      "departmentDescription": "THAI/ WORLD LANGUAGE - 006"
+    },
+    {
+      "departmentId": "007",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC STUDIES - 007"
+    },
+    {
+      "departmentId": "008",
+      "customerType": "Department",
+      "departmentDescription": "MANDARIN - 008"
+    },
+    {
+      "departmentId": "009",
+      "customerType": "Department",
+      "departmentDescription": "SPEECH - 009"
+    },
+    {
+      "departmentId": "010",
+      "customerType": "Department",
+      "departmentDescription": "KINDERGARDEN(00) - 010"
+    },
+    {
+      "departmentId": "011",
+      "customerType": "Department",
+      "departmentDescription": "GRADE1 - 011"
+    },
+    {
+      "departmentId": "012",
+      "customerType": "Department",
+      "departmentDescription": "GRADE2 - 012"
+    },
+    {
+      "departmentId": "013",
+      "customerType": "Department",
+      "departmentDescription": "GRADE3 - 013"
+    },
+    {
+      "departmentId": "014",
+      "customerType": "Department",
+      "departmentDescription": "GRADE4 - 014"
+    },
+    {
+      "departmentId": "015",
+      "customerType": "Department",
+      "departmentDescription": "GRADE5 - 015"
+    },
+    {
+      "departmentId": "016",
+      "customerType": "Department",
+      "departmentDescription": "PRE-KINDERGARTEN(K1) - 016"
+    },
+    {
+      "departmentId": "017",
+      "customerType": "Department",
+      "departmentDescription": "PRE-KINDERGARTEN1 (KO) - 017"
+    },
+    {
+      "departmentId": "018",
+      "customerType": "Department",
+      "departmentDescription": "PHYSICAL EDUCATION - 018"
+    },
+    {
+      "departmentId": "019",
+      "customerType": "Department",
+      "departmentDescription": "SCIENCE - 019"
+    },
+    {
+      "departmentId": "020",
+      "customerType": "Department",
+      "departmentDescription": "ES Explore (ES ASA) - 020"
+    },
+    {
+      "departmentId": "021",
+      "customerType": "Department",
+      "departmentDescription": "COUNSELING CENTER - 021"
+    },
+    {
+      "departmentId": "022",
+      "customerType": "Department",
+      "departmentDescription": "ES YEARBOOK - 022"
+    },
+    {
+      "departmentId": "023",
+      "customerType": "Department",
+      "departmentDescription": "SPANISH LANGUAGE - 023"
+    },
+    {
+      "departmentId": "024",
+      "customerType": "Department",
+      "departmentDescription": "ES MATH - 024"
+    },
+    {
+      "departmentId": "025",
+      "customerType": "Department",
+      "departmentDescription": "ES BOOKIES / ENGLISH - 025"
+    },
+    {
+      "departmentId": "026",
+      "customerType": "Department",
+      "departmentDescription": "ES MAKER SPACE - 026"
+    },
+    {
+      "departmentId": "027",
+      "customerType": "Department",
+      "departmentDescription": "ES ATELIERISTA - 027"
+    },
+    {
+      "departmentId": "028",
+      "customerType": "Department",
+      "departmentDescription": "ES Drama Performance - 028"
+    },
+    {
+      "departmentId": "045",
+      "customerType": "Department",
+      "departmentDescription": "ES Outdoor Eductation - 045"
+    },
+    {
+      "departmentId": "099",
+      "customerType": "Department",
+      "departmentDescription": "ES SALARIES & BENEFITS - 099"
+    },
+    {
+      "departmentId": "100",
+      "customerType": "Department",
+      "departmentDescription": "MIDDLE SCHOOL OFFICE - 100"
+    },
+    {
+      "departmentId": "101",
+      "customerType": "Department",
+      "departmentDescription": "SPECIAL PROGRAMS - 101"
+    },
+    {
+      "departmentId": "102",
+      "customerType": "Department",
+      "departmentDescription": "COUNSELING CENTER - 102"
+    },
+    {
+      "departmentId": "103",
+      "customerType": "Department",
+      "departmentDescription": "K-12 SCHOOL PSYCHOLOGIST - 103"
+    },
+    {
+      "departmentId": "104",
+      "customerType": "Department",
+      "departmentDescription": "LIBRARY (MS) - 104"
+    },
+    {
+      "departmentId": "110",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH - 110"
+    },
+    {
+      "departmentId": "112",
+      "customerType": "Department",
+      "departmentDescription": "MATHEMATICS - 112"
+    },
+    {
+      "departmentId": "114",
+      "customerType": "Department",
+      "departmentDescription": "SOCIAL STUDIES - 114"
+    },
+    {
+      "departmentId": "116",
+      "customerType": "Department",
+      "departmentDescription": "SCIENCE - 116"
+    },
+    {
+      "departmentId": "117",
+      "customerType": "Department",
+      "departmentDescription": "WELLNESS/HEALTH - 117"
+    },
+    {
+      "departmentId": "118",
+      "customerType": "Department",
+      "departmentDescription": "PE/HEALTH - 118"
+    },
+    {
+      "departmentId": "120",
+      "customerType": "Department",
+      "departmentDescription": "TEAM6 - 120"
+    },
+    {
+      "departmentId": "122",
+      "customerType": "Department",
+      "departmentDescription": "TEAM7 - 122"
+    },
+    {
+      "departmentId": "126",
+      "customerType": "Department",
+      "departmentDescription": "TEAM8 - 126"
+    },
+    {
+      "departmentId": "129",
+      "customerType": "Department",
+      "departmentDescription": "EAL - 129"
+    },
+    {
+      "departmentId": "130",
+      "customerType": "Department",
+      "departmentDescription": "LSS - 130"
+    },
+    {
+      "departmentId": "131",
+      "customerType": "Department",
+      "departmentDescription": "Design Technology - 131"
+    },
+    {
+      "departmentId": "132",
+      "customerType": "Department",
+      "departmentDescription": "LEARNING SUPPORT - 132"
+    },
+    {
+      "departmentId": "134",
+      "customerType": "Department",
+      "departmentDescription": "FOREIGN/WORLD LANGUAGE - 134"
+    },
+    {
+      "departmentId": "135",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER - 135"
+    },
+    {
+      "departmentId": "136",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA - 136"
+    },
+    {
+      "departmentId": "137",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC (CHORUS/SINGING) - 137"
+    },
+    {
+      "departmentId": "138",
+      "customerType": "Department",
+      "departmentDescription": "INDUSTRIAL ARTS - 138"
+    },
+    {
+      "departmentId": "139",
+      "customerType": "Department",
+      "departmentDescription": "ART - 139"
+    },
+    {
+      "departmentId": "140",
+      "customerType": "Department",
+      "departmentDescription": "PHOTOGRAPHY - 140"
+    },
+    {
+      "departmentId": "141",
+      "customerType": "Department",
+      "departmentDescription": "HOME ECONOMICS - 141"
+    },
+    {
+      "departmentId": "142",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA PERFORMANCE - 142"
+    },
+    {
+      "departmentId": "143",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC (INSTRUMENTAL/BAND) - 143"
+    },
+    {
+      "departmentId": "144",
+      "customerType": "Department",
+      "departmentDescription": "MS Music (Strings) - 144"
+    },
+    {
+      "departmentId": "145",
+      "customerType": "Department",
+      "departmentDescription": "MS Outdoor Education - 145"
+    },
+    {
+      "departmentId": "148",
+      "customerType": "Department",
+      "departmentDescription": "ELECTIVE - 148"
+    },
+    {
+      "departmentId": "149",
+      "customerType": "Department",
+      "departmentDescription": "MIDDLE SCHOOL PUBLICATIONS - 149"
+    },
+    {
+      "departmentId": "150",
+      "customerType": "Department",
+      "departmentDescription": "MS ACTIVITIES - 150"
+    },
+    {
+      "departmentId": "151",
+      "customerType": "Department",
+      "departmentDescription": "ENVIRONMENTAL ACTIVITIES - 151"
+    },
+    {
+      "departmentId": "152",
+      "customerType": "Department",
+      "departmentDescription": "MS ROBOTICS - 152"
+    },
+    {
+      "departmentId": "153",
+      "customerType": "Department",
+      "departmentDescription": "MS ADVISORY - 153"
+    },
+    {
+      "departmentId": "199",
+      "customerType": "Department",
+      "departmentDescription": "MS SALARIES & BENEFITS - 199"
+    },
+    {
+      "departmentId": "300",
+      "customerType": "Department",
+      "departmentDescription": "HIGH SCHOOL OFFICE - 300"
+    },
+    {
+      "departmentId": "301",
+      "customerType": "Department",
+      "departmentDescription": "LIBRARY (HS) - 301"
+    },
+    {
+      "departmentId": "302",
+      "customerType": "Department",
+      "departmentDescription": "COUNSELING CENTER - 302"
+    },
+    {
+      "departmentId": "303",
+      "customerType": "Department",
+      "departmentDescription": "I.B. PROGRAM - 303"
+    },
+    {
+      "departmentId": "304",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH AS ADDITIONAL LANGUAGE - 304"
+    },
+    {
+      "departmentId": "305",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH - 305"
+    },
+    {
+      "departmentId": "306",
+      "customerType": "Department",
+      "departmentDescription": "SOCIAL STUDIES - 306"
+    },
+    {
+      "departmentId": "307",
+      "customerType": "Department",
+      "departmentDescription": "MATHEMATICS - 307"
+    },
+    {
+      "departmentId": "308",
+      "customerType": "Department",
+      "departmentDescription": "SCIENCES - 308"
+    },
+    {
+      "departmentId": "309",
+      "customerType": "Department",
+      "departmentDescription": "WORLD LANGUAGES - 309"
+    },
+    {
+      "departmentId": "310",
+      "customerType": "Department",
+      "departmentDescription": "LEARNING SUPPORT LSS/EAL - 310"
+    },
+    {
+      "departmentId": "311",
+      "customerType": "Department",
+      "departmentDescription": "PHYSICAL EDUCATON - 311"
+    },
+    {
+      "departmentId": "312",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA - 312"
+    },
+    {
+      "departmentId": "313",
+      "customerType": "Department",
+      "departmentDescription": "BUSINESS - 313"
+    },
+    {
+      "departmentId": "314",
+      "customerType": "Department",
+      "departmentDescription": "ART - 314"
+    },
+    {
+      "departmentId": "315",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC - 315"
+    },
+    {
+      "departmentId": "316",
+      "customerType": "Department",
+      "departmentDescription": "INDUSTIRAL ARTS - 316"
+    },
+    {
+      "departmentId": "317",
+      "customerType": "Department",
+      "departmentDescription": "COMMUNITY SERVICE - 317"
+    },
+    {
+      "departmentId": "318",
+      "customerType": "Department",
+      "departmentDescription": "PHOTOGRAPHY - 318"
+    },
+    {
+      "departmentId": "319",
+      "customerType": "Department",
+      "departmentDescription": "FINE ARTS - 319"
+    },
+    {
+      "departmentId": "320",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER - 320"
+    },
+    {
+      "departmentId": "321",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER RESOURCES - 321"
+    },
+    {
+      "departmentId": "322",
+      "customerType": "Department",
+      "departmentDescription": "INTERNSHIP/PARTNERSHIP - 322"
+    },
+    {
+      "departmentId": "323",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA-PERFORMANCE - 323"
+    },
+    {
+      "departmentId": "324",
+      "customerType": "Department",
+      "departmentDescription": "ERAWAN - 324"
+    },
+    {
+      "departmentId": "325",
+      "customerType": "Department",
+      "departmentDescription": "HS/MS DANCE - 325"
+    },
+    {
+      "departmentId": "326",
+      "customerType": "Department",
+      "departmentDescription": "HS MEDIA STUDIES - 326"
+    },
+    {
+      "departmentId": "327",
+      "customerType": "Department",
+      "departmentDescription": "HS SPEECH - 327"
+    },
+    {
+      "departmentId": "328",
+      "customerType": "Department",
+      "departmentDescription": "HS PSYCHOLOGIST - 328"
+    },
+    {
+      "departmentId": "329",
+      "customerType": "Department",
+      "departmentDescription": "HS ROBOTICS - 329"
+    },
+    {
+      "departmentId": "330",
+      "customerType": "Department",
+      "departmentDescription": "DESIGN TECHNOLOGY - 330"
+    },
+    {
+      "departmentId": "331",
+      "customerType": "Department",
+      "departmentDescription": "COLLEGE COUNSELLING - 331"
+    },
+    {
+      "departmentId": "332",
+      "customerType": "Department",
+      "departmentDescription": "AP  Program - 332"
+    },
+    {
+      "departmentId": "333",
+      "customerType": "Department",
+      "departmentDescription": "Music (Strings) - 333"
+    },
+    {
+      "departmentId": "334",
+      "customerType": "Department",
+      "departmentDescription": "Music (Chorus/IB) - 334"
+    },
+    {
+      "departmentId": "335",
+      "customerType": "Department",
+      "departmentDescription": "Music (IB) - 335"
+    },
+    {
+      "departmentId": "336",
+      "customerType": "Department",
+      "departmentDescription": "Sound Production - 336"
+    },
+    {
+      "departmentId": "345",
+      "customerType": "Department",
+      "departmentDescription": "HS Outdoor Education - 345"
+    },
+    {
+      "departmentId": "350",
+      "customerType": "Department",
+      "departmentDescription": "ACTIVITIES & COMMUNITY SERVICE - 350"
+    },
+    {
+      "departmentId": "351",
+      "customerType": "Department",
+      "departmentDescription": "THEATRE - 351"
+    },
+    {
+      "departmentId": "352",
+      "customerType": "Department",
+      "departmentDescription": "COMMUNITY ACTIVITIES OFFICE - 352"
+    },
+    {
+      "departmentId": "360",
+      "customerType": "Department",
+      "departmentDescription": "ATHLETICS OFFICE - 360"
+    },
+    {
+      "departmentId": "361",
+      "customerType": "Department",
+      "departmentDescription": "AQUATICS OFFICE - 361"
+    },
+    {
+      "departmentId": "362",
+      "customerType": "Department",
+      "departmentDescription": "SPORT COMPLEX - 362"
+    },
+    {
+      "departmentId": "363",
+      "customerType": "Department",
+      "departmentDescription": "PHETCHABURI OUTDOOR CAMP - 363"
+    },
+    {
+      "departmentId": "399",
+      "customerType": "Department",
+      "departmentDescription": "HS SALARIES & BENEFITS - 399"
+    },
+    {
+      "departmentId": "400",
+      "customerType": "Department",
+      "departmentDescription": "HEAD OF SCHOOL - 400"
+    },
+    {
+      "departmentId": "410",
+      "customerType": "Department",
+      "departmentDescription": "HEAD OF SCHOOL OFFICE - 410"
+    },
+    {
+      "departmentId": "411",
+      "customerType": "Department",
+      "departmentDescription": "HEAD OF SCHOOL'S HOUSE - 411"
+    },
+    {
+      "departmentId": "420",
+      "customerType": "Department",
+      "departmentDescription": "HEADMISTRESS OFFICE - 420"
+    },
+    {
+      "departmentId": "421",
+      "customerType": "Department",
+      "departmentDescription": "GOVERNMENT LIAISON OFFICE - 421"
+    },
+    {
+      "departmentId": "450",
+      "customerType": "Department",
+      "departmentDescription": "DEPUTY HEAD OF SCHOOL OFFICE - 450"
+    },
+    {
+      "departmentId": "451",
+      "customerType": "Department",
+      "departmentDescription": "LDC/CURRICULUM OFFICE - 451"
+    },
+    {
+      "departmentId": "452",
+      "customerType": "Department",
+      "departmentDescription": "MARKETING & COMMUNICATION - 452"
+    },
+    {
+      "departmentId": "453",
+      "customerType": "Department",
+      "departmentDescription": "ADMISSION OFFICE - 453"
+    },
+    {
+      "departmentId": "454",
+      "customerType": "Department",
+      "departmentDescription": "HUMAN RESOURCES DEPARTMENT - 454"
+    },
+    {
+      "departmentId": "455",
+      "customerType": "Department",
+      "departmentDescription": "GIFTED AND TALENTED PROGRAM - 455"
+    },
+    {
+      "departmentId": "456",
+      "customerType": "Department",
+      "departmentDescription": "OUTDOOR EDU. PETCHABURI CAMPUS - 456"
+    },
+    {
+      "departmentId": "457",
+      "customerType": "Department",
+      "departmentDescription": "INTENSIVE NEEDS PROGRAM - 457"
+    },
+    {
+      "departmentId": "458",
+      "customerType": "Department",
+      "departmentDescription": "STUDENT SERVICES OFFICE - 458"
+    },
+    {
+      "departmentId": "459",
+      "customerType": "Department",
+      "departmentDescription": "MOTHER TONGUE PROGRAM - 459"
+    },
+    {
+      "departmentId": "499",
+      "customerType": "Department",
+      "departmentDescription": "SUPT. SALARIES & BENEFITS - 499"
+    },
+    {
+      "departmentId": "510",
+      "customerType": "Department",
+      "departmentDescription": "DEPUTY HEAD OF SCHOOL/CFO - 510"
+    },
+    {
+      "departmentId": "520",
+      "customerType": "Department",
+      "departmentDescription": "ED-TECH CENTER - 520"
+    },
+    {
+      "departmentId": "530",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFFICE - 530"
+    },
+    {
+      "departmentId": "531",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF. - HOUSEKEEPING - 531"
+    },
+    {
+      "departmentId": "532",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF.-MECHANIC.MAINT - 532"
+    },
+    {
+      "departmentId": "533",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF.-GROUND - 533"
+    },
+    {
+      "departmentId": "534",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF.-TEACHER HOUSE - 534"
+    },
+    {
+      "departmentId": "545",
+      "customerType": "Department",
+      "departmentDescription": "EWC-EnvironmentWildernessCamp - 545"
+    },
+    {
+      "departmentId": "546",
+      "customerType": "Department",
+      "departmentDescription": "GOLF CENTER - 546"
+    },
+    {
+      "departmentId": "550",
+      "customerType": "Department",
+      "departmentDescription": "BUSINESS OFFICE - 550"
+    },
+    {
+      "departmentId": "551",
+      "customerType": "Department",
+      "departmentDescription": "GENERAL SCHOOLWIDE - 551"
+    },
+    {
+      "departmentId": "552",
+      "customerType": "Department",
+      "departmentDescription": "ACCOUNTING AND INVOICE - 552"
+    },
+    {
+      "departmentId": "553",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER - MIS - 553"
+    },
+    {
+      "departmentId": "554",
+      "customerType": "Department",
+      "departmentDescription": "PURCHASING OFFICE - 554"
+    },
+    {
+      "departmentId": "555",
+      "customerType": "Department",
+      "departmentDescription": "RECEIVING OFFICE - 555"
+    },
+    {
+      "departmentId": "560",
+      "customerType": "Department",
+      "departmentDescription": "PRINTING OFFICE - 560"
+    },
+    {
+      "departmentId": "570",
+      "customerType": "Department",
+      "departmentDescription": "TELEPHONE/ FAX / MAIL - 570"
+    },
+    {
+      "departmentId": "580",
+      "customerType": "Department",
+      "departmentDescription": "SECURITY - 580"
+    },
+    {
+      "departmentId": "590",
+      "customerType": "Department",
+      "departmentDescription": "TRANSPORTATION OFFICE - 590"
+    },
+    {
+      "departmentId": "600",
+      "customerType": "Department",
+      "departmentDescription": "BOOKSTORE - 600"
+    },
+    {
+      "departmentId": "610",
+      "customerType": "Department",
+      "departmentDescription": "NURSE OFFICE - 610"
+    },
+    {
+      "departmentId": "620",
+      "customerType": "Department",
+      "departmentDescription": "FOOD SERVICES - 620"
+    },
+    {
+      "departmentId": "699",
+      "customerType": "Department",
+      "departmentDescription": "CFO SALARIES & BENEFITS - 699"
+    },
+    {
+      "departmentId": "700",
+      "customerType": "Department",
+      "departmentDescription": "IB FILM - 700"
+    },
+    {
+      "departmentId": "701",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS DANCE - 701"
+    },
+    {
+      "departmentId": "702",
+      "customerType": "Department",
+      "departmentDescription": "HS BAND / IB MUSIC - 702"
+    },
+    {
+      "departmentId": "703",
+      "customerType": "Department",
+      "departmentDescription": "MS BAND - 703"
+    },
+    {
+      "departmentId": "704",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS CHOIR - 704"
+    },
+    {
+      "departmentId": "705",
+      "customerType": "Department",
+      "departmentDescription": "K-12 STRING - 705"
+    },
+    {
+      "departmentId": "706",
+      "customerType": "Department",
+      "departmentDescription": "ES MUSIC - 706"
+    },
+    {
+      "departmentId": "707",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS THEATRE (incl. 709/710) - 707"
+    },
+    {
+      "departmentId": "708",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS PRODUCTION (incl. 720) - 708"
+    },
+    {
+      "departmentId": "709",
+      "customerType": "Department",
+      "departmentDescription": "IB TAPS TRIP - 709"
+    },
+    {
+      "departmentId": "710",
+      "customerType": "Department",
+      "departmentDescription": "MS THEATRE - 710"
+    },
+    {
+      "departmentId": "711",
+      "customerType": "Department",
+      "departmentDescription": "ES MUSICAL - 711"
+    },
+    {
+      "departmentId": "712",
+      "customerType": "Department",
+      "departmentDescription": "HS ARTS - 712"
+    },
+    {
+      "departmentId": "713",
+      "customerType": "Department",
+      "departmentDescription": "HS PHOTOGRAPHY - 713"
+    },
+    {
+      "departmentId": "714",
+      "customerType": "Department",
+      "departmentDescription": "HS JEWELRY - 714"
+    },
+    {
+      "departmentId": "715",
+      "customerType": "Department",
+      "departmentDescription": "MS ART - 715"
+    },
+    {
+      "departmentId": "716",
+      "customerType": "Department",
+      "departmentDescription": "ES ART - 716"
+    },
+    {
+      "departmentId": "717",
+      "customerType": "Department",
+      "departmentDescription": "K-12 ARTS AND ACTIVITIES - 717"
+    },
+    {
+      "departmentId": "718",
+      "customerType": "Department",
+      "departmentDescription": "THEATRE - 718"
+    },
+    {
+      "departmentId": "719",
+      "customerType": "Department",
+      "departmentDescription": "INVENTION CENTER - 719"
+    },
+    {
+      "departmentId": "720",
+      "customerType": "Department",
+      "departmentDescription": "MS PRODUCTION - 720"
+    },
+    {
+      "departmentId": "802",
+      "customerType": "Department",
+      "departmentDescription": "Soccer - 802"
+    },
+    {
+      "departmentId": "804",
+      "customerType": "Department",
+      "departmentDescription": "Badminton - 804"
+    },
+    {
+      "departmentId": "806",
+      "customerType": "Department",
+      "departmentDescription": "Basketball - 806"
+    },
+    {
+      "departmentId": "808",
+      "customerType": "Department",
+      "departmentDescription": "Volleyball - 808"
+    },
+    {
+      "departmentId": "810",
+      "customerType": "Department",
+      "departmentDescription": "Baseball - 810"
+    },
+    {
+      "departmentId": "812",
+      "customerType": "Department",
+      "departmentDescription": "Softball - 812"
+    },
+    {
+      "departmentId": "814",
+      "customerType": "Department",
+      "departmentDescription": "Rugby/Touch - 814"
+    },
+    {
+      "departmentId": "816",
+      "customerType": "Department",
+      "departmentDescription": "Tennis - 816"
+    },
+    {
+      "departmentId": "818",
+      "customerType": "Department",
+      "departmentDescription": "Swimming - 818"
+    },
+    {
+      "departmentId": "820",
+      "customerType": "Department",
+      "departmentDescription": "Golf - 820"
+    },
+    {
+      "departmentId": "822",
+      "customerType": "Department",
+      "departmentDescription": "Gymnastics - 822"
+    },
+    {
+      "departmentId": "832",
+      "customerType": "Department",
+      "departmentDescription": "Arts - 832"
+    },
+    {
+      "departmentId": "834",
+      "customerType": "Department",
+      "departmentDescription": "Dance - 834"
+    },
+    {
+      "departmentId": "836",
+      "customerType": "Department",
+      "departmentDescription": "Explore - 836"
+    },
+    {
+      "departmentId": "838",
+      "customerType": "Department",
+      "departmentDescription": "Extreme - 838"
+    },
+    {
+      "departmentId": "840",
+      "customerType": "Department",
+      "departmentDescription": "Film - 840"
+    },
+    {
+      "departmentId": "842",
+      "customerType": "Department",
+      "departmentDescription": "Music - 842"
+    },
+    {
+      "departmentId": "844",
+      "customerType": "Department",
+      "departmentDescription": "Sound Studio - 844"
+    },
+    {
+      "departmentId": "862",
+      "customerType": "Department",
+      "departmentDescription": "Language Academy - 862"
+    },
+    {
+      "departmentId": "900",
+      "customerType": "Department",
+      "departmentDescription": "SUMMER SCHOOL - 900"
+    },
+    {
+      "departmentId": "901",
+      "customerType": "Department",
+      "departmentDescription": "Housing Project - 901"
+    },
+    {
+      "departmentId": "999",
+      "customerType": "Department",
+      "departmentDescription": "BALANCE SHEET BUSINESS UNIT - 999"
+    },
+    {
+      "departmentId": "MD",
+      "customerType": "Department",
+      "departmentDescription": "MODEL BUSINESS UNIT - MD"
+    }
+  ]
+}

@@ -1,0 +1,2565 @@
+{
+  "staffs": [
+    {
+      "customerId": 202642,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202642,
+      "firstName": "Chairat",
+      "lastName": "SATHONGWEE",
+      "hasChildren": false,
+      "profileImage": "202642_SF.jpg",
+      "smartCard": {
+        "cardNumber": "BF7C6BD1"
+      },
+      "login": [
+        "chairats@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202645,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MARKETING & COMMUNICATION",
+      "familyCode": 202645,
+      "firstName": "Robert Michael",
+      "lastName": "ARCANGEL",
+      "hasChildren": false,
+      "profileImage": "202645_SF.jpg",
+      "smartCard": {
+        "cardNumber": "758D9D96"
+      },
+      "login": [
+        "roberta@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202652,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-MECHANIC.MAINT",
+      "familyCode": 202652,
+      "firstName": "Apichaya",
+      "lastName": "RANGKLA",
+      "hasChildren": false,
+      "profileImage": "202652_SF.jpg",
+      "smartCard": {
+        "cardNumber": "75542296"
+      },
+      "login": [
+        "apichayr@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202653,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202653,
+      "firstName": "Chayachon",
+      "lastName": "PREMANON",
+      "hasChildren": false,
+      "profileImage": "202653_SF.jpg",
+      "smartCard": {
+        "cardNumber": "3F6B4FB6"
+      },
+      "login": [
+        "chayachp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202654,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202654,
+      "firstName": "Nattaphol",
+      "lastName": "PIMSIN",
+      "hasChildren": false,
+      "profileImage": "202654_SF.jpg",
+      "smartCard": {
+        "cardNumber": "75338896"
+      },
+      "login": [
+        "nattaphp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202657,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "THEATRE",
+      "familyCode": 202657,
+      "firstName": "Sirawit",
+      "lastName": "THATHONG",
+      "hasChildren": false,
+      "profileImage": "202657_SF.jpg",
+      "smartCard": {
+        "cardNumber": "675B1654"
+      },
+      "login": [
+        "sirawitt@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202658,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
+      "familyCode": 202672,
+      "firstName": "Hannah Campomanes",
+      "lastName": "BERNARDINO",
+      "hasChildren": true,
+      "profileImage": "202658_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FF3465D1"
+      },
+      "login": [
+        "hannahn@isb.ac.th",
+        "202658@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202659,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202659,
+      "firstName": "Michael Scot",
+      "lastName": "BRANCH",
+      "hasChildren": true,
+      "profileImage": "202659_SF.jpg",
+      "smartCard": {
+        "cardNumber": "1F6963D1"
+      },
+      "login": [
+        "mikeb@isb.ac.th",
+        "202659@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202660,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202660,
+      "firstName": "David M.",
+      "lastName": "FEREN",
+      "hasChildren": true,
+      "profileImage": "202660_SF.jpg",
+      "smartCard": {
+        "cardNumber": "6569C696"
+      },
+      "login": [
+        "davef@isb.ac.th",
+        "202660@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202661,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
+      "familyCode": 202661,
+      "firstName": "Candace Renee",
+      "lastName": "BENNETT",
+      "hasChildren": false,
+      "profileImage": "202661_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7593B996"
+      },
+      "login": [
+        "candaceb@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202662,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 74357,
+      "firstName": "Shue Carolyn",
+      "lastName": "CHIENG",
+      "hasChildren": true,
+      "profileImage": "202662_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DFE551B6"
+      },
+      "login": [
+        "carolync@isb.ac.th",
+        "202662@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202663,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
+      "familyCode": 202663,
+      "firstName": "Jennifer Leigh",
+      "lastName": "DELANE",
+      "hasChildren": false,
+      "profileImage": "202663_SF.jpg",
+      "smartCard": {
+        "cardNumber": "6F815CD1"
+      },
+      "login": [
+        "jenniferde@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202664,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
+      "familyCode": 202664,
+      "firstName": "Paul Mitchell",
+      "lastName": "FITZGERALD",
+      "hasChildren": false,
+      "profileImage": "202664_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DFE168D1"
+      },
+      "login": [
+        "paulf@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202665,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202665,
+      "firstName": "Natalya Alekseyevna",
+      "lastName": "HALL",
+      "hasChildren": true,
+      "profileImage": "202665_SF.jpg",
+      "smartCard": {
+        "cardNumber": "6595D196"
+      },
+      "login": [
+        "natalyah@isb.ac.th",
+        "202665@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202666,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202666,
+      "firstName": "Norton Grant",
+      "lastName": "HILLER",
+      "hasChildren": false,
+      "profileImage": "202666_SF.jpg",
+      "smartCard": {
+        "cardNumber": "850C0B96"
+      },
+      "login": [
+        "granth@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202667,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202667,
+      "firstName": "John Radford",
+      "lastName": "KILBANE",
+      "hasChildren": false,
+      "profileImage": "202667_SF.jpg",
+      "smartCard": {
+        "cardNumber": "0F6E58B6"
+      },
+      "login": [
+        "johnki@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202668,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202668,
+      "firstName": "Margaret Ann",
+      "lastName": "LANG",
+      "hasChildren": false,
+      "profileImage": "202668_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FF8958B6"
+      },
+      "login": [
+        "margarel@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202669,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
+      "familyCode": 202669,
+      "firstName": "Ben Alexander",
+      "lastName": "LILLEY",
+      "hasChildren": false,
+      "profileImage": "202669_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DF9654B6"
+      },
+      "login": [
+        "benl@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202670,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202670,
+      "firstName": "Lukasz",
+      "lastName": "MILEWSKI",
+      "hasChildren": true,
+      "profileImage": "202670_SF.jpg",
+      "smartCard": {
+        "cardNumber": "2FD486D1"
+      },
+      "login": [
+        "lukem@isb.ac.th",
+        "202670@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202671,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
+      "familyCode": 202671,
+      "firstName": "Miroslava K.",
+      "lastName": "MINKOVA-BOYADZHIEVA",
+      "hasChildren": false,
+      "profileImage": "202671_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DFCD51D1"
+      },
+      "login": [
+        "miram@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202672,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202672,
+      "firstName": "Steven Matthew James",
+      "lastName": "NORTHCOTT",
+      "hasChildren": true,
+      "profileImage": "202672_SF.jpg",
+      "smartCard": {
+        "cardNumber": "85339196"
+      },
+      "login": [
+        "steven@isb.ac.th",
+        "202672@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202676,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "LDC/CURRICULUM OFFICE",
+      "familyCode": 202670,
+      "firstName": "Emily Margaret",
+      "lastName": "SIMBANA",
+      "hasChildren": true,
+      "profileImage": "202676_SF.jpg",
+      "smartCard": {
+        "cardNumber": "858FCC96"
+      },
+      "login": [
+        "emilysi@isb.ac.th",
+        "202676@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202677,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202677,
+      "firstName": "Smita",
+      "lastName": "SWAMINATHAN",
+      "hasChildren": false,
+      "profileImage": "202677_SF.jpg",
+      "smartCard": {
+        "cardNumber": "AFF456D1"
+      },
+      "login": [
+        "smitas@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202678,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202678,
+      "firstName": "David Loren",
+      "lastName": "WOODS",
+      "hasChildren": false,
+      "profileImage": "202678_SF.jpg",
+      "smartCard": {
+        "cardNumber": "4F195DD1"
+      },
+      "login": [
+        "davidwo@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202680,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202659,
+      "firstName": "Kathryn Clark",
+      "lastName": "MC KENNA",
+      "hasChildren": true,
+      "profileImage": "202680_SF.jpg",
+      "smartCard": {
+        "cardNumber": "65176A96"
+      },
+      "login": [
+        "katem@isb.ac.th",
+        "202680@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202681,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "MARKETING & COMMUNICATION",
+      "familyCode": 202681,
+      "firstName": "Pongpat",
+      "lastName": "LIKITCHOLLATARN",
+      "hasChildren": false,
+      "profileImage": "202681_SF.jpg",
+      "smartCard": {
+        "cardNumber": "75678196"
+      },
+      "login": [
+        "pongpatl@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202683,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202660,
+      "firstName": "Kristen Celeste",
+      "lastName": "FEREN",
+      "hasChildren": true,
+      "profileImage": "202683_SF.jpg",
+      "smartCard": {
+        "cardNumber": "75B34E96"
+      },
+      "login": [
+        "kristenf@isb.ac.th",
+        "202683@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202693,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202693,
+      "firstName": "Avadhut",
+      "lastName": "NICHKAWDE",
+      "hasChildren": false,
+      "profileImage": "202693_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7F0B70D1"
+      },
+      "login": [
+        "avdoon@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202694,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202694,
+      "firstName": "Sudatip",
+      "lastName": "KASTINEN",
+      "hasChildren": false,
+      "profileImage": "202694_SF.jpg",
+      "smartCard": {
+        "cardNumber": "3F8660D1"
+      },
+      "login": [
+        "sudatipk@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202697,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202697,
+      "firstName": "Orakanya",
+      "lastName": "WORRARAT NA AYUTTHAYA",
+      "hasChildren": false,
+      "profileImage": "202697_SF.jpg",
+      "smartCard": {
+        "cardNumber": "752B4196"
+      },
+      "login": [
+        "orakanyw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202698,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "MARKETING & COMMUNICATION",
+      "familyCode": 73764,
+      "firstName": "Maria Angelica Alcober",
+      "lastName": "MOTOMAL",
+      "hasChildren": true,
+      "profileImage": "202698_SF.jpg",
+      "smartCard": {
+        "cardNumber": "651B9E96"
+      },
+      "login": [
+        "angelm@isb.ac.th",
+        "202698@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202700,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202700,
+      "firstName": "Emily Anne",
+      "lastName": "ROSS",
+      "hasChildren": false,
+      "profileImage": "202700_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CFC767D1"
+      },
+      "login": [
+        "emilyr@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202704,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202704,
+      "firstName": "Darby Ann",
+      "lastName": "DAVIS",
+      "hasChildren": false,
+      "profileImage": "202704_SF.jpg",
+      "smartCard": {
+        "cardNumber": "AFCE54D1"
+      },
+      "login": [
+        "darbyd@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202705,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202705,
+      "firstName": "Justin William",
+      "lastName": "MILLIGAN",
+      "hasChildren": false,
+      "profileImage": "202705_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FFEF61D1"
+      },
+      "login": [
+        "justinm@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202706,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202706,
+      "firstName": "Jennifer Marilyn",
+      "lastName": "RUSSELL-BICKFORD",
+      "hasChildren": false,
+      "profileImage": "202706_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FF7D57D1"
+      },
+      "login": [
+        "jenniferr@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202708,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "NURSE OFFICE",
+      "familyCode": 202708,
+      "firstName": "Amornrat",
+      "lastName": "WEJWITHAN",
+      "hasChildren": false,
+      "profileImage": "202708_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "amornratw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202711,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ADMISSION OFFICE",
+      "familyCode": 202711,
+      "firstName": "Amy Lareina",
+      "lastName": "CALDWELL",
+      "hasChildren": false,
+      "profileImage": "202711_SF.jpg",
+      "smartCard": {
+        "cardNumber": "85F56C96"
+      },
+      "login": [
+        "amyc@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202715,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202715,
+      "firstName": "Jennifer Lynn",
+      "lastName": "TE  HUKI",
+      "hasChildren": false,
+      "profileImage": "202715_SF.jpg",
+      "smartCard": {
+        "cardNumber": "AFC159D1"
+      },
+      "login": [
+        "jennifert@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202719,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "AQUATICS OFFICE",
+      "familyCode": 202719,
+      "firstName": "Jirawat",
+      "lastName": "PINTHONG",
+      "hasChildren": false,
+      "profileImage": "202719_SF.jpg",
+      "smartCard": {
+        "cardNumber": "85E68A96"
+      },
+      "login": [
+        "jirawatp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202720,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202720,
+      "firstName": "Benyaporn",
+      "lastName": "ROTBOONSONGSRI",
+      "hasChildren": false,
+      "profileImage": "202720_SF.jpg",
+      "smartCard": {
+        "cardNumber": "85784A96"
+      },
+      "login": [
+        "benyapornr@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202721,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-MECHANIC.MAINT",
+      "familyCode": 202721,
+      "firstName": "Adool",
+      "lastName": "MADSAKUN",
+      "hasChildren": false,
+      "profileImage": "202721_SF.jpg",
+      "smartCard": {
+        "cardNumber": "951D1F96"
+      },
+      "login": [
+        "adoolm@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202722,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202722,
+      "firstName": "Anita Sue",
+      "lastName": "PARK",
+      "hasChildren": false,
+      "profileImage": "202722_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7F7A5AD1"
+      },
+      "login": [
+        "anitap@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202727,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "K-12 ARTS AND ACTIVITIES",
+      "familyCode": 202727,
+      "firstName": "Kanittha",
+      "lastName": "BOONIN",
+      "hasChildren": false,
+      "profileImage": "202727_SF.jpg",
+      "smartCard": {
+        "cardNumber": "651C2D96"
+      },
+      "login": [
+        "kanitthab@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202728,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HUMAN RESOURCES DEPARTMENT",
+      "familyCode": 202728,
+      "firstName": "Perihan Wafik",
+      "lastName": "AWAD",
+      "hasChildren": false,
+      "profileImage": "202728_SF.jpg",
+      "smartCard": {
+        "cardNumber": "65E3C896"
+      },
+      "login": [
+        "perya@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202732,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202732,
+      "firstName": "Thepphithak",
+      "lastName": "NURONGKAEO",
+      "hasChildren": false,
+      "profileImage": "202732_SF.jpg",
+      "smartCard": {
+        "cardNumber": "851E0396"
+      },
+      "login": [
+        "thepphithakn@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202735,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "LIBRARY (HS)",
+      "familyCode": 202735,
+      "firstName": "Aticha",
+      "lastName": "INTHARARATSAMEE",
+      "hasChildren": false,
+      "profileImage": "202735_SF.jpg",
+      "smartCard": {
+        "cardNumber": "65931296"
+      },
+      "login": [
+        "atichai@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202737,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202737,
+      "firstName": "Carla Soledad",
+      "lastName": "RIVERA",
+      "hasChildren": false,
+      "profileImage": "202737_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202738,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202738,
+      "firstName": "Jirapinya",
+      "lastName": "SIRIKUL",
+      "hasChildren": false,
+      "profileImage": "202738_SF.jpg",
+      "smartCard": {
+        "cardNumber": "3F8967D1"
+      },
+      "login": [
+        "jirapinyas@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202741,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "EWC-EnvironmentWildernessCamp",
+      "familyCode": 202741,
+      "firstName": "Janpen",
+      "lastName": "YAEMNGAM",
+      "hasChildren": false,
+      "profileImage": "202741_SF.jpg",
+      "smartCard": {
+        "cardNumber": "BF825BD1"
+      },
+      "login": [
+        "janpeny@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202742,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ADMISSION OFFICE",
+      "familyCode": 73893,
+      "firstName": "Kit Wah Josephine",
+      "lastName": "LAW",
+      "hasChildren": true,
+      "profileImage": "202742_SF.jpg",
+      "smartCard": {
+        "cardNumber": "75C56B96"
+      },
+      "login": [
+        "josephinel@isb.ac.th",
+        "202742@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202748,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202748,
+      "firstName": "Paulo Miguel",
+      "lastName": "QUICHO",
+      "hasChildren": false,
+      "profileImage": "202748_SF.jpg",
+      "smartCard": {
+        "cardNumber": "65A0C896"
+      },
+      "login": [
+        "pauloq@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202750,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202750,
+      "firstName": "Jantima",
+      "lastName": "CHIMPALEE",
+      "hasChildren": false,
+      "profileImage": "202750_SF.jpg",
+      "smartCard": {
+        "cardNumber": "BE23AC87"
+      },
+      "login": [
+        "jantimac@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202751,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-TEACHER HOUSE",
+      "familyCode": 202751,
+      "firstName": "Panwa",
+      "lastName": "NATTHADA",
+      "hasChildren": false,
+      "profileImage": "202751_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7540FE96"
+      },
+      "login": [
+        "panwan@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202755,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202755,
+      "firstName": "Sirichai",
+      "lastName": "NAOWARAT",
+      "hasChildren": false,
+      "profileImage": "202755_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7501C696"
+      },
+      "login": [
+        "sirichain@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202756,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202756,
+      "firstName": "Mueanfan",
+      "lastName": "MISA",
+      "hasChildren": false,
+      "profileImage": "202756_SF.jpg",
+      "smartCard": {
+        "cardNumber": "4FD12B02"
+      },
+      "login": [
+        "mueanfanm@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202760,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202760,
+      "firstName": "William Alan",
+      "lastName": "COURSEN-CARR",
+      "hasChildren": false,
+      "profileImage": "202760_SF.jpg",
+      "smartCard": {
+        "cardNumber": "3F6763D1"
+      },
+      "login": [
+        "willc@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202761,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202761,
+      "firstName": "Ploypraew",
+      "lastName": "NUGITRUNGSAN",
+      "hasChildren": false,
+      "profileImage": "202761_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FF0C6CD1"
+      },
+      "login": [
+        "ploypraewn@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202767,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202767,
+      "firstName": "Charat",
+      "lastName": "KHAMYA",
+      "hasChildren": false,
+      "profileImage": "202767_SF.jpg",
+      "smartCard": {
+        "cardNumber": "1F74C6D0"
+      },
+      "login": [
+        "charatk@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202768,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202768,
+      "firstName": "Sittirak",
+      "lastName": "TONGJINDA",
+      "hasChildren": false,
+      "profileImage": "202768_SF.jpg",
+      "smartCard": {
+        "cardNumber": "4FB263D1"
+      },
+      "login": [
+        "sittirakt@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202769,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202769,
+      "firstName": "Rangsiman",
+      "lastName": "PHOOTHOMTONG",
+      "hasChildren": false,
+      "profileImage": "202769_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FF6F64D1"
+      },
+      "login": [
+        "rangsimanp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202774,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202774,
+      "firstName": "David Alan",
+      "lastName": "LANG",
+      "hasChildren": false,
+      "profileImage": "202774_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202776,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202776,
+      "firstName": "Nantakarn",
+      "lastName": "WANAPRAPAT",
+      "hasChildren": false,
+      "profileImage": "202776_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7F9F6AD1"
+      },
+      "login": [
+        "nantakarnw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202777,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "AQUATICS OFFICE",
+      "familyCode": 202777,
+      "firstName": "Apisit",
+      "lastName": "KAEWPRASERT",
+      "hasChildren": false,
+      "profileImage": "202777_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DF964CB6"
+      },
+      "login": [
+        "apisitk@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202805,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-TEACHER HOUSE",
+      "familyCode": 202805,
+      "firstName": "Nopparat",
+      "lastName": "THOGNSUK",
+      "hasChildren": false,
+      "profileImage": "202805_SF.jpg",
+      "smartCard": {
+        "cardNumber": "2F1C66D1"
+      },
+      "login": [
+        "nopparatt@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202806,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "TRANSPORTATION OFFICE",
+      "familyCode": 202806,
+      "firstName": "Natjapak",
+      "lastName": "SUEBKLIN",
+      "hasChildren": false,
+      "profileImage": "202806_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CFE457D1"
+      },
+      "login": [
+        "natjapaks@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202811,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ACCOUNTING AND INVOICE",
+      "familyCode": 202811,
+      "firstName": "Patchakon",
+      "lastName": "CHAISRI",
+      "hasChildren": false,
+      "profileImage": "202811_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DF9A57D1"
+      },
+      "login": [
+        "patchakonc@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202812,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ATHLETICS OFFICE",
+      "familyCode": 202812,
+      "firstName": "Kritsana",
+      "lastName": "SORAHONG",
+      "hasChildren": false,
+      "profileImage": "202812_SF.jpg",
+      "smartCard": {
+        "cardNumber": "8FBA55F2"
+      },
+      "login": [
+        "kritsanas@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202815,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "EWC-EnvironmentWildernessCamp",
+      "familyCode": 202815,
+      "firstName": "Wirat",
+      "lastName": "BOURSAVAI",
+      "hasChildren": false,
+      "profileImage": "202815_SF.jpg",
+      "smartCard": {
+        "cardNumber": "5FC368D1"
+      },
+      "login": [
+        "wiratb@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202816,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "THEATRE",
+      "familyCode": 202816,
+      "firstName": "Chanya",
+      "lastName": "WIPARUNGSRI",
+      "hasChildren": false,
+      "profileImage": "202816_SF.jpg",
+      "smartCard": {
+        "cardNumber": "EF5B6CD1"
+      },
+      "login": [
+        "chanyaw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202817,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202817,
+      "firstName": "Sirin Somchuavieng",
+      "lastName": "AGUNDA",
+      "hasChildren": false,
+      "profileImage": "202817_SF.jpg",
+      "smartCard": {
+        "cardNumber": "9FFC4BB6"
+      },
+      "login": [
+        "sirina@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202818,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ADMISSION OFFICE",
+      "familyCode": 202818,
+      "firstName": "Adam Butler",
+      "lastName": "Zimmerman",
+      "hasChildren": true,
+      "profileImage": "202818_SF.jpg",
+      "smartCard": {
+        "cardNumber": "3F5B62B6"
+      },
+      "login": [
+        "adamz@isb.ac.th",
+        "202818@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202824,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202824,
+      "firstName": "Nutchanat",
+      "lastName": "KUNACOM",
+      "hasChildren": false,
+      "profileImage": "202824_SF.jpg",
+      "smartCard": {
+        "cardNumber": "6FF9D1D0"
+      },
+      "login": [
+        "nutchanatk@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202825,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202825,
+      "firstName": "Waithaya",
+      "lastName": "THAMTHAISONG",
+      "hasChildren": false,
+      "profileImage": "202825_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CFD8B1D0"
+      },
+      "login": [
+        "waithayat@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202826,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ACCOUNTING AND INVOICE",
+      "familyCode": 202826,
+      "firstName": "Nonchapa",
+      "lastName": "JIRAPHAN",
+      "hasChildren": false,
+      "profileImage": "202826_SF.jpg",
+      "smartCard": {
+        "cardNumber": "2F006AD1"
+      },
+      "login": [
+        "nonchapaj@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202827,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202827,
+      "firstName": "Evan Alexander",
+      "lastName": "HOWE",
+      "hasChildren": true,
+      "profileImage": "202827_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "evanh@isb.ac.th",
+        "202827@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202828,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202827,
+      "firstName": "Sarah Ann",
+      "lastName": "KLYAP HOWE",
+      "hasChildren": true,
+      "profileImage": "202828_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "sarahh@isb.ac.th",
+        "202828@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202829,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202829,
+      "firstName": "Koffi Vigninou",
+      "lastName": "KISSI",
+      "hasChildren": false,
+      "profileImage": "202829_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "koffik@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202830,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202830,
+      "firstName": "Alexandra Nicole",
+      "lastName": "KOWALSICK",
+      "hasChildren": false,
+      "profileImage": "202830_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "alexandrak@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202831,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202831,
+      "firstName": "David Saul",
+      "lastName": "GRAN",
+      "hasChildren": true,
+      "profileImage": "202831_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "davidgr@isb.ac.th",
+        "202831@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202832,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202831,
+      "firstName": "Kimberly Kristin",
+      "lastName": "SAJAN",
+      "hasChildren": true,
+      "profileImage": "202832_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "kims@isb.ac.th",
+        "202832@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202833,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202833,
+      "firstName": "James Andrew",
+      "lastName": "DACOSTA",
+      "hasChildren": true,
+      "profileImage": "202833_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "jayd@isb.ac.th",
+        "202833@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202834,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202833,
+      "firstName": "Shannon Rae",
+      "lastName": "TRIPP",
+      "hasChildren": true,
+      "profileImage": "202834_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "shannont@isb.ac.th",
+        "202834@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202835,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202835,
+      "firstName": "Carrelynn Fussell",
+      "lastName": "BONILLA",
+      "hasChildren": false,
+      "profileImage": "202835_SF.jpg",
+      "smartCard": {
+        "cardNumber": "EF797DD1"
+      },
+      "login": [
+        "carreb@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202836,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "EWC-EnvironmentWildernessCamp",
+      "familyCode": 202836,
+      "firstName": "Kent Cyril",
+      "lastName": "COURAGE",
+      "hasChildren": false,
+      "profileImage": "202836_SF.jpg",
+      "smartCard": {
+        "cardNumber": "262279AF"
+      },
+      "login": [
+        "kentc@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202837,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202837,
+      "firstName": "LaVica Gisele",
+      "lastName": "EDWARDS",
+      "hasChildren": false,
+      "profileImage": "202837_SF.jpg",
+      "smartCard": {
+        "cardNumber": "064EA2AF"
+      },
+      "login": [
+        "lavicae@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202838,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202838,
+      "firstName": "Justin Brant",
+      "lastName": "KILGORE",
+      "hasChildren": true,
+      "profileImage": "202838_SF.jpg",
+      "smartCard": {
+        "cardNumber": "06C600AF"
+      },
+      "login": [
+        "justink@isb.ac.th",
+        "202838@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202839,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202839,
+      "firstName": "Harley Marissa",
+      "lastName": "PLACE",
+      "hasChildren": false,
+      "profileImage": "202839_SF.jpg",
+      "smartCard": {
+        "cardNumber": "064A15AF"
+      },
+      "login": [
+        "harleyp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202840,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 74797,
+      "firstName": "Yoana Sofia",
+      "lastName": "VILLARREAL POHLENZ",
+      "hasChildren": true,
+      "profileImage": "202840_SF.jpg",
+      "smartCard": {
+        "cardNumber": "2658E5AF"
+      },
+      "login": [
+        "yoanav@isb.ac.th",
+        "202840@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202841,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 74828,
+      "firstName": "Sapphira Nathawan",
+      "lastName": "BEAUDIN",
+      "hasChildren": true,
+      "profileImage": "202841_SF.jpg",
+      "smartCard": {
+        "cardNumber": "2604ECAF"
+      },
+      "login": [
+        "sapphirab@isb.ac.th",
+        "202841@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202845,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202845,
+      "firstName": "Andrew Michael",
+      "lastName": "GORMAN",
+      "hasChildren": true,
+      "profileImage": "202845_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "andrewg@isb.ac.th",
+        "202845@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202846,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202845,
+      "firstName": "Sarah Marie",
+      "lastName": "CHRISTENSEN",
+      "hasChildren": true,
+      "profileImage": "202846_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "sarahc@isb.ac.th",
+        "202846@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202847,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202847,
+      "firstName": "Thomas Steven",
+      "lastName": "SURMA",
+      "hasChildren": false,
+      "profileImage": "202847_SF.jpg",
+      "smartCard": {
+        "cardNumber": "16EE1FAF"
+      },
+      "login": [
+        "tommys@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202848,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202848,
+      "firstName": "Cristi Ann",
+      "lastName": "CARLSTEAD",
+      "hasChildren": false,
+      "profileImage": "202848_SF.jpg",
+      "smartCard": {
+        "cardNumber": "160DE2AF"
+      },
+      "login": [
+        "cristic@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202849,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ED-TECH CENTER",
+      "familyCode": 202849,
+      "firstName": "John Taylor",
+      "lastName": "BURNS",
+      "hasChildren": false,
+      "profileImage": "202849_SF.jpg",
+      "smartCard": {
+        "cardNumber": "06C140AF"
+      },
+      "login": [
+        "john@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202850,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202850,
+      "firstName": "Felina Marie",
+      "lastName": "HEART",
+      "hasChildren": false,
+      "profileImage": "202850_SF.jpg",
+      "smartCard": {
+        "cardNumber": "16AC69AF"
+      },
+      "login": [
+        "felinah@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202851,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202851,
+      "firstName": "Gregory Dean",
+      "lastName": "TIBBOEL",
+      "hasChildren": false,
+      "profileImage": "202851_SF.jpg",
+      "smartCard": {
+        "cardNumber": "0656ADAF"
+      },
+      "login": [
+        "gregt@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202852,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202852,
+      "firstName": "Jacob Michael",
+      "lastName": "WEST",
+      "hasChildren": true,
+      "profileImage": "202852_SF.jpg",
+      "smartCard": {
+        "cardNumber": "066F30AF"
+      },
+      "login": [
+        "jakew@isb.ac.th",
+        "202852@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202853,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "K-12 ARTS AND ACTIVITIES",
+      "familyCode": 202853,
+      "firstName": "John Sejin",
+      "lastName": "KIM",
+      "hasChildren": false,
+      "profileImage": "202853_SF.jpg",
+      "smartCard": {
+        "cardNumber": "16D597AF"
+      },
+      "login": [
+        "johnkim@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202854,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202854,
+      "firstName": "Simon Andrew",
+      "lastName": "NEESAM",
+      "hasChildren": true,
+      "profileImage": "202854_SF.jpg",
+      "smartCard": {
+        "cardNumber": "064CCFAF"
+      },
+      "login": [
+        "simonn@isb.ac.th",
+        "202854@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202855,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202855,
+      "firstName": "Thanaree",
+      "lastName": "SITAPUTRA",
+      "hasChildren": false,
+      "profileImage": "202855_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FF3554B6"
+      },
+      "login": [
+        "thanarees@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202856,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ED-TECH CENTER",
+      "familyCode": 202856,
+      "firstName": "Sirichai",
+      "lastName": "CHAYSWANGWONG",
+      "hasChildren": false,
+      "profileImage": "202856_SF.jpg",
+      "smartCard": {
+        "cardNumber": "5FF157D1"
+      },
+      "login": [
+        "sirichaic@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202859,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202859,
+      "firstName": "Elizabeth Mary",
+      "lastName": "ENGLAND",
+      "hasChildren": false,
+      "profileImage": "202859_SF.jpg",
+      "smartCard": {
+        "cardNumber": "651ADBDA"
+      },
+      "login": [
+        "lize@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202860,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202860,
+      "firstName": "Teea Marie",
+      "lastName": "ROBINSON",
+      "hasChildren": false,
+      "profileImage": "202860_SF.jpg",
+      "smartCard": {
+        "cardNumber": "0677E3AF"
+      },
+      "login": [
+        "teear@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202861,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202861,
+      "firstName": "Juan Pablo",
+      "lastName": "VIVAR CASAS",
+      "hasChildren": false,
+      "profileImage": "202861_SF.jpg",
+      "smartCard": {
+        "cardNumber": "262047AF"
+      },
+      "login": [
+        "juanpablov@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202862,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202862,
+      "firstName": "Alycia Ross",
+      "lastName": "BARRON",
+      "hasChildren": false,
+      "profileImage": "202862_SF.jpg",
+      "smartCard": {
+        "cardNumber": "06F94BAF"
+      },
+      "login": [
+        "alyciab@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202863,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202863,
+      "firstName": "KirbyLee",
+      "lastName": "MEINERS",
+      "hasChildren": false,
+      "profileImage": "202863_SF.jpg",
+      "smartCard": {
+        "cardNumber": "1630BAAF"
+      },
+      "login": [
+        "kirbym@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202864,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202864,
+      "firstName": "Gabriel Olivier",
+      "lastName": "SIMONETTI",
+      "hasChildren": false,
+      "profileImage": "202864_SF.jpg",
+      "smartCard": {
+        "cardNumber": "55549DDA"
+      },
+      "login": [
+        "gabriels@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202865,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202865,
+      "firstName": "Adele Poppy",
+      "lastName": "PAISEY-BRUCE",
+      "hasChildren": false,
+      "profileImage": "202865_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "adelepa@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202866,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202866,
+      "firstName": "Soponwit",
+      "lastName": "JOEYPHECH",
+      "hasChildren": false,
+      "profileImage": "202866_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DF42C3D0"
+      },
+      "login": [
+        "soponwitj@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202867,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "SECURITY",
+      "familyCode": 202867,
+      "firstName": "Chakkit",
+      "lastName": "CHANTHAKON",
+      "hasChildren": false,
+      "profileImage": "202867_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CFB3C9D0"
+      },
+      "login": [
+        "chakkitc@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202869,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202869,
+      "firstName": "Jessica Kerri",
+      "lastName": "FORSLUND",
+      "hasChildren": false,
+      "profileImage": "202869_SF.jpg",
+      "smartCard": {
+        "cardNumber": "065019AF"
+      },
+      "login": [
+        "jessief@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202871,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "LDC/CURRICULUM OFFICE",
+      "familyCode": 202871,
+      "firstName": "Gaysorn",
+      "lastName": "POPITTAYA",
+      "hasChildren": false,
+      "profileImage": "202871_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DFF661B6"
+      },
+      "login": [
+        "gaysornp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202872,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202872,
+      "firstName": "Daniel Oxer",
+      "lastName": "BATES",
+      "hasChildren": true,
+      "profileImage": "202872_SF.jpg",
+      "smartCard": {
+        "cardNumber": "260E70AF"
+      },
+      "login": [
+        "dannyb@isb.ac.th",
+        "202872@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202876,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202876,
+      "firstName": "Sydney Anne",
+      "lastName": "KIRK",
+      "hasChildren": false,
+      "profileImage": "202876_SF.jpg",
+      "smartCard": {
+        "cardNumber": "7545CDDA"
+      },
+      "login": [
+        "sydneyk@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202877,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "COUNSELING CENTER",
+      "familyCode": 202877,
+      "firstName": "Michael John",
+      "lastName": "DAY",
+      "hasChildren": false,
+      "profileImage": "202877_SF.jpg",
+      "smartCard": {
+        "cardNumber": "06A85EAF"
+      },
+      "login": [
+        "michaeld@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202878,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 202878,
+      "firstName": "Segun Temitope",
+      "lastName": "OLAGUNJU",
+      "hasChildren": false,
+      "profileImage": "202878_SF.jpg",
+      "smartCard": {
+        "cardNumber": "0F9864D1"
+      },
+      "login": [
+        "seguno@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202879,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202879,
+      "firstName": "Karanee",
+      "lastName": "MCNAMARA",
+      "hasChildren": false,
+      "profileImage": "202879_SF.jpg",
+      "smartCard": {
+        "cardNumber": "1F96D6D0"
+      },
+      "login": [
+        "karaneem@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202882,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-MECHANIC.MAINT",
+      "familyCode": 202882,
+      "firstName": "Kasemsak",
+      "lastName": "KIMCHUEA",
+      "hasChildren": false,
+      "profileImage": "202882_SF.jpg",
+      "smartCard": {
+        "cardNumber": "3FB02702"
+      },
+      "login": []
+    },
+    {
+      "customerId": 202884,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202884,
+      "firstName": "Phikun",
+      "lastName": "YANGSUT",
+      "hasChildren": false,
+      "profileImage": "202884_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CF1178D1"
+      },
+      "login": [
+        "phikuny@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202885,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ACCOUNTING AND INVOICE",
+      "familyCode": 202885,
+      "firstName": "Wannisa",
+      "lastName": "KRITSANAKAN",
+      "hasChildren": false,
+      "profileImage": "202885_SF.jpg",
+      "smartCard": {
+        "cardNumber": "FFC2B7D0"
+      },
+      "login": [
+        "wannisak@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202888,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202888,
+      "firstName": "Supitcha",
+      "lastName": "KANSIRISIN",
+      "hasChildren": false,
+      "profileImage": "202888_SF.jpg",
+      "smartCard": {
+        "cardNumber": "260D10AF"
+      },
+      "login": [
+        "supitchak@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202889,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-TEACHER HOUSE",
+      "familyCode": 202889,
+      "firstName": "Wut",
+      "lastName": "MANEEIN",
+      "hasChildren": false,
+      "profileImage": "202889_SF.jpg",
+      "smartCard": {
+        "cardNumber": "CFCC60D1"
+      },
+      "login": [
+        "wutm@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202890,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202890,
+      "firstName": "Jennifer",
+      "lastName": "STUMPH",
+      "hasChildren": false,
+      "profileImage": "202890_SF.jpg",
+      "smartCard": {
+        "cardNumber": "06176FAF"
+      },
+      "login": [
+        "jens@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202891,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202891,
+      "firstName": "Rachen",
+      "lastName": "BANLENGCHAI",
+      "hasChildren": false,
+      "profileImage": "202891_SF.jpg",
+      "smartCard": {
+        "cardNumber": "9F4961F2"
+      },
+      "login": [
+        "rachenb@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202892,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF. - HOUSEKEEPING",
+      "familyCode": 202892,
+      "firstName": "Sunisa",
+      "lastName": "PANCHUIPHANAO",
+      "hasChildren": false,
+      "profileImage": "202892_SF.jpg",
+      "smartCard": {
+        "cardNumber": "6FE64BF2"
+      },
+      "login": [
+        "sunisap@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202893,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202893,
+      "firstName": "Deborah Campbell",
+      "lastName": "PELLANT",
+      "hasChildren": false,
+      "profileImage": "202893_SF.jpg",
+      "smartCard": {
+        "cardNumber": "1617D4AF"
+      },
+      "login": [
+        "daisyp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202895,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202895,
+      "firstName": "James Harry Raymond",
+      "lastName": "BUTTERFIELD",
+      "hasChildren": true,
+      "profileImage": "202895_SF.jpg",
+      "smartCard": {
+        "cardNumber": "06816AAF"
+      },
+      "login": [
+        "202895@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202901,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202901,
+      "firstName": "Suthipong",
+      "lastName": "KAMKAEW",
+      "hasChildren": false,
+      "profileImage": "202901_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "suphachokw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202907,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202907,
+      "firstName": "Izabella Barbara",
+      "lastName": "SKOCZYLAS",
+      "hasChildren": false,
+      "profileImage": "202907_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202908,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202895,
+      "firstName": "Jill Marie",
+      "lastName": "BUTTERFIELD",
+      "hasChildren": true,
+      "profileImage": "202908_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "202908@parents.isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202909,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202909,
+      "firstName": "Ghislain",
+      "lastName": "NTAGANZWA SHYAKA",
+      "hasChildren": false,
+      "profileImage": "202909_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202910,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 202910,
+      "firstName": "Pimpanut",
+      "lastName": "SUPPARUEKKOSOL",
+      "hasChildren": false,
+      "profileImage": "202910_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "pimpanuts@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202911,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202911,
+      "firstName": "Yonlada",
+      "lastName": "CHAOWIRUNSUT",
+      "hasChildren": false,
+      "profileImage": "202911_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "yonladac@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202912,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202912,
+      "firstName": "Siripattariya",
+      "lastName": "WANGKUL",
+      "hasChildren": false,
+      "profileImage": "202912_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "siripattariyaw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202913,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202913,
+      "firstName": "Paweena",
+      "lastName": "DYKE",
+      "hasChildren": false,
+      "profileImage": "202913_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "paweenad@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202914,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202914,
+      "firstName": "Taksaporn",
+      "lastName": "SRIPRASERT",
+      "hasChildren": false,
+      "profileImage": "202914_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "taksaporns@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202915,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202915,
+      "firstName": "Cecile",
+      "lastName": "LEONARD",
+      "hasChildren": false,
+      "profileImage": "202915_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202917,
+      "customerType": "Staff",
+      "staffType": "Certified Staff",
+      "department": "",
+      "familyCode": 202917,
+      "firstName": "Joanna Catherine Jean",
+      "lastName": "BATTEN",
+      "hasChildren": false,
+      "profileImage": "202917_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202919,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202919,
+      "firstName": "James Robert",
+      "lastName": "HUMBERSON",
+      "hasChildren": false,
+      "profileImage": "202919_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": []
+    },
+    {
+      "customerId": 202923,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202923,
+      "firstName": "Chonlada",
+      "lastName": "PATTHAMAKAJORN",
+      "hasChildren": false,
+      "profileImage": "202923_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "chonladap@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202924,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202924,
+      "firstName": "Alice Win",
+      "lastName": "BUASUWAN",
+      "hasChildren": false,
+      "profileImage": "202924_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "aliceb@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202925,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202925,
+      "firstName": "Boonyarut",
+      "lastName": "KAEWKLOMCHOT",
+      "hasChildren": false,
+      "profileImage": "202925_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "boonyarutk@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202926,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202926,
+      "firstName": "Nilitta",
+      "lastName": "KONGNIN",
+      "hasChildren": false,
+      "profileImage": "202926_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "nilittak@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202927,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202927,
+      "firstName": "Phuthanes",
+      "lastName": "LAMO",
+      "hasChildren": false,
+      "profileImage": "202927_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "phuthanesl@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202929,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-MECHANIC.MAINT",
+      "familyCode": 202929,
+      "firstName": "Tiwat",
+      "lastName": "POOMSANGUAN",
+      "hasChildren": false,
+      "profileImage": "202929_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "tiwatp@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202930,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "FACILITIES OFF.-GROUND",
+      "familyCode": 202930,
+      "firstName": "Suphachok",
+      "lastName": "WANNAROT",
+      "hasChildren": false,
+      "profileImage": "202930_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "suphachokw@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 202931,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "",
+      "familyCode": 202931,
+      "firstName": "Panchaphon",
+      "lastName": "SANGSUWAN",
+      "hasChildren": false,
+      "profileImage": "202931_SF.jpg",
+      "smartCard": {
+        "cardNumber": ""
+      },
+      "login": [
+        "panchaphons@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 260402,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "HIGH SCHOOL OFFICE",
+      "familyCode": 260402,
+      "firstName": "Poj Ou",
+      "lastName": "CHORKSAWATPHISARN",
+      "hasChildren": false,
+      "profileImage": "260402_SF.jpg",
+      "smartCard": {
+        "cardNumber": "2FE06BD1"
+      },
+      "login": [
+        "donc@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 265112,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 265112,
+      "firstName": "Wisuchalak",
+      "lastName": "RUEANGRIT",
+      "hasChildren": false,
+      "profileImage": "265112_SF.jpg",
+      "smartCard": {
+        "cardNumber": "DF125FB6"
+      },
+      "login": [
+        "wisuchak@isb.ac.th"
+      ]
+    },
+    {
+      "customerId": 265156,
+      "customerType": "Staff",
+      "staffType": "Classified Staff",
+      "department": "ELEMENTARY SCHOOL OFFICE",
+      "familyCode": 265156,
+      "firstName": "Supawan",
+      "lastName": "KRAIYON",
+      "hasChildren": false,
+      "profileImage": "265156_SF.jpg",
+      "smartCard": {
+        "cardNumber": "AB576072"
+      },
+      "login": [
+        "supawank@isb.ac.th"
+      ]
+    }
+  ]
+}
