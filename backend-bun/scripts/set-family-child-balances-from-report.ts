@@ -1,18 +1,20 @@
 /**
- * Set each eligible child's wallet balance to (family_balance / n) from a
- * MyCampusCard balance report — NOT an additive top-up.
+ * Set wallet balances from a MyCampusCard balance report — NOT an additive top-up.
  *
  * XLSX: reads FamilyCode + Balance from every row (ignores file CustomerType —
  * the export mixes Family and Staff rows). When the same family_code appears
  * more than once, the Family row wins; otherwise Staff is used.
  *
- * DB recipients (n) per family_code:
- *   - customers.customer_type = 'Student'
- *   - customers.customer_kind = 'student'
- *   - customers.school_type IS NULL OR != 'ES Student'
+ * Per family_code:
+ *   1. If eligible student(s) exist in DB → split family balance evenly among them.
+ *      Eligible = customer_type 'Student', customer_kind 'student',
+ *      school_type IS NULL OR != 'ES Student'.
+ *   2. If no eligible students → credit the FULL family balance to main parent:
+ *      a) parent_child_links.parent_rank = 'main' on any student in the family, else
+ *      b) users.external_id = family_code (ISB convention: familyCode = mainParent id;
+ *         also covers Staff rows where family_code is the staff member's own id).
  *
- * Target per child = family balance / n, split with exact-cent remainder
- * handling (same as redistribute-family-balance.ts).
+ * Target = family balance (parent path) or family balance / n (student path).
  * Adjustment = target − current wallet balance (can be positive or negative).
  *
  * Money movement uses audited adjustBalance() — never a raw UPDATE.
@@ -25,14 +27,15 @@
  *
  * Output CSVs (next to the xlsx, same basename):
  *   <name>.set_balances.csv
- *   <name>.no_eligible_children.csv
+ *   <name>.set_parent_balances.csv
+ *   <name>.no_main_parent.csv
  *   <name>.skipped_negative.csv
  */
 
 import { and, asc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import * as path from "path";
 import * as XLSX from "xlsx";
-import { customers, wallets, walletTransactions } from "../drizzle/schema";
+import { customers, parentChildLinks, users, wallets, walletTransactions } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
 import { adjustBalance } from "../src/services/wallet_service";
 
@@ -285,6 +288,103 @@ async function walletsAlreadyDoneForTicket(ticket: string): Promise<Set<number>>
     return new Set(rows.map((r) => r.walletId));
 }
 
+interface ResolvedParent {
+    userId: number;
+    externalId: string | null;
+    name: string;
+    walletId: number | null;
+    currentBalance: number;
+    resolvedVia: "main_parent_link" | "external_id";
+}
+
+/** Batch-resolve main parent (or staff self) wallet per family_code. */
+async function loadMainParentByFamily(familyCodes: string[]): Promise<Map<string, ResolvedParent>> {
+    const resolved = new Map<string, ResolvedParent>();
+    if (familyCodes.length === 0) return resolved;
+
+    const linkRows = await db
+        .select({
+            familyCode: customers.familyCode,
+            userId: users.id,
+            externalId: users.externalId,
+            fullName: users.fullName,
+            username: users.username,
+            walletId: wallets.id,
+            balance: wallets.balance,
+        })
+        .from(customers)
+        .innerJoin(
+            parentChildLinks,
+            and(
+                eq(parentChildLinks.childCustomerId, customers.id),
+                eq(parentChildLinks.parentRank, "main"),
+            ),
+        )
+        .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
+        .leftJoin(wallets, eq(wallets.userId, users.id))
+        .where(
+            and(
+                inArray(customers.familyCode, familyCodes),
+                eq(customers.customerKind, "student"),
+            ),
+        )
+        .orderBy(asc(customers.familyCode), asc(users.id));
+
+    for (const r of linkRows) {
+        const fam = r.familyCode;
+        if (!fam || resolved.has(fam)) continue;
+        resolved.set(fam, {
+            userId: r.userId,
+            externalId: r.externalId,
+            name: r.fullName ?? r.username,
+            walletId: r.walletId,
+            currentBalance: r.balance != null ? Number(r.balance) : 0,
+            resolvedVia: "main_parent_link",
+        });
+    }
+
+    const unresolved = familyCodes.filter((c) => !resolved.has(c));
+    if (unresolved.length === 0) return resolved;
+
+    const userRows = await db
+        .select({
+            externalId: users.externalId,
+            userId: users.id,
+            fullName: users.fullName,
+            username: users.username,
+            walletId: wallets.id,
+            balance: wallets.balance,
+        })
+        .from(users)
+        .leftJoin(wallets, eq(wallets.userId, users.id))
+        .where(inArray(users.externalId, unresolved));
+
+    for (const r of userRows) {
+        const fam = r.externalId;
+        if (!fam || resolved.has(fam)) continue;
+        resolved.set(fam, {
+            userId: r.userId,
+            externalId: r.externalId,
+            name: r.fullName ?? r.username,
+            walletId: r.walletId,
+            currentBalance: r.balance != null ? Number(r.balance) : 0,
+            resolvedVia: "external_id",
+        });
+    }
+
+    return resolved;
+}
+
+async function ensureUserWalletId(userId: number): Promise<number> {
+    const rows = await db.select({ id: wallets.id }).from(wallets).where(eq(wallets.userId, userId)).limit(1);
+    if (rows[0]) return rows[0].id;
+    const [created] = await db
+        .insert(wallets)
+        .values({ userId, balance: "0", isActive: true })
+        .returning({ id: wallets.id });
+    return created.id;
+}
+
 // ── main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -310,22 +410,34 @@ async function main() {
     console.log(`Loading eligible DB students for ${familyCodes.length} family_code(s)...`);
     const studentsByFamily = await loadEligibleStudentsByFamily(familyCodes);
 
+    const noEligibleCodes = familyCodes.filter((c) => (studentsByFamily.get(c) ?? []).length === 0);
+    console.log(`Loading main parent / staff wallets for ${noEligibleCodes.length} family_code(s) with no eligible students...`);
+    const mainParentByFamily = await loadMainParentByFamily(noEligibleCodes);
+
     const alreadyDone = args.execute ? await walletsAlreadyDoneForTicket(args.ticket) : new Set<number>();
     if (alreadyDone.size > 0) {
         console.log(`Resume: ${alreadyDone.size} wallet(s) already have reference_ticket='${args.ticket}' — will skip.`);
     }
 
     type SetRow = [string, string, number, number, string, string, string, number, number, number, string];
+    type ParentSetRow = [string, string, number, string, number, string, string, number, number, number, string, string];
     const setRows: SetRow[] = [];
-    const noEligible: Array<[string, string, number, string, number]> = [];
+    const setParentRows: ParentSetRow[] = [];
+    const noMainParent: Array<[string, string, number, string]> = [];
 
     let familiesProcessed = 0;
+    let parentFamiliesProcessed = 0;
     let adjustmentsPlanned = 0;
+    let parentAdjustmentsPlanned = 0;
     let totalDeltaAbs = 0;
+    let parentDeltaAbs = 0;
     let newlyExecuted = 0;
+    let parentNewlyExecuted = 0;
     let skippedAlready = 0;
     let skippedAtTarget = 0;
     let skippedNoWallet = 0;
+    let parentSkippedAtTarget = 0;
+    let parentSkippedAlready = 0;
 
     const sortedFamilies = [...nonNegative].sort((a, b) =>
         a.familyCode.localeCompare(b.familyCode, undefined, { numeric: true }),
@@ -340,12 +452,70 @@ async function main() {
 
         const children = studentsByFamily.get(fam.familyCode) ?? [];
         if (children.length === 0) {
-            noEligible.push([
-                fam.familyCode,
-                fam.name,
-                fam.campusBalance,
+            const parent = mainParentByFamily.get(fam.familyCode);
+            if (!parent) {
+                noMainParent.push([
+                    fam.familyCode,
+                    fam.name,
+                    fam.campusBalance,
+                    fam.fileCustomerType || "(unknown)",
+                ]);
+                continue;
+            }
+
+            parentFamiliesProcessed += 1;
+            const target = fam.campusBalance;
+            let walletId = parent.walletId;
+            let currentBalance = parent.currentBalance;
+
+            if (!walletId && args.execute) {
+                walletId = await ensureUserWalletId(parent.userId);
+                currentBalance = 0;
+            }
+
+            if (!walletId) {
+                setParentRows.push([
+                    fam.familyCode, fam.name, fam.campusBalance,
+                    fam.fileCustomerType || "(unknown)",
+                    parent.userId, parent.externalId ?? "", parent.name,
+                    currentBalance, target, target - currentBalance,
+                    "ERROR:no_wallet", parent.resolvedVia,
+                ]);
+                continue;
+            }
+
+            const delta = Math.round((target - currentBalance) * 100) / 100;
+            let executed = "no";
+
+            if (Math.abs(delta) < DELTA_EPSILON) {
+                parentSkippedAtTarget += 1;
+                executed = "skipped_at_target";
+            } else if (alreadyDone.has(walletId)) {
+                parentSkippedAlready += 1;
+                executed = "already";
+            } else if (args.execute && args.adminUserId) {
+                await adjustBalance({
+                    walletId,
+                    amount: delta,
+                    adminUserId: args.adminUserId,
+                    reason: "Set main parent wallet to family balance (MyCampusCard sync, no eligible students)",
+                    referenceTicket: args.ticket,
+                });
+                alreadyDone.add(walletId);
+                executed = "yes";
+                parentNewlyExecuted += 1;
+            }
+
+            if (Math.abs(delta) >= DELTA_EPSILON) {
+                parentAdjustmentsPlanned += 1;
+                parentDeltaAbs += Math.abs(delta);
+            }
+
+            setParentRows.push([
+                fam.familyCode, fam.name, fam.campusBalance,
                 fam.fileCustomerType || "(unknown)",
-                0,
+                parent.userId, parent.externalId ?? "", parent.name,
+                currentBalance, target, delta, executed, parent.resolvedVia,
             ]);
             continue;
         }
@@ -418,10 +588,21 @@ async function main() {
         ),
     );
     await Bun.write(
-        path.join(dir, `${stem}.no_eligible_children.csv`),
+        path.join(dir, `${stem}.set_parent_balances.csv`),
         toCsv(
-            ["family_code", "family_name", "family_balance", "xlsx_row_type", "db_eligible_n"],
-            noEligible,
+            [
+                "family_code", "family_name", "family_balance", "xlsx_row_type",
+                "parent_user_id", "parent_external_id", "parent_name",
+                "current_balance", "target_balance", "delta", "executed", "resolved_via",
+            ],
+            setParentRows as unknown as Array<Array<string | number>>,
+        ),
+    );
+    await Bun.write(
+        path.join(dir, `${stem}.no_main_parent.csv`),
+        toCsv(
+            ["family_code", "family_name", "family_balance", "xlsx_row_type"],
+            noMainParent,
         ),
     );
     await Bun.write(
@@ -434,19 +615,28 @@ async function main() {
         ),
     );
 
+    const viaLink = setParentRows.filter((r) => r[11] === "main_parent_link").length;
+    const viaExtId = setParentRows.filter((r) => r[11] === "external_id").length;
+
     console.log("");
     console.log("── Summary ──────────────────────────────");
     console.log(`Xlsx family codes (>= 0) : ${nonNegative.length}`);
-    console.log(`Families processed       : ${familiesProcessed}`);
-    console.log(`No eligible DB students  : ${noEligible.length}`);
+    console.log(`Student split families   : ${familiesProcessed}`);
+    console.log(`Main parent / staff fams : ${parentFamiliesProcessed}`);
+    console.log(`No main parent in DB     : ${noMainParent.length}`);
     console.log(`Skipped (negative fam)   : ${negative.length}`);
-    console.log(`Skipped (already target) : ${skippedAtTarget}`);
-    console.log(`Skipped (no wallet)      : ${skippedNoWallet}`);
-    console.log(`Skipped (already ticket) : ${skippedAlready}`);
-    console.log(`Adjustments planned      : ${adjustmentsPlanned}`);
-    console.log(`Sum |delta| planned      : ${totalDeltaAbs.toFixed(2)}`);
+    console.log(`Student: skipped @target : ${skippedAtTarget}`);
+    console.log(`Student: skipped no wlt  : ${skippedNoWallet}`);
+    console.log(`Student: skipped ticket  : ${skippedAlready}`);
+    console.log(`Student: adjustments     : ${adjustmentsPlanned} (|delta| ${totalDeltaAbs.toFixed(2)})`);
+    console.log(`Parent:  via main link   : ${viaLink}`);
+    console.log(`Parent:  via external_id: ${viaExtId}`);
+    console.log(`Parent:  skipped @target  : ${parentSkippedAtTarget}`);
+    console.log(`Parent:  skipped ticket   : ${parentSkippedAlready}`);
+    console.log(`Parent:  adjustments      : ${parentAdjustmentsPlanned} (|delta| ${parentDeltaAbs.toFixed(2)})`);
     if (args.execute) {
-        console.log(`Newly executed this run  : ${newlyExecuted}`);
+        console.log(`Student executed         : ${newlyExecuted}`);
+        console.log(`Parent executed          : ${parentNewlyExecuted}`);
     } else {
         console.log("(dry run — pass --execute to apply)");
     }
