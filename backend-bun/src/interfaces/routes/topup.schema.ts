@@ -15,7 +15,7 @@ export const topupCreateIntent = {
 
 export const topupStatus = {
     params: t.Object({ refCode: t.String() }),
-    detail: { tags: ["Wallets"], summary: "Get top-up intent status" },
+    detail: { tags: ["Wallets"], summary: "Get top-up intent status", security: [{ bearerAuth: [] }] },
 };
 
 export const topupParentConfirm = {
@@ -25,12 +25,12 @@ export const topupParentConfirm = {
 
 export const topupInquiry = {
     params: t.Object({ refCode: t.String() }),
-    detail: { tags: ["Wallets"], summary: "Inquire top-up from gateway" },
+    detail: { tags: ["Wallets"], summary: "Inquire top-up from gateway", security: [{ bearerAuth: [] }] },
 };
 
 export const topupCancelIntent = {
     params: t.Object({ refCode: t.String() }),
-    detail: { tags: ["Wallets"], summary: "Cancel a pending top-up intent" },
+    detail: { tags: ["Wallets"], summary: "Cancel a pending top-up intent", security: [{ bearerAuth: [] }] },
 };
 
 export const topupCashier = {
