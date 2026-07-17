@@ -22,6 +22,7 @@ export const CardholderController = {
 			const result = await listCardholders({
 				kind: query.kind ?? null,
 				excludeKind: query.exclude_kind ?? null,
+				hasWallet: query.has_wallet === "true" ? true : null,
 				q: query.q ?? null,
 				schoolType: query.school_type ?? null,
 				grade: query.grade ?? null,

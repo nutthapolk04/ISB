@@ -1151,7 +1151,7 @@
       "title": "Wallet Adjustment",
       "description": "Add or deduct wallet balance for a student, parent, or staff member, with reason for audit",
       "searchUser": "Search user",
-      "searchPlaceholder": "Search by name, username, or code (student / parent / staff)",
+      "searchPlaceholder": "Search by name, username, code, or family code (student / parent / staff)",
       "colName": "Name",
       "colCode": "Code",
       "colClass": "Class",

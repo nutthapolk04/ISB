@@ -276,9 +276,14 @@ export default function WalletAdjust() {
             // student_code, external_id, family_code for students/other).
             // Departments are excluded — those are adjusted via the dedicated
             // Dept Wallet Adjust page so the two screens don't overlap.
+            // has_wallet=true filters at the SQL level (the adjust action
+            // needs a wallet to credit/debit) — filtering client-side after
+            // the page was already fetched used to shrink a page of 10 down
+            // to 1-2 visible rows whenever wallet-less cardholders landed on it.
             const params = new URLSearchParams({
                 kind: "all",
                 exclude_kind: "department",
+                has_wallet: "true",
                 page: String(page),
                 page_size: String(PAGE_SIZE),
             });
@@ -286,9 +291,7 @@ export default function WalletAdjust() {
             const data = await api.get<{ items: Cardholder[]; total: number }>(
                 `/admin/cardholders?${params.toString()}`
             );
-            // Safety net for the rare cardholder without a wallet yet — the
-            // adjust action needs one to credit/debit.
-            setCardholders(data.items.filter((c) => c.wallet_id != null));
+            setCardholders(data.items);
             setCardholdersTotal(data.total);
         } catch (e) {
             toast({

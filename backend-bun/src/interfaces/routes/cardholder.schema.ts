@@ -4,6 +4,7 @@ export const cardholderList = {
     query: t.Object({
         kind: t.Optional(t.Nullable(t.String())),
         exclude_kind: t.Optional(t.Nullable(t.String())),
+        has_wallet: t.Optional(t.Nullable(t.String())),
         q: t.Optional(t.Nullable(t.String())),
         school_type: t.Optional(t.Nullable(t.String())),
         grade: t.Optional(t.Nullable(t.String())),

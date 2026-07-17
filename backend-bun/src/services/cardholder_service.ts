@@ -98,16 +98,17 @@ function userSearchCond(pattern: string | null) {
     );
 }
 
-function userWhere(kind: UserKind, pattern: string | null, shopId?: string | null) {
+function userWhere(kind: UserKind, pattern: string | null, shopId?: string | null, hasWallet?: boolean) {
     const conds = [inArray(users.role, userRoleSetFor(kind))];
     if (shopId) conds.push(eq(users.shopId, shopId));
     const s = userSearchCond(pattern);
     if (s) conds.push(s);
+    if (hasWallet) conds.push(sql`EXISTS (SELECT 1 FROM ${wallets} w WHERE w.user_id = ${users.id})`);
     return and(...conds)!;
 }
 
-async function countUsers(kind: UserKind, pattern: string | null, shopId?: string | null): Promise<number> {
-    const rows = await db.select({ n: sql<string>`COUNT(*)` }).from(users).where(userWhere(kind, pattern, shopId));
+async function countUsers(kind: UserKind, pattern: string | null, shopId?: string | null, hasWallet?: boolean): Promise<number> {
+    const rows = await db.select({ n: sql<string>`COUNT(*)` }).from(users).where(userWhere(kind, pattern, shopId, hasWallet));
     return Number(rows[0]?.n ?? 0);
 }
 
@@ -144,9 +145,11 @@ async function toUserDTOs(uRows: Array<typeof users.$inferSelect>): Promise<Card
     });
 }
 
-async function fetchUsersPage(kind: UserKind, pattern: string | null, offset: number, limit: number, shopId?: string | null): Promise<CardholderDTO[]> {
+async function fetchUsersPage(
+    kind: UserKind, pattern: string | null, offset: number, limit: number, shopId?: string | null, hasWallet?: boolean,
+): Promise<CardholderDTO[]> {
     if (limit <= 0) return [];
-    const uRows = await db.select().from(users).where(userWhere(kind, pattern, shopId))
+    const uRows = await db.select().from(users).where(userWhere(kind, pattern, shopId, hasWallet))
         .orderBy(asc(users.fullName)).limit(limit).offset(offset);
     return toUserDTOs(uRows);
 }
@@ -162,7 +165,9 @@ function customerSearchCond(pattern: string | null) {
     );
 }
 
-function customerWhere(kind: CustomerKind, pattern: string | null, schoolType?: string | null, grade?: string | null) {
+function customerWhere(
+    kind: CustomerKind, pattern: string | null, schoolType?: string | null, grade?: string | null, hasWallet?: boolean,
+) {
     const conds = [kind === "student" ? eq(customers.customerKind, "student") : notInArray(customers.customerKind, ["student"])];
     if (kind === "student") {
         if (schoolType) conds.push(eq(customers.schoolType, schoolType));
@@ -170,11 +175,14 @@ function customerWhere(kind: CustomerKind, pattern: string | null, schoolType?: 
     }
     const s = customerSearchCond(pattern);
     if (s) conds.push(s);
+    if (hasWallet) conds.push(sql`EXISTS (SELECT 1 FROM ${wallets} w WHERE w.customer_id = ${customers.id})`);
     return and(...conds)!;
 }
 
-async function countCustomers(kind: CustomerKind, pattern: string | null, schoolType?: string | null, grade?: string | null): Promise<number> {
-    const rows = await db.select({ n: sql<string>`COUNT(*)` }).from(customers).where(customerWhere(kind, pattern, schoolType, grade));
+async function countCustomers(
+    kind: CustomerKind, pattern: string | null, schoolType?: string | null, grade?: string | null, hasWallet?: boolean,
+): Promise<number> {
+    const rows = await db.select({ n: sql<string>`COUNT(*)` }).from(customers).where(customerWhere(kind, pattern, schoolType, grade, hasWallet));
     return Number(rows[0]?.n ?? 0);
 }
 
@@ -216,10 +224,10 @@ async function toCustomerDTOs(cRows: Array<typeof customers.$inferSelect>): Prom
 
 async function fetchCustomersPage(
     kind: CustomerKind, pattern: string | null, offset: number, limit: number,
-    schoolType?: string | null, grade?: string | null,
+    schoolType?: string | null, grade?: string | null, hasWallet?: boolean,
 ): Promise<CardholderDTO[]> {
     if (limit <= 0) return [];
-    const cRows = await db.select().from(customers).where(customerWhere(kind, pattern, schoolType, grade))
+    const cRows = await db.select().from(customers).where(customerWhere(kind, pattern, schoolType, grade, hasWallet))
         .orderBy(asc(customers.name)).limit(limit).offset(offset);
     return toCustomerDTOs(cRows);
 }
@@ -276,12 +284,12 @@ async function fetchDepartmentsPage(pattern: string | null, offset: number, limi
  * kind filter itself (badges must show every kind's true count regardless of
  * which tab is active), and NOT the student-only school/grade sub-filters
  * (those never affected the other kinds' badges even before this rewrite). */
-async function getCounts(pattern: string | null): Promise<Record<CardholderKind, number>> {
+async function getCounts(pattern: string | null, hasWallet?: boolean): Promise<Record<CardholderKind, number>> {
     const [staffN, parentN, studentN, otherN, deptN] = await Promise.all([
-        countUsers("staff", pattern),
-        countUsers("parent", pattern),
-        countCustomers("student", pattern),
-        countCustomers("other", pattern),
+        countUsers("staff", pattern, undefined, hasWallet),
+        countUsers("parent", pattern, undefined, hasWallet),
+        countCustomers("student", pattern, undefined, undefined, hasWallet),
+        countCustomers("other", pattern, undefined, undefined, hasWallet),
         countDepartments(pattern),
     ]);
     return { staff: staffN, parent: parentN, student: studentN, other: otherN, department: deptN };
@@ -322,17 +330,25 @@ export async function listCardholders(args: {
     schoolType?: string | null;
     grade?: string | null;
     shopId?: string | null;
+    /** Restrict results to cardholders that already have a wallet — used by
+     * Wallet Adjustment, which can't act on someone without one. Filtering
+     * this at the SQL level (rather than dropping wallet-less rows from an
+     * already-paginated page client-side) keeps `total`/`counts` and the
+     * actual page contents in sync — the old client-side filter could shrink
+     * a page of 10 down to 1-2 visible rows. */
+    hasWallet?: boolean | null;
     page: number;
     pageSize: number;
 }): Promise<CardholderListResponseDTO> {
     const pattern = args.q && args.q.trim() ? `%${args.q.trim()}%` : null;
     const kindFilter = (args.kind && args.kind !== "all" ? args.kind : null) as CardholderKind | null;
+    const hasWallet = args.hasWallet ?? undefined;
 
     // shopId (from ShopDetail's "Manage shop staff" link) only ever scoped the
     // staff *table* before this rewrite — the kind badges always showed
     // school-wide counts regardless, so `counts` stays unscoped here too.
     const [counts, studentStats, grades] = await Promise.all([
-        getCounts(pattern),
+        getCounts(pattern, hasWallet),
         getStudentStats(),
         getGrades(),
     ]);
@@ -346,8 +362,8 @@ export async function listCardholders(args: {
         let total: number;
         if (kindFilter === "staff" || kindFilter === "parent") {
             [items, total] = await Promise.all([
-                fetchUsersPage(kindFilter, pattern, offset, args.pageSize, args.shopId),
-                countUsers(kindFilter, pattern, args.shopId),
+                fetchUsersPage(kindFilter, pattern, offset, args.pageSize, args.shopId, hasWallet),
+                countUsers(kindFilter, pattern, args.shopId, hasWallet),
             ]);
         } else if (kindFilter === "department") {
             [items, total] = await Promise.all([
@@ -356,8 +372,8 @@ export async function listCardholders(args: {
             ]);
         } else {
             [items, total] = await Promise.all([
-                fetchCustomersPage(kindFilter, pattern, offset, args.pageSize, args.schoolType, args.grade),
-                countCustomers(kindFilter, pattern, args.schoolType, args.grade),
+                fetchCustomersPage(kindFilter, pattern, offset, args.pageSize, args.schoolType, args.grade, hasWallet),
+                countCustomers(kindFilter, pattern, args.schoolType, args.grade, hasWallet),
             ]);
         }
         return { items, total, counts, studentStats, grades };
@@ -384,11 +400,11 @@ export async function listCardholders(args: {
         const localOffset = overlapStart - kStart;
         const localLimit = overlapEnd - overlapStart;
         if (k === "staff" || k === "parent") {
-            items.push(...await fetchUsersPage(k, pattern, localOffset, localLimit, args.shopId));
+            items.push(...await fetchUsersPage(k, pattern, localOffset, localLimit, args.shopId, hasWallet));
         } else if (k === "department") {
             items.push(...await fetchDepartmentsPage(pattern, localOffset, localLimit));
         } else {
-            items.push(...await fetchCustomersPage(k, pattern, localOffset, localLimit));
+            items.push(...await fetchCustomersPage(k, pattern, localOffset, localLimit, undefined, undefined, hasWallet));
         }
         if (cursor >= globalEnd) break;
     }
