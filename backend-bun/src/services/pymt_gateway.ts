@@ -5,8 +5,8 @@
  * Env config:
  *   PYMT_BASE_URL          gateway base, e.g. https://pymt.example.com
  *   PYMT_MERCHANT_TOKEN    Basic-auth token (already base64'd)
- *   APP_ENV                "prod" | "uat" — controls the outgoing QR
- *                           request's subMerchantCode (see createQrPayment).
+ *   APP_ENV                "prod" | "uat" — controls outgoing BAY
+ *                           request subMerchantCode for QR + EASYPay.
  *                           Not NODE_ENV: staging and production both run
  *                           with NODE_ENV=production by design (see
  *                           staging.config.cjs), so this is a separate,
@@ -54,6 +54,12 @@ function buildHeaders(configApp: string): Record<string, string> {
     };
 }
 
+function buildSubMerchantCode(): "PROD" | "UAT" | null {
+    if (APP_ENV === "prod") return "PROD";
+    if (APP_ENV === "uat") return "UAT";
+    return null;
+}
+
 async function postWithTimeout(url: string, body: unknown, headers: Record<string, string>): Promise<Response> {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 30000);
@@ -95,11 +101,8 @@ export async function createQrPayment(args: {
         expiredMinutes: args.expiredMinutes ?? 10,
     };
     if (args.remark && args.remark.trim()) payload.remark = args.remark.trim();
-    // subMerchantCode: optional — only sent when APP_ENV unambiguously
-    // identifies this deployment as prod or uat; left off otherwise so BAY
-    // falls back to its own "default" sub-merchant.
-    if (APP_ENV === "prod") payload.subMerchantCode = "PROD";
-    else if (APP_ENV === "uat") payload.subMerchantCode = "UAT";
+    const subMerchantCode = buildSubMerchantCode();
+    if (subMerchantCode) payload.subMerchantCode = subMerchantCode;
     const resp = await postWithTimeout(
         `${BASE_URL}/api/v1/bay/qr`,
         payload,
@@ -245,6 +248,8 @@ export async function createEasyPay(args: {
         lang: args.lang ?? "T",
     };
     if (args.remark && args.remark.trim()) payload.remark = args.remark.trim();
+    const subMerchantCode = buildSubMerchantCode();
+    if (subMerchantCode) payload.subMerchantCode = subMerchantCode;
     const resp = await postWithTimeout(
         `${BASE_URL}/api/v1/bay/easypay`,
         payload,
