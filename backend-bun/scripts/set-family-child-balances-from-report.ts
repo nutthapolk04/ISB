@@ -2,19 +2,17 @@
  * Set each eligible child's wallet balance to (family_balance / n) from a
  * MyCampusCard balance report — NOT an additive top-up.
  *
- * Eligible children (n) come from ISB families sync JSON batches:
- *   - schoolType !== "ES Student"
- *   - withdrawDate is blank (still enrolled per ISB export)
+ * XLSX: reads FamilyCode + Balance from every row (ignores file CustomerType —
+ * the export mixes Family and Staff rows). When the same family_code appears
+ * more than once, the Family row wins; otherwise Staff is used.
  *
- * DB matching mirrors upsertStudent() / family sync field mapping:
- *   - JSON customerId  → customers.external_id AND customers.student_code
- *   - JSON familyCode  → customers.family_code
- *   - student identity → customer_type = "Student" OR customer_kind = "student"
- *     (sync writes both; older rows may only have customer_type)
- *   - JSON schoolType  → customers.school_type (ES filter uses JSON, not DB)
+ * DB recipients (n) per family_code:
+ *   - customers.customer_type = 'Student'
+ *   - customers.customer_kind = 'student'
+ *   - customers.school_type IS NULL OR != 'ES Student'
  *
- * Target per child = family Campus Balance / n, split with exact-cent
- * remainder handling (same as redistribute-family-balance.ts).
+ * Target per child = family balance / n, split with exact-cent remainder
+ * handling (same as redistribute-family-balance.ts).
  * Adjustment = target − current wallet balance (can be positive or negative).
  *
  * Money movement uses audited adjustBalance() — never a raw UPDATE.
@@ -23,29 +21,18 @@
  *
  * Usage (from backend-bun/):
  *   bun scripts/set-family-child-balances-from-report.ts <path-to-xlsx> \
- *     [--families-json=docs/sync_data/families_batch_001.json,...] \
  *     [--admin-user-id=<id>] [--execute] [--ticket=<ref>]
  *
  * Output CSVs (next to the xlsx, same basename):
  *   <name>.set_balances.csv
- *   <name>.xlsx_not_in_json.csv
- *   <name>.missing_balance.csv
- *   <name>.incomplete_families.csv
- *     (issues may include family_code_mismatch when student exists under another family)
  *   <name>.no_eligible_children.csv
- *   <name>.student_not_in_db.csv
  *   <name>.skipped_negative.csv
- *
- * STRICT: the script is JSON-first. It validates all families from the
- * families JSON against DB + xlsx before any write. Dry-run writes reports;
- * execute aborts when any strict validation issue exists.
  */
 
-import { and, eq, inArray, or } from "drizzle-orm";
-import * as fs from "fs";
+import { and, asc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import * as path from "path";
 import * as XLSX from "xlsx";
-import { customers, familyProfiles, users, wallets, walletTransactions } from "../drizzle/schema";
+import { customers, wallets, walletTransactions } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
 import { adjustBalance } from "../src/services/wallet_service";
 
@@ -53,7 +40,6 @@ import { adjustBalance } from "../src/services/wallet_service";
 
 interface Args {
     xlsxPath: string;
-    familiesJsonPaths: string[];
     execute: boolean;
     adminUserId: number | null;
     ticket: string;
@@ -71,7 +57,7 @@ function parseArgs(): Args {
     if (positional.length === 0) {
         throw new Error(
             "Usage: bun scripts/set-family-child-balances-from-report.ts <path-to-xlsx> " +
-            "[--families-json=path1,path2,...] [--admin-user-id=<id>] [--execute] [--ticket=<ref>]",
+            "[--admin-user-id=<id>] [--execute] [--ticket=<ref>]",
         );
     }
     const execute = flags.has("execute");
@@ -79,19 +65,9 @@ function parseArgs(): Args {
     if (execute && !adminUserIdRaw) {
         throw new Error("--admin-user-id=<id> is required when --execute is passed");
     }
-    const defaultJsonGlob = [
-        "docs/sync_data/families_batch_001.json",
-        "docs/sync_data/families_batch_002.json",
-        "docs/sync_data/families_batch_003.json",
-    ];
-    const jsonRaw = flags.get("families-json");
-    const familiesJsonPaths = jsonRaw
-        ? jsonRaw.split(",").map((p) => p.trim()).filter(Boolean)
-        : defaultJsonGlob;
     const today = new Date().toISOString().slice(0, 10);
     return {
         xlsxPath: positional[0],
-        familiesJsonPaths,
         execute,
         adminUserId: adminUserIdRaw ? Number(adminUserIdRaw) : null,
         ticket: flags.get("ticket") ?? `family-set-balance-${today}`,
@@ -100,33 +76,34 @@ function parseArgs(): Args {
 
 // ── xlsx ───────────────────────────────────────────────────────────────────
 
-interface FamilyRow {
+interface BalanceRow {
     familyCode: string;
     name: string;
     campusBalance: number;
+    /** Family | Staff | other — used only for de-duplication, not filtering. */
+    fileCustomerType: string;
     transactionDateTime: Date | null;
 }
 
-function readFamilyRowsFromUseSheet(wb: XLSX.WorkBook): FamilyRow[] | null {
+function readBalanceRowsFromUseSheet(wb: XLSX.WorkBook): BalanceRow[] | null {
     const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "use this sheet");
     if (!sheetName) return null;
     const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[sheetName], { defval: null });
-    const rows: FamilyRow[] = [];
+    const rows: BalanceRow[] = [];
     for (const r of raw) {
-        const customerType = String(r.CustomerType ?? r["Customer Type"] ?? "").trim();
-        if (customerType !== "Family") continue;
         const familyCode = String(r.FamilyCode ?? r["Family Code"] ?? "").trim();
         if (!familyCode) continue;
         const balanceRaw = r.Balance ?? r["Campus Balance"];
         const campusBalance = typeof balanceRaw === "number" ? balanceRaw : Number(balanceRaw ?? 0);
         const name = String(r.CustomerName ?? r.Name ?? "").trim();
-        rows.push({ familyCode, name, campusBalance, transactionDateTime: null });
+        const fileCustomerType = String(r.CustomerType ?? r["Customer Type"] ?? "").trim();
+        rows.push({ familyCode, name, campusBalance, fileCustomerType, transactionDateTime: null });
     }
     return rows;
 }
 
 /** Header-scan parser (legacy export shape). */
-function readFamilyRowsFromHeaderScan(wb: XLSX.WorkBook): FamilyRow[] {
+function readBalanceRowsFromHeaderScan(wb: XLSX.WorkBook): BalanceRow[] {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const aoa: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, cellDates: true });
 
@@ -147,16 +124,14 @@ function readFamilyRowsFromHeaderScan(wb: XLSX.WorkBook): FamilyRow[] {
     if (headerRowIdx < 0) {
         throw new Error("Could not find a \"Family Code\" header row in the workbook");
     }
-    for (const required of ["Family Code", "Customer Type", "Campus Balance"]) {
-        if (!(required in col)) throw new Error(`Missing expected column "${required}"`);
+    if (!("Family Code" in col) || !("Campus Balance" in col)) {
+        throw new Error('Missing expected columns "Family Code" and "Campus Balance"');
     }
 
-    const rows: FamilyRow[] = [];
+    const rows: BalanceRow[] = [];
     for (let r = headerRowIdx + 1; r < aoa.length; r++) {
         const row = aoa[r];
         if (!row || row.length === 0) continue;
-        const customerType = String(row[col["Customer Type"]] ?? "").trim();
-        if (customerType !== "Family") continue;
         const familyCode = String(row[col["Family Code"]] ?? "").trim();
         if (!familyCode) continue;
         const balanceRaw = row[col["Campus Balance"]];
@@ -164,82 +139,53 @@ function readFamilyRowsFromHeaderScan(wb: XLSX.WorkBook): FamilyRow[] {
         const txRaw = col["Transaction DateTime"] != null ? row[col["Transaction DateTime"]] : null;
         const transactionDateTime = txRaw instanceof Date ? txRaw : txRaw ? new Date(String(txRaw)) : null;
         const name = col["Name"] != null ? String(row[col["Name"]] ?? "").trim() : "";
-        rows.push({ familyCode, name, campusBalance, transactionDateTime });
+        const fileCustomerType = col["Customer Type"] != null
+            ? String(row[col["Customer Type"]] ?? "").trim()
+            : "";
+        rows.push({ familyCode, name, campusBalance, fileCustomerType, transactionDateTime });
     }
     return rows;
 }
 
-function readFamilyRows(xlsxPath: string): FamilyRow[] {
+function readBalanceRows(xlsxPath: string): BalanceRow[] {
     const wb = XLSX.readFile(xlsxPath, { cellDates: true });
-    const fromUseSheet = readFamilyRowsFromUseSheet(wb);
+    const fromUseSheet = readBalanceRowsFromUseSheet(wb);
     if (fromUseSheet && fromUseSheet.length > 0) {
-        console.log('Using sheet "Use this sheet" for family balances.');
+        console.log('Using sheet "Use this sheet" (FamilyCode + Balance; file CustomerType ignored).');
         return fromUseSheet;
     }
-    console.log("Using header-scan parser on first sheet.");
-    return readFamilyRowsFromHeaderScan(wb);
+    console.log("Using header-scan parser on first sheet (FamilyCode + Balance).");
+    return readBalanceRowsFromHeaderScan(wb);
 }
 
-function dedupeByLatestTransaction(rows: FamilyRow[]): FamilyRow[] {
-    const byCode = new Map<string, FamilyRow>();
+function balanceRowPriority(row: BalanceRow): number {
+    const t = row.fileCustomerType.toLowerCase();
+    if (t === "family") return 3;
+    if (t === "staff") return 2;
+    return 1;
+}
+
+/** Prefer Family row over Staff when the same family_code appears more than once. */
+function dedupeBalanceRows(rows: BalanceRow[]): BalanceRow[] {
+    const byCode = new Map<string, BalanceRow>();
     for (const row of rows) {
         const existing = byCode.get(row.familyCode);
         if (!existing) {
             byCode.set(row.familyCode, row);
             continue;
         }
+        const existingPri = balanceRowPriority(existing);
+        const rowPri = balanceRowPriority(row);
+        if (rowPri > existingPri) {
+            byCode.set(row.familyCode, row);
+            continue;
+        }
+        if (rowPri < existingPri) continue;
         const existingTime = existing.transactionDateTime?.getTime() ?? -Infinity;
         const rowTime = row.transactionDateTime?.getTime() ?? -Infinity;
         if (rowTime > existingTime) byCode.set(row.familyCode, row);
     }
     return [...byCode.values()];
-}
-
-function familyRowsToMap(rows: FamilyRow[]): Map<string, FamilyRow> {
-    const out = new Map<string, FamilyRow>();
-    for (const row of rows) out.set(row.familyCode, row);
-    return out;
-}
-
-// ── families JSON ──────────────────────────────────────────────────────────
-
-interface JsonStudent {
-    customerId: number;
-    firstName: string;
-    lastName: string;
-    schoolType?: string;
-    withdrawDate?: string;
-}
-
-interface JsonFamily {
-    familyCode: string;
-    students: JsonStudent[];
-}
-
-function isEligibleJsonStudent(s: JsonStudent): boolean {
-    if (s.schoolType === "ES Student") return false;
-    const wd = String(s.withdrawDate ?? "").trim();
-    if (wd) return false;
-    return true;
-}
-
-function loadFamiliesFromJson(paths: string[]): Map<string, JsonFamily> {
-    const map = new Map<string, JsonFamily>();
-    for (const p of paths) {
-        const resolved = path.isAbsolute(p) ? p : path.join(process.cwd(), p);
-        if (!fs.existsSync(resolved)) {
-            throw new Error(`Families JSON not found: ${resolved}`);
-        }
-        const data = JSON.parse(fs.readFileSync(resolved, "utf8")) as { families: Array<{
-            familyCode: number | string;
-            students?: JsonStudent[];
-        }> };
-        for (const fam of data.families ?? []) {
-            const code = String(fam.familyCode).trim();
-            map.set(code, { familyCode: code, students: fam.students ?? [] });
-        }
-    }
-    return map;
 }
 
 // ── split / CSV ────────────────────────────────────────────────────────────
@@ -279,44 +225,22 @@ interface DbChild {
     schoolType: string | null;
     walletId: number | null;
     currentBalance: number;
-    familyCode: string;
 }
 
-/** Same presence check family sync uses: family_profiles + customers + users. */
-async function loadDbFamilyCodes(familyCodes: string[]): Promise<Set<string>> {
-    if (familyCodes.length === 0) return new Set();
-    const [profileRows, customerRows, userRows] = await Promise.all([
-        db
-            .selectDistinct({ familyCode: familyProfiles.familyCode })
-            .from(familyProfiles)
-            .where(inArray(familyProfiles.familyCode, familyCodes)),
-        db
-            .selectDistinct({ familyCode: customers.familyCode })
-            .from(customers)
-            .where(inArray(customers.familyCode, familyCodes)),
-        db
-            .selectDistinct({ familyCode: users.familyCode })
-            .from(users)
-            .where(inArray(users.familyCode, familyCodes)),
-    ]);
-    return new Set(
-        [...profileRows, ...customerRows, ...userRows]
-            .map((r) => r.familyCode)
-            .filter((code): code is string => !!code),
+/** Eligible student filter — matches sync + ES exclusion on DB school_type. */
+function eligibleStudentWhere(familyCodes: string[]) {
+    return and(
+        inArray(customers.familyCode, familyCodes),
+        eq(customers.customerKind, "student"),
+        eq(customers.customerType, "Student"),
+        or(isNull(customers.schoolType), ne(customers.schoolType, "ES Student")),
     );
 }
 
-/**
- * Load students the same way upsertStudent() identifies them:
- *   customer_type = "Student" OR customer_kind = "student"
- * Indexed under both external_id and student_code (sync sets both to JSON customerId).
- *
- * Returns: familyCode → lookupKey(externalId|studentCode) → DbChild
- */
-async function loadDbStudentsByFamily(
+async function loadEligibleStudentsByFamily(
     familyCodes: string[],
-): Promise<Map<string, Map<string, DbChild>>> {
-    const out = new Map<string, Map<string, DbChild>>();
+): Promise<Map<string, DbChild[]>> {
+    const out = new Map<string, DbChild[]>();
     if (familyCodes.length === 0) return out;
 
     const rows = await db
@@ -332,97 +256,23 @@ async function loadDbStudentsByFamily(
         })
         .from(customers)
         .leftJoin(wallets, eq(wallets.customerId, customers.id))
-        .where(
-            and(
-                inArray(customers.familyCode, familyCodes),
-                or(
-                    eq(customers.customerKind, "student"),
-                    eq(customers.customerType, "Student"),
-                ),
-            ),
-        );
+        .where(eligibleStudentWhere(familyCodes))
+        .orderBy(asc(customers.familyCode), asc(customers.id));
 
     for (const r of rows) {
         const fam = r.familyCode;
         if (!fam) continue;
-        const keys = [r.externalId, r.studentCode]
-            .map((v) => (v != null ? String(v).trim() : ""))
-            .filter(Boolean);
-        if (keys.length === 0) continue;
-
         const child: DbChild = {
             customerId: r.customerId,
-            externalId: r.externalId ?? r.studentCode ?? keys[0],
+            externalId: r.externalId ?? r.studentCode ?? String(r.customerId),
             name: r.name,
             schoolType: r.schoolType,
             walletId: r.walletId,
             currentBalance: r.balance != null ? Number(r.balance) : 0,
-            familyCode: fam,
         };
-        const byKey = out.get(fam) ?? new Map<string, DbChild>();
-        for (const key of keys) byKey.set(key, child);
-        out.set(fam, byKey);
-    }
-    return out;
-}
-
-/**
- * Global student lookup by JSON customerId, mirroring upsertStudent():
- *   WHERE external_id IN (...) OR student_code IN (...)
- * Used to distinguish "missing entirely" vs "exists under a different family_code".
- */
-async function loadDbStudentsByExternalIds(
-    externalIds: string[],
-): Promise<Map<string, DbChild>> {
-    const out = new Map<string, DbChild>();
-    if (externalIds.length === 0) return out;
-
-    const uniqueIds = [...new Set(externalIds.map((id) => String(id).trim()).filter(Boolean))];
-    const chunkSize = 500;
-    for (let i = 0; i < uniqueIds.length; i += chunkSize) {
-        const chunk = uniqueIds.slice(i, i + chunkSize);
-        const rows = await db
-            .select({
-                familyCode: customers.familyCode,
-                customerId: customers.id,
-                externalId: customers.externalId,
-                studentCode: customers.studentCode,
-                name: customers.name,
-                schoolType: customers.schoolType,
-                walletId: wallets.id,
-                balance: wallets.balance,
-            })
-            .from(customers)
-            .leftJoin(wallets, eq(wallets.customerId, customers.id))
-            .where(
-                and(
-                    or(
-                        eq(customers.customerKind, "student"),
-                        eq(customers.customerType, "Student"),
-                    ),
-                    or(
-                        inArray(customers.externalId, chunk),
-                        inArray(customers.studentCode, chunk),
-                    ),
-                ),
-            );
-
-        for (const r of rows) {
-            const keys = [r.externalId, r.studentCode]
-                .map((v) => (v != null ? String(v).trim() : ""))
-                .filter(Boolean);
-            if (keys.length === 0) continue;
-            const child: DbChild = {
-                customerId: r.customerId,
-                externalId: r.externalId ?? r.studentCode ?? keys[0],
-                name: r.name,
-                schoolType: r.schoolType,
-                walletId: r.walletId,
-                currentBalance: r.balance != null ? Number(r.balance) : 0,
-                familyCode: r.familyCode ?? "",
-            };
-            for (const key of keys) out.set(key, child);
-        }
+        const list = out.get(fam) ?? [];
+        list.push(child);
+        out.set(fam, list);
     }
     return out;
 }
@@ -446,48 +296,28 @@ async function main() {
     );
     console.log(`Ticket: ${args.ticket}`);
     console.log(`Reading ${args.xlsxPath} ...`);
-    console.log(`Families JSON: ${args.familiesJsonPaths.join(", ")}`);
 
-    const familiesJson = loadFamiliesFromJson(args.familiesJsonPaths);
-    console.log(`Loaded ${familiesJson.size} families from JSON.`);
+    const allRows = readBalanceRows(args.xlsxPath);
+    console.log(`Found ${allRows.length} row(s) with FamilyCode + Balance in xlsx.`);
 
-    const allRows = readFamilyRows(args.xlsxPath);
-    console.log(`Found ${allRows.length} "Family" type row(s) in xlsx.`);
+    const deduped = dedupeBalanceRows(allRows);
+    const negative = deduped.filter((r) => r.campusBalance < 0);
+    const nonNegative = deduped.filter((r) => r.campusBalance >= 0);
+    console.log(`Skipping ${negative.length} family_code(s) with negative balance.`);
+    console.log(`${deduped.length} unique family_code(s) after de-duplication (prefer Family row over Staff).`);
 
-    const dedupedAllRows = dedupeByLatestTransaction(allRows);
-    const negative = dedupedAllRows.filter((r) => r.campusBalance < 0);
-    const nonNegative = dedupedAllRows.filter((r) => r.campusBalance >= 0);
-    const balanceByFamily = familyRowsToMap(nonNegative);
-    const negativeByFamily = familyRowsToMap(negative);
-    console.log(`Found ${negative.length} unique family_code(s) with negative family balance.`);
-
-    console.log(`${dedupedAllRows.length} unique family_code(s) after de-duplication.`);
+    const familyCodes = nonNegative.map((r) => r.familyCode);
+    console.log(`Loading eligible DB students for ${familyCodes.length} family_code(s)...`);
+    const studentsByFamily = await loadEligibleStudentsByFamily(familyCodes);
 
     const alreadyDone = args.execute ? await walletsAlreadyDoneForTicket(args.ticket) : new Set<number>();
     if (alreadyDone.size > 0) {
         console.log(`Resume: ${alreadyDone.size} wallet(s) already have reference_ticket='${args.ticket}' — will skip.`);
     }
 
-    const jsonFamilies = [...familiesJson.values()].sort((a, b) => a.familyCode.localeCompare(b.familyCode, undefined, { numeric: true }));
-    const familyCodesInJson = jsonFamilies.map((f) => f.familyCode);
-    const eligibleExternalIds = jsonFamilies.flatMap((f) =>
-        f.students.filter(isEligibleJsonStudent).map((s) => String(s.customerId)),
-    );
-    console.log(`Loading DB family/student data for ${familyCodesInJson.length} family_code(s) from JSON...`);
-    const [dbFamilyCodes, dbByFamily, dbByExternalId] = await Promise.all([
-        loadDbFamilyCodes(familyCodesInJson),
-        loadDbStudentsByFamily(familyCodesInJson),
-        loadDbStudentsByExternalIds(eligibleExternalIds),
-    ]);
-    console.log(`DB students matched by external_id/student_code: ${dbByExternalId.size}`);
-
     type SetRow = [string, string, number, number, string, string, string, number, number, number, string];
     const setRows: SetRow[] = [];
-    const xlsxNotInJson: Array<[string, string, number]> = [];
-    const missingBalance: Array<[string, number, number]> = [];
-    const noEligible: Array<Array<string | number>> = [];
-    const studentNotInDb: Array<[string, string, number, string, string]> = [];
-    const incompleteFamilies: Array<Array<string | number>> = [];
+    const noEligible: Array<[string, string, number, string, number]> = [];
 
     let familiesProcessed = 0;
     let adjustmentsPlanned = 0;
@@ -497,142 +327,41 @@ async function main() {
     let skippedAtTarget = 0;
     let skippedNoWallet = 0;
 
-    for (const row of nonNegative) {
-        if (!familiesJson.has(row.familyCode)) {
-            xlsxNotInJson.push([row.familyCode, row.name, row.campusBalance]);
-        }
-    }
-
-    const invalidFamilies = new Set<string>();
-    console.log("Running strict pre-flight validation...");
-    for (const jsonFam of jsonFamilies) {
-        const eligible = jsonFam.students
-            .filter(isEligibleJsonStudent)
-            .sort((a, b) => a.customerId - b.customerId);
-        const dbChildren = dbByFamily.get(jsonFam.familyCode) ?? new Map<string, DbChild>();
-        const dbMatched = eligible.filter((s) => dbChildren.has(String(s.customerId)));
-        const dbWithWallet = dbMatched.filter((s) => !!dbChildren.get(String(s.customerId))?.walletId);
-
-        const issues: string[] = [];
-        if (!dbFamilyCodes.has(jsonFam.familyCode)) issues.push("family_not_in_db");
-        if (negativeByFamily.has(jsonFam.familyCode)) issues.push("negative_balance");
-        const familyBalanceRow = balanceByFamily.get(jsonFam.familyCode);
-        if (!familyBalanceRow) {
-            issues.push("missing_balance");
-            missingBalance.push([jsonFam.familyCode, eligible.length, jsonFam.students.length]);
-        }
-
-        const missingStudentIds = eligible
-            .map((s) => String(s.customerId))
-            .filter((externalId) => !dbChildren.has(externalId));
-        const mismatchedFamilyIds: string[] = [];
-        const trulyMissingIds: string[] = [];
-        for (const externalId of missingStudentIds) {
-            const elsewhere = dbByExternalId.get(externalId);
-            if (elsewhere && elsewhere.familyCode && elsewhere.familyCode !== jsonFam.familyCode) {
-                mismatchedFamilyIds.push(`${externalId}->${elsewhere.familyCode}`);
-            } else if (!elsewhere) {
-                trulyMissingIds.push(externalId);
-            } else {
-                // Exists but family_code is null/blank — treat as mismatch.
-                mismatchedFamilyIds.push(`${externalId}->(blank)`);
-            }
-        }
-        const missingWalletIds = dbMatched
-            .map((s) => String(s.customerId))
-            .filter((externalId) => !dbChildren.get(externalId)?.walletId);
-
-        if (trulyMissingIds.length > 0) issues.push("student_not_in_db");
-        if (mismatchedFamilyIds.length > 0) issues.push("family_code_mismatch");
-        if (missingWalletIds.length > 0) issues.push("wallet_missing");
-
-        if (eligible.length === 0) {
-            noEligible.push([jsonFam.familyCode, familyBalanceRow?.campusBalance ?? "", jsonFam.students.length]);
-        }
-
-        const targets = familyBalanceRow && eligible.length > 0 ? splitEvenly(familyBalanceRow.campusBalance, eligible.length) : [];
-
-        for (let i = 0; i < eligible.length; i++) {
-            const js = eligible[i];
-            const externalId = String(js.customerId);
-            if (!dbChildren.has(externalId)) {
-                const displayName = `${js.firstName} ${js.lastName}`.trim();
-                studentNotInDb.push([jsonFam.familyCode, externalId, targets[i] ?? 0, displayName, js.schoolType ?? ""]);
-            }
-        }
-
-        if (issues.length > 0) {
-            invalidFamilies.add(jsonFam.familyCode);
-            incompleteFamilies.push([
-                jsonFam.familyCode,
-                issues.join("|"),
-                eligible.length,
-                dbMatched.length,
-                dbWithWallet.length,
-                trulyMissingIds.join("|"),
-                missingWalletIds.join("|"),
-                mismatchedFamilyIds.join("|"),
-            ]);
-        }
-    }
-
-    const strictIssueCount = invalidFamilies.size;
-    if (strictIssueCount > 0) {
-        console.log(`Strict validation found ${strictIssueCount} incomplete family/families.`);
-    } else {
-        console.log("Strict validation passed.");
-    }
-    const executeBlockedByStrict = args.execute && strictIssueCount > 0;
-    if (executeBlockedByStrict) {
-        console.log("Execute is blocked by strict validation. No wallet adjustments will be executed.");
-    }
+    const sortedFamilies = [...nonNegative].sort((a, b) =>
+        a.familyCode.localeCompare(b.familyCode, undefined, { numeric: true }),
+    );
 
     let familyIdx = 0;
-    for (const jsonFam of jsonFamilies) {
+    for (const fam of sortedFamilies) {
         familyIdx += 1;
-        if (familyIdx % 100 === 0 || familyIdx === jsonFamilies.length) {
-            console.log(`Processing family ${familyIdx}/${jsonFamilies.length}...`);
+        if (familyIdx % 100 === 0 || familyIdx === sortedFamilies.length) {
+            console.log(`Processing family ${familyIdx}/${sortedFamilies.length}...`);
         }
 
-        if (invalidFamilies.has(jsonFam.familyCode)) {
+        const children = studentsByFamily.get(fam.familyCode) ?? [];
+        if (children.length === 0) {
+            noEligible.push([
+                fam.familyCode,
+                fam.name,
+                fam.campusBalance,
+                fam.fileCustomerType || "(unknown)",
+                0,
+            ]);
             continue;
         }
-
-        const eligible = jsonFam.students
-            .filter(isEligibleJsonStudent)
-            .sort((a, b) => a.customerId - b.customerId);
-
-        if (eligible.length === 0) {
-            continue;
-        }
-
-        const fam = balanceByFamily.get(jsonFam.familyCode);
-        if (!fam) continue;
 
         familiesProcessed += 1;
-        const targets = splitEvenly(fam.campusBalance, eligible.length);
+        const targets = splitEvenly(fam.campusBalance, children.length);
 
-        for (let i = 0; i < eligible.length; i++) {
-            const js = eligible[i];
+        for (let i = 0; i < children.length; i++) {
+            const dbChild = children[i];
             const target = targets[i];
-            const externalId = String(js.customerId);
-            const displayName = `${js.firstName} ${js.lastName}`.trim();
-
-            const dbChild = dbByFamily.get(fam.familyCode)?.get(externalId) ?? null;
-            if (!dbChild) {
-                setRows.push([
-                    fam.familyCode, fam.name, fam.campusBalance, eligible.length,
-                    externalId, displayName, js.schoolType ?? "",
-                    0, target, target, "ERROR:not_in_db",
-                ]);
-                continue;
-            }
 
             if (!dbChild.walletId) {
                 skippedNoWallet += 1;
                 setRows.push([
-                    fam.familyCode, fam.name, fam.campusBalance, eligible.length,
-                    externalId, dbChild.name, dbChild.schoolType ?? "",
+                    fam.familyCode, fam.name, fam.campusBalance, children.length,
+                    dbChild.externalId, dbChild.name, dbChild.schoolType ?? "",
                     dbChild.currentBalance, target, target - dbChild.currentBalance, "ERROR:no_wallet",
                 ]);
                 continue;
@@ -647,8 +376,6 @@ async function main() {
             } else if (alreadyDone.has(dbChild.walletId)) {
                 skippedAlready += 1;
                 executed = "already";
-            } else if (executeBlockedByStrict) {
-                executed = "blocked_strict";
             } else if (args.execute && args.adminUserId) {
                 await adjustBalance({
                     walletId: dbChild.walletId,
@@ -668,8 +395,8 @@ async function main() {
             }
 
             setRows.push([
-                fam.familyCode, fam.name, fam.campusBalance, eligible.length,
-                externalId, dbChild.name, dbChild.schoolType ?? "",
+                fam.familyCode, fam.name, fam.campusBalance, children.length,
+                dbChild.externalId, dbChild.name, dbChild.schoolType ?? "",
                 dbChild.currentBalance, target, delta, executed,
             ]);
         }
@@ -691,54 +418,27 @@ async function main() {
         ),
     );
     await Bun.write(
-        path.join(dir, `${stem}.xlsx_not_in_json.csv`),
-        toCsv(["family_code", "family_name", "family_balance"], xlsxNotInJson),
-    );
-    await Bun.write(
-        path.join(dir, `${stem}.missing_balance.csv`),
-        toCsv(["family_code", "eligible_n", "total_students_in_json"], missingBalance),
-    );
-    await Bun.write(
-        path.join(dir, `${stem}.incomplete_families.csv`),
-        toCsv(
-            [
-                "family_code",
-                "issues",
-                "json_eligible_n",
-                "db_matched_n",
-                "db_with_wallet_n",
-                "missing_student_external_ids",
-                "missing_wallet_external_ids",
-                "family_code_mismatches",
-            ],
-            incompleteFamilies,
-        ),
-    );
-    await Bun.write(
         path.join(dir, `${stem}.no_eligible_children.csv`),
-        toCsv(["family_code", "family_balance", "total_students_in_json"], noEligible),
-    );
-    await Bun.write(
-        path.join(dir, `${stem}.student_not_in_db.csv`),
-        toCsv(["family_code", "external_id", "target_balance", "json_name", "school_type"], studentNotInDb),
+        toCsv(
+            ["family_code", "family_name", "family_balance", "xlsx_row_type", "db_eligible_n"],
+            noEligible,
+        ),
     );
     await Bun.write(
         path.join(dir, `${stem}.skipped_negative.csv`),
         toCsv(
-            ["family_code", "family_name", "family_balance"],
-            negative.map((r): [string, string, number] => [r.familyCode, r.name, r.campusBalance]),
+            ["family_code", "family_name", "family_balance", "xlsx_row_type"],
+            negative.map((r): [string, string, number, string] => [
+                r.familyCode, r.name, r.campusBalance, r.fileCustomerType || "(unknown)",
+            ]),
         ),
     );
 
     console.log("");
     console.log("── Summary ──────────────────────────────");
-    console.log(`JSON families scanned    : ${jsonFamilies.length}`);
+    console.log(`Xlsx family codes (>= 0) : ${nonNegative.length}`);
     console.log(`Families processed       : ${familiesProcessed}`);
-    console.log(`Strict incomplete fams   : ${strictIssueCount}`);
-    console.log(`Xlsx-only families       : ${xlsxNotInJson.length}`);
-    console.log(`Missing xlsx balance     : ${missingBalance.length}`);
-    console.log(`No eligible children     : ${noEligible.length}`);
-    console.log(`Students not in DB       : ${studentNotInDb.length}`);
+    console.log(`No eligible DB students  : ${noEligible.length}`);
     console.log(`Skipped (negative fam)   : ${negative.length}`);
     console.log(`Skipped (already target) : ${skippedAtTarget}`);
     console.log(`Skipped (no wallet)      : ${skippedNoWallet}`);
@@ -751,13 +451,6 @@ async function main() {
         console.log("(dry run — pass --execute to apply)");
     }
     console.log(`Reports written next to ${args.xlsxPath} (basename: ${stem}.*.csv)`);
-
-    if (executeBlockedByStrict) {
-        throw new Error(
-            `Strict validation failed for ${strictIssueCount} family/families. ` +
-            "No wallet adjustments were executed. Review *.incomplete_families.csv before retrying.",
-        );
-    }
 }
 
 main()
