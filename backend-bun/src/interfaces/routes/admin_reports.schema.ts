@@ -6,6 +6,8 @@ export const adminAdjustmentReport = {
         date_to: t.Optional(t.Nullable(t.String())),
         direction: t.Optional(t.Nullable(t.String())),
         type: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["Reports"], summary: "Wallet adjustment report" },
 };

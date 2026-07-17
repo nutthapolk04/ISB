@@ -2,7 +2,7 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, desc, eq, gte, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { walletTransactions, wallets, customers, users, departments } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
@@ -22,6 +22,15 @@ export interface AdjustmentReportRow {
     adjusted_by: string;
 }
 
+export interface AdjustmentReportResponseDTO {
+    items: AdjustmentReportRow[];
+    total: number;
+    credit_total: number;
+    debit_total: number;
+    page: number;
+    pages: number;
+}
+
 function parseAdjDescription(desc: string | null): { reason: string; ticket: string | null } {
     if (!desc) return { reason: "", ticket: null };
     let ticket: string | null = null;
@@ -38,7 +47,9 @@ export async function adjustmentReport(args: {
     dateTo?: string | null;
     direction?: string | null;
     typeFilter?: string | null;
-}): Promise<AdjustmentReportRow[]> {
+    page: number;
+    pageSize: number;
+}): Promise<AdjustmentReportResponseDTO> {
     const conds = [eq(walletTransactions.transactionType, "ADJUSTMENT"), isNull(wallets.departmentId)];
     if (args.dateFrom) {
         try { conds.push(gte(walletTransactions.createdAt, args.dateFrom)); }
@@ -62,7 +73,25 @@ export async function adjustmentReport(args: {
         .where(and(...conds))
         .orderBy(desc(walletTransactions.createdAt));
 
-    const out: AdjustmentReportRow[] = [];
+    // Batch-prefetch every customer/user row this result set could need —
+    // the old code ran one SELECT per row per entity lookup plus another per
+    // row for the creator's name (2N+ queries), which is what made this
+    // report slow once adjustment history grew into the thousands. Department
+    // wallets are excluded by the WHERE clause above, so w.departmentId is
+    // never non-null here — that branch was unreachable and is dropped.
+    const customerIds = [...new Set(rows.filter((r) => r.w.customerId !== null).map((r) => r.w.customerId!))];
+    const userIds = [...new Set(rows.filter((r) => r.w.userId !== null).map((r) => r.w.userId!))];
+    const creatorIds = [...new Set(rows.map((r) => r.tx.createdBy))];
+    const allUserIds = [...new Set([...userIds, ...creatorIds])];
+
+    const [customerRows, userRows] = await Promise.all([
+        customerIds.length > 0 ? db.select().from(customers).where(inArray(customers.id, customerIds)) : Promise.resolve([]),
+        allUserIds.length > 0 ? db.select().from(users).where(inArray(users.id, allUserIds)) : Promise.resolve([]),
+    ]);
+    const customerById = new Map(customerRows.map((c) => [c.id, c] as const));
+    const userById = new Map(userRows.map((u) => [u.id, u] as const));
+
+    const filtered: AdjustmentReportRow[] = [];
     for (const r of rows) {
         const tx = r.tx;
         const w = r.w;
@@ -76,19 +105,15 @@ export async function adjustmentReport(args: {
 
         let entityType = "unknown", entityName = "—", entityCode = "—";
         if (w.customerId !== null) {
-            const cr = await db.select().from(customers).where(eq(customers.id, w.customerId)).limit(1);
-            if (cr[0]) { entityType = "student"; entityName = cr[0].name; entityCode = cr[0].studentCode ?? cr[0].customerCode; }
+            const c = customerById.get(w.customerId);
+            if (c) { entityType = "student"; entityName = c.name; entityCode = c.studentCode ?? c.customerCode; }
         } else if (w.userId !== null) {
-            const ur = await db.select().from(users).where(eq(users.id, w.userId)).limit(1);
-            if (ur[0]) { entityType = ur[0].role ?? "staff"; entityName = ur[0].fullName || ur[0].username; entityCode = ur[0].username; }
-        } else if (w.departmentId !== null) {
-            const dr = await db.select().from(departments).where(eq(departments.id, w.departmentId)).limit(1);
-            if (dr[0]) { entityType = "department"; entityName = dr[0].departmentName; entityCode = dr[0].departmentCode; }
+            const u = userById.get(w.userId);
+            if (u) { entityType = u.role ?? "staff"; entityName = u.fullName || u.username; entityCode = u.username; }
         }
 
-        let creatorName = String(tx.createdBy);
-        const cr = await db.select({ fullName: users.fullName, username: users.username }).from(users).where(eq(users.id, tx.createdBy)).limit(1);
-        if (cr[0]) creatorName = cr[0].fullName || cr[0].username;
+        const creator = userById.get(tx.createdBy);
+        const creatorName = creator ? (creator.fullName || creator.username) : String(tx.createdBy);
 
         let reason: string | null = tx.reason ?? null;
         let refTicket: string | null = tx.referenceTicket ?? null;
@@ -101,13 +126,12 @@ export async function adjustmentReport(args: {
         if (args.typeFilter) {
             const wanted = args.typeFilter.trim().toLowerCase();
             const bucket = entityType === "student" ? "student"
-                : entityType === "department" ? "department"
-                    : entityType === "unknown" ? "other"
-                        : "staff";
+                : entityType === "unknown" ? "other"
+                    : "staff";
             if (wanted !== bucket) continue;
         }
 
-        out.push({
+        filtered.push({
             id: tx.id,
             created_at: pgToIso(tx.createdAt)!,
             entity_type: entityType,
@@ -122,7 +146,26 @@ export async function adjustmentReport(args: {
             adjusted_by: creatorName,
         });
     }
-    return out;
+
+    // Aggregates are computed over the FULL filtered set, not just the page
+    // being returned — the summary badges (net/credit/debit totals) must
+    // reflect everything matching the filters, same reasoning as
+    // cardholder_service.ts's counts/studentStats being independent of
+    // whichever page happens to be showing.
+    const total = filtered.length;
+    const creditTotal = filtered.filter((r) => r.direction === "credit").reduce((s, r) => s + r.amount, 0);
+    const debitTotal = filtered.filter((r) => r.direction === "debit").reduce((s, r) => s + r.amount, 0);
+    const offset = (args.page - 1) * args.pageSize;
+    const items = filtered.slice(offset, offset + args.pageSize);
+
+    return {
+        items,
+        total,
+        credit_total: creditTotal,
+        debit_total: debitTotal,
+        page: args.page,
+        pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
 }
 
 // ── Transfer report ────────────────────────────────────────────────────────

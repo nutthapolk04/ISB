@@ -1,0 +1,674 @@
+family_code,family_name,family_balance,xlsx_row_type,parent_user_id,parent_external_id,parent_name,current_balance,target_balance,delta,executed,resolved_via
+65240,JOKOWIDJAJA Chandra Hartono,12693.75,Family,1562,65240,Chandra Hartono JOKOWIDJAJA,0,12693.75,12693.75,yes,main_parent_link
+66545,CHOLLACOOP Nuwong,2564.8,Family,3688,66545,Nuwong CHOLLACOOP,0,2564.8,2564.8,yes,main_parent_link
+68906,AMPORNPISIT Mahatana,1640.5,Family,2157,68906,Mahatana AMPORNPISIT,0,1640.5,1640.5,yes,main_parent_link
+70254,TAEPAISITPONG Jakkrin,2575,Family,2442,70254,Jakkrin TAEPAISITPONG,0,2575,2575,yes,main_parent_link
+70652,"Gregory thomas RUMNEY,",2597,Family,173,70652,Kritsada SUWAN,0,2597,2597,yes,external_id
+70699,INTACHAI Prinya,301.3,Family,1146,70699,Malee RAKDEE,0,301.3,301.3,yes,external_id
+71207,HUANG Hailou,663.75,Family,3297,71207,Hailou HUANG,0,663.75,663.75,yes,main_parent_link
+71221,CHIU Yun-Ting,11480.6,Family,3352,71221,Yun-Ting CHIU,0,11480.6,11480.6,yes,main_parent_link
+71272,SERTTHIN Kris S .,7699.2,Family,3346,71272,Kris S . SERTTHIN,0,7699.2,7699.2,yes,main_parent_link
+71295,PUEGKOOMKLIS KLANARONG,900.35,Family,3363,71295,KLANARONG PUEGKOOMKLIS,0,900.35,900.35,yes,main_parent_link
+71307,DEANE Matthew,1046.75,Family,3424,71307,Matthew DEANE,0,1046.75,1046.75,yes,main_parent_link
+71333,WONGSARIYAWANICH Krirk,4713.15,Family,3499,71333,Krirk WONGSARIYAWANICH,0,4713.15,4713.15,yes,main_parent_link
+71347,TUNGSHUTAVEESUB Jiraphun,844,Family,3773,71347,Jiraphun TUNGSHUTAVEESUB,0,844,844,yes,main_parent_link
+71351,BHURICHAYAWARODOM Polapat,2717,Family,3767,71351,Polapat BHURICHAYAWARODOM,0,2717,2717,yes,main_parent_link
+71524,PRAWATRUNGRUANG Sittiporn,4497.25,Family,3847,71524,Sittiporn PRAWATRUNGRUANG,0,4497.25,4497.25,yes,main_parent_link
+71650,YU Cong,1064,Family,3874,71650,Cong YU,0,1064,1064,yes,main_parent_link
+71745,PRATHUANGWONG Chirat,17685.1,Family,3887,71745,Chirat PRATHUANGWONG,0,17685.1,17685.1,yes,main_parent_link
+71763,PHIRIYASANGUANPHONG Chanrit,1396.85,Family,3921,71763,Chanrit PHIRIYASANGUANPHONG,0,1396.85,1396.85,yes,main_parent_link
+71767,BHICHARNCHITR Chodok,441.7,Family,3913,71767,Chodok BHICHARNCHITR,0,441.7,441.7,yes,main_parent_link
+71787,APISAMPINVONG Vichet,2724,Family,3950,71787,Vichet APISAMPINVONG,0,2724,2724,yes,main_parent_link
+71791,CHETCHOTISAK Komkrit,785,Family,3952,71791,Komkrit CHETCHOTISAK,0,785,785,yes,main_parent_link
+71813,SITTHICHAIKASEM Prapakorn,958,Family,3981,71813,Prapakorn SITTHICHAIKASEM,0,958,958,yes,main_parent_link
+71819,THIRAKOMEN T,41,Family,3985,71819,T THIRAKOMEN,0,41,41,yes,main_parent_link
+71845,JATUSRIPITAK Napat,608.25,Family,4016,71845,Napat JATUSRIPITAK,0,608.25,608.25,yes,main_parent_link
+71851,VIRAJSILP Vasu,14761,Family,4017,71851,Vasu VIRAJSILP,0,14761,14761,yes,main_parent_link
+71857,STUART Jonathan B .,5861.4,Family,3712,71857,Jonathan B . STUART,0,5861.4,5861.4,yes,main_parent_link
+71928,AHMED Kamil G .,16321.5,Family,4358,71928,Kamil G . AHMED,0,16321.5,16321.5,yes,main_parent_link
+72128,BHARDWAJ Hemant,622,Family,4439,72128,Hemant BHARDWAJ,0,622,622,yes,main_parent_link
+72168,FILIPPI Jean-christophe A,17666,Family,4489,72168,Jean-christophe A FILIPPI,0,17666,17666,yes,main_parent_link
+72184,PHICHITSINGH Santhit,412,Family,4477,72184,Santhit PHICHITSINGH,0,412,412,yes,main_parent_link
+72188,ROBERTSON Sebastian,343.85,Family,4479,72188,Sebastian C ROBERTSON,0,343.85,343.85,yes,main_parent_link
+72254,FRANCIS Duncan,2628.25,Family,4524,72254,Duncan FRANCIS,0,2628.25,2628.25,yes,main_parent_link
+72280,CHAIKANAPIBOOL Pathomp,2976,Family,4535,72280,Pathomp CHAIKANAPIBOOL,0,2976,2976,yes,main_parent_link
+72284,KITIREANGLARP Wanniwat,9462.55,Family,4526,72284,Wanniwat KITIREANGLARP,0,9462.55,9462.55,yes,main_parent_link
+72286,KRAIWIN Porz,1205,Family,4529,72286,Porz KRAIWIN,0,1205,1205,yes,main_parent_link
+72288,PONGPASUTH Sethapatch,6081.3,Family,4528,72288,Sethapatch PONGPASUTH,0,6081.3,6081.3,yes,main_parent_link
+72290,SEREEYOTHIN Donnaphak,292.75,Family,4539,72290,Donnaphak SEREEYOTHIN,0,292.75,292.75,yes,main_parent_link
+72292,PANYAYONG Peerapol,5528,Family,4531,72292,Peerapol PANYAYONG,0,5528,5528,yes,main_parent_link
+72294,SANGRAPEE Sorapop,767,Family,4566,72294,Sorapop SANGRAPEE,0,767,767,yes,main_parent_link
+72298,THITAMETAKUL Poonchana,2603,Family,4571,72298,Poonchana THITAMETAKUL,0,2603,2603,yes,main_parent_link
+72300,VANICHYANYONG Thasaphan,1441,Family,4570,72300,Thasaphan VANICHYANYONG,0,1441,1441,yes,main_parent_link
+72302,VANIDWORAPHONG Totsaporn,126,Family,4575,72302,Totsaporn VANIDWORAPHONG,0,126,126,yes,main_parent_link
+72306,KHONGRUANGRIT Songwet,698,Family,4568,72306,Songwet KHONGRUANGRIT,0,698,698,yes,main_parent_link
+72308,LOPANSRI Opas,1048,Family,4576,72308,Opas LOPANSRI,0,1048,1048,yes,main_parent_link
+72310,RASEESARP Sakchai,5942.25,Family,4573,72310,Sakchai RASEESARP,0,5942.25,5942.25,yes,main_parent_link
+72312,SOKUMA Jetsada,2920,Family,4572,72312,Jetsada SOKUMA,0,2920,2920,yes,main_parent_link
+72316,VIRIYABUSAYA Sivapong,4305.2,Family,4567,72316,Sivapong VIRIYABUSAYA,0,4305.2,4305.2,yes,main_parent_link
+72318,WONGWICHARN Poggpong,12357.4,Family,4620,72318,Poggpong WONGWICHARN,0,12357.4,12357.4,yes,main_parent_link
+72403,LEE Joonmok,811,Family,5072,72403,Joonmok LEE,0,811,811,yes,main_parent_link
+72433,KILIC Emre S.,4405.25,Family,5115,72433,Emre S. KILIC,0,4405.25,4405.25,yes,main_parent_link
+72437,ZHU Jianfan,964,Family,5117,72437,Jianfan ZHU,0,964,964,yes,main_parent_link
+72447,UASOPON Chansit,1098.15,Family,5125,72447,Chansit UASOPON,0,1098.15,1098.15,yes,main_parent_link
+72460,TSENG Tzu lieh,7012,Family,5192,72460,Tzu lieh TSENG,0,7012,7012,yes,main_parent_link
+72475,SISUB Ryan,2735.25,Family,1506,72475,Ryan SISUB,0,2735.25,2735.25,yes,main_parent_link
+72530,GUO Fang Z,1668.6,Family,5194,72530,Fang Z GUO,0,1668.6,1668.6,yes,main_parent_link
+72544,PUNTANAPRATES Lampun,12341.75,Family,5255,72544,Lampun PUNTANAPRATES,0,12341.75,12341.75,yes,main_parent_link
+72559,NAM Lynal,1780.85,Family,5267,72559,Lynal NAM,0,1780.85,1780.85,yes,main_parent_link
+72595,RICKABY Andrew J,5568,Family,5265,72595,Andrew J RICKABY,0,5568,5568,yes,main_parent_link
+72637,MOMOTA Minoru,2853.75,Family,5319,72637,Minoru MOMOTA,0,2853.75,2853.75,yes,main_parent_link
+72655,RODRIGUES Carlos R,772,Family,5317,72655,Carlos R RODRIGUES,0,772,772,yes,main_parent_link
+72681,TIAN Jiafeng,924.65,Family,5315,72681,Jiafeng TIAN,0,924.65,924.65,yes,main_parent_link
+72688,THEIN Myint,16142.5,Family,5307,72688,Myint THEIN,0,16142.5,16142.5,yes,main_parent_link
+72716,COUM Stéphane,3273.8,Family,5378,72716,Stephane COUM,0,3273.8,3273.8,yes,main_parent_link
+72749,LIMVACHIRAKOM Vasant,1714.85,Family,5370,72749,Vasant LIMVACHIRAKOM,0,1714.85,1714.85,yes,main_parent_link
+72775,KIM Jongseon,673.95,Family,5372,72775,Jongseon KIM,0,673.95,673.95,yes,main_parent_link
+72781,CUI Fan,1509,Family,1507,72781,Fan CUI,0,1509,1509,yes,main_parent_link
+72793,WU Cheng-yu,12618.6,Family,5432,72793,Cheng-yu WU,0,12618.6,12618.6,yes,main_parent_link
+72795,TRAKULHOON Parin,2.15,Family,5437,72795,Parin TRAKULHOON,0,2.15,2.15,yes,main_parent_link
+72805,FENG Guo,2736,Family,5428,72805,Guo FENG,0,2736,2736,yes,main_parent_link
+72819,LI Zheng,762.8,Family,5434,72819,Zheng LI,0,762.8,762.8,yes,main_parent_link
+72844,TSENG Kan wei,3436,Family,5430,72844,Kan wei TSENG,0,3436,3436,yes,main_parent_link
+72846,SRIVAJIRAPRABHA Khanist,575,Family,5492,72846,Khanist SRIVAJIRAPRABHA,0,575,575,yes,main_parent_link
+72848,TAN Han wei,605.75,Family,5494,72848,Han wei TAN,0,605.75,605.75,yes,main_parent_link
+72852,LEE Yen-ju,5300.6,Family,5506,72852,Yen-ju LEE,0,5300.6,5300.6,yes,main_parent_link
+72876,SUPPASATE Patarapong,2160,Family,5503,72876,Patarapong SUPPASATE,0,2160,2160,yes,main_parent_link
+72878,WONGSIRIKUL Narud,2634,Family,5500,72878,Narud WONGSIRIKUL,0,2634,2634,yes,main_parent_link
+72880,SURIYAWANAKUL Kriangkai,865,Family,5496,72880,Kriangkai SURIYAWANAKUL,0,865,865,yes,main_parent_link
+72882,RAKSUNTIKUL Phisonth,427,Family,6221,72882,Phisonth RAKSUNTIKUL,0,427,427,yes,main_parent_link
+72886,MAHAYASANANDANA Kitti,985.75,Family,6227,72886,Kitti MAHAYASANANDANA,0,985.75,985.75,yes,main_parent_link
+72888,OUNKOMOL Natchai,826.75,Family,6220,72888,Natchai OUNKOMOL,0,826.75,826.75,yes,main_parent_link
+72890,WANAKANKOWIT Warot,20643.3,Family,6222,72890,Warot WANAKANKOWIT,0,20643.3,20643.3,yes,main_parent_link
+72892,BOONVANICHAKARN Thanakorn,4228,Family,6219,72892,Thanakorn BOONVANICHAKARN,0,4228,4228,yes,main_parent_link
+72894,PROMPHAN Danapat,336.45,Family,6224,72894,Danapat PROMPHAN,0,336.45,336.45,yes,main_parent_link
+72896,PHANSANGIAM Teeraphat,989.15,Family,6226,72896,Teeraphat PHANSANGIAM,0,989.15,989.15,yes,main_parent_link
+72898,DAMRAKS Tanapoom,146.6,Family,6257,72898,Tanapoom DAMRAKS,0,146.6,146.6,yes,main_parent_link
+72900,PUTAKOTIRAT Boonchai,9023,Family,6251,72900,Boonchai PUTAKOTIRAT,0,9023,9023,yes,main_parent_link
+72902,POOPAIBOOL Anat,1021.25,Family,6253,72902,Anat POOPAIBOOL,0,1021.25,1021.25,yes,main_parent_link
+72904,LEESAVAN Saran,4908.6,Family,6250,72904,Saran LEESAVAN,0,4908.6,4908.6,yes,main_parent_link
+72906,RATANADILOK NA BHUKET Voravart,969,Family,6256,72906,Voravart RATANADILOK NA BHUKET,0,969,969,yes,main_parent_link
+72908,BATRA Ramit,480,Family,6258,72908,Ramit BATRA,0,480,480,yes,main_parent_link
+72910,TANANIVIT Tanat T,8067.25,Family,6252,72910,Tanat T TANANIVIT,0,8067.25,8067.25,yes,main_parent_link
+72912,MUANGSIRI Punjapon,6798,Family,6255,72912,Punjapon MUANGSIRI,0,6798,6798,yes,main_parent_link
+72918,HETRAKUL Don,690,Family,6254,72918,Don HETRAKUL,0,690,690,yes,main_parent_link
+72960,SURIYAVANAGUL Pongkorn,1601,Family,6323,72960,Pongkorn SURIYAVANAGUL,0,1601,1601,yes,main_parent_link
+72962,SAEUE Suphakit,8494,Family,6322,72962,Suphakit SAEUE,0,8494,8494,yes,main_parent_link
+72999,HART-HANSEN Martin,76.85,Family,6351,72999,Martin HART-HANSEN,0,76.85,76.85,yes,main_parent_link
+73009,FINGERLE Benjamin,8496.75,Family,6358,73009,Benjamin FINGERLE,0,8496.75,8496.75,yes,main_parent_link
+73072,RIENSUBDEE Detbordin,1957.7,Family,6390,73072,Detbordin RIENSUBDEE,0,1957.7,1957.7,yes,main_parent_link
+73118,CORNEANU Razvan,733.25,Family,1431,73118,Razvan CORNEANU,0,733.25,733.25,yes,main_parent_link
+73155,ZIEGELE Rodolfo,6.75,Family,6418,73155,Rodolfo ZIEGELE,0,6.75,6.75,yes,main_parent_link
+73157,ZHANG Haitao,222,Family,6430,73157,Haitao ZHANG,0,222,222,yes,main_parent_link
+73185,HUANG Yifan,5663,Family,6419,73185,Yifan HUANG,0,5663,5663,yes,main_parent_link
+73237,RICHMOND Mark A,7348,Family,6466,73237,Mark A RICHMOND,0,7348,7348,yes,main_parent_link
+73266,VAN DER ZWAAN Maarten,432.85,Family,6492,73266,Maarten VAN DER ZWAAN,0,432.85,432.85,yes,main_parent_link
+73330,WANG Shuozheng,2117,Family,1161,73330,Shuozheng WANG,0,2117,2117,yes,main_parent_link
+73332,LEE Yong chul,1754.95,Family,1167,73332,Yong chul LEE,0,1754.95,1754.95,yes,main_parent_link
+73418,BRONZE Jacques G,2525,Family,1232,73418,Jacques G BRONZE,0,2525,2525,yes,main_parent_link
+73428,LAU William W,1227,Family,1234,73428,William W LAU,0,1227,1227,yes,main_parent_link
+73444,NIE Chao,8170,Family,1236,73444,Chao NIE,0,8170,8170,yes,main_parent_link
+73465,LI Zhi,199,Family,1268,73465,Zhi LI,0,199,199,yes,main_parent_link
+73471,TIESINGA Vincent,7025.7,Family,1269,73471,Vincent TIESINGA,0,7025.7,7025.7,yes,main_parent_link
+73479,LEE Jae uk,3055.85,Family,1264,73479,Jae uk LEE,0,3055.85,3055.85,yes,main_parent_link
+73481,WANG Xianzhi,5270,Family,1266,73481,Xianzhi WANG,0,5270,5270,yes,main_parent_link
+73491,WU Yukai,345,Family,1260,73491,Yukai WU,0,345,345,yes,main_parent_link
+73507,CHANG Ming-Yu,4996.65,Family,1294,73507,Ming-yu CHANG,0,4996.65,4996.65,yes,main_parent_link
+73525,ARUNANONDCHAI Tridbodi,2490,Family,1299,73525,Tridbodi ARUNANONDCHAI,0,2490,2490,yes,main_parent_link
+73529,CHIRATHIVAT Patsarakorn,4778,Family,1295,73529,Patsarakorn CHIRATHIVAT,0,4778,4778,yes,main_parent_link
+73535,EIAMPUTTARAK Keatisak,635.3,Family,1296,73535,Keatisak EIAMPUTTARAK,0,635.3,635.3,yes,main_parent_link
+73539,INTHARATHUT Sopat,851.85,Family,1298,73539,Sopat INTHARATHUT,0,851.85,851.85,yes,main_parent_link
+73541,KEYANON Titipan,504,Family,1300,73541,Titipan KEYANON,0,504,504,yes,main_parent_link
+73555,PATTARAPORNCHAREAN Tanchit,24177.75,Family,1342,73555,Tanchit PATTARAPORNCHAREAN,0,24177.75,24177.75,yes,main_parent_link
+73557,POTISUK Attapon,95.7,Family,1333,73557,Attapon POTISUK,0,95.7,95.7,yes,main_parent_link
+73559,ROJNIRAN Sorrawat,1385,Family,1338,73559,Sorrawat ROJNIRAN,0,1385,1385,yes,main_parent_link
+73565,SANGUANPHOKAI Sarayoot,4708,Family,1340,73565,Sarayoot SANGUANPHOKAI,0,4708,4708,yes,main_parent_link
+73569,SOPONTANAKIJSAKUL Somkid,7788.65,Family,1336,73569,Somkid SOPONTANAKIJSAKUL,0,7788.65,7788.65,yes,main_parent_link
+73571,SRISOMRUN Sakda,9570,Family,1363,73571,Sakda SRISOMRUN,0,9570,9570,yes,main_parent_link
+73573,THASANAPRAPAN Achiraphon,488,Family,1380,73573,Achiraphon THASANAPRAPAN,0,488,488,yes,main_parent_link
+73577,WAJEETAWEESIN Chalermchai,624,Family,1364,73577,Chalermchai WAJEETAWEESIN,0,624,624,yes,main_parent_link
+73579,WATANAKULCHAI Worawat,917,Family,1365,73579,Worawat WATANAKULCHAI,0,917,917,yes,main_parent_link
+73581,WONGLERTKUNAKORN Bancha,895.25,Family,1367,73581,Bancha WONGLERTKUNAKORN,0,895.25,895.25,yes,main_parent_link
+73583,WUTTHINAPHAWAT Worachart,4000.35,Family,1371,73583,Worachart WUTTHINAPHAWAT,0,4000.35,4000.35,yes,main_parent_link
+73591,CHIRATHIVAT Thiradej,5438,Family,1369,73591,Thiradej CHIRATHIVAT,0,5438,5438,yes,main_parent_link
+73595,JARIYAKUL Nattaphol,3415,Family,1397,73595,Nattaphol JARIYAKUL,0,3415,3415,yes,main_parent_link
+73601,WONGANACHAI Suchart,38.75,Family,1396,73601,Suchart WONGANACHAI,0,38.75,38.75,yes,main_parent_link
+73607,SUMETHCHOTIMETHA Jakkraphong,6468.85,Family,1404,73607,Jakkraphong SUMETHCHOTIMETHA,0,6468.85,6468.85,yes,main_parent_link
+73613,WATCHARAKONGSAK Kittivat,734,Family,1400,73613,Kittivat WATCHARAKONGSAK,0,734,734,yes,main_parent_link
+73615,WONGCHAROEN Chotipong,982.7,Family,1406,73615,Chotipong WONGCHAROEN,0,982.7,982.7,yes,main_parent_link
+73629,SUK Min,264,Family,1402,73629,Min SUK,0,264,264,yes,main_parent_link
+73635,CHAN Ka seung gordon,5748,Family,1432,73635,Ka seung gordon CHAN,0,5748,5748,yes,main_parent_link
+73641,ASAVALARPNIRUNDON Lerckchavit,2681,Family,1807,73641,Lerckchavit ASAVALARPNIRUNDON,0,2681,2681,yes,main_parent_link
+73643,PUMARIN Jutatit,455.1,Family,1821,73643,Jutatit PUMARIN,0,455.1,455.1,yes,main_parent_link
+73657,TOWIWAT Sawat,2616,Family,1813,73657,Sawat TOWIWAT,0,2616,2616,yes,main_parent_link
+73681,BLES Ewout antonius gerar,7771,Family,1869,73681,Ewout antonius gerardus BLES,0,7771,7771,yes,main_parent_link
+73701,HSU Wei-kun,2678.2,Family,3756,73701,Wei-kun HSU,0,2678.2,2678.2,yes,main_parent_link
+73740,WUERTZ Normen T,1906,Family,1905,73740,Normen T WUERTZ,0,1906,1906,yes,main_parent_link
+73752,SZATKOWSKI Konrad,800,Family,1910,73752,Konrad SZATKOWSKI,0,800,800,yes,main_parent_link
+73764,SUND Jonah Victor,6173.05,Family,1458,73764,Jonah victor SUND,0,6173.05,6173.05,yes,main_parent_link
+73834,NAGAOKA Jumpei,2003,Family,1997,73834,Jumpei NAGAOKA,0,2003,2003,yes,main_parent_link
+73836,WHITE Gavin D,2751,Family,2000,73836,Gavin D WHITE,0,2751,2751,yes,main_parent_link
+73870,SLATER Andrew,24,Family,2044,73870,Andrew SLATER,0,24,24,yes,main_parent_link
+73893,CHU King Fung F.,3060,Family,1457,73893,King Fung F. CHU,0,3060,3060,yes,main_parent_link
+73901,SPRANDEL David,8597.6,Family,2043,73901,David SPRANDEL,0,8597.6,8597.6,yes,main_parent_link
+73917,BUCCAFURRI Cole,1211.85,Family,2105,73917,Cole BUCCAFURRI,0,1211.85,1211.85,yes,main_parent_link
+73932,NG Kei Wai,6874,Family,2100,73932,Kei Wai NG,0,6874,6874,yes,main_parent_link
+73950,REES Nicholas,2245.5,Family,2542,73950,Nicholas REES,0,2245.5,2245.5,yes,main_parent_link
+73954,WISER Timothy G.,7349,Family,2549,73954,Timothy G. WISER,0,7349,7349,yes,main_parent_link
+73976,SHI Yang,15,Family,2628,73976,YANG SHI,0,15,15,yes,main_parent_link
+73978,LI Linge,3450,Family,2636,73978,Linge LI,0,3450,3450,yes,main_parent_link
+73980,SHIRATAKE Sakae,2793,Family,2625,73980,Sakae SHIRATAKE,0,2793,2793,yes,main_parent_link
+73998,COSTA DESLANDES Felipe,5823.25,Family,2679,73998,Felipe COSTA DESLANDES,0,5823.25,5823.25,yes,main_parent_link
+74000,UGURDOGAN Olgun,415,Family,2673,74000,Olgun UGURDOGAN,0,415,415,yes,main_parent_link
+74008,TUENCHITT Paskorn,12161,Family,2712,74008,Paskorn TUENCHITT,0,12161,12161,yes,main_parent_link
+74010,INKANANKUL Supphakit,849,Family,2716,74010,Supphakit INKANANKUL,0,849,849,yes,main_parent_link
+74012,OLARNWORAWUT Dhasawat,1585,Family,2700,74012,Dhasawat OLARNWORAWUT,0,1585,1585,yes,main_parent_link
+74016,POONYAKANOK Wootichai,1755,Family,2704,74016,Wootichai POONYAKANOK,0,1755,1755,yes,main_parent_link
+74019,KOSAIPOLKUL Petchladda,1866.8,Family,1529,74019,Petchladda KOSAIPOLKUL,0,1866.8,1866.8,yes,main_parent_link
+74024,DENTHAM Sanupat,3192,Family,2681,74024,Sanupat DENTHAM,0,3192,3192,yes,main_parent_link
+74026,JIRAPHAIROT Suppawat,742,Family,2677,74026,Suppawat JIRAPHAIROT,0,742,742,yes,main_parent_link
+74030,CHENSINSIRIKIT Thitanont,1105,Family,2743,74030,Thitanont CHENSINSIRIKIT,0,1105,1105,yes,main_parent_link
+74032,CHOOPOJCHAROEN Chanin,2907.1,Family,2745,74032,Chanin CHOOPOJCHAROEN,0,2907.1,2907.1,yes,main_parent_link
+74036,LORJERANON Kantapong,1339,Family,2733,74036,Kantapong LORJERANON,0,1339,1339,yes,main_parent_link
+74040,VACHARAPHOL Vachara,154,Family,2741,74040,Vachara VACHARAPHOL,0,154,154,yes,main_parent_link
+74044,BUNGBRAKEARTI Rittee,599.55,Family,2739,74044,Rittee BUNGBRAKEARTI,0,599.55,599.55,yes,main_parent_link
+74062,SINCHAREONKUL Veerasith,4192,Family,2816,74062,Veerasith SINCHAREONKUL,0,4192,4192,yes,main_parent_link
+74083,PRAKITSUWAN Danai,899,Family,2875,74083,Danai PRAKITSUWAN,0,899,899,yes,main_parent_link
+74092,KOINTARANGKUL Nattaphat,1685,Family,2865,74092,Nattaphat KOINTARANGKUL,0,1685,1685,yes,main_parent_link
+74102,ARIA AZADI Saber,12477,Family,2871,74102,Saber ARIA AZADI,0,12477,12477,yes,main_parent_link
+74120,SIEDELL Taylor Claiborne,5940,Family,3687,74120,Taylor SIEDELL,0,5940,5940,yes,main_parent_link
+74121,LANDRY Mark,977,Family,2873,74121,Mark LANDRY,0,977,977,yes,main_parent_link
+74131,KWON Jib,828.5,Family,2931,74131,JIB KWON,0,828.5,828.5,yes,main_parent_link
+74137,XUAN Ke,2622.5,Family,2924,74137,Ke XUAN,0,2622.5,2622.5,yes,main_parent_link
+74147,KWONG Chi-Hang,2005.35,Family,2929,74147,Chi-Hang KWONG,0,2005.35,2005.35,yes,main_parent_link
+74157,SUN Qingyi,13364.25,Family,2928,74157,Qingyi SUN,0,13364.25,13364.25,yes,main_parent_link
+74161,ROMEI Claudia Azzurra,5785,Family,1525,74161,Claudia Azzurra ROMEI,0,5785,5785,yes,main_parent_link
+74175,BEAUMONT Christopher,95.2,Family,2993,74175,Christopher BEAUMONT,0,95.2,95.2,yes,main_parent_link
+74177,VACHARAPHOL Thanavalai,2155,Family,2981,74177,Thanavalai VACHARAPHOL,0,2155,2155,yes,main_parent_link
+74195,JANBANJONG Apirun,1595,Family,2983,74195,Apirun JANBANJONG,0,1595,1595,yes,main_parent_link
+74201,APRIANTO Reddy,584,Family,3057,74201,Reddy APRIANTO,0,584,584,yes,main_parent_link
+74223,PARK Aaron C.,8145.2,Family,4018,74223,Aaron C. PARK,0,8145.2,8145.2,yes,main_parent_link
+74239,JIA Tianwei,4116,Family,4039,74239,Tianwei JIA,0,4116,4116,yes,main_parent_link
+74243,NILUBOL Chanigan,1416,Family,4035,74243,Chanigan NILUBOL,0,1416,1416,yes,main_parent_link
+74251,HERCHUEL Fabrice,3434,Family,4038,74251,Fabrice HERCHUEL,0,3434,3434,yes,main_parent_link
+74267,NOBILE Alessandro,695,Family,4070,74267,Alessandro NOBILE,0,695,695,yes,main_parent_link
+74271,GRAVES Sean,5731,Family,4084,74271,Sean GRAVES,0,5731,5731,yes,main_parent_link
+74275,MARTIN Bryan D.,11391,Family,4082,74275,Bryan D. MARTIN,0,11391,11391,yes,main_parent_link
+74289,SEYMOUR Daniel K.,2161,Family,4100,74289,Daniel K. SEYMOUR,0,2161,2161,yes,main_parent_link
+74299,PI Kun,2350,Family,4116,74299,Kun PI,0,2350,2350,yes,main_parent_link
+74305,SYPSOMOS Michael G.,7303,Family,4106,74305,Michael G. SYPSOMOS,0,7303,7303,yes,main_parent_link
+74311,BENSON Andrew “AJ” J.,733,Family,4141,74311,Andrew “AJ” J. BENSON,0,733,733,yes,main_parent_link
+74323,PLUMB Eric,5380,Family,4135,74323,Eric PLUMB,0,5380,5380,yes,main_parent_link
+74331,KUO Li-Wei,3000,Family,4133,74331,Li-Wei KUO,0,3000,3000,yes,main_parent_link
+74367,FAGLEY David K.,172,Family,4214,74367,David K. FAGLEY,0,172,172,yes,main_parent_link
+74371,LEE Muhyeon,392,Family,4217,74371,MUHYEON LEE,0,392,392,yes,main_parent_link
+74373,NAGATSUKA Hiromasa,582,Family,4212,74373,Hiromasa NAGATSUKA,0,582,582,yes,main_parent_link
+74381,YASUI Tomihiko,627,Family,4208,74381,Tomihiko YASUI,0,627,627,yes,main_parent_link
+74409,CATTANEO Marco,1339,Family,4258,74409,Marco CATTANEO,0,1339,1339,yes,main_parent_link
+74411,VACHIRARATTANAWONG Girachai,872,Family,4260,74411,Girachai VACHIRARATTANAWONG,0,872,872,yes,main_parent_link
+74417,STAER Troels,10677,Family,4307,74417,Troels STAER,0,10677,10677,yes,main_parent_link
+74421,SCHULZ Bernhard S.,3908,Family,4612,74421,Bernhard S. SCHULZ,0,3908,3908,yes,main_parent_link
+74423,LUU KIM Quoc Bao Kingsley,1465,Family,4611,74423,Quoc Bao Kingsley LUU KIM,0,1465,1465,yes,main_parent_link
+74425,TOWNES JR. Divant L.,2725,Family,4618,74425,Divant L. TOWNES JR.,0,2725,2725,yes,main_parent_link
+74427,XIAO Huijun,6692,Family,4654,74427,Huijun XIAO,0,6692,6692,yes,main_parent_link
+74429,LEE Jung Taek,2764,Family,4656,74429,Jung Taek LEE,0,2764,2764,yes,main_parent_link
+74445,CHEN Zhouyu,3245,Family,4662,74445,Zhouyu CHEN,0,3245,3245,yes,main_parent_link
+74447,CUI Jingguo,1409,Family,4663,74447,Jingguo CUI,0,1409,1409,yes,main_parent_link
+74451,HIRASAKI Ken,2956.35,Family,4660,74451,Ken HIRASAKI,0,2956.35,2956.35,yes,main_parent_link
+74459,SU Hongjie,4513,Family,4659,74459,Hongjie SU,0,4513,4513,yes,main_parent_link
+74461,VILLALBA Jesus A.,3008,Family,4725,74461,Jesus A. VILLALBA,0,3008,3008,yes,main_parent_link
+74463,WU Shenzhe,833,Family,4715,74463,ShenZhe WU,0,833,833,yes,main_parent_link
+74465,MALKAWI Sami,6652,Family,4713,74465,Sami MALKAWI,0,6652,6652,yes,main_parent_link
+74471,DARBOIS Pierre-Alexandre,1500,Family,4719,74471,Pierre-Alexandre DARBOIS,0,1500,1500,yes,main_parent_link
+74495,WILAIRAT Akkhanan,1624,Family,4772,74495,Akkhanan WILAIRAT,0,1624,1624,yes,main_parent_link
+74497,JUNGKANKUL T-Tutt,3226.25,Family,4766,74497,T-Tutt JUNGKANKUL,0,3226.25,3226.25,yes,main_parent_link
+74499,KARATKUL Vorakorn,356,Family,4759,74499,Vorakorn KARATKUL,0,356,356,yes,main_parent_link
+74502,PU Kyi,2722,Family,4906,74502,KYI PU,0,2722,2722,yes,main_parent_link
+74503,KREANGAM Vichya,372,Family,4770,74503,Vichya KREANGAM,0,372,372,yes,main_parent_link
+74505,LEESAKUL Pasit,931,Family,4761,74505,Pasit LEESAKUL,0,931,931,yes,main_parent_link
+74507,NANTHAVANICH Phumiwat,991,Family,4763,74507,Phumiwat NANTHAVANICH,0,991,991,yes,main_parent_link
+74511,PHATARAPRASIT Apipu,31,Family,4754,74511,Apipu PHATARAPRASIT,0,31,31,yes,main_parent_link
+74517,SANGSERESTID Nattajak,587,Family,4818,74517,Nattajak SANGSERESTID,0,587,587,yes,main_parent_link
+74521,TAESOPAPONG Dhanaphol,1377.75,Family,4814,74521,Dhanaphol TAESOPAPONG,0,1377.75,1377.75,yes,main_parent_link
+74523,TANBANJONG Anurat,426,Family,4815,74523,Anurat TANBANJONG,0,426,426,yes,main_parent_link
+74525,TANONGSAKMONTRI Teradej,15,Family,4821,74525,Teradej TANONGSAKMONTRI,0,15,15,yes,main_parent_link
+74531,THAMPRAJAMCHIT Bandhit,5996.6,Family,4819,74531,Bandhit THAMPRAJAMCHIT,0,5996.6,5996.6,yes,main_parent_link
+74535,VONGSANTIVANICH Wasanchai,3674,Family,4810,74535,Wasanchai VONGSANTIVANICH,0,3674,3674,yes,main_parent_link
+74547,WONGVILAIRAT Natachai,4086,Family,4868,74547,Natachai WONGVILAIRAT,0,4086,4086,yes,main_parent_link
+74549,KOURBVICHIT Vitcha,1706,Family,4860,74549,Vitcha KOURBVICHIT,0,1706,1706,yes,main_parent_link
+74551,NA POMBHEJARA Nol Allapach,576,Family,4857,74551,Nol Allapach NA POMBHEJARA,0,576,576,yes,main_parent_link
+74553,SOMSIRI Parsak,6669,Family,4864,74553,Parsak SOMSIRI,0,6669,6669,yes,main_parent_link
+74555,MEI David,5332,Family,4872,74555,David MEI,0,5332,5332,yes,main_parent_link
+74563,SHALIT Dror,2689.25,Family,4910,74563,Dror SHALIT,0,2689.25,2689.25,yes,main_parent_link
+74565,VANDERWULP Paul H.,11766,Family,4919,74565,Paul H. VANDERWULP,0,11766,11766,yes,main_parent_link
+74579,LAM Wai Kit,955.75,Family,4922,74579,Wai Kit LAM,0,955.75,955.75,yes,main_parent_link
+74586,SHEN Bjartur L.,558.85,Family,4969,74586,BJARTUR L. SHEN,0,558.85,558.85,yes,main_parent_link
+74588,NOH Kwangsun,19,Family,4963,74588,KWANGSUN NOH,0,19,19,yes,main_parent_link
+74600,SREEDHARAN Kiran,4621,Family,4961,74600,Kiran SREEDHARAN,0,4621,4621,yes,main_parent_link
+74618,YAMAMOTO Taiji,2045,Family,4973,74618,Taiji YAMAMOTO,0,2045,2045,yes,main_parent_link
+74622,NALLAVARI Gautham Reddy,2633,Family,5021,74622,GAUTHAM REDDY NALLAVARI,0,2633,2633,yes,main_parent_link
+74674,FRIDRIKSSON Sindri S.,3996,Family,5614,74674,Sindri S. FRIDRIKSSON,0,3996,3996,yes,main_parent_link
+74690,XIE Minzhi,4006,Family,5611,74690,Minzhi XIE,0,4006,4006,yes,main_parent_link
+74700,SAITO Shota,9273,Family,5681,74700,Shota SAITO,0,9273,9273,yes,main_parent_link
+74704,HEO Jungho,1776,Family,5682,74704,Jungho HEO,0,1776,1776,yes,main_parent_link
+74710,CAVALCANTI Bruno M.,281,Family,5685,74710,Bruno M. CAVALCANTI,0,281,281,yes,main_parent_link
+74720,PARSONS Benjamin,2,Family,5734,74720,Benjamin PARSONS,0,2,2,yes,main_parent_link
+74755,SINGH Santosh K.,703,Family,5801,74755,Santosh K. SINGH,0,703,703,yes,main_parent_link
+74807,BRASS Daniel H.,1000,Family,5867,74807,Daniel H. BRASS,0,1000,1000,yes,main_parent_link
+74865,SHU Zhang,950,Family,5947,74865,Zhang SHU,0,950,950,yes,main_parent_link
+74885,CHIA Ming Fat Tommy,100,Family,5951,74885,Ming Fat Tommy CHIA,0,100,100,yes,main_parent_link
+75098,YOKOYAMA Takashi,300,Family,3581,75098,Takashi YOKOYAMA,0,300,300,yes,main_parent_link
+200183,Manop ORNHIRAN,500,Staff,181,200183,Manop ORNHIRAN,0,500,500,yes,external_id
+200382,Phongsak EAIMPRAPHAN,53.8,Staff,182,200382,Phongsak EAIMPRAPHAN,0,53.8,53.8,yes,external_id
+200541,Banjong BOONCHOO,19.4,Staff,185,200541,Banjong BOONCHOO,0,19.4,19.4,yes,external_id
+200593,Kunlawan PHITAKPOL,203.85,Staff,186,200593,Kunlawan PHITAKPOL,0,203.85,203.85,yes,external_id
+200610,Khaimuk CHAUYCHUWONG,980.55,Staff,187,200610,Khaimuk CHAUYCHUWONG,0,980.55,980.55,yes,external_id
+200619,Raewat PONGPITAKVISES,108.8,Staff,188,200619,Raewat PONGPITAKVISES,0,108.8,108.8,yes,external_id
+200622,Sathit KAIVALVATANA,254.6,Staff,189,200622,Sathit KAIVALVATANA,0,254.6,254.6,yes,external_id
+200642,Vipaporn TRAISINGPITAK,701.4,Staff,191,200642,Vipaporn TRAISINGPITAK,0,701.4,701.4,yes,external_id
+200658,Nithi TRAISINGPITAK,22,Staff,193,200658,Nithi TRAISINGPITAK,0,22,22,yes,external_id
+200729,Yaowarat PATTANAPRASIT,3.2,Staff,195,200729,Yaowarat PATTANAPRASIT,0,3.2,3.2,yes,external_id
+200730,Nuchit SAARDLAORCHANGKET,48,Staff,196,200730,Nuchit SAARDLAORCHANGKET,0,48,48,yes,external_id
+200747,Bulawatchara JITMUN,124,Staff,197,200747,Bulawatchara JITMUN,0,124,124,yes,external_id
+200830,Mismah TAHEY,312.2,Staff,199,200830,Mismah TAHEY,0,312.2,312.2,yes,external_id
+200832,Thitiporn SAYAVIBOOL,718.4,Staff,200,200832,Thitiporn SAYAVIBOOL,0,718.4,718.4,yes,external_id
+200844,Pornthip SRISOMSUP,118.4,Staff,201,200844,Pornthip SRISOMSUP,0,118.4,118.4,yes,external_id
+200872,Wirote FUANGFOOKITCHAKARN,60.4,Staff,203,200872,Wirote FUANGFOOKITCHAKARN,0,60.4,60.4,yes,external_id
+200876,Krongthong KIEOKASEM,102.2,Staff,204,200876,Krongthong KIEOKASEM,0,102.2,102.2,yes,external_id
+200878,Sabee BUATHONG,4.1,Staff,205,200878,Sabee BUATHONG,0,4.1,4.1,yes,external_id
+200913,Seema GANDHI,8.85,Staff,207,200913,Seema GANDHI,0,8.85,8.85,yes,external_id
+200914,Usa SOMBOON,9.75,Staff,208,200914,Usa SOMBOON,0,9.75,9.75,yes,external_id
+200928,Kamolrat KITMANEE,907.5,Staff,209,200928,Kamolrat KITMANEE,0,907.5,907.5,yes,external_id
+200935,Pinthip RUANGWAN,426.1,Staff,210,200935,Pinthip RUANGWAN,0,426.1,426.1,yes,external_id
+200941,Sunan MAKKUM,216.8,Staff,211,200941,Sunan MAKKUM,0,216.8,216.8,yes,external_id
+200942,Kulthida ARUN-UDOMCHAI,785.82,Staff,212,200942,Kulthida ARUN-UDOMCHAI,0,785.82,785.82,yes,external_id
+200943,Rachain SOISUWAN,609.2,Staff,213,200943,Rachain SOISUWAN,0,609.2,609.2,yes,external_id
+200970,Marianne POULSON,22.5,Staff,214,200970,Marianne POULSON,0,22.5,22.5,yes,external_id
+200990,Thitaphong PISITSIRIKUL,165.2,Staff,156,200990,Thitaphong PISITSIRIKUL,0,165.2,165.2,yes,external_id
+200992,Chatreudee BOONTO,210.45,Staff,215,200992,Chatreudee BOONTO,0,210.45,210.45,yes,external_id
+200998,Sriyuda CHAWONGLUANG,677.2,Staff,216,200998,Sriyuda CHAWONGLUANG,0,677.2,677.2,yes,external_id
+201000,Natchalai CHUBOONRAJ,4.4,Staff,217,201000,Natchalai CHUBOONRAJ,0,4.4,4.4,yes,external_id
+201008,Nuannapa THONGVES,24,Staff,218,201008,Nuannapa THONGVES,0,24,24,yes,external_id
+201010,Supasri NIELSEN,444.35,Staff,219,201010,Supasri NIELSEN,0,444.35,444.35,yes,external_id
+201013,Roongnapa LAMOR,3.2,Staff,220,201013,Roongnapa LAMOR,0,3.2,3.2,yes,external_id
+201035,Prattana NILYIPOON,503.4,Staff,221,201035,Prattana NILYIPOON,0,503.4,503.4,yes,external_id
+201055,Yada SANGUANWONGSE,230.4,Staff,223,201055,Yada SANGUANWONGSE,0,230.4,230.4,yes,external_id
+201061,Trinnawat SABAITHAE,112.95,Staff,224,201061,Trinnawat SABAITHAE,0,112.95,112.95,yes,external_id
+201078,Brenda Helen Marie PERKINS,845.15,Staff,227,201078,Brenda Helen Marie PERKINS,0,845.15,845.15,yes,external_id
+201101,Burachat INTARAPRASERT,620.1,Staff,228,201101,Burachat INTARAPRASERT,0,620.1,620.1,yes,external_id
+201104,Karen Susan REAU,61,Staff,230,201104,Karen Susan REAU,0,61,61,yes,external_id
+201111,Wiriya THAPORNPASEE,1078,Staff,231,201111,Wiriya THAPORNPASEE,0,1078,1078,yes,external_id
+201133,Supanniga SEEMASONGKROH,758.7,Staff,234,201133,Supanniga SEEMASONGKROH,0,758.7,758.7,yes,external_id
+201157,Machiko MORIZONO,14.65,Staff,235,201157,Machiko MORIZONO,0,14.65,14.65,yes,external_id
+201161,Budsarabhorn CHAIPRAPHAN,114,Staff,236,201161,Budsarabhorn CHAIPRAPHAN,0,114,114,yes,external_id
+201173,Jonathan Lee EALES,1029.1,Staff,237,201173,Jonathan Lee EALES,0,1029.1,1029.1,yes,external_id
+201200,Naiyana RATANASUWANACHART,163.8,Staff,238,201200,Naiyana RATANASUWANACHART,0,163.8,163.8,yes,external_id
+201206,Nongnuch FANGDANKLANG,169.2,Staff,239,201206,Nongnuch FANGDANKLANG,0,169.2,169.2,yes,external_id
+201208,Narin ONGARTHACHAT,90.6,Staff,171,201208,Narin ONGARTHACHAT,0,90.6,90.6,yes,external_id
+201210,Angkana PROMESIRISAN,81.4,Staff,152,201210,Angkana PROMESIRISAN,0,81.4,81.4,yes,external_id
+201213,Suttinee AVUSOSAKUL,159.2,Staff,155,201213,Suttinee AVUSOSAKUL,0,159.2,159.2,yes,external_id
+201230,Sucheera RUANGTRAKOOL,616.25,Staff,240,201230,Sucheera RUANGTRAKOOL,0,616.25,616.25,yes,external_id
+201233,Sawita NAKBOONPROM,557,Staff,241,201233,Sawita NAKBOONPROM,0,557,557,yes,external_id
+201234,Benjawan NAMSANG,0.8,Staff,242,201234,Benjawan NAMSANG,0,0.8,0.8,yes,external_id
+201236,Arisa WIENGPERM,156.9,Staff,243,201236,Arisa WIENGPERM,0,156.9,156.9,yes,external_id
+201238,Ratthakrai SIRIWATTHANATORN,90.8,Staff,244,201238,Ratthakrai SIRIWATTHANATORN,0,90.8,90.8,yes,external_id
+201255,Brent Wesley POLING,965,Staff,246,201255,Brent Wesley POLING,0,965,965,yes,external_id
+201271,Tipwan THAMMAWUT,930.7,Staff,247,201271,Tipwan THAMMAWUT,0,930.7,930.7,yes,external_id
+201274,Sathaporn SOMCHIT,15.5,Staff,154,201274,Sathaporn SOMCHIT,0,15.5,15.5,yes,external_id
+201279,Apinya GINOZA,287.95,Staff,249,201279,Apinya GINOZA,0,287.95,287.95,yes,external_id
+201296,DYKE Kerry,458,Staff,250,201296,Kerry DYKE,0,458,458,yes,main_parent_link
+201305,Jurarat LOKWITOON,400.8,Staff,251,201305,Jurarat LOKWITOON,0,400.8,400.8,yes,external_id
+201306,Jaraslak SOMROOP,63.7,Staff,252,201306,Jaraslak SOMROOP,0,63.7,63.7,yes,external_id
+201313,Linda NIELSEN,35.1,Staff,253,201313,Linda NIELSEN,0,35.1,35.1,yes,external_id
+201316,Suree THAWORN,685.75,Staff,254,201316,Suree THAWORN,0,685.75,685.75,yes,external_id
+201331,HARTER  JR Dennis Glenn,710.05,Staff,255,201331,Dennis Glenn HARTER  JR,0,710.05,710.05,yes,external_id
+201364,Parinya SANITRAKSA,12,Staff,256,201364,Parinya SANITRAKSA,0,12,12,yes,external_id
+201366,Phurasina SORNWANYAWAT,109.65,Staff,257,201366,Phurasina SORNWANYAWAT,0,109.65,109.65,yes,external_id
+201368,La-or SAWANGSRI,132.8,Staff,258,201368,La-or SAWANGSRI,0,132.8,132.8,yes,external_id
+201400,Pornpayao RATTANAPHONSAKUL,478.8,Staff,262,201400,Pornpayao RATTANAPHONSAKUL,0,478.8,478.8,yes,external_id
+201405,Wannachai PANGLAI,98.8,Staff,264,201405,Wannachai PANGLAI,0,98.8,98.8,yes,external_id
+201408,Apiorn ARUNRAKTHAVORN,188.35,Staff,265,201408,Apiorn ARUNRAKTHAVORN,0,188.35,188.35,yes,external_id
+201438,Cynthia BRICKERD,927.5,Staff,268,201438,Cynthia BRICKERD,0,927.5,927.5,yes,external_id
+201439,Walairat WATTANA-UNGKOON,500.85,Staff,269,201439,Walairat WATTANA-UNGKOON,0,500.85,500.85,yes,external_id
+201450,Chad Crawford BATES,350.5,Staff,153,201450,Chad Crawford BATES,0,350.5,350.5,yes,external_id
+201462,Akiko NAGAMINE,1153.55,Staff,270,201462,Akiko NAGAMINE,0,1153.55,1153.55,yes,external_id
+201471,Supornpen PUNMANEE,460.35,Staff,271,201471,Supornpen PUNMANEE,0,460.35,460.35,yes,external_id
+201487,Yuwadee PANDIT,1153.65,Staff,277,201487,Yuwadee PANDIT,0,1153.65,1153.65,yes,external_id
+201491,Piraya JAKMANON,15.6,Staff,279,201491,Piraya JAKMANON,0,15.6,15.6,yes,external_id
+201495,Buppha KHUNYOTYING,534.75,Staff,280,201495,Buppha KHUNYOTYING,0,534.75,534.75,yes,external_id
+201496,Sariya MONTRIVAT,42.8,Staff,281,201496,Sariya MONTRIVAT,0,42.8,42.8,yes,external_id
+201500,Arintra TANGSATHITKIAT,682.45,Staff,282,201500,Arintra TANGSATHITKIAT,0,682.45,682.45,yes,external_id
+201526,Sumalee THODSAPHOOCHAI,81.75,Staff,285,201526,Sumalee THODSAPHOOCHAI,0,81.75,81.75,yes,external_id
+201529,Kwankamol THONGKAM,145.8,Staff,286,201529,Kwankamol THONGKAM,0,145.8,145.8,yes,external_id
+201533,Siwinee KHAOMARK,134.04,Staff,287,201533,Siwinee KHAOMARK,0,134.04,134.04,yes,external_id
+201540,Pramote BUO-MEE,52,Staff,289,201540,Pramote BUO-MEE,0,52,52,yes,external_id
+201572,Boonlua TONTAEN,196.7,Staff,290,201572,Boonlua TONTAEN,0,196.7,196.7,yes,external_id
+201579,Supeecha VILAIPONG,97.65,Staff,291,201579,Supeecha VILAIPONG,0,97.65,97.65,yes,external_id
+201580,Punnanunt WISUPPAKAN,54.5,Staff,292,201580,Punnanunt WISUPPAKAN,0,54.5,54.5,yes,external_id
+201581,Piyanuch KASUWAN,239.35,Staff,293,201581,Piyanuch KASUWAN,0,239.35,239.35,yes,external_id
+201614,Guofang TANG,1000,Staff,295,201614,Guofang TANG,0,1000,1000,yes,external_id
+201623,Amornruedee NGERNKRACHAENG,223.3,Staff,296,201623,Amornruedee NGERNKRACHAENG,0,223.3,223.3,yes,external_id
+201631,Preeya NAPALAI,503.4,Staff,297,201631,Preeya NAPALAI,0,503.4,503.4,yes,external_id
+201633,Praisarn SRIMOT,79.6,Staff,298,201633,Praisarn SRIMOT,0,79.6,79.6,yes,external_id
+201648,David John CRIMI,350.15,Staff,299,201648,David John CRIMI,0,350.15,350.15,yes,external_id
+201649,Nube Latacela CRIMI,3.3,Staff,300,201649,Nube Latacela CRIMI,0,3.3,3.3,yes,external_id
+201687,Ratthavit TECHAPATTANAPAN,18.55,Staff,306,201687,Ratthavit TECHAPATTANAPAN,0,18.55,18.55,yes,external_id
+201688,Mintra DEELEK,145.6,Staff,307,201688,Mintra DEELEK,0,145.6,145.6,yes,external_id
+201689,Patiya LASRIRAK,49.4,Staff,308,201689,Patiya LASRIRAK,0,49.4,49.4,yes,external_id
+201711,Worapoj ATTANARK,377.5,Staff,309,201711,Worapoj ATTANARK,0,377.5,377.5,yes,external_id
+201713,Pimnipa SOMJAIPRASERT,313.35,Staff,310,201713,Pimnipa SOMJAIPRASERT,0,313.35,313.35,yes,external_id
+201715,Kiettisak YAMSAARD,20,Staff,311,201715,Kiettisak YAMSAARD,0,20,20,yes,external_id
+201722,Phen KLIBKLANGDON,36,Staff,313,201722,Phen KLIBKLANGDON,0,36,36,yes,external_id
+201735,Kanya JAIPONG,78.4,Staff,317,201735,Kanya JAIPONG,0,78.4,78.4,yes,external_id
+201769,Jiaping ZHAO,5118.4,Staff,322,201769,Jiaping ZHAO,0,5118.4,5118.4,yes,external_id
+201772,Punyarat KAMJADPHAI,32.2,Staff,323,201772,Punyarat KAMJADPHAI,0,32.2,32.2,yes,external_id
+201798,Pongsatorn KAEWNGAM,343.1,Staff,331,201798,Pongsatorn KAEWNGAM,0,343.1,343.1,yes,external_id
+201799,Louisa SONTHIRAK,26.95,Staff,332,201799,Louisa SONTHIRAK,0,26.95,26.95,yes,external_id
+201801,Chatanong SURAKKHAKA,78,Staff,333,201801,Chatanong SURAKKHAKA,0,78,78,yes,external_id
+201802,Thawit PIAKPIA,54,Staff,334,201802,Thawit PIAKPIA,0,54,54,yes,external_id
+201803,Natnareekan UTHAIRAT,367.04,Staff,335,201803,Natnareekan UTHAIRAT,0,367.04,367.04,yes,external_id
+201806,Kunyakorn SURAPAT,724.25,Staff,336,201806,Kunyakorn SURAPAT,0,724.25,724.25,yes,external_id
+201821,Nipawan RITHREUNGNAM,196.3,Staff,339,201821,Nipawan RITHREUNGNAM,0,196.3,196.3,yes,external_id
+201822,Phremjit ZANNIER PORZELLA,634.8,Staff,340,201822,Phremjit ZANNIER PORZELLA,0,634.8,634.8,yes,external_id
+201823,Jarunate PIKARATANA,174.4,Staff,341,201823,Jarunate PIKARATANA,0,174.4,174.4,yes,external_id
+201826,Wallee BOOKLIS,108.2,Staff,342,201826,Wallee BOOKLIS,0,108.2,108.2,yes,external_id
+201842,Panagiotis ASSIMAKOPOULOS,1068.75,Staff,345,201842,Panagiotis ASSIMAKOPOULOS,0,1068.75,1068.75,yes,external_id
+201844,Sarah Kate BAILEY,149.3,Staff,347,201844,Sarah Kate BAILEY,0,149.3,149.3,yes,external_id
+201847,Kara Anne EKSTRAN,679,Staff,348,201847,Kara Anne EKSTRAN,0,679,679,yes,external_id
+201861,Charles Alan RIMBEY,574,Staff,350,201861,Charles Alan RIMBEY,0,574,574,yes,external_id
+201864,Taylor Claiborne SIEDELL,488,Staff,351,201864,Taylor Claiborne SIEDELL,0,488,488,yes,external_id
+201880,Supinda WONGCHAMNONG,403.6,Staff,353,201880,Supinda WONGCHAMNONG,0,403.6,403.6,yes,external_id
+201888,Thararat RASRI,181.75,Staff,356,201888,Thararat Rasri,0,181.75,181.75,yes,external_id
+201916,Virginia Margaret VOIGT,284.25,Staff,357,201916,Virginia Margaret VOIGT,0,284.25,284.25,yes,external_id
+201928,Elizabeth Clare Cameron MERRITT,1685,Staff,361,201928,Elizabeth Clare Cameron MERRITT,0,1685,1685,yes,external_id
+201933,Phonpisa UAONGPHAINGAM,166.2,Staff,363,201933,Phonpisa UAONGPHAINGAM,0,166.2,166.2,yes,external_id
+201937,Sumalee ANGKAEW,207.4,Staff,364,201937,Sumalee ANGKAEW,0,207.4,207.4,yes,external_id
+201938,Haruetai NANTHAOSOT,253.8,Staff,365,201938,Haruetai NANTHAOSOT,0,253.8,253.8,yes,external_id
+201942,Kanjana PURISAPAN,42.4,Staff,366,201942,Kanjana PURISAPAN,0,42.4,42.4,yes,external_id
+201945,Theerawat TEAMDOUNGKAE,6.4,Staff,367,201945,Theerawat TEAMDOUNGKAE,0,6.4,6.4,yes,external_id
+201947,Passamon MOOLASART,40.45,Staff,368,201947,Passamon MOOLASART,0,40.45,40.45,yes,external_id
+201948,Varaporn PHANTONG,27.2,Staff,369,201948,Varaporn PHANTONG,0,27.2,27.2,yes,external_id
+201968,Joseph Edward BARNES,215.2,Staff,374,201968,Joseph Edward BARNES,0,215.2,215.2,yes,external_id
+201969,Sarah Elizabeth BARNES,1831.5,Staff,375,201969,Sarah Elizabeth BARNES,0,1831.5,1831.5,yes,external_id
+201970,Elliott Andrew BOWYER,559.5,Staff,376,201970,Elliott Andrew BOWYER,0,559.5,559.5,yes,external_id
+201977,Andrea Renee DAWSON,1070,Staff,377,201977,Andrea Renee DAWSON,0,1070,1070,yes,external_id
+201979,FARRELL Adam Andrew,2887,Staff,378,201979,Adam Andrew FARRELL,0,2887,2887,yes,main_parent_link
+201985,Adam Simon KIRK,411.75,Staff,380,201985,Adam Simon KIRK,0,411.75,411.75,yes,external_id
+201992,Zoe Ann TRODDEN,1437.25,Staff,381,201992,Zoe Ann TRODDEN,0,1437.25,1437.25,yes,external_id
+202004,Paween SKULGUNBUNDIT,56.65,Staff,383,202004,Paween SKULGUNBUNDIT,0,56.65,56.65,yes,external_id
+202006,Kitti SRIWICHAI,37.15,Staff,384,202006,Kitti SRIWICHAI,0,37.15,37.15,yes,external_id
+202010,Sarin BORANSRI,44.45,Staff,385,202010,Sarin BORANSRI,0,44.45,44.45,yes,external_id
+202013,Mi Ok CHOI,215.65,Staff,388,202013,Mi Ok CHOI,0,215.65,215.65,yes,external_id
+202015,Marcus Wilhelmus Johannes DE VRIES,58.8,Staff,389,202015,Marcus Wilhelmus Johannes DE VRIES,0,58.8,58.8,yes,external_id
+202016,Jintana TANINTARAWAT,37,Staff,390,202016,Jintana TANINTARAWAT,0,37,37,yes,external_id
+202018,Phichate SRICHAYODIDYANON,110.4,Staff,391,202018,Phichate SRICHAYODIDYANON,0,110.4,110.4,yes,external_id
+202022,Rungruedee SUKSATHAPORN,48.8,Staff,393,202022,Rungruedee SUKSATHAPORN,0,48.8,48.8,yes,external_id
+202023,Atchara OUNSRI,35.55,Staff,394,202023,Atchara OUNSRI,0,35.55,35.55,yes,external_id
+202033,Augusta Ruth HARISON-DENBY,3900,Staff,395,202033,Augusta Ruth HARISON-DENBY,0,3900,3900,yes,external_id
+202036,Maite MONTERO NAHOUM,45.7,Staff,397,202036,Maite MONTERO NAHOUM,0,45.7,45.7,yes,external_id
+202038,Ana Isabel NEVADO CARRASCO,842.5,Staff,398,202038,Ana Isabel NEVADO CARRASCO,0,842.5,842.5,yes,external_id
+202041,Erin Joy STANLEY,1421.15,Staff,399,202041,Erin Joy STANLEY,0,1421.15,1421.15,yes,external_id
+202043,Fonrarin CHAOURN,56,Staff,400,202043,Fonrarin CHAOURN,0,56,56,yes,external_id
+202045,Salasit NOPAMONBADEE,50,Staff,401,202045,Salasit NOPAMONBADEE,0,50,50,yes,external_id
+202046,Worapat KRUADUANG,68.8,Staff,402,202046,Worapat KRUADUANG,0,68.8,68.8,yes,external_id
+202047,Panida CHUNJOHO,265.25,Staff,403,202047,Panida CHUNJOHO,0,265.25,265.25,yes,external_id
+202050,Maliwan DUANGFOO,53.2,Staff,405,202050,Maliwan DUANGFOO,0,53.2,53.2,yes,external_id
+202053,Tanyawat JETJIRAWAT,371.2,Staff,406,202053,Tanyawat JETJIRAWAT,0,371.2,371.2,yes,external_id
+202054,Kevin John KUEHN,464.25,Staff,407,202054,Kevin John KUEHN,0,464.25,464.25,yes,external_id
+202055,Harold Mark ALBERT,2.1,Staff,408,202055,Harold Mark ALBERT,0,2.1,2.1,yes,external_id
+202056,Duangpen POONSAWAT,885.1,Staff,409,202056,Duangpen POONSAWAT,0,885.1,885.1,yes,external_id
+202060,Nootcharee SEEDAWAN,110,Staff,410,202060,Nootcharee SEEDAWAN,0,110,110,yes,external_id
+202062,Arin AUKAYANAGUL,91.6,Staff,411,202062,Arin AUKAYANAGUL,0,91.6,91.6,yes,external_id
+202070,Yodsawadee VIRIYAPONGMATAVEE,176.4,Staff,418,202070,Yodsawadee VIRIYAPONGMATAVEE,0,176.4,176.4,yes,external_id
+202071,Brian Richard COMPTON,38.75,Staff,420,202071,Brian Richard COMPTON,0,38.75,38.75,yes,external_id
+202072,Af-fan HAYIKORNOH,6,Staff,423,202072,Af-fan HAYIKORNOH,0,6,6,yes,external_id
+202074,Thatthien POONSAWAD,106.4,Staff,424,202074,Thatthien POONSAWAD,0,106.4,106.4,yes,external_id
+202088,Watchara PRACRUTIN,5,Staff,432,202088,Watchara PRACRUTIN,0,5,5,yes,external_id
+202092,Anusorn JITSUTTISUB,40.4,Staff,436,202092,Anusorn JITSUTTISUB,0,40.4,40.4,yes,external_id
+202094,Patsaneeyapon SISTITAWON,16,Staff,438,202094,Patsaneeyapon SISTITAWON,0,16,16,yes,external_id
+202098,Nantaporn SAWSANGSUB,52.8,Staff,440,202098,Nantaporn SAWSANGSUB,0,52.8,52.8,yes,external_id
+202100,Tantiya THITITHUMRONGKUL,17.15,Staff,444,202100,Tantiya THITITHUMRONGKUL,0,17.15,17.15,yes,external_id
+202101,Patarin BOONSWAD,121.35,Staff,446,202101,Patarin BOONSWAD,0,121.35,121.35,yes,external_id
+202102,Patthanun RACKCHOPSANTI,465.15,Staff,448,202102,Patthanun RACKCHOPSANTI,0,465.15,465.15,yes,external_id
+202103,Nattaweena THONGPRAPAI,160.1,Staff,450,202103,Nattaweena THONGPRAPAI,0,160.1,160.1,yes,external_id
+202104,Miho CUNNEY,655,Staff,452,202104,Miho CUNNEY,0,655,655,yes,external_id
+202106,Deborah Ann CASKEY,760,Staff,454,202106,Deborah Ann CASKEY,0,760,760,yes,external_id
+202108,DURBIN Charlie Jonathon,10124.7,Staff,456,202108,Charlie Jonathon DURBIN,0,10124.7,10124.7,yes,main_parent_link
+202112,Melinda Bobbie KEHE,1086.3,Staff,458,202112,Melinda Bobbie KEHE,0,1086.3,1086.3,yes,external_id
+202131,Awiruth KESHAGUPTA,212.39,Staff,466,202131,Awiruth KESHAGUPTA,0,212.39,212.39,yes,external_id
+202141,Yuttana PROMMA,45.6,Staff,476,202141,Yuttana PROMMA,0,45.6,45.6,yes,external_id
+202152,Lissa Rose SWIRYN,147.8,Staff,484,202152,Lissa Rose SWIRYN,0,147.8,147.8,yes,external_id
+202162,Andrew Lane SNOOK,615,Staff,490,202162,Andrew Lane SNOOK,0,615,615,yes,external_id
+202163,Ann Leslie SWANLAW,1025.85,Staff,492,202163,Ann Leslie SWANLAW,0,1025.85,1025.85,yes,external_id
+202164,Kathrine Ella VAN OOSTEN,2000,Staff,494,202164,Kathrine Ella VAN OOSTEN,0,2000,2000,yes,external_id
+202170,Nakron POONNANE,484,Staff,496,202170,Nakron POONNANE,0,484,484,yes,external_id
+202177,WEIBLE Nicole Rose,221.65,Staff,502,202177,Nicole Rose WEIBLE,0,221.65,221.65,yes,main_parent_link
+202179,Richard Alan CASKEY,29.5,Staff,504,202179,Richard Alan CASKEY,0,29.5,29.5,yes,external_id
+202187,Robert Leslie TYLER,200.25,Staff,508,202187,Robert Leslie TYLER,0,200.25,200.25,yes,external_id
+202193,Ubonrat BOONSINGSORN,52.45,Staff,510,202193,Ubonrat BOONSINGSORN,0,52.45,52.45,yes,external_id
+202194,Yaiyada PUSUSILTHORN,104.75,Staff,512,202194,Yaiyada PUSUSILTHORN,0,104.75,104.75,yes,external_id
+202195,Kamonwan THANG-THONG,46.7,Staff,514,202195,Kamonwan THANG-THONG,0,46.7,46.7,yes,external_id
+202197,Araya MUNGKUNG,123.75,Staff,516,202197,Araya MUNGKUNG,0,123.75,123.75,yes,external_id
+202198,Miao-Rong WANG,446.8,Staff,518,202198,Miao-Rong WANG,0,446.8,446.8,yes,external_id
+202209,Siraphassorn PIMPIRAT,117.3,Staff,522,202209,Siraphassorn PIMPIRAT,0,117.3,117.3,yes,external_id
+202227,Pancharee CHINNAPITIWONG,40.8,Staff,538,202227,Pancharee CHINNAPITIWONG,0,40.8,40.8,yes,external_id
+202228,Farrah Chantal COLLETTE,172.35,Staff,540,202228,Farrah Chantal COLLETTE,0,172.35,172.35,yes,external_id
+202235,Patcharaporn CHAIMUANGRAJ,110.3,Staff,546,202235,Patcharaporn CHAIMUANGRAJ,0,110.3,110.3,yes,external_id
+202236,Rebecca Lynn LEBEL,175.75,Staff,548,202236,Rebecca Lynn LEBEL,0,175.75,175.75,yes,external_id
+202242,Caroline Chamney HAZEL,406.15,Staff,550,202242,Caroline Chamney HAZEL,0,406.15,406.15,yes,external_id
+202247,Pinkaew KOBUA,14.3,Staff,552,202247,Pinkaew KOBUA,0,14.3,14.3,yes,external_id
+202251,Xue LI,68.4,Staff,558,202251,Xue LI,0,68.4,68.4,yes,external_id
+202263,Theerawut SEEDAWAN,200,Staff,562,202263,Theerawut SEEDAWAN,0,200,200,yes,external_id
+202264,SETABUTR Dhave,1003.15,Staff,564,202264,Dhave SETABUTR,0,1003.15,1003.15,yes,main_parent_link
+202266,Phatthara BUNLUESIN,354.85,Staff,151,202266,Phatthara BUNLUESIN,3,354.85,351.85,yes,external_id
+202267,Boonyarit CHUNJIRAKUN,26.4,Staff,566,202267,Boonyarit CHUNJIRAKUN,0,26.4,26.4,yes,external_id
+202273,Wesley John PRZYBYLSKI,151,Staff,570,202273,Wesley John PRZYBYLSKI,0,151,151,yes,external_id
+202274,Somkid SINGHKAEW,0.4,Staff,572,202274,Somkid SINGHKAEW,0,0.4,0.4,yes,external_id
+202280,Yeung HO,2402.95,Staff,578,202280,Yeung HO,0,2402.95,2402.95,yes,external_id
+202292,April Chi Kuen SOO,903.95,Staff,580,202292,April Chi Kuen SOO,0,903.95,903.95,yes,external_id
+202306,Omar James EL MAAROUFI,385,Staff,158,202306,Pornthip SUWAN,0,385,385,yes,external_id
+202313,Waranya NIMNUAN,85.7,Staff,586,202313,Waranya NIMNUAN,0,85.7,85.7,yes,external_id
+202317,Chutikan TAECHAPHATTANAPHAN,493.8,Staff,592,202317,Chutikan TAECHAPHATTANAPHAN,0,493.8,493.8,yes,external_id
+202318,Amporn WAENNGOEN,22.8,Staff,594,202318,Amporn WAENNGOEN,0,22.8,22.8,yes,external_id
+202319,Nantanit PONGPIMAI,538.6,Staff,596,202319,Nantanit PONGPIMAI,0,538.6,538.6,yes,external_id
+202322,Christine KLEMPIN,16,Staff,598,202322,Christine KLEMPIN,0,16,16,yes,external_id
+202323,Jill Suzanne MCHALE,246.1,Staff,600,202323,Jill Suzanne MCHALE,0,246.1,246.1,yes,external_id
+202324,Orraphan PIAKPIA,52.65,Staff,602,202324,Orraphan PIAKPIA,0,52.65,52.65,yes,external_id
+202326,Nattika SUNTARANUYUTKIJ,94.2,Staff,606,202326,Nattika SUNTARANUYUTKIJ,0,94.2,94.2,yes,external_id
+202327,Wuttithep O-THAVORN,9.95,Staff,608,202327,Wuttithep O-THAVORN,0,9.95,9.95,yes,external_id
+202331,Jacob John FERGUSON,208,Staff,612,202331,Jacob John FERGUSON,0,208,208,yes,external_id
+202332,FISCHL Richard Kenneth,591.3,Staff,614,202332,Richard Kenneth FISCHL,0,591.3,591.3,yes,main_parent_link
+202339,MEES Nathan P.,62.45,Staff,622,202339,Nathan P. MEES,0,62.45,62.45,yes,main_parent_link
+202340,Natalie Anne ROBINSON,1046.35,Staff,624,202340,Natalie Anne ROBINSON,0,1046.35,1046.35,yes,external_id
+202342,SEIPLE Scott David,1308.7,Staff,626,202342,Scott David SEIPLE,0,1308.7,1308.7,yes,main_parent_link
+202343,Brittany Kathryn SMITH,550.6,Staff,628,202343,Brittany Kathryn SMITH,0,550.6,550.6,yes,external_id
+202345,WATERS David Jacob,280.15,Staff,632,202345,David Jacob WATERS,0,280.15,280.15,yes,main_parent_link
+202346,Kelley Leigh MCKENNA,1839.75,Staff,634,202346,Kelley Leigh MCKENNA,0,1839.75,1839.75,yes,external_id
+202349,Emily K STEWART,690.35,Staff,640,202349,Emily K STEWART,0,690.35,690.35,yes,external_id
+202350,Gerard Daniel MORICE,1651.75,Staff,642,202350,Gerard Daniel MORICE,0,1651.75,1651.75,yes,external_id
+202351,Ruth Inryango OLAGUNJU,465.95,Staff,644,202351,Ruth Inryango OLAGUNJU,0,465.95,465.95,yes,external_id
+202353,Piyaporn TRAISINGPITAK,36.05,Staff,646,202353,Piyaporn TRAISINGPITAK,0,36.05,36.05,yes,external_id
+202354,Pichapak JATUPORNMONGKOL,365.55,Staff,648,202354,Pichapak JATUPORNMONGKOL,0,365.55,365.55,yes,external_id
+202361,Amaritpal MARWAHA,658.8,Staff,656,202361,Amaritpal MARWAHA,0,658.8,658.8,yes,external_id
+202362,Ratikorn PHOTA,24.8,Staff,658,202362,Ratikorn PHOTA,0,24.8,24.8,yes,external_id
+202363,Mayuki CHEMI,12.8,Staff,660,202363,Mayuki CHEMI,0,12.8,12.8,yes,external_id
+202365,Erika Michelle JOHNSON,688.1,Staff,662,202365,Erika Michelle JOHNSON,0,688.1,688.1,yes,external_id
+202374,Honey Jo TONDRE,141.6,Staff,666,202374,Honey Jo TONDRE,0,141.6,141.6,yes,external_id
+202380,Warayu SAPPRAKOP,13.6,Staff,672,202380,Warayu SAPPRAKOP,0,13.6,13.6,yes,external_id
+202384,Enrique CABALLERO GONZALO,252.75,Staff,674,202384,Enrique CABALLERO GONZALO,0,252.75,252.75,yes,external_id
+202387,Georgina Dawn BUGERA,185.3,Staff,678,202387,Georgina Dawn BUGERA,0,185.3,185.3,yes,external_id
+202389,Gina Alexandra BALLESTEROS REYES,150.35,Staff,680,202389,Gina Alexandra BALLESTEROS REYES,0,150.35,150.35,yes,external_id
+202394,Panadda PATRAT,171.3,Staff,687,202394,Panadda PATRAT,0,171.3,171.3,yes,external_id
+202398,Stephanie Martine BELBIN,912.05,Staff,690,202398,Stephanie Martine BELBIN,0,912.05,912.05,yes,external_id
+202402,Natsaya NAKTHONGKUL,59.55,Staff,692,202402,Natsaya NAKTHONGKUL,0,59.55,59.55,yes,external_id
+202403,Munchupa SONTHIRUK,133.55,Staff,694,202403,Munchupa SONTHIRUK,0,133.55,133.55,yes,external_id
+202404,Chidchanok SRISUPUK,95.5,Staff,696,202404,Chidchanok SRISUPUK,0,95.5,95.5,yes,external_id
+202405,Dareeya PUNSAKD,23.33,Staff,698,202405,Dareeya PUNSAKD,0,23.33,23.33,yes,external_id
+202406,Kittipong KAEWKARINKANOK,528.6,Staff,700,202406,Kittipong KAEWKARINKANOK,0,528.6,528.6,yes,external_id
+202407,Bundit PORNSIRICHOTIKUL,200,Staff,702,202407,Bundit PORNSIRICHOTIKUL,0,200,200,yes,external_id
+202408,Siratas KESHAGUPTA,450.95,Staff,704,202408,Siratas KESHAGUPTA,0,450.95,450.95,yes,external_id
+202409,Mary Grace Abanes ARTIENDA,1787.6,Staff,706,202409,Mary Grace Abanes ARTIENDA,0,1787.6,1787.6,yes,external_id
+202410,Arnon CHAENG-AUTHIT,35.2,Staff,708,202410,Arnon CHAENG-AUTHIT,0,35.2,35.2,yes,external_id
+202411,Kaewta SUNTORNNAN,65.75,Staff,710,202411,Kaewta SUNTORNNAN,0,65.75,65.75,yes,external_id
+202412,Sumalee BOONNAN,7.8,Staff,712,202412,Sumalee BOONNAN,0,7.8,7.8,yes,external_id
+202413,Thanunchai WAIYAVEJ,2.3,Staff,714,202413,Thanunchai WAIYAVEJ,0,2.3,2.3,yes,external_id
+202414,Piyatida KAEWJINDA,484.65,Staff,716,202414,Piyatida KAEWJINDA,0,484.65,484.65,yes,external_id
+202415,Sawitree NIMNUAL,29.5,Staff,718,202415,Sawitree NIMNUAL,0,29.5,29.5,yes,external_id
+202417,Sirawit NINSIRI,62.4,Staff,720,202417,Sirawit NINSIRI,0,62.4,62.4,yes,external_id
+202422,Sirapat PATSANGUAN,38.85,Staff,724,202422,Sirapat PATSANGUAN,0,38.85,38.85,yes,external_id
+202427,Natthaphong KEAWPLUANG,200,Staff,726,202427,Natthaphong KEAWPLUANG,0,200,200,yes,external_id
+202429,Noppanat SAMPAVAPHOL,156,Staff,728,202429,Noppanat SAMPAVAPHOL,0,156,156,yes,external_id
+202430,Kanokwan JANRUANG,44.25,Staff,730,202430,Kanokwan JANRUANG,0,44.25,44.25,yes,external_id
+202435,Douglas Stephen MCQUEEN,193.95,Staff,736,202435,Douglas Stephen MCQUEEN,0,193.95,193.95,yes,external_id
+202436,MOORE Lindsey Erin,1217.15,Staff,738,202436,Lindsey Erin MOORE,0,1217.15,1217.15,yes,main_parent_link
+202438,Selena Maria ROBINSON,500,Staff,740,202438,Selena Maria ROBINSON,0,500,500,yes,external_id
+202440,WIEMANN Brian Louis,147.6,Staff,742,202440,Brian Louis WIEMANN,0,147.6,147.6,yes,main_parent_link
+202441,Elaine Lalu JOHNSON,62.45,Staff,744,202441,Elaine Lalu JOHNSON,0,62.45,62.45,yes,external_id
+202445,Pakamas JAMPATONG,26.2,Staff,748,202445,Pakamas JAMPATONG,0,26.2,26.2,yes,external_id
+202448,Melinda Janine METZ,323.2,Staff,750,202448,Melinda Janine METZ,0,323.2,323.2,yes,external_id
+202450,MCCAUGHAN Lucy Ellen,3609,Staff,752,202450,Lucy Ellen MCCAUGHAN,0,3609,3609,yes,main_parent_link
+202452,Nancy Nyansiaboka ONGAYO,5.2,Staff,754,202452,Nancy Nyansiaboka ONGAYO,0,5.2,5.2,yes,external_id
+202456,Aemika BUNCHOED,0.4,Staff,756,202456,Aemika BUNCHOED,0,0.4,0.4,yes,external_id
+202457,Karena Lucia ROJAS,37.45,Staff,758,202457,Karena Lucia ROJAS,0,37.45,37.45,yes,external_id
+202463,Juggrich KANPAN,200,Staff,760,202463,Juggrich KANPAN,0,200,200,yes,external_id
+202464,Tantiphong CHATBURI,53.6,Staff,762,202464,Tantiphong CHATBURI,0,53.6,53.6,yes,external_id
+202466,Tawatchai PUKLOM,100,Staff,764,202466,Tawatchai PUKLOM,0,100,100,yes,external_id
+202467,Sataporn NILTHORN,106.4,Staff,766,202467,Sataporn NILTHORN,0,106.4,106.4,yes,external_id
+202468,Jirawat JIRACHAISOPIT,477,Staff,176,202468,Jirawat JIRACHAISOPIT,0,477,477,yes,external_id
+202469,Nitcharee PRASERTNOK,620.5,Staff,768,202469,Nitcharee PRASERTNOK,0,620.5,620.5,yes,external_id
+202470,Tevagol DOWNGMA,60,Staff,770,202470,Tevagol DOWNGMA,0,60,60,yes,external_id
+202471,Paewphan BOONMING,200,Staff,772,202471,Paewphan BOONMING,0,200,200,yes,external_id
+202472,Anusorn WONGKERD,200,Staff,774,202472,Anusorn WONGKERD,0,200,200,yes,external_id
+202474,Budsadee RUAYNIRAT,363.15,Staff,778,202474,Budsadee RUAYNIRAT,0,363.15,363.15,yes,external_id
+202477,Piyapun PROMPAKDEE,5.8,Staff,780,202477,Piyapun PROMPAKDEE,0,5.8,5.8,yes,external_id
+202478,Supparat NAMDEE,664.35,Staff,782,202478,Supparat NAMDEE,0,664.35,664.35,yes,external_id
+202480,Kanoknuch THONGPRASERT,8.2,Staff,784,202480,Kanoknuch THONGPRASERT,0,8.2,8.2,yes,external_id
+202481,Kritsana JITREETHAN,94.4,Staff,786,202481,Kritsana JITREETHAN,0,94.4,94.4,yes,external_id
+202483,Boontharika SOMPADUNG,120,Staff,788,202483,Boontharika SOMPADUNG,0,120,120,yes,external_id
+202484,Billy SUKEETHIP,10.4,Staff,790,202484,Billy SUKEETHIP,0,10.4,10.4,yes,external_id
+202485,Krittiya Jailak FITZGERALD,224.15,Staff,792,202485,Krittiya Jailak FITZGERALD,0,224.15,224.15,yes,external_id
+202486,Tanyakorn JIRASIRIKUL,698.7,Staff,794,202486,Tanyakorn JIRASIRIKUL,0,698.7,698.7,yes,external_id
+202487,Parinda SUPHEPRE,55.6,Staff,796,202487,Parinda SUPHEPRE,0,55.6,55.6,yes,external_id
+202488,Suwita DAHAREE,172,Staff,798,202488,Suwita DAHAREE,0,172,172,yes,external_id
+202489,Pikul RUNGSAWANG,57,Staff,800,202489,Pikul RUNGSAWANG,0,57,57,yes,external_id
+202490,Bunyawee KELLY,7.4,Staff,802,202490,Bunyawee KELLY,0,7.4,7.4,yes,external_id
+202491,Rattana SRIRAKSA,147.2,Staff,804,202491,Rattana SRIRAKSA,0,147.2,147.2,yes,external_id
+202496,Maetavee TUNPRASERT,132.7,Staff,808,202496,Maetavee TUNPRASERT,0,132.7,132.7,yes,external_id
+202498,Seksit YIMYONG,2.2,Staff,810,202498,Seksit YIMYONG,0,2.2,2.2,yes,external_id
+202499,Busarin PASAENG,23.2,Staff,812,202499,Busarin PASAENG,0,23.2,23.2,yes,external_id
+202501,Chowmonta THANUTAMO,24,Staff,814,202501,Chowmonta THANUTAMO,0,24,24,yes,external_id
+202502,Nutsika SUDDHIYODHA,18.4,Staff,816,202502,Nutsika SUDDHIYODHA,0,18.4,18.4,yes,external_id
+202503,Pornchita CHOYKRUEA,136.2,Staff,818,202503,Pornchita CHOYKRUEA,0,136.2,136.2,yes,external_id
+202513,Chutiphong PEAJIER,66.15,Staff,826,202513,Chutiphong PEAJIER,0,66.15,66.15,yes,external_id
+202514,Panadda THONGPRASERT,200,Staff,828,202514,Panadda THONGPRASERT,0,200,200,yes,external_id
+202518,Kamilah UDOMSAP,115.9,Staff,830,202518,Kamilah UDOMSAP,0,115.9,115.9,yes,external_id
+202522,Latdawan YAEPYON,46,Staff,832,202522,Latdawan YAEPYON,0,46,46,yes,external_id
+202525,Peerapon SAWANGSRI,9.6,Staff,834,202525,Peerapon SAWANGSRI,0,9.6,9.6,yes,external_id
+202526,Warawut SUKSAWADPAKDEE,15,Staff,836,202526,Warawut SUKSAWADPAKDEE,0,15,15,yes,external_id
+202527,Nattharika KONYAI,23.35,Staff,838,202527,Nattharika KONYAI,0,23.35,23.35,yes,external_id
+202528,Inthira PRAKODHAN,26.6,Staff,840,202528,Inthira PRAKODHAN,0,26.6,26.6,yes,external_id
+202529,Andrew Benjamin CUNNEY,128,Staff,842,202529,Andrew Benjamin CUNNEY,0,128,128,yes,external_id
+202532,Megan BARRINGTON,449.5,Staff,844,202532,Megan BARRINGTON,0,449.5,449.5,yes,external_id
+202533,Solene Chloe BEAUJOUAN,2.8,Staff,845,202533,Solene Chloe BEAUJOUAN,0,2.8,2.8,yes,external_id
+202534,Josef Gerhard BEHRENS,487,Staff,847,202534,Josef Gerhard BEHRENS,0,487,487,yes,external_id
+202535,Stephanie CARRERA,1097.45,Staff,850,202535,Stephanie CARRERA,0,1097.45,1097.45,yes,external_id
+202537,CRONIN Dakota,2077.1,Staff,853,202537,Rogan Dakota CRONIN,0,2077.1,2077.1,yes,main_parent_link
+202540,Michael David Karl FISHER,1161,Staff,856,202540,Michael David Karl FISHER,0,1161,1161,yes,external_id
+202541,FRANKLIN Caira Jaime,2166.2,Staff,859,202541,Caira Jaime FRANKLIN,0,2166.2,2166.2,yes,main_parent_link
+202543,Melanie Joy GAVAN,486,Staff,862,202543,Melanie Joy GAVAN,0,486,486,yes,external_id
+202544,Emma GEDGE,451.3,Staff,865,202544,Emma GEDGE,0,451.3,451.3,yes,external_id
+202550,Alexa Nicole HUMBERSON,1500,Staff,871,202550,Alexa Nicole HUMBERSON,0,1500,1500,yes,external_id
+202551,Abby Lynne JETT,2780.5,Staff,874,202551,Abby Lynne JETT,0,2780.5,2780.5,yes,external_id
+202553,Rebecca Sara KONOWICZ,676.95,Staff,880,202553,Rebecca Sara KONOWICZ,0,676.95,676.95,yes,external_id
+202554,Celine Aimee LAHEURTE,417.8,Staff,883,202554,Celine Aimee LAHEURTE,0,417.8,417.8,yes,external_id
+202555,Grace Carey LARSEN,1958.45,Staff,886,202555,Grace Carey LARSEN,0,1958.45,1958.45,yes,external_id
+202556,Meghan Jeanne LELAND,0.85,Staff,889,202556,Meghan Jeanne LELAND,0,0.85,0.85,yes,external_id
+202559,Naoko MCQUEEN,1799.85,Staff,892,202559,Naoko MCQUEEN,0,1799.85,1799.85,yes,external_id
+202560,Eric Moses MOTZKO,461,Staff,895,202560,Eric Moses MOTZKO,0,461,461,yes,external_id
+202563,Aaron Anderson REED,2736.65,Staff,898,202563,Aaron Anderson REED,0,2736.65,2736.65,yes,external_id
+202564,Lindsey Karen RETTMANN,602.5,Staff,901,202564,Lindsey Karen RETTMANN,0,602.5,602.5,yes,external_id
+202566,Precious Monique WASHINGTON,416.85,Staff,903,202566,Precious Monique WASHINGTON,0,416.85,416.85,yes,external_id
+202568,Kelly Anne GARNER,3325.6,Staff,909,202568,Kelly Anne GARNER,0,3325.6,3325.6,yes,external_id
+202571,Kittikul PONGSAI,250.4,Staff,911,202571,Kittikul PONGSAI,0,250.4,250.4,yes,external_id
+202572,Sittha INTARAPAIBOON,60,Staff,914,202572,Sittha INTARAPAIBOON,0,60,60,yes,external_id
+202578,Thongpatchara KHANTHAP,48.4,Staff,917,202578,Thongpatchara KHANTHAP,0,48.4,48.4,yes,external_id
+202581,Sireethorn PHONGSAWANG,271.3,Staff,920,202581,Sireethorn PHONGSAWANG,0,271.3,271.3,yes,external_id
+202583,Chairat KHAMYA,33.2,Staff,923,202583,Chairat KHAMYA,0,33.2,33.2,yes,external_id
+202585,Sontaya SILACHOTE,1,Staff,926,202585,Sontaya SILACHOTE,0,1,1,yes,external_id
+202594,Kodchanat PROMSEPSAK,31,Staff,929,202594,Kodchanat PROMSEPSAK,0,31,31,yes,external_id
+202605,Gamongahn CHOWITAYANGKUL,1029.8,Staff,932,202605,Gamongahn CHOWITAYANGKUL,0,1029.8,1029.8,yes,external_id
+202606,Arissa JAROENSUK,299,Staff,935,202606,Arissa JAROENSUK,0,299,299,yes,external_id
+202607,Tidarat SUTJARIT,29,Staff,938,202607,Tidarat SUTJARIT,0,29,29,yes,external_id
+202608,Waraporn PROMCHAREON,336.8,Staff,941,202608,Waraporn PROMCHAREON,0,336.8,336.8,yes,external_id
+202610,Pinyalak JARUVONGVIJIT,64.3,Staff,944,202610,Pinyalak JARUVONGVIJIT,0,64.3,64.3,yes,external_id
+202624,Weerayut BABUANRAM,2,Staff,947,202624,Weerayut BABUANRAM,0,2,2,yes,external_id
+202635,Jirapan VASANABUNSONGSERM,451.8,Staff,950,202635,Jirapan VASANABUNSONGSERM,0,451.8,451.8,yes,external_id
+202636,Phenphan KOOMKAEW,417.3,Staff,953,202636,Phenphan KOOMKAEW,0,417.3,417.3,yes,external_id
+202637,Kanvisorn CHARIKANONDA,237.65,Staff,956,202637,Kanvisorn CHARIKANONDA,0,237.65,237.65,yes,external_id
+202642,Chairat SATHONGWEE,10,Staff,959,202642,Chairat SATHONGWEE,0,10,10,yes,external_id
+202645,Robert Michael ARCANGEL,236,Staff,962,202645,Robert Michael ARCANGEL,0,236,236,yes,external_id
+202652,Apichaya RANGKLA,16.2,Staff,963,202652,Apichaya RANGKLA,0,16.2,16.2,yes,external_id
+202653,Chayachon PREMANON,24,Staff,964,202653,Chayachon PREMANON,0,24,24,yes,external_id
+202654,Nattaphol PIMSIN,67.2,Staff,965,202654,Nattaphol PIMSIN,0,67.2,67.2,yes,external_id
+202657,Sirawit THATHONG,211.4,Staff,966,202657,Sirawit THATHONG,0,211.4,211.4,yes,external_id
+202661,Candace Renee BENNETT,55,Staff,970,202661,Candace Renee BENNETT,0,55,55,yes,external_id
+202663,Jennifer Leigh DELANE,1296.25,Staff,972,202663,Jennifer Leigh DELANE,0,1296.25,1296.25,yes,external_id
+202664,Paul Mitchell FITZGERALD,15.8,Staff,973,202664,Paul Mitchell FITZGERALD,0,15.8,15.8,yes,external_id
+202665,HALL Natalya Alekseyevna,738.6,Staff,974,202665,Natalya Alekseyevna HALL,0,738.6,738.6,yes,main_parent_link
+202666,Norton Grant HILLER,2922.25,Staff,975,202666,Norton Grant HILLER,0,2922.25,2922.25,yes,external_id
+202667,John Radford KILBANE,154,Staff,976,202667,John Radford KILBANE,0,154,154,yes,external_id
+202668,Margaret Ann LANG,497.75,Staff,977,202668,Margaret Ann LANG,0,497.75,497.75,yes,external_id
+202669,Ben Alexander LILLEY,701,Staff,978,202669,Ben Alexander LILLEY,0,701,701,yes,external_id
+202670,MILEWSKI Lukasz,1846.45,Staff,979,202670,Lukasz MILEWSKI,0,1846.45,1846.45,yes,main_parent_link
+202671,Miroslava K. MINKOVA-BOYADZHIEVA,675.25,Staff,980,202671,Miroslava K. MINKOVA-BOYADZHIEVA,0,675.25,675.25,yes,external_id
+202676,Emily Margaret SIMBANA,1309,Staff,982,202676,Emily Margaret SIMBANA,0,1309,1309,yes,external_id
+202677,Smita SWAMINATHAN,171,Staff,983,202677,Smita SWAMINATHAN,0,171,171,yes,external_id
+202678,David Loren WOODS,575.85,Staff,984,202678,David Loren WOODS,0,575.85,575.85,yes,external_id
+202680,Kathryn Clark MC KENNA,1626,Staff,985,202680,Kathryn Clark MC KENNA,0,1626,1626,yes,external_id
+202681,Pongpat LIKITCHOLLATARN,294.3,Staff,986,202681,Pongpat LIKITCHOLLATARN,0,294.3,294.3,yes,external_id
+202683,Kristen Celeste FEREN,1935.7,Staff,987,202683,Kristen Celeste FEREN,0,1935.7,1935.7,yes,external_id
+202693,Avadhut NICHKAWDE,2070,Staff,988,202693,Avadhut NICHKAWDE,0,2070,2070,yes,external_id
+202694,Sudatip KASTINEN,10.2,Staff,989,202694,Sudatip KASTINEN,0,10.2,10.2,yes,external_id
+202697,Orakanya WORRARAT NA AYUTTHAYA,59.9,Staff,990,202697,Orakanya WORRARAT NA AYUTTHAYA,0,59.9,59.9,yes,external_id
+202698,Maria Angelica Alcober MOTOMAL,1266.85,Staff,991,202698,Maria Angelica Alcober MOTOMAL,0,1266.85,1266.85,yes,external_id
+202700,Emily Anne ROSS,453.85,Staff,992,202700,Emily Anne ROSS,0,453.85,453.85,yes,external_id
+202704,Darby Ann DAVIS,834.85,Staff,993,202704,Darby Ann DAVIS,0,834.85,834.85,yes,external_id
+202705,Justin William MILLIGAN,179,Staff,994,202705,Justin William MILLIGAN,0,179,179,yes,external_id
+202706,Jennifer Marilyn RUSSELL-BICKFORD,490.25,Staff,995,202706,Jennifer Marilyn RUSSELL-BICKFORD,0,490.25,490.25,yes,external_id
+202711,Amy Lareina CALDWELL,583.45,Staff,997,202711,Amy Lareina CALDWELL,0,583.45,583.45,yes,external_id
+202715,Jennifer Lynn TE  HUKI,2676.2,Staff,998,202715,Jennifer Lynn TE  HUKI,0,2676.2,2676.2,yes,external_id
+202719,Jirawat PINTHONG,200,Staff,999,202719,Jirawat PINTHONG,0,200,200,yes,external_id
+202720,Benyaporn ROTBOONSONGSRI,41,Staff,1000,202720,Benyaporn ROTBOONSONGSRI,0,41,41,yes,external_id
+202721,Adool MADSAKUN,163,Staff,1001,202721,Adool MADSAKUN,0,163,163,yes,external_id
+202722,Anita Sue PARK,764.14,Staff,1002,202722,Anita Sue PARK,0,764.14,764.14,yes,external_id
+202725,"BACH, Dylan",803.05,Staff,3758,202725,Dylan Taylor BACH,0,803.05,803.05,yes,main_parent_link
+202727,Kanittha BOONIN,29,Staff,1003,202727,Kanittha BOONIN,0,29,29,yes,external_id
+202728,Perihan Wafik AWAD,212,Staff,1004,202728,Perihan Wafik AWAD,0,212,212,yes,external_id
+202732,Thepphithak NURONGKAEO,200,Staff,1005,202732,Thepphithak NURONGKAEO,0,200,200,yes,external_id
+202735,Aticha INTHARARATSAMEE,37.6,Staff,1006,202735,Aticha INTHARARATSAMEE,0,37.6,37.6,yes,external_id
+202738,Jirapinya SIRIKUL,100.1,Staff,1008,202738,Jirapinya SIRIKUL,0,100.1,100.1,yes,external_id
+202741,Janpen YAEMNGAM,94.2,Staff,1009,202741,Janpen YAEMNGAM,0,94.2,94.2,yes,external_id
+202742,Kit Wah Josephine LAW,3262.5,Staff,1010,202742,Kit Wah Josephine LAW,0,3262.5,3262.5,yes,external_id
+202748,Paulo Miguel QUICHO,286,Staff,1011,202748,Paulo Miguel QUICHO,0,286,286,yes,external_id
+202750,Jantima CHIMPALEE,135.2,Staff,1012,202750,Jantima CHIMPALEE,0,135.2,135.2,yes,external_id
+202751,Panwa NATTHADA,39.2,Staff,1013,202751,Panwa NATTHADA,0,39.2,39.2,yes,external_id
+202755,Sirichai NAOWARAT,24.2,Staff,1014,202755,Sirichai NAOWARAT,0,24.2,24.2,yes,external_id
+202756,Mueanfan MISA,200,Staff,1015,202756,Mueanfan MISA,0,200,200,yes,external_id
+202760,William Alan COURSEN-CARR,340,Staff,1016,202760,William Alan COURSEN-CARR,0,340,340,yes,external_id
+202761,Ploypraew NUGITRUNGSAN,19.6,Staff,1017,202761,Ploypraew NUGITRUNGSAN,0,19.6,19.6,yes,external_id
+202776,Nantakarn Wanaprapat,165.3,Staff,1022,202776,Nantakarn WANAPRAPAT,0,165.3,165.3,yes,external_id
+202806,Natjapak SUEBKLIN,278.9,Staff,1025,202806,Natjapak SUEBKLIN,0,278.9,278.9,yes,external_id
+202811,Patchakon CHAISRI,89.85,Staff,1026,202811,Patchakon CHAISRI,0,89.85,89.85,yes,external_id
+202816,Chanya WIPARUNGSRI,519,Staff,1029,202816,Chanya WIPARUNGSRI,0,519,519,yes,external_id
+202817,Sirin Somchuavieng AGUNDA,1349.4,Staff,1030,202817,Sirin Somchuavieng AGUNDA,0,1349.4,1349.4,yes,external_id
+202826,Nonchapa JIRAPHAN,56.35,Staff,1034,202826,Nonchapa JIRAPHAN,0,56.35,56.35,yes,external_id
+202855,Thanaree SITAPUTRA,45,Staff,1060,202855,Thanaree SITAPUTRA,0,45,45,yes,external_id
+202871,Gaysorn POPITTAYA,553.6,Staff,1072,202871,Gaysorn POPITTAYA,0,553.6,553.6,yes,external_id
+202878,Segun Temitope OLAGUNJU,23.85,Staff,1076,202878,Segun Temitope OLAGUNJU,0,23.85,23.85,yes,external_id
+202879,Karanee MCNAMARA,552.8,Staff,1077,202879,Karanee MCNAMARA,0,552.8,552.8,yes,external_id
+202885,Wannisa KRITSANAKAN,127,Staff,1080,202885,Wannisa KRITSANAKAN,0,127,127,yes,external_id
+260402,Poj Ou CHORKSAWATPHISARN,333.8,Staff,1107,260402,Poj Ou CHORKSAWATPHISARN,0,333.8,333.8,yes,external_id
+260899,Ahmed Ezzat Ibrahim,119.7,Family,1491,260899,Ahmed Ezzat Ahmed Aly IBRAHIM,0,119.7,119.7,yes,external_id
+265112,Wisuchalak RUEANGRIT,25.05,Staff,1108,265112,Wisuchalak RUEANGRIT,0,25.05,25.05,yes,external_id
+265156,Supawan KRAIYON,65,Staff,1109,265156,Supawan KRAIYON,0,65,65,yes,external_id
+265234,Jiae KIM,1233.8,Staff,1489,265234,Jiae KIM,0,1233.8,1233.8,yes,external_id

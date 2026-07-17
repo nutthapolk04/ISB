@@ -15,6 +15,8 @@ export const AdminReportsController = {
             logger.warn(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
+        const page = query.page ? Math.max(Number(query.page), 1) : 1;
+        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 20;
         try {
             logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() calling adjustmentReport().`);
             const result = await adjustmentReport({
@@ -22,6 +24,8 @@ export const AdminReportsController = {
                 dateTo: query.date_to ?? null,
                 direction: query.direction ?? null,
                 typeFilter: query.type ?? null,
+                page,
+                pageSize,
             });
             logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);

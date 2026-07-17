@@ -314,6 +314,10 @@ const KIND_ORDER: CardholderKind[] = ["department", "other", "parent", "staff", 
 
 export async function listCardholders(args: {
     kind?: string | null;
+    /** Drops one kind from the "all" merge (e.g. Wallet Adjustment's picker
+     * excludes department — that's adjusted via the dedicated Dept Wallet
+     * Adjust page). Ignored when `kind` selects a single kind directly. */
+    excludeKind?: string | null;
     q?: string | null;
     schoolType?: string | null;
     grade?: string | null;
@@ -363,11 +367,14 @@ export async function listCardholders(args: {
     // UI has always used, but resolve it via each kind's own count instead of
     // fetching every row — never pulls more than one page's worth (plus the
     // cheap COUNT queries above) regardless of total dataset size.
+    const activeKinds = args.excludeKind
+        ? KIND_ORDER.filter((k) => k !== args.excludeKind)
+        : KIND_ORDER;
     const globalStart = offset;
     const globalEnd = globalStart + args.pageSize;
     let cursor = 0;
     const items: CardholderDTO[] = [];
-    for (const k of KIND_ORDER) {
+    for (const k of activeKinds) {
         const kStart = cursor;
         const kEnd = cursor + counts[k];
         cursor = kEnd;
@@ -385,7 +392,7 @@ export async function listCardholders(args: {
         }
         if (cursor >= globalEnd) break;
     }
-    const total = KIND_ORDER.reduce((s, k) => s + counts[k], 0);
+    const total = activeKinds.reduce((s, k) => s + counts[k], 0);
     return { items, total, counts, studentStats, grades };
 }
 

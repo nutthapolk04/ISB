@@ -21,6 +21,7 @@ export const CardholderController = {
 			logger.info(`[${reqContext.requestId} (CH-01)] CardholderController.list() calling listCardholders().`);
 			const result = await listCardholders({
 				kind: query.kind ?? null,
+				excludeKind: query.exclude_kind ?? null,
 				q: query.q ?? null,
 				schoolType: query.school_type ?? null,
 				grade: query.grade ?? null,
