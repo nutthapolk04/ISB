@@ -6,6 +6,13 @@
  *   - schoolType !== "ES Student"
  *   - withdrawDate is blank (still enrolled per ISB export)
  *
+ * DB matching mirrors upsertStudent() / family sync field mapping:
+ *   - JSON customerId  → customers.external_id AND customers.student_code
+ *   - JSON familyCode  → customers.family_code
+ *   - student identity → customer_type = "Student" OR customer_kind = "student"
+ *     (sync writes both; older rows may only have customer_type)
+ *   - JSON schoolType  → customers.school_type (ES filter uses JSON, not DB)
+ *
  * Target per child = family Campus Balance / n, split with exact-cent
  * remainder handling (same as redistribute-family-balance.ts).
  * Adjustment = target − current wallet balance (can be positive or negative).
@@ -24,6 +31,7 @@
  *   <name>.xlsx_not_in_json.csv
  *   <name>.missing_balance.csv
  *   <name>.incomplete_families.csv
+ *     (issues may include family_code_mismatch when student exists under another family)
  *   <name>.no_eligible_children.csv
  *   <name>.student_not_in_db.csv
  *   <name>.skipped_negative.csv
@@ -33,11 +41,11 @@
  * execute aborts when any strict validation issue exists.
  */
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import * as fs from "fs";
 import * as path from "path";
 import * as XLSX from "xlsx";
-import { customers, users, wallets, walletTransactions } from "../drizzle/schema";
+import { customers, familyProfiles, users, wallets, walletTransactions } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
 import { adjustBalance } from "../src/services/wallet_service";
 
@@ -271,11 +279,17 @@ interface DbChild {
     schoolType: string | null;
     walletId: number | null;
     currentBalance: number;
+    familyCode: string;
 }
 
+/** Same presence check family sync uses: family_profiles + customers + users. */
 async function loadDbFamilyCodes(familyCodes: string[]): Promise<Set<string>> {
     if (familyCodes.length === 0) return new Set();
-    const [customerRows, userRows] = await Promise.all([
+    const [profileRows, customerRows, userRows] = await Promise.all([
+        db
+            .selectDistinct({ familyCode: familyProfiles.familyCode })
+            .from(familyProfiles)
+            .where(inArray(familyProfiles.familyCode, familyCodes)),
         db
             .selectDistinct({ familyCode: customers.familyCode })
             .from(customers)
@@ -286,13 +300,19 @@ async function loadDbFamilyCodes(familyCodes: string[]): Promise<Set<string>> {
             .where(inArray(users.familyCode, familyCodes)),
     ]);
     return new Set(
-        [...customerRows, ...userRows]
+        [...profileRows, ...customerRows, ...userRows]
             .map((r) => r.familyCode)
             .filter((code): code is string => !!code),
     );
 }
 
-/** familyCode → externalId → wallet row */
+/**
+ * Load students the same way upsertStudent() identifies them:
+ *   customer_type = "Student" OR customer_kind = "student"
+ * Indexed under both external_id and student_code (sync sets both to JSON customerId).
+ *
+ * Returns: familyCode → lookupKey(externalId|studentCode) → DbChild
+ */
 async function loadDbStudentsByFamily(
     familyCodes: string[],
 ): Promise<Map<string, Map<string, DbChild>>> {
@@ -304,6 +324,7 @@ async function loadDbStudentsByFamily(
             familyCode: customers.familyCode,
             customerId: customers.id,
             externalId: customers.externalId,
+            studentCode: customers.studentCode,
             name: customers.name,
             schoolType: customers.schoolType,
             walletId: wallets.id,
@@ -314,24 +335,94 @@ async function loadDbStudentsByFamily(
         .where(
             and(
                 inArray(customers.familyCode, familyCodes),
-                eq(customers.customerKind, "student"),
+                or(
+                    eq(customers.customerKind, "student"),
+                    eq(customers.customerType, "Student"),
+                ),
             ),
         );
 
     for (const r of rows) {
         const fam = r.familyCode;
-        const ext = r.externalId;
-        if (!fam || !ext) continue;
-        const byExt = out.get(fam) ?? new Map<string, DbChild>();
-        byExt.set(ext, {
+        if (!fam) continue;
+        const keys = [r.externalId, r.studentCode]
+            .map((v) => (v != null ? String(v).trim() : ""))
+            .filter(Boolean);
+        if (keys.length === 0) continue;
+
+        const child: DbChild = {
             customerId: r.customerId,
-            externalId: ext,
+            externalId: r.externalId ?? r.studentCode ?? keys[0],
             name: r.name,
             schoolType: r.schoolType,
             walletId: r.walletId,
             currentBalance: r.balance != null ? Number(r.balance) : 0,
-        });
-        out.set(fam, byExt);
+            familyCode: fam,
+        };
+        const byKey = out.get(fam) ?? new Map<string, DbChild>();
+        for (const key of keys) byKey.set(key, child);
+        out.set(fam, byKey);
+    }
+    return out;
+}
+
+/**
+ * Global student lookup by JSON customerId, mirroring upsertStudent():
+ *   WHERE external_id IN (...) OR student_code IN (...)
+ * Used to distinguish "missing entirely" vs "exists under a different family_code".
+ */
+async function loadDbStudentsByExternalIds(
+    externalIds: string[],
+): Promise<Map<string, DbChild>> {
+    const out = new Map<string, DbChild>();
+    if (externalIds.length === 0) return out;
+
+    const uniqueIds = [...new Set(externalIds.map((id) => String(id).trim()).filter(Boolean))];
+    const chunkSize = 500;
+    for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+        const chunk = uniqueIds.slice(i, i + chunkSize);
+        const rows = await db
+            .select({
+                familyCode: customers.familyCode,
+                customerId: customers.id,
+                externalId: customers.externalId,
+                studentCode: customers.studentCode,
+                name: customers.name,
+                schoolType: customers.schoolType,
+                walletId: wallets.id,
+                balance: wallets.balance,
+            })
+            .from(customers)
+            .leftJoin(wallets, eq(wallets.customerId, customers.id))
+            .where(
+                and(
+                    or(
+                        eq(customers.customerKind, "student"),
+                        eq(customers.customerType, "Student"),
+                    ),
+                    or(
+                        inArray(customers.externalId, chunk),
+                        inArray(customers.studentCode, chunk),
+                    ),
+                ),
+            );
+
+        for (const r of rows) {
+            const keys = [r.externalId, r.studentCode]
+                .map((v) => (v != null ? String(v).trim() : ""))
+                .filter(Boolean);
+            if (keys.length === 0) continue;
+            const child: DbChild = {
+                customerId: r.customerId,
+                externalId: r.externalId ?? r.studentCode ?? keys[0],
+                name: r.name,
+                schoolType: r.schoolType,
+                walletId: r.walletId,
+                currentBalance: r.balance != null ? Number(r.balance) : 0,
+                familyCode: r.familyCode ?? "",
+            };
+            for (const key of keys) out.set(key, child);
+        }
     }
     return out;
 }
@@ -379,11 +470,16 @@ async function main() {
 
     const jsonFamilies = [...familiesJson.values()].sort((a, b) => a.familyCode.localeCompare(b.familyCode, undefined, { numeric: true }));
     const familyCodesInJson = jsonFamilies.map((f) => f.familyCode);
+    const eligibleExternalIds = jsonFamilies.flatMap((f) =>
+        f.students.filter(isEligibleJsonStudent).map((s) => String(s.customerId)),
+    );
     console.log(`Loading DB family/student data for ${familyCodesInJson.length} family_code(s) from JSON...`);
-    const [dbFamilyCodes, dbByFamily] = await Promise.all([
+    const [dbFamilyCodes, dbByFamily, dbByExternalId] = await Promise.all([
         loadDbFamilyCodes(familyCodesInJson),
         loadDbStudentsByFamily(familyCodesInJson),
+        loadDbStudentsByExternalIds(eligibleExternalIds),
     ]);
+    console.log(`DB students matched by external_id/student_code: ${dbByExternalId.size}`);
 
     type SetRow = [string, string, number, number, string, string, string, number, number, number, string];
     const setRows: SetRow[] = [];
@@ -429,11 +525,25 @@ async function main() {
         const missingStudentIds = eligible
             .map((s) => String(s.customerId))
             .filter((externalId) => !dbChildren.has(externalId));
+        const mismatchedFamilyIds: string[] = [];
+        const trulyMissingIds: string[] = [];
+        for (const externalId of missingStudentIds) {
+            const elsewhere = dbByExternalId.get(externalId);
+            if (elsewhere && elsewhere.familyCode && elsewhere.familyCode !== jsonFam.familyCode) {
+                mismatchedFamilyIds.push(`${externalId}->${elsewhere.familyCode}`);
+            } else if (!elsewhere) {
+                trulyMissingIds.push(externalId);
+            } else {
+                // Exists but family_code is null/blank — treat as mismatch.
+                mismatchedFamilyIds.push(`${externalId}->(blank)`);
+            }
+        }
         const missingWalletIds = dbMatched
             .map((s) => String(s.customerId))
             .filter((externalId) => !dbChildren.get(externalId)?.walletId);
 
-        if (missingStudentIds.length > 0) issues.push("student_not_in_db");
+        if (trulyMissingIds.length > 0) issues.push("student_not_in_db");
+        if (mismatchedFamilyIds.length > 0) issues.push("family_code_mismatch");
         if (missingWalletIds.length > 0) issues.push("wallet_missing");
 
         if (eligible.length === 0) {
@@ -459,8 +569,9 @@ async function main() {
                 eligible.length,
                 dbMatched.length,
                 dbWithWallet.length,
-                missingStudentIds.join("|"),
+                trulyMissingIds.join("|"),
                 missingWalletIds.join("|"),
+                mismatchedFamilyIds.join("|"),
             ]);
         }
     }
@@ -598,6 +709,7 @@ async function main() {
                 "db_with_wallet_n",
                 "missing_student_external_ids",
                 "missing_wallet_external_ids",
+                "family_code_mismatches",
             ],
             incompleteFamilies,
         ),
