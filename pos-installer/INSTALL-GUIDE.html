@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISB POS — คู่มือติดตั้งเครื่อง POS (ISB-POS-Setup)</title>
+<style>
+  :root {
+    --accent: #7c3aed;
+    --accent-light: #f3e8ff;
+    --text: #1f2430;
+    --text-muted: #5b6472;
+    --border: #e4e2ea;
+    --code-bg: #f5f4f8;
+    --bg: #ffffff;
+    --pill-green: #16a34a;
+    --pill-red: #dc2626;
+    --pill-gray: #6b7280;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    font-family: "Sukhumvit Set", "Noto Sans Thai", "IBM Plex Sans Thai", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header.doc-header {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  header.doc-header .kicker {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 30px;
+    line-height: 1.35;
+    margin: 0 0 8px;
+    color: var(--text);
+    font-weight: 800;
+  }
+
+  header.doc-header p.subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 48px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    flex: 0 0 auto;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 28px 0 10px;
+    color: var(--accent);
+  }
+
+  p { margin: 0 0 14px; }
+
+  ul, ol {
+    margin: 0 0 16px;
+    padding-left: 22px;
+  }
+
+  li { margin-bottom: 8px; }
+
+  a { color: var(--accent); }
+
+  strong { color: var(--text); }
+
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.88em;
+    color: #4c1d95;
+  }
+
+  pre {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 18px;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  .note, .warn {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 0 0 18px;
+    font-size: 14.5px;
+    border: 1px solid var(--border);
+  }
+
+  .note {
+    background: var(--accent-light);
+    border-color: #ddd0fb;
+  }
+
+  .warn {
+    background: #fff7ed;
+    border-color: #fed7aa;
+  }
+
+  .warn ul { margin-bottom: 0; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .pill.green { background: var(--pill-green); }
+  .pill.red { background: var(--pill-red); }
+  .pill.gray { background: var(--pill-gray); }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+    margin: 0 0 20px;
+  }
+
+  .steps > li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 42px;
+    margin-bottom: 22px;
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .steps > li > .step-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .table-wrap { overflow-x: auto; margin: 0 0 20px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  caption {
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  thead th {
+    background: var(--accent);
+    color: #fff;
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+
+  thead th:first-child { border-top-left-radius: 6px; }
+  thead th:last-child { border-top-right-radius: 6px; }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: #faf9fc; }
+
+  table.mono-first tbody td:first-child {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 12.8px;
+    color: #4c1d95;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .toc {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 0 8px;
+    background: #fbfaff;
+  }
+
+  .toc .toc-title {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
+
+  .toc li { margin-bottom: 4px; }
+
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer.doc-footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  hr.sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-header">
+    <span class="kicker">ISB POS · Internal Doc</span>
+    <h1>ISB POS — คู่มือติดตั้งเครื่อง POS (ISB-POS-Setup)</h1>
+    <p class="subtitle">คู่มือใช้ตัวติดตั้ง <code>ISB-POS-Setup-1.0.0.exe</code> เพื่อ provision เครื่อง POS Windows ให้พร้อมใช้ EDC + RFID ในครั้งเดียว</p>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-title">สารบัญ</div>
+    <ol>
+      <li><a href="#sec1">ภาพรวม</a></li>
+      <li><a href="#sec2">สิ่งที่ต้องเตรียม</a></li>
+      <li><a href="#sec3">ขั้นตอนติดตั้ง</a></li>
+      <li><a href="#sec4">ตรวจรับหลังติดตั้ง</a></li>
+      <li><a href="#sec5">ข้อควรระวัง</a></li>
+      <li><a href="#sec6">แก้ปัญหาเบื้องต้น</a></li>
+      <li><a href="#sec7">อภิธานศัพท์</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ SECTION 1 ============ -->
+  <h2 id="sec1"><span class="num">1</span>ภาพรวม</h2>
+
+  <p>
+    <code>pos-installer/dist/ISB-POS-Setup-1.0.0.exe</code> คือตัวติดตั้ง (NSIS)
+    สำหรับเครื่อง POS Windows — build ล่าสุดเมื่อ <strong>2026-07-16</strong>
+    บนเครื่อง Mac ด้วย <code>makensis</code> เป็นรุ่น <strong>OFFLINE</strong>
+    ขนาด <strong>157MB</strong> (ฝัง <code>node_modules</code> มาแล้ว
+    ไม่ต้องใช้อินเทอร์เน็ตตอนติดตั้ง) ติดตั้งลง <code>C:\ISB</code>
+    และรันซ้ำได้ปลอดภัย (idempotent — รอบใหม่จะ stop service เดิม / ปิด
+    paywire ที่ค้างอยู่ก่อนเขียนทับเอง)
+  </p>
+
+  <p>ตัวติดตั้งมี 3 component (ติ๊กไว้ทั้งหมดโดย default):</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>ทำอะไร</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. EDC USB driver</strong><br>(whql_Driver2020)</td>
+          <td>copy driver ไป <code>C:\ISB\driver\</code> แล้วเปิด
+            <code>DriverInstall.exe</code> ซึ่งเป็น wizard ของ vendor
+            ให้ผู้ติดตั้งกดตามขั้นตอนเอง (ไม่ silent)</td>
+        </tr>
+        <tr>
+          <td><strong>2. Paywire EDC bridge</strong></td>
+          <td>copy <code>paywire.exe</code> ไป <code>C:\ISB\paywire\</code>,
+            สร้าง shortcut "Paywire Bridge" ใน Startup (all users) + Desktop
+            แล้วเปิดโปรแกรมให้ทันที — เป็น tray app เสิร์ฟ
+            <code>pos.local.bridge.schooney.tech:7331</code></td>
+        </tr>
+        <tr>
+          <td><strong>3. RFID bridge service</strong><br>(ACR1252 + NSSM)</td>
+          <td>วาง Node.js portable <strong>v26.5.0</strong> +
+            <code>nssm.exe</code> แล้วรัน <code>install-rfid-service.ps1</code>
+            เพื่อลงทะเบียน Windows Service ชื่อ <code>rfid-bridge</code>
+            (auto-start, auto-restart เมื่อ crash, log ที่
+            <code>C:\ISB\rfid-bridge\logs\out.log</code> + <code>err.log</code>,
+            ฟังที่ <code>ws://localhost:9001</code>) — สคริปต์รายงานเป็น
+            <strong>ภาษาไทยทีละขั้น</strong> จบด้วยสรุปผล
+            (Service Running ✅ + Port 9001 ✅)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>โครงสร้าง C:\ISB หลังติดตั้ง</h3>
+  <pre><code>C:\ISB\
+├── driver\               ← ไฟล์ EDC USB driver (whql_Driver2020)
+├── paywire\
+│   └── paywire.exe       ← Paywire EDC bridge (tray app)
+├── rfid-bridge\
+│   ├── rfid-server.js
+│   ├── node_modules\     ← ฝังมากับ installer (รุ่น OFFLINE)
+│   └── logs\
+│       ├── out.log
+│       └── err.log
+├── node\
+│   └── node.exe          ← Node.js portable v26.5.0
+├── nssm.exe              ← ตัวจัดการ Windows Service
+├── install-rfid-service.ps1
+├── README.txt
+└── uninstall.exe</code></pre>
+
+  <p>
+    ถอนการติดตั้งได้ผ่าน Add/Remove Programs รายการชื่อ
+    <strong>"ISB POS Components"</strong> (หรือรัน <code>C:\ISB\uninstall.exe</code>
+    โดยตรง) — จะ stop + remove service, ลบ shortcut และลบ <code>C:\ISB</code>
+    ทั้งโฟลเดอร์ แต่ <strong>EDC driver จะยังติดตั้งอยู่กับ Windows</strong>
+    ตามปกติของ driver
+  </p>
+
+  <!-- ============ SECTION 2 ============ -->
+  <h2 id="sec2"><span class="num">2</span>สิ่งที่ต้องเตรียม</h2>
+
+  <ul>
+    <li>เครื่อง POS ที่รัน <strong>Windows 10/11 x64</strong></li>
+    <li>สิทธิ์ <strong>Administrator</strong> บนเครื่องนั้น (จำเป็น — ลงทะเบียน Windows Service ไม่ได้ถ้าไม่มี)</li>
+    <li><strong>USB drive</strong> ที่มีไฟล์ <code>ISB-POS-Setup-1.0.0.exe</code></li>
+    <li>เครื่อง <strong>EDC</strong> + สาย USB</li>
+    <li>เครื่องอ่านบัตร <strong>ACR1252U</strong></li>
+  </ul>
+
+  <div class="note">
+    รุ่นที่ build ปัจจุบันเป็นรุ่น <strong>OFFLINE</strong> —
+    <strong>ไม่ต้องใช้อินเทอร์เน็ต</strong>ระหว่างติดตั้ง
+    (node_modules ถูกฝังมาในตัว exe แล้ว ตัวติดตั้งจะข้าม npm install ไปเลย)
+  </div>
+
+  <!-- ============ SECTION 3 ============ -->
+  <h2 id="sec3"><span class="num">3</span>ขั้นตอนติดตั้ง</h2>
+
+  <ol class="steps">
+    <li>
+      <div class="step-title">Copy ตัวติดตั้งลงเครื่อง POS</div>
+      <p>เสียบ USB drive แล้ว copy <code>ISB-POS-Setup-1.0.0.exe</code> ลงเครื่อง (เช่นวางบน Desktop)</p>
+    </li>
+    <li>
+      <div class="step-title">รันแบบ Administrator</div>
+      <p>คลิกขวาที่ไฟล์ exe → <strong>Run as administrator</strong></p>
+    </li>
+    <li>
+      <div class="step-title">UAC</div>
+      <p>เมื่อ Windows เด้งหน้าต่าง UAC ถามสิทธิ์ ให้กด <strong>Yes</strong></p>
+    </li>
+    <li>
+      <div class="step-title">หน้า Welcome</div>
+      <p>กด Next ผ่านหน้า Welcome ของตัวติดตั้ง</p>
+    </li>
+    <li>
+      <div class="step-title">หน้า Components</div>
+      <p>ตรวจว่า component ทั้ง <strong>3 ตัวติ๊กครบ</strong> (ค่า default ติ๊กไว้ให้แล้ว) → Next → ปล่อยโฟลเดอร์ติดตั้งเป็น <code>C:\ISB</code> → กด <strong>Install</strong></p>
+    </li>
+    <li>
+      <div class="step-title">Driver wizard ของ vendor</div>
+      <p>ระหว่างติดตั้งจะมีหน้าต่าง wizard ของ vendor (<code>DriverInstall.exe</code>) เด้งขึ้นมาสำหรับ EDC USB driver — <strong>กดตามขั้นตอนจนจบ</strong></p>
+    </li>
+    <li>
+      <div class="step-title">หน้าต่าง PowerShell ของ RFID service</div>
+      <p>
+        จะมีหน้าต่าง PowerShell สีดำเปิดขึ้นมา รายงานการติดตั้ง RFID service
+        <strong>เป็นภาษาไทยทีละขั้น</strong> (ตรวจสิทธิ์ → ตรวจไฟล์ → SCardSvr →
+        เครื่องอ่าน → dependencies → ลงทะเบียน service → ตรวจ port)
+      </p>
+      <div class="warn"><strong>อย่าปิดหน้าต่างนี้!</strong> ปล่อยให้รันจนจบเอง</div>
+    </li>
+    <li>
+      <div class="step-title">รอสรุปผล</div>
+      <p>ตอนจบต้องเห็นสรุปผลในหน้าต่าง PowerShell:</p>
+      <pre><code>Service status : ✅ Running ('rfid-bridge')
+Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
+    </li>
+    <li>
+      <div class="step-title">Finish</div>
+      <p>กลับมาที่หน้าต่างตัวติดตั้ง กด <strong>Finish</strong> เป็นอันเสร็จ</p>
+    </li>
+  </ol>
+
+  <!-- ============ SECTION 4 ============ -->
+  <h2 id="sec4"><span class="num">4</span>ตรวจรับหลังติดตั้ง</h2>
+
+  <ol>
+    <li>
+      มองหา icon ของ <strong>paywire</strong> ใน system tray (มุมขวาล่างของ
+      Windows) — ต้องรันอยู่
+    </li>
+    <li>
+      เปิด PowerShell แล้วเช็ค service:
+      <pre><code>Get-Service rfid-bridge</code></pre>
+      สถานะต้องเป็น <code>Running</code>
+    </li>
+    <li>
+      เปิด Chrome ไปที่ <code>https://isb.schooney.tech</code> → หน้า canteen แล้วทดสอบ:
+      <ul>
+        <li><strong>RFID:</strong> แตะบัตรที่เครื่องอ่าน — แอปต้องค้นหาสมาชิกให้อัตโนมัติ</li>
+        <li><strong>EDC:</strong> กดชำระเงิน → เลือกจ่ายด้วย EDC — ต้องเห็น pill สีเขียว <span class="pill green">● EDC connected</span></li>
+        <li>กดปุ่ม <strong>QR CODE</strong> — ยอดเงิน + QR ต้องขึ้นบนจอเครื่อง EDC</li>
+      </ul>
+    </li>
+  </ol>
+
+  <!-- ============ SECTION 5 ============ -->
+  <h2 id="sec5"><span class="num">5</span>ข้อควรระวัง</h2>
+
+  <div class="warn">
+    <ul>
+      <li>ต้อง <strong>Run as administrator เสมอ</strong> — ไม่งั้นลงทะเบียน Windows Service ไม่ได้ (สคริปต์จะหยุดพร้อม error)</li>
+      <li><strong>ห้ามปิดหน้าต่าง PowerShell</strong> ระหว่างติดตั้ง — ปล่อยให้รันจนเห็นสรุปผล</li>
+      <li><strong>ห้ามลบ/ย้ายโฟลเดอร์ <code>C:\ISB</code></strong> หลังติดตั้ง — ทั้ง service และ shortcut autostart ชี้ path นี้ตรง ๆ</li>
+      <li>รุ่น <strong>OFFLINE เท่านั้น</strong>ที่ไม่ต้องมีเน็ต — ถ้าเป็นรุ่น ONLINE (build โดยไม่มี <code>prebuilt-node_modules.zip</code>) เครื่อง POS ต้องมีอินเทอร์เน็ต + ติดตั้ง Visual Studio Build Tools (C++ workload) ไว้ก่อน</li>
+      <li><strong>prebuilt node_modules ต้องมาจากเครื่อง POS Windows เท่านั้น</strong> — <code>build.sh</code> บน Mac มี guard ตรวจว่า <code>pcsclite.node</code> เป็น Windows x64 DLL (PE32+) และจะปฏิเสธ zip ที่มาจาก Mac (Mach-O) อัตโนมัติ — และต้อง build ด้วย <strong>Node v26.x</strong> ให้ ABI ตรงกับ Node portable ที่ฝังมา (v26.5.0)</li>
+      <li>เสียบ <strong>ACR1252U ก่อนติดตั้งได้ยิ่งดี</strong> — แต่ไม่เสียบก็ติดตั้งได้ (installer แค่เตือน bridge จะ detect เครื่องอ่านเองเมื่อเสียบภายหลัง)</li>
+      <li><strong>ติดตั้งซ้ำได้ปลอดภัย</strong> (idempotent) — รัน exe ซ้ำเพื่อซ่อมเครื่องที่ service พังได้เลย</li>
+      <li>ถอนการติดตั้ง<strong>จะไม่ถอน EDC driver</strong> — driver ติดตั้งอยู่กับ Windows ตามปกติ</li>
+      <li>CSP ของเว็บ <code>isb.schooney.tech</code> อนุญาต <code>ws://localhost:9001</code> และ <code>pos.local.bridge.schooney.tech:7331</code> แล้ว (แก้เมื่อ 2026-07-16) — <strong>เครื่องใหม่ไม่ต้องตั้งค่าฝั่งเว็บเพิ่ม</strong></li>
+    </ul>
+  </div>
+
+  <!-- ============ SECTION 6 ============ -->
+  <h2 id="sec6"><span class="num">6</span>แก้ปัญหาเบื้องต้น</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>อาการ</th>
+          <th>วิธีแก้</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>service <code>rfid-bridge</code> ไม่ Running</td>
+          <td>ดู error log:<br><code>Get-Content C:\ISB\rfid-bridge\logs\err.log -Tail 50</code></td>
+        </tr>
+        <tr>
+          <td>port 9001 ไม่ตอบ</td>
+          <td>restart service:<br><code>C:\ISB\nssm.exe restart rfid-bridge</code></td>
+        </tr>
+        <tr>
+          <td>แตะบัตรแล้วเงียบ</td>
+          <td>เช็ค Device Manager หมวด <strong>Smart card readers</strong> ว่าเห็นเครื่องอ่าน และเช็คว่า service <code>SCardSvr</code> รันอยู่</td>
+        </tr>
+        <tr>
+          <td>EDC pill ขึ้นแดง (not connected)</td>
+          <td>เช็คว่า paywire รันอยู่ใน system tray — ถ้าไม่อยู่ให้ดับเบิลคลิก Desktop shortcut "Paywire Bridge" เปิดใหม่ แล้วเช็ค error เพิ่มด้วย F12 → Console</td>
+        </tr>
+        <tr>
+          <td>อยากติดตั้งซ้ำทั้งชุด</td>
+          <td>รัน <code>ISB-POS-Setup-1.0.0.exe</code> ใหม่ได้เลย (idempotent — จัดการ service/ไฟล์เดิมให้เอง)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ SECTION 7 ============ -->
+  <h2 id="sec7"><span class="num">7</span>อภิธานศัพท์</h2>
+
+  <div class="table-wrap">
+    <table class="mono-first">
+      <caption>คำศัพท์ที่ใช้ในระบบติดตั้งเครื่อง POS และความหมายโดยย่อ</caption>
+      <thead>
+        <tr>
+          <th>ศัพท์</th>
+          <th>ความหมาย</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Installer (NSIS)</td><td>ตัวติดตั้ง Windows ที่สร้างด้วย NSIS (Nullsoft Scriptable Install System) — build จาก installer.nsi ด้วย makensis ได้ไฟล์ .exe เดียว</td></tr>
+        <tr><td>Component</td><td>หน่วยติดตั้งที่เลือกติ๊กได้ในหน้า Components ของตัวติดตั้ง (ชุดนี้มี 3 ตัว: driver, Paywire, RFID)</td></tr>
+        <tr><td>NSSM</td><td>Non-Sucking Service Manager — โปรแกรมที่ห่อ process ธรรมดา (เช่น node.exe) ให้กลายเป็น Windows Service ได้</td></tr>
+        <tr><td>Windows Service</td><td>โปรแกรมที่ Windows รันเบื้องหลังโดยไม่ต้อง login และจัดการ start/stop ผ่านระบบ service</td></tr>
+        <tr><td>Auto-start / Auto-restart</td><td>ตั้งให้ service เริ่มเองตอนเปิดเครื่อง และ NSSM สั่ง restart ให้เองเมื่อ process crash</td></tr>
+        <tr><td>Node.js portable</td><td>Node.js แบบแตกโฟลเดอร์ใช้ได้เลยโดยไม่ต้องติดตั้งลงระบบ — ฝังมาที่ C:\ISB\node (v26.5.0) ไม่พึ่ง Node บน PATH</td></tr>
+        <tr><td>node_modules</td><td>โฟลเดอร์ dependencies ของโปรเจกต์ Node.js ที่ได้จาก npm install</td></tr>
+        <tr><td>Native module</td><td>module ของ Node ที่มีส่วนเป็น binary ต้อง compile ต่อ platform (เช่น @pokusew/pcsclite ของ RFID bridge)</td></tr>
+        <tr><td>PE32+ vs Mach-O</td><td>รูปแบบไฟล์ binary ของ Windows x64 vs Mac — native module ที่ build บน Mac (Mach-O) รันบน Windows ไม่ได้ จึง zip node_modules ข้ามเครื่องต่าง platform ไม่ได้</td></tr>
+        <tr><td>OFFLINE / ONLINE mode</td><td>โหมด build ของ installer — OFFLINE ฝัง node_modules สำเร็จรูปมาเลย ส่วน ONLINE ให้เครื่อง POS รัน npm install เอง (ต้องมีเน็ต + Build Tools)</td></tr>
+        <tr><td>VS Build Tools</td><td>Visual Studio Build Tools (workload "Desktop development with C++") ที่ node-gyp ใช้ compile native module บน Windows — จำเป็นเฉพาะโหมด ONLINE</td></tr>
+        <tr><td>Tray app</td><td>โปรแกรมที่รันเป็น icon ใน system tray (มุมขวาล่าง) — paywire.exe เป็นแบบนี้</td></tr>
+        <tr><td>UAC / Run as administrator</td><td>กลไกขอสิทธิ์ผู้ดูแลระบบของ Windows — ตัวติดตั้งนี้ต้องได้สิทธิ์นี้เสมอ (RequestExecutionLevel admin)</td></tr>
+        <tr><td>SCardSvr</td><td>Windows Smart Card service ที่ระบบ PC/SC ต้องใช้ — สคริปต์ติดตั้งตั้งเป็น Automatic + Start ให้อัตโนมัติ</td></tr>
+        <tr><td>PC/SC</td><td>มาตรฐานการคุยกับ smart card reader บน PC ที่เครื่องอ่าน ACR1252U ใช้</td></tr>
+        <tr><td>ACR1252U</td><td>เครื่องอ่านบัตร RFID/NFC ของ ACS ที่ต่อ USB กับเครื่อง POS ใช้แตะบัตรสมาชิก</td></tr>
+        <tr><td>paywire.exe</td><td>Paywire EDC bridge (tray app, .NET 8) ที่เชื่อมหน้าเว็บ POS กับเครื่อง EDC ผ่าน pos.local.bridge.schooney.tech:7331</td></tr>
+        <tr><td>ws://localhost:9001</td><td>WebSocket endpoint ของ RFID bridge ที่หน้าเว็บใช้รับ UID บัตรแบบ real-time</td></tr>
+        <tr><td>Idempotent</td><td>คุณสมบัติรันซ้ำได้ผลเหมือนเดิมโดยไม่พัง — installer นี้รันซ้ำเพื่อซ่อม/อัปเดตเครื่องเดิมได้ปลอดภัย</td></tr>
+        <tr><td>Uninstaller</td><td>C:\ISB\uninstall.exe (รายการ "ISB POS Components" ใน Add/Remove Programs) ใช้ถอนทุกอย่างยกเว้น EDC driver</td></tr>
+        <tr><td>EDC driver (whql_Driver2020)</td><td>USB driver ของ vendor สำหรับเครื่อง EDC — ติดตั้งผ่าน wizard ของ vendor และติดอยู่กับ Windows แม้ถอน ISB POS Components แล้ว</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="sep">
+
+  <footer class="doc-footer">
+    อัปเดตล่าสุด 2026-07-16 · ISB-POS-Setup 1.0.0
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+payload/
+cache/
+dist/
+prebuilt-node_modules.zip
