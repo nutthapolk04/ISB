@@ -55,6 +55,7 @@ export const TopupController = {
 				remark: body.remark ?? null,
 				payType: body.pay_type ?? null,
 				lang: body.lang ?? null,
+				actingUserId: hasRole(user.roles, "kiosk") && body.acting_user_id != null ? Number(body.acting_user_id) : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (TP-01)] TopupController.createIntent() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

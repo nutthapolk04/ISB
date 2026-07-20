@@ -1040,6 +1040,13 @@ export const paymentIntents = pgTable("payment_intents", {
 	cartSnapshot: json("cart_snapshot"),
 	// POS-sale only: FK to the receipt created after the webhook confirms.
 	receiptId: integer("receipt_id"),
+	// Who actually initiated this (e.g. the RFID-scanned parent at a kiosk),
+	// distinct from created_by (the kiosk service account that made the API
+	// call). Confirmation is async (webhook/inquiry/reconcile, arbitrarily
+	// later with no request context), so this has to be persisted here and
+	// copied onto wallet_transactions.acting_user_id at confirm time rather
+	// than threaded through as a function argument — see confirmTopup().
+	actingUserId: integer("acting_user_id"),
 }, (table) => [
 	index("ix_payment_intents_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_payment_intents_ref").using("btree", table.refCode.asc().nullsLast().op("text_ops")),
@@ -1062,6 +1069,11 @@ export const paymentIntents = pgTable("payment_intents", {
 		foreignColumns: [wallets.id],
 		name: "payment_intents_wallet_id_fkey"
 	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.actingUserId],
+		foreignColumns: [users.id],
+		name: "payment_intents_acting_user_id_fkey"
+	}),
 ]);
 
 export const bundleItems = pgTable("bundle_items", {

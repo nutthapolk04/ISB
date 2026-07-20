@@ -232,6 +232,13 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS acting_user_id INTEGER REFERENCES users(id)`,
         label: "wallet_transactions.acting_user_id",
     },
+    // Same attribution for QR-code top-ups at a kiosk — confirmation is
+    // async (webhook/inquiry/reconcile) so the scanned identity has to be
+    // persisted on the intent and copied onto wallet_transactions later.
+    {
+        sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS acting_user_id INTEGER REFERENCES users(id)`,
+        label: "payment_intents.acting_user_id",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

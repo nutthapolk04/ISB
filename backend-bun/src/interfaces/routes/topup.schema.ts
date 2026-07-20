@@ -9,6 +9,11 @@ export const topupCreateIntent = {
         remark: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
         pay_type: t.Optional(t.Nullable(t.Union([t.Literal("N"), t.Literal("H")]))),
         lang: t.Optional(t.Nullable(t.Union([t.Literal("T"), t.Literal("E")]))),
+        // Only honored when the caller has the "kiosk" role — lets the kiosk
+        // service account record which RFID-scanned parent/staff actually
+        // tapped their card to start this QR top-up, distinct from the
+        // kiosk's own service-account id. Ignored for all other callers.
+        acting_user_id: t.Optional(t.Number()),
     }),
     detail: { tags: ["Wallets"], summary: "Create wallet top-up intent" },
 };

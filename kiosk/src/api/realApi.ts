@@ -413,13 +413,27 @@ export const realApi = {
         return { balance_after: res.balance_after, transaction_id: res.transaction_id };
     },
 
-    async createTopupIntent(walletId: string, amount: number): Promise<{ ref_code: string; qr_payload: string; status: string; payment_method: string }> {
+    /**
+     * `actingUserId` is the RFID-identified parent/staff's user id (from
+     * `store.currentUser.actingUserId`) — persisted on the intent now since
+     * confirmation happens later, asynchronously (BAY webhook/inquiry), with
+     * no request context to thread it through at that point.
+     */
+    async createTopupIntent(
+        walletId: string,
+        amount: number,
+        actingUserId?: number | null,
+    ): Promise<{ ref_code: string; qr_payload: string; status: string; payment_method: string }> {
         const location = getKioskDeviceName();
-        return requestPost(`/wallets/${walletId}/topup`, {
+        const body: Record<string, unknown> = {
             amount,
             payment_method: 'bay_qr',
             remark: `Kiosk top-up via QR @ ${location}`,
-        });
+        };
+        if (actingUserId != null) {
+            body.acting_user_id = actingUserId;
+        }
+        return requestPost(`/wallets/${walletId}/topup`, body);
     },
 
     async getTopupStatus(refCode: string): Promise<{
