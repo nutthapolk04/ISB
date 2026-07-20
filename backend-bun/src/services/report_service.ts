@@ -650,7 +650,7 @@ const MOVEMENT_DESCRIPTION: Record<string, string> = {
   sale: "Sales",
   adjustment: "Adjustment",
   internal_use: "Internal Use",
-  void: "Return",
+  void: "Void",
   exchange: "Exchange",
 };
 
