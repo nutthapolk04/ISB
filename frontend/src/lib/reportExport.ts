@@ -217,79 +217,63 @@ const defaultAlign = (col: ReportColumn): ColumnAlign =>
 // ─── Image loading (PDF logo) ────────────────────────────────────────────
 
 /**
- * Fetch an image URL and return a data URL. Returns null on any failure so
- * the PDF can still render without the logo rather than crashing.
+ * Load an image (Data URL or remote URL) and return it as a PNG data URL.
+ * Returns null on any failure so the PDF can still render without the logo
+ * rather than crashing.
+ *
+ * Every source is re-encoded to PNG via a canvas rather than passed through
+ * as-is: jsPDF's addImage only decodes a handful of raster formats (PNG/
+ * JPEG/WEBP), but the admin can upload any browser-renderable image type
+ * (accept="image/*") — SVG, GIF, BMP, ICO, etc. Sniffing the MIME string and
+ * bailing out for anything outside that allow-list used to mean those logos
+ * would silently vanish from every exported report with no error. Drawing
+ * into a canvas and reading it back as PNG works for anything the browser
+ * can actually render into an <img>, so this only fails for formats the
+ * browser itself can't decode (e.g. HEIC in most non-Safari browsers).
  *
  * Resolves relative URLs against `window.location.origin` so a logoUrl like
  * "/uploads/logo.png" works.
  */
 async function loadImageDataUrl(
   src: string,
-): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" | "JPEG" | "WEBP" } | null> {
+): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" } | null> {
   try {
-    // If the logo is already stored as a Data URL (base64), don't try to
-    // resolve it as a relative URL — just embed it directly.
+    let rawSrc: string;
     if (src.startsWith("data:")) {
-      const mime = src.slice(5, src.indexOf(";")).toLowerCase();
-      const format =
-        mime.includes("jpeg") || mime.includes("jpg")
-          ? "JPEG"
-          : mime.includes("webp")
-            ? "WEBP"
-            : mime.includes("png")
-              ? "PNG"
-              : null;
-      if (!format) return null;
-
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = src;
+      // Already a Data URL — embed directly, no need to resolve/fetch it.
+      rawSrc = src;
+    } else {
+      const url = src.startsWith("http") ? src : new URL(src, window.location.origin).toString();
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      rawSrc = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-
-      return {
-        dataUrl: src,
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        format,
-      };
     }
 
-    const url = src.startsWith("http") ? src : new URL(src, window.location.origin).toString();
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-    // Probe dimensions so we can size the logo proportionally in the PDF.
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
       i.onerror = reject;
-      i.src = dataUrl;
+      i.src = rawSrc;
     });
-    // Admin can upload any browser-renderable image type (accept="image/*"),
-    // but jsPDF's addImage only decodes a handful of raster formats — map
-    // what we can and let the caller skip the logo for anything else (e.g.
-    // SVG, GIF, HEIC) rather than mislabeling it and having addImage throw.
-    const format = blob.type.includes("jpeg") || blob.type.includes("jpg")
-      ? "JPEG"
-      : blob.type.includes("webp")
-        ? "WEBP"
-        : blob.type.includes("png")
-          ? "PNG"
-          : null;
-    if (!format) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+
     return {
-      dataUrl,
+      dataUrl: canvas.toDataURL("image/png"),
       width: img.naturalWidth,
       height: img.naturalHeight,
-      format,
+      format: "PNG",
     };
   } catch {
     return null;
