@@ -64,6 +64,10 @@ interface SalesByItemReportProps {
     selectedStall: string;
     onSelectedStallChange: (v: string) => void;
     canteenStalls: CanteenShop[];
+    /** Lets a different report card (e.g. "Sales Report") reuse this exact
+     * template under its own name — see Reports.tsx's `salesReport` gate. */
+    title?: string;
+    filenamePrefix?: string;
 }
 
 export function SalesByItemReport({
@@ -73,6 +77,8 @@ export function SalesByItemReport({
     selectedStall,
     onSelectedStallChange,
     canteenStalls,
+    title = "Sales by Item Report",
+    filenamePrefix = "SalesByItem",
 }: SalesByItemReportProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -181,7 +187,7 @@ export function SalesByItemReport({
         ];
         return {
             meta: {
-                title: "Sales by Item Report",
+                title,
                 schoolName: school.name,
                 schoolLogoUrl: school.logoUrl || undefined,
                 reportId,
@@ -205,7 +211,7 @@ export function SalesByItemReport({
         const payload = buildSalesByItemPayload();
         if (!payload || !siData) return;
         try {
-            const fname = `SalesByItem_${siDateFrom || "any"}_${siDateTo || "any"}.pdf`;
+            const fname = `${filenamePrefix}_${siDateFrom || "any"}_${siDateTo || "any"}.pdf`;
             await exportToPDF(payload, fname);
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
@@ -218,7 +224,7 @@ export function SalesByItemReport({
         const payload = buildSalesByItemPayload();
         if (!payload || !siData) return;
         try {
-            const fname = `SalesByItem_${siDateFrom || "any"}_${siDateTo || "any"}.xlsx`;
+            const fname = `${filenamePrefix}_${siDateFrom || "any"}_${siDateTo || "any"}.xlsx`;
             exportToExcel(payload, fname);
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
@@ -233,7 +239,7 @@ export function SalesByItemReport({
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Package className="h-5 w-5 text-primary" />
-                        Sales by Item Report
+                        {title}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
                         All filters are optional. Leave any field blank to skip that filter.

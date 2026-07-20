@@ -166,6 +166,7 @@ const Reports = () => {
     const handleReportClick = (reportType: string) => {
         if (
             reportType === "stockCardReport" ||
+            reportType === "salesReport" ||
             reportType === "salesSummaryReport" ||
             reportType === "salesByItemReport" ||
             reportType === "bundleReport"
@@ -205,21 +206,21 @@ const Reports = () => {
         const filters = dateFilter ? [dateFilter] : [];
         const dateLabel = needsRange ? `_${startDate}_${endDate}` : "";
 
-        if (selectedReportType === "salesReport" || selectedReportType === "topSellingReport") {
+        if (selectedReportType === "topSellingReport") {
             const data = await api.get<SalesReportData>(
                 `/reports/sales?date_from=${startDate}&date_to=${endDate}${shopParam}`,
             );
-            const isTopSelling = selectedReportType === "topSellingReport";
-            // Top Selling is a ranking of actual sales — a voided line never
-            // "sold", so exclude it entirely rather than showing it in the ranking.
-            // The plain Sales Report keeps voided rows visible (tagged via status).
-            const sortedRows = isTopSelling
-                ? data.rows.filter((r) => r.status === "ACTIVE").sort((a, b) => b.quantity - a.quantity)
-                : data.rows;
+            // Top Selling keeps its own ranking rule — a voided line never
+            // "sold", so it's excluded entirely rather than shown in the
+            // ranking — but now renders with what used to be Sales Report's
+            // template (Status column + vendor subtotal grouping), per the
+            // customer's requested template swap. Sales Report itself moved
+            // to the Sales by Item Report template/component below. See
+            // reports/legacyReportTemplates.ts for the original 3-column,
+            // ungrouped layout this replaced.
+            const sortedRows = data.rows.filter((r) => r.status === "ACTIVE").sort((a, b) => b.quantity - a.quantity);
 
-            // Group by vendor only for the plain Sales Report when the result spans
-            // more than one shop. Top Selling is a single global ranking by design.
-            const multi = !isTopSelling && isMultiVendor(sortedRows);
+            const multi = isMultiVendor(sortedRows);
             const bodyRows = multi
                 ? buildVendorSections(sortedRows, (shopRows) => {
                     const active = shopRows.filter((r) => r.status === "ACTIVE");
@@ -246,22 +247,16 @@ const Reports = () => {
                         filters: reportFilters,
                         runByName: user?.fullName ?? user?.username,
                     },
-                    columns: isTopSelling
-                        ? [
-                            { header: t("reports.colProduct"), key: "product_name", width: 45 },
-                            { header: t("reports.colQuantity"), key: "quantity", format: "number", align: "right", width: 12 },
-                            { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
-                        ]
-                        : [
-                            { header: t("reports.colProduct"), key: "product_name", width: 40 },
-                            { header: t("reports.colQuantity"), key: "quantity", format: "number", align: "right", width: 12 },
-                            { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
-                            { header: "Status", key: "status", width: 15 },
-                        ],
+                    columns: [
+                        { header: t("reports.colProduct"), key: "product_name", width: 40 },
+                        { header: t("reports.colQuantity"), key: "quantity", format: "number", align: "right", width: 12 },
+                        { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
+                        { header: "Status", key: "status", width: 15 },
+                    ],
                     rows: bodyRows,
                     totals: { total: data.grand_total },
                 },
-                baseFilename: `${isTopSelling ? "TopSellingReport" : "SalesReport"}${dateLabel}`,
+                baseFilename: `TopSellingReport${dateLabel}`,
             };
         }
 
@@ -508,6 +503,25 @@ const Reports = () => {
                     selectedStall={selectedStall}
                     onSelectedStallChange={setSelectedStall}
                     canteenStalls={canteenStalls}
+                />
+            )}
+
+            {selectedReportType === "salesReport" && (
+                // Per the customer's requested template swap, Sales Report now
+                // reuses the Sales by Item Report template/component (own
+                // reportId + title so exports still identify as "Sales Report").
+                // Its original inline-dialog template lives on in
+                // reports/legacyReportTemplates.ts as a backup.
+                <SalesByItemReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["salesReport"]}
+                    needsShopSelector={needsShopSelector}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                    selectedStall={selectedStall}
+                    onSelectedStallChange={setSelectedStall}
+                    canteenStalls={canteenStalls}
+                    title={t("reports.salesReport")}
+                    filenamePrefix="SalesReport"
                 />
             )}
 
