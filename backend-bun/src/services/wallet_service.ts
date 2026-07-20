@@ -384,8 +384,12 @@ export async function adjustBalance(args: {
     referenceTicket?: string;
     /** When true, a DEDUCT that would push the balance negative throws an INSUFFICIENT_BALANCE-coded 409 instead of proceeding. Admin/cashier adjustments intentionally allow negative balances, so this defaults to off. */
     requireSufficientBalance?: boolean;
+    /** Who actually initiated this (e.g. the RFID-scanned parent at a kiosk),
+     * distinct from adminUserId (the kiosk/cashier service account making the
+     * call). Omitted for anything not attributable to a specific person. */
+    actingUserId?: number | null;
 }): Promise<WalletTransactionResponseDTO> {
-    const { walletId, amount, adminUserId, referenceTicket } = args;
+    const { walletId, amount, adminUserId, referenceTicket, actingUserId } = args;
     const reason = args.reason?.trim();
     if (amount === 0) {
         const err = new Error("Adjustment amount must be non-zero");
@@ -437,9 +441,9 @@ export async function adjustBalance(args: {
         }>>`
       INSERT INTO wallet_transactions
         (wallet_id, transaction_type, amount, balance_before, balance_after,
-         reference_type, reference_id, description, reason, reference_ticket, created_by)
+         reference_type, reference_id, description, reason, reference_ticket, created_by, acting_user_id)
       VALUES (${walletId}, 'ADJUSTMENT', ${Math.abs(amount)}, ${balanceBefore}, ${balanceAfter},
-              'admin_adjustment', NULL, ${description}, ${reason}, ${referenceTicket ?? null}, ${adminUserId})
+              'admin_adjustment', NULL, ${description}, ${reason}, ${referenceTicket ?? null}, ${adminUserId}, ${actingUserId ?? null})
       RETURNING id, wallet_id, transaction_type, amount, balance_before, balance_after,
                 reference_type, reference_id, description, created_at
     `;
@@ -591,6 +595,8 @@ export async function cashierTopup(args: {
     cashierUserId: number;
     notes?: string;
     idempotencyKey?: string;
+    /** RFID-scanned parent/staff id at a kiosk, if any — see adjustBalance(). */
+    actingUserId?: number | null;
 }): Promise<CashierTopupDTO> {
     const { walletId, amount, cashierUserId, notes } = args;
     const idempotencyKey = parseIdempotencyKey(args.idempotencyKey);
@@ -642,6 +648,7 @@ export async function cashierTopup(args: {
             adminUserId: cashierUserId,
             reason: "Cash top-up at POS" + (notes ? ` - ${notes}` : ""),
             referenceTicket: idempotencyTicket,
+            actingUserId: args.actingUserId,
         });
     } catch (e) {
         if (idempotencyTicket && isPgUniqueViolation(e)) {

@@ -37,6 +37,10 @@ export interface User {
     employeeId: string;
     role?: string; // 'parent' | 'staff' | 'student' | etc.
     wallets: Wallet[];
+    /** users.id when this login was a parent/staff RFID card scan (has its
+     * own users-table row) — null/absent for a student card scan, where `id`
+     * above is a customers.id instead and there's no users row to attribute to. */
+    actingUserId?: number | null;
 }
 
 const mockUsers: Record<string, User> = {

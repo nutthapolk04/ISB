@@ -39,6 +39,11 @@ export const topupCashier = {
         amount: t.Number({ exclusiveMinimum: 0 }),
         notes: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         idempotency_key: t.Optional(t.Nullable(t.String({ minLength: 8, maxLength: 64 }))),
+        // Only honored when the caller has the "kiosk" role — lets the kiosk
+        // service account record which RFID-scanned parent/staff actually
+        // tapped their card to make this top-up, distinct from the kiosk's
+        // own service-account id. Ignored for all other callers.
+        acting_user_id: t.Optional(t.Number()),
     }),
     detail: { tags: ["Wallets"], summary: "Cashier wallet top-up" },
 };

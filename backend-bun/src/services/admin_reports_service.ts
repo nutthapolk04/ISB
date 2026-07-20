@@ -437,6 +437,15 @@ export async function topupReport(args: {
     const customerById = new Map(customerRows.map((c) => [c.id, c] as const));
     const ownerById = new Map(ownerUserRows.map((u) => [u.id, u] as const));
 
+    // RFID-scanned parent/staff at a kiosk, if recorded (see cashierTopup()'s
+    // actingUserId) — lets a Kiosk top-up show the real person who tapped
+    // their card instead of the kiosk device's own label.
+    const actingUserIds = [...new Set(combined.filter((r) => r.tx.actingUserId != null).map((r) => r.tx.actingUserId!))];
+    const actingUserRows = actingUserIds.length
+        ? await db.select().from(users).where(inArray(users.id, actingUserIds))
+        : [];
+    const actingUserById = new Map(actingUserRows.map((u) => [u.id, u] as const));
+
     const channelFilter = (args.channel ?? "all").toLowerCase();
     const items: TopupReportRow[] = [];
     for (const r of combined) {
@@ -468,17 +477,21 @@ export async function topupReport(args: {
             }
         }
 
-        // Prefer parent/cashier name as "who topped up". For kiosk machines the
-        // RFID parent is not stored on the transaction — show kiosk label and
-        // keep recipient separate so admins can still see who was credited.
+        // Prefer parent/cashier name as "who topped up". For kiosk machines,
+        // acting_user_id (the RFID-scanned card owner) is the real answer
+        // when present; older rows predating that column fall back to the
+        // kiosk device's own label, or the wallet owner's name for a parent
+        // topping up their own wallet.
         let toppedBy = creatorName;
         if (channel === "kiosk") {
-            toppedBy = kioskDisplayName(r.tx.reason, creatorName);
-            // When the wallet belongs to a parent/staff user, that person is the
-            // practical "who topped up" at the kiosk (own wallet). Child wallets
-            // stay as kiosk label until acting_user_id is recorded.
-            if (r.w.userId != null && recipientName !== "—") {
-                toppedBy = recipientName;
+            const actingUser = r.tx.actingUserId != null ? actingUserById.get(r.tx.actingUserId) : null;
+            if (actingUser) {
+                toppedBy = actingUser.fullName || actingUser.username;
+            } else {
+                toppedBy = kioskDisplayName(r.tx.reason, creatorName);
+                if (r.w.userId != null && recipientName !== "—") {
+                    toppedBy = recipientName;
+                }
             }
         }
 

@@ -8,7 +8,7 @@
  * The Cloudinary photo upload chain is NOT ported — Bun uses the realistic
  * portrait fallback URL (same as FastAPI does on photo-upload failure).
  */
-import { and, eq, inArray, isNotNull, notInArray ,ne} from "drizzle-orm";
+import { and, eq, inArray, isNotNull, notInArray, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     users, customers, wallets, syncLogs, syncAuditLogs, parentChildLinks,
@@ -610,8 +610,7 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             powerschoolSyncAt: new Date().toISOString(),
         }).returning();
         custRow = c;
-        // Wallet (demo balance 500)
-        await db.insert(wallets).values({ customerId: c.id, balance: "500", isActive: true });
+        await db.insert(wallets).values({ customerId: c.id, balance: "0", isActive: true });
     } else {
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, name: fullName, grade, schoolType,

@@ -225,6 +225,13 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
       WHERE reference_ticket LIKE 'vendor-adjust:%'`,
         label: "wallet_transactions vendor-adjust idempotency index",
     },
+    // ── Kiosk top-up attribution: who scanned their card, not just which
+    // service account made the API call (mirrors wallet transfer's
+    // acting_user_id pattern, extended to cashier top-ups). ──
+    {
+        sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS acting_user_id INTEGER REFERENCES users(id)`,
+        label: "wallet_transactions.acting_user_id",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

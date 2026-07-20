@@ -273,6 +273,10 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
         employeeId: c.student_code ?? c.customer_code ?? String(c.id),
         role: c.customer_kind ?? undefined,
         wallets: [...(personalWallet ? [personalWallet] : []), ...coparentWallets, ...childWallets],
+        // Explicitly from c.user_id (not falling back to c.id like the
+        // string `id` above) — null means a student scanned their own card,
+        // where there's no users-table row to attribute a top-up to.
+        actingUserId: c.user_id ?? null,
     };
 }
 
@@ -371,12 +375,17 @@ export const realApi = {
     /**
      * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
      * Returns updated balance_after and the new transaction_id.
+     *
+     * `actingUserId` is the RFID-identified parent/staff's user id (from
+     * `store.currentUser.actingUserId`) — null when a student scanned their
+     * own card, since there's no users-table row to attribute the top-up to.
      */
     async topUp(
         walletId: string,
         amount: number,
         method: string,
         idempotencyKey?: string,
+        actingUserId?: number | null,
     ): Promise<{ balance_after: number; transaction_id: number }> {
         const location = getKioskDeviceName();
         const deviceId = getKioskDeviceId();
@@ -386,6 +395,9 @@ export const realApi = {
         };
         if (idempotencyKey) {
             body.idempotency_key = idempotencyKey;
+        }
+        if (actingUserId != null) {
+            body.acting_user_id = actingUserId;
         }
         const res = await requestPost<{
             wallet_id: number;

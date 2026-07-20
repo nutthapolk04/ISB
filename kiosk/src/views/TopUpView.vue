@@ -432,7 +432,7 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
     failDetail.value = null;
     try {
         await bill.stop();
-        const res = await bill.finalizeTopUp(walletId, amount);
+        const res = await bill.finalizeTopUp(walletId, amount, store.currentUser?.actingUserId ?? null);
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
         await store.refreshBalance();

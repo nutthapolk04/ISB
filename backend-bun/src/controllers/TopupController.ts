@@ -185,6 +185,7 @@ export const TopupController = {
 				cashierUserId: Number(user.sub),
 				notes: body.notes ?? undefined,
 				idempotencyKey: body.idempotency_key ?? undefined,
+				actingUserId: hasRole(user.roles, "kiosk") && body.acting_user_id != null ? Number(body.acting_user_id) : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (TP-05)] TopupController.cashierTopup() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

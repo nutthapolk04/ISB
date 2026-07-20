@@ -853,6 +853,11 @@ export const walletTransactions = pgTable("wallet_transactions", {
 	reason: text(),
 	referenceTicket: varchar("reference_ticket", { length: 100 }),
 	refundMethod: varchar("refund_method", { length: 20 }),
+	// Who actually initiated this (e.g. the RFID-scanned parent at a kiosk),
+	// distinct from created_by (the kiosk/cashier service account that made
+	// the API call). Null for anything not attributable to a specific person
+	// beyond the calling account — see cashierTopup()/adjustBalance().
+	actingUserId: integer("acting_user_id"),
 }, (table) => [
 	index("ix_wallet_transactions_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	foreignKey({
@@ -865,6 +870,11 @@ export const walletTransactions = pgTable("wallet_transactions", {
 		foreignColumns: [wallets.id],
 		name: "wallet_transactions_wallet_id_fkey"
 	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.actingUserId],
+		foreignColumns: [users.id],
+		name: "wallet_transactions_acting_user_id_fkey"
+	}),
 ]);
 
 export const receiptItems = pgTable("receipt_items", {
