@@ -61,6 +61,13 @@ export interface WalletTransactionResponseDTO {
     shop_id: string | null;
     shop_name: string | null;
     confirmed_via: string | null;
+    // True when the receipt this row refers to has been voided — set on
+    // both the original 'receipt' deduction row (so it can show a "Voided"
+    // badge) and its 'receipt_void' refund row (which IS the void event).
+    is_voided: boolean;
+    // The receipt number for 'receipt'/'receipt_void' rows, so a refund row
+    // can be labeled "Void — Receipt #..." instead of a generic "Refund".
+    receipt_number: string | null;
     created_at: string;
 }
 
@@ -290,22 +297,24 @@ export async function listTransactions(
         .where(and(...conds))
         .orderBy(desc(walletTransactions.createdAt));
 
-    // Enrich with shop_id/shop_name for receipt-referenced rows
+    // Enrich with shop_id/shop_name/status/receipt_number for receipt-referenced rows
     const receiptIds = txs
         .filter((t) => (t.referenceType === "receipt" || t.referenceType === "receipt_void") && t.referenceId !== null)
         .map((t) => t.referenceId!) as number[];
-    const shopMap = new Map<number, { shopId: string | null; shopName: string | null }>();
+    const shopMap = new Map<number, { shopId: string | null; shopName: string | null; status: string; receiptNumber: string }>();
     if (receiptIds.length > 0) {
         const rows = await db
             .select({
                 rid: receipts.id,
                 shopId: receipts.shopId,
                 shopName: shops.name,
+                status: receipts.status,
+                receiptNumber: receipts.receiptNumber,
             })
             .from(receipts)
             .leftJoin(shops, eq(shops.id, receipts.shopId))
             .where(inArray(receipts.id, receiptIds));
-        rows.forEach((r) => shopMap.set(r.rid, { shopId: r.shopId, shopName: r.shopName }));
+        rows.forEach((r) => shopMap.set(r.rid, { shopId: r.shopId, shopName: r.shopName, status: r.status, receiptNumber: r.receiptNumber }));
     }
 
     // For payment_intent-referenced topup rows: pull confirmed_via for channel display.
@@ -354,6 +363,11 @@ export async function listTransactions(
         const isReceiptTx = t.referenceType === "receipt" || t.referenceType === "receipt_void";
         const receiptShop = isReceiptTx && t.referenceId !== null ? shopMap.get(t.referenceId) : undefined;
         const creatorShopName = isReceiptTx ? null : (creatorShopMap.get(t.createdBy) ?? null);
+        // A 'receipt_void' row IS the void event itself; a 'receipt' row is
+        // voided only if its underlying receipt's status says so.
+        const isVoided = t.referenceType === "receipt_void"
+            ? true
+            : (t.referenceType === "receipt" && receiptShop?.status === "VOIDED");
         return {
             id: t.id,
             wallet_id: t.walletId,
@@ -369,6 +383,8 @@ export async function listTransactions(
             confirmed_via: t.referenceType === "payment_intent" && t.referenceId !== null
                 ? (confirmedViaMap.get(t.referenceId) ?? null)
                 : null,
+            is_voided: !!isVoided,
+            receipt_number: isReceiptTx ? (receiptShop?.receiptNumber ?? null) : null,
             created_at: pgToIso(t.createdAt)!,
         };
     });
@@ -478,6 +494,8 @@ export async function adjustBalance(args: {
         shop_id: null,
         shop_name: null,
         confirmed_via: null,
+        is_voided: false,
+        receipt_number: null,
         created_at: pgToIso(result.created_at)!,
     };
 }
@@ -786,6 +804,8 @@ export async function listDepartmentTransactions(args: {
             shop_id: null,
             shop_name: null,
             confirmed_via: null,
+            is_voided: false,
+            receipt_number: null,
             created_at: pgToIso(t.createdAt)!,
         })),
     };
@@ -949,6 +969,8 @@ export async function transferWithinFamily(args: {
             shop_id: null,
             shop_name: null,
             confirmed_via: null,
+            is_voided: false,
+            receipt_number: null,
             created_at: pgToIso(row.created_at)!,
         });
 

@@ -7,7 +7,8 @@ export interface PurchaseItem {
 
 export interface Transaction {
     id: string;
-    type: 'topup' | 'purchase';
+    /** purchase = POS debit; topup = money in; void_refund = void credit paired with a voided purchase */
+    type: 'topup' | 'purchase' | 'void_refund';
     date: string;
     time: string;
     amount: number;
@@ -17,6 +18,10 @@ export interface Transaction {
     items?: PurchaseItem[];
     payment_method?: 'wallet' | 'cash' | 'qr' | 'promptpay';
     shop_name?: string;
+    /** True when this purchase row's underlying receipt was voided (show Voided badge). */
+    isVoided?: boolean;
+    /** Receipt number for purchase / void_refund rows (pairs the two legs). */
+    receiptNumber?: string | null;
 }
 
 export interface Wallet {

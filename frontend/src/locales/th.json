@@ -2584,6 +2584,8 @@
       "txTopup": "เติมเงิน",
       "txDeduction": "ชำระสินค้า",
       "txRefund": "คืนเงิน",
+      "txVoidRefund": "ยกเลิกรายการ — ใบเสร็จ #{{receipt}}",
+      "voidedBadge": "ยกเลิกแล้ว",
       "txAdjCredit": "ปรับยอด (เพิ่ม)",
       "txAdjDebit": "ปรับยอด (หัก)",
       "historyFailed": "โหลดประวัติไม่สำเร็จ",

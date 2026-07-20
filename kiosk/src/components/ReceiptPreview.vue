@@ -33,6 +33,8 @@ const t = {
     reprint: 'Print again',
     topup: 'Top-up',
     purchase: 'Purchase',
+    voidRefund: 'Void — Receipt #{{receipt}}',
+    voidedBadge: 'Voided',
     thankYou: 'Thank you for using our service',
     poweredBy: 'This document is system-generated',
     items: 'Items',
@@ -68,6 +70,8 @@ const t = {
     reprint: 'พิมพ์อีกครั้ง',
     topup: 'เติมเงิน',
     purchase: 'ชำระค่าสินค้า',
+    voidRefund: 'ยกเลิก — ใบเสร็จ #{{receipt}}',
+    voidedBadge: 'ยกเลิกแล้ว',
     thankYou: 'ขอบคุณที่ใช้บริการ',
     poweredBy: 'เอกสารออกจากระบบอัตโนมัติ',
     items: 'รายการสินค้า',
@@ -126,13 +130,18 @@ const printState = ref<PrintState>('idle');
 const buildReceiptData = (): ReceiptData => {
   const tx = props.transaction;
   const tt = currT.value;
-  const isTopup = tx.type === 'topup';
+  const isCredit = tx.type === 'topup' || tx.type === 'void_refund';
+  const typeLabel = tx.type === 'void_refund'
+    ? tt.voidRefund.replace('{{receipt}}', tx.receiptNumber ?? '—')
+    : tx.type === 'topup'
+      ? tt.topup
+      : (tx.isVoided ? `${tt.purchase} (${tt.voidedBadge})` : tt.purchase);
 
   const rows = [
     { label: tt.txId, value: String(tx.id) },
     { label: tt.date, value: `${tx.date} ${tx.time}` },
   ];
-  if (isTopup && store.deviceProfile?.full_name) {
+  if (tx.type === 'topup' && store.deviceProfile?.full_name) {
     rows.push({ label: tt.device, value: store.deviceProfile.full_name });
   }
   if (store.currentUser) rows.push({ label: tt.buyer, value: store.currentUser.name });
@@ -152,14 +161,14 @@ const buildReceiptData = (): ReceiptData => {
     schoolName: store.schoolInfo.school_name || undefined,
     logoUrl: store.schoolInfo.school_logo_url || undefined,
     title: tt.title,
-    typeLabel: isTopup ? tt.topup : tt.purchase,
+    typeLabel,
     rows,
     itemsHeader: items ? tt.items : undefined,
     items,
     balanceBeforeLabel: tt.before,
     balanceBeforeText: `฿${formatCurrency(tx.balanceBefore)}`,
     amountLabel: tt.amount,
-    amountText: `${isTopup ? '+' : '-'}฿${formatCurrency(tx.amount)}`,
+    amountText: `${isCredit ? '+' : '-'}฿${formatCurrency(tx.amount)}`,
     balanceLabel: tt.after,
     balanceText: `฿${formatCurrency(tx.balanceAfter)}`,
     footerLines: [tt.thankYou, tt.poweredBy],
@@ -213,7 +222,14 @@ const handlePrint = async () => {
           <div class="receipt-row">
             <span class="r-label">{{ currT.type }}</span>
             <span class="r-value type-badge" :class="props.transaction.type">
-              {{ props.transaction.type === 'topup' ? currT.topup : currT.purchase }}
+              <template v-if="props.transaction.type === 'void_refund'">
+                {{ currT.voidRefund.replace('{{receipt}}', props.transaction.receiptNumber ?? '—') }}
+              </template>
+              <template v-else-if="props.transaction.type === 'topup'">{{ currT.topup }}</template>
+              <template v-else>
+                <span :class="{ 'tx-struck': props.transaction.isVoided }">{{ currT.purchase }}</span>
+                <span v-if="props.transaction.isVoided" class="voided-badge">{{ currT.voidedBadge }}</span>
+              </template>
             </span>
           </div>
           <div class="receipt-row">
@@ -276,7 +292,7 @@ const handlePrint = async () => {
           <div class="receipt-row amount-row">
             <span class="r-label">{{ currT.amount }}</span>
             <span class="r-value amount-value" :class="props.transaction.type">
-              {{ props.transaction.type === 'topup' ? '+' : '-' }}฿{{ formatCurrency(props.transaction.amount) }}
+              {{ (props.transaction.type === 'topup' || props.transaction.type === 'void_refund') ? '+' : '-' }}฿{{ formatCurrency(props.transaction.amount) }}
             </span>
           </div>
         </div>
@@ -469,9 +485,31 @@ const handlePrint = async () => {
   background: #dcfce7;
   color: #16a34a;
 }
+.type-badge.void_refund {
+  background: #dcfce7;
+  color: #16a34a;
+}
 .type-badge.purchase {
   background: #fef2f2;
   color: #dc2626;
+}
+
+.tx-struck {
+  text-decoration: line-through;
+}
+
+.voided-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
 /* Amount row */
@@ -483,6 +521,7 @@ const handlePrint = async () => {
   font-weight: 800;
 }
 .amount-value.topup { color: #16a34a; }
+.amount-value.void_refund { color: #16a34a; }
 .amount-value.purchase { color: #dc2626; }
 
 /* Balance after */
@@ -709,6 +748,7 @@ const handlePrint = async () => {
   }
   
   .amount-value.topup,
+  .amount-value.void_refund,
   .amount-value.purchase {
     color: #000 !important;
   }

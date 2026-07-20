@@ -2586,6 +2586,8 @@
       "txTopup": "Top up",
       "txDeduction": "Purchase",
       "txRefund": "Refund",
+      "txVoidRefund": "Void — Receipt #{{receipt}}",
+      "voidedBadge": "Voided",
       "txAdjCredit": "Adjustment (credit)",
       "txAdjDebit": "Adjustment (debit)",
       "historyFailed": "Failed to load history",

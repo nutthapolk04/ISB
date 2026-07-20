@@ -19,6 +19,8 @@ const t = {
         back: 'Back',
         topup: 'Top-up',
         purchase: 'Purchase',
+        voidRefund: 'Void — Receipt #{{receipt}}',
+        voidedBadge: 'Voided',
         noData: 'No transactions found.',
         qty: 'x'
     },
@@ -27,6 +29,8 @@ const t = {
         back: 'ย้อนกลับ',
         topup: 'เติมเงิน',
         purchase: 'ซื้อสินค้า',
+        voidRefund: 'ยกเลิก — ใบเสร็จ #{{receipt}}',
+        voidedBadge: 'ยกเลิกแล้ว',
         noData: 'ไม่พบรายการ',
         qty: 'x'
     }
@@ -69,6 +73,15 @@ const formatCurrency = (val: number) => {
         maximumFractionDigits: 2
     }).format(val);
 };
+
+const isCreditTx = (tx: Transaction) => tx.type === 'topup' || tx.type === 'void_refund';
+
+const rowLabel = (tx: Transaction) => {
+    if (tx.type === 'void_refund') {
+        return currT.value.voidRefund.replace('{{receipt}}', tx.receiptNumber ?? '—');
+    }
+    return tx.type === 'topup' ? currT.value.topup : currT.value.purchase;
+};
 </script>
 
 <template>
@@ -88,20 +101,27 @@ const formatCurrency = (val: number) => {
         </div>
 
         <div class="list-container" v-if="store.transactions.length > 0">
-            <div v-for="tx in store.transactions" :key="tx.id" class="transaction-row card" @click="openReceipt(tx)">
+            <div
+                v-for="tx in store.transactions"
+                :key="tx.id"
+                class="transaction-row card"
+                :class="{ voided: tx.isVoided }"
+                @click="openReceipt(tx)"
+            >
                 <div class="tx-icon" :class="tx.type">
-                    <ArrowUpCircle v-if="tx.type === 'topup'" :size="32" />
+                    <ArrowUpCircle v-if="isCreditTx(tx)" :size="32" />
                     <ArrowDownCircle v-else :size="32" />
                 </div>
 
                 <div class="tx-details">
                     <div class="tx-header-row">
                         <span class="tx-type">
-                            {{ tx.type === 'topup' ? currT.topup : currT.purchase }}
-                            <span v-if="tx.type === 'purchase'" class="tx-shop"> - {{ tx.machine }}</span>
+                            <span :class="{ 'tx-struck': tx.isVoided }">{{ rowLabel(tx) }}</span>
+                            <span v-if="tx.type === 'purchase' && tx.machine" class="tx-shop"> - {{ tx.machine }}</span>
+                            <span v-if="tx.isVoided" class="voided-badge">{{ currT.voidedBadge }}</span>
                         </span>
                         <span class="tx-amount" :class="tx.type">
-                            {{ tx.type === 'topup' ? '+' : '-' }} {{ formatCurrency(tx.amount) }}
+                            {{ isCreditTx(tx) ? '+' : '-' }} {{ formatCurrency(tx.amount) }}
                         </span>
                     </div>
                     <!-- Purchase items list -->
@@ -120,6 +140,7 @@ const formatCurrency = (val: number) => {
                     <div class="tx-meta">
                         <span>{{ tx.date }} {{ tx.time }}</span>
                         <span v-if="tx.type === 'topup'">• {{ tx.machine }}</span>
+                        <span v-else-if="tx.type === 'void_refund' && tx.machine">• {{ tx.machine }}</span>
                     </div>
                 </div>
 
@@ -205,8 +226,35 @@ const formatCurrency = (val: number) => {
     color: #10b981;
 }
 
+.tx-icon.void_refund {
+    color: #10b981;
+}
+
 .tx-icon.purchase {
     color: #ef4444;
+}
+
+.transaction-row.voided {
+    opacity: 0.65;
+}
+
+.tx-struck {
+    text-decoration: line-through;
+}
+
+.voided-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+    text-decoration: none;
 }
 
 .tx-details {
@@ -237,6 +285,10 @@ const formatCurrency = (val: number) => {
 }
 
 .tx-amount.topup {
+    color: #10b981;
+}
+
+.tx-amount.void_refund {
     color: #10b981;
 }
 

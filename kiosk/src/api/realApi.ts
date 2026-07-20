@@ -67,7 +67,7 @@ interface ISBFamilyResponse {
 interface ISBWalletTransaction {
     id: number;
     wallet_id: number;
-    transaction_type: string;   // 'topup' | 'debit' | 'credit' | 'transfer_debit' | 'transfer_credit'
+    transaction_type: string;   // 'TOPUP' | 'DEDUCTION' | 'REFUND' | 'ADJUSTMENT' | …
     amount: number;
     balance_before: number;
     balance_after: number;
@@ -76,6 +76,9 @@ interface ISBWalletTransaction {
     description: string | null;
     shop_id: string | null;
     shop_name: string | null;
+    /** Set by backend for receipt / receipt_void rows. */
+    is_voided?: boolean;
+    receipt_number?: string | null;
     created_at: string;
 }
 
@@ -286,19 +289,32 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
 
 function mapTransaction(tx: ISBWalletTransaction): Transaction {
     const dt = new Date(tx.created_at);
-    // DB types: 'topup' | 'deduction' | 'refund' | 'adjustment'
-    // Use balance diff as source of truth — handles all types including adjustments
+    // DB types: TOPUP | DEDUCTION | REFUND | ADJUSTMENT — balance diff is the
+    // source of truth for credit vs debit, except void refunds which must not
+    // look like a normal top-up (Parent Portal pairs them with the purchase).
+    const isVoidRefund = tx.reference_type === 'receipt_void';
     const isCredit = tx.balance_after > tx.balance_before;
+    const type: Transaction['type'] = isVoidRefund
+        ? 'void_refund'
+        : isCredit
+            ? 'topup'
+            : 'purchase';
+    // Only the original purchase leg gets the Voided badge; the refund leg
+    // already names itself as void_refund.
+    const isVoided = type === 'purchase' && !!tx.is_voided;
 
     return {
         id: String(tx.id),
-        type: isCredit ? 'topup' : 'purchase',
+        type,
         date: dt.toLocaleDateString('en-CA'),   // YYYY-MM-DD
         time: dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
         amount: Math.abs(tx.amount),
         machine: tx.shop_name ?? (isCredit ? 'Top-up' : tx.description) ?? 'ISB',
         balanceBefore: tx.balance_before,
         balanceAfter: tx.balance_after,
+        isVoided,
+        receiptNumber: tx.receipt_number ?? null,
+        shop_name: tx.shop_name ?? undefined,
     };
 }
 
