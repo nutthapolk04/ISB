@@ -745,7 +745,9 @@ async function buildProductBlock(
     // delivery; every other movement type shows the avg cost basis in
     // effect at that moment (the value COGS is valued at) — never the
     // selling price or any other per-row value. Matches
-    // balance_file_service.ts's in_unit_cost / out_avg_cost split.
+    // balance_file_service.ts's in_unit_cost / out_avg_cost split. This is
+    // still the Cost/Unit column's value, deliberately unchanged below —
+    // only Amt Out / Amt In switch to real sale revenue when available.
     const cost = typeStr === "receive" ? receivedCost : avgBefore;
     // Bucket by the actual stock change (stock_after - stock_before), not by
     // the sign of `quantity` — `quantity`'s sign convention isn't consistent
@@ -756,8 +758,15 @@ async function buildProductBlock(
     const delta = m.stockAfter - m.stockBefore;
     const qtyIn = delta > 0 ? delta : 0;
     const qtyOut = delta < 0 ? -delta : 0;
-    const amountIn = Math.round(qtyIn * cost * 100) / 100;
-    const amountOut = Math.round(qtyOut * cost * 100) / 100;
+    // sale_amount is the real amount charged/refunded for this row (a
+    // receipt line_total, or the original sale's line_total for its void) —
+    // null for receive/adjustment and for bundle sub-item rows (no clean
+    // per-component allocation), which keep the cost-basis fallback.
+    const saleAmt = m.saleAmount !== null ? pgNumber(m.saleAmount) : null;
+    const isSaleOut = qtyOut > 0 && (typeStr === "sale" || typeStr === "internal_use" || typeStr === "exchange") && saleAmt !== null;
+    const isVoidIn = qtyIn > 0 && typeStr === "void" && saleAmt !== null;
+    const amountIn = isVoidIn ? saleAmt! : Math.round(qtyIn * cost * 100) / 100;
+    const amountOut = isSaleOut ? saleAmt! : Math.round(qtyOut * cost * 100) / 100;
     const balance = m.stockAfter;
     rows.push({
       date: pgToIso(m.createdAt),

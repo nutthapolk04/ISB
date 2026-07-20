@@ -250,6 +250,14 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS acting_customer_id INTEGER REFERENCES customers(id)`,
         label: "payment_intents.acting_customer_id",
     },
+    // The actual amount charged/refunded for a sale/internal_use/exchange/
+    // void row (vs. cost_per_unit, which is always the COGS/avg-cost basis)
+    // — lets Stock Card / Balance File show real sale revenue in their
+    // Amt Out / Amt In columns instead of inventory cost.
+    {
+        sql: `ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS sale_amount NUMERIC(10,2)`,
+        label: "shop_movements.sale_amount",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

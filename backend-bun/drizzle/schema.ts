@@ -587,6 +587,14 @@ export const shopMovements = pgTable("shop_movements", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	reversesId: integer("reverses_id"),
 	reversedById: integer("reversed_by_id"),
+	// The actual amount charged/refunded for this specific row — the receipt
+	// line's line_total for a sale/internal_use/exchange row, or the
+	// original sale's line_total for a void/return row reversing one. Null
+	// for receive/adjustment (no sale involved) and for bundle sub-item rows
+	// (a bundle's price isn't cleanly allocable across its components) —
+	// those keep falling back to the avg-cost basis in reports. Distinct
+	// from cost_per_unit, which must stay the COGS/inventory-valuation basis.
+	saleAmount: numeric("sale_amount", { precision: 10, scale: 2 }),
 }, (table) => [
 	index("ix_shop_movements_date").using("btree", table.date.asc().nullsLast().op("date_ops")),
 	index("ix_shop_movements_product_id").using("btree", table.productId.asc().nullsLast().op("int4_ops")),

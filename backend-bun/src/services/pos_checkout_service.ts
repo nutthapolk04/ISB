@@ -486,14 +486,15 @@ export async function checkout(input: CheckoutInput) {
       // cost_per_unit on a sale movement must be the cost basis (avg_cost),
       // not the selling price (unitPrice) — this is what the Stock Card
       // report's COGS columns are valued from, same as the void/refund path
-      // in pos_service.ts.
+      // in pos_service.ts. sale_amount separately carries what was actually
+      // charged (line_total) so reports can show real revenue in Amt Out.
       await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-           cost_per_unit, reference, note, created_by)
+           cost_per_unit, sale_amount, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, ${movementType},
                 ${-qty}, ${stockBefore}, ${stockAfter},
-                ${pgNumber(product.avg_cost) ?? 0}, ${receiptNumber}, ${input.notes ?? null}, ${input.userId})
+                ${pgNumber(product.avg_cost) ?? 0}, ${lineTotal}, ${receiptNumber}, ${input.notes ?? null}, ${input.userId})
       `;
 
       prepared.push({

@@ -51,6 +51,10 @@ interface RawMovement {
   type: string;
   quantity: number;
   cost_per_unit: string | null;
+  // The real amount charged/refunded for this row (receipt line_total, or
+  // the original sale's line_total for its void) — null for receive/
+  // adjustment and for bundle sub-item rows, which fall back to avg cost.
+  sale_amount: string | null;
   stock_before: number;
   stock_after: number;
   reference: string | null;
@@ -178,6 +182,7 @@ export async function getBalanceFile(
   const allHistory = await pgClient<(RawMovement & { product_id: number })[]>`
     SELECT id, product_id, date::text AS date, type::text, quantity,
            cost_per_unit::text AS cost_per_unit,
+           sale_amount::text AS sale_amount,
            stock_before, stock_after, reference, note, created_at::text AS created_at
     FROM shop_movements
     WHERE shop_id = ${shopId}
@@ -190,6 +195,7 @@ export async function getBalanceFile(
   const allMonthMoves = await pgClient<(RawMovement & { product_id: number })[]>`
     SELECT id, product_id, date::text AS date, type::text, quantity,
            cost_per_unit::text AS cost_per_unit,
+           sale_amount::text AS sale_amount,
            stock_before, stock_after, reference, note, created_at::text AS created_at
     FROM shop_movements
     WHERE shop_id = ${shopId}
@@ -271,9 +277,13 @@ export async function getBalanceFile(
         // type "internal_use" but moves stock IN).
         const delta = m.stock_after - m.stock_before;
         const avgCost = before.avg;
+        // sale_amount (the real receipt line_total) replaces the cost-basis
+        // amount for an actual sale leg — out_avg_cost stays the cost basis
+        // for reference. Null for bundle sub-items, which keep the fallback.
+        const saleAmt = m.sale_amount !== null ? Number(m.sale_amount) : null;
         if (delta < 0) {
           const outQty = -delta;
-          const outAmount = Math.round(outQty * avgCost * 100) / 100;
+          const outAmount = saleAmt !== null ? saleAmt : Math.round(outQty * avgCost * 100) / 100;
           rows.push({
             date: formatBE(m.date),
             description: descriptionFor(m, p.name),
@@ -335,10 +345,14 @@ export async function getBalanceFile(
         }
       } else if (m.type === "void") {
         const delta = m.stock_after - m.stock_before;
+        // sale_amount here is the ORIGINAL sale's line_total (or return's
+        // rr.price × qty) being reversed — replaces the cost-basis amount so
+        // a voided/returned sale shows the real revenue reversed, not COGS.
+        const saleAmt = m.sale_amount !== null ? Number(m.sale_amount) : null;
         if (delta > 0) {
           // Void of an outbound movement — stock returns in
           const inQty = delta;
-          const inAmount = Math.round(inQty * before.avg * 100) / 100;
+          const inAmount = saleAmt !== null ? saleAmt : Math.round(inQty * before.avg * 100) / 100;
           rows.push({
             date: formatBE(m.date),
             description: descriptionFor(m, p.name),

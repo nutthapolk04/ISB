@@ -406,10 +406,10 @@ export async function processRefund(args: {
                 await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-             cost_per_unit, reference, note, created_by)
+             cost_per_unit, sale_amount, reference, note, created_by)
           VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, 'void',
                   ${restoreQty}, ${stockBefore}, ${stockAfter},
-                  ${pgNumber(rr.price) ?? 0}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
+                  ${pgNumber(rr.price) ?? 0}, ${(pgNumber(rr.price) ?? 0) * restoreQty}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
         `;
             }
         } else if (normalProductId !== null) {
@@ -430,10 +430,10 @@ export async function processRefund(args: {
                 await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-             cost_per_unit, reference, note, created_by)
+             cost_per_unit, sale_amount, reference, note, created_by)
           VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, 'void',
                   ${restoreQty}, ${stockBefore}, ${stockAfter},
-                  ${pgNumber(rr.price) ?? 0}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
+                  ${pgNumber(rr.price) ?? 0}, ${(pgNumber(rr.price) ?? 0) * restoreQty}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
         `;
             }
         }
@@ -595,10 +595,10 @@ export async function processExchange(args: {
                 await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-             cost_per_unit, reference, note, created_by)
+             cost_per_unit, sale_amount, reference, note, created_by)
           VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, 'void',
                   ${restoreQty}, ${stockBefore}, ${stockAfter},
-                  ${pgNumber(rr.price) ?? 0}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
+                  ${pgNumber(rr.price) ?? 0}, ${(pgNumber(rr.price) ?? 0) * restoreQty}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
         `;
             }
         } else if (normalProductId !== null) {
@@ -619,10 +619,10 @@ export async function processExchange(args: {
                 await sqlTx`
           INSERT INTO shop_movements
             (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-             cost_per_unit, reference, note, created_by)
+             cost_per_unit, sale_amount, reference, note, created_by)
           VALUES (${today}, ${sub.id}, ${sub.name}, ${sub.shop_id}, 'void',
                   ${restoreQty}, ${stockBefore}, ${stockAfter},
-                  ${pgNumber(rr.price) ?? 0}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
+                  ${pgNumber(rr.price) ?? 0}, ${(pgNumber(rr.price) ?? 0) * restoreQty}, ${"RTN-" + rr.receiptId}, ${rr.reason}, ${args.userId})
         `;
             }
         }
@@ -653,10 +653,10 @@ export async function processExchange(args: {
             await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-           cost_per_unit, reference, note, created_by)
+           cost_per_unit, sale_amount, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, 'exchange',
                 ${-ex.quantity}, ${stockBefore}, ${stockAfter},
-                ${newAvgCost}, ${"EX-" + String(rr.id).padStart(3, "0")},
+                ${newAvgCost}, ${(pgNumber(product.external_price) ?? 0) * ex.quantity}, ${"EX-" + String(rr.id).padStart(3, "0")},
                 ${"Exchange from return " + rr.receiptId}, ${args.userId})
       `;
         }

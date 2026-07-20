@@ -501,10 +501,10 @@ export async function voidReceipt(args: {
             await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity, stock_before, stock_after,
-           cost_per_unit, reference, note, created_by)
+           cost_per_unit, sale_amount, reference, note, created_by)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shopId}, 'void',
                 ${item.quantity}, ${stockBefore}, ${stockAfter},
-                ${pgNumber(locked?.avg_cost ?? null) ?? 0}, ${receipt.receiptNumber},
+                ${pgNumber(locked?.avg_cost ?? null) ?? 0}, ${pgNumber(item.lineTotal) ?? 0}, ${receipt.receiptNumber},
                 ${reason ?? "Voided receipt"}, ${callerId})
       `;
             voidLines.push({ name: product.name, qty: item.quantity, price: pgNumber(item.lineTotal) ?? 0 });
