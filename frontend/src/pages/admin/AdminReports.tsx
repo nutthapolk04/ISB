@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { InfoCallout } from "@/components/InfoCallout";
 import {
     Select,
@@ -24,6 +25,9 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt } from "lucide-react";
+import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
+import ShopPicker from "@/components/ShopPicker";
+import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
 
 type ReportKind = "topup" | "transaction";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
@@ -90,11 +94,35 @@ export default function AdminReports() {
     const [topupData, setTopupData] = useState<TopupReportData | null>(null);
     const [txnData, setTxnData] = useState<TransactionReportData | null>(null);
 
+    // Top-up Report filters
+    const [toppedByValue, setToppedByValue] = useState<CardholderPickerValue | null>(null);
+    const [toppedByLabel, setToppedByLabel] = useState<string | null>(null);
+    const [recipientValue, setRecipientValue] = useState<CardholderPickerValue | null>(null);
+    const [recipientLabel, setRecipientLabel] = useState<string | null>(null);
+
+    // Transaction Report filters
+    const [txnSearch, setTxnSearch] = useState("");
+    const [txnCashier, setTxnCashier] = useState<StaffPickerUser | null>(null);
+    const [txnStatus, setTxnStatus] = useState<string>("all");
+    const [txnPaymentMethod, setTxnPaymentMethod] = useState<string>("all");
+    const [txnShopId, setTxnShopId] = useState<string | null>(null);
+    const [txnShopName, setTxnShopName] = useState<string | null>(null);
+
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
         setDateFrom("");
         setDateTo("");
         setChannel("all");
+        setToppedByValue(null);
+        setToppedByLabel(null);
+        setRecipientValue(null);
+        setRecipientLabel(null);
+        setTxnSearch("");
+        setTxnCashier(null);
+        setTxnStatus("all");
+        setTxnPaymentMethod("all");
+        setTxnShopId(null);
+        setTxnShopName(null);
         setSearched(false);
         setTopupData(null);
         setTxnData(null);
@@ -110,11 +138,22 @@ export default function AdminReports() {
             if (selected === "topup") {
                 const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
                 if (channel !== "all") params.set("channel", channel);
+                if (toppedByValue) {
+                    params.set(toppedByValue.entity_type === "user" ? "topped_by_user_id" : "topped_by_customer_id", String(toppedByValue.entity_id));
+                }
+                if (recipientValue) {
+                    params.set(recipientValue.entity_type === "user" ? "recipient_user_id" : "recipient_customer_id", String(recipientValue.entity_id));
+                }
                 const data = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
                 setTopupData(data);
                 if (data.items.length === 0) toast.message("No top-ups match these filters.");
             } else if (selected === "transaction") {
                 const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+                if (txnSearch.trim()) params.set("search", txnSearch.trim());
+                if (txnCashier) params.set("cashier_id", String(txnCashier.id));
+                if (txnStatus !== "all") params.set("status", txnStatus);
+                if (txnPaymentMethod !== "all") params.set("payment_method", txnPaymentMethod);
+                if (txnShopId) params.set("shop_id", txnShopId);
                 const data = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
                 setTxnData(data);
                 if (data.items.length === 0) toast.message("No transactions match these filters.");
@@ -131,7 +170,18 @@ export default function AdminReports() {
         const lines: string[] = [];
         const dateLine = buildDateFilterLine("Date", dateFrom, dateTo);
         if (dateLine) lines.push(dateLine);
-        if (selected === "topup" && channel !== "all") lines.push(`Type: ${CHANNEL_LABEL[channel]}`);
+        if (selected === "topup") {
+            if (channel !== "all") lines.push(`Type: ${CHANNEL_LABEL[channel]}`);
+            if (toppedByLabel) lines.push(`Topped by: ${toppedByLabel}`);
+            if (recipientLabel) lines.push(`Recipient: ${recipientLabel}`);
+        }
+        if (selected === "transaction") {
+            if (txnSearch.trim()) lines.push(`Search: ${txnSearch.trim()}`);
+            if (txnCashier) lines.push(`Cashier: ${txnCashier.full_name || txnCashier.username}`);
+            if (txnStatus !== "all") lines.push(`Status: ${txnStatus}`);
+            if (txnPaymentMethod !== "all") lines.push(`Payment Type: ${txnPaymentMethod}`);
+            if (txnShopName) lines.push(`Shop: ${txnShopName}`);
+        }
         return lines;
     };
 
@@ -300,18 +350,99 @@ export default function AdminReports() {
                                 />
                             </div>
                             {selected === "topup" && (
-                                <div className="space-y-2">
-                                    <Label>{t("admin.adminReports.channelFilter")}</Label>
-                                    <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
-                                            <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
-                                            <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
-                                            <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.channelFilter")}</Label>
+                                        <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
+                                                <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
+                                                <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
+                                                <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.toppedByFilter", "Topped by")}</Label>
+                                        <CardholderPicker
+                                            value={toppedByValue}
+                                            onChange={(v, item) => {
+                                                setToppedByValue(v);
+                                                setToppedByLabel(item ? `${item.name} (${item.identifier})` : null);
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.recipientFilter", "Recipient")}</Label>
+                                        <CardholderPicker
+                                            value={recipientValue}
+                                            onChange={(v, item) => {
+                                                setRecipientValue(v);
+                                                setRecipientLabel(item ? `${item.name} (${item.identifier})` : null);
+                                            }}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            {selected === "transaction" && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.searchFilter", "Search (ID / Username / Name)")}</Label>
+                                        <Input
+                                            value={txnSearch}
+                                            onChange={(e) => setTxnSearch(e.target.value)}
+                                            placeholder={t("admin.adminReports.searchPlaceholder", "ID, username, or full name…")}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.cashierFilter", "Cashier")}</Label>
+                                        <UserPicker
+                                            value={txnCashier?.id ?? null}
+                                            onChange={(_, u) => setTxnCashier(u)}
+                                            roles={["cashier", "manager", "admin", "staff", "kitchen"]}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.shopFilter", "Shop")}</Label>
+                                        <ShopPicker
+                                            value={txnShopId}
+                                            onChange={(id, shop) => { setTxnShopId(id); setTxnShopName(shop?.name ?? null); }}
+                                            allowNone={false}
+                                            placeholder={t("admin.adminReports.allShops", "All shops")}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.statusFilter", "Status")}</Label>
+                                        <Select value={txnStatus} onValueChange={setTxnStatus}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">{t("admin.adminReports.statusAll", "All")}</SelectItem>
+                                                <SelectItem value="ACTIVE">{t("admin.adminReports.statusActive", "Active")}</SelectItem>
+                                                <SelectItem value="VOIDED">{t("admin.adminReports.statusVoided", "Voided")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.paymentMethodFilter", "Payment Type")}</Label>
+                                        <Select value={txnPaymentMethod} onValueChange={setTxnPaymentMethod}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">{t("admin.adminReports.paymentMethodAll", "All")}</SelectItem>
+                                                <SelectItem value="CASH">Cash</SelectItem>
+                                                <SelectItem value="WALLET">Wallet</SelectItem>
+                                                <SelectItem value="CARD_TAP">Card Tap</SelectItem>
+                                                <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
+                                                <SelectItem value="DEBIT_CARD">Debit Card</SelectItem>
+                                                <SelectItem value="QR_PROMPTPAY">QR PromptPay</SelectItem>
+                                                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                                                <SelectItem value="EDC">EDC</SelectItem>
+                                                <SelectItem value="DEPARTMENT">Department</SelectItem>
+                                                <SelectItem value="OTHER">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </>
                             )}
                         </div>
 

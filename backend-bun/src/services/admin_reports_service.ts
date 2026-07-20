@@ -2,7 +2,7 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     walletTransactions,
@@ -299,6 +299,8 @@ export interface TopupReportRow {
     recipient_name: string;
     recipient_code: string;
     amount: number;
+    // Cashier's name for a Store top-up (with the shop name in parens);
+    // the kiosk device's own label for a Kiosk top-up; null for Online.
     cashier_name: string | null;
     payment_method: string | null;
 }
@@ -345,6 +347,15 @@ export async function topupReport(args: {
     dateFrom?: string | null;
     dateTo?: string | null;
     channel?: string | null;
+    // Who actually topped up — matched against acting_user_id/acting_customer_id
+    // (the RFID-scanned kiosk identity) and, for a user, also against
+    // wallet_transactions.created_by (cash) / payment_intents.created_by
+    // (gateway) — the same identities toppedBy itself falls back to below.
+    toppedByUserId?: number | null;
+    toppedByCustomerId?: number | null;
+    // Who received the money — the topped-up wallet's owner.
+    recipientUserId?: number | null;
+    recipientCustomerId?: number | null;
 }): Promise<TopupReportResponseDTO> {
     const dateFrom = args.dateFrom?.trim() || null;
     let dateToExclusive: string | null = null;
@@ -361,6 +372,15 @@ export async function topupReport(args: {
     ];
     if (dateFrom) cashConds.push(gte(walletTransactions.createdAt, dateFrom));
     if (dateToExclusive) cashConds.push(lt(walletTransactions.createdAt, dateToExclusive));
+    if (args.recipientUserId != null) cashConds.push(eq(wallets.userId, args.recipientUserId));
+    if (args.recipientCustomerId != null) cashConds.push(eq(wallets.customerId, args.recipientCustomerId));
+    if (args.toppedByCustomerId != null) cashConds.push(eq(walletTransactions.actingCustomerId, args.toppedByCustomerId));
+    if (args.toppedByUserId != null) {
+        cashConds.push(or(
+            eq(walletTransactions.actingUserId, args.toppedByUserId),
+            eq(walletTransactions.createdBy, args.toppedByUserId),
+        )!);
+    }
 
     const cashRows = await db
         .select({
@@ -383,6 +403,15 @@ export async function topupReport(args: {
     ];
     if (dateFrom) gatewayConds.push(gte(walletTransactions.createdAt, dateFrom));
     if (dateToExclusive) gatewayConds.push(lt(walletTransactions.createdAt, dateToExclusive));
+    if (args.recipientUserId != null) gatewayConds.push(eq(wallets.userId, args.recipientUserId));
+    if (args.recipientCustomerId != null) gatewayConds.push(eq(wallets.customerId, args.recipientCustomerId));
+    if (args.toppedByCustomerId != null) gatewayConds.push(eq(walletTransactions.actingCustomerId, args.toppedByCustomerId));
+    if (args.toppedByUserId != null) {
+        gatewayConds.push(or(
+            eq(walletTransactions.actingUserId, args.toppedByUserId),
+            eq(paymentIntents.createdBy, args.toppedByUserId),
+        )!);
+    }
 
     const gatewayRows = await db
         .select({
@@ -452,6 +481,17 @@ export async function topupReport(args: {
         : [];
     const actingUserById = new Map(actingUserRows.map((u) => [u.id, u] as const));
 
+    // The Store name for a Cashier-channel top-up, resolved from the
+    // creator's own shop_id (cashier accounts are pinned to one shop) —
+    // not from the transaction itself, which carries no shop_id column.
+    const creatorShopIds = [...new Set(
+        combined.filter((r) => r.creator?.shopId != null).map((r) => r.creator!.shopId!),
+    )];
+    const shopRows = creatorShopIds.length
+        ? await db.select({ id: shops.id, name: shops.name }).from(shops).where(inArray(shops.id, creatorShopIds))
+        : [];
+    const shopNameById = new Map(shopRows.map((s) => [s.id, s.name] as const));
+
     const channelFilter = (args.channel ?? "all").toLowerCase();
     const items: TopupReportRow[] = [];
     for (const r of combined) {
@@ -504,6 +544,18 @@ export async function topupReport(args: {
             }
         }
 
+        // Cashier channel: cashier's name plus which Store they're at.
+        // Kiosk channel: the device's own label (already computed above as
+        // the kiosk service account's name when no acting person was found —
+        // reusing creatorName here since that's always the physical device).
+        let sourceName: string | null = null;
+        if (channel === "cashier") {
+            const shopName = r.creator?.shopId != null ? shopNameById.get(r.creator.shopId) : null;
+            sourceName = shopName ? `${creatorName} (${shopName})` : creatorName;
+        } else if (channel === "kiosk") {
+            sourceName = creatorName;
+        }
+
         items.push({
             id: r.tx.id,
             created_at: pgToIso(r.tx.createdAt)!,
@@ -512,7 +564,7 @@ export async function topupReport(args: {
             recipient_name: recipientName,
             recipient_code: recipientCode,
             amount: pgNumber(r.tx.amount) ?? 0,
-            cashier_name: channel === "cashier" ? creatorName : null,
+            cashier_name: sourceName,
             payment_method: r.paymentMethod,
         });
     }
@@ -545,6 +597,15 @@ export interface TransactionReportResponseDTO {
 export async function transactionReport(args: {
     dateFrom?: string | null;
     dateTo?: string | null;
+    /** Free-text search over the payer's id/username/full name — spans
+     * whichever entity actually paid (student customer, parent/staff user,
+     * or department). */
+    search?: string | null;
+    cashierId?: number | null;
+    /** ACTIVE | VOIDED — omitted keeps the existing "both" default. */
+    status?: string | null;
+    paymentMethod?: string | null;
+    shopId?: string | null;
 }): Promise<TransactionReportResponseDTO> {
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
@@ -553,6 +614,25 @@ export async function transactionReport(args: {
     const conds = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
     if (dateFrom) conds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
     if (dateTo) conds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
+    if (args.status) conds.push(eq(receipts.status, args.status as "ACTIVE" | "VOIDED"));
+    if (args.paymentMethod) conds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
+    if (args.shopId) conds.push(eq(receipts.shopId, args.shopId));
+    if (args.cashierId != null) conds.push(eq(receipts.createdBy, args.cashierId));
+    const search = args.search?.trim();
+    if (search) {
+        const pat = `%${search}%`;
+        conds.push(or(
+            ilike(customers.name, pat),
+            ilike(customers.studentCode, pat),
+            ilike(customers.customerCode, pat),
+            ilike(customers.externalId, pat),
+            ilike(users.fullName, pat),
+            ilike(users.username, pat),
+            ilike(users.externalId, pat),
+            ilike(departments.departmentName, pat),
+            ilike(departments.departmentCode, pat),
+        )!);
+    }
 
     const rows = await db
         .select({
@@ -569,11 +649,14 @@ export async function transactionReport(args: {
             customerCode: customers.customerCode,
             payerFullName: users.fullName,
             payerUsername: users.username,
+            departmentName: departments.departmentName,
+            departmentCode: departments.departmentCode,
         })
         .from(receipts)
         .leftJoin(shops, eq(shops.id, receipts.shopId))
         .leftJoin(customers, eq(customers.id, receipts.customerId))
         .leftJoin(users, eq(users.id, receipts.payerUserId))
+        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
         .where(and(...conds))
         .orderBy(desc(receipts.transactionDate), desc(receipts.id));
 
@@ -587,10 +670,12 @@ export async function transactionReport(args: {
         const payerName = r.customerName
             ?? r.payerFullName
             ?? r.payerUsername
+            ?? r.departmentName
             ?? "—";
         const payerId = r.studentCode
             ?? r.customerCode
             ?? r.payerUsername
+            ?? r.departmentCode
             ?? "—";
         const cashier = r.createdBy != null ? cashierById.get(r.createdBy) : undefined;
         return {

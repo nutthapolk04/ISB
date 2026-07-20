@@ -74,6 +74,10 @@ export const AdminReportsController = {
                 dateFrom: query.date_from ?? null,
                 dateTo: query.date_to ?? null,
                 channel: query.channel ?? null,
+                toppedByUserId: query.topped_by_user_id ? Number(query.topped_by_user_id) : null,
+                toppedByCustomerId: query.topped_by_customer_id ? Number(query.topped_by_customer_id) : null,
+                recipientUserId: query.recipient_user_id ? Number(query.recipient_user_id) : null,
+                recipientCustomerId: query.recipient_customer_id ? Number(query.recipient_customer_id) : null,
             });
             logger.info(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
@@ -95,6 +99,11 @@ export const AdminReportsController = {
             const result = await transactionReport({
                 dateFrom: query.date_from ?? null,
                 dateTo: query.date_to ?? null,
+                search: query.search ?? null,
+                cashierId: query.cashier_id ? Number(query.cashier_id) : null,
+                status: query.status ?? null,
+                paymentMethod: query.payment_method ?? null,
+                shopId: query.shop_id ?? null,
             });
             logger.info(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
