@@ -21,15 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt } from "lucide-react";
 
 type ReportKind = "topup" | "transaction";
@@ -60,6 +53,16 @@ interface TransactionRow {
   status: string;
 }
 
+interface TopupReportData {
+  items: TopupRow[];
+  amount_total: number;
+}
+
+interface TransactionReportData {
+  items: TransactionRow[];
+  amount_total: number;
+}
+
 const CHANNEL_LABEL: Record<string, string> = {
   kiosk: "Kiosk",
   online: "Online (Parent)",
@@ -72,43 +75,68 @@ export default function AdminReports() {
   const school = useSchoolInfo();
 
   const [selected, setSelected] = useState<ReportKind | "">("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [channel, setChannel] = useState<TopupChannel>("all");
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  const [topupData, setTopupData] = useState<TopupReportData | null>(null);
+  const [txnData, setTxnData] = useState<TransactionReportData | null>(null);
 
   const openReport = (kind: ReportKind) => {
     setSelected(kind);
-    setStartDate("");
-    setEndDate("");
+    setDateFrom("");
+    setDateTo("");
     setChannel("all");
-    setDialogOpen(true);
+    setSearched(false);
+    setTopupData(null);
+    setTxnData(null);
   };
 
-  const buildPayload = async (): Promise<{
-    payload: ReportPayload<Record<string, unknown>>;
-    baseFilename: string;
-  } | null> => {
-    if (!startDate || !endDate) {
+  const handleSearch = async () => {
+    if (!dateFrom || !dateTo) {
       toast.error(t("reports.selectDateRangeDesc"));
-      return null;
+      return;
     }
-    const dateFilter = buildDateFilterLine("Date", startDate, endDate);
-    const filters = dateFilter ? [dateFilter] : [];
-    const dateLabel = `_${startDate}_${endDate}`;
+    setLoading(true);
+    try {
+      if (selected === "topup") {
+        const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+        if (channel !== "all") params.set("channel", channel);
+        const data = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
+        setTopupData(data);
+        if (data.items.length === 0) toast.message("No top-ups match these filters.");
+      } else if (selected === "transaction") {
+        const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+        const data = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
+        setTxnData(data);
+        if (data.items.length === 0) toast.message("No transactions match these filters.");
+      }
+      setSearched(true);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (selected === "topup") {
-      const params = new URLSearchParams({
-        date_from: startDate,
-        date_to: endDate,
-      });
-      if (channel !== "all") params.set("channel", channel);
-      const data = await api.get<{ items: TopupRow[]; amount_total: number }>(
-        `/wallets/admin/topup-report?${params.toString()}`,
-      );
-      if (channel !== "all") filters.push(`Type: ${CHANNEL_LABEL[channel]}`);
+  const buildFilterLines = (): string[] => {
+    const lines: string[] = [];
+    const dateLine = buildDateFilterLine("Date", dateFrom, dateTo);
+    if (dateLine) lines.push(dateLine);
+    if (selected === "topup" && channel !== "all") lines.push(`Type: ${CHANNEL_LABEL[channel]}`);
+    return lines;
+  };
 
+  /** Builds the export payload from whatever is already on screen — no
+   * re-fetch, so what you exported always matches what you searched. */
+  const buildPayload = (): ReportPayload<Record<string, unknown>> | null => {
+    const filters = buildFilterLines();
+    const dateLabel = `_${dateFrom}_${dateTo}`;
+
+    if (selected === "topup" && topupData) {
       return {
         payload: {
           meta: {
@@ -127,26 +155,18 @@ export default function AdminReports() {
             { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
             { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
           ],
-          rows: data.items.map((r) => ({
+          rows: topupData.items.map((r) => ({
             ...r,
             channel_label: CHANNEL_LABEL[r.channel] ?? r.channel,
             cashier_name: r.cashier_name ?? "",
           })) as unknown as Record<string, unknown>[],
-          totals: { amount: data.amount_total },
+          totals: { amount: topupData.amount_total },
         },
         baseFilename: `TopupReport${dateLabel}`,
       };
     }
 
-    if (selected === "transaction") {
-      const params = new URLSearchParams({
-        date_from: startDate,
-        date_to: endDate,
-      });
-      const data = await api.get<{ items: TransactionRow[]; amount_total: number }>(
-        `/wallets/admin/transaction-report?${params.toString()}`,
-      );
-
+    if (selected === "transaction" && txnData) {
       return {
         payload: {
           meta: {
@@ -167,8 +187,8 @@ export default function AdminReports() {
             { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
             { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
           ],
-          rows: data.items as unknown as Record<string, unknown>[],
-          totals: { amount: data.amount_total },
+          rows: txnData.items as unknown as Record<string, unknown>[],
+          totals: { amount: txnData.amount_total },
         },
         baseFilename: `TransactionReport${dateLabel}`,
       };
@@ -177,31 +197,26 @@ export default function AdminReports() {
     return null;
   };
 
-  const handleExportExcel = async () => {
-    setExporting(true);
+  const handleExportExcel = () => {
+    const result = buildPayload();
+    if (!result) return;
     try {
-      const result = await buildPayload();
-      if (!result) return;
       exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
       toast.success(t("reports.exportSuccess"));
-      setDialogOpen(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
-    } finally {
-      setExporting(false);
+      toast.error(err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
     }
   };
 
   const handleExportPdf = async () => {
+    const result = buildPayload();
+    if (!result) return;
     setExporting(true);
     try {
-      const result = await buildPayload();
-      if (!result) return;
       await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
       toast.success(t("reports.exportSuccess"));
-      setDialogOpen(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+      toast.error(err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
     } finally {
       setExporting(false);
     }
@@ -222,6 +237,8 @@ export default function AdminReports() {
     },
   ];
 
+  const hasData = selected === "topup" ? !!topupData : selected === "transaction" ? !!txnData : false;
+
   return (
     <div className="page-shell">
       <div className="page-header">
@@ -239,7 +256,11 @@ export default function AdminReports() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {cards.map(({ kind, icon: Icon, title, desc }) => (
-          <Card key={kind} className="interactive-card" onClick={() => openReport(kind)}>
+          <Card
+            key={kind}
+            className={cn("interactive-card", selected === kind && "border-primary")}
+            onClick={() => openReport(kind)}
+          >
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Icon className="h-5 w-5 mr-2 text-primary" />
@@ -253,63 +274,183 @@ export default function AdminReports() {
         ))}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {selected === "topup"
-                ? t("admin.adminReports.topupReport")
-                : t("admin.adminReports.transactionReport")}
-            </DialogTitle>
-            <DialogDescription>{t("reports.selectDateRangeDesc")}</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>
-                {t("reports.startDate")} — {t("reports.endDate")}
-              </Label>
-              <DateRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartChange={setStartDate}
-                onEndChange={setEndDate}
-              />
+      {selected && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" /> : <Receipt className="h-5 w-5 text-primary" />}
+              {selected === "topup" ? t("admin.adminReports.topupReport") : t("admin.adminReports.transactionReport")}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
+                <DateRangePicker
+                  startDate={dateFrom}
+                  endDate={dateTo}
+                  onStartChange={setDateFrom}
+                  onEndChange={setDateTo}
+                />
+              </div>
+              {selected === "topup" && (
+                <div className="space-y-2">
+                  <Label>{t("admin.adminReports.channelFilter")}</Label>
+                  <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
+                      <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
+                      <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
+                      <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
-            {selected === "topup" && (
-              <div className="space-y-2">
-                <Label>{t("admin.adminReports.channelFilter")}</Label>
-                <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
-                    <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
-                    <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
-                    <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleSearch} disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Search
+              </Button>
+              {searched && hasData && (
+                <>
+                  <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+                    {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                    {t("reports.exportPdf")}
+                  </Button>
+                  <Button onClick={handleExportExcel} disabled={exporting}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    {t("reports.exportExcel")}
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {searched && selected === "topup" && topupData && (
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  Found <span className="font-semibold text-foreground">{topupData.items.length}</span> top-ups
+                  {" · "}Total{" "}
+                  <span className="font-semibold text-foreground">
+                    ฿{topupData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 whitespace-nowrap">
+                      <tr>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient")}</th>
+                        <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topupData.items.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
+                            No top-ups match these filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        topupData.items.map((r) => (
+                          <tr key={r.id} className="border-t">
+                            <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                            <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
+                            <td className="px-2 py-1.5">{r.topped_by}</td>
+                            <td className="px-2 py-1.5">{r.recipient_name} <span className="text-muted-foreground font-mono">({r.recipient_code})</span></td>
+                            <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {topupData.items.length > 0 && (
+                      <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                        <tr className="border-t">
+                          <td colSpan={4} className="px-2 py-2 text-left">TOTAL</td>
+                          <td className="px-2 py-2 text-right font-mono">{topupData.amount_total.toFixed(2)}</td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
               </div>
             )}
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={exporting}>
-              {t("common.cancel")}
-            </Button>
-            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
-              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-              {t("reports.exportPdf")}
-            </Button>
-            <Button onClick={handleExportExcel} disabled={exporting}>
-              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
-              {t("reports.exportExcel")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {searched && selected === "transaction" && txnData && (
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  Found <span className="font-semibold text-foreground">{txnData.items.length}</span> transactions
+                  {" · "}Total{" "}
+                  <span className="font-semibold text-foreground">
+                    ฿{txnData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 whitespace-nowrap">
+                      <tr>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerId")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerName")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colPaymentMethod")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colShop")}</th>
+                        <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
+                        <th className="px-2 py-2 text-left">{t("admin.adminReports.colStatus")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {txnData.items.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
+                            No transactions match these filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        txnData.items.map((r) => (
+                          <tr key={r.id} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
+                            <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                            <td className="px-2 py-1.5 font-mono">{r.payer_id}</td>
+                            <td className="px-2 py-1.5">{r.payer_name}</td>
+                            <td className="px-2 py-1.5">{r.payment_method}</td>
+                            <td className="px-2 py-1.5">{r.shop_name}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
+                            <td className="px-2 py-1.5">
+                              {r.status === "ACTIVE" ? (
+                                <span className="text-muted-foreground">Active</span>
+                              ) : (
+                                <span className="font-semibold text-destructive">Voided</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {txnData.items.length > 0 && (
+                      <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                        <tr className="border-t">
+                          <td colSpan={5} className="px-2 py-2 text-left">TOTAL</td>
+                          <td className="px-2 py-2 text-right font-mono">{txnData.amount_total.toFixed(2)}</td>
+                          <td colSpan={2} />
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
