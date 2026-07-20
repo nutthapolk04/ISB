@@ -1,0 +1,2141 @@
+row,customer_id_in_file,name_in_file,category_in_file,db_customer_id,db_name,current_limit,target_limit,delta,status
+2,15838,Nicha SAPSARASIN,Canteen,,,,500,,skipped_not_found
+3,15838,Nicha SAPSARASIN,Shop,,,,2000,,skipped_not_found
+4,15856,Jeah BREEDLOVE,Shop,,,,2000,,skipped_not_found
+5,15856,Jeah BREEDLOVE,Canteen,,,,500,,skipped_not_found
+6,15857,Sophie MUNTZING,Canteen,,,,500,,skipped_not_found
+7,15857,Sophie MUNTZING,Shop,,,,2000,,skipped_not_found
+8,15859,Manjot BROCA,Shop,,,,2000,,skipped_not_found
+9,15859,Manjot BROCA,Canteen,,,,500,,skipped_not_found
+10,15864,Kai HARTER,Canteen,,,,1500,,skipped_not_found
+11,15868,Mee HUANG,Shop,,,,2000,,skipped_not_found
+12,15868,Mee HUANG,Canteen,,,,500,,skipped_not_found
+13,15904,Ashley VITAYATANAGORN,Canteen,,,,1000,,skipped_not_found
+14,15904,Ashley VITAYATANAGORN,Shop,,,,2000,,skipped_not_found
+15,15995,Mia Therese ROMASANTA,Shop,,,,2000,,skipped_not_found
+16,15995,Mia Therese ROMASANTA,Canteen,,,,500,,skipped_not_found
+17,16253,Neeranara CHAN,Shop,,,,2000,,skipped_not_found
+18,16253,Neeranara CHAN,Canteen,,,,500,,skipped_not_found
+19,16255,Boontika CHEEVARUNOTHAI,Canteen,,,,500,,skipped_not_found
+20,16255,Boontika CHEEVARUNOTHAI,Shop,,,,2000,,skipped_not_found
+21,16257,Shannon DUFFY,Shop,,,,2000,,skipped_not_found
+22,16257,Shannon DUFFY,Canteen,,,,500,,skipped_not_found
+23,16260,Stella LORENCE,Canteen,,,,750,,skipped_not_found
+24,16275,Jonathan VITAYATANAGORN,Shop,,,,2000,,skipped_not_found
+25,16275,Jonathan VITAYATANAGORN,Canteen,,,,1000,,skipped_not_found
+26,16287,Methini JAYARAMAN,Shop,,,,2000,,skipped_not_found
+27,16287,Methini JAYARAMAN,Canteen,,,,500,,skipped_not_found
+28,16334,Yanisa APHICHATABUT,Canteen,,,,500,,skipped_not_found
+29,16334,Yanisa APHICHATABUT,Shop,,,,2000,,skipped_not_found
+30,16364,Rasmalai INGKASAMPAN,Canteen,,,,500,,skipped_not_found
+31,16364,Rasmalai INGKASAMPAN,Shop,,,,2000,,skipped_not_found
+32,16373,Delaney EDSALL,Shop,,,,2000,,skipped_not_found
+33,16373,Delaney EDSALL,Canteen,,,,500,,skipped_not_found
+34,16431,Seungyu KIM,Canteen,,,,500,,skipped_not_found
+35,16431,Seungyu KIM,Shop,,,,2000,,skipped_not_found
+36,16537,Tashavarin PLENGPANICH,Shop,,,,2000,,skipped_not_found
+37,16537,Tashavarin PLENGPANICH,Canteen,,,,500,,skipped_not_found
+38,16550,Yukino WATANABE,Shop,,,,2000,,skipped_not_found
+39,16550,Yukino WATANABE,Canteen,,,,500,,skipped_not_found
+40,16634,Felix ZAFFAR GILES,Shop,,,,2000,,skipped_not_found
+41,16634,Felix ZAFFAR GILES,Canteen,,,,500,,skipped_not_found
+42,16635,Roni ZISKINDER,Canteen,,,,500,,skipped_not_found
+43,16635,Roni ZISKINDER,Shop,,,,2000,,skipped_not_found
+44,16638,Nathaniel SCRANTON,Shop,,,,2000,,skipped_not_found
+45,16638,Nathaniel SCRANTON,Canteen,,,,600,,skipped_not_found
+46,16644,Nathan CHAN,Shop,,,,2000,,skipped_not_found
+47,16644,Nathan CHAN,Canteen,,,,500,,skipped_not_found
+48,16645,Ethan CHAN,Canteen,,,,500,,skipped_not_found
+49,16645,Ethan CHAN,Shop,,,,2000,,skipped_not_found
+50,16649,Alexander AGOPYAN,Shop,,,,2000,,skipped_not_found
+51,16649,Alexander AGOPYAN,Canteen,,,,500,,skipped_not_found
+52,16685,Tomoko IKUTA,Canteen,,,,500,,skipped_not_found
+53,16685,Tomoko IKUTA,Shop,,,,2000,,skipped_not_found
+54,16690,Elena BIJNENS,Canteen,,,,200,,skipped_not_found
+55,16690,Elena BIJNENS,Shop,,,,500,,skipped_not_found
+56,16691,Tamonyos PHONGSPHETRARAT,Canteen,,,,300,,skipped_not_found
+57,16691,Tamonyos PHONGSPHETRARAT,Shop,,,,300,,skipped_not_found
+58,16692,Pannawhath PUNWATANAWIT,Canteen,,,,500,,skipped_not_found
+59,16692,Pannawhath PUNWATANAWIT,Shop,,,,2000,,skipped_not_found
+60,16709,Minyada CHOTICHAICHARIN,Canteen,,,,500,,skipped_not_found
+61,16709,Minyada CHOTICHAICHARIN,Shop,,,,2000,,skipped_not_found
+62,16715,Atsada ISRAPANICH,Shop,,,,2000,,skipped_not_found
+63,16715,Atsada ISRAPANICH,Canteen,,,,500,,skipped_not_found
+64,16716,Kankanit JONGRENGPIAN,Canteen,,,,500,,skipped_not_found
+65,16716,Kankanit JONGRENGPIAN,Shop,,,,2000,,skipped_not_found
+66,16717,Prompiriya JONGRENGPIAN,Canteen,,,,500,,skipped_not_found
+67,16717,Prompiriya JONGRENGPIAN,Shop,,,,2000,,skipped_not_found
+68,16718,Panaruj BUSSAYASRIPATT,Canteen,,,,500,,skipped_not_found
+69,16718,Panaruj BUSSAYASRIPATT,Shop,,,,2000,,skipped_not_found
+70,16719,Morgan JESSEE,Canteen,,,,1200,,skipped_not_found
+71,16725,Annabel MCROBBIE,Canteen,,,,500,,skipped_not_found
+72,16725,Annabel MCROBBIE,Shop,,,,2000,,skipped_not_found
+73,16732,Eleanor SOULE,Shop,,,,2000,,skipped_not_found
+74,16732,Eleanor SOULE,Canteen,,,,500,,skipped_not_found
+75,16734,Boonsita SIRISON,Shop,,,,2000,,skipped_not_found
+76,16734,Boonsita SIRISON,Canteen,,,,500,,skipped_not_found
+77,16736,Kiet KERSTEN,Shop,,,,2000,,skipped_not_found
+78,16738,Pattarawadee PHANITWIBOON,Canteen,,,,500,,skipped_not_found
+79,16738,Pattarawadee PHANITWIBOON,Shop,,,,2000,,skipped_not_found
+80,16743,Chatthawan TEEPSUWAN,Shop,,,,2000,,skipped_not_found
+81,16743,Chatthawan TEEPSUWAN,Canteen,,,,500,,skipped_not_found
+82,16749,Sirin THAMAKAISON,Canteen,,,,500,,skipped_not_found
+83,16749,Sirin THAMAKAISON,Shop,,,,2000,,skipped_not_found
+84,16754,Caleb WRIGHT,Shop,,,,2000,,skipped_not_found
+85,16754,Caleb WRIGHT,Canteen,,,,500,,skipped_not_found
+86,16816,Justin EPPLER,Shop,,,,2000,,skipped_not_found
+87,16956,Florent BIRKLÉ,Canteen,,,,500,,skipped_not_found
+88,16956,Florent BIRKLÉ,Shop,,,,2000,,skipped_not_found
+89,16989,Ken CHOLLACOOP,Canteen,,,,500,,skipped_not_found
+90,16989,Ken CHOLLACOOP,Shop,,,,2000,,skipped_not_found
+91,17013,Kris TERDPRISANT,Canteen,,,,500,,skipped_not_found
+92,17013,Kris TERDPRISANT,Shop,,,,2000,,skipped_not_found
+93,17129,Samuel WILD,Shop,,,,2000,,skipped_not_found
+94,17129,Samuel WILD,Canteen,,,,500,,skipped_not_found
+95,17199,Sophia DUNN,Canteen,,,,500,,skipped_not_found
+96,17199,Sophia DUNN,Shop,,,,2000,,skipped_not_found
+97,17200,Siriyada BUNDHURATANA,Shop,,,,16000,,skipped_not_found
+98,17227,Shino TAKAGI,Canteen,,,,500,,skipped_not_found
+99,17227,Shino TAKAGI,Shop,,,,2000,,skipped_not_found
+100,17245,Jasmine BLUMENTHAL,Canteen,,,,500,,skipped_not_found
+101,17245,Jasmine BLUMENTHAL,Shop,,,,25000,,skipped_not_found
+102,17258,Proud THANAVISUTH,Canteen,,,,500,,skipped_not_found
+103,17258,Proud THANAVISUTH,Shop,,,,2000,,skipped_not_found
+104,17261,Didsapat AKKARAWITTAYAPOOM,Canteen,,,,500,,skipped_not_found
+105,17261,Didsapat AKKARAWITTAYAPOOM,Shop,,,,2000,,skipped_not_found
+106,17270,Tristan SCHAAKE,Shop,,,,2000,,skipped_not_found
+107,17270,Tristan SCHAAKE,Canteen,,,,500,,skipped_not_found
+108,17292,Pitchaya MANTHANANON,Shop,,,,2000,,skipped_not_found
+109,17292,Pitchaya MANTHANANON,Canteen,,,,500,,skipped_not_found
+110,17324,Zoe RUBIN,Canteen,,,,500,,skipped_not_found
+111,17324,Zoe RUBIN,Shop,,,,2000,,skipped_not_found
+112,17325,Zara RUBIN,Canteen,,,,500,,skipped_not_found
+113,17325,Zara RUBIN,Shop,,,,2000,,skipped_not_found
+114,17327,Ethan SPEIRS,Canteen,,,,270,,skipped_not_found
+115,17327,Ethan SPEIRS,Shop,,,,270,,skipped_not_found
+116,17385,Cordelia WHITMAN,Shop,,,,2000,,skipped_not_found
+117,17385,Cordelia WHITMAN,Canteen,,,,500,,skipped_not_found
+118,17397,Emma STEPHENSON,Shop,,,,3000,,skipped_not_found
+119,17435,Wanwanus PUNWATANAWIT,Shop,,,,20000,,skipped_not_found
+120,17435,Wanwanus PUNWATANAWIT,Canteen,,,,2000,,skipped_not_found
+121,17468,Giovanni CRIMI,Canteen,,,,500,,skipped_not_found
+122,17468,Giovanni CRIMI,Shop,,,,2000,,skipped_not_found
+123,17483,Elias THAMS-MJASET,Canteen,,,,500,,skipped_not_found
+124,17483,Elias THAMS-MJASET,Shop,,,,2000,,skipped_not_found
+125,17499,Varis KARUHADEJ,Shop,,,,2000,,skipped_not_found
+126,17499,Varis KARUHADEJ,Canteen,,,,500,,skipped_not_found
+127,17501,Lana HARTER,Canteen,,,,1500,,skipped_not_found
+128,17502,Yi-Fong HSU,Shop,,,,2000,,skipped_not_found
+129,17502,Yi-Fong HSU,Canteen,,,,500,,skipped_not_found
+130,17512,Pannika CHAN,Canteen,,,,500,,skipped_not_found
+131,17512,Pannika CHAN,Shop,,,,2000,,skipped_not_found
+132,17517,James MCROBBIE,Canteen,,,,500,,skipped_not_found
+133,17517,James MCROBBIE,Shop,,,,2000,,skipped_not_found
+134,17518,Joshua MCROBBIE,Shop,,,,2000,,skipped_not_found
+135,17518,Joshua MCROBBIE,Canteen,,,,500,,skipped_not_found
+136,17535,Pimpitchaya DHAMAPONG,Shop,,,,2000,,skipped_not_found
+137,17535,Pimpitchaya DHAMAPONG,Canteen,,,,500,,skipped_not_found
+138,17536,Patit DHAMAPONG,Canteen,,,,500,,skipped_not_found
+139,17536,Patit DHAMAPONG,Shop,,,,2000,,skipped_not_found
+140,17538,Liya WITTNER,Shop,,,,2000,,skipped_not_found
+141,17538,Liya WITTNER,Canteen,,,,500,,skipped_not_found
+142,17540,Malaya VAUGHAN,Canteen,,,,300,,skipped_not_found
+143,17592,Myra GANDHI,Canteen,,,,500,,skipped_not_found
+144,17592,Myra GANDHI,Shop,,,,2000,,skipped_not_found
+145,17593,Deva GANDHI,Shop,,,,2000,,skipped_not_found
+146,17593,Deva GANDHI,Canteen,,,,500,,skipped_not_found
+147,17594,Thanaphat APHICHATABUT,Shop,,,,2000,,skipped_not_found
+148,17594,Thanaphat APHICHATABUT,Canteen,,,,500,,skipped_not_found
+149,17595,Sithichok THAMAKAISON,Canteen,,,,500,,skipped_not_found
+150,17595,Sithichok THAMAKAISON,Shop,,,,2000,,skipped_not_found
+151,17596,Kwanjira THAMAKAISON,Shop,,,,2000,,skipped_not_found
+152,17596,Kwanjira THAMAKAISON,Canteen,,,,500,,skipped_not_found
+153,17630,Stepan KORMILITSYN,Canteen,,,,3000,,skipped_not_found
+154,17630,Stepan KORMILITSYN,Shop,,,,3000,,skipped_not_found
+155,17747,Mena SUMETANON,Shop,,,,2000,,skipped_not_found
+156,17747,Mena SUMETANON,Canteen,,,,500,,skipped_not_found
+157,17762,Hyuntaek WOO,Shop,,,,2000,,skipped_not_found
+158,17762,Hyuntaek WOO,Canteen,,,,500,,skipped_not_found
+159,17764,Yarinda SUNTHORNRANGSRI,Canteen,,,,500,,skipped_not_found
+160,17764,Yarinda SUNTHORNRANGSRI,Shop,,,,2000,,skipped_not_found
+161,17765,Natasha SUWANPIMOLKUL,Shop,,,,2000,,skipped_not_found
+162,17765,Natasha SUWANPIMOLKUL,Canteen,,,,500,,skipped_not_found
+163,17768,Lukas RICHTER,Canteen,,,,500,,skipped_not_found
+164,17768,Lukas RICHTER,Shop,,,,2000,,skipped_not_found
+165,17769,Annika RICHTER,Shop,,,,2000,,skipped_not_found
+166,17769,Annika RICHTER,Canteen,,,,500,,skipped_not_found
+167,17772,Natchavee KOSOLPISIT,Canteen,,,,500,,skipped_not_found
+168,17772,Natchavee KOSOLPISIT,Shop,,,,2000,,skipped_not_found
+169,17794,Mayura MOUAWAD,Canteen,210,Mayura M. MOUAWAD,,500,,planned
+170,17794,Mayura MOUAWAD,Shop,210,Mayura M. MOUAWAD,,2000,,planned
+171,17799,Mira PHAN,Canteen,,,,500,,skipped_not_found
+172,17799,Mira PHAN,Shop,,,,2000,,skipped_not_found
+173,17800,Petra GEE,Shop,209,Petra D. GEE,,1000,,planned
+174,17800,Petra GEE,Canteen,209,Petra D. GEE,,500,,planned
+175,17803,Nanon TIEWTRANON,Canteen,,,,500,,skipped_not_found
+176,17803,Nanon TIEWTRANON,Shop,,,,2000,,skipped_not_found
+177,17805,Sarisa SEREEYOTHIN,Shop,,,,2000,,skipped_not_found
+178,17805,Sarisa SEREEYOTHIN,Canteen,,,,500,,skipped_not_found
+179,17818,Ada PHETSOMPHOU,Canteen,240,Ada S. PHETSOMPHOU,,500,,planned
+180,17818,Ada PHETSOMPHOU,Shop,240,Ada S. PHETSOMPHOU,,2000,,planned
+181,17840,Piriyakorn PIROONHAPAT,Shop,,,,2000,,skipped_not_found
+182,17840,Piriyakorn PIROONHAPAT,Canteen,,,,500,,skipped_not_found
+183,17865,Luke WRIGHT,Canteen,,,,500,,skipped_not_found
+184,17865,Luke WRIGHT,Shop,,,,2000,,skipped_not_found
+185,17886,Passawit JONGSUEBCHOKE,Shop,,,,2000,,skipped_not_found
+186,17886,Passawit JONGSUEBCHOKE,Canteen,,,,500,,skipped_not_found
+187,17907,Molly COHEN,Canteen,,,,500,,skipped_not_found
+188,17918,Napon THAVORNVANIT,Shop,241,Napon THAVORNVANIT,,2000,,planned
+189,17918,Napon THAVORNVANIT,Canteen,241,Napon THAVORNVANIT,,500,,planned
+190,17919,Thee BURAPATANA,Canteen,,,,2000,,skipped_not_found
+191,17919,Thee BURAPATANA,Shop,,,,2000,,skipped_not_found
+192,17921,Yanin (Proud) TANGKARAVAKOON,Canteen,,,,500,,skipped_not_found
+193,17921,Yanin (Proud) TANGKARAVAKOON,Shop,,,,2000,,skipped_not_found
+194,17923,Sarinee KOSAIPOLKUN,Canteen,,,,2000,,skipped_not_found
+195,17923,Sarinee KOSAIPOLKUN,Shop,,,,2000,,skipped_not_found
+196,17924,Poon PUNJARUNGROJ,Shop,248,Poon PUNJARUNGROJ,,2000,,planned
+197,17924,Poon PUNJARUNGROJ,Canteen,248,Poon PUNJARUNGROJ,,500,,planned
+198,17925,Natchanol JURANGKOOL,Shop,,,,2000,,skipped_not_found
+199,17928,Monnatcha NAVAWONGS NA AYUDHAYA,Shop,,,,2000,,skipped_not_found
+200,17928,Monnatcha NAVAWONGS NA AYUDHAYA,Canteen,,,,500,,skipped_not_found
+201,17929,Kurit MUANGSIRI,Shop,,,,2000,,skipped_not_found
+202,17929,Kurit MUANGSIRI,Canteen,,,,400,,skipped_not_found
+203,17930,Napok SAIKUAR,Shop,,,,2000,,skipped_not_found
+204,17930,Napok SAIKUAR,Canteen,,,,500,,skipped_not_found
+205,17931,Tanawat CHEEVARUNOTHAI,Canteen,215,Tanawat CHEEVARUNOTHAI,,500,,planned
+206,17931,Tanawat CHEEVARUNOTHAI,Shop,215,Tanawat CHEEVARUNOTHAI,,2000,,planned
+207,17937,Jeein AHN,Canteen,,,,500,,skipped_not_found
+208,17937,Jeein AHN,Shop,,,,2000,,skipped_not_found
+209,17949,Akkrawin KOVITCHINDACHAI,Shop,,,,2000,,skipped_not_found
+210,17949,Akkrawin KOVITCHINDACHAI,Canteen,,,,500,,skipped_not_found
+211,17956,Bhuriwaj BUSSAYASRIPATT,Shop,221,Bhuriwaj BUSSAYASRIPATT,,2000,,planned
+212,17956,Bhuriwaj BUSSAYASRIPATT,Canteen,221,Bhuriwaj BUSSAYASRIPATT,,500,,planned
+213,17959,Elijah CANTRELL,Shop,,,,2000,,skipped_not_found
+214,17959,Elijah CANTRELL,Canteen,,,,500,,skipped_not_found
+215,17960,Emina UDAGAWA,Canteen,,,,500,,skipped_not_found
+216,17960,Emina UDAGAWA,Shop,,,,2000,,skipped_not_found
+217,17970,Jaibhetr SINGSANSERN,Canteen,,,,500,,skipped_not_found
+218,17970,Jaibhetr SINGSANSERN,Shop,,,,2000,,skipped_not_found
+219,17972,Xincheng HU,Shop,840,Xincheng HU,,2000,,planned
+220,17972,Xincheng HU,Canteen,840,Xincheng HU,,500,,planned
+221,18033,Daniella HANSBERRY,Canteen,,,,500,,skipped_not_found
+222,18033,Daniella HANSBERRY,Shop,,,,2000,,skipped_not_found
+223,18058,Mor NAHMIAS,Shop,,,,2000,,skipped_not_found
+224,18058,Mor NAHMIAS,Canteen,,,,500,,skipped_not_found
+225,18183,Mayim CORAL,Canteen,,,,500,,skipped_not_found
+226,18183,Mayim CORAL,Shop,,,,2000,,skipped_not_found
+227,18227,Kallada SRISANGTHAISUK,Shop,,,,2000,,skipped_not_found
+228,18227,Kallada SRISANGTHAISUK,Canteen,,,,500,,skipped_not_found
+229,18228,Pakin SRISANGTHAISUK,Shop,,,,2000,,skipped_not_found
+230,18228,Pakin SRISANGTHAISUK,Canteen,,,,500,,skipped_not_found
+231,18241,Pryn KHAMKANIST,Canteen,,,,500,,skipped_not_found
+232,18241,Pryn KHAMKANIST,Shop,,,,2000,,skipped_not_found
+233,18253,Ananya SRIRANGAM,Canteen,,,,500,,skipped_not_found
+234,18253,Ananya SRIRANGAM,Shop,,,,2000,,skipped_not_found
+235,18356,Anya SUMETANON,Canteen,,,,500,,skipped_not_found
+236,18356,Anya SUMETANON,Shop,,,,2000,,skipped_not_found
+237,18403,Le Fan LOO,Canteen,204,Le Fan LOO,,500,,planned
+238,18403,Le Fan LOO,Shop,204,Le Fan LOO,,2000,,planned
+239,18446,Soohyun LEE,Canteen,243,Soo hyun LEE,,500,,planned
+240,18446,Soohyun LEE,Shop,243,Soo hyun LEE,,2000,,planned
+241,18454,Kayla STEPHENSON,Shop,229,Kayla STEPHENSON,,3000,,planned
+242,18457,Andrew SOULE,Shop,823,Andrew J. SOULE,,2000,,planned
+243,18468,Eleanor BIJNENS,Shop,214,Eleanor BIJNENS,,1000,,planned
+244,18468,Eleanor BIJNENS,Canteen,214,Eleanor BIJNENS,,200,,planned
+245,18473,Kriti SRIRANGAM,Shop,,,,2000,,skipped_not_found
+246,18474,Jack DUNN,Shop,223,Jack T. DUNN,,2000,,planned
+247,18483,Jimin KIM,Canteen,253,Ji Min KIM,,500,,planned
+248,18483,Jimin KIM,Shop,253,Ji Min KIM,,2000,,planned
+249,18485,Brace HALL,Shop,247,Brace P HALL,,1000,,planned
+250,18485,Brace HALL,Canteen,247,Brace P HALL,,2000,,planned
+251,18500,Avi RUBIN,Shop,202,Avi A. RUBIN,,15000,,planned
+252,18500,Avi RUBIN,Canteen,202,Avi A. RUBIN,,15000,,planned
+253,18508,Gabriel WINKLES,Canteen,,,,500,,skipped_not_found
+254,18508,Gabriel WINKLES,Shop,,,,2000,,skipped_not_found
+255,18511,Aydan MEISNER SNOOK,Shop,839,Aydan E MEISNER SNOOK,,2000,,planned
+256,18512,Owain JESSEE,Canteen,,,,1400,,skipped_not_found
+257,18522,Prinnapat SUNTHORNRANGSRI,Shop,232,Prinnapat SUNTHORNRANGSRI,,2000,,planned
+258,18523,Atikarn PHISUTHIKUL,Shop,230,Atikarn PHISUTHIKUL,,5000,,planned
+259,18526,Settapun JONGSUEBCHOKE,Shop,238,Settapun JONGSUEBCHOKE,,2000,,planned
+260,18526,Settapun JONGSUEBCHOKE,Canteen,238,Settapun JONGSUEBCHOKE,,500,,planned
+261,18530,Sawapon WARTIN,Shop,260,Sawapon WARTIN,,2000,,planned
+262,18530,Sawapon WARTIN,Canteen,260,Sawapon WARTIN,,500,,planned
+263,18531,Sapon WARTIN,Shop,262,Sapon WARTIN,,2000,,planned
+264,18531,Sapon WARTIN,Canteen,262,Sapon WARTIN,,500,,planned
+265,18542,Sukkatad SAHAWAT,Canteen,,,,300,,skipped_not_found
+266,18544,Rachamongol CHAYAPIRAD,Shop,267,Rachamongol CHAYAPIRAD,,2000,,planned
+267,18548,Pojchara PUNNAKET,Shop,,,,2000,,skipped_not_found
+268,18548,Pojchara PUNNAKET,Canteen,,,,500,,skipped_not_found
+269,18549,Pawat PUNNAKET,Canteen,,,,500,,skipped_not_found
+270,18549,Pawat PUNNAKET,Shop,,,,2000,,skipped_not_found
+271,18556,Tyme SUTEESOPON,Canteen,,,,350,,skipped_not_found
+272,18556,Tyme SUTEESOPON,Shop,,,,2000,,skipped_not_found
+273,18560,Sea CORAL,Shop,,,,2000,,skipped_not_found
+274,18560,Sea CORAL,Canteen,,,,500,,skipped_not_found
+275,18564,Jinpavit (Birdie) RATANA-UNGKOOL,Shop,,,,2000,,skipped_not_found
+276,18564,Jinpavit (Birdie) RATANA-UNGKOOL,Canteen,,,,500,,skipped_not_found
+277,18566,Warisara LUANGON,Canteen,,,,500,,skipped_not_found
+278,18566,Warisara LUANGON,Shop,,,,2000,,skipped_not_found
+279,18567,Anaphat TRIWATANA,Canteen,,,,1000,,skipped_not_found
+280,18567,Anaphat TRIWATANA,Shop,,,,5000,,skipped_not_found
+281,18569,Ravita Jasmine CHIE,Shop,,,,2000,,skipped_not_found
+282,18569,Ravita Jasmine CHIE,Canteen,,,,500,,skipped_not_found
+283,18570,Ruj MAHATTANAKUL,Shop,,,,2000,,skipped_not_found
+284,18570,Ruj MAHATTANAKUL,Canteen,,,,500,,skipped_not_found
+285,18571,Sophonvid TATIYAPHAN,Canteen,,,,1000,,skipped_not_found
+286,18571,Sophonvid TATIYAPHAN,Shop,,,,1000,,skipped_not_found
+287,18572,Vasa OUNAYAKOVIT,Shop,,,,2000,,skipped_not_found
+288,18572,Vasa OUNAYAKOVIT,Canteen,,,,500,,skipped_not_found
+289,18573,Patcharapong APHIWETSA,Canteen,,,,500,,skipped_not_found
+290,18573,Patcharapong APHIWETSA,Shop,,,,2000,,skipped_not_found
+291,18580,Pow PHANRATANAMALA,Shop,,,,2000,,skipped_not_found
+292,18580,Pow PHANRATANAMALA,Canteen,,,,500,,skipped_not_found
+293,18587,Kanta PUNNAKANTA,Shop,,,,2000,,skipped_not_found
+294,18587,Kanta PUNNAKANTA,Canteen,,,,500,,skipped_not_found
+295,18591,Tarit AMATAYAKUL,Shop,,,,2000,,skipped_not_found
+296,18591,Tarit AMATAYAKUL,Canteen,,,,500,,skipped_not_found
+297,18596,Taiki NAKAMURA,Canteen,,,,500,,skipped_not_found
+298,18596,Taiki NAKAMURA,Shop,,,,2000,,skipped_not_found
+299,18606,Mshindi KAIYA,Canteen,211,Mshindi KAIYA,,500,,planned
+300,18606,Mshindi KAIYA,Shop,211,Mshindi KAIYA,,2000,,planned
+301,18613,Koki TAKENAGA,Canteen,,,,500,,skipped_not_found
+302,18613,Koki TAKENAGA,Shop,,,,2000,,skipped_not_found
+303,18614,Mitsuki TAKENAGA,Shop,,,,2000,,skipped_not_found
+304,18614,Mitsuki TAKENAGA,Canteen,,,,500,,skipped_not_found
+305,18626,Xana SAYAMPOL ALONSO,Shop,831,Xana SAYAMPOL ALONSO,,2000,,planned
+306,18627,Cruz GILES,Shop,,,,2000,,skipped_not_found
+307,18649,Roongprad LIMTHONGTHANG,Canteen,,,,500,,skipped_not_found
+308,18649,Roongprad LIMTHONGTHANG,Shop,,,,2000,,skipped_not_found
+309,18809,Ayaka BIJL,Shop,,,,2000,,skipped_not_found
+310,18809,Ayaka BIJL,Canteen,,,,500,,skipped_not_found
+311,18810,Thijs BIJL,Shop,270,Thijs A BIJL,,2000,,planned
+312,18810,Thijs BIJL,Canteen,270,Thijs A BIJL,,500,,planned
+313,18817,Sanjana MEHRA,Canteen,,,,500,,skipped_not_found
+314,18817,Sanjana MEHRA,Shop,,,,2000,,skipped_not_found
+315,18830,Qasim ALI,Canteen,,,,400,,skipped_not_found
+316,18830,Qasim ALI,Shop,,,,2000,,skipped_not_found
+317,18890,Ruotong TIAN,Shop,,,,2000,,skipped_not_found
+318,18890,Ruotong TIAN,Canteen,,,,500,,skipped_not_found
+319,18894,Xavier P. PENALOZA,Canteen,,,,500,,skipped_not_found
+320,18894,Xavier P. PENALOZA,Shop,,,,2000,,skipped_not_found
+321,18895,Xianna P. PENALOZA,Shop,,,,2000,,skipped_not_found
+322,18895,Xianna P. PENALOZA,Canteen,,,,500,,skipped_not_found
+323,18897,Anais POSTEL-VINAY,Shop,283,Anais N POSTEL-VINAY,,2000,,planned
+324,18899,Benjamin VANDEPOEL,Shop,,,,2000,,skipped_not_found
+325,18900,Punyavee ENDLICHER,Canteen,,,,500,,skipped_not_found
+326,18900,Punyavee ENDLICHER,Shop,,,,2000,,skipped_not_found
+327,18943,Zara Dania FAROOK,Shop,,,,2000,,skipped_not_found
+328,18943,Zara Dania FAROOK,Canteen,,,,500,,skipped_not_found
+329,18946,Chayatada CHOOCHOTCHUANG,Shop,,,,2000,,skipped_not_found
+330,18946,Chayatada CHOOCHOTCHUANG,Canteen,,,,500,,skipped_not_found
+331,18954,Lucas NYBORG,Shop,,,,2000,,skipped_not_found
+332,18954,Lucas NYBORG,Canteen,,,,1000,,skipped_not_found
+333,18964,Minje KIM,Canteen,,,,500,,skipped_not_found
+334,18964,Minje KIM,Shop,,,,2000,,skipped_not_found
+335,18984,Maya UPADHYAY,Canteen,,,,500,,skipped_not_found
+336,18984,Maya UPADHYAY,Shop,,,,2000,,skipped_not_found
+337,19003,Emily CONIGLIO,Shop,,,,2000,,skipped_not_found
+338,19003,Emily CONIGLIO,Canteen,,,,500,,skipped_not_found
+339,19026,Miu SAWAGUCHI,Shop,273,Miu SAWAGUCHI,,2000,,planned
+340,19029,Tristan GEE,Shop,217,Tristan L GEE,,299,,planned
+341,19029,Tristan GEE,Canteen,217,Tristan L GEE,,299,,planned
+342,19030,Troy GEE,Shop,218,Troy L GEE,,299,,planned
+343,19030,Troy GEE,Canteen,218,Troy L GEE,,299,,planned
+344,19031,Jessie JOKHANI,Shop,208,Jessie JOKHANI,,2000,,planned
+345,19033,Cato NICHOLS-LEMON,Shop,,,,2000,,skipped_not_found
+346,19033,Cato NICHOLS-LEMON,Canteen,,,,500,,skipped_not_found
+347,19036,Bredan BYRUM,Canteen,,,,500,,skipped_not_found
+348,19036,Bredan BYRUM,Shop,,,,2000,,skipped_not_found
+349,19051,Patrick ANDRIST,Canteen,,,,500,,skipped_not_found
+350,19051,Patrick ANDRIST,Shop,,,,2000,,skipped_not_found
+351,19053,Ranveer DAGA,Canteen,,,,2000,,skipped_not_found
+352,19053,Ranveer DAGA,Shop,,,,4500,,skipped_not_found
+353,19057,Alex EDELSON,Shop,165,Alex EDELSON,,2000,,planned
+354,19061,Ashan Nadeesha de Zoysa W PUBUDUMUNI,Shop,280,Ashan nadeesha de zoysa wije PUBUDUMUNI,,2000,,planned
+355,19061,Ashan Nadeesha de Zoysa W PUBUDUMUNI,Canteen,280,Ashan nadeesha de zoysa wije PUBUDUMUNI,,500,,planned
+356,19072,Chachris WONGPRATHUM,Canteen,160,Chachris WONGPRATHUM,,700,,planned
+357,19072,Chachris WONGPRATHUM,Shop,160,Chachris WONGPRATHUM,,1000,,planned
+358,19079,Leonardo GAGGIO,Shop,276,Leonardo GAGGIO,,2000,,planned
+359,19080,Ludovico GAGGIO,Shop,282,Ludovico GAGGIO,,2000,,planned
+360,19119,Houda BAKKALI,Shop,,,,20000,,skipped_not_found
+361,19119,Houda BAKKALI,Canteen,,,,500,,skipped_not_found
+362,19125,Ashirvad NARAYAN,Canteen,,,,500,,skipped_not_found
+363,19125,Ashirvad NARAYAN,Shop,,,,2000,,skipped_not_found
+364,19147,Piper DAY,Canteen,837,Piper M. DAY,,350,,planned
+365,19152,Chutiphon CHAIRATN,Canteen,,,,1000,,skipped_not_found
+366,19152,Chutiphon CHAIRATN,Shop,,,,2000,,skipped_not_found
+367,19156,Thapan KOVITCHINDACHAI,Shop,249,Thapan KOVITCHINDACHAI,,2000,,planned
+368,19158,Paul SAENGCHATI,Shop,294,Paul SAENGCHATI,,2000,,planned
+369,19160,Kalayarak ASAWAKARN,Canteen,,,,500,,skipped_not_found
+370,19160,Kalayarak ASAWAKARN,Shop,,,,2000,,skipped_not_found
+371,19165,Pornalin PIROONHAPAT,Shop,162,Pornalin PIROONHAPAT,,2000,,planned
+372,19166,Piyatida LUANGON,Shop,259,Piyatida LUANGON,,2000,,planned
+373,19166,Piyatida LUANGON,Canteen,259,Piyatida LUANGON,,500,,planned
+374,19168,Chayada VORAKULSATHIEN,Shop,,,,2000,,skipped_not_found
+375,19168,Chayada VORAKULSATHIEN,Canteen,,,,500,,skipped_not_found
+376,19169,Slin PONGVITAYAPANU,Shop,257,Slin PONGVITAYAPANU,,2000,,planned
+377,19170,Jinpavee RATANA-UNGKOOL,Canteen,,,,500,,skipped_not_found
+378,19170,Jinpavee RATANA-UNGKOOL,Shop,,,,2000,,skipped_not_found
+379,19171,Somchote SAHAVAT,Shop,289,Somchote SAHAVAT,,2000,,planned
+380,19179,Smith THAMAKAISON,Canteen,206,Smith THAMAKAISON,,500,,planned
+381,19179,Smith THAMAKAISON,Shop,206,Smith THAMAKAISON,,2000,,planned
+382,19180,Nunwaratch PRINGUTHUMPORN,Shop,295,Nunwaratch PRINGUTHUMPORN,,1500,,planned
+383,19180,Nunwaratch PRINGUTHUMPORN,Canteen,295,Nunwaratch PRINGUTHUMPORN,,500,,planned
+384,19181,Natawalun PRINGUTHUMPORN,Shop,297,Natawalun PRINGUTHUMPORN,,1500,,planned
+385,19181,Natawalun PRINGUTHUMPORN,Canteen,297,Natawalun PRINGUTHUMPORN,,500,,planned
+386,19182,Yanisa KOSAIPOLKUN,Shop,256,Yanisa KOSAIPOLKUN,,2000,,planned
+387,19183,Oranid PUNWATANAWIT,Canteen,213,Oranid PUNWATANAWIT,,2000,,planned
+388,19183,Oranid PUNWATANAWIT,Shop,213,Oranid PUNWATANAWIT,,20000,,planned
+389,19184,Narumpa TANGKARAVAKOON,Shop,,,,2000,,skipped_not_found
+390,19185,Farn TANTISUNTHORN,Shop,403,Farn TANTISUNTHORN,,1000,,planned
+391,19194,Sameer DAGA,Canteen,271,Sameer K. DAGA,,1000,,planned
+392,19194,Sameer DAGA,Shop,271,Sameer K. DAGA,,4500,,planned
+393,19200,Samuel HART,Canteen,,,,500,,skipped_not_found
+394,19200,Samuel HART,Shop,,,,2000,,skipped_not_found
+395,19216,Jeremy STUIT,Canteen,,,,500,,skipped_not_found
+396,19216,Jeremy STUIT,Shop,,,,2000,,skipped_not_found
+397,19226,Vitra AMPORNPISIT,Shop,,,,2000,,skipped_not_found
+398,19228,Sean TERDPRISANT,Shop,226,Sean TERDPRISANT,,2000,,planned
+399,19229,Tay TATIYAMANEEKUL,Shop,219,Tay TATIYAMANEEKUL,,2000,,planned
+400,19231,Nathanicha VAJARASTHIRA,Canteen,413,Nathanicha VAJARASTHIRA,,1000,,planned
+401,19231,Nathanicha VAJARASTHIRA,Shop,413,Nathanicha VAJARASTHIRA,,2000,,planned
+402,19232,Varun MAGESH,Shop,404,Varun MAGESH,,2000,,planned
+403,19232,Varun MAGESH,Canteen,404,Varun MAGESH,,2000,,planned
+404,19239,Aurelio OMS,Canteen,,,,500,,skipped_not_found
+405,19239,Aurelio OMS,Shop,,,,2000,,skipped_not_found
+406,19330,Nicolas SWEENEY,Canteen,405,Nicolas J. SWEENEY,,300,,planned
+407,19331,Maya WERNER,Canteen,836,Maya L. WERNER,,600,,planned
+408,19331,Maya WERNER,Shop,836,Maya L. WERNER,,1500,,planned
+409,19332,Wasu VIDAYANAKORN,Shop,849,Wasu VIDAYANAKORN,,2000,,planned
+410,19334,Naiyana VAUGHAN,Canteen,,,,250,,skipped_not_found
+411,19334,Naiyana VAUGHAN,Shop,,,,200,,skipped_not_found
+412,19340,Neil GANDHI,Shop,,,,2000,,skipped_not_found
+413,19340,Neil GANDHI,Canteen,,,,500,,skipped_not_found
+414,19347,Chanot CHARINDHORN,Shop,,,,2000,,skipped_not_found
+415,19347,Chanot CHARINDHORN,Canteen,,,,500,,skipped_not_found
+416,19349,Pakakorn THIENTHONG,Shop,,,,2000,,skipped_not_found
+417,19367,Mark GYIMESI,Shop,,,,2000,,skipped_not_found
+418,19367,Mark GYIMESI,Canteen,,,,500,,skipped_not_found
+419,19368,Zita GYIMESI,Shop,,,,2000,,skipped_not_found
+420,19386,Jittiphat VONGPATARAKUL,Shop,,,,2000,,skipped_not_found
+421,19392,Vardhan JAIN,Shop,,,,2000,,skipped_not_found
+422,19392,Vardhan JAIN,Canteen,,,,500,,skipped_not_found
+423,19393,Alice AAS,Canteen,,,,300,,skipped_not_found
+424,19393,Alice AAS,Shop,,,,2000,,skipped_not_found
+425,19397,Benicio HARRYSON,Shop,427,Benicio HARRYSON,,2000,,planned
+426,19397,Benicio HARRYSON,Canteen,427,Benicio HARRYSON,,300,,planned
+427,19410,Si Woo PARK,Shop,,,,2000,,skipped_not_found
+428,19410,Si Woo PARK,Canteen,,,,500,,skipped_not_found
+429,19414,Amelie PORET,Canteen,,,,500,,skipped_not_found
+430,19414,Amelie PORET,Shop,,,,2000,,skipped_not_found
+431,19436,Soomin KIM,Shop,,,,2000,,skipped_not_found
+432,19436,Soomin KIM,Canteen,,,,500,,skipped_not_found
+433,19442,Heather FONG,Shop,430,Heather FONG,,1000,,planned
+434,19442,Heather FONG,Canteen,430,Heather FONG,,500,,planned
+435,19443,Ceres FONG,Canteen,435,Ceres FONG,,500,,planned
+436,19453,Alice CHUSID,Canteen,,,,500,,skipped_not_found
+437,19453,Alice CHUSID,Shop,,,,2000,,skipped_not_found
+438,19471,Alexander AAS,Canteen,419,Alexander AAS,,300,,planned
+439,19471,Alexander AAS,Shop,419,Alexander AAS,,2000,,planned
+440,19473,Aryan THAKRAL,Canteen,,,,500,,skipped_not_found
+441,19476,Parinda CHALERMTHIRALERT,Shop,,,,2000,,skipped_not_found
+442,19476,Parinda CHALERMTHIRALERT,Canteen,,,,500,,skipped_not_found
+443,19477,Nattanicha SETHASEREE,Canteen,,,,500,,skipped_not_found
+444,19477,Nattanicha SETHASEREE,Shop,,,,2000,,skipped_not_found
+445,19481,Siraphop PITPREECHA,Canteen,,,,500,,skipped_not_found
+446,19481,Siraphop PITPREECHA,Shop,,,,2000,,skipped_not_found
+447,19482,Chadchanad NAOTHAWORN,Shop,,,,2000,,skipped_not_found
+448,19482,Chadchanad NAOTHAWORN,Canteen,,,,500,,skipped_not_found
+449,19483,Nattapat PRAYOONTHONG,Shop,,,,2000,,skipped_not_found
+450,19483,Nattapat PRAYOONTHONG,Canteen,,,,500,,skipped_not_found
+451,19501,Nutthapas TANOMVORSIN,Shop,,,,2000,,skipped_not_found
+452,19501,Nutthapas TANOMVORSIN,Canteen,,,,500,,skipped_not_found
+453,19509,Kassiopia LERNGUTAI,Canteen,,,,500,,skipped_not_found
+454,19509,Kassiopia LERNGUTAI,Shop,,,,2000,,skipped_not_found
+455,19510,Napat KOMOLROJANAPORN,Shop,,,,2000,,skipped_not_found
+456,19510,Napat KOMOLROJANAPORN,Canteen,,,,500,,skipped_not_found
+457,19519,Ananda LIMPRASERT,Shop,,,,2000,,skipped_not_found
+458,19519,Ananda LIMPRASERT,Canteen,,,,500,,skipped_not_found
+459,19526,Sebastian FRICKHINGER,Canteen,,,,300,,skipped_not_found
+460,19526,Sebastian FRICKHINGER,Shop,,,,2000,,skipped_not_found
+461,19538,Kaia UDAGAWA,Shop,613,Kaia UDAGAWA,,10000,,planned
+462,19547,Ronja O'CONNOR,Shop,,,,1500,,skipped_not_found
+463,19547,Ronja O'CONNOR,Canteen,,,,500,,skipped_not_found
+464,19569,Taeyeon LEE,Shop,245,Taeyeon LEE,,2000,,planned
+465,19579,William PONGVITAYAPANU MOFFAT,Shop,422,William J PONGVITAYAPANU MOFFAT,,2000,,planned
+466,19587,Thattham LERTVILAIVITHAYA,Canteen,239,Thattham LERTVILAIVITHAYA,,10000,,planned
+467,19588,Apinya LOJANAVANICH,Shop,264,Apinya LOJANAVANICH,,2000,,planned
+468,19589,Naran TIEWTRANON,Shop,236,Naran TIEWTRANON,,2000,,planned
+469,19589,Naran TIEWTRANON,Canteen,236,Naran TIEWTRANON,,300,,planned
+470,19593,Proud PHISUTHIKUL,Shop,424,Proud PHISUTHIKUL,,15000,,planned
+471,19593,Proud PHISUTHIKUL,Canteen,424,Proud PHISUTHIKUL,,5000,,planned
+472,19595,Khlonggarn TWINVITOO,Shop,,,,5000,,skipped_not_found
+473,19595,Khlonggarn TWINVITOO,Canteen,,,,5000,,skipped_not_found
+474,19596,Naphat TWINVITOO,Canteen,177,Naphat TWINVITOO,,700,,planned
+475,19596,Naphat TWINVITOO,Shop,177,Naphat TWINVITOO,,1500,,planned
+476,19597,Yhardthip DEVAHASDIN NA AYUTTHAYA,Shop,,,,2000,,skipped_not_found
+477,19598,Pensawan CHANTARAMPORN,Shop,423,Pensawan CHANTARAMPORN,,2000,,planned
+478,19599,Penpannarai CHANTARAMPORN,Shop,433,Penpannarai CHANTARAMPORN,,2000,,planned
+479,19600,Nontapat PRAYOONTHONG,Shop,421,Nontapat PRAYOONTHONG,,2000,,planned
+480,19600,Nontapat PRAYOONTHONG,Canteen,421,Nontapat PRAYOONTHONG,,500,,planned
+481,19601,Jira CHAMROONTANESKUL,Shop,420,Jira CHAMROONTANESKUL,,2000,,planned
+482,19602,Jirat CHAMROONTANESKUL,Shop,425,Jirat CHAMROONTANESKUL,,2000,,planned
+483,19603,Yannapat MOUNGSRICHAN,Shop,,,,2000,,skipped_not_found
+484,19603,Yannapat MOUNGSRICHAN,Canteen,,,,500,,skipped_not_found
+485,19604,Nawat JAIPETCH,Shop,228,Nawat JAIPETCH,,2000,,planned
+486,19604,Nawat JAIPETCH,Canteen,228,Nawat JAIPETCH,,1500,,planned
+487,19605,Jirakup PRADITSOPA,Shop,,,,2000,,skipped_not_found
+488,19609,Chanikarn JARUPONGPRAPA,Canteen,442,Chanikarn JARUPONGPRAPA,,500,,planned
+489,19609,Chanikarn JARUPONGPRAPA,Shop,442,Chanikarn JARUPONGPRAPA,,2000,,planned
+490,19610,Juthamard CHATJUTHAMARD,Shop,440,Juthamard CHATJUTHAMARD,,2000,,planned
+491,19610,Juthamard CHATJUTHAMARD,Canteen,440,Juthamard CHATJUTHAMARD,,500,,planned
+492,19611,Phichan CHAIRATN,Canteen,272,Phichan CHAIRATN,,1000,,planned
+493,19611,Phichan CHAIRATN,Shop,272,Phichan CHAIRATN,,2000,,planned
+494,19612,Vachiravit PAKPITPIBOOL,Canteen,171,Vachiravit PAKPITPIBOOL,,500,,planned
+495,19612,Vachiravit PAKPITPIBOOL,Shop,171,Vachiravit PAKPITPIBOOL,,2000,,planned
+496,19613,Nippita SUTEESOPON,Canteen,,,,350,,skipped_not_found
+497,19613,Nippita SUTEESOPON,Shop,,,,2000,,skipped_not_found
+498,19615,Jirat SIRAKARUN,Canteen,,,,500,,skipped_not_found
+499,19615,Jirat SIRAKARUN,Shop,,,,2000,,skipped_not_found
+500,19624,Angad SACHDEV,Canteen,441,Angad SACHDEV,,500,,planned
+501,19624,Angad SACHDEV,Shop,441,Angad SACHDEV,,2000,,planned
+502,19634,Ella WILNER,Shop,,,,2000,,skipped_not_found
+503,19634,Ella WILNER,Canteen,,,,500,,skipped_not_found
+504,19655,Thee TEERACHOTMONGKOL,Canteen,439,Thee TEERACHOTMONGKOL,,1000,,planned
+505,19655,Thee TEERACHOTMONGKOL,Shop,439,Thee TEERACHOTMONGKOL,,5000,,planned
+506,19666,Kyann Sajjad DHARAMSEY,Shop,,,,2000,,skipped_not_found
+507,19666,Kyann Sajjad DHARAMSEY,Canteen,,,,500,,skipped_not_found
+508,19667,Dayyann DHARAMSEY,Shop,443,Dayyann sajjad DHARAMSEY,,2000,,planned
+509,19675,Adriana KLEMPIN,Shop,445,Adriana S KLEMPIN,,2000,,planned
+510,19683,Emaline HAMMETT,Shop,,,,2000,,skipped_not_found
+511,19685,Matthew KOE,Shop,,,,2000,,skipped_not_found
+512,19685,Matthew KOE,Canteen,,,,500,,skipped_not_found
+513,19689,Amara THOMAS,Shop,857,Amara B THOMAS,,2000,,planned
+514,19690,Frieda BAILEY,Shop,835,Frieda J. BAILEY,,2000,,planned
+515,19693,Josephine SNOOK,Shop,844,Josephine I. SNOOK,,2000,,planned
+516,19698,Boonyada TRILOGA,Canteen,449,Boonyada TRILOGA,,500,,planned
+517,19698,Boonyada TRILOGA,Shop,449,Boonyada TRILOGA,,2000,,planned
+518,19700,Matthias YSTROEM,Canteen,461,Matthias N YSTROEM,,350,,planned
+519,19703,Tirawat LERTKIATDAMRONG,Shop,,,,2000,,skipped_not_found
+520,19703,Tirawat LERTKIATDAMRONG,Canteen,,,,500,,skipped_not_found
+521,19711,Ruishu CHEN,Canteen,460,Ruishu CHEN,,1000,,planned
+522,19711,Ruishu CHEN,Shop,460,Ruishu CHEN,,1000,,planned
+523,19721,Gaia SAMPERMANS,Canteen,453,Gaia S SAMPERMANS,,500,,planned
+524,19721,Gaia SAMPERMANS,Shop,453,Gaia S SAMPERMANS,,2000,,planned
+525,19734,Rawisara ZHANG,Shop,,,,2000,,skipped_not_found
+526,19734,Rawisara ZHANG,Canteen,,,,500,,skipped_not_found
+527,19758,Zachariah HALL,Shop,,,,2000,,skipped_not_found
+528,19758,Zachariah HALL,Canteen,,,,500,,skipped_not_found
+529,19781,Weerit CHAROENTRA,Shop,,,,2000,,skipped_not_found
+530,19781,Weerit CHAROENTRA,Canteen,,,,500,,skipped_not_found
+531,19795,Titan MIELKE,Shop,459,Titan S MIELKE,,2000,,planned
+532,19802,Nathakorn MAHAWEERAKHUN,Canteen,448,Nathakorn MAHAWEERAKHUN,,300,,planned
+533,19802,Nathakorn MAHAWEERAKHUN,Shop,448,Nathakorn MAHAWEERAKHUN,,2000,,planned
+534,19803,Worakitch MAHAWEERAKHUN,Shop,,,,2000,,skipped_not_found
+535,19803,Worakitch MAHAWEERAKHUN,Canteen,,,,500,,skipped_not_found
+536,19804,Palin TANVILAI,Shop,450,Palin TANVILAI,,2000,,planned
+537,19840,Kashvi CHAUHAN,Canteen,,,,500,,skipped_not_found
+538,19840,Kashvi CHAUHAN,Shop,,,,2000,,skipped_not_found
+539,19860,Finn TAN,Canteen,,,,500,,skipped_not_found
+540,19860,Finn TAN,Shop,,,,2000,,skipped_not_found
+541,19861,Lynn Kaye TAN,Shop,,,,2000,,skipped_not_found
+542,19861,Lynn Kaye TAN,Canteen,,,,500,,skipped_not_found
+543,19863,Achirawit QianHan ZHANG,Shop,,,,2000,,skipped_not_found
+544,19863,Achirawit QianHan ZHANG,Canteen,,,,500,,skipped_not_found
+545,19871,Rumaisa IKRAM,Shop,,,,2000,,skipped_not_found
+546,19871,Rumaisa IKRAM,Canteen,,,,500,,skipped_not_found
+547,19872,Humna IKRAM,Shop,,,,2000,,skipped_not_found
+548,19872,Humna IKRAM,Canteen,,,,500,,skipped_not_found
+549,19889,James TOSTEVIN,Canteen,,,,500,,skipped_not_found
+550,19889,James TOSTEVIN,Shop,,,,2000,,skipped_not_found
+551,19896,Intuch SIRIMONGKOLKITTI,Shop,,,,2000,,skipped_not_found
+552,19896,Intuch SIRIMONGKOLKITTI,Canteen,,,,500,,skipped_not_found
+553,19897,Ingkarath SIRIMONGKOLKITTI,Canteen,,,,500,,skipped_not_found
+554,19897,Ingkarath SIRIMONGKOLKITTI,Shop,,,,2000,,skipped_not_found
+555,19912,Tae Yoon IM,Shop,,,,2000,,skipped_not_found
+556,19914,Maria Paula VILLAMIZAR MARTINEZ,Canteen,,,,500,,skipped_not_found
+557,19914,Maria Paula VILLAMIZAR MARTINEZ,Shop,,,,2000,,skipped_not_found
+558,19917,Uday BADOLA,Canteen,,,,300,,skipped_not_found
+559,19917,Uday BADOLA,Shop,,,,2000,,skipped_not_found
+560,19921,Jee Hwan JUHN,Canteen,,,,1000,,skipped_not_found
+561,19921,Jee Hwan JUHN,Shop,,,,0,,skipped_not_found
+562,19929,Yui TOMINAGA,Shop,,,,2000,,skipped_not_found
+563,19929,Yui TOMINAGA,Canteen,,,,400,,skipped_not_found
+564,19930,Kent TOMINAGA,Shop,,,,1200,,skipped_not_found
+565,19940,Chaehyun LEE,Shop,,,,2000,,skipped_not_found
+566,19940,Chaehyun LEE,Canteen,,,,1500,,skipped_not_found
+567,19960,Katja NUGROHO,Canteen,,,,500,,skipped_not_found
+568,19960,Katja NUGROHO,Shop,,,,2000,,skipped_not_found
+569,19961,Karaniya NUGROHO,Shop,,,,2000,,skipped_not_found
+570,19961,Karaniya NUGROHO,Canteen,,,,500,,skipped_not_found
+571,19968,Thananya MANOLEEHAGUL,Canteen,480,Thananya MANOLEEHAGUL,,300,,planned
+572,19973,Erika CONIGLIO,Shop,277,Erika CONIGLIO,,2000,,planned
+573,19973,Erika CONIGLIO,Canteen,277,Erika CONIGLIO,,2000,,planned
+574,19980,Sirinda CHALERMTHIRALERT,Canteen,444,Sirinda CHALERMTHIRALERT,,500,,planned
+575,19980,Sirinda CHALERMTHIRALERT,Shop,444,Sirinda CHALERMTHIRALERT,,2000,,planned
+576,19981,Poompath CHAROENTRA,Shop,507,Poompath CHAROENTRA,,2000,,planned
+577,19981,Poompath CHAROENTRA,Canteen,507,Poompath CHAROENTRA,,500,,planned
+578,19982,Jocelyn CHETCHOTISAK,Shop,513,Jocelyn CHETCHOTISAK,,2000,,planned
+579,19982,Jocelyn CHETCHOTISAK,Canteen,513,Jocelyn CHETCHOTISAK,,500,,planned
+580,19987,Nunnapat (Napat) ROMSALA,Canteen,672,Nunnapat ROMSALA,,500,,planned
+581,19987,Nunnapat (Napat) ROMSALA,Shop,672,Nunnapat ROMSALA,,2000,,planned
+582,19992,Akkawat KETVORAVIT,Canteen,,,,500,,skipped_not_found
+583,19993,Nattaree KOMOLROJANAPORN,Shop,,,,2000,,skipped_not_found
+584,19993,Nattaree KOMOLROJANAPORN,Canteen,,,,500,,skipped_not_found
+585,19996,Kris PORNSIRIKUL,Shop,,,,2000,,skipped_not_found
+586,19996,Kris PORNSIRIKUL,Canteen,,,,500,,skipped_not_found
+587,19999,Yukol VIJITKASEMKIJ,Shop,,,,2000,,skipped_not_found
+588,19999,Yukol VIJITKASEMKIJ,Canteen,,,,500,,skipped_not_found
+589,20005,Phatsakorn BURAPAPONG,Canteen,,,,500,,skipped_not_found
+590,20005,Phatsakorn BURAPAPONG,Shop,,,,2000,,skipped_not_found
+591,20007,Adeline (Adele) CHETCHOTISAK,Canteen,,,,500,,skipped_not_found
+592,20007,Adeline (Adele) CHETCHOTISAK,Shop,,,,2000,,skipped_not_found
+593,20011,Wimonsiri LIAO,Canteen,,,,500,,skipped_not_found
+594,20011,Wimonsiri LIAO,Shop,,,,2000,,skipped_not_found
+595,20014,Ramitar POONPERMSUWAN,Canteen,,,,500,,skipped_not_found
+596,20014,Ramitar POONPERMSUWAN,Shop,,,,2000,,skipped_not_found
+597,20023,Sedthasard KASETCHAROENKIT,Canteen,,,,500,,skipped_not_found
+598,20023,Sedthasard KASETCHAROENKIT,Shop,,,,2000,,skipped_not_found
+599,20025,Knis SUKPARANGSEE,Canteen,,,,500,,skipped_not_found
+600,20025,Knis SUKPARANGSEE,Shop,,,,2000,,skipped_not_found
+601,20026,Knat SUKPARANGSEE,Canteen,,,,500,,skipped_not_found
+602,20026,Knat SUKPARANGSEE,Shop,,,,2000,,skipped_not_found
+603,20035,Reece GUNDERSON,Canteen,,,,500,,skipped_not_found
+604,20035,Reece GUNDERSON,Shop,,,,2000,,skipped_not_found
+605,20036,Paige GUNDERSON,Shop,,,,2000,,skipped_not_found
+606,20036,Paige GUNDERSON,Canteen,,,,500,,skipped_not_found
+607,20042,Lucas BARON-TOALDO,Shop,466,Lucas BARON-TOALDO,,2000,,planned
+608,20084,Bhurishta KUANSONGTHAM,Shop,,,,2000,,skipped_not_found
+609,20084,Bhurishta KUANSONGTHAM,Canteen,,,,500,,skipped_not_found
+610,20095,Declan EDSALL,Canteen,,,,0.1,,skipped_not_found
+611,20095,Declan EDSALL,Shop,,,,2000,,skipped_not_found
+612,20113,Dmitri A. LORENCE,Shop,,,,2000,,skipped_not_found
+613,20117,Punyisa Deng BOONPADUNG,Shop,469,Punyisa deng BOONPADUNG,,400,,planned
+614,20117,Punyisa Deng BOONPADUNG,Canteen,469,Punyisa deng BOONPADUNG,,400,,planned
+615,20118,Sofia BOTELHO CHAZARRETA,Canteen,470,Sofia BOTELHO CHAZARRETA,,1001,,planned
+616,20121,Kharit MARKARIAN,Shop,,,,2000,,skipped_not_found
+617,20121,Kharit MARKARIAN,Canteen,,,,500,,skipped_not_found
+618,20123,Gergely GYIMESI,Canteen,,,,0.1,,skipped_not_found
+619,20123,Gergely GYIMESI,Shop,,,,2000,,skipped_not_found
+620,20124,Varvara KORMILITSYNA,Shop,234,Varvara KORMILITSYNA,,2000,,planned
+621,20128,Chaiwat LIAO,Shop,474,Chaiwat LIAO,,2000,,planned
+622,20128,Chaiwat LIAO,Canteen,474,Chaiwat LIAO,,500,,planned
+623,20131,Preeti HEMVANICH,Shop,476,Preeti HEMVANICH,,2000,,planned
+624,20134,Zuzu POOL,Canteen,850,Zuzu H POOL,,1000,,planned
+625,20134,Zuzu POOL,Shop,850,Zuzu H POOL,,2000,,planned
+626,20169,Kyler HUGHES,Shop,,,,1000,,skipped_not_found
+627,20169,Kyler HUGHES,Canteen,,,,1000,,skipped_not_found
+628,20181,McLeod DAY,Canteen,847,Mcleod E DAY,,250,,planned
+629,20182,Tittawin PIRIYAPINYO,Canteen,,,,500,,skipped_not_found
+630,20182,Tittawin PIRIYAPINYO,Shop,,,,2000,,skipped_not_found
+631,20183,Natthakrit POLPAISAL,Shop,446,Natthakrit POLPAISAL,,2000,,planned
+632,20184,Ziying LI,Shop,,,,2000,,skipped_not_found
+633,20184,Ziying LI,Canteen,,,,500,,skipped_not_found
+634,20185,Mira KANGRUNGRUENGCHAI,Canteen,481,Mira KANGRUNGRUENGCHAI,,500,,planned
+635,20186,Punn REUNGSINPINYA,Canteen,468,Punn REUNGSINPINYA,,300,,planned
+636,20186,Punn REUNGSINPINYA,Shop,468,Punn REUNGSINPINYA,,1000,,planned
+637,20188,Chanta KUNAKORN,Shop,485,Chanta KUNAKORN,,2000,,planned
+638,20189,Prinn PUNJARUNGROJ,Shop,251,Prinn PUNJARUNGROJ,,2000,,planned
+639,20190,Ratamongol CHAYAPIRAD,Shop,268,Ratamongol CHAYAPIRAD,,2000,,planned
+640,20191,Pirapanchirng CHANTARAMPORN,Shop,,,,2000,,skipped_not_found
+641,20191,Pirapanchirng CHANTARAMPORN,Canteen,,,,200,,skipped_not_found
+642,20192,Jayata TIEANWORN,Canteen,,,,1500,,skipped_not_found
+643,20192,Jayata TIEANWORN,Shop,,,,2000,,skipped_not_found
+644,20193,Chotitad SAHAWAT,Canteen,261,Chotitad SAHAWAT,,250,,planned
+645,20194,Sisaran PATAVEKARN,Canteen,487,Sisaran PATAVEKARN,,500,,planned
+646,20194,Sisaran PATAVEKARN,Shop,487,Sisaran PATAVEKARN,,500,,planned
+647,20196,Rujapa KETVORAVIT,Canteen,493,Rujapa KETVORAVIT,,500,,planned
+648,20197,Gavin SANGUTHAI,Shop,490,Gavin SANGUTHAI,,1500,,planned
+649,20197,Gavin SANGUTHAI,Canteen,490,Gavin SANGUTHAI,,1500,,planned
+650,20198,Rada CHAISAWANGWONG,Shop,,,,2000,,skipped_not_found
+651,20198,Rada CHAISAWANGWONG,Canteen,,,,150,,skipped_not_found
+652,20199,Peampat BURAPATANA,Canteen,231,Peampat BURAPATANA,,2000,,planned
+653,20199,Peampat BURAPATANA,Shop,231,Peampat BURAPATANA,,2000,,planned
+654,20201,Flynn TANTISUNTHORN,Shop,412,Flynn TANTISUNTHORN,,1000,,planned
+655,20202,Narida VISAVARAKOON,Canteen,495,Narida VISAVARAKOON,,500,,planned
+656,20202,Narida VISAVARAKOON,Shop,495,Narida VISAVARAKOON,,2000,,planned
+657,20203,Thanawin TAEPAISITPONG,Canteen,,,,2000,,skipped_not_found
+658,20203,Thanawin TAEPAISITPONG,Shop,,,,2000,,skipped_not_found
+659,20204,Narada THIENPAITOON,Canteen,494,Narada THIENPAITOON,,2000,,planned
+660,20204,Narada THIENPAITOON,Shop,494,Narada THIENPAITOON,,2000,,planned
+661,20205,Termtem CHAIROJ,Canteen,,,,400,,skipped_not_found
+662,20205,Termtem CHAIROJ,Shop,,,,2000,,skipped_not_found
+663,20206,Bhuchita TECHAKARIN,Canteen,489,Bhuchita TECHAKARIN,,1000,,planned
+664,20206,Bhuchita TECHAKARIN,Shop,489,Bhuchita TECHAKARIN,,1000,,planned
+665,20207,Siriya TRIPORNCHAISAK,Shop,,,,2000,,skipped_not_found
+666,20207,Siriya TRIPORNCHAISAK,Canteen,,,,1000,,skipped_not_found
+667,20221,Jirun CHAMROONTANESKUL,Shop,431,Jirun CHAMROONTANESKUL,,2000,,planned
+668,20232,Sebastian TRANTER,Shop,,,,6000,,skipped_not_found
+669,20232,Sebastian TRANTER,Canteen,,,,300,,skipped_not_found
+670,20235,Romeo POST,Canteen,,,,500,,skipped_not_found
+671,20235,Romeo POST,Shop,,,,2000,,skipped_not_found
+672,20245,Nitaan NIMSOMBOON,Canteen,510,Nitaan NIMSOMBOON,,2500,,planned
+673,20245,Nitaan NIMSOMBOON,Shop,510,Nitaan NIMSOMBOON,,2500,,planned
+674,20246,Suriyarath LEELAYANA,Canteen,,,,300,,skipped_not_found
+675,20246,Suriyarath LEELAYANA,Shop,,,,2000,,skipped_not_found
+676,20247,Amy SYAHIR LUTHFI CHAN,Canteen,,,,300,,skipped_not_found
+677,20248,Mia SYAHIR LUTHFI CHAN,Canteen,,,,500,,skipped_not_found
+678,20255,Amandine MASSARD,Shop,,,,2000,,skipped_not_found
+679,20255,Amandine MASSARD,Canteen,,,,500,,skipped_not_found
+680,20270,Leticia PEREIRA MAYER,Shop,505,Leticia P PEREIRA MAYER,,1000,,planned
+681,20276,Reitaro YAMAGUCHI,Shop,,,,2000,,skipped_not_found
+682,20276,Reitaro YAMAGUCHI,Canteen,,,,500,,skipped_not_found
+683,20281,Sungjoon LEE,Shop,,,,1000000,,skipped_not_found
+684,20281,Sungjoon LEE,Canteen,,,,100000,,skipped_not_found
+685,20311,Chinnapong KULMANOCHWONG,Shop,,,,2000,,skipped_not_found
+686,20311,Chinnapong KULMANOCHWONG,Canteen,,,,500,,skipped_not_found
+687,20312,Pannakarn KULMANOCHWONG,Shop,863,Pannakarn KULMANOCHWONG,,2000,,planned
+688,20363,Sena SHINOZAKI,Shop,511,Sena SHINOZAKI,,2000,,planned
+689,20367,Pongpipat PUNYASATAPORN,Shop,504,Pongpipat PUNYASATAPORN,,2000,,planned
+690,20370,Irene SIRIMONGKOLKITTI,Shop,452,Irene SIRIMONGKOLKITTI,,2000,,planned
+691,20371,Alynda KOSAIPOLKUL,Shop,502,Alynda KOSAIPOLKUL,,2000,,planned
+692,20371,Alynda KOSAIPOLKUL,Canteen,502,Alynda KOSAIPOLKUL,,400,,planned
+693,20372,Luke GARRIGAN,Shop,522,Luke M GARRIGAN,,2000,,planned
+694,20372,Luke GARRIGAN,Canteen,522,Luke M GARRIGAN,,500,,planned
+695,20373,Nicholas GARRIGAN,Canteen,,,,500,,skipped_not_found
+696,20373,Nicholas GARRIGAN,Shop,,,,2000,,skipped_not_found
+697,20377,Charnin SUNTARANOND,Shop,,,,2000,,skipped_not_found
+698,20378,Romerawin SUNTARANOND,Canteen,,,,500,,skipped_not_found
+699,20378,Romerawin SUNTARANOND,Shop,,,,2000,,skipped_not_found
+700,20393,Abiram JAYACHANDRAN,Shop,,,,2000,,skipped_not_found
+701,20393,Abiram JAYACHANDRAN,Canteen,,,,500,,skipped_not_found
+702,20396,Armaan ALI KHAN,Canteen,,,,500,,skipped_not_found
+703,20396,Armaan ALI KHAN,Shop,,,,2000,,skipped_not_found
+704,20411,Punyanut YUDDON,Shop,,,,2000,,skipped_not_found
+705,20411,Punyanut YUDDON,Canteen,,,,2000,,skipped_not_found
+706,20412,Gwonjae KIM,Shop,,,,2000,,skipped_not_found
+707,20412,Gwonjae KIM,Canteen,,,,500,,skipped_not_found
+708,20413,Gwonju KIM,Canteen,,,,500,,skipped_not_found
+709,20413,Gwonju KIM,Shop,,,,2000,,skipped_not_found
+710,20432,Chenray LI,Shop,274,Chenray LI,,3000,,planned
+711,20432,Chenray LI,Canteen,274,Chenray LI,,400,,planned
+712,20435,Esin SEYHAN,Canteen,,,,500,,skipped_not_found
+713,20435,Esin SEYHAN,Shop,,,,2000,,skipped_not_found
+714,20439,Yoshitaka ISOBE,Shop,,,,2000,,skipped_not_found
+715,20439,Yoshitaka ISOBE,Canteen,,,,500,,skipped_not_found
+716,20461,Jingxuan GAO,Shop,525,Jingxuan GAO,,2000,,planned
+717,20461,Jingxuan GAO,Canteen,525,Jingxuan GAO,,400,,planned
+718,20469,Mikayel MELKONYAN,Canteen,,,,500,,skipped_not_found
+719,20469,Mikayel MELKONYAN,Shop,,,,2000,,skipped_not_found
+720,20470,Fukue SUNTARAT,Canteen,,,,500,,skipped_not_found
+721,20470,Fukue SUNTARAT,Shop,,,,2000,,skipped_not_found
+722,20476,Shixin WANG,Canteen,523,Shixin WANG,,1000,,planned
+723,20476,Shixin WANG,Shop,523,Shixin WANG,,1000,,planned
+724,20479,Maia Tashi (Maia) SUNDARARAMAN,Shop,,,,2000,,skipped_not_found
+725,20479,Maia Tashi (Maia) SUNDARARAMAN,Canteen,,,,500,,skipped_not_found
+726,20480,Raghav SUNDARARAMAN,Shop,,,,2000,,skipped_not_found
+727,20480,Raghav SUNDARARAMAN,Canteen,,,,500,,skipped_not_found
+728,20484,You WU,Canteen,,,,500,,skipped_not_found
+729,20484,You WU,Shop,,,,2000,,skipped_not_found
+730,20485,Marina FONG,Canteen,436,Marina FONG,,500,,planned
+731,20489,Rishabh DUTTA MAJUMDAR,Canteen,,,,500,,skipped_not_found
+732,20489,Rishabh DUTTA MAJUMDAR,Shop,,,,2000,,skipped_not_found
+733,20491,Seoyeon BAEK,Shop,,,,2000,,skipped_not_found
+734,20491,Seoyeon BAEK,Canteen,,,,500,,skipped_not_found
+735,20498,Nijapa SUPHAKARN,Canteen,,,,500,,skipped_not_found
+736,20498,Nijapa SUPHAKARN,Shop,,,,2000,,skipped_not_found
+737,20499,Mai Thao HOANG,Shop,,,,5000,,skipped_not_found
+738,20499,Mai Thao HOANG,Canteen,,,,5000,,skipped_not_found
+739,20505,Aryana RAJ,Shop,,,,2000,,skipped_not_found
+740,20505,Aryana RAJ,Canteen,,,,500,,skipped_not_found
+741,20506,Armaan RAJ,Canteen,,,,500,,skipped_not_found
+742,20506,Armaan RAJ,Shop,,,,2000,,skipped_not_found
+743,20509,Panya PIKE,Shop,518,Panya R. PIKE,,1500,,planned
+744,20510,David BARCLAY,Shop,639,David K. BARCLAY,,500,,planned
+745,20510,David BARCLAY,Canteen,639,David K. BARCLAY,,2000,,planned
+746,20511,Ariel VAN OOSTEN SLINGELAND,Canteen,,,,500,,skipped_not_found
+747,20511,Ariel VAN OOSTEN SLINGELAND,Shop,,,,2000,,skipped_not_found
+748,20512,Daniel VAN OOSTEN SLINGELAND,Shop,636,Daniel A. VAN OOSTEN SLINGELAND,,2000,,planned
+749,20512,Daniel VAN OOSTEN SLINGELAND,Canteen,636,Daniel A. VAN OOSTEN SLINGELAND,,350,,planned
+750,20514,Emma PERLAKI,Shop,642,Emma L. PERLAKI,,2000,,planned
+751,20516,Paphawin KOOLHIRAN,Shop,902,Paphawin KOOLHIRAN,,2000,,planned
+752,20516,Paphawin KOOLHIRAN,Canteen,902,Paphawin KOOLHIRAN,,500,,planned
+753,20520,Ramida BURAPAPONG,Canteen,,,,500,,skipped_not_found
+754,20520,Ramida BURAPAPONG,Shop,,,,2000,,skipped_not_found
+755,20521,Parin KOOLHIRAN,Canteen,,,,500,,skipped_not_found
+756,20521,Parin KOOLHIRAN,Shop,,,,2000,,skipped_not_found
+757,20528,Pattiya BURAPAPONG,Shop,506,Pattiya BURAPAPONG,,2000,,planned
+758,20529,Pipatphon LEABCHANTRA,Shop,664,Pipatphon LEABCHANTRA,,2000,,planned
+759,20531,Adaaran WONGWAN,Shop,690,Adaaran WONGWAN,,2000,,planned
+760,20532,Alin KASEMTANAKUL,Canteen,663,Alin KASEMTANAKUL,,500,,planned
+761,20532,Alin KASEMTANAKUL,Shop,663,Alin KASEMTANAKUL,,2000,,planned
+762,20535,Dongha JANG,Canteen,,,,1000,,skipped_not_found
+763,20535,Dongha JANG,Shop,,,,2000,,skipped_not_found
+764,20536,Naphat CHAYAPIRAD,Shop,,,,2000,,skipped_not_found
+765,20536,Naphat CHAYAPIRAD,Canteen,,,,3000,,skipped_not_found
+766,20537,Thanapat LAMSAM,Shop,,,,2000,,skipped_not_found
+767,20537,Thanapat LAMSAM,Canteen,,,,500,,skipped_not_found
+768,20538,Vanakorn POOMMARAPAN,Canteen,,,,500,,skipped_not_found
+769,20538,Vanakorn POOMMARAPAN,Shop,,,,10000,,skipped_not_found
+770,20540,Pavarisa ROEKYEN,Shop,,,,2000,,skipped_not_found
+771,20540,Pavarisa ROEKYEN,Canteen,,,,500,,skipped_not_found
+772,20544,Oranat ATTAVORANAN,Canteen,,,,500,,skipped_not_found
+773,20544,Oranat ATTAVORANAN,Shop,,,,2000,,skipped_not_found
+774,20545,Mejaka BURAPAPONG,Canteen,,,,500,,skipped_not_found
+775,20545,Mejaka BURAPAPONG,Shop,,,,2000,,skipped_not_found
+776,20546,Panttouch MONGKOLSUTHREE,Shop,,,,2000,,skipped_not_found
+777,20546,Panttouch MONGKOLSUTHREE,Canteen,,,,500,,skipped_not_found
+778,20551,Tachpan POOMMARAPAN,Canteen,,,,500,,skipped_not_found
+779,20551,Tachpan POOMMARAPAN,Shop,,,,2000,,skipped_not_found
+780,20588,Donggyu CHUNG,Shop,,,,2000,,skipped_not_found
+781,20588,Donggyu CHUNG,Canteen,,,,500,,skipped_not_found
+782,20589,Yoonha CHUNG,Shop,641,Yoonha CHUNG,,2000,,planned
+783,20593,Ramsey NASSIF,Shop,644,Ramsey NASSIF,,1000,,planned
+784,20593,Ramsey NASSIF,Canteen,644,Ramsey NASSIF,,300,,planned
+785,20595,Joao PEREIRA MAYER,Shop,512,Joao Marcelo PEREIRA MAYER,,1500,,planned
+786,20595,Joao PEREIRA MAYER,Canteen,512,Joao Marcelo PEREIRA MAYER,,300,,planned
+787,20596,Leonardo WHEELER,Canteen,,,,0.01,,skipped_not_found
+788,20598,Louis POSTEL-VINAY,Shop,275,Louis POSTEL-VINAY,,2000,,planned
+789,20609,Yawen DUAN,Canteen,633,Yawen DUAN,,500,,planned
+790,20609,Yawen DUAN,Shop,633,Yawen DUAN,,2000,,planned
+791,20614,Bena INTACHAI,Shop,,,,2000,,skipped_not_found
+792,20615,Brooklyn guy INTACHAI,Shop,,,,2000,,skipped_not_found
+793,20616,Chutikarn DONG,Shop,643,Chutikarn DONG,,2000,,planned
+794,20621,Dongwan KIM,Canteen,,,,500,,skipped_not_found
+795,20647,Chi Phuong VU,Shop,654,Chi P. VU,,2000,,planned
+796,20647,Chi Phuong VU,Canteen,654,Chi P. VU,,500,,planned
+797,20651,Hiroto ISHIKAWA,Shop,,,,2000,,skipped_not_found
+798,20651,Hiroto ISHIKAWA,Canteen,,,,500,,skipped_not_found
+799,20652,Omri WITTNER,Shop,,,,2000,,skipped_not_found
+800,20653,Noa WITTNER,Shop,,,,2000,,skipped_not_found
+801,20654,Samarth BIRLA,Shop,,,,2000,,skipped_not_found
+802,20661,Owen SPEIRS,Canteen,222,Owen F. SPEIRS,,150,,planned
+803,20661,Owen SPEIRS,Shop,222,Owen F. SPEIRS,,150,,planned
+804,20666,Emma MILLER,Canteen,652,Emma A. MILLER,,1000,,planned
+805,20667,Daria YASTREBOVA,Canteen,655,Daria YASTREBOVA,,500,,planned
+806,20667,Daria YASTREBOVA,Shop,655,Daria YASTREBOVA,,2000,,planned
+807,20670,Prempri CHAIROJ,Shop,486,Prempri CHAIROJ,,2000,,planned
+808,20671,Alisa CHINSUPAKUL,Shop,501,Alisa CHINSUPAKUL,,2000,,planned
+809,20672,Rossaphorn KOSAIPOLKUN,Shop,254,Rossaphorn KOSAIPOLKUN,,2000,,planned
+810,20672,Rossaphorn KOSAIPOLKUN,Canteen,254,Rossaphorn KOSAIPOLKUN,,2000,,planned
+811,20673,Ariana KUNAKORN,Shop,488,Ariana KUNAKORN,,2000,,planned
+812,20674,Chaiphat LERTVILAIVITHAYA,Shop,242,Chaiphat LERTVILAIVITHAYA,,2000,,planned
+813,20674,Chaiphat LERTVILAIVITHAYA,Canteen,242,Chaiphat LERTVILAIVITHAYA,,10000,,planned
+814,20675,Perth PHISUTHIKUL,Canteen,432,Perth PHISUTHIKUL,,5000,,planned
+815,20675,Perth PHISUTHIKUL,Shop,432,Perth PHISUTHIKUL,,15000,,planned
+816,20676,Thumma THANAVISUTH,Shop,227,Thumma THANAVISUTH,,2000,,planned
+817,20676,Thumma THANAVISUTH,Canteen,227,Thumma THANAVISUTH,,1000,,planned
+818,20677,Pitiyaporn TIYAPAIRAT,Canteen,,,,0.1,,skipped_not_found
+819,20677,Pitiyaporn TIYAPAIRAT,Shop,,,,2000,,skipped_not_found
+820,20678,Chai TULYAPHISITCHAI,Shop,658,Chai TULYAPHISITCHAI,,2000,,planned
+821,20679,Adarsh DAWAR,Canteen,657,Adarsh DAWAR,,300,,planned
+822,20680,Peraboon KANGRUNGRUENGCHAI,Shop,471,Peraboon KANGRUNGRUENGCHAI,,3000,,planned
+823,20680,Peraboon KANGRUNGRUENGCHAI,Canteen,471,Peraboon KANGRUNGRUENGCHAI,,500,,planned
+824,20681,Punn KOBKAIKIT,Canteen,649,Punn KOBKAIKIT,,300,,planned
+825,20681,Punn KOBKAIKIT,Shop,649,Punn KOBKAIKIT,,500,,planned
+826,20682,Pimnara KULLAVANIJAYA,Shop,,,,2000,,skipped_not_found
+827,20682,Pimnara KULLAVANIJAYA,Canteen,,,,0.1,,skipped_not_found
+828,20683,Thee KUVIJITSUWAN,Canteen,,,,500,,skipped_not_found
+829,20683,Thee KUVIJITSUWAN,Shop,,,,2000,,skipped_not_found
+830,20684,Pipat PHANRATANAMALA,Shop,265,Pipat PHANRATANAMALA,,2000,,planned
+831,20685,Aunyalyn SERAAMORNRATH,Shop,,,,2000,,skipped_not_found
+832,20686,Krit PUANGNGERN,Canteen,650,Krit PUANGNGERN,,2000,,planned
+833,20687,Thongmawin RUANGSUTTIPAP,Shop,656,Thongmawin RUANGSUTTIPAP,,2000,,planned
+834,20688,Somdej SAHAVAT,Canteen,292,Somdej SAHAVAT,,200,,planned
+835,20689,Sompon SAHAVAT,Shop,296,Sompon SAHAVAT,,2000,,planned
+836,20689,Sompon SAHAVAT,Canteen,296,Sompon SAHAVAT,,300,,planned
+837,20691,Dharaya TRILOGA,Canteen,457,Dharaya TRILOGA,,500,,planned
+838,20691,Dharaya TRILOGA,Shop,457,Dharaya TRILOGA,,1000,,planned
+839,20692,Aphimook WONGSEARAYA,Canteen,671,Aphimook WONGSEARAYA,,300,,planned
+840,20692,Aphimook WONGSEARAYA,Shop,671,Aphimook WONGSEARAYA,,500,,planned
+841,20704,Xiaojun ZENG,Canteen,,,,500,,skipped_not_found
+842,20704,Xiaojun ZENG,Shop,,,,2000,,skipped_not_found
+843,20705,Kidd ARAYASOMBOON,Shop,668,Kidd ARAYASOMBOON,,2000,,planned
+844,20705,Kidd ARAYASOMBOON,Canteen,668,Kidd ARAYASOMBOON,,2000,,planned
+845,20707,Sethapong TOJIRAKARN,Shop,677,Sethapong TOJIRAKARN,,2000,,planned
+846,20712,Elina GALLSCHUETZ,Canteen,,,,300,,skipped_not_found
+847,20712,Elina GALLSCHUETZ,Shop,,,,1000,,skipped_not_found
+848,20713,Fenja GALLSCHUETZ,Canteen,,,,300,,skipped_not_found
+849,20713,Fenja GALLSCHUETZ,Shop,,,,500,,skipped_not_found
+850,20714,Worachot CHOTJITISATE,Canteen,669,Worachot CHOTJITISATE,,1000,,planned
+851,20714,Worachot CHOTJITISATE,Shop,669,Worachot CHOTJITISATE,,2000,,planned
+852,20717,Camille BAROTE,Shop,,,,2000,,skipped_not_found
+853,20717,Camille BAROTE,Canteen,,,,500,,skipped_not_found
+854,20723,Sirawit THAIPAT,Canteen,,,,500,,skipped_not_found
+855,20723,Sirawit THAIPAT,Shop,,,,2000,,skipped_not_found
+856,20724,Pornchanok THAIPAT,Canteen,,,,500,,skipped_not_found
+857,20724,Pornchanok THAIPAT,Shop,,,,2000,,skipped_not_found
+858,20739,Sarthak SHAH,Shop,,,,2000,,skipped_not_found
+859,20739,Sarthak SHAH,Canteen,,,,500,,skipped_not_found
+860,20740,Tammatat RUNGSIYAPHORNRAT,Shop,263,Tammatat RUNGSIYAPHORNRAT,,2000,,planned
+861,20741,Isaac STEPHENSON,Shop,220,Isaac STEPHENSON,,3000,,planned
+862,20743,Vincenzo TEJAWINATA,Canteen,,,,500,,skipped_not_found
+863,20743,Vincenzo TEJAWINATA,Shop,,,,2000,,skipped_not_found
+864,20747,Sabina HAWK,Shop,,,,2000,,skipped_not_found
+865,20757,Manuel SEPULVEDA MARAMBIO,Canteen,676,Manuel F. SEPULVEDA MARAMBIO,,200,,planned
+866,20758,Pedro J. SEPULVEDA MARAMBIO,Shop,678,Pedro J SEPULVEDA MARAMBIO,,2000,,planned
+867,20758,Pedro J. SEPULVEDA MARAMBIO,Canteen,678,Pedro J SEPULVEDA MARAMBIO,,200,,planned
+868,20759,Arturo SEPULVEDA MARAMBIO,Canteen,680,Arturo L SEPULVEDA MARAMBIO,,200,,planned
+869,20763,Alex SVERHA-CSURILLA,Shop,682,Alex SVERHA-CSURILLA,,2000,,planned
+870,20763,Alex SVERHA-CSURILLA,Canteen,682,Alex SVERHA-CSURILLA,,500,,planned
+871,20796,Hinako MIBU,Shop,,,,2000,,skipped_not_found
+872,20797,Mototaka MIBU,Canteen,,,,500,,skipped_not_found
+873,20797,Mototaka MIBU,Shop,,,,2000,,skipped_not_found
+874,20815,Jin WANG,Canteen,,,,500,,skipped_not_found
+875,20815,Jin WANG,Shop,,,,2000,,skipped_not_found
+876,20820,Elizabeth CHAN,Canteen,689,Elizabeth CHAN,,300,,planned
+877,20820,Elizabeth CHAN,Shop,689,Elizabeth CHAN,,100,,planned
+878,20832,Nathan KIM,Shop,685,Nathan KIM,,2000,,planned
+879,20833,Ella KIM,Shop,691,Ella J. KIM,,2000,,planned
+880,20838,Sara LANDRY,Canteen,,,,500,,skipped_not_found
+881,20838,Sara LANDRY,Shop,,,,2000,,skipped_not_found
+882,20854,Brandon (Nacho) DIAZ CALDWELL,Canteen,,,,500,,skipped_not_found
+883,20854,Brandon (Nacho) DIAZ CALDWELL,Shop,,,,2000,,skipped_not_found
+884,20855,Gabriela DIAZ CALDWELL,Canteen,,,,500,,skipped_not_found
+885,20855,Gabriela DIAZ CALDWELL,Shop,,,,2000,,skipped_not_found
+886,20860,Hudson YELLAND,Canteen,,,,500,,skipped_not_found
+887,20867,Chuqiao YAN,Canteen,,,,500,,skipped_not_found
+888,20867,Chuqiao YAN,Shop,,,,2000,,skipped_not_found
+889,20875,Yeeun KIM,Shop,,,,2000,,skipped_not_found
+890,20875,Yeeun KIM,Canteen,,,,500,,skipped_not_found
+891,20876,Yechan KIM,Canteen,,,,500,,skipped_not_found
+892,20876,Yechan KIM,Shop,,,,2000,,skipped_not_found
+893,20877,Yifan ZHANG,Canteen,,,,10,,skipped_not_found
+894,20877,Yifan ZHANG,Shop,,,,10,,skipped_not_found
+895,20882,Meixi LI,Canteen,686,Meixi LI,,500,,planned
+896,20882,Meixi LI,Shop,686,Meixi LI,,2000,,planned
+897,20883,Hang YE,Canteen,,,,500,,skipped_not_found
+898,20883,Hang YE,Shop,,,,2000,,skipped_not_found
+899,20891,Kangana HOSSAIN,Canteen,,,,500,,skipped_not_found
+900,20891,Kangana HOSSAIN,Shop,,,,2000,,skipped_not_found
+901,20892,Shabin HOSSAIN,Canteen,,,,500,,skipped_not_found
+902,20892,Shabin HOSSAIN,Shop,,,,2000,,skipped_not_found
+903,20901,Yongen ZHOU,Canteen,683,Yongen ZHOU,,500,,planned
+904,20901,Yongen ZHOU,Shop,683,Yongen ZHOU,,2000,,planned
+905,20910,Vaanya KAPUR,Shop,687,Vaanya KAPUR,,2000,,planned
+906,20910,Vaanya KAPUR,Canteen,687,Vaanya KAPUR,,500,,planned
+907,20911,Siddhant KAPUR,Shop,,,,2000,,skipped_not_found
+908,20911,Siddhant KAPUR,Canteen,,,,500,,skipped_not_found
+909,20913,Qian MU,Canteen,,,,500,,skipped_not_found
+910,20913,Qian MU,Shop,,,,2000,,skipped_not_found
+911,20914,Hanbin DO,Canteen,,,,500,,skipped_not_found
+912,20914,Hanbin DO,Shop,,,,2000,,skipped_not_found
+913,20917,Dillon TINKEY,Shop,,,,2000,,skipped_not_found
+914,20918,Austin TINKEY,Shop,,,,2000,,skipped_not_found
+915,20918,Austin TINKEY,Canteen,,,,500,,skipped_not_found
+916,20922,Yongkai GAO,Shop,702,Yongkai GAO,,100,,planned
+917,20922,Yongkai GAO,Canteen,702,Yongkai GAO,,200,,planned
+918,20923,Matthew MARTENS,Canteen,,,,500,,skipped_not_found
+919,20923,Matthew MARTENS,Shop,,,,2000,,skipped_not_found
+920,20924,Chun Peng KANG,Shop,,,,2000,,skipped_not_found
+921,20924,Chun Peng KANG,Canteen,,,,500,,skipped_not_found
+922,20925,Chun Lun KANG,Shop,,,,2000,,skipped_not_found
+923,20925,Chun Lun KANG,Canteen,,,,500,,skipped_not_found
+924,20926,Yifan LIN,Shop,,,,200,,skipped_not_found
+925,20926,Yifan LIN,Canteen,,,,200,,skipped_not_found
+926,20930,Kaichen XIA,Shop,697,Kaichen XIA,,2000,,planned
+927,20930,Kaichen XIA,Canteen,697,Kaichen XIA,,500,,planned
+928,20932,Caleb WOODRING,Shop,,,,2000,,skipped_not_found
+929,20933,Zoey WOODRING,Canteen,,,,0.1,,skipped_not_found
+930,20933,Zoey WOODRING,Shop,,,,2000,,skipped_not_found
+931,20936,Idun OESTMARK-RAUKER,Canteen,,,,500,,skipped_not_found
+932,20936,Idun OESTMARK-RAUKER,Shop,,,,2000,,skipped_not_found
+933,20937,Vile OESTMARK-RAUKER,Canteen,,,,500,,skipped_not_found
+934,20937,Vile OESTMARK-RAUKER,Shop,,,,2000,,skipped_not_found
+935,20938,Birk KERSTEN,Shop,,,,2000,,skipped_not_found
+936,20940,Alexander MCGARY,Canteen,,,,0.1,,skipped_not_found
+937,20940,Alexander MCGARY,Shop,,,,2000,,skipped_not_found
+938,20948,Erica MCRAE,Shop,,,,2000,,skipped_not_found
+939,20948,Erica MCRAE,Canteen,,,,0.1,,skipped_not_found
+940,20949,Hannah MCRAE,Shop,,,,2000,,skipped_not_found
+941,20949,Hannah MCRAE,Canteen,,,,0.1,,skipped_not_found
+942,20950,Kendra DAPAAH,Shop,,,,2000,,skipped_not_found
+943,20950,Kendra DAPAAH,Canteen,,,,0.01,,skipped_not_found
+944,20951,Michelle DAPAAH,Canteen,,,,300,,skipped_not_found
+945,20951,Michelle DAPAAH,Shop,,,,6000,,skipped_not_found
+946,20952,Maxwell DAPAAH,Shop,,,,2000,,skipped_not_found
+947,20952,Maxwell DAPAAH,Canteen,,,,500,,skipped_not_found
+948,20958,Tharada BOONCHIRT,Shop,754,Tharada BOONCHIRT,,2000,,planned
+949,20963,Nunnaphat HARIPOTTAWEKUL,Shop,,,,2000,,skipped_not_found
+950,20964,Suphadit LIMSUWAN,Shop,893,Suphadit LIMSUWAN,,3000,,planned
+951,20964,Suphadit LIMSUWAN,Canteen,893,Suphadit LIMSUWAN,,800,,planned
+952,20968,Rossarin SINGHNARULA,Shop,874,Rossarin SINGHNARULA,,2000,,planned
+953,20969,Napa SARASIN,Shop,756,Napa SARASIN,,2000,,planned
+954,20971,Paradee BISALPUTRA,Canteen,1115,Paradee BISALPUTRA,,500,,planned
+955,20971,Paradee BISALPUTRA,Shop,1115,Paradee BISALPUTRA,,2000,,planned
+956,20972,Pirada BISALPUTRA,Canteen,1117,Pirada BISALPUTRA,,500,,planned
+957,20972,Pirada BISALPUTRA,Shop,1117,Pirada BISALPUTRA,,2000,,planned
+958,20974,Mena KAJORNPRASART,Shop,916,Mena KAJORNPRASART,,2000,,planned
+959,20974,Mena KAJORNPRASART,Canteen,916,Mena KAJORNPRASART,,500,,planned
+960,20975,Suansilpa KESORNSAK,Canteen,884,Suansilpa KESORNSAK,,500,,planned
+961,20975,Suansilpa KESORNSAK,Shop,884,Suansilpa KESORNSAK,,2000,,planned
+962,20981,Noppavee WIPOOSIRI,Canteen,743,Noppavee WIPOOSIRI,,400,,planned
+963,20981,Noppavee WIPOOSIRI,Shop,743,Noppavee WIPOOSIRI,,2000,,planned
+964,20983,Vichayada AREEPON,Canteen,,,,500,,skipped_not_found
+965,20983,Vichayada AREEPON,Shop,,,,2000,,skipped_not_found
+966,20984,Korn CHUNGSAWANANT,Shop,,,,2000,,skipped_not_found
+967,20984,Korn CHUNGSAWANANT,Canteen,,,,500,,skipped_not_found
+968,20987,Nassha JIRAPINYO,Canteen,,,,500,,skipped_not_found
+969,20987,Nassha JIRAPINYO,Shop,,,,2000,,skipped_not_found
+970,20991,Piyavat POKVANVIT,Shop,,,,2000,,skipped_not_found
+971,20991,Piyavat POKVANVIT,Canteen,,,,500,,skipped_not_found
+972,20993,Nichapha RUNGSINAPORN,Shop,,,,2000,,skipped_not_found
+973,20993,Nichapha RUNGSINAPORN,Canteen,,,,500,,skipped_not_found
+974,20994,Panithan SUKSAMAI,Canteen,,,,500,,skipped_not_found
+975,20994,Panithan SUKSAMAI,Shop,,,,2000,,skipped_not_found
+976,21001,Thutchayahnid THANGTHARNARKEAT,Canteen,,,,500,,skipped_not_found
+977,21001,Thutchayahnid THANGTHARNARKEAT,Shop,,,,2000,,skipped_not_found
+978,21002,Anapach BULPAKDI,Canteen,,,,300,,skipped_not_found
+979,21004,Pawarit PARNICHPRAPAI,Shop,,,,2000,,skipped_not_found
+980,21004,Pawarit PARNICHPRAPAI,Canteen,,,,500,,skipped_not_found
+981,21009,Patrick NGUANSAMARNG,Canteen,,,,500,,skipped_not_found
+982,21009,Patrick NGUANSAMARNG,Shop,,,,2000,,skipped_not_found
+983,21011,Tinn PHANPHRUK,Canteen,,,,500,,skipped_not_found
+984,21011,Tinn PHANPHRUK,Shop,,,,2000,,skipped_not_found
+985,21013,Cholatich SUPAWATTANAPONG,Shop,,,,2000,,skipped_not_found
+986,21013,Cholatich SUPAWATTANAPONG,Canteen,,,,500,,skipped_not_found
+987,21014,Thanakorn THANASUWANDITEE,Canteen,,,,500,,skipped_not_found
+988,21014,Thanakorn THANASUWANDITEE,Shop,,,,2000,,skipped_not_found
+989,21026,Shinnosuke MAEDA,Canteen,,,,500,,skipped_not_found
+990,21026,Shinnosuke MAEDA,Shop,,,,2000,,skipped_not_found
+991,21028,Malinee ENGEL,Shop,,,,2000,,skipped_not_found
+992,21028,Malinee ENGEL,Canteen,,,,500,,skipped_not_found
+993,21029,Chanda ATTANASIO,Canteen,,,,500,,skipped_not_found
+994,21029,Chanda ATTANASIO,Shop,,,,2000,,skipped_not_found
+995,21034,Qizhong CHEN,Shop,703,Qizhong CHEN,,2000,,planned
+996,21036,Sanshia HUGHES,Shop,,,,500,,skipped_not_found
+997,21036,Sanshia HUGHES,Canteen,,,,500,,skipped_not_found
+998,21037,Kupakwashe MUTASA,Canteen,,,,2000,,skipped_not_found
+999,21038,Kunashe MUTASA,Canteen,,,,2000,,skipped_not_found
+1000,21039,Omri NAHMIAS,Shop,244,Omri NAHMIAS,,2000,,planned
+1001,21042,Zican ZHOU,Shop,,,,2000,,skipped_not_found
+1002,21042,Zican ZHOU,Canteen,,,,500,,skipped_not_found
+1003,21052,Meredith DELASHMUTT,Canteen,,,,500,,skipped_not_found
+1004,21052,Meredith DELASHMUTT,Shop,,,,2000,,skipped_not_found
+1005,21066,Kai CORAL,Shop,,,,2000,,skipped_not_found
+1006,21066,Kai CORAL,Canteen,,,,0.1,,skipped_not_found
+1007,21067,Punyawaj BOONPADUNG,Canteen,483,Punyawaj D BOONPADUNG,,200,,planned
+1008,21067,Punyawaj BOONPADUNG,Shop,483,Punyawaj D BOONPADUNG,,200,,planned
+1009,21071,Tyler HAWKINS,Shop,699,Tyler D HAWKINS,,250,,planned
+1010,21071,Tyler HAWKINS,Canteen,699,Tyler D HAWKINS,,200,,planned
+1011,21072,Matt HAWKINS,Shop,707,Matt HAWKINS,,200,,planned
+1012,21072,Matt HAWKINS,Canteen,707,Matt HAWKINS,,200,,planned
+1013,21078,Iyaan ABDULLA,Canteen,701,Iyaan ABDULLA,,150,,planned
+1014,21079,Aamina ABDULLA,Shop,705,Aamina D ABDULLA,,2000,,planned
+1015,21082,Aamir ABDULLA,Shop,,,,2000,,skipped_not_found
+1016,21082,Aamir ABDULLA,Canteen,,,,500,,skipped_not_found
+1017,21088,Shukai CHEN,Canteen,,,,200,,skipped_not_found
+1018,21088,Shukai CHEN,Shop,,,,200,,skipped_not_found
+1019,21100,Sean HONG,Canteen,709,Sean HONG,,500,,planned
+1020,21100,Sean HONG,Shop,709,Sean HONG,,2000,,planned
+1021,21101,Ian HONG,Canteen,711,Ian HONG,,500,,planned
+1022,21101,Ian HONG,Shop,711,Ian HONG,,2000,,planned
+1023,21103,Ema NOZOE,Shop,,,,2000,,skipped_not_found
+1024,21103,Ema NOZOE,Canteen,,,,800,,skipped_not_found
+1025,21112,Sirui HUANG,Canteen,698,Sirui HUANG,,200,,planned
+1026,21112,Sirui HUANG,Shop,698,Sirui HUANG,,200,,planned
+1027,21115,Finlay B YELLAND,Canteen,,,,300,,skipped_not_found
+1028,21117,Tsz Yuen SHEN,Shop,721,Tsz Yuen Sunny SHEN,,200,,planned
+1029,21117,Tsz Yuen SHEN,Canteen,721,Tsz Yuen Sunny SHEN,,200,,planned
+1030,21121,Alma ROERTVEIT,Canteen,,,,500,,skipped_not_found
+1031,21121,Alma ROERTVEIT,Shop,,,,2000,,skipped_not_found
+1032,21122,Olivia ROERTVEIT,Shop,,,,3000,,skipped_not_found
+1033,21123,Benjamin CHIU,Canteen,716,Benjamin T CHIU,,100,,planned
+1034,21127,Natree JOKOWIDJAJA,Shop,216,Natree JOKOWIDJAJA,,5000,,planned
+1035,21127,Natree JOKOWIDJAJA,Canteen,216,Natree JOKOWIDJAJA,,0.1,,planned
+1036,21129,Yanrun LI,Shop,,,,2000,,skipped_not_found
+1037,21129,Yanrun LI,Canteen,,,,300,,skipped_not_found
+1038,21130,Alexandra KORMILITSYNA,Canteen,237,Alexandra KORMILITSYNA,,100,,planned
+1039,21133,Chanyool LEE,Shop,693,Chanyool LEE,,2000,,planned
+1040,21142,Yucheng ZHOU,Shop,,,,2000,,skipped_not_found
+1041,21142,Yucheng ZHOU,Canteen,,,,500,,skipped_not_found
+1042,21143,Sam VAN OOSTEN,Shop,865,Sam E VAN OOSTEN,,3000,,planned
+1043,21146,Sanjiv JAYASEKARA,Shop,,,,2000,,skipped_not_found
+1044,21147,Christian MULLER,Canteen,,,,0.1,,skipped_not_found
+1045,21147,Christian MULLER,Shop,,,,2000,,skipped_not_found
+1046,21148,Nikolai MULLER,Shop,,,,2000,,skipped_not_found
+1047,21149,Nabonita (Nabo) ARPITA,Shop,,,,2000,,skipped_not_found
+1048,21150,Nibedita PUJA,Shop,,,,2000,,skipped_not_found
+1049,21150,Nibedita PUJA,Canteen,,,,500,,skipped_not_found
+1050,21152,Oliver Mannix HAWK,Canteen,,,,0.1,,skipped_not_found
+1051,21152,Oliver Mannix HAWK,Shop,,,,2000,,skipped_not_found
+1052,21153,Yali SLUTZKY,Shop,714,Yali SLUTZKY,,2000,,planned
+1053,21154,Leo Ariel SLUTZKY,Shop,726,Leo A SLUTZKY,,2000,,planned
+1054,21154,Leo Ariel SLUTZKY,Canteen,726,Leo A SLUTZKY,,1000,,planned
+1055,21157,Alexander TRUNZER,Shop,,,,2000,,skipped_not_found
+1056,21157,Alexander TRUNZER,Canteen,,,,500,,skipped_not_found
+1057,21165,Thakorn KHANTACHAVANA,Canteen,717,Thakorn KHANTACHAVANA,,0.01,,planned
+1058,21165,Thakorn KHANTACHAVANA,Shop,717,Thakorn KHANTACHAVANA,,2000,,planned
+1059,21166,Maeson SUWANTRA,Canteen,715,Maeson SUWANTRA,,200,,planned
+1060,21167,Ingrid SERTTHIN,Canteen,719,Ingrid SERTTHIN,,100,,planned
+1061,21168,Chloe CHAN,Shop,,,,2000,,skipped_not_found
+1062,21177,Maxwell POOL,Canteen,852,Maxwell POOL,,1000,,planned
+1063,21179,Ella SERRANO,Canteen,846,Ella R SERRANO,,200,,planned
+1064,21179,Ella SERRANO,Shop,846,Ella R SERRANO,,100,,planned
+1065,21181,Dorian WONG,Canteen,855,Dorian N WONG,,1000,,planned
+1066,21181,Dorian WONG,Shop,855,Dorian N WONG,,2000,,planned
+1067,21186,Kasikarn PUEGKOOMKLIS,Shop,,,,600,,skipped_not_found
+1068,21186,Kasikarn PUEGKOOMKLIS,Canteen,,,,600,,skipped_not_found
+1069,21187,Boonyakiat SEREEYOTHIN,Shop,741,Boonyakiat SEREEYOTHIN,,2000,,planned
+1070,21188,Natthawat WONGKITTIKARN,Shop,730,Natthawat WONGKITTIKARN,,500,,planned
+1071,21188,Natthawat WONGKITTIKARN,Canteen,730,Natthawat WONGKITTIKARN,,500,,planned
+1072,21189,Voranan CHINDASOOK,Canteen,744,Voranan CHINDASOOK,,500,,planned
+1073,21189,Voranan CHINDASOOK,Shop,744,Voranan CHINDASOOK,,500,,planned
+1074,21190,Nichapa INTHASENI,Shop,733,Nichapa INTHASENI,,3000,,planned
+1075,21190,Nichapa INTHASENI,Canteen,733,Nichapa INTHASENI,,3000,,planned
+1076,21191,Virunchana WANGLEE,Shop,729,Virunchana WANGLEE,,2000,,planned
+1077,21191,Virunchana WANGLEE,Canteen,729,Virunchana WANGLEE,,1000,,planned
+1078,21192,Thuntarin RUANGSUTTIPAP,Shop,667,Thuntarin RUANGSUTTIPAP,,2000,,planned
+1079,21193,Serene PUIPUNTAWONG,Shop,734,Serene PUIPUNTAWONG,,2000,,planned
+1080,21193,Serene PUIPUNTAWONG,Canteen,734,Serene PUIPUNTAWONG,,500,,planned
+1081,21194,Larlipat SERAAMORNRATH,Canteen,,,,0.1,,skipped_not_found
+1082,21194,Larlipat SERAAMORNRATH,Shop,,,,2000,,skipped_not_found
+1083,21195,Chaiwesuth KOSAIPOLKUN,Canteen,255,Chaiwesuth KOSAIPOLKUN,,0.1,,planned
+1084,21195,Chaiwesuth KOSAIPOLKUN,Shop,255,Chaiwesuth KOSAIPOLKUN,,2000,,planned
+1085,21196,Tawin DEANE,Shop,731,Tawin DEANE,,1000,,planned
+1086,21196,Tawin DEANE,Canteen,731,Tawin DEANE,,200,,planned
+1087,21198,Thad KUVIJITSUWAN,Canteen,651,Thad KUVIJITSUWAN,,500,,planned
+1088,21198,Thad KUVIJITSUWAN,Shop,651,Thad KUVIJITSUWAN,,2000,,planned
+1089,21199,Chanisa MATURAPORN,Canteen,739,Chanisa MATURAPORN,,200,,planned
+1090,21199,Chanisa MATURAPORN,Shop,739,Chanisa MATURAPORN,,500,,planned
+1091,21200,Pakkapol OSANGTHAMNONT,Shop,735,Pakkapol OSANGTHAMNONT,,2000,,planned
+1092,21200,Pakkapol OSANGTHAMNONT,Canteen,735,Pakkapol OSANGTHAMNONT,,0.01,,planned
+1093,21202,Sipacha WONGSARIYAWANICH,Shop,,,,2000,,skipped_not_found
+1094,21203,Vakin JUNTAPREMJITT,Shop,662,Vakin JUNTAPREMJITT,,2000,,planned
+1095,21203,Vakin JUNTAPREMJITT,Canteen,662,Vakin JUNTAPREMJITT,,1000,,planned
+1096,21204,Sirawit PLENGPANICH,Canteen,745,Sirawit PLENGPANICH,,300,,planned
+1097,21204,Sirawit PLENGPANICH,Shop,745,Sirawit PLENGPANICH,,2000,,planned
+1098,21205,Rirada BOONCHIRT,Shop,752,Rirada BOONCHIRT,,2000,,planned
+1099,21206,Wuttipat TANGLERTSAMPAN,Canteen,883,Wuttipat TANGLERTSAMPAN,,500,,planned
+1100,21206,Wuttipat TANGLERTSAMPAN,Shop,883,Wuttipat TANGLERTSAMPAN,,2000,,planned
+1101,21207,Kannisha TANTIMONGKOLSUK,Shop,890,Kannisha TANTIMONGKOLSUK,,1000,,planned
+1102,21207,Kannisha TANTIMONGKOLSUK,Canteen,890,Kannisha TANTIMONGKOLSUK,,2000,,planned
+1103,21208,Chawinthorn TOJIRAKARN,Shop,666,Chawinthorn TOJIRAKARN,,2000,,planned
+1104,21209,Chiras TUNGSHUTAVEESUB,Shop,,,,2000,,skipped_not_found
+1105,21209,Chiras TUNGSHUTAVEESUB,Canteen,,,,2000,,skipped_not_found
+1106,21210,Puwadin BHURICHAYAWARODOM,Shop,880,Puwadin BHURICHAYAWARODOM,,2000,,planned
+1107,21210,Puwadin BHURICHAYAWARODOM,Canteen,880,Puwadin BHURICHAYAWARODOM,,0.1,,planned
+1108,21211,Anda CHULASEN,Shop,877,Anda CHULASEN,,1000,,planned
+1109,21211,Anda CHULASEN,Canteen,877,Anda CHULASEN,,2500,,planned
+1110,21213,Ava KAMOLCHOTIROS,Shop,875,Ava Y KAMOLCHOTIROS,,2000,,planned
+1111,21213,Ava KAMOLCHOTIROS,Canteen,875,Ava Y KAMOLCHOTIROS,,2000,,planned
+1112,21215,Petchote CHANTARAMPORN,Canteen,434,Petchote CHANTARAMPORN,,0.01,,planned
+1113,21215,Petchote CHANTARAMPORN,Shop,434,Petchote CHANTARAMPORN,,2000,,planned
+1114,21218,Phanarpath THANGTHARNARKEAT,Shop,,,,2000,,skipped_not_found
+1115,21220,Valraya VANICHYANYONG,Canteen,905,Valraya VANICHYANYONG,,250,,planned
+1116,21220,Valraya VANICHYANYONG,Shop,905,Valraya VANICHYANYONG,,300,,planned
+1117,21222,Nichapha PREYAPANICH,Canteen,903,Nichapha PREYAPANICH,,1000,,planned
+1118,21222,Nichapha PREYAPANICH,Shop,903,Nichapha PREYAPANICH,,2000,,planned
+1119,21223,Juthawat KANTAKOM,Shop,455,Juthawat KANTAKOM,,500,,planned
+1120,21223,Juthawat KANTAKOM,Canteen,455,Juthawat KANTAKOM,,500,,planned
+1121,21226,Davide BRUZZONE,Shop,,,,2000,,skipped_not_found
+1122,21226,Davide BRUZZONE,Canteen,,,,350,,skipped_not_found
+1123,21227,Marco BRUZZONE,Shop,,,,2000,,skipped_not_found
+1124,21227,Marco BRUZZONE,Canteen,,,,350,,skipped_not_found
+1125,21229,Zijie SHEN,Shop,892,Zijie SHEN,,1000,,planned
+1126,21229,Zijie SHEN,Canteen,892,Zijie SHEN,,500,,planned
+1127,21231,Matthew YU,Shop,906,Matthew anon YU,,1000,,planned
+1128,21231,Matthew YU,Canteen,906,Matthew anon YU,,1000,,planned
+1129,21232,Uriya WEITZMAN,Shop,,,,2000,,skipped_not_found
+1130,21236,Wit CHUNGSAWANANT,Shop,,,,2000,,skipped_not_found
+1131,21236,Wit CHUNGSAWANANT,Canteen,,,,500,,skipped_not_found
+1132,21237,Rui ZHOU,Canteen,,,,500,,skipped_not_found
+1133,21237,Rui ZHOU,Shop,,,,2000,,skipped_not_found
+1134,21241,Dongyan SUN,Canteen,,,,500,,skipped_not_found
+1135,21241,Dongyan SUN,Shop,,,,2000,,skipped_not_found
+1136,21263,Samuel (Sam) FRIEDMAN,Canteen,,,,600,,skipped_not_found
+1137,21263,Samuel (Sam) FRIEDMAN,Shop,,,,2000,,skipped_not_found
+1138,21264,Teagan NISBET,Shop,896,Teagan C NISBET,,2000,,planned
+1139,21265,Dylan NISBET,Shop,900,Dylan J NISBET,,2000,,planned
+1140,21266,Ananya DUBEY,Canteen,,,,500,,skipped_not_found
+1141,21266,Ananya DUBEY,Shop,,,,2000,,skipped_not_found
+1142,21267,Ekaansh MEHARWAL,Canteen,,,,500,,skipped_not_found
+1143,21267,Ekaansh MEHARWAL,Shop,,,,2000,,skipped_not_found
+1144,21268,Eenakshi (Enu) MEHARWAL,Shop,,,,2000,,skipped_not_found
+1145,21276,Ella STEARNS,Shop,,,,2000,,skipped_not_found
+1146,21277,Julia STEARNS,Canteen,,,,0.1,,skipped_not_found
+1147,21277,Julia STEARNS,Shop,,,,2000,,skipped_not_found
+1148,21287,Sage CRANDALL,Shop,,,,2000,,skipped_not_found
+1149,21287,Sage CRANDALL,Canteen,,,,0.1,,skipped_not_found
+1150,21288,Finn CRANDALL,Shop,,,,2000,,skipped_not_found
+1151,21289,Reese CRANDALL,Shop,,,,2000,,skipped_not_found
+1152,21289,Reese CRANDALL,Canteen,,,,500,,skipped_not_found
+1153,21300,Jendayi COLLINS,Shop,,,,2000,,skipped_not_found
+1154,21300,Jendayi COLLINS,Canteen,,,,300,,skipped_not_found
+1155,21301,Tyce RIVERA,Shop,862,Tyce P RIVERA,,2000,,planned
+1156,21302,Drake RIVERA,Shop,866,Drake W RIVERA,,2000,,planned
+1157,21315,Althea REUSE,Shop,,,,2000,,skipped_not_found
+1158,21315,Althea REUSE,Canteen,,,,0.1,,skipped_not_found
+1159,21320,Jonathan LAMONTAGNE-KRATZ,Canteen,,,,500,,skipped_not_found
+1160,21320,Jonathan LAMONTAGNE-KRATZ,Shop,,,,2000,,skipped_not_found
+1161,21321,Ffion MCMILLAN,Canteen,,,,0.01,,skipped_not_found
+1162,21321,Ffion MCMILLAN,Shop,,,,2000,,skipped_not_found
+1163,21322,Sterling MCMILLAN,Shop,,,,2000,,skipped_not_found
+1164,21323,Mia FRIEDMAN,Shop,,,,2000,,skipped_not_found
+1165,21323,Mia FRIEDMAN,Canteen,,,,500,,skipped_not_found
+1166,21327,Chloe Nicole OR-PAZ,Shop,,,,2000,,skipped_not_found
+1167,21327,Chloe Nicole OR-PAZ,Canteen,,,,300,,skipped_not_found
+1168,21329,Mikael ADNAN,Shop,,,,3000,,skipped_not_found
+1169,21330,Muntaha ADNAN,Shop,,,,3000,,skipped_not_found
+1170,21331,Jiho KIM,Canteen,,,,0.1,,skipped_not_found
+1171,21331,Jiho KIM,Shop,,,,2000,,skipped_not_found
+1172,21332,Jihun KIM,Shop,,,,2000,,skipped_not_found
+1173,21336,Anachorn THANVARACHORN,Shop,901,Anachorn THANVARACHORN,,1000,,planned
+1174,21336,Anachorn THANVARACHORN,Canteen,901,Anachorn THANVARACHORN,,300,,planned
+1175,21337,Pan DANTHAMRONGKUL,Shop,907,Pann DANTHAMRONGKUL,,2000,,planned
+1176,21337,Pan DANTHAMRONGKUL,Canteen,907,Pann DANTHAMRONGKUL,,0.01,,planned
+1177,21338,Nopasit PRAWATRUNGRUANG,Canteen,913,Nopasit PRAWATRUNGRUANG,,100,,planned
+1178,21338,Nopasit PRAWATRUNGRUANG,Shop,913,Nopasit PRAWATRUNGRUANG,,2000,,planned
+1179,21341,Jack WAGNER,Shop,,,,2000,,skipped_not_found
+1180,21343,Angus (Fisher) FULLER,Shop,,,,2000,,skipped_not_found
+1181,21344,Leimi ZHOU,Canteen,,,,500,,skipped_not_found
+1182,21344,Leimi ZHOU,Shop,,,,2000,,skipped_not_found
+1183,21345,Kexing LI,Canteen,,,,500,,skipped_not_found
+1184,21345,Kexing LI,Shop,,,,2000,,skipped_not_found
+1185,21346,Shayan AMIRMOKRI,Shop,,,,2000,,skipped_not_found
+1186,21347,Iman AMIRMOKRI,Shop,,,,2000,,skipped_not_found
+1187,21347,Iman AMIRMOKRI,Canteen,,,,500,,skipped_not_found
+1188,21351,Kanon SAITO,Shop,,,,10000,,skipped_not_found
+1189,21351,Kanon SAITO,Canteen,,,,500,,skipped_not_found
+1190,21352,Xinyi SU,Shop,914,Xinyi SU,,500,,planned
+1191,21352,Xinyi SU,Canteen,914,Xinyi SU,,500,,planned
+1192,21353,Linzi DURANDT,Shop,,,,5000,,skipped_not_found
+1193,21354,Shani DURANDT,Shop,,,,5000,,skipped_not_found
+1194,21355,Sera YOON,Shop,,,,0,,skipped_not_found
+1195,21355,Sera YOON,Canteen,,,,400,,skipped_not_found
+1196,21356,Sehoon YOON,Shop,908,Sehoon YOON,,2000,,planned
+1197,21357,Rikuto KURAMOCHI,Shop,,,,2000,,skipped_not_found
+1198,21357,Rikuto KURAMOCHI,Canteen,,,,1000,,skipped_not_found
+1199,21358,Xinyang LI,Shop,,,,2000,,skipped_not_found
+1200,21358,Xinyang LI,Canteen,,,,500,,skipped_not_found
+1201,21367,Aanandika RAINA,Shop,,,,2000,,skipped_not_found
+1202,21373,Elsa Ardemis Suveera BASSIL SRIBHADUNG,Shop,,,,2000,,skipped_not_found
+1203,21373,Elsa Ardemis Suveera BASSIL SRIBHADUNG,Canteen,,,,0.1,,skipped_not_found
+1204,21376,Charlotte LEE,Canteen,,,,500,,skipped_not_found
+1205,21376,Charlotte LEE,Shop,,,,2000,,skipped_not_found
+1206,21378,Alena KHIEWBORRIBOON,Shop,,,,1000,,skipped_not_found
+1207,21378,Alena KHIEWBORRIBOON,Canteen,,,,500,,skipped_not_found
+1208,21379,Natnaree KHIEWBORRIBOON,Canteen,912,Natnaree KHIEWBORRIBOON,,500,,planned
+1209,21379,Natnaree KHIEWBORRIBOON,Shop,912,Natnaree KHIEWBORRIBOON,,1000,,planned
+1210,21386,Inaya GOYAL,Shop,909,Inaya ann GOYAL,,2000,,planned
+1211,21387,Rehaan matthew GOYAL,Shop,,,,2000,,skipped_not_found
+1212,21387,Rehaan matthew GOYAL,Canteen,,,,500,,skipped_not_found
+1213,21388,Yash ADDEPALLI,Canteen,,,,500,,skipped_not_found
+1214,21388,Yash ADDEPALLI,Shop,,,,2000,,skipped_not_found
+1215,21391,Enzo ZANNIER PORZELLA,Canteen,,,,500,,skipped_not_found
+1216,21391,Enzo ZANNIER PORZELLA,Shop,,,,2000,,skipped_not_found
+1217,21398,Chisato MUNENAGA,Canteen,,,,500,,skipped_not_found
+1218,21398,Chisato MUNENAGA,Shop,,,,2000,,skipped_not_found
+1219,21400,Seoryeong LEE,Shop,,,,2000,,skipped_not_found
+1220,21400,Seoryeong LEE,Canteen,,,,500,,skipped_not_found
+1221,21403,Ann SUGANO,Shop,,,,2000,,skipped_not_found
+1222,21403,Ann SUGANO,Canteen,,,,500,,skipped_not_found
+1223,21405,Natthaya ARIYAKHAGORN,Canteen,1112,Natthaya ARIYAKHAGORN,,2000,,planned
+1224,21405,Natthaya ARIYAKHAGORN,Shop,1112,Natthaya ARIYAKHAGORN,,2000,,planned
+1225,21409,Patchanun MANOMAIPHAN,Canteen,976,Patchanun B MANOMAIPHAN,,500,,planned
+1226,21410,Nawin NATIPHANON,Shop,,,,2000,,skipped_not_found
+1227,21412,Ravek GULATI,Shop,931,Ravek singh GULATI,,2000,,planned
+1228,21413,Kanchisa (Minnie) RAJSANMUANG,Shop,,,,2000,,skipped_not_found
+1229,21414,Worakrit TANATCHASAI,Shop,967,Worakrit TANATCHASAI,,2000,,planned
+1230,21415,Phunnapat VARNAPRUK,Canteen,,,,600,,skipped_not_found
+1231,21415,Phunnapat VARNAPRUK,Shop,,,,2000,,skipped_not_found
+1232,21416,Apiwit BULPAKDI,Canteen,895,Apiwit BULPAKDI,,300,,planned
+1233,21419,Atip SOOKRUKSAWONG,Shop,1105,Atip SOOKRUKSAWONG,,2000,,planned
+1234,21419,Atip SOOKRUKSAWONG,Canteen,1105,Atip SOOKRUKSAWONG,,500,,planned
+1235,21420,Poranat TOKAMOLTHAM,Canteen,1111,Poranat TOKAMOLTHAM,,500,,planned
+1236,21420,Poranat TOKAMOLTHAM,Shop,1111,Poranat TOKAMOLTHAM,,2000,,planned
+1237,21421,Kanticha (Honey) UDENASUTA,Canteen,,,,500,,skipped_not_found
+1238,21421,Kanticha (Honey) UDENASUTA,Shop,,,,2000,,skipped_not_found
+1239,21424,Phatchaya WONGWORAKAN,Shop,1110,Phatchaya WONGWORAKAN,,2000,,planned
+1240,21424,Phatchaya WONGWORAKAN,Canteen,1110,Phatchaya WONGWORAKAN,,500,,planned
+1241,21427,Aritad BUASUWAN,Shop,,,,2000,,skipped_not_found
+1242,21427,Aritad BUASUWAN,Canteen,,,,500,,skipped_not_found
+1243,21428,Nutthanit AKARADECHAKORN,Canteen,,,,500,,skipped_not_found
+1244,21428,Nutthanit AKARADECHAKORN,Shop,,,,2000,,skipped_not_found
+1245,21432,Nitdhagarn KONGBOONMA,Canteen,,,,500,,skipped_not_found
+1246,21432,Nitdhagarn KONGBOONMA,Shop,,,,2000,,skipped_not_found
+1247,21433,Dhruvtej PATEL,Shop,,,,2000,,skipped_not_found
+1248,21433,Dhruvtej PATEL,Canteen,,,,500,,skipped_not_found
+1249,21434,Smith EIAMWATTANASIN,Canteen,,,,500,,skipped_not_found
+1250,21434,Smith EIAMWATTANASIN,Shop,,,,2000,,skipped_not_found
+1251,21435,Jishant singh GULATI,Shop,,,,2000,,skipped_not_found
+1252,21435,Jishant singh GULATI,Canteen,,,,500,,skipped_not_found
+1253,21436,Pakpinya JAPAKASETR,Canteen,,,,500,,skipped_not_found
+1254,21436,Pakpinya JAPAKASETR,Shop,,,,2000,,skipped_not_found
+1255,21437,Tayapat KETVORAVIT,Canteen,,,,500,,skipped_not_found
+1256,21440,Karnteera THAMTHIWAT,Canteen,,,,500,,skipped_not_found
+1257,21440,Karnteera THAMTHIWAT,Shop,,,,2000,,skipped_not_found
+1258,21441,Siratee THAMTHIWAT,Shop,,,,2000,,skipped_not_found
+1259,21441,Siratee THAMTHIWAT,Canteen,,,,500,,skipped_not_found
+1260,21442,Sutikarn THAMTHIWAT,Canteen,,,,500,,skipped_not_found
+1261,21442,Sutikarn THAMTHIWAT,Shop,,,,2000,,skipped_not_found
+1262,21443,Gavin VISESKOSIN,Canteen,,,,500,,skipped_not_found
+1263,21443,Gavin VISESKOSIN,Shop,,,,2000,,skipped_not_found
+1264,21452,Edward CHAN,Canteen,918,Edward CHAN,,500,,planned
+1265,21452,Edward CHAN,Shop,918,Edward CHAN,,2000,,planned
+1266,21453,Albert CHAN,Canteen,920,Albert CHAN,,200,,planned
+1267,21453,Albert CHAN,Shop,920,Albert CHAN,,200,,planned
+1268,21457,Shawn ANDO (VORASATID),Canteen,,,,500,,skipped_not_found
+1269,21461,Chun-yen SU,Canteen,,,,10000,,skipped_not_found
+1270,21461,Chun-yen SU,Shop,,,,10000,,skipped_not_found
+1271,21462,Navin KASEMTANAKUL,Canteen,,,,500,,skipped_not_found
+1272,21462,Navin KASEMTANAKUL,Shop,,,,2000,,skipped_not_found
+1273,21464,Ryo YAMASHITA,Shop,,,,5000,,skipped_not_found
+1274,21464,Ryo YAMASHITA,Canteen,,,,5000,,skipped_not_found
+1275,21465,Omer MARGALIT,Shop,,,,2000,,skipped_not_found
+1276,21465,Omer MARGALIT,Canteen,,,,0.1,,skipped_not_found
+1277,21466,Yiftah MARGALIT,Canteen,,,,0.1,,skipped_not_found
+1278,21466,Yiftah MARGALIT,Shop,,,,2000,,skipped_not_found
+1279,21467,Oren MARGALIT,Shop,,,,2000,,skipped_not_found
+1280,21468,Brooklyn KRISS,Shop,915,Brooklyn KRISS,,500,,planned
+1281,21468,Brooklyn KRISS,Canteen,915,Brooklyn KRISS,,500,,planned
+1282,21469,Mari YOO,Canteen,,,,0.01,,skipped_not_found
+1283,21469,Mari YOO,Shop,,,,2000,,skipped_not_found
+1284,21470,Jayden ZHANG,Shop,930,Jayden ZHANG,,2000,,planned
+1285,21470,Jayden ZHANG,Canteen,930,Jayden ZHANG,,0.01,,planned
+1286,21471,Paula BOTELHO CHAZARRETA,Canteen,482,Paula BOTELHO CHAZARRETA,,500,,planned
+1287,21472,Heejun LIM,Shop,926,Heejun LIM,,2000,,planned
+1288,21472,Heejun LIM,Canteen,926,Heejun LIM,,200,,planned
+1289,21473,Nia NELSON,Shop,861,Nia M NELSON,,2000,,planned
+1290,21474,Elliott NELSON,Canteen,,,,500,,skipped_not_found
+1291,21474,Elliott NELSON,Shop,,,,2000,,skipped_not_found
+1292,21475,Liam NELSON,Shop,,,,2000,,skipped_not_found
+1293,21475,Liam NELSON,Canteen,,,,500,,skipped_not_found
+1294,21478,Ian Hyunwoo CHO,Shop,,,,2000,,skipped_not_found
+1295,21478,Ian Hyunwoo CHO,Canteen,,,,0.1,,skipped_not_found
+1296,21479,Shiyali ZHOU,Canteen,924,Shiyali ZHOU,,300,,planned
+1297,21479,Shiyali ZHOU,Shop,924,Shiyali ZHOU,,1000,,planned
+1298,21481,Kieran ALLEN,Canteen,,,,500,,skipped_not_found
+1299,21481,Kieran ALLEN,Shop,,,,2000,,skipped_not_found
+1300,21482,Maxwell Johnson (Wells) ALLEN,Shop,,,,2000,,skipped_not_found
+1301,21483,John Kekoa OLIVE,Shop,,,,2000,,skipped_not_found
+1302,21483,John Kekoa OLIVE,Canteen,,,,500,,skipped_not_found
+1303,21484,Eric PAK,Shop,,,,2000,,skipped_not_found
+1304,21484,Eric PAK,Canteen,,,,500,,skipped_not_found
+1305,21487,Xizhu YU,Canteen,923,Xizhu YU,,100,,planned
+1306,21489,James SHEN,Shop,897,James Z SHEN,,1000,,planned
+1307,21489,James SHEN,Canteen,897,James Z SHEN,,500,,planned
+1308,21491,Yeojin BAE,Shop,,,,2000,,skipped_not_found
+1309,21492,Sooyeon BAE,Canteen,,,,1000,,skipped_not_found
+1310,21492,Sooyeon BAE,Shop,,,,2000,,skipped_not_found
+1311,21493,Ananya BALUCI,Shop,,,,2000,,skipped_not_found
+1312,21494,Jayan BALUCI,Shop,,,,2000,,skipped_not_found
+1313,21494,Jayan BALUCI,Canteen,,,,500,,skipped_not_found
+1314,21495,Ying CHIAO,Canteen,925,Ying CHIAO,,300,,planned
+1315,21495,Ying CHIAO,Shop,925,Ying CHIAO,,2000,,planned
+1316,21496,Yu CHIAO,Shop,927,Yu CHIAO,,2000,,planned
+1317,21502,Adric GRANDERSON,Shop,,,,2000,,skipped_not_found
+1318,21502,Adric GRANDERSON,Canteen,,,,0.1,,skipped_not_found
+1319,21503,Kabir Elias GRANDERSON,Shop,,,,2000,,skipped_not_found
+1320,21503,Kabir Elias GRANDERSON,Canteen,,,,0.1,,skipped_not_found
+1321,21504,Amara GRANDERSON,Canteen,,,,0.1,,skipped_not_found
+1322,21504,Amara GRANDERSON,Shop,,,,2000,,skipped_not_found
+1323,21515,Hailey THORNTON,Canteen,,,,500,,skipped_not_found
+1324,21515,Hailey THORNTON,Shop,,,,2000,,skipped_not_found
+1325,21516,Christopher THORNTON,Shop,,,,2000,,skipped_not_found
+1326,21516,Christopher THORNTON,Canteen,,,,500,,skipped_not_found
+1327,21518,Dean TIRA,Shop,,,,2000,,skipped_not_found
+1328,21518,Dean TIRA,Canteen,,,,0.1,,skipped_not_found
+1329,21519,Rory TIRA,Canteen,,,,500,,skipped_not_found
+1330,21519,Rory TIRA,Shop,,,,2000,,skipped_not_found
+1331,21520,Barrett TIRA,Shop,,,,2000,,skipped_not_found
+1332,21520,Barrett TIRA,Canteen,,,,500,,skipped_not_found
+1333,21521,Hudson WAGNER,Shop,,,,2000,,skipped_not_found
+1334,21521,Hudson WAGNER,Canteen,,,,0.01,,skipped_not_found
+1335,21525,Takumi YASUI,Shop,,,,2000,,skipped_not_found
+1336,21525,Takumi YASUI,Canteen,,,,500,,skipped_not_found
+1337,21526,Ethan DARRICAU,Canteen,,,,500,,skipped_not_found
+1338,21526,Ethan DARRICAU,Shop,,,,2000,,skipped_not_found
+1339,21528,Maria Cecilia BECK,Shop,,,,2000,,skipped_not_found
+1340,21528,Maria Cecilia BECK,Canteen,,,,500,,skipped_not_found
+1341,21529,Noah YANG,Shop,933,Noah YANG,,2000,,planned
+1342,21529,Noah YANG,Canteen,933,Noah YANG,,0.01,,planned
+1343,21530,Iman SYAHIR LUTHFI CHAN,Canteen,,,,0,,skipped_not_found
+1344,21531,Bruno WINGERT,Canteen,,,,500,,skipped_not_found
+1345,21531,Bruno WINGERT,Shop,,,,2000,,skipped_not_found
+1346,21532,Lucas WINGERT,Shop,,,,2000,,skipped_not_found
+1347,21536,Aliwassa PIROONHAPAT,Canteen,,,,0.01,,skipped_not_found
+1348,21536,Aliwassa PIROONHAPAT,Shop,,,,2000,,skipped_not_found
+1349,21537,Prin REUNGSINPINYA,Shop,477,Prin REUNGSINPINYA,,1000,,planned
+1350,21537,Prin REUNGSINPINYA,Canteen,477,Prin REUNGSINPINYA,,150,,planned
+1351,21538,Nanont RATANASUWANTHAWEE,Canteen,889,Nanont RATANASUWANTHAWEE,,400,,planned
+1352,21539,Tienwakin RUANGSUTTIPAP,Shop,653,Tienwakin RUANGSUTTIPAP,,2000,,planned
+1353,21539,Tienwakin RUANGSUTTIPAP,Canteen,653,Tienwakin RUANGSUTTIPAP,,0.1,,planned
+1354,21540,Zoya SACHDEV,Shop,451,Zoya SACHDEV,,2000,,planned
+1355,21541,Raphon AMPORNPISIT,Shop,414,Raphon A AMPORNPISIT,,2000,,planned
+1356,21541,Raphon AMPORNPISIT,Canteen,414,Raphon A AMPORNPISIT,,0.1,,planned
+1357,21543,Rinrada THIENPAITOON,Canteen,492,Rinrada THIENPAITOON,,0.01,,planned
+1358,21543,Rinrada THIENPAITOON,Shop,492,Rinrada THIENPAITOON,,2000,,planned
+1359,21544,Sikarn CHAMNANRATANAKUL,Canteen,,,,500,,skipped_not_found
+1360,21544,Sikarn CHAMNANRATANAKUL,Shop,,,,2000,,skipped_not_found
+1361,21545,Davin PRATHUANGWONG,Shop,932,Davin PRATHUANGWONG,,300,,planned
+1362,21545,Davin PRATHUANGWONG,Canteen,932,Davin PRATHUANGWONG,,300,,planned
+1363,21546,Calawon KHUNKITTI,Canteen,934,Calawon KHUNKITTI,,200,,planned
+1364,21546,Calawon KHUNKITTI,Shop,934,Calawon KHUNKITTI,,300,,planned
+1365,21547,Arinya DAVIS,Shop,939,Arinya N DAVIS,,300,,planned
+1366,21547,Arinya DAVIS,Canteen,939,Arinya N DAVIS,,300,,planned
+1367,21548,Anyarin DAVIS,Canteen,940,Anyarin DAVIS,,300,,planned
+1368,21548,Anyarin DAVIS,Shop,940,Anyarin DAVIS,,300,,planned
+1369,21549,Kotcharinthorn TANGMANEE,Shop,941,Kotcharinthorn TANGMANEE,,2000,,planned
+1370,21551,Pharin NATIPHANON,Shop,945,Pharin NATIPHANON,,2000,,planned
+1371,21553,Archawin KHORVICHIENKUL,Shop,936,Archawin KHORVICHIENKUL,,2000,,planned
+1372,21553,Archawin KHORVICHIENKUL,Canteen,936,Archawin KHORVICHIENKUL,,300,,planned
+1373,21554,Naphong PHIRIYASANGUANPHONG,Canteen,942,Naphong PHIRIYASANGUANPHONG,,200,,planned
+1374,21554,Naphong PHIRIYASANGUANPHONG,Shop,942,Naphong PHIRIYASANGUANPHONG,,200,,planned
+1375,21555,Sant VILASSAKDANONT,Canteen,943,Sant VILASSAKDANONT,,200,,planned
+1376,21555,Sant VILASSAKDANONT,Shop,943,Sant VILASSAKDANONT,,100,,planned
+1377,21556,Alinda BHICHARNCHITR,Shop,948,Alinda BHICHARNCHITR,,2000,,planned
+1378,21556,Alinda BHICHARNCHITR,Canteen,948,Alinda BHICHARNCHITR,,0.1,,planned
+1379,21557,Kandanai PATHOMVANICH,Canteen,946,Kandanai PATHOMVANICH,,300,,planned
+1380,21557,Kandanai PATHOMVANICH,Shop,946,Kandanai PATHOMVANICH,,300,,planned
+1381,21558,Kornthanith JUNGRUNGRUANGKIT,Shop,960,Kornthanith JUNGRUNGRUANGKIT,,2000,,planned
+1382,21558,Kornthanith JUNGRUNGRUANGKIT,Canteen,960,Kornthanith JUNGRUNGRUANGKIT,,0.01,,planned
+1383,21559,Prinprapha PALAPIPAT,Canteen,963,Prinprapha PALAPIPAT,,400,,planned
+1384,21559,Prinprapha PALAPIPAT,Shop,963,Prinprapha PALAPIPAT,,1000,,planned
+1385,21560,Pimmara TECHASATHIT,Canteen,961,Pimmara TECHASATHIT,,200,,planned
+1386,21561,Tara TWILTERMSUP,Canteen,,,,0.1,,skipped_not_found
+1387,21561,Tara TWILTERMSUP,Shop,,,,2000,,skipped_not_found
+1388,21562,Intach SIVAKRISKUL,Canteen,954,Intach SIVAKRISKUL,,1000,,planned
+1389,21562,Intach SIVAKRISKUL,Shop,954,Intach SIVAKRISKUL,,5000,,planned
+1390,21564,Siwapon SUWANTA,Canteen,957,Siwapon SUWANTA,,1500,,planned
+1391,21565,Narisarakorn CHAIPAYOM,Shop,958,Narisarakorn CHAIPAYOM,,2000,,planned
+1392,21566,Jakkrapong APISAMPINVONG,Canteen,959,Jakkrapong APISAMPINVONG,,0.1,,planned
+1393,21566,Jakkrapong APISAMPINVONG,Shop,959,Jakkrapong APISAMPINVONG,,2000,,planned
+1394,21569,Pannpuris CHETCHOTISAK,Canteen,956,Pannpuris CHETCHOTISAK,,500,,planned
+1395,21569,Pannpuris CHETCHOTISAK,Shop,956,Pannpuris CHETCHOTISAK,,2000,,planned
+1396,21570,Archawin CHULASEN,Shop,885,Archawin CHULASEN,,300,,planned
+1397,21570,Archawin CHULASEN,Canteen,885,Archawin CHULASEN,,200,,planned
+1398,21571,Evelyn Rose DURBIN,Shop,859,Evelyn R DURBIN,,0,,planned
+1399,21573,Sidh GANDHI,Canteen,426,Sidh GANDHI,,350,,planned
+1400,21573,Sidh GANDHI,Shop,426,Sidh GANDHI,,2000,,planned
+1401,21574,Pansira HONGAMORNSIN,Canteen,964,Pansira HONGAMORNSIN,,300,,planned
+1402,21574,Pansira HONGAMORNSIN,Shop,964,Pansira HONGAMORNSIN,,300,,planned
+1403,21575,Nakara INTHASENI,Canteen,738,Nakara INTHASENI,,3000,,planned
+1404,21575,Nakara INTHASENI,Shop,738,Nakara INTHASENI,,3000,,planned
+1405,21576,Kasipat JINDAVARANON,Canteen,974,Kasipat JINDAVARANON,,300,,planned
+1406,21577,Tee KORNHIRANRAT,Shop,966,Tee KORNHIRANRAT,,2000,,planned
+1407,21578,Nathaporn MANOMAIPHAN,Canteen,972,Nathaporn MANOMAIPHAN,,500,,planned
+1408,21578,Nathaporn MANOMAIPHAN,Shop,972,Nathaporn MANOMAIPHAN,,2000,,planned
+1409,21579,Kasidit PUIPUNTAWONG,Shop,737,Kasidit PUIPUNTAWONG,,2000,,planned
+1410,21579,Kasidit PUIPUNTAWONG,Canteen,737,Kasidit PUIPUNTAWONG,,0.1,,planned
+1411,21584,Nysha SACHATHEP,Canteen,978,Nysha SACHATHEP,,1000,,planned
+1412,21584,Nysha SACHATHEP,Shop,978,Nysha SACHATHEP,,1000,,planned
+1413,21585,Yanapa SAKULSRIPASERT,Shop,973,Yanapa SAKULSRIPASERT,,5000,,planned
+1414,21585,Yanapa SAKULSRIPASERT,Canteen,973,Yanapa SAKULSRIPASERT,,5000,,planned
+1415,21587,Panoch SITTHICHAIKASEM,Canteen,970,Panoch SITTHICHAIKASEM,,280,,planned
+1416,21588,Phurit TAEPAISITPONG,Shop,498,Phurit TAEPAISITPONG,,1000,,planned
+1417,21588,Phurit TAEPAISITPONG,Canteen,498,Phurit TAEPAISITPONG,,1000,,planned
+1418,21589,Pitti TAPWONGSIRIRUT,Canteen,968,Pitti TAPWONGSIRIRUT,,500,,planned
+1419,21589,Pitti TAPWONGSIRIRUT,Shop,968,Pitti TAPWONGSIRIRUT,,500,,planned
+1420,21591,Thanyanun TRILOGA,Canteen,462,Thanyanun TRILOGA,,500,,planned
+1421,21591,Thanyanun TRILOGA,Shop,462,Thanyanun TRILOGA,,500,,planned
+1422,21592,Tamida VANICHYANYONG,Canteen,899,Tamida VANICHYANYONG,,350,,planned
+1423,21592,Tamida VANICHYANYONG,Shop,899,Tamida VANICHYANYONG,,150,,planned
+1424,21593,Nathanon VISAVARAKOON,Shop,491,Nathanon VISAVARAKOON,,2000,,planned
+1425,21593,Nathanon VISAVARAKOON,Canteen,491,Nathanon VISAVARAKOON,,500,,planned
+1426,21594,Shutipat WONGSUWAN,Canteen,,,,200,,skipped_not_found
+1427,21594,Shutipat WONGSUWAN,Shop,,,,2000,,skipped_not_found
+1428,21595,Kirin SANGUTHAI,Shop,496,Kirin SANGUTHAI,,1000,,planned
+1429,21595,Kirin SANGUTHAI,Canteen,496,Kirin SANGUTHAI,,1000,,planned
+1430,21596,Nirin SANGUTHAI,Canteen,499,Nirin SANGUTHAI,,1000,,planned
+1431,21596,Nirin SANGUTHAI,Shop,499,Nirin SANGUTHAI,,1000,,planned
+1432,21600,Shen DYNES,Canteen,,,,500,,skipped_not_found
+1433,21600,Shen DYNES,Shop,,,,2000,,skipped_not_found
+1434,21601,Joseph CLEGG,Shop,,,,2000,,skipped_not_found
+1435,21601,Joseph CLEGG,Canteen,,,,150,,skipped_not_found
+1436,21603,Elise SILLMAN,Shop,,,,2000,,skipped_not_found
+1437,21603,Elise SILLMAN,Canteen,,,,0.1,,skipped_not_found
+1438,21604,Chloe Adelaide SILLMAN,Shop,,,,2000,,skipped_not_found
+1439,21605,Katherine SILLMAN,Canteen,,,,500,,skipped_not_found
+1440,21605,Katherine SILLMAN,Shop,,,,2000,,skipped_not_found
+1441,21606,Evan FERNANDEZ,Shop,,,,2000,,skipped_not_found
+1442,21606,Evan FERNANDEZ,Canteen,,,,500,,skipped_not_found
+1443,21607,Gabriel FERNANDEZ,Canteen,,,,1000,,skipped_not_found
+1444,21607,Gabriel FERNANDEZ,Shop,,,,2000,,skipped_not_found
+1445,21609,Maria PAGNUSSATTO,Canteen,,,,500,,skipped_not_found
+1446,21609,Maria PAGNUSSATTO,Shop,,,,2000,,skipped_not_found
+1447,21610,Anthony TOURNAY,Canteen,,,,500,,skipped_not_found
+1448,21610,Anthony TOURNAY,Shop,,,,2000,,skipped_not_found
+1449,21611,Anawin CHEWACHAMROEN,Shop,975,Anawin CHEWACHAMROEN,,1000,,planned
+1450,21611,Anawin CHEWACHAMROEN,Canteen,975,Anawin CHEWACHAMROEN,,300,,planned
+1451,21612,Narris JATUSRIPITAK,Shop,986,Narris JATUSRIPITAK,,2000,,planned
+1452,21612,Narris JATUSRIPITAK,Canteen,986,Narris JATUSRIPITAK,,0.1,,planned
+1453,21613,Papye KITCACHONPONG,Shop,,,,2000,,skipped_not_found
+1454,21613,Papye KITCACHONPONG,Canteen,,,,0.1,,skipped_not_found
+1455,21614,Palin MATURAPORN,Canteen,732,Palin MATURAPORN,,200,,planned
+1456,21615,Kalyana-Mitra NIMSOMBOON,Canteen,514,Kalyana-mitra NIMSOMBOON,,2500,,planned
+1457,21617,Tantada PATAVEKARN,Canteen,497,Tantada PATAVEKARN,,500,,planned
+1458,21617,Tantada PATAVEKARN,Shop,497,Tantada PATAVEKARN,,500,,planned
+1459,21618,Anyapatra SRISUNGSITTHISUNTI,Canteen,1109,Anyapatra SRISUNGSITTHISUNTI,,500,,planned
+1460,21619,Anyawit SRISUNGSITTHISUNTI,Canteen,1116,Anyawit SRISUNGSITTHISUNTI,,100,,planned
+1461,21620,Davyn VIRAJSILP,Shop,985,Davyn C CHIRATHIVAT,,2000,,planned
+1462,21620,Davyn VIRAJSILP,Canteen,985,Davyn C CHIRATHIVAT,,0.1,,planned
+1463,21622,Maiko WONG,Canteen,858,Maiko R WONG,,1000,,planned
+1464,21622,Maiko WONG,Shop,858,Maiko R WONG,,2000,,planned
+1465,21623,Marin STUART,Shop,842,Marin V STUART,,2000,,planned
+1466,21623,Marin STUART,Canteen,842,Marin V STUART,,0.1,,planned
+1467,21626,Jenissa VICHIANSIN,Canteen,1103,Jenissa VICHIANSIN,,300,,planned
+1468,21626,Jenissa VICHIANSIN,Shop,1103,Jenissa VICHIANSIN,,200,,planned
+1469,21627,Neliya VICHIANSIN,Shop,1107,Nelinya VICHIANSIN,,1000,,planned
+1470,21627,Neliya VICHIANSIN,Canteen,1107,Nelinya VICHIANSIN,,300,,planned
+1471,21628,Passawuth WIPOOSIRI,Canteen,727,Passawuth WIPOOSIRI,,200,,planned
+1472,21628,Passawuth WIPOOSIRI,Shop,727,Passawuth WIPOOSIRI,,200,,planned
+1473,21629,Paras TUNGSHUTAVEESUB,Canteen,887,Paras TUNGSHUTAVEESUB,,2000,,planned
+1474,21629,Paras TUNGSHUTAVEESUB,Shop,887,Paras TUNGSHUTAVEESUB,,2000,,planned
+1475,21631,Marlee MADONNA,Shop,,,,2000,,skipped_not_found
+1476,21632,Eve MOTT,Canteen,1102,Eve M MOTT,,500,,planned
+1477,21633,Hudson MOTT,Shop,1108,Hudson W MOTT,,500,,planned
+1478,21633,Hudson MOTT,Canteen,1108,Hudson W MOTT,,200,,planned
+1479,21634,Eugene SHELTON,Canteen,,,,300,,skipped_not_found
+1480,21634,Eugene SHELTON,Shop,,,,300,,skipped_not_found
+1481,21635,Lana MCHALE,Shop,1104,Lana T MCHALE,,2000,,planned
+1482,21636,Lewis MCHALE,Shop,1106,Lewis W MCHALE,,2000,,planned
+1483,21636,Lewis MCHALE,Canteen,1106,Lewis W MCHALE,,0.1,,planned
+1484,21637,Grace PICTON,Shop,1120,Grace L PICTON,,2000,,planned
+1485,21639,Mia MARSHALL,Canteen,,,,200,,skipped_not_found
+1486,21639,Mia MARSHALL,Shop,,,,2000,,skipped_not_found
+1487,21640,Noah ORTWEIN VOGEL,Shop,,,,500,,skipped_not_found
+1488,21640,Noah ORTWEIN VOGEL,Canteen,,,,300,,skipped_not_found
+1489,21642,Wooyoung LEE,Canteen,,,,300,,skipped_not_found
+1490,21643,Marcus YU,Shop,898,Marcus thanat YU,,300,,planned
+1491,21643,Marcus YU,Canteen,898,Marcus thanat YU,,300,,planned
+1492,21644,Ana-Sofia ALLEN,Canteen,,,,500,,skipped_not_found
+1493,21647,Cheng JI,Shop,,,,2000,,skipped_not_found
+1494,21648,Patchirawat RAJSANMUANG,Shop,,,,2000,,skipped_not_found
+1495,21649,Zues SAENZ,Shop,,,,2000,,skipped_not_found
+1496,21650,Eternity SAENZ,Shop,,,,2000,,skipped_not_found
+1497,21650,Eternity SAENZ,Canteen,,,,500,,skipped_not_found
+1498,21651,Jaynapa THARAHIRUNCHOT,Canteen,1127,Jaynapa THARAHIRUNCHOT,,500,,planned
+1499,21651,Jaynapa THARAHIRUNCHOT,Shop,1127,Jaynapa THARAHIRUNCHOT,,2000,,planned
+1500,21652,Mark THURNEYSEN,Shop,1121,Mark THURNEYSEN,,2000,,planned
+1501,21653,Andrew Walker WELCH,Canteen,,,,0.1,,skipped_not_found
+1502,21653,Andrew Walker WELCH,Shop,,,,2000,,skipped_not_found
+1503,21654,Ansley NORTHBROOK,Shop,1122,Ansley W NORTHBROOK,,2000,,planned
+1504,21654,Ansley NORTHBROOK,Canteen,1122,Ansley W NORTHBROOK,,400,,planned
+1505,21656,Shuhan WANG,Shop,,,,2000,,skipped_not_found
+1506,21656,Shuhan WANG,Canteen,,,,500,,skipped_not_found
+1507,21658,Amelia GERARD,Shop,1125,Amelia J GERARD,,2000,,planned
+1508,21658,Amelia GERARD,Canteen,1125,Amelia J GERARD,,0.1,,planned
+1509,21660,Samuel TSU,Canteen,,,,500,,skipped_not_found
+1510,21660,Samuel TSU,Shop,,,,2000,,skipped_not_found
+1511,21661,Alyssa TSU,Shop,1130,Alyssa Y TSU,,2000,,planned
+1512,21663,Amelia SERRANO,Canteen,838,Amelia R SERRANO,,0.1,,planned
+1513,21663,Amelia SERRANO,Shop,838,Amelia R SERRANO,,2000,,planned
+1514,21667,Klaipim SUBHADRABANDHU,Canteen,1123,Klaipim SUBHADRABANDHU,,500,,planned
+1515,21668,Ying XIONG,Canteen,1131,Ying XIONG,,500,,planned
+1516,21668,Ying XIONG,Shop,1131,Ying XIONG,,2000,,planned
+1517,21669,Aya KIMURA,Canteen,1137,Aya KIMURA,,500,,planned
+1518,21669,Aya KIMURA,Shop,1137,Aya KIMURA,,500,,planned
+1519,21670,Pakpakin CHETPHONGPHAN,Shop,1135,Pakpakin CHETPHONGPHAN,,2000,,planned
+1520,21676,Dhanat CHAOPRICHA,Shop,,,,2000,,skipped_not_found
+1521,21676,Dhanat CHAOPRICHA,Canteen,,,,500,,skipped_not_found
+1522,21678,Pronchanok YODCHAROEN,Shop,,,,2000,,skipped_not_found
+1523,21678,Pronchanok YODCHAROEN,Canteen,,,,500,,skipped_not_found
+1524,21683,Curtis JOHNSON,Canteen,,,,500,,skipped_not_found
+1525,21683,Curtis JOHNSON,Shop,,,,2000,,skipped_not_found
+1526,21684,Carter JOHNSON,Shop,,,,2000,,skipped_not_found
+1527,21684,Carter JOHNSON,Canteen,,,,500,,skipped_not_found
+1528,21689,Pachara PANYACHARE,Canteen,1132,Pachara PANYACHARE,,0.01,,planned
+1529,21689,Pachara PANYACHARE,Shop,1132,Pachara PANYACHARE,,2000,,planned
+1530,21696,John GREENBERG,Canteen,,,,500,,skipped_not_found
+1531,21696,John GREENBERG,Shop,,,,2000,,skipped_not_found
+1532,21700,Anastasia CHAN,Canteen,692,Anastasia CHAN,,0.1,,planned
+1533,21700,Anastasia CHAN,Shop,692,Anastasia CHAN,,2000,,planned
+1534,21701,Ryan HENDRICKSON,Canteen,1134,Ryan J HENDRICKSON,,0.01,,planned
+1535,21701,Ryan HENDRICKSON,Shop,1134,Ryan J HENDRICKSON,,2000,,planned
+1536,21705,Mikail YAQUB,Canteen,,,,500,,skipped_not_found
+1537,21705,Mikail YAQUB,Shop,,,,2000,,skipped_not_found
+1538,21706,Yun Yun CHAN,Canteen,1138,Yun yun CHAN,,300,,planned
+1539,21706,Yun Yun CHAN,Shop,1138,Yun yun CHAN,,0,,planned
+1540,21707,Wei CHAN,Canteen,1145,Wei CHAN,,400,,planned
+1541,21707,Wei CHAN,Shop,1145,Wei CHAN,,0,,planned
+1542,21709,Chloe WELSH,Canteen,1142,Chloe M WELSH,,500,,planned
+1543,21709,Chloe WELSH,Shop,1142,Chloe M WELSH,,2000,,planned
+1544,21710,Darin Marie WELSH,Shop,,,,2000,,skipped_not_found
+1545,21710,Darin Marie WELSH,Canteen,,,,500,,skipped_not_found
+1546,21711,Preston MACK,Canteen,,,,500,,skipped_not_found
+1547,21711,Preston MACK,Shop,,,,2000,,skipped_not_found
+1548,21712,Brice MACK,Shop,,,,2000,,skipped_not_found
+1549,21713,Joelle Linn MACK,Shop,,,,2000,,skipped_not_found
+1550,21713,Joelle Linn MACK,Canteen,,,,0.1,,skipped_not_found
+1551,21714,Veronica WALKER,Shop,,,,2000,,skipped_not_found
+1552,21714,Veronica WALKER,Canteen,,,,500,,skipped_not_found
+1553,21716,Suphawin PHATTANATEERADAJ,Shop,,,,2000,,skipped_not_found
+1554,21716,Suphawin PHATTANATEERADAJ,Canteen,,,,500,,skipped_not_found
+1555,21717,Surapas CHULPAIBUL,Shop,,,,2000,,skipped_not_found
+1556,21717,Surapas CHULPAIBUL,Canteen,,,,500,,skipped_not_found
+1557,21722,Phanthira HEMMONDHAROP,Canteen,,,,500,,skipped_not_found
+1558,21722,Phanthira HEMMONDHAROP,Shop,,,,2000,,skipped_not_found
+1559,21725,Minin HETRAKUL,Shop,,,,2000,,skipped_not_found
+1560,21725,Minin HETRAKUL,Canteen,,,,500,,skipped_not_found
+1561,21728,Nayaa KATHINTHONG,Canteen,176,Nayaa KATHINTHONG,,500,,planned
+1562,21728,Nayaa KATHINTHONG,Shop,176,Nayaa KATHINTHONG,,1000,,planned
+1563,21729,Taweepat TANGLERTSAMPAN,Canteen,891,Taweepat TANGLERTSAMPAN,,400,,planned
+1564,21729,Taweepat TANGLERTSAMPAN,Shop,891,Taweepat TANGLERTSAMPAN,,500,,planned
+1565,21734,Satta SRIFUENGFUNG,Shop,,,,2000,,skipped_not_found
+1566,21734,Satta SRIFUENGFUNG,Canteen,,,,500,,skipped_not_found
+1567,21735,Julien STEINGENS,Canteen,,,,300,,skipped_not_found
+1568,21735,Julien STEINGENS,Shop,,,,2000,,skipped_not_found
+1569,21737,Jooho JEON,Shop,,,,2000,,skipped_not_found
+1570,21737,Jooho JEON,Canteen,,,,500,,skipped_not_found
+1571,21738,Ahaan KUMAR,Shop,,,,2000,,skipped_not_found
+1572,21739,Annika MARSHALL,Shop,,,,2000,,skipped_not_found
+1573,21739,Annika MARSHALL,Canteen,,,,150,,skipped_not_found
+1574,21740,Ruben BAILEY,Canteen,851,Ruben W BAILEY,,0.1,,planned
+1575,21740,Ruben BAILEY,Shop,851,Ruben W BAILEY,,2000,,planned
+1576,21741,Noam WEITZMAN,Shop,,,,100,,skipped_not_found
+1577,21741,Noam WEITZMAN,Canteen,,,,100,,skipped_not_found
+1578,21743,Sophia Josephine (Zosia) GALE,Shop,,,,2000,,skipped_not_found
+1579,21744,Rina OBA,Canteen,,,,500,,skipped_not_found
+1580,21744,Rina OBA,Shop,,,,2000,,skipped_not_found
+1581,21745,Ellison SCHULER,Shop,,,,2000,,skipped_not_found
+1582,21745,Ellison SCHULER,Canteen,,,,0.1,,skipped_not_found
+1583,21746,Jazmine BONNER,Canteen,,,,500,,skipped_not_found
+1584,21746,Jazmine BONNER,Shop,,,,2000,,skipped_not_found
+1585,21761,Anthony Jordan (AJ) BROWN,Shop,,,,1000,,skipped_not_found
+1586,21761,Anthony Jordan (AJ) BROWN,Canteen,,,,300,,skipped_not_found
+1587,21763,Dokyung KWAK,Canteen,,,,500,,skipped_not_found
+1588,21778,Jonah MARKS,Canteen,1155,Jonah   O. MARKS,,300,,planned
+1589,21796,Keita WATANABE,Shop,,,,1000,,skipped_not_found
+1590,21796,Keita WATANABE,Canteen,,,,300,,skipped_not_found
+1591,21817,Anna COPEL,Canteen,1160,Anna COPEL,,5000,,planned
+1592,21817,Anna COPEL,Shop,1160,Anna COPEL,,5000,,planned
+1593,21819,Mizuki SAKAMOTO,Canteen,,,,0.01,,skipped_not_found
+1594,21820,Wararat DONG,Canteen,647,Wararat DONG,,0.01,,planned
+1595,21824,Andrew SHEARY,Canteen,,,,200,,skipped_not_found
+1596,21830,James MCCAIN,Canteen,,,,5000,,skipped_not_found
+1597,21831,Braden MCCAIN,Canteen,,,,5000,,skipped_not_found
+1598,21832,Gavin MCCAIN,Canteen,,,,5000,,skipped_not_found
+1599,21837,Benjamin DYKE,Canteen,1147,Benjamin   T. DYKE,,0.01,,planned
+1600,21843,Arthur STEVENSON,Canteen,,,,0.01,,skipped_not_found
+1601,21846,Sebastian Ernest SNELL,Canteen,,,,0.01,,skipped_not_found
+1602,21849,Amelie Isabela GREEN,Canteen,,,,0.01,,skipped_not_found
+1603,21850,Abbey Angelica GREEN,Canteen,,,,0.01,,skipped_not_found
+1604,21852,Enslee RIVERA,Canteen,867,Enslee   M. RIVERA,,0.01,,planned
+1605,21856,Tsunayuki KOSO,Canteen,1153,Tsunayuki KOSO,,0.01,,planned
+1606,21857,Bo BAILEY,Canteen,848,Bo   F. BAILEY,,0.01,,planned
+1607,21864,Yiftach PERETZ,Canteen,1175,Yiftach   A. PERETZ,,400,,planned
+1608,21865,Alma PERETZ,Shop,1178,Alma   Z. PERETZ,,4000,,planned
+1609,21866,Cassia Ximena ROBERTSON,Canteen,1174,Cassia  X. A-M ROBERTSON,,100,,planned
+1610,21866,Cassia Ximena ROBERTSON,Shop,1174,Cassia  X. A-M ROBERTSON,,0,,planned
+1611,21867,Lyla GOGULSKI,Canteen,,,,300,,skipped_not_found
+1612,21869,Ryker MCGARY,Canteen,,,,0.01,,skipped_not_found
+1613,21874,Yoni ROTEM,Shop,1163,Yoni ROTEM,,1000,,planned
+1614,21874,Yoni ROTEM,Canteen,1163,Yoni ROTEM,,1000,,planned
+1615,21875,Nobuyuki KOSO,Canteen,1158,Nobuyuki KOSO,,500,,planned
+1616,21888,Alexandra MOULTRIE,Canteen,,,,300,,skipped_not_found
+1617,21913,Ruj TANDALAK,Canteen,1592,Ruj TANDALAK,,500,,planned
+1618,21916,Gavin LUENGNARUEMITCHAI,Canteen,,,,500,,skipped_not_found
+1619,21922,Phraetip TANGCHITTHAVORNGUL,Canteen,1345,Phraetip TANGCHITTHAVORNGUL,,500,,planned
+1620,21924,Varada LEEKANCHANAKORN,Canteen,1689,Varada LEEKANCHANAKORN,,400,,planned
+1621,21924,Varada LEEKANCHANAKORN,Shop,1689,Varada LEEKANCHANAKORN,,400,,planned
+1622,21926,Navin LUENGNARUEMITCHAI,Canteen,1338,Navin LUENGNARUEMITCHAI,,500,,planned
+1623,21938,Bea CARLYLE,Canteen,1172,Bea   C. CARLYLE,,150,,planned
+1624,21947,Barrett HUANG,Canteen,1191,Barrett fong HUANG,,0.01,,planned
+1625,21954,John GOGULSKI,Canteen,,,,0,,skipped_not_found
+1626,21954,John GOGULSKI,Shop,,,,0,,skipped_not_found
+1627,21955,Grace GOGULSKI,Canteen,,,,0,,skipped_not_found
+1628,21955,Grace GOGULSKI,Shop,,,,0,,skipped_not_found
+1629,21957,Rachel SHEARY,Canteen,,,,200,,skipped_not_found
+1630,21963,Sophia FRANCIS,Canteen,1181,Sophia T. FRANCIS,,0.01,,planned
+1631,21964,Remi Trier CRANDALL,Canteen,,,,0.01,,skipped_not_found
+1632,21965,Santi FALKESGAARD,Canteen,,,,0.01,,skipped_not_found
+1633,21966,Wyatt Richard MARTIN,Canteen,,,,0.01,,skipped_not_found
+1634,21968,Haley Temuun SCHULER,Canteen,,,,0.01,,skipped_not_found
+1635,21976,Kira RHODES,Canteen,,,,0.01,,skipped_not_found
+1636,21978,Eloise BARON,Canteen,,,,0.01,,skipped_not_found
+1637,21987,Trin BHICHARNCHITR,Canteen,951,Trin BHICHARNCHITR,,0.01,,planned
+1638,21988,Patiya BHURICHAYAWARODOM,Canteen,876,Patiya BHURICHAYAWARODOM,,0.01,,planned
+1639,21989,Teephat CHAIKANAPIBOOL,Canteen,1184,Teephat CHAIKANAPIBOOL,,0.01,,planned
+1640,21990,Kirin JINJARAK,Canteen,1139,Kirin JINJARAK,,500,,planned
+1641,21991,Taya KHANTACHAVANA,Canteen,723,Taya KHANTACHAVANA,,0.01,,planned
+1642,21992,Loukbua KHANTIPHAISANSAKUN,Canteen,,,,0.01,,skipped_not_found
+1643,21993,Chayabhorn KITIREANGLARP,Canteen,1190,Chayabhorn KITIREANGLARP,,0.01,,planned
+1644,21994,Sean KRAIWIN,Canteen,1187,Sean KRAIWIN,,0.01,,planned
+1645,21995,Thanadol OSANGTHAMNONT,Canteen,736,Thanadol OSANGTHAMNONT,,0.01,,planned
+1646,21996,Sethinara PONGPASUTH,Canteen,1189,Sethinara PONGPASUTH,,0.01,,planned
+1647,21997,Khemachanya SEREEYOTHIN,Canteen,1182,Khemachanya SEREEYOTHIN,,0.01,,planned
+1648,21998,Charlie SERTTHIN,Canteen,722,Charlie SERTTHIN,,0.01,,planned
+1649,21999,Maetilda SUWANTRA,Canteen,712,Maetilda SUWANTRA,,200,,planned
+1650,22000,Thanapat TANGLERTSAMPAN,Canteen,888,Thanapat TANGLERTSAMPAN,,300,,planned
+1651,22001,Jalyn JANTIRUT,Canteen,938,Jalyn JANTIRUT,,300,,planned
+1652,22001,Jalyn JANTIRUT,Shop,938,Jalyn JANTIRUT,,300,,planned
+1653,22002,Misha PANYAYONG,Canteen,1186,Misha PANYAYONG,,250,,planned
+1654,22006,Praphonphan SUWANTA,Canteen,962,Praphonphan SUWANTA,,200,,planned
+1655,22011,Bua BENCHAWANICHKUL,Canteen,,,,200,,skipped_not_found
+1656,22012,Kin CHOLLACOOP,Canteen,826,Kin CHOLLACOOP,,0.01,,planned
+1657,22013,Nabhum KHONGRUANGRIT,Shop,1202,Nabhum KHONGRUANGRIT,,100,,planned
+1658,22013,Nabhum KHONGRUANGRIT,Canteen,1202,Nabhum KHONGRUANGRIT,,100,,planned
+1659,22014,Pirada LOPANSRI,Canteen,1201,Pirada LOPANSRI,,150,,planned
+1660,22015,Prinpapat PALAPIPAT,Canteen,965,Prinpapat PALAPIPAT,,200,,planned
+1661,22015,Prinpapat PALAPIPAT,Shop,965,Prinpapat PALAPIPAT,,500,,planned
+1662,22016,Pakornkiat RASEESARP,Canteen,1206,Pakornkiat RASEESARP,,200,,planned
+1663,22017,Arjun SACHDEV,Canteen,447,Arjun SACHDEV,,0.01,,planned
+1664,22018,Boonya SAKULSRIPASERT,Shop,979,Boonya SAKULSRIPASERT,,5000,,planned
+1665,22018,Boonya SAKULSRIPASERT,Canteen,979,Boonya SAKULSRIPASERT,,5000,,planned
+1666,22021,Sala TANTIMONGKOLSUK,Shop,886,Sala TANTIMONGKOLSUK,,1000,,planned
+1667,22021,Sala TANTIMONGKOLSUK,Canteen,886,Sala TANTIMONGKOLSUK,,300,,planned
+1668,22022,Radakarn TAPWONGSIRIRUT,Shop,971,Radakarn TAPWONGSIRIRUT,,300,,planned
+1669,22022,Radakarn TAPWONGSIRIRUT,Canteen,971,Radakarn TAPWONGSIRIRUT,,300,,planned
+1670,22023,Alynn VIRIYABUSAYA,Shop,1205,Alynn VIRIYABUSAYA,,500,,planned
+1671,22023,Alynn VIRIYABUSAYA,Canteen,1205,Alynn VIRIYABUSAYA,,500,,planned
+1672,22025,Atinat SARNTAWANPAS,Canteen,1211,Atinat SARNTAWANPAS,,500,,planned
+1673,22026,Nannawat ARIYAKHAGORN,Canteen,1119,Nannawat ARIYAKHAGORN,,2000,,planned
+1674,22026,Nannawat ARIYAKHAGORN,Shop,1119,Nannawat ARIYAKHAGORN,,2000,,planned
+1675,22027,Napat PIPATVILAIKUL,Canteen,1209,Napat PIPATVILAIKUL,,200,,planned
+1676,22027,Napat PIPATVILAIKUL,Shop,1209,Napat PIPATVILAIKUL,,200,,planned
+1677,22028,Jiraphat SAPAKOSOLKUL,Canteen,1218,Jiraphat SAPAKOSOLKUL,,300,,planned
+1678,22028,Jiraphat SAPAKOSOLKUL,Shop,1218,Jiraphat SAPAKOSOLKUL,,300,,planned
+1679,22029,Pumipadh SUTTILERTVORAKUL,Canteen,1210,Pumipadh SUTTILERTVORAKUL,,300,,planned
+1680,22029,Pumipadh SUTTILERTVORAKUL,Shop,1210,Pumipadh SUTTILERTVORAKUL,,1500,,planned
+1681,22030,Chatchaya TANGMANEE,Canteen,944,Chatchaya TANGMANEE,,500,,planned
+1682,22031,Patt SETTAPANICH,Canteen,1222,Patt SETTAPANICH,,1000,,planned
+1683,22031,Patt SETTAPANICH,Shop,1222,Patt SETTAPANICH,,1000,,planned
+1684,22032,Pete SETTAPANICH,Shop,1223,Pete SETTAPANICH,,1000,,planned
+1685,22032,Pete SETTAPANICH,Canteen,1223,Pete SETTAPANICH,,1000,,planned
+1686,22041,Lalinda CHEWACHAMROEN,Canteen,981,Lalinda CHEWACHAMROEN,,100,,planned
+1687,22042,Nikhara GANDHI,Canteen,429,Nikhara GANDHI,,350,,planned
+1688,22047,Arthur BARCLAY,Canteen,645,Arthur   K. BARCLAY,,2000,,planned
+1689,22051,Garam KIM,Canteen,1320,Ga ram KIM,,1000,,planned
+1690,22062,Reuben HALL,Shop,864,Reuben   P. HALL,,500,,planned
+1691,22062,Reuben HALL,Canteen,864,Reuben   P. HALL,,200,,planned
+1692,22063,Avery LAWRENCE,Canteen,,,,0.01,,skipped_not_found
+1693,22064,Gabriela CARVALHO,Canteen,,,,500,,skipped_not_found
+1694,22065,Aria CARVALHO,Canteen,,,,0.01,,skipped_not_found
+1695,22069,Yul PARK,Canteen,1348,Yul PARK,,200,,planned
+1696,22069,Yul PARK,Shop,1348,Yul PARK,,200,,planned
+1697,22070,Yuju LEE,Canteen,1340,Yuju LEE,,200,,planned
+1698,22072,Ke LU,Shop,1341,Ke LU,,2000,,planned
+1699,22072,Ke LU,Canteen,1341,Ke LU,,2000,,planned
+1700,22077,Pranon SAKSOMBOON,Canteen,1354,Pranon SAKSOMBOON,,200,,planned
+1701,22079,Grant Oran KIRKLAND,Canteen,,,,600,,skipped_not_found
+1702,22081,Thada LEEKANCHANAKORN,Canteen,1693,Thada LEEKANCHANAKORN,,400,,planned
+1703,22081,Thada LEEKANCHANAKORN,Shop,1693,Thada LEEKANCHANAKORN,,400,,planned
+1704,22082,Titus TWILTERMSUP,Canteen,,,,0.01,,skipped_not_found
+1705,22085,Thomas ROBINSON,Canteen,1350,Thomas   S. ROBINSON,,500,,planned
+1706,22086,Chira TANTIBUNDHIT,Canteen,1355,Chira TANTIBUNDHIT,,500,,planned
+1707,22086,Chira TANTIBUNDHIT,Shop,1355,Chira TANTIBUNDHIT,,500,,planned
+1708,22087,Joseph CHAYAVICHITSILP,Canteen,1353,Joseph CHAYAVICHITSILP,,300,,planned
+1709,22091,Nehir KILIC,Canteen,1358,Nehir   M. KILIC,,100,,planned
+1710,22098,Bhawynn UASOPON,Canteen,1351,Bhawynn UASOPON,,0.01,,planned
+1711,22105,Rujapa PROMPOW,Canteen,1356,Rujapa PROMPOW,,1000,,planned
+1712,22106,Ocean TSENG,Canteen,1363,Ocean TSENG,,0.01,,planned
+1713,22110,Seoyoon JI,Canteen,,,,0.01,,skipped_not_found
+1714,22111,Giovanni DE SOUZA OTTONI,Shop,1368,Giovanni DE SOUZA OTTONI,,750,,planned
+1715,22111,Giovanni DE SOUZA OTTONI,Canteen,1368,Giovanni DE SOUZA OTTONI,,350,,planned
+1716,22115,Sai Phyu Sin KHANT,Canteen,1366,Sai P. KHANT,,500,,planned
+1717,22118,Alyssa Delaney WARR,Canteen,,,,0.01,,skipped_not_found
+1718,22119,Lendel SISUB,Canteen,178,Lendel SISUB,,0.01,,planned
+1719,22126,Deniz OZSOZ,Canteen,1369,Deniz   E. OZSOZ,,200,,planned
+1720,22127,Defne OZSOZ,Canteen,1371,Defne   Z. OZSOZ,,200,,planned
+1721,22130,Alexander ZANETTI OLSEN,Canteen,,,,250,,skipped_not_found
+1722,22138,Asher PHILLIPS,Canteen,1365,Asher   X. PHILLIPS,,0.01,,planned
+1723,22143,Rei YASUNORI,Canteen,,,,500,,skipped_not_found
+1724,22144,Dexter DEAVER,Canteen,,,,200,,skipped_not_found
+1725,22145,Natalia ZANETTI OLSEN,Canteen,,,,250,,skipped_not_found
+1726,22146,Lillian Claire DEAVER,Canteen,,,,200,,skipped_not_found
+1727,22149,Michael Khishgee CAHYONO,Canteen,,,,0.01,,skipped_not_found
+1728,22158,Shiloh SZIMONISZ,Canteen,1364,Shiloh   L. SZIMONISZ,,200,,planned
+1729,22160,Zijun GUO,Canteen,1376,Zijun GUO,,150,,planned
+1730,22161,Nikolas FRIEDRICHS,Shop,,,,1000,,skipped_not_found
+1731,22161,Nikolas FRIEDRICHS,Canteen,,,,210,,skipped_not_found
+1732,22163,Sebastian FRIEDRICHS,Canteen,1389,Sebastian   P. FRIEDRICHS,,210,,planned
+1733,22163,Sebastian FRIEDRICHS,Shop,1389,Sebastian   P. FRIEDRICHS,,2000,,planned
+1734,22164,Cecilia FRIEDRICHS,Shop,1392,Cecilia FRIEDRICHS,,1000,,planned
+1735,22164,Cecilia FRIEDRICHS,Canteen,1392,Cecilia FRIEDRICHS,,210,,planned
+1736,22168,Oliver MUELLER HERNANDEZ,Canteen,,,,0.01,,skipped_not_found
+1737,22172,Charlotte KHOO,Canteen,,,,3000,,skipped_not_found
+1738,22175,Ingrid FLORES,Shop,1391,Ingrid   A. FLORES,,500,,planned
+1739,22176,Sofia FLORES,Canteen,1402,Sofia   A. FLORES,,0.01,,planned
+1740,22182,Camden SERAFINI,Canteen,,,,0.01,,skipped_not_found
+1741,22188,Lexi RAMOS-MAURAS,Canteen,,,,0.01,,skipped_not_found
+1742,22189,Virun Wongsawat NAM,Canteen,1387,Virun   W. NAM,,0.01,,planned
+1743,22194,Ryan PERVEL,Canteen,,,,500,,skipped_not_found
+1744,22195,Ranissa PERVEL,Canteen,,,,500,,skipped_not_found
+1745,22196,Isabella PERVEL,Canteen,,,,500,,skipped_not_found
+1746,22203,Selah SZIMONISZ,Canteen,1370,Selah   G. SZIMONISZ,,250,,planned
+1747,22206,Haihaoyu HE,Canteen,,,,0.01,,skipped_not_found
+1748,22209,Daniel REX,Canteen,,,,0.01,,skipped_not_found
+1749,22210,Khadroi WANGCHUK,Canteen,1382,Khadroi WANGCHUK,,250,,planned
+1750,22212,Ziqi YING,Canteen,1385,Ziqi YING,,500,,planned
+1751,22215,Gustav PECO,Canteen,1380,Gustav   T. PECO,,150,,planned
+1752,22216,Oramae RICKABY,Canteen,1388,Oramae   P. RICKABY,,0.01,,planned
+1753,22224,Kai HAWRY,Canteen,,,,285,,skipped_not_found
+1754,22225,Serena HAWRY,Canteen,,,,0.01,,skipped_not_found
+1755,22231,Grace KALECZYC,Canteen,,,,0.01,,skipped_not_found
+1756,22232,Penelope VARGAS SEMINETTA,Canteen,,,,0.01,,skipped_not_found
+1757,22234,Dylan MAJESTY-ARONSON,Canteen,,,,0.01,,skipped_not_found
+1758,22235,Ruitai CHEN,Canteen,465,Ruitai CHEN,,0.01,,planned
+1759,22236,Dor YONAI,Canteen,,,,300,,skipped_not_found
+1760,22239,Phuong PHAM NGUYEN NGUYEN,Canteen,1404,Phuong PHAM NGUYEN NGUYEN,,2000,,planned
+1761,22239,Phuong PHAM NGUYEN NGUYEN,Shop,1404,Phuong PHAM NGUYEN NGUYEN,,2000,,planned
+1762,22240,Levi BARON,Canteen,,,,0.01,,skipped_not_found
+1763,22244,Reese STRUWE,Canteen,1395,Reese   D. STRUWE,,200,,planned
+1764,22245,Hazel STRUWE,Canteen,1405,Hazel STRUWE,,1000,,planned
+1765,22245,Hazel STRUWE,Shop,1405,Hazel STRUWE,,1000,,planned
+1766,22246,Yutaka MOMOTA,Canteen,1397,Yutaka MOMOTA,,0.01,,planned
+1767,22247,Amit YONAI,Canteen,,,,500,,skipped_not_found
+1768,22251,Advay SHINDE,Canteen,,,,0.01,,skipped_not_found
+1769,22259,Haaris SARAF,Canteen,,,,0.01,,skipped_not_found
+1770,22260,Matheus RODRIGUES,Canteen,1400,Matheus   G. RODRIGUES,,500,,planned
+1771,22262,Lory NIE,Canteen,1401,Lory NIE,,300,,planned
+1772,22271,Alexandra WHEELER,Canteen,,,,0.01,,skipped_not_found
+1773,22273,Landon RODGERS,Canteen,,,,0.01,,skipped_not_found
+1774,22282,Xinyi TIAN,Canteen,1393,Xinyi TIAN,,300,,planned
+1775,22283,Eli WATERS,Canteen,869,Eli   J. WATERS,,0.01,,planned
+1776,22286,Bhone Khant PHYO,Canteen,,,,0.01,,skipped_not_found
+1777,22287,Lulu WAI YAN,Canteen,,,,0.01,,skipped_not_found
+1778,22289,Luciana PETTIT,Canteen,,,,0.01,,skipped_not_found
+1779,22290,Gabriel PETTIT,Canteen,,,,70,,skipped_not_found
+1780,22294,Elio MANU RAMONEDA,Canteen,873,Elio   G. MANU RAMONEDA,,0.01,,planned
+1781,22295,Iver MEES,Canteen,868,Iver   L. MEES,,0.01,,planned
+1782,22305,Charlotte LELAND,Canteen,,,,0.01,,skipped_not_found
+1783,22306,Ephraim COLE,Canteen,,,,0.01,,skipped_not_found
+1784,22311,Avery GERMROTH,Canteen,,,,0.01,,skipped_not_found
+1785,22318,Alon FRIEDMAN,Canteen,,,,500,,skipped_not_found
+1786,22319,Atai FRIEDMAN,Canteen,,,,500,,skipped_not_found
+1787,22326,Dayana CHESHMEH,Canteen,1414,Dayana CHESHMEH,,100,,planned
+1788,22328,Olivia BLEECKER,Canteen,,,,200,,skipped_not_found
+1789,22329,Natalie BLEECKER,Canteen,,,,200,,skipped_not_found
+1790,22335,Yi Qiang QING,Canteen,1419,Yi qiang QING,,0.01,,planned
+1791,22337,Amulya RENATI,Canteen,,,,0.01,,skipped_not_found
+1792,22338,Jaywon HWANG,Canteen,1415,Jaywon HWANG,,0.01,,planned
+1793,22343,Emma LEVINE,Canteen,,,,300,,skipped_not_found
+1794,22351,Leah RAMOS-MAURAS,Canteen,,,,0.01,,skipped_not_found
+1795,22352,Yuta SUMINOKURA,Canteen,,,,0.01,,skipped_not_found
+1796,22354,Bryce GERMROTH,Shop,,,,600,,skipped_not_found
+1797,22354,Bryce GERMROTH,Canteen,,,,600,,skipped_not_found
+1798,22355,Zongchen DU,Shop,1417,Zongchen DU,,300,,planned
+1799,22355,Zongchen DU,Canteen,1417,Zongchen DU,,250,,planned
+1800,22356,Yichen DU,Shop,1421,Yichen DU,,300,,planned
+1801,22356,Yichen DU,Canteen,1421,Yichen DU,,250,,planned
+1802,22358,Jio KIM,Canteen,1413,Jio KIM,,0.01,,planned
+1803,22359,Connor SEIPLE,Canteen,1407,Connor   L. SEIPLE,,0.01,,planned
+1804,22362,Zi Han CUI,Canteen,179,Zihan CUI,,0.01,,planned
+1805,22367,Orysia BORODCHUK,Shop,1435,Orysia BORODCHUK,,200,,planned
+1806,22368,Ethan KOHNER,Canteen,1424,Ethan KOHNER,,500,,planned
+1807,22372,Ava CORBIN,Canteen,,,,250,,skipped_not_found
+1808,22373,Alijah CORBIN,Canteen,,,,250,,skipped_not_found
+1809,22374,Megan SISUB,Canteen,181,Megan SISUB,,0.01,,planned
+1810,22375,Kana TRAKULHOON,Canteen,1423,Kana TRAKULHOON,,0.01,,planned
+1811,22376,Apollo SAENZ,Canteen,,,,0.01,,skipped_not_found
+1812,22377,Wooyun LEE,Canteen,,,,500,,skipped_not_found
+1813,22379,Naomi SNELL,Canteen,,,,0.01,,skipped_not_found
+1814,22381,Ayden ROJAS RODRIGUEZ,Canteen,,,,0.01,,skipped_not_found
+1815,22383,Annie GUO,Canteen,1431,Annie GUO,,100,,planned
+1816,22385,Adam FRIEDMAN,Canteen,,,,300,,skipped_not_found
+1817,22387,Alec DURKEE,Canteen,,,,0.01,,skipped_not_found
+1818,22388,Puth TANAWONGKASAEM,Canteen,1717,Puth TANAWONGKASAEM,,500,,planned
+1819,22390,Gobseth LIMTASETH,Shop,1718,Gobseth LIMTASETH,,200,,planned
+1820,22390,Gobseth LIMTASETH,Canteen,1718,Gobseth LIMTASETH,,300,,planned
+1821,22391,Pawarit POKSAWAT,Canteen,1347,Pawarit POKSAWAT,,2000,,planned
+1822,22391,Pawarit POKSAWAT,Shop,1347,Pawarit POKSAWAT,,2000,,planned
+1823,22393,Nititan JONGMEESUK,Shop,138,Nititan JONGMEESUK,,600,,planned
+1824,22393,Nititan JONGMEESUK,Canteen,138,Nititan JONGMEESUK,,1000,,planned
+1825,22394,Bheera CHOTIWATTANAPHAN,Canteen,1714,Bheera CHOTIWATTANAPHAN,,500,,planned
+1826,22394,Bheera CHOTIWATTANAPHAN,Shop,1714,Bheera CHOTIWATTANAPHAN,,1000,,planned
+1827,22403,Thira TANGTONGTRAKUL,Canteen,1732,Thira TANGTONGTRAKUL,,500,,planned
+1828,22412,Kaixin HE,Canteen,,,,200,,skipped_not_found
+1829,22412,Kaixin HE,Shop,,,,200,,skipped_not_found
+1830,22414,Alfred DURBIN,Canteen,854,Alfred   S. DURBIN,,0.01,,planned
+1831,22417,Michael CARDONA,Canteen,,,,300,,skipped_not_found
+1832,22419,Xinyi LI,Canteen,1425,Xinyi LI,,300,,planned
+1833,22419,Xinyi LI,Shop,1425,Xinyi LI,,300,,planned
+1834,22421,Viktoriia KULAGINA,Canteen,,,,0.01,,skipped_not_found
+1835,22422,Danu Kim,Canteen,,,,0.01,,skipped_not_found
+1836,22423,Estella FAN,Canteen,1434,Estella FAN,,0.01,,planned
+1837,22428,Atsuto SHIMURA,Canteen,,,,0.01,,skipped_not_found
+1838,22429,Yongchan SON,Canteen,,,,250,,skipped_not_found
+1839,22433,Kennedy KELLY,Canteen,,,,500,,skipped_not_found
+1840,22435,Pimara TSENG,Canteen,1428,Pimara TSENG,,0.01,,planned
+1841,22436,Bodhi LIN,Canteen,1440,Bodhi   R. LIN,,0.01,,planned
+1842,22437,Gavin TAN,Canteen,1439,Gavin TAN,,100,,planned
+1843,22439,Arlan LEE,Canteen,1449,Arlan LEE,,0.01,,planned
+1844,22440,Adelyn CHEN,Shop,,,,500,,skipped_not_found
+1845,22440,Adelyn CHEN,Canteen,,,,500,,skipped_not_found
+1846,22441,Cara CIAMBRELLO,Canteen,125,Cara   J. CIAMBRELLO,,100,,planned
+1847,22442,Killian CIAMBRELLO,Canteen,127,Killian   D. CIAMBRELLO,,100,,planned
+1848,22445,Pol Muthunzi GAYA,Canteen,,,,150,,skipped_not_found
+1849,22446,Porjai CHOMPOOKAEW,Canteen,1445,Porjai CHOMPOOKAEW,,0.01,,planned
+1850,22447,Anna GAYA,Canteen,,,,150,,skipped_not_found
+1851,22454,Karis KELLY,Canteen,,,,0.01,,skipped_not_found
+1852,22458,Georgia CLASPILLE,Canteen,,,,0.01,,skipped_not_found
+1853,22459,Erin CLASPILLE,Canteen,,,,0.01,,skipped_not_found
+1854,22461,Pimmada LOPANSRI,Canteen,1198,Pimmada LOPANSRI,,0.01,,planned
+1855,22462,Chanisara TANGMANEE,Canteen,949,Chanisara TANGMANEE,,0.01,,planned
+1856,22464,Pakin SUTTILERTVORAKUL,Canteen,1217,Pakin SUTTILERTVORAKUL,,100,,planned
+1857,22465,Boonyasith SEREEYOTHIN,Canteen,728,Boonyasith SEREEYOTHIN,,0.01,,planned
+1858,22466,Anya VILASSAKDANONT,Canteen,947,Anya VILASSAKDANONT,,0.01,,planned
+1859,22467,Dia VIRAJSILP,Canteen,989,Dia   C. CHIRATHIVAT,,0.01,,planned
+1860,22468,Nattiwaj SERAAMORNRATH,Canteen,,,,0.01,,skipped_not_found
+1861,22469,Pattira SUPPASATE,Canteen,1446,Pattira SUPPASATE,,0.01,,planned
+1862,22470,Thanapat WONGSIRIKUL,Canteen,1441,Thanapat WONGSIRIKUL,,0.01,,planned
+1863,22471,Charn SURIYAWANAKUL,Canteen,1438,Charn SURIYAWANAKUL,,0.01,,planned
+1864,22472,Punnapat RAKSUNTIKUL,Shop,1691,Punnapat RAKSUNTIKUL,,0,,planned
+1865,22472,Punnapat RAKSUNTIKUL,Canteen,1691,Punnapat RAKSUNTIKUL,,500,,planned
+1866,22473,Achira ANANTASOMBOON,Canteen,1727,Achira ANANTASOMBOON,,0.01,,planned
+1867,22474,Nieranara MAHAYASANANDANA,Canteen,1687,Nieranara MAHAYASANANDANA,,0.01,,planned
+1868,22475,Thea OUNKOMOL,Canteen,1692,Thea OUNKOMOL,,0.01,,planned
+1869,22476,Chanisa WANAKANKOWIT,Canteen,1690,Chanisa WANAKANKOWIT,,0.01,,planned
+1870,22477,Tate BOONVANICHAKARN,Canteen,1694,Tate BOONVANICHAKARN,,0.01,,planned
+1871,22478,Athena KHONGRUANGRIT,Canteen,1204,Athena KHONGRUANGRIT,,0.01,,planned
+1872,22479,Paknapat CHETPHONGPHAN,Canteen,1143,Paknapat CHETPHONGPHAN,,0.01,,planned
+1873,22481,Markapat PROMPHAN,Canteen,1688,Markapat PROMPHAN,,0.01,,planned
+1874,22482,Wynn PHANSANGIAM,Canteen,1685,Wynn PHANSANGIAM,,0.01,,planned
+1875,22483,Teeravee DAMRAKS,Canteen,1698,Teeravee DAMRAKS,,0.01,,planned
+1876,22484,Theetach PUTAKOTIRAT,Canteen,1706,Theetach PUTAKOTIRAT,,0.01,,planned
+1877,22485,Nakhun POOPAIBOOL,Canteen,1708,Nakhun POOPAIBOOL,,0.01,,planned
+1878,22486,Pela LEESAVAN,Canteen,1696,Pela LEESAVAN,,0.01,,planned
+1879,22487,Kirati RATANADILOK NA BHUKET,Canteen,1700,Kirati RATANADILOK NA BHUKET,,0.01,,planned
+1880,22488,Marcus BATRA,Canteen,1697,Marcus BATRA,,0.01,,planned
+1881,22490,Meytawaj SERAAMORNRATH,Canteen,,,,0.01,,skipped_not_found
+1882,22491,Nara PATHOMVANICH,Canteen,950,Nara PATHOMVANICH,,0.01,,planned
+1883,22492,Punn MUANGSIRI,Canteen,1707,Punn MUANGSIRI,,0.01,,planned
+1884,22492,Punn MUANGSIRI,Shop,1707,Punn MUANGSIRI,,100,,planned
+1885,22493,Akin CHINDASOOK,Canteen,757,Akin CHINDASOOK,,0.01,,planned
+1886,22494,Natina JONGMEESUK,Canteen,135,Natina JONGMEESUK,,350,,planned
+1887,22494,Natina JONGMEESUK,Shop,135,Natina JONGMEESUK,,350,,planned
+1888,22495,Wynn HETRAKUL,Canteen,1702,Wynn HETRAKUL,,200,,planned
+1889,22495,Wynn HETRAKUL,Shop,1702,Wynn HETRAKUL,,200,,planned
+1890,22496,Chirajja TANTIBUNDHIT,Canteen,1361,Chirajja TANTIBUNDHIT,,0.01,,planned
+1891,22497,Boonsita VONGVIVAT,Canteen,1715,Boonsita VONGVIVAT,,5,,planned
+1892,22499,Peampat PAKDIPONGPITCHAYA,Shop,1721,Peampat PAKDIPONGPITCHAYA,,100,,planned
+1893,22499,Peampat PAKDIPONGPITCHAYA,Canteen,1721,Peampat PAKDIPONGPITCHAYA,,100,,planned
+1894,22500,Charyn SINTHAVATHAVORN,Canteen,1720,Charyn SINTHAVATHAVORN,,0.01,,planned
+1895,22501,Chat PROMPOW,Canteen,1352,Chat PROMPOW,,500,,planned
+1896,22515,Mingye WANG,Shop,1704,Mingye WANG,,100,,planned
+1897,22515,Mingye WANG,Canteen,1704,Mingye WANG,,100,,planned
+1898,22516,Roxana WISNER,Canteen,,,,200,,skipped_not_found
+1899,22519,Edward YIN,Canteen,1722,Edward   G. YIN,,0.01,,planned
+1900,22524,Chanya SAEUE,Canteen,1728,Chanya SAEUE,,0.01,,planned
+1901,22525,Supongphol SURIYAVANAGUL,Canteen,1725,Supongphol SURIYAVANAGUL,,0.01,,planned
+1902,22526,Mingzhi WANG,Canteen,1699,Mingzhi WANG,,500,,planned
+1903,22526,Mingzhi WANG,Shop,1699,Mingzhi WANG,,1000,,planned
+1904,22529,Naomi WISNER,Canteen,,,,200,,skipped_not_found
+1905,22531,Olivia HART-HANSEN,Canteen,1737,Olivia HART-HANSEN,,0.01,,planned
+1906,22532,William YIN,Canteen,1724,William   C. YIN,,0.01,,planned
+1907,22537,Isabelle CARLYLE,Canteen,1180,Isabelle   L. CARLYLE,,200,,planned
+1908,22538,Wilder MAJESTY-ARONSON,Canteen,,,,0.01,,skipped_not_found
+1909,22543,Friedrich FINGERLE,Canteen,1745,Friedrich   K. FINGERLE,,200,,planned
+1910,22543,Friedrich FINGERLE,Shop,1745,Friedrich   K. FINGERLE,,200,,planned
+1911,22547,Olivia MAO,Canteen,175,Olivia Tongyan MAO,,180,,planned
+1912,22547,Olivia MAO,Shop,175,Olivia Tongyan MAO,,100,,planned
+1913,22552,Capucine MERKELBACH,Canteen,,,,300,,skipped_not_found
+1914,22554,Gili YONAI,Canteen,,,,0.01,,skipped_not_found
+1915,22556,Charles MAO,Shop,183,Charles Yuzhi MAO,,100,,planned
+1916,22556,Charles MAO,Canteen,183,Charles Yuzhi MAO,,260,,planned
+1917,22558,Norah TERVEEN,Canteen,,,,0.01,,skipped_not_found
+1918,22559,Zi-Yun WANG,Shop,479,Zi-yun WANG,,100,,planned
+1919,22559,Zi-Yun WANG,Canteen,479,Zi-yun WANG,,200,,planned
+1920,22561,Gabriel BARRAL GIBERGUES,Canteen,,,,0.01,,skipped_not_found
+1921,22562,Felix BARRAL GIBERGUES,Canteen,,,,0.01,,skipped_not_found
+1922,22564,Adeline LAWRENCE,Canteen,,,,0.01,,skipped_not_found
+1923,22565,Egbert QIU,Canteen,,,,0.01,,skipped_not_found
+1924,22567,Evelyn QIU,Canteen,,,,0.01,,skipped_not_found
+1925,22568,Jie JI,Canteen,1756,Jie JI,,260,,planned
+1926,22587,Jiale LI,Canteen,,,,0.01,,skipped_not_found
+1927,22591,Parin RIENSUBDEE,Shop,1751,Parin RIENSUBDEE,,100,,planned
+1928,22591,Parin RIENSUBDEE,Canteen,1751,Parin RIENSUBDEE,,100,,planned
+1929,22597,Alma BASSIL SRIBHADUNG,Canteen,,,,0.01,,skipped_not_found
+1930,22598,Emma KOHNER,Canteen,1430,Emma   S. KOHNER,,0.01,,planned
+1931,22602,Elsa QU,Canteen,1749,Elsa QU,,150,,planned
+1932,22604,Peder MULLER,Canteen,,,,0.01,,skipped_not_found
+1933,22605,Elizabeth MOHLER,Canteen,,,,0.01,,skipped_not_found
+1934,22606,Virginia MOHLER,Canteen,,,,0.01,,skipped_not_found
+1935,22614,Lizhi XU,Canteen,,,,0.01,,skipped_not_found
+1936,22615,Alex SU,Canteen,917,Alex   A. SU,,300,,planned
+1937,22615,Alex SU,Shop,917,Alex   A. SU,,300,,planned
+1938,22617,Rui MINAGAWA,Canteen,,,,300,,skipped_not_found
+1939,22617,Rui MINAGAWA,Shop,,,,300,,skipped_not_found
+1940,22618,Thomas SHEN,Canteen,904,Thomas SHEN,,400,,planned
+1941,22618,Thomas SHEN,Shop,904,Thomas SHEN,,400,,planned
+1942,22619,William Nicolas DEAVER,Canteen,,,,200,,skipped_not_found
+1943,22624,Caroline CHAN,Canteen,911,Caroline CHAN,,100,,planned
+1944,22624,Caroline CHAN,Shop,911,Caroline CHAN,,100,,planned
+1945,22627,Oscar CORNEANU,Canteen,126,Oscar CORNEANU,,0.01,,planned
+1946,22630,Eric ZHAO,Canteen,,,,0.01,,skipped_not_found
+1947,22631,Seungah SHIN,Canteen,,,,500,,skipped_not_found
+1948,22631,Seungah SHIN,Shop,,,,500,,skipped_not_found
+1949,22632,Xianjia LI,Canteen,1750,Xianjia LI,,500,,planned
+1950,22632,Xianjia LI,Shop,1750,Xianjia LI,,500,,planned
+1951,22633,Xiansong LI,Shop,1754,Xiansong LI,,500,,planned
+1952,22633,Xiansong LI,Canteen,1754,Xiansong LI,,500,,planned
+1953,22634,Xianhui LI,Shop,1762,Xianhui LI,,200,,planned
+1954,22634,Xianhui LI,Canteen,1762,Xianhui LI,,200,,planned
+1955,22637,Jamie BROWN,Canteen,,,,250,,skipped_not_found
+1956,22639,Yatida DEANE,Canteen,740,Yatida DEANE,,0.01,,planned
+1957,22643,Lin Thu HEIN,Canteen,1758,Lin thu HEIN,,300,,planned
+1958,22643,Lin Thu HEIN,Shop,1758,Lin thu HEIN,,500,,planned
+1959,22646,Elizabeth PALMER,Canteen,,,,100,,skipped_not_found
+1960,22648,Yu Wai MON,Shop,1753,Yu wai MON,,500,,planned
+1961,22648,Yu Wai MON,Canteen,1753,Yu wai MON,,300,,planned
+1962,22649,Eva SOLOMON,Canteen,,,,0.01,,skipped_not_found
+1963,22656,Lucas ZIEGELE,Canteen,1764,Lucas ZIEGELE,,0.01,,planned
+1964,22657,Yutong ZHANG,Canteen,1772,Yutong ZHANG,,500,,planned
+1965,22657,Yutong ZHANG,Shop,1772,Yutong ZHANG,,500,,planned
+1966,22658,Kenji TRINH,Canteen,,,,250,,skipped_not_found
+1967,22666,Mako ASAI,Shop,,,,500,,skipped_not_found
+1968,22666,Mako ASAI,Canteen,,,,300,,skipped_not_found
+1969,22667,Bryson DOBYNS,Canteen,,,,0.01,,skipped_not_found
+1970,22668,Liberty DOBYNS,Canteen,,,,0.01,,skipped_not_found
+1971,22669,Isaac DOBYNS,Canteen,,,,0.01,,skipped_not_found
+1972,22670,Emily BROWN,Canteen,,,,250,,skipped_not_found
+1973,22673,Kashvi TIWARI,Canteen,,,,0.01,,skipped_not_found
+1974,22674,Lucas YING,Canteen,224,Lucas YING,,300,,planned
+1975,22674,Lucas YING,Shop,224,Lucas YING,,300,,planned
+1976,22676,Owen HAMMETT,Canteen,,,,0.01,,skipped_not_found
+1977,22677,Desmond HAMMETT,Canteen,,,,0.01,,skipped_not_found
+1978,22679,Omkaar RAO,Canteen,,,,1000,,skipped_not_found
+1979,22687,Zehava Sarit Hetzi OSTER,Shop,1776,Zehava   S. OSTER,,1000,,planned
+1980,22687,Zehava Sarit Hetzi OSTER,Canteen,1776,Zehava   S. OSTER,,450,,planned
+1981,22692,Megan EDELSON,Shop,161,Megan   L. EDELSON,,2000,,planned
+1982,22692,Megan EDELSON,Canteen,161,Megan   L. EDELSON,,2000,,planned
+1983,22718,Yi Jia CHEN,Canteen,1782,Yi jia CHEN,,500,,planned
+1984,22718,Yi Jia CHEN,Shop,1782,Yi jia CHEN,,500,,planned
+1985,22731,Jeremy LIU,Canteen,180,Jeremy   D. LIU,,500,,planned
+1986,22731,Jeremy LIU,Shop,180,Jeremy   D. LIU,,1000,,planned
+1987,22742,Yuna HONG,Canteen,,,,500,,skipped_not_found
+1988,22771,Nico BARILLAS,Canteen,,,,500,,skipped_not_found
+1989,22772,Cruz BARILLAS,Canteen,,,,300,,skipped_not_found
+1990,22772,Cruz BARILLAS,Shop,,,,200,,skipped_not_found
+1991,22773,Beck BARILLAS,Canteen,,,,500,,skipped_not_found
+1992,22789,Talisha TANANIVIT,Canteen,1709,Talisha TANANIVIT,,500,,planned
+1993,22789,Talisha TANANIVIT,Shop,1709,Talisha TANANIVIT,,1000,,planned
+1994,22798,Friederike FINGERLE,Canteen,1747,Friederike   P. FINGERLE,,200,,planned
+1995,22798,Friederike FINGERLE,Shop,1747,Friederike   P. FINGERLE,,200,,planned
+1996,22808,Sophia MARKS,Canteen,1146,Sophia   H. MARKS,,300,,planned
+1997,22872,Aurelio MOUROT,Canteen,,,,150,,skipped_not_found
+1998,22872,Aurelio MOUROT,Shop,,,,850,,skipped_not_found
+1999,22873,Timotei MOUROT,Canteen,,,,150,,skipped_not_found
+2000,22874,Mailys MOUROT,Canteen,,,,150,,skipped_not_found
+2001,22880,Dylan TAI,Canteen,,,,1150,,skipped_not_found
+2002,22881,Mackenzie TAI,Canteen,,,,500,,skipped_not_found
+2003,22883,Lila WATSON-MEYERS,Shop,24,Lila   F. WATSON-MEYERS,,300,,planned
+2004,22883,Lila WATSON-MEYERS,Canteen,24,Lila   F. WATSON-MEYERS,,300,,planned
+2005,22898,Atticus PHAM,Canteen,34,Atticus   K. PHAM,,500,,planned
+2006,22923,Justin SVANSTROM,Canteen,33,Justin   A. SVANSTROM,,400,,planned
+2007,22929,Emily AKINS,Canteen,,,,500,,skipped_not_found
+2008,22929,Emily AKINS,Shop,,,,100,,skipped_not_found
+2009,22930,Anna AKINS,Canteen,,,,100,,skipped_not_found
+2010,22930,Anna AKINS,Shop,,,,100,,skipped_not_found
+2011,22939,Zwel Yan Paing WIN,Shop,46,Zwel   Y. WIN,,2000,,planned
+2012,22939,Zwel Yan Paing WIN,Canteen,46,Zwel   Y. WIN,,350,,planned
+2013,22940,Thae Thynzar Win @Amanda Koh WIN,Canteen,49,Thae   T. WIN,,250,,planned
+2014,22940,Thae Thynzar Win @Amanda Koh WIN,Shop,49,Thae   T. WIN,,1000,,planned
+2015,22956,Pyo THAR,Canteen,185,Pyo   L. THAR,,200,,planned
+2016,22957,Ngwe THARR,Canteen,196,Ngwe   C. THARR,,200,,planned
+2017,22997,Rynnden ABBOTT,Shop,56,Rynnden   M. ABBOTT,,40000,,planned
+2018,23001,Kamau BURT,Canteen,,,,150,,skipped_not_found
+2019,23004,Jordan MARKLEY,Canteen,,,,200,,skipped_not_found
+2020,23004,Jordan MARKLEY,Shop,,,,40000,,skipped_not_found
+2021,23005,Colten MARKLEY,Shop,61,Colten   J. MARKLEY,,40000,,planned
+2022,23009,James PARISH,Canteen,,,,1000,,skipped_not_found
+2023,23016,Ines SEPULVEDA MARAMBIO,Canteen,673,Ines   M. SEPULVEDA MARAMBIO,,200,,planned
+2024,23026,Adira DAWAR,Shop,665,Adira DAWAR,,200,,planned
+2025,23031,Warotrit JINDAVARANON,Canteen,977,Warotrit JINDAVARANON,,300,,planned
+2026,23032,Theerit JINDAVARANON,Canteen,983,Theerit JINDAVARANON,,300,,planned
+2027,23033,Avan KAMOLCHOTIROS,Shop,878,Avan   Y. KAMOLCHOTIROS,,1000,,planned
+2028,23033,Avan KAMOLCHOTIROS,Canteen,878,Avan   Y. KAMOLCHOTIROS,,200,,planned
+2029,23057,Prom SETTAPANICH,Canteen,1213,Prom SETTAPANICH,,1000,,planned
+2030,23057,Prom SETTAPANICH,Shop,1213,Prom SETTAPANICH,,1000,,planned
+2031,23062,Talita TANANIVIT,Canteen,1705,Talita TANANIVIT,,500,,planned
+2032,23062,Talita TANANIVIT,Shop,1705,Talita TANANIVIT,,1000,,planned
+2033,23081,Chomchanok PIPATVILAIKUL,Canteen,1219,Chomchanok PIPATVILAIKUL,,200,,planned
+2034,23081,Chomchanok PIPATVILAIKUL,Shop,1219,Chomchanok PIPATVILAIKUL,,200,,planned
+2035,23083,Akira SRIPIAN,Shop,115,Akira SRIPIAN,,5000,,planned
+2036,23084,Mira SRIPIAN,Shop,118,Mira SRIPIAN,,5000,,planned
+2037,23112,Maïa ROBERTSON,Shop,1177,Maia S. I ROBERTSON,,100,,planned
+2038,23112,Maïa ROBERTSON,Canteen,1177,Maia S. I ROBERTSON,,100,,planned
+2039,23144,Mateo SCOTT,Canteen,,,,0,,skipped_not_found
+2040,23149,Yechan LEE,Shop,316,Yechan LEE,,100,,planned
+2041,23149,Yechan LEE,Canteen,316,Yechan LEE,,100,,planned
+2042,23159,Itay GOLDIN,Canteen,314,Itay GOLDIN,,150,,planned
+2043,23159,Itay GOLDIN,Shop,314,Itay GOLDIN,,150,,planned
+2044,23168,Brady HINTZ,Shop,,,,35000,,skipped_not_found
+2045,23169,Trevor HINTZ,Shop,,,,35000,,skipped_not_found
+2046,23181,Olivia PATINO-VIDAL,Shop,,,,0,,skipped_not_found
+2047,23182,Mafalda PATINO-VIDAL,Canteen,,,,180,,skipped_not_found
+2048,23182,Mafalda PATINO-VIDAL,Shop,,,,100,,skipped_not_found
+2049,23194,Sebastian SZATKOWSKI,Canteen,323,Sebastian SZATKOWSKI,,250,,planned
+2050,23198,Haruki MATSUNAMI,Canteen,,,,200,,skipped_not_found
+2051,23199,Seijiro MATSUNAMI,Canteen,,,,200,,skipped_not_found
+2052,23207,Ezekiel WONG,Canteen,,,,0,,skipped_not_found
+2053,23213,Leia FAUCHER,Canteen,328,Leia B. FAUCHER,,150,,planned
+2054,23214,Malden FAUCHER,Shop,,,,50,,skipped_not_found
+2055,23214,Malden FAUCHER,Canteen,,,,150,,skipped_not_found
+2056,23223,Cassie LANE,Canteen,,,,1000,,skipped_not_found
+2057,23251,Cole GORDON,Shop,340,Cole   M. GORDON,,150,,planned
+2058,23251,Cole GORDON,Canteen,340,Cole   M. GORDON,,250,,planned
+2059,23252,Cali GORDON,Shop,347,Cali   M. GORDON,,400,,planned
+2060,23252,Cali GORDON,Canteen,347,Cali   M. GORDON,,250,,planned
+2061,23262,Carter GORDON,Canteen,350,Carter C. GORDON,,250,,planned
+2062,23262,Carter GORDON,Shop,350,Carter C. GORDON,,150,,planned
+2063,23263,Lining YANG,Canteen,704,Lining YANG,,200,,planned
+2064,23263,Lining YANG,Shop,704,Lining YANG,,100,,planned
+2065,23283,Kaidan HAMNER,Canteen,,,,1000,,skipped_not_found
+2066,23287,Charlie SPRANDEL,Canteen,371,Charlie A. SPRANDEL,,250,,planned
+2067,23292,Olivia ALSCHBACH,Canteen,602,Olivia ALSCHBACH,,300,,planned
+2068,23293,Ethan ALSCHBACH,Canteen,617,Ethan ALSCHBACH,,300,,planned
+2069,23344,Kiri SUTHVANICH,Canteen,572,Kiri SUTHVANICH,,100,,planned
+2070,23344,Kiri SUTHVANICH,Shop,572,Kiri SUTHVANICH,,100,,planned
+2071,23392,Oliver COOK,Shop,,,,80000,,skipped_not_found
+2072,23398,Woojin JEONG,Canteen,397,Woojin JEONG,,1000,,planned
+2073,23398,Woojin JEONG,Shop,397,Woojin JEONG,,1000,,planned
+2074,23403,Evan RUNDLETT,Canteen,372,Evan RUNDLETT,,800,,planned
+2075,23403,Evan RUNDLETT,Shop,372,Evan RUNDLETT,,3000,,planned
+2076,23431,Emma RUNDLETT,Shop,378,Emma RUNDLETT,,500,,planned
+2077,23431,Emma RUNDLETT,Canteen,378,Emma RUNDLETT,,500,,planned
+2078,23438,Henry COOK,Shop,381,Henry M. COOK,,80000,,planned
+2079,23464,Simon COOK,Shop,373,Simon L. COOK,,80000,,planned
+2080,23469,Ellie ZHU,Canteen,407,Ellie ZHU,,100,,planned
+2081,23469,Ellie ZHU,Shop,407,Ellie ZHU,,500,,planned
+2082,23475,Jude AKIN,Canteen,520,Jude J. AKIN,,1000,,planned
+2083,23485,Catherine CHIU,Canteen,724,Catherine CHIU,,100,,planned
+2084,23496,Finnian AKIN,Canteen,,,,1000,,skipped_not_found
+2085,23505,Coraline HENDERSON,Shop,203,Coraline D. HENDERSON,,250,,planned
+2086,23505,Coraline HENDERSON,Canteen,203,Coraline D. HENDERSON,,250,,planned
+2087,23517,Ethan CHEN,Canteen,411,Ethan CHEN,,200,,planned
+2088,23517,Ethan CHEN,Shop,411,Ethan CHEN,,1000,,planned
+2089,23557,Nara SUTHVANICH,Canteen,559,Nara SUTHVANICH,,150,,planned
+2090,23557,Nara SUTHVANICH,Shop,559,Nara SUTHVANICH,,150,,planned
+2091,23564,Khamprerada PUEGKOOMKLIS,Shop,713,Khamprerada PUEGKOOMKLIS,,100,,planned
+2092,23564,Khamprerada PUEGKOOMKLIS,Canteen,713,Khamprerada PUEGKOOMKLIS,,100,,planned
+2093,23579,Bennett CHERVENAK,Canteen,,,,200,,skipped_not_found
+2094,23615,Hei-Tung Hannah KWONG,Canteen,608,Hei-Tung Hannah KWONG,,500,,planned
+2095,23615,Hei-Tung Hannah KWONG,Shop,608,Hei-Tung Hannah KWONG,,500,,planned
+2096,23628,Juliet CHERVENAK,Canteen,,,,200,,skipped_not_found
+2097,23648,Charlotte BEAUMONT,Canteen,620,Charlotte Timasat BEAUMONT,,300,,planned
+2098,23648,Charlotte BEAUMONT,Shop,620,Charlotte Timasat BEAUMONT,,400,,planned
+2099,23654,Rinka IRIKURA,Shop,621,Rinka IRIKURA,,600,,planned
+2100,23654,Rinka IRIKURA,Canteen,621,Rinka IRIKURA,,150,,planned
+2101,23655,Himeka IRIKURA,Canteen,624,Himeka IRIKURA,,150,,planned
+2102,23655,Himeka IRIKURA,Shop,624,Himeka IRIKURA,,4000,,planned
+2103,23678,Alexander BARCLAY,Canteen,635,Alexander K. BARCLAY,,2000,,planned
+2104,23680,Araya Leia REINSCH,Canteen,,,,200,,skipped_not_found
+2105,23747,Luna MARTIN,Canteen,1017,Luna F. MARTIN,,300,,planned
+2106,23747,Luna MARTIN,Shop,1017,Luna F. MARTIN,,300,,planned
+2107,23748,Seina MARTIN,Canteen,1019,Seina G. MARTIN,,300,,planned
+2108,23748,Seina MARTIN,Shop,1019,Seina G. MARTIN,,300,,planned
+2109,23772,Taiyuan HUANG,Canteen,708,Taiyuan HUANG,,200,,planned
+2110,23772,Taiyuan HUANG,Shop,708,Taiyuan HUANG,,200,,planned
+2111,23846,Elvin JIANG,Canteen,1088,Elvin JIANG,,200,,planned
+2112,23848,Max JÜRISOO,Canteen,1087,Max M. JÜRISOO,,100,,planned
+2113,23849,Billie JÜRISOO,Shop,1091,Billie JÜRISOO,,50,,planned
+2114,23849,Billie JÜRISOO,Canteen,1091,Billie JÜRISOO,,400,,planned
+2115,23854,Sabrina MORTON,Canteen,1090,Sabrina MORTON,,300,,planned
+2116,23855,Sebastian MORTON,Canteen,1095,Sebastian MORTON,,200,,planned
+2117,23896,Mingchuan CUI,Canteen,1225,Mingchuan CUI,,0,,planned
+2118,23923,Robert BRANCH,Canteen,142,Robert D. BRANCH,,200,,planned
+2119,23923,Robert BRANCH,Shop,142,Robert D. BRANCH,,,,skipped_missing_spendlimit
+2120,23924,Elizabeth BRANCH,Shop,153,Elizabeth B. BRANCH,,0,,planned
+2121,23924,Elizabeth BRANCH,Canteen,153,Elizabeth B. BRANCH,,100,,planned
+2122,23942,Rada NOORAKSA,Canteen,,,,750,,skipped_not_found
+2123,23946,Thun PITIDOL,Canteen,1263,Thun PITIDOL,,1000,,planned
+2124,23956,Athena THAMAVARANUKUPT,Canteen,1271,Athena THAMAVARANUKUPT,,300,,planned
+2125,23956,Athena THAMAVARANUKUPT,Shop,1271,Athena THAMAVARANUKUPT,,1000,,planned
+2126,23957,Thann THAMAVARANUKUPT,Canteen,1273,Thann THAMAVARANUKUPT,,300,,planned
+2127,23957,Thann THAMAVARANUKUPT,Shop,1273,Thann THAMAVARANUKUPT,,1000,,planned
+2128,24007,Rudra KIRAN,Shop,1304,Rudra KIRAN,,1,,planned
+2129,24007,Rudra KIRAN,Canteen,1304,Rudra KIRAN,,1,,planned
+2130,24023,Afik VOLCHOK,Canteen,1316,Afik VOLCHOK,,200,,planned
+2131,24024,Peleg VOLCHOK,Canteen,1319,Peleg VOLCHOK,,400,,planned
+2132,24032,Andres SANCHEZ SOLANO,Canteen,1329,Andres SANCHEZ SOLANO,,700,,planned
+2133,24035,Beeri VOLCHOK,Canteen,1315,Beeri VOLCHOK,,400,,planned
+2134,24053,Chaiho LEE,Canteen,1456,Chaiho LEE,,2000,,planned
+2135,24060,Nihal RAHMAN,Canteen,1454,Nihal RAHMAN,,350,,planned
+2136,24060,Nihal RAHMAN,Shop,1454,Nihal RAHMAN,,100,,planned
+2137,24061,Mahal RAHMAN,Shop,1457,Mahal RAHMAN,,100,,planned
+2138,24061,Mahal RAHMAN,Canteen,1457,Mahal RAHMAN,,200,,planned
+2139,24067,Harold DOXTATER,Canteen,1478,Harold E. DOXTATER,,250,,planned
+2140,24068,Valeria SANCHEZ SOLANO,Canteen,1330,Valeria SANCHEZ SOLANO,,300,,planned
+2141,24068,Valeria SANCHEZ SOLANO,Shop,1330,Valeria SANCHEZ SOLANO,,300,,planned
