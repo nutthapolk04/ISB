@@ -50,7 +50,12 @@ export const UserController = {
 			logger.info(`[${reqContext.requestId} (UC-02)] UserController.byUsername() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (UC-02)] UserController.byUsername() error:`, e);
+			// No extra logger.error() here — this endpoint is hit as one leg of
+			// several passive scan/lookup fallback chains (RFID scanners, card
+			// tap modals) that routinely probe it and expect a 404 as a normal
+			// "not this one" outcome. errorFromService() already logs 4xx at
+			// warn level; double-logging every routine miss as [error] here
+			// was pure noise.
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -65,7 +70,7 @@ export const UserController = {
 			logger.info(`[${reqContext.requestId} (UC-03)] UserController.byCard() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (UC-03)] UserController.byCard() error:`, e);
+			// Same reasoning as byUsername above — routine fallback-chain miss.
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -80,7 +85,7 @@ export const UserController = {
 			logger.info(`[${reqContext.requestId} (UC-10)] UserController.byExternalId() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (UC-10)] UserController.byExternalId() error:`, e);
+			// Same reasoning as byUsername above — routine fallback-chain miss.
 			return errorFromService(reqContext, e);
 		}
 	},
