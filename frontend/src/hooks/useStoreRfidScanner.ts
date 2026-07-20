@@ -95,11 +95,12 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
                         ? `฿${Number(result.wallet_balance).toFixed(2)}`
                         : undefined;
                     showRfidNotif({ type: "success", title: result.name, sub: bal });
-                } else {
-                    showRfidNotif({ type: "error", title: "Card not found" });
                 }
+                // No match (product barcode already handled elsewhere, and
+                // none of the 4 member lookups above hit) — stay silent on
+                // this page rather than surfacing a "Card not found" banner.
             } catch {
-                showRfidNotif({ type: "error", title: "Card not found" });
+                // Same: swallow unexpected errors here too, silently.
             }
         }
 
