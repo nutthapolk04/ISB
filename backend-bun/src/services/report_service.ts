@@ -10,6 +10,7 @@ import {
   returnRequests,
   customers,
   users,
+  departments,
   productBundles,
   bundleItems,
 } from "@/db/schema";
@@ -955,6 +956,7 @@ type ReceiptJoinRow = {
   receipt: typeof receipts.$inferSelect;
   customer: typeof customers.$inferSelect | null;
   payer: typeof users.$inferSelect | null;
+  payerDepartment: typeof departments.$inferSelect | null;
   shop: typeof shops.$inferSelect | null;
 };
 
@@ -984,7 +986,7 @@ function computeReceiptAmounts(r: typeof receipts.$inferSelect) {
  * what happened and when, instead of one row awkwardly claiming both.
  */
 function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, string[]>, leg: "sale" | "void", seq: number): SalesSummaryRow {
-  const { receipt: r, customer, payer, shop } = entry;
+  const { receipt: r, customer, payer, payerDepartment, shop } = entry;
   const { amtReceive, amtChange, buckets } = computeReceiptAmounts(r);
   const sign = leg === "sale" ? 1 : -1;
 
@@ -996,6 +998,9 @@ function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, 
   } else if (payer) {
     custId = payer.externalId ?? payer.username;
     custName = payer.fullName;
+  } else if (payerDepartment) {
+    custId = payerDepartment.departmentCode;
+    custName = payerDepartment.departmentName;
   }
 
   const bundleNames = bundleNamesByReceiptId.get(r.id);
@@ -1082,11 +1087,13 @@ export async function salesSummaryReport(args: {
       receipt: receipts,
       customer: customers,
       payer: users,
+      payerDepartment: departments,
       shop: shops,
     })
     .from(receipts)
     .leftJoin(customers, eq(customers.id, receipts.customerId))
     .leftJoin(users, eq(users.id, receipts.payerUserId))
+    .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
     .leftJoin(shops, eq(shops.id, receipts.shopId));
 
   const saleDateConds: SQL[] = [];
@@ -1287,19 +1294,21 @@ export async function salesByItemReport(args: {
       product: shopProducts,
       customer: customers,
       payer: users,
+      payerDepartment: departments,
     })
     .from(receiptItems)
     .innerJoin(receipts, eq(receipts.id, receiptItems.receiptId))
     .leftJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
     .leftJoin(customers, eq(customers.id, receipts.customerId))
     .leftJoin(users, eq(users.id, receipts.payerUserId))
+    .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
     .where(and(...conds))
     .orderBy(desc(receipts.transactionDate), desc(receipts.id), desc(receiptItems.id));
 
   const rows: SalesByItemRow[] = [];
   const totals: SalesByItemTotals = { sales_qty: 0, sales_amt: 0 };
 
-  joined.forEach(({ receipt: r, item, product, customer, payer }, idx) => {
+  joined.forEach(({ receipt: r, item, product, customer, payer, payerDepartment }, idx) => {
     const qty = item.quantity;
     const amt = pgNumber(item.lineTotal) ?? 0;
     let custId: string | null = null;
@@ -1310,6 +1319,9 @@ export async function salesByItemReport(args: {
     } else if (payer) {
       custId = payer.externalId ?? payer.username;
       custName = payer.fullName;
+    } else if (payerDepartment) {
+      custId = payerDepartment.departmentCode;
+      custName = payerDepartment.departmentName;
     }
     // Bundle sale lines don't have a product_variant_id pointing at a real
     // shop_products row (checkout stores the bundle's own name/code in

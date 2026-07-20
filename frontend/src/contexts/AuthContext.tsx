@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { API_BASE_URL } from "@/lib/constants";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 
@@ -186,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     // Reset activeRole to primary on each fresh login
                     authUser.activeRole = authUser.role;
                     if (!MULTI_ROLE_ENABLED) authUser.allRoles = [authUser.role];
-                    setUser(authUser);
+                    flushSync(() => setUser(authUser));
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
                     console.warn(
                         "[AuthContext] mock fallback — backend returned",
@@ -280,7 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     : { id: 0, username, fullName: username, role: "cashier", allRoles: ["cashier"], activeRole: "cashier", shopId: null, shopName: null, shopModule: null };
             }
 
-            setUser(authUser);
+            flushSync(() => setUser(authUser));
             localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
             return { success: true, allRoles: authUser.allRoles };
         } catch {
@@ -292,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { password: _pw, ...authUser } = found;
                 authUser.activeRole = authUser.role;
                 if (!MULTI_ROLE_ENABLED) authUser.allRoles = [authUser.role];
-                setUser(authUser);
+                flushSync(() => setUser(authUser));
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
                 console.warn(
                     "[AuthContext] offline mock fallback — backend unreachable (prototype demo mode)",
@@ -351,7 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 shopName: backendUser.shop_name ?? null,
                 shopModule: backendModule ?? moduleOf(shopId),
             };
-            setUser(authUser);
+            flushSync(() => setUser(authUser));
             localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
             // Enrich shop metadata async if needed
             if (shopId && !backendModule) {
@@ -417,7 +418,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 shopName: backendUser.shop_name ?? null,
                 shopModule: backendModule ?? moduleOf(shopId),
             };
-            setUser(authUser);
+            flushSync(() => setUser(authUser));
             localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
 
             if (shopId && !backendModule) {
