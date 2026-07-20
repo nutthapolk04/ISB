@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, X } from "lucide-react";
 import type { UserDetailData } from "./userDetailTypes";
+import { useRfidListener } from "@/hooks/useRfidListener";
 
 interface CardBindingDialogProps {
   open: boolean;
@@ -27,6 +28,15 @@ export function CardBindingDialog({ open, onOpenChange, userId, initialCardUid, 
   useEffect(() => {
     if (open) setCardInput(initialCardUid || "");
   }, [open, initialCardUid]);
+
+  // Tapping a real card while this dialog is open fills the field directly
+  // from the reader (PC/SC bridge or keyboard-wedge fallback).
+  useRfidListener({
+    onCapture: (uid) => {
+      if (!open) return;
+      setCardInput(uid.toUpperCase());
+    },
+  });
 
   const saveCardUid = async () => {
     const cleaned = cardInput.trim().toUpperCase() || null;
@@ -72,6 +82,9 @@ export function CardBindingDialog({ open, onOpenChange, userId, initialCardUid, 
             />
             <p className="text-xs text-muted-foreground">
               {t("admin.users.clearToUnbind")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("admin.users.cardUidTapHint", "หรือแตะบัตรที่เครื่องอ่านเพื่อเติมอัตโนมัติ")}
             </p>
           </div>
         </div>

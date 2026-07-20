@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import {
   Dialog,
   DialogContent,
@@ -127,11 +128,16 @@ export function VoidDialog({
     setAuthError(false);
   };
 
-  // ---- Step: Auth — tap card ----
-  const handleTapManagerCard = () => {
-    setCardTapped(true);
-    setAuthError(false);
-  };
+  // ---- Step: Auth — tap card (real hardware read via useRfidListener) ----
+  useRfidListener({
+    onCapture: () => {
+      if (step !== "auth" || cardTapped) return;
+      setCardTapped(true);
+      setAuthError(false);
+      setPin("");
+      setPinError(false);
+    },
+  });
 
   // ---- Step: Auth — confirm with PIN or card ----
   const handleConfirmVoid = async () => {
@@ -413,19 +419,12 @@ export function VoidDialog({
       {/* Tap manager card */}
       {!cardTapped ? (
         <div className="flex flex-col items-center gap-3 py-2">
-          <div
-            className="w-24 h-24 bg-muted border-4 border-dashed rounded-lg flex items-center justify-center animate-pulse cursor-pointer hover:bg-primary/5 transition"
-            onClick={handleTapManagerCard}
-          >
+          <div className="w-24 h-24 bg-muted border-4 border-dashed rounded-lg flex items-center justify-center animate-pulse">
             <CreditCard className="h-12 w-12 text-muted-foreground" />
           </div>
           <p className="text-sm text-center text-muted-foreground">
             {t("store.void.tapManagerCardDesc")}
           </p>
-          <Button variant="outline" className="w-full" onClick={handleTapManagerCard}>
-            <CreditCard className="h-4 w-4 mr-2" />
-            {t("store.void.tapManagerCard")}
-          </Button>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-3 py-2">

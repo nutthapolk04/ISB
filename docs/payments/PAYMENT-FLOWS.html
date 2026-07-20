@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISB POS — Payment Flows ทุกเส้นทางการเงินในระบบ</title>
+<style>
+  :root {
+    --accent: #7c3aed;
+    --accent-light: #f3e8ff;
+    --text: #1f2430;
+    --text-muted: #5b6472;
+    --border: #e4e2ea;
+    --code-bg: #f5f4f8;
+    --bg: #ffffff;
+    --pill-green: #16a34a;
+    --pill-red: #dc2626;
+    --pill-gray: #6b7280;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    font-family: "Sukhumvit Set", "Noto Sans Thai", "IBM Plex Sans Thai", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header.doc-header {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  header.doc-header .kicker {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 30px;
+    line-height: 1.35;
+    margin: 0 0 8px;
+    color: var(--text);
+    font-weight: 800;
+  }
+
+  header.doc-header p.subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 48px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    flex: 0 0 auto;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 28px 0 10px;
+    color: var(--accent);
+  }
+
+  p { margin: 0 0 14px; }
+
+  ul, ol {
+    margin: 0 0 16px;
+    padding-left: 22px;
+  }
+
+  li { margin-bottom: 8px; }
+
+  a { color: var(--accent); }
+
+  strong { color: var(--text); }
+
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.88em;
+    color: #4c1d95;
+  }
+
+  pre {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 18px;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  .note, .warn {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 0 0 18px;
+    font-size: 14.5px;
+    border: 1px solid var(--border);
+  }
+
+  .note {
+    background: var(--accent-light);
+    border-color: #ddd0fb;
+  }
+
+  .warn {
+    background: #fff7ed;
+    border-color: #fed7aa;
+  }
+
+  .note ul, .warn ul { margin-bottom: 0; }
+  .note .box-title, .warn .box-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .diagram {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0 22px;
+    padding: 18px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .diagram .box {
+    flex: 1 1 140px;
+    min-width: 130px;
+    background: #fff;
+    border: 1.5px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .diagram .box small {
+    display: block;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-size: 11.5px;
+  }
+
+  .diagram .box.ext { border-style: dashed; background: #fbfaff; }
+
+  .diagram .arrow {
+    flex: 0 0 auto;
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 620px) {
+    .diagram { flex-direction: column; }
+    .diagram .arrow { transform: rotate(90deg); }
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .pill.green { background: var(--pill-green); }
+  .pill.red { background: var(--pill-red); }
+  .pill.gray { background: var(--pill-gray); }
+
+  .table-wrap { overflow-x: auto; margin: 0 0 20px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  caption {
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  thead th {
+    background: var(--accent);
+    color: #fff;
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+
+  thead th:first-child { border-top-left-radius: 6px; }
+  thead th:last-child { border-top-right-radius: 6px; }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: #faf9fc; }
+
+  table.mono-first tbody td:first-child {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 12.8px;
+    color: #4c1d95;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .toc {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 0 8px;
+    background: #fbfaff;
+  }
+
+  .toc .toc-title {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
+
+  .toc ol { counter-reset: tocitem -1; list-style: none; }
+  .toc ol li { counter-increment: tocitem; margin-bottom: 4px; }
+  .toc ol li::before { content: counter(tocitem) ". "; color: var(--text-muted); }
+
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer.doc-footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  hr.sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-header">
+    <span class="kicker">ISB POS · Internal Doc</span>
+    <h1>ISB POS — Payment Flows ทุกเส้นทางการเงินในระบบ</h1>
+    <p class="subtitle">แผนที่เส้นทางการเงินครบทุก flow ของ ISB POS — สำหรับทีมพัฒนาและคนดูแลระบบ</p>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-title">สารบัญ</div>
+    <ol>
+      <li><a href="#sec0">ภาพรวม</a></li>
+      <li><a href="#sec1">Wallet / RFID member card</a></li>
+      <li><a href="#sec2">Cash (เงินสด)</a></li>
+      <li><a href="#sec3">QR PromptPay (BAY)</a></li>
+      <li><a href="#sec4">EDC (Paywire)</a></li>
+      <li><a href="#sec5">Department</a></li>
+      <li><a href="#sec6">เติมเงิน parent (bay_qr / bay_easypay)</a></li>
+      <li><a href="#sec7">Cashier top-up (เงินสดเข้ากระเป๋า)</a></li>
+      <li><a href="#sec8">Void / Returns</a></li>
+      <li><a href="#sec9">หมายเหตุ Kiosk</a></li>
+      <li><a href="#sec10">ตารางอ้างอิงท้ายเอกสาร</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ SECTION 0 ============ -->
+  <h2 id="sec0"><span class="num">0</span>ภาพรวม</h2>
+
+  <h3>A. วิธีจ่าย / เติมเงิน / ย้อนรายการ ทั้งหมดในระบบ</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>กลุ่ม</th><th>Flow</th><th>สรุปสั้น</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="5"><strong>จ่ายที่ POS<br>(5 แบบ)</strong></td>
+            <td>1. Wallet / RFID</td><td>แตะบัตรสมาชิก ตัดเงินจากกระเป๋าภายในระบบ</td></tr>
+        <tr><td>2. Cash</td><td>เงินสดหน้าร้าน คิดเงินทอนใน UI กระทบยอดตอน close-day</td></tr>
+        <tr><td>3. QR PromptPay</td><td>QR จริงจากธนาคาร BAY — ใบเสร็จถูกสร้างโดย webhook</td></tr>
+        <tr><td>4. EDC (Paywire)</td><td>รูด/แตะบัตร หรือ Thai QR บนเครื่อง EDC ผ่าน Paywire bridge</td></tr>
+        <tr><td>5. Department</td><td>ตัดกระเป๋าแผนก ติดลบได้ สถาบันจ่ายทีหลัง</td></tr>
+        <tr><td rowspan="3"><strong>เติมเงิน<br>(3 ช่องทาง)</strong></td>
+            <td>6a. Parent QR (bay_qr)</td><td>ผู้ปกครองสแกน QR PromptPay จริงเติมกระเป๋าลูก</td></tr>
+        <tr><td>6b. Parent บัตร (bay_easypay)</td><td>บัตรเครดิต/เดบิตผ่านหน้า EasyPay ของ BAY (+3% fee)</td></tr>
+        <tr><td>7. Cashier top-up</td><td>แคชเชียร์รับเงินสดแล้วเครดิตเข้ากระเป๋าให้</td></tr>
+        <tr><td><strong>ย้อนรายการ</strong></td>
+            <td>8. Void / Returns</td><td>ยกเลิกใบเสร็จ คืน stock — คืนเงินอัตโนมัติเฉพาะ wallet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>B. "เงินจริง" วิ่งที่ไหน</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ที่อยู่ของเงิน</th><th>Flow ที่เกี่ยว</th><th>ลักษณะ</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Internal ledger</strong><br>(ตาราง wallet ในระบบ)</td>
+          <td>Wallet/RFID, Department, Cashier top-up</td>
+          <td>เป็นตัวเลขในฐานข้อมูลล้วน — เงินจริงเข้าระบบมาก่อนแล้ว
+            (จากการเติมเงิน) หรือค้างเป็นหนี้แผนก</td>
+        </tr>
+        <tr>
+          <td><strong>ธนาคาร BAY</strong><br>(ผ่าน PYMT gateway)</td>
+          <td>QR PromptPay ที่ POS, Parent top-up (bay_qr + bay_easypay)</td>
+          <td>เงินจริงวิ่งเข้าบัญชีร้าน/สถาบันผ่านธนาคาร ระบบรู้ผลจาก webhook</td>
+        </tr>
+        <tr>
+          <td><strong>เครื่อง EDC / acquirer</strong><br>(Paywire)</td>
+          <td>EDC ที่ POS</td>
+          <td>เงินตัดที่ terminal และไป settle กับ acquirer —
+            backend เก็บแค่หลักฐานอ้างอิง (approval code ฯลฯ)</td>
+        </tr>
+        <tr>
+          <td><strong>เงินสดหน้าร้าน</strong></td>
+          <td>Cash, Cashier top-up</td>
+          <td>อยู่ในลิ้นชัก กระทบยอดตอน close-day</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <div class="box-title">จุดสำคัญที่สุดของภาพรวม</div>
+    Gateway ภายนอก<strong>ของจริง</strong>มีแค่ <strong>2 ราย</strong>:
+    (1) <strong>ธนาคาร BAY</strong> ผ่าน PYMT gateway (QR PromptPay + EasyPay)
+    และ (2) <strong>Paywire / EDC acquirer</strong> (เครื่องรูดบัตร) —
+    ที่เหลือทั้งหมดเป็น ledger ภายในหรือเงินสดหน้าร้าน
+  </div>
+
+  <!-- ============ SECTION 1 ============ -->
+  <h2 id="sec1"><span class="num">1</span>Wallet / RFID member card</h2>
+
+  <div class="diagram">
+    <div class="box">RfidPaymentModal<br><small>+ useRfidListener</small></div>
+    <div class="arrow">→</div>
+    <div class="box">payer lookup<br><small>cascade 5 ชั้น</small></div>
+    <div class="arrow">→</div>
+    <div class="box">POST /pos/checkout<br><small>"wallet"</small></div>
+    <div class="arrow">→</div>
+    <div class="box">pos_checkout_service<br><small>guards + ledger</small></div>
+    <div class="arrow">→</div>
+    <div class="box">DB<br><small>receipts + wallet_transactions</small></div>
+  </div>
+
+  <ol>
+    <li>แคชเชียร์เปิด <code>RfidPaymentModal</code> — hook
+      <code>useRfidListener</code> รับ UID บัตรได้ 2 ทาง:
+      WebSocket <code>ws://localhost:9001</code> (RFID bridge) หรือ
+      keyboard wedge (เครื่องอ่านพิมพ์ UID เหมือนคีย์บอร์ด)</li>
+    <li>ระบบตามหาเจ้าของบัตรแบบ cascade:
+      <code>/customers/by-card</code> → <code>/users/by-card</code> →
+      by-code → by-username → departments (บัตรแผนก)</li>
+    <li>ยิง <code>POST /pos/checkout</code> ด้วย
+      <code>payment_method: "wallet"</code></li>
+    <li><code>pos_checkout_service.checkout()</code> ตรวจ guard ตามลำดับ:
+      <ul>
+        <li>บัตรถูก freeze หรือไม่ (card-frozen guard)</li>
+        <li>daily limit ต่อ module — canteen default <strong>฿500</strong>/วัน,
+          store <strong>฿25,000</strong>/วัน</li>
+        <li>เพดานติดลบ (negative credit limit) —
+          เกินแล้วตอบ <code>EXCEEDS_NEGATIVE_CREDIT_LIMIT</code></li>
+        <li>กระเป๋าของ user <strong>ห้ามติดลบ</strong> —
+          เงินไม่พอตอบ <code>INSUFFICIENT_USER_WALLET</code></li>
+      </ul>
+    </li>
+    <li>ผ่านทุก guard แล้วเขียนครบชุด: <code>receipts</code> +
+      <code>receipt_items</code> + <code>shop_movements</code> (ตัด stock) +
+      <code>wallet_transactions</code> (ชนิด <code>DEDUCTION</code>) +
+      <code>audit_logs</code> + ส่ง low-balance alert ถ้ายอดเหลือน้อย</li>
+  </ol>
+
+  <div class="note">
+    เงินใน flow นี้เป็น <strong>ledger ภายในล้วน</strong> —
+    ไม่มีการเรียก gateway ภายนอกเลย
+  </div>
+
+  <!-- ============ SECTION 2 ============ -->
+  <h2 id="sec2"><span class="num">2</span>Cash (เงินสด)</h2>
+
+  <div class="diagram">
+    <div class="box">CashPaymentModal<br><small>รับ cash_received + คิดเงินทอน</small></div>
+    <div class="arrow">→</div>
+    <div class="box">POST /pos/checkout<br><small>"cash"</small></div>
+    <div class="arrow">→</div>
+    <div class="box">DB<br><small>receipts (เก็บ cash_received)</small></div>
+    <div class="arrow">→</div>
+    <div class="box ext">close-day<br><small>กระทบยอดเงินสด</small></div>
+  </div>
+
+  <ol>
+    <li><code>CashPaymentModal</code> รับจำนวนเงินที่ลูกค้าจ่าย
+      (<code>cash_received</code>) และคิดเงินทอน<strong>ฝั่ง UI</strong></li>
+    <li>ยิง <code>/pos/checkout</code> ด้วย method <code>"cash"</code> —
+      สร้างใบเสร็จโดยเก็บค่า <code>cash_received</code> ไว้ด้วย</li>
+    <li><strong>ไม่มี ledger</strong> — เงินสดอยู่ในลิ้นชัก
+      กระทบยอดรวมตอนปิดวันด้วย
+      <code>POST /canteen/:shopId/close-day</code></li>
+  </ol>
+
+  <!-- ============ SECTION 3 ============ -->
+  <h2 id="sec3"><span class="num">3</span>QR PromptPay (BAY) — flow พิเศษสุด</h2>
+
+  <div class="warn">
+    <div class="box-title">หัวใจของ flow นี้</div>
+    ใบเสร็จ<strong>ไม่ได้ถูกสร้างโดยแคชเชียร์</strong> —
+    ถูกสร้างโดย <strong>webhook จากธนาคาร</strong> เมื่อเงินเข้าจริงเท่านั้น
+    ฝั่งหน้าจอทำได้แค่รอ (poll) จนกว่า intent จะเปลี่ยนสถานะ
+  </div>
+
+  <div class="diagram">
+    <div class="box">QrPaymentModal</div>
+    <div class="arrow">→</div>
+    <div class="box">POST /pos/qr-intent<br><small>payment_intents (pending)</small></div>
+    <div class="arrow">→</div>
+    <div class="box ext">PYMT gateway → BAY<br><small>ได้ qr_payload จริง</small></div>
+    <div class="arrow">→</div>
+    <div class="box ext">ลูกค้าสแกน<br><small>เงินเข้าธนาคาร</small></div>
+    <div class="arrow">→</div>
+    <div class="box">webhook /bay/callback<br><small>→ สร้างใบเสร็จ</small></div>
+  </div>
+
+  <ol>
+    <li><code>QrPaymentModal</code> ยิง <code>POST /pos/qr-intent</code>
+      พร้อม <code>{amount, cart}</code> → สร้างแถว
+      <code>payment_intents</code> (<code>intent_type: pos_sale</code>,
+      เก็บ <code>cart_snapshot</code> ทั้งตะกร้า, status <code>pending</code>)</li>
+    <li>backend เรียกธนาคาร BAY ผ่าน PYMT gateway:
+      <pre><code>POST {PYMT_BASE_URL}/api/v1/bay/qr
+x-config-app: bay.qrPayment
+Authorization: Basic {PYMT_MERCHANT_TOKEN}</code></pre>
+      ได้ <code>qr_payload</code> ของจริงกลับมาแสดงบนจอ</li>
+    <li>ลูกค้าสแกนจ่ายผ่านแอปธนาคารของตัวเอง</li>
+    <li>BAY ยิง webhook มาที่
+      <code>POST /api/v1/bay/callback</code> — backend ตรวจลายเซ็น
+      HMAC-SHA256 จาก header <code>x-pymt-signature</code> ด้วย
+      <code>PYMT_WEBHOOK_SECRET</code>
+      <div class="warn" style="margin-top:8px;">
+        ถ้าไม่ตั้ง secret ระบบจะรับ webhook <strong>แบบไม่ตรวจลายเซ็น</strong>
+        — อนุญาตเฉพาะ dev เท่านั้น ห้ามปล่อยแบบนี้บน production
+      </div>
+    </li>
+    <li><code>handleBayCallback</code> → <code>confirmPosQrSale</code>
+      ทำงานแบบ idempotent 3 เฟส:
+      <ul>
+        <li><strong>เฟส A:</strong> <code>SELECT ... FOR UPDATE</code> ล็อกแถว intent
+          + claim ด้วย sentinel <code>gateway_webhook_claimed</code>
+          + เงื่อนไข <code>WHERE receipt_id IS NULL</code> กันชนกันเอง</li>
+        <li><strong>เฟส B:</strong> รัน <code>checkout()</code> ด้วย method
+          <code>"qr_promptpay"</code> สร้างใบเสร็จจริงจาก cart_snapshot</li>
+        <li><strong>เฟส C:</strong> ผูก receipt_id กลับเข้า intent + mark confirmed</li>
+      </ul>
+    </li>
+    <li>ระหว่างรอ frontend poll สถานะ intent <strong>ทุก 2 วินาที</strong> —
+      ทุกรอบที่ 3 จะยิง <code>/inquiry</code> force-sync กับธนาคารด้วย,
+      เพดานรอ <strong>5 นาที</strong>, มีปุ่ม <strong>Check Now</strong>
+      ให้เช็คเองได้ และกด cancel ได้เฉพาะตอน intent ยัง <code>pending</code></li>
+  </ol>
+
+  <div class="note">
+    <div class="box-title">Edge cases ที่ระบบกันไว้แล้ว</div>
+    webhook ของ BAY เป็นแบบ <strong>at-least-once</strong> — มาซ้ำได้ —
+    การ claim แบบ FOR UPDATE + sentinel + <code>receipt_id IS NULL</code>
+    การันตีว่าใบเสร็จถูกสร้าง<strong>ครั้งเดียว</strong>ไม่ว่า webhook
+    จะยิงมากี่รอบ
+  </div>
+
+  <!-- ============ SECTION 4 ============ -->
+  <h2 id="sec4"><span class="num">4</span>EDC (Paywire)</h2>
+
+  <div class="diagram">
+    <div class="box">EdcPaymentModal</div>
+    <div class="arrow">→</div>
+    <div class="box ext">Paywire bridge<br><small>:7331</small></div>
+    <div class="arrow">→</div>
+    <div class="box ext">เครื่อง EDC<br><small>ตัดเงินที่ terminal/acquirer</small></div>
+    <div class="arrow">→</div>
+    <div class="box">POST /pos/checkout<br><small>"edc" + หลักฐานอ้างอิง</small></div>
+  </div>
+
+  <ol>
+    <li>modal คุยกับ Paywire bridge ที่ port <code>7331</code>
+      ส่งยอดไปเครื่องรูดบัตร (บัตร หรือ Thai QR)</li>
+    <li>เมื่อเครื่องอนุมัติ modal <strong>auto-confirm</strong> →
+      ยิง <code>/pos/checkout</code> method <code>"edc"</code> พร้อม
+      <code>edc_approval_code</code> (<strong>บังคับ</strong>) /
+      <code>terminal_ref</code> / <code>masked_card</code> ลงใน
+      <code>receipts</code></li>
+  </ol>
+
+  <div class="note">
+    เงินจริง<strong>ตัดที่ terminal / acquirer</strong> —
+    backend เก็บแค่หลักฐานอ้างอิงไว้กระทบยอด
+    และ void/refund ฝั่งเครื่อง EDC ยังเป็น <strong>manual</strong> อยู่
+  </div>
+
+  <p>
+    รายละเอียดการเชื่อมต่อ bridge, mock bridge สำหรับ dev, CSP ฯลฯ
+    อยู่ในคู่มือเฉพาะทาง:
+    <a href="../edc/EDC-CONNECT-GUIDE.html"><code>docs/edc/EDC-CONNECT-GUIDE.html</code></a>
+  </p>
+
+  <!-- ============ SECTION 5 ============ -->
+  <h2 id="sec5"><span class="num">5</span>Department</h2>
+
+  <div class="diagram">
+    <div class="box">DepartmentPaymentModal<br><small>หรือแตะบัตรแผนกใน RFID modal</small></div>
+    <div class="arrow">→</div>
+    <div class="box">ยืนยันพนักงาน</div>
+    <div class="arrow">→</div>
+    <div class="box">POST /pos/checkout<br><small>"department"</small></div>
+    <div class="arrow">→</div>
+    <div class="box">department wallet<br><small>DEDUCTION (ติดลบได้)</small></div>
+  </div>
+
+  <ol>
+    <li>เปิด <code>DepartmentPaymentModal</code> เลือกแผนก
+      (หรือแตะบัตรแผนกจาก RFID modal ก็เข้าทางเดียวกัน)
+      แล้วยืนยันตัวพนักงานผู้ทำรายการ</li>
+    <li><code>/pos/checkout</code> method <code>"department"</code> —
+      ถ้าแผนกยังไม่มี wallet ระบบ <strong>auto-create ให้</strong></li>
+    <li>บันทึก <code>wallet_transactions</code> ชนิด <code>DEDUCTION</code></li>
+  </ol>
+
+  <div class="warn">
+    <div class="box-title">โดยตั้งใจ ไม่ใช่ bug</div>
+    กระเป๋าแผนก <strong>ติดลบได้เสมอ</strong> — โมเดลคือสถาบันตามจ่ายทีหลัง
+    admin ปรับ/ล้างยอดผ่าน <code>POST /departments/:id/adjust</code>
+  </div>
+
+  <!-- ============ SECTION 6 ============ -->
+  <h2 id="sec6"><span class="num">6</span>เติมเงิน parent (bay_qr / bay_easypay)</h2>
+
+  <h3>6a. bay_qr — สแกน QR PromptPay</h3>
+
+  <div class="diagram">
+    <div class="box">หน้า parent<br><small>เลือกยอดเติม</small></div>
+    <div class="arrow">→</div>
+    <div class="box">POST /wallets/:id/topup<br><small>intent pending</small></div>
+    <div class="arrow">→</div>
+    <div class="box ext">BAY (PYMT)<br><small>ได้ QR จริง</small></div>
+    <div class="arrow">→</div>
+    <div class="box">webhook → confirmTopup<br><small>เครดิตเงินเข้ากระเป๋า</small></div>
+  </div>
+
+  <ul>
+    <li>ยอดเติม: ขั้นต่ำ <strong>฿1</strong> เพดานต่อครั้ง <strong>฿50,000</strong>
+      และยอดคงเหลือรวมห้ามเกิน <code>MAX_WALLET_BALANCE</code> = 50,000</li>
+    <li>ได้ QR จริงจาก BAY มาแสดง — frontend poll สูงสุด <strong>10 นาที</strong></li>
+    <li>เงินเข้ากระเป๋า<strong>เมื่อ webhook มาเท่านั้น</strong> →
+      <code>confirmTopup</code> (ล็อกด้วย <code>FOR UPDATE</code>,
+      ประมวลผลเฉพาะ intent ที่ยัง pending,
+      ซ้ำแล้วตอบ <code>ALREADY_PROCESSED</code>)</li>
+  </ul>
+
+  <h3>6b. bay_easypay — บัตรเครดิต/เดบิต</h3>
+
+  <div class="diagram">
+    <div class="box">หน้า parent<br><small>เลือกจ่ายด้วยบัตร</small></div>
+    <div class="arrow">→</div>
+    <div class="box ext">หน้าบัตรของ BAY<br><small>redirect ผ่าน hidden form POST</small></div>
+    <div class="arrow">→</div>
+    <div class="box">backend /payment/bay/return/*<br><small>302 กลับ frontend</small></div>
+    <div class="arrow">→</div>
+    <div class="box">หน้า success<br><small>poll สถานะ (ไม่ auto-credit)</small></div>
+  </div>
+
+  <ul>
+    <li>คิดค่าธรรมเนียม <strong>+3%</strong> — ลูกค้าจ่าย 1.03 เท่า
+      แต่ wallet ได้รับ<strong>ยอด base</strong></li>
+    <li>redirect ไปหน้ากรอกบัตรของ BAY ด้วย hidden form POST</li>
+    <li>ธนาคาร redirect กลับมาที่ <strong>backend</strong>
+      <code>/api/v1/payment/bay/return/*</code> ก่อน แล้วค่อย 302
+      ไป frontend — เหตุผล: Vercel ตอบ 405 กับ POST ที่ยิงตรงเข้า frontend</li>
+    <li>หน้า success แค่ poll สถานะ intent —
+      <strong>ไม่เคย auto-credit เอง</strong> เงินเข้าจาก webhook
+      เส้นทางเดียวเสมอ</li>
+  </ul>
+
+  <h3>Safety nets ของการเติมเงิน</h3>
+  <ul>
+    <li><code>/inquiry</code> — เช็คสถานะกับธนาคารแบบ manual ได้ทุกเมื่อ</li>
+    <li><strong>Reconcile sweep</strong> อัตโนมัติ<strong>ทุก 10 นาที</strong> —
+      กวาด intent ที่ค้าง pending นานเกิน <strong>15 นาที</strong>
+      ไปถามธนาคาร; ถ้า BAY ตอบ 404 (ไม่รู้จักรายการ) = mark
+      <code>cancelled</code></li>
+  </ul>
+
+  <div class="warn">
+    <div class="box-title">อย่าสับสน mock กับของจริง</div>
+    <code>MockBayGateway</code> / <code>KrungsriGatewayDialog</code>
+    เป็น <strong>mock สำหรับ dev เท่านั้น</strong> — และ method
+    <code>credit_card</code> / <code>qr_promptpay</code> (แบบเติมเงิน)
+    เป็น legacy mock; ของจริงคือ <code>bay_qr</code> /
+    <code>bay_easypay</code> ซึ่งจะตอบ <code>501/503</code>
+    ถ้าไม่ได้ตั้ง <code>PYMT_BASE_URL</code> /
+    <code>PYMT_MERCHANT_TOKEN</code>
+  </div>
+
+  <!-- ============ SECTION 7 ============ -->
+  <h2 id="sec7"><span class="num">7</span>Cashier top-up (เงินสดเข้ากระเป๋า)</h2>
+
+  <div class="diagram">
+    <div class="box">CashierTopupModal<br><small>รับเงินสดหน้าร้าน</small></div>
+    <div class="arrow">→</div>
+    <div class="box">POST /wallets/:id/cashier-topup<br><small>+ idempotency_key</small></div>
+    <div class="arrow">→</div>
+    <div class="box">wallet ledger<br><small>เครดิตเข้ากระเป๋า</small></div>
+  </div>
+
+  <ol>
+    <li>แคชเชียร์รับเงินสดแล้วกรอกยอดใน <code>CashierTopupModal</code></li>
+    <li>ยิง <code>/wallets/:id/cashier-topup</code>
+      (มี endpoint คู่กันสำหรับ <code>/users</code> และ
+      <code>/customers</code>) พร้อม <code>idempotency_key</code></li>
+    <li>ฝั่ง DB ใช้ <code>reference_ticket</code> แบบ unique —
+      retry ยิงซ้ำด้วย key เดิม<strong>ไม่ทำให้เครดิตซ้ำ</strong></li>
+  </ol>
+
+  <!-- ============ SECTION 8 ============ -->
+  <h2 id="sec8"><span class="num">8</span>Void / Returns</h2>
+
+  <div class="diagram">
+    <div class="box">หน้า receipts</div>
+    <div class="arrow">→</div>
+    <div class="box">POST /pos/void/:id<br><small>ต้องมีเหตุผล</small></div>
+    <div class="arrow">→</div>
+    <div class="box">คืน stock FIFO<br><small>+ กัน double-void</small></div>
+    <div class="arrow">→</div>
+    <div class="box">คืนเงิน wallet<br><small>เฉพาะ WALLET/CARD_TAP</small></div>
+  </div>
+
+  <ol>
+    <li><code>POST /pos/void/:id</code> — <strong>ต้องระบุเหตุผล</strong>เสมอ
+      และระบบกัน double-void (ใบที่ void แล้ว void ซ้ำไม่ได้)</li>
+    <li>คืน stock กลับเข้าคลังแบบ <strong>FIFO</strong></li>
+    <li><strong>คืนเงินเข้ากระเป๋าอัตโนมัติเฉพาะ</strong>ใบเสร็จ method
+      <code>WALLET</code> / <code>CARD_TAP</code> — เขียนทั้งแถว
+      <code>REFUND</code> และ <code>VOID</code> ใน wallet_transactions
+      เพื่อคืนโควต้า daily limit ให้ด้วย</li>
+  </ol>
+
+  <div class="warn">
+    <div class="box-title">Method อื่นไม่คืนเงินอัตโนมัติ</div>
+    cash / EDC / QR / department — void แล้วระบบคืนแค่ stock
+    ส่วนเงินต้องคืน<strong>นอกระบบ</strong> (เงินสดคืนมือ,
+    EDC ทำที่เครื่อง/acquirer)
+  </div>
+
+  <p>
+    ส่วน <strong>returns</strong> (คืนสินค้า) และ
+    <strong>graduation refunds</strong> (คืนเงินคงเหลือตอนจบการศึกษา)
+    เป็นอีกชุดหนึ่งแยกจาก void — อยู่ใน <code>ReturnController</code> /
+    <code>RefundController</code> ไม่ลงรายละเอียดในเอกสารนี้
+  </p>
+
+  <!-- ============ SECTION 9 ============ -->
+  <h2 id="sec9"><span class="num">9</span>หมายเหตุ Kiosk</h2>
+
+  <p>
+    Kiosk <strong>ไม่มี payment flow แยกของตัวเอง</strong> —
+    เป็นเพียง device profile ที่เรียกใช้ endpoint ชุดเดียวกับ POS ทุกประการ
+    ทุกอย่างในเอกสารนี้จึงครอบคลุม kiosk ด้วยโดยอัตโนมัติ
+  </p>
+
+  <!-- ============ SECTION 10 ============ -->
+  <h2 id="sec10"><span class="num">10</span>ตารางอ้างอิงท้ายเอกสาร</h2>
+
+  <h3>External systems + env vars</h3>
+  <div class="table-wrap">
+    <table class="mono-first">
+      <thead>
+        <tr><th>ตัวแปร / endpoint</th><th>ใช้ทำอะไร</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PYMT_BASE_URL</td><td>URL ของ PYMT gateway ที่ backend ใช้เรียกธนาคาร BAY (QR + EasyPay) — ไม่ตั้ง = bay_qr/bay_easypay ตอบ 501/503</td></tr>
+        <tr><td>PYMT_MERCHANT_TOKEN</td><td>Basic auth token ประจำร้านสำหรับเรียก PYMT gateway</td></tr>
+        <tr><td>PYMT_WEBHOOK_SECRET</td><td>กุญแจตรวจ HMAC-SHA256 ของ webhook (header x-pymt-signature) — ไม่ตั้ง = รับแบบไม่เซ็น (dev เท่านั้น)</td></tr>
+        <tr><td>BACKEND_BASE_URL / FRONTEND_BASE_URL</td><td>ใช้ประกอบ return URL ของ EasyPay (ธนาคาร POST กลับ backend แล้ว 302 ไป frontend)</td></tr>
+        <tr><td>VITE_EDC_BRIDGE_DOMAIN</td><td>domain ของ Paywire bridge ฝั่ง frontend (default pos.local.bridge.schooney.tech, dev ตั้งเป็น 127.0.0.1)</td></tr>
+        <tr><td>ws://localhost:9001</td><td>WebSocket ของ RFID bridge บนเครื่อง POS ที่หน้าเว็บใช้รับ UID บัตร</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Idempotency guardrails (4 ตัว)</h3>
+  <div class="table-wrap">
+    <table class="mono-first">
+      <thead>
+        <tr><th>กลไก</th><th>กันอะไร</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>confirmPosQrSale</td><td>webhook QR ที่ POS มาซ้ำ — FOR UPDATE + sentinel gateway_webhook_claimed + WHERE receipt_id IS NULL = ใบเสร็จเดียวเสมอ</td></tr>
+        <tr><td>confirmTopup</td><td>webhook เติมเงินมาซ้ำ — FOR UPDATE + ประมวลผลเฉพาะ pending + ตอบ ALREADY_PROCESSED เมื่อซ้ำ</td></tr>
+        <tr><td>cashier idempotency_key</td><td>retry ตอนเน็ตสะดุดของ cashier top-up — reference_ticket unique กันเครดิตซ้ำ</td></tr>
+        <tr><td>reconcile sweep</td><td>intent ค้างลอย — ทุก 10 นาที กวาดตัวที่ pending เกิน 15 นาทีไปถามธนาคาร (404 = mark cancelled)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Enums</h3>
+  <div class="table-wrap">
+    <table class="mono-first">
+      <thead>
+        <tr><th>Enum</th><th>ค่า</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>payment_method</td><td><code>CASH</code>, <code>CREDIT_CARD</code>, <code>DEBIT_CARD</code>, <code>WALLET</code>, <code>BANK_TRANSFER</code>, <code>CARD_TAP</code>, <code>EDC</code>, <code>DEPARTMENT</code>, <code>OTHER</code>, <code>QR_PROMPTPAY</code></td></tr>
+        <tr><td>intent status</td><td><code>pending</code> → <code>confirmed</code> หรือ <code>cancelled</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="sep">
+
+  <footer class="doc-footer">
+    อัปเดตล่าสุด 2026-07-17
+  </footer>
+
+</div>
+</body>
+</html>
