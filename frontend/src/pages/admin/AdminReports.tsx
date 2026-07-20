@@ -112,7 +112,7 @@ export default function AdminReports() {
       return {
         payload: {
           meta: {
-            title: t("adminReports.topupReport"),
+            title: t("admin.adminReports.topupReport"),
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
             reportId: "ISB-ADM-TOPUP",
@@ -120,12 +120,12 @@ export default function AdminReports() {
             runByName: user?.fullName ?? user?.username,
           },
           columns: [
-            { header: t("adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
-            { header: t("adminReports.colChannel"), key: "channel_label", width: 16 },
-            { header: t("adminReports.colToppedBy"), key: "topped_by", width: 24 },
-            { header: t("adminReports.colRecipient"), key: "recipient_name", width: 24 },
-            { header: t("adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
-            { header: t("adminReports.colCashier"), key: "cashier_name", width: 20 },
+            { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+            { header: t("admin.adminReports.colChannel"), key: "channel_label", width: 16 },
+            { header: t("admin.adminReports.colToppedBy"), key: "topped_by", width: 24 },
+            { header: t("admin.adminReports.colRecipient"), key: "recipient_name", width: 24 },
+            { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
+            { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
           ],
           rows: data.items.map((r) => ({
             ...r,
@@ -150,7 +150,7 @@ export default function AdminReports() {
       return {
         payload: {
           meta: {
-            title: t("adminReports.transactionReport"),
+            title: t("admin.adminReports.transactionReport"),
             schoolName: school.name,
             schoolLogoUrl: school.logoUrl || undefined,
             reportId: "ISB-ADM-TXN",
@@ -158,14 +158,14 @@ export default function AdminReports() {
             runByName: user?.fullName ?? user?.username,
           },
           columns: [
-            { header: t("adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
-            { header: t("adminReports.colPayerId"), key: "payer_id", width: 14 },
-            { header: t("adminReports.colPayerName"), key: "payer_name", width: 24 },
-            { header: t("adminReports.colPaymentMethod"), key: "payment_method", width: 14 },
-            { header: t("adminReports.colShop"), key: "shop_name", width: 20 },
-            { header: t("adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
-            { header: t("adminReports.colCashier"), key: "cashier_name", width: 20 },
-            { header: t("adminReports.colStatus"), key: "status", width: 10 },
+            { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+            { header: t("admin.adminReports.colPayerId"), key: "payer_id", width: 14 },
+            { header: t("admin.adminReports.colPayerName"), key: "payer_name", width: 24 },
+            { header: t("admin.adminReports.colPaymentMethod"), key: "payment_method", width: 14 },
+            { header: t("admin.adminReports.colShop"), key: "shop_name", width: 20 },
+            { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
+            { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
+            { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
           ],
           rows: data.items as unknown as Record<string, unknown>[],
           totals: { amount: data.amount_total },
@@ -211,30 +211,30 @@ export default function AdminReports() {
     {
       kind: "topup" as const,
       icon: Wallet,
-      title: t("adminReports.topupReport"),
-      desc: t("adminReports.topupReportDesc"),
+      title: t("admin.adminReports.topupReport"),
+      desc: t("admin.adminReports.topupReportDesc"),
     },
     {
       kind: "transaction" as const,
       icon: Receipt,
-      title: t("adminReports.transactionReport"),
-      desc: t("adminReports.transactionReportDesc"),
+      title: t("admin.adminReports.transactionReport"),
+      desc: t("admin.adminReports.transactionReportDesc"),
     },
   ];
 
   return (
     <div className="page-shell">
       <div className="page-header">
-        <h1 className="page-title mb-2">{t("adminReports.title")}</h1>
-        <p className="page-description">{t("adminReports.description")}</p>
+        <h1 className="page-title mb-2">{t("admin.adminReports.title")}</h1>
+        <p className="page-description">{t("admin.adminReports.description")}</p>
       </div>
 
       <InfoCallout
         id="adminReports.info"
         variant="info"
-        title={t("adminReports.infoTitle")}
+        title={t("admin.adminReports.infoTitle")}
       >
-        {t("adminReports.infoBody")}
+        {t("admin.adminReports.infoBody")}
       </InfoCallout>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -258,8 +258,8 @@ export default function AdminReports() {
           <DialogHeader>
             <DialogTitle>
               {selected === "topup"
-                ? t("adminReports.topupReport")
-                : t("adminReports.transactionReport")}
+                ? t("admin.adminReports.topupReport")
+                : t("admin.adminReports.transactionReport")}
             </DialogTitle>
             <DialogDescription>{t("reports.selectDateRangeDesc")}</DialogDescription>
           </DialogHeader>
@@ -279,16 +279,16 @@ export default function AdminReports() {
 
             {selected === "topup" && (
               <div className="space-y-2">
-                <Label>{t("adminReports.channelFilter")}</Label>
+                <Label>{t("admin.adminReports.channelFilter")}</Label>
                 <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">{t("adminReports.channelAll")}</SelectItem>
-                    <SelectItem value="kiosk">{t("adminReports.channelKiosk")}</SelectItem>
-                    <SelectItem value="online">{t("adminReports.channelOnline")}</SelectItem>
-                    <SelectItem value="cashier">{t("adminReports.channelCashier")}</SelectItem>
+                    <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
+                    <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
+                    <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
+                    <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
