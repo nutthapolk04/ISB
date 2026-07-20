@@ -30,6 +30,7 @@ data class BillEvent(
  * Collecting session (top-up):
  * - startCollecting(target): enable (0x3E), reset counters.
  * - Bill in escrow (3.2: 0x81 → 0x40–0x44):
+ *     amount < MIN_ACCEPTED_THB (฿100) → decline (0x0F) — ฿20 / ฿50 returned.
  *     collected + bill <= target → accept (0x02) → stacked (0x10) → add to collected.
  *     collected + bill  > target → hold (0x18, freezes the 5s clock) → emit overpayPending;
  *                                  JS decides via acceptBill() (0x02) or returnBill() (0x0F).
@@ -289,6 +290,19 @@ class Nk77Reader(
             return
         }
 
+        // Policy: accept ฿100 / ฿500 / ฿1000 only — return ฿20 and ฿50.
+        if (amount < MIN_ACCEPTED_THB) {
+            Log.w(TAG, "Bill ~$amount THB below minimum ($MIN_ACCEPTED_THB) — decline (0x0F)")
+            synchronized(stateLock) {
+                escrowSlot = slot
+                escrowCode = byte
+                escrowThb = amount
+            }
+            sendCommand(CMD_DECLINE)
+            // Device replies 0x11 → onReturned(); keep escrow until then.
+            return
+        }
+
         val wouldBe: Int
         val overTarget: Boolean
         synchronized(stateLock) {
@@ -522,6 +536,10 @@ class Nk77Reader(
         private const val CMD_EXCEPTION_MIN = 0x20
         private const val CMD_EXCEPTION_MAX = 0x2F
 
+        /** Lowest banknote the kiosk will stack (฿100+). ฿20 / ฿50 are declined. */
+        private const val MIN_ACCEPTED_THB = 100
+
+        // Slot codes 0x40–0x44 as programmed on the NK77 for THB.
         private val THB_DENOMINATIONS = intArrayOf(20, 50, 100, 500, 1000)
     }
 }
