@@ -151,10 +151,16 @@ export function RfidPaymentModal({
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  // RFID listener for card tap
+  // RFID listener for card tap. This component is mounted for the whole
+  // lifetime of the page it's used on (Store.tsx/Canteen.tsx render it
+  // unconditionally, toggling only the `open` prop for Dialog visibility),
+  // so without the `open` check every barcode/card scan anywhere on the
+  // page — including product barcodes meant for the cart — would get
+  // funneled into this modal's customer/staff lookup and show a spurious
+  // "Not found in the system" error.
   const rfid = useRfidListener({
     onCapture: async (code: string) => {
-      if (stage === "detect") {
+      if (open && stage === "detect") {
         setCardInput(code);
         await lookup(code);
       }

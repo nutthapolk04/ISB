@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { users, creditNotes, receipts, customers, wallets, departments, userLoginEmails, customerTypes, paymentIntents, shopProducts, receiptItems, emailAlertsLog, parentChildLinks, shops, unitsOfMeasure, productBundles, bundleItems, fifoLots, menuOptionGroups, pricePanelItems, pricePanels, walletTransactions, productBarcodes, shopMovements, stockPeriodCloseItems, stockPeriodCloses, menuOptions, products, productVariants, barcodes, inventoryTransactions, stockLevels, stockMovements, approvalRequests, auditLogs, budgetTransactions, customerDisplayImages, identityMappings, productOrderHistory, syncLogs, systemSettings, syncAuditLogs, shopCategories, categories, spendingGroups, roles, userRoles, permissions, rolePermissions, shopSpendingGroups } from "./schema";
+import { users, creditNotes, receipts, customers, wallets, departments, userLoginEmails, customerTypes, paymentIntents, shopProducts, receiptItems, emailAlertsLog, parentChildLinks, shops, unitsOfMeasure, productBundles, bundleItems, fifoLots, menuOptionGroups, pricePanelItems, pricePanels, productBarcodes, shopMovements, stockPeriodCloseItems, stockPeriodCloses, menuOptions, products, productVariants, barcodes, inventoryTransactions, walletTransactions, stockLevels, stockMovements, approvalRequests, auditLogs, budgetTransactions, customerDisplayImages, identityMappings, productOrderHistory, syncLogs, systemSettings, syncAuditLogs, shopCategories, categories, spendingGroups, roles, userRoles, permissions, rolePermissions, shopSpendingGroups } from "./schema";
 
 export const creditNotesRelations = relations(creditNotes, ({one}) => ({
 	user_approvedBy: one(users, {
@@ -33,11 +33,19 @@ export const usersRelations = relations(users, ({one, many}) => ({
 	paymentIntents_createdBy: many(paymentIntents, {
 		relationName: "paymentIntents_createdBy_users_id"
 	}),
+	paymentIntents_actingUserId: many(paymentIntents, {
+		relationName: "paymentIntents_actingUserId_users_id"
+	}),
 	emailAlertsLogs: many(emailAlertsLog),
 	parentChildLinks: many(parentChildLinks),
-	walletTransactions: many(walletTransactions),
-	shopMovements: many(shopMovements),
 	inventoryTransactions: many(inventoryTransactions),
+	shopMovements: many(shopMovements),
+	walletTransactions_createdBy: many(walletTransactions, {
+		relationName: "walletTransactions_createdBy_users_id"
+	}),
+	walletTransactions_actingUserId: many(walletTransactions, {
+		relationName: "walletTransactions_actingUserId_users_id"
+	}),
 	stockLevels: many(stockLevels),
 	stockMovements: many(stockMovements),
 	department: one(departments, {
@@ -149,8 +157,10 @@ export const customersRelations = relations(customers, ({one, many}) => ({
 		fields: [customers.departmentId],
 		references: [departments.id]
 	}),
+	paymentIntents: many(paymentIntents),
 	emailAlertsLogs: many(emailAlertsLog),
 	parentChildLinks: many(parentChildLinks),
+	walletTransactions: many(walletTransactions),
 	receipts: many(receipts),
 }));
 
@@ -189,6 +199,15 @@ export const paymentIntentsRelations = relations(paymentIntents, ({one}) => ({
 		fields: [paymentIntents.walletId],
 		references: [wallets.id]
 	}),
+	user_actingUserId: one(users, {
+		fields: [paymentIntents.actingUserId],
+		references: [users.id],
+		relationName: "paymentIntents_actingUserId_users_id"
+	}),
+	customer: one(customers, {
+		fields: [paymentIntents.actingCustomerId],
+		references: [customers.id]
+	}),
 }));
 
 export const receiptItemsRelations = relations(receiptItems, ({one}) => ({
@@ -217,8 +236,8 @@ export const shopProductsRelations = relations(shopProducts, ({one, many}) => ({
 	menuOptionGroups: many(menuOptionGroups),
 	pricePanelItems: many(pricePanelItems),
 	productBarcodes: many(productBarcodes),
-	shopMovements: many(shopMovements),
 	stockPeriodCloseItems: many(stockPeriodCloseItems),
+	shopMovements: many(shopMovements),
 }));
 
 export const emailAlertsLogRelations = relations(emailAlertsLog, ({one}) => ({
@@ -323,17 +342,6 @@ export const pricePanelsRelations = relations(pricePanels, ({one, many}) => ({
 	}),
 }));
 
-export const walletTransactionsRelations = relations(walletTransactions, ({one}) => ({
-	user: one(users, {
-		fields: [walletTransactions.createdBy],
-		references: [users.id]
-	}),
-	wallet: one(wallets, {
-		fields: [walletTransactions.walletId],
-		references: [wallets.id]
-	}),
-}));
-
 export const productBarcodesRelations = relations(productBarcodes, ({one}) => ({
 	shopProduct: one(shopProducts, {
 		fields: [productBarcodes.productId],
@@ -341,7 +349,23 @@ export const productBarcodesRelations = relations(productBarcodes, ({one}) => ({
 	}),
 }));
 
+export const stockPeriodCloseItemsRelations = relations(stockPeriodCloseItems, ({one}) => ({
+	shopMovement: one(shopMovements, {
+		fields: [stockPeriodCloseItems.adjustmentMovementId],
+		references: [shopMovements.id]
+	}),
+	stockPeriodClose: one(stockPeriodCloses, {
+		fields: [stockPeriodCloseItems.closeId],
+		references: [stockPeriodCloses.id]
+	}),
+	shopProduct: one(shopProducts, {
+		fields: [stockPeriodCloseItems.productId],
+		references: [shopProducts.id]
+	}),
+}));
+
 export const shopMovementsRelations = relations(shopMovements, ({one, many}) => ({
+	stockPeriodCloseItems: many(stockPeriodCloseItems),
 	user: one(users, {
 		fields: [shopMovements.createdBy],
 		references: [users.id]
@@ -369,22 +393,6 @@ export const shopMovementsRelations = relations(shopMovements, ({one, many}) => 
 	shop: one(shops, {
 		fields: [shopMovements.shopId],
 		references: [shops.id]
-	}),
-	stockPeriodCloseItems: many(stockPeriodCloseItems),
-}));
-
-export const stockPeriodCloseItemsRelations = relations(stockPeriodCloseItems, ({one}) => ({
-	shopMovement: one(shopMovements, {
-		fields: [stockPeriodCloseItems.adjustmentMovementId],
-		references: [shopMovements.id]
-	}),
-	stockPeriodClose: one(stockPeriodCloses, {
-		fields: [stockPeriodCloseItems.closeId],
-		references: [stockPeriodCloses.id]
-	}),
-	shopProduct: one(shopProducts, {
-		fields: [stockPeriodCloseItems.productId],
-		references: [shopProducts.id]
 	}),
 }));
 
@@ -441,6 +449,27 @@ export const inventoryTransactionsRelations = relations(inventoryTransactions, (
 	productVariant: one(productVariants, {
 		fields: [inventoryTransactions.productVariantId],
 		references: [productVariants.id]
+	}),
+}));
+
+export const walletTransactionsRelations = relations(walletTransactions, ({one}) => ({
+	user_createdBy: one(users, {
+		fields: [walletTransactions.createdBy],
+		references: [users.id],
+		relationName: "walletTransactions_createdBy_users_id"
+	}),
+	wallet: one(wallets, {
+		fields: [walletTransactions.walletId],
+		references: [wallets.id]
+	}),
+	user_actingUserId: one(users, {
+		fields: [walletTransactions.actingUserId],
+		references: [users.id],
+		relationName: "walletTransactions_actingUserId_users_id"
+	}),
+	customer: one(customers, {
+		fields: [walletTransactions.actingCustomerId],
+		references: [customers.id]
 	}),
 }));
 
