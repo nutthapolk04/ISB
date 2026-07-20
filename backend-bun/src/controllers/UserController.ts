@@ -6,6 +6,7 @@ import {
 	getUser,
 	getUserPayerByUsername,
 	getUserPayerByCard,
+	getUserPayerByExternalId,
 	familyLookup,
 	createUser,
 	updateUser,
@@ -65,6 +66,21 @@ export const UserController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (UC-03)] UserController.byCard() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	byExternalId: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (UC-10)] UserController.byExternalId() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (UC-10)] UserController.byExternalId() calling getUserPayerByExternalId().`);
+			const result = await getUserPayerByExternalId(params.externalId);
+			logger.info(`[${reqContext.requestId} (UC-10)] UserController.byExternalId() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (UC-10)] UserController.byExternalId() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

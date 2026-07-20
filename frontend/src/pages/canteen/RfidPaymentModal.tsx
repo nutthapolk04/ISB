@@ -65,6 +65,7 @@ export interface UserPayerLookup {
   full_name: string;
   role: string;
   photo_url?: string | null;
+  external_id?: string | null;
   wallet_id: number;
   wallet_balance: number;
   is_active: boolean;

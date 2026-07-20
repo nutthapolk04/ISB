@@ -28,6 +28,8 @@ import { Plus, Minus, Trash2, ShoppingCart, HandHelping, ScanBarcode } from "luc
 import UserPicker from "@/components/UserPicker";
 import type { DepartmentOption } from "./DepartmentPaymentModal";
 import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
+import { useRfidListener } from "@/hooks/useRfidListener";
+import type { UserPayerLookup } from "@/pages/canteen/RfidPaymentModal";
 import { cn } from "@/lib/utils";
 import type { Product as StoreProduct } from "@/pages/store/storeTypes";
 
@@ -56,6 +58,11 @@ interface Shop {
 }
 
 type PayMode = "free" | "department" | "wallet";
+
+// Same role filter as /users-admin/staff-picker (backend user_admin_service.ts
+// listStaffForPicker) — kept in sync so a resolved card never sets a
+// requesterId that the picker itself would never display.
+const REQUESTER_ROLES = ["staff", "manager", "cashier", "kitchen", "admin"];
 
 export default function StoreRequisition() {
   const { t } = useTranslation();
@@ -166,6 +173,39 @@ export default function StoreRequisition() {
     products: products as unknown as StoreProduct[],
     onProductMatch: (p) => addToCart(p as unknown as Product),
     onMemberFound: () => {},
+  });
+
+  // Confirm Requisition dialog: tapping a staff card fills the Requester
+  // field directly, same card-tap mechanism as the payment flows elsewhere
+  // (useRfidListener → PC/SC bridge or keyboard-wedge fallback).
+  //
+  // Two-hop lookup by design: the card UID only resolves to external_id
+  // (the PowerSchool/HR sync id) via by-card, then external_id is what
+  // actually looks up the requester record — not the by-card result directly.
+  useRfidListener({
+    onCapture: async (uid) => {
+      if (!checkoutOpen) return;
+      try {
+        const byCard = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(uid)}`);
+        if (!byCard.external_id) {
+          toast.error(t("requisition.requesterNoExternalId", "This card's staff record has no external_id on file"));
+          return;
+        }
+        const u = await api.get<UserPayerLookup>(`/users/by-external-id/${encodeURIComponent(byCard.external_id)}`);
+        // Requester picker only lists staff/manager/cashier/kitchen/admin
+        // (same role filter as /users-admin/staff-picker) — setting the id
+        // for any other role (e.g. parent) would silently fail to display,
+        // since UserPicker can't find a matching entry in its own list.
+        if (!REQUESTER_ROLES.includes(u.role)) {
+          toast.error(t("requisition.requesterNotStaff", "This card belongs to {{name}} ({{role}}), not a staff account", { name: u.full_name || u.username, role: u.role }));
+          return;
+        }
+        setRequesterId(u.user_id);
+        toast.success(t("requisition.requesterCardMatched", "Requester: {{name}}", { name: u.full_name || u.username }));
+      } catch {
+        toast.error(t("requisition.requesterCardNotFound", "Card not linked to any staff account"));
+      }
+    },
   });
 
   // Manager/admin can push a line negative — meaning stock is being
@@ -372,6 +412,9 @@ export default function StoreRequisition() {
             <div>
               <Label>{t("requisition.requester", "Requester")} *</Label>
               <UserPicker value={requesterId} onChange={(id) => setRequesterId(id)} />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("requisition.requesterTapHint", "or tap a staff card to fill this in automatically")}
+              </p>
             </div>
             <div>
               <Label>{t("requisition.payMode", "Payment mode")} *</Label>

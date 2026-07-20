@@ -169,12 +169,13 @@ const Receipts = () => {
     // ── Monthly stats fetch (no-filter state) ────────────────────────────────
     const fetchMonthlyStats = useCallback(async () => {
         try {
-            const now = new Date();
-            // Use local-time dates so Bangkok-timezone users get a full calendar month
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-            const dateFrom = startOfMonth.toISOString();
-            const dateTo = endOfToday.toISOString();
+            // Bare YYYY-MM-DD (Asia/Bangkok) — the backend's dateRange() helper
+            // anchors these to Bangkok midnight/end-of-day itself; sending a
+            // full ISO instant here double-appends a timezone offset and
+            // fails to parse in postgres.
+            const todayBkk = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+            const dateFrom = `${todayBkk.slice(0, 7)}-01`;
+            const dateTo = todayBkk;
             const sep = queryParams.includes("?") ? "&" : "?";
             const params = `${queryParams}${sep}date_from=${dateFrom}&date_to=${dateTo}&page_size=500`;
             const data = await api.get<ReceiptApi[]>(`/pos/receipt${params}`);

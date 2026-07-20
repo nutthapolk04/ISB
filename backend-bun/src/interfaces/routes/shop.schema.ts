@@ -33,7 +33,6 @@ export const createShop = {
         allow_department_charge: t.Optional(t.Nullable(t.Boolean())),
         module: t.Optional(t.Union([t.Literal("canteen"), t.Literal("store")])),
         uses_dual_pricing: t.Optional(t.Nullable(t.Boolean())),
-        spending_group_id: t.Optional(t.Nullable(t.Number())),
         shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),
     }),
     detail: { ...shopsTag, summary: "Create a shop (admin)" },
@@ -41,6 +40,17 @@ export const createShop = {
 
 export const listLowStock = {
     detail: { ...shopsTag, summary: "All low-stock products across active shops" },
+};
+
+export const listShopSpendingGroups = {
+    params: shopIdParams,
+    detail: { ...shopsTag, summary: "List spending groups, flagged for this shop" },
+};
+
+export const setShopSpendingGroups = {
+    params: shopIdParams,
+    body: t.Object({ spending_group_ids: t.Array(t.Number()) }),
+    detail: { ...shopsTag, summary: "Set the spending groups this shop belongs to" },
 };
 
 export const getShop = {
@@ -57,7 +67,6 @@ export const updateShop = {
         allow_department_charge: t.Optional(t.Nullable(t.Boolean())),
         module: t.Optional(t.Nullable(t.Union([t.Literal("canteen"), t.Literal("store")]))),
         uses_dual_pricing: t.Optional(t.Nullable(t.Boolean())),
-        spending_group_id: t.Optional(t.Nullable(t.Number())),
         receipt_header: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         receipt_footer: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),

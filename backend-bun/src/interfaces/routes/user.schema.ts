@@ -22,6 +22,11 @@ export const getUserByCard = {
     detail: { tags: ["POS"], summary: "Resolve a user payer by NFC card UID" },
 };
 
+export const getUserByExternalId = {
+    params: t.Object({ externalId: t.String() }),
+    detail: { tags: ["POS"], summary: "Resolve a user payer by external_id (PowerSchool/HR sync id)" },
+};
+
 export const familyLookup = {
     query: t.Object({ q: t.String({ minLength: 1 }) }),
     detail: { tags: ["Admin"], summary: "Lookup by employee username or family code" },

@@ -31,6 +31,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Layers, Building2, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { fmtDateTime } from "@/lib/dateFormat";
 
 interface AssignableShop {
     id: string;
@@ -38,6 +39,7 @@ interface AssignableShop {
     module: string;
     is_active: boolean;
     linked: boolean;
+    linked_at: string | null;
 }
 
 interface SpendingGroup {
@@ -46,6 +48,7 @@ interface SpendingGroup {
     name_en: string;
     name_th: string;
     daily_limit: number;
+    grades: string[];
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -91,6 +94,16 @@ export default function SpendingGroups() {
     // can pick group fields + linked shops in one place.
     const [editShops, setEditShops] = useState<AssignableShop[] | null>(null);
     const [editShopSelected, setEditShopSelected] = useState<Set<string>>(new Set());
+    // Grade multi-select — options come from the actual distinct grades on
+    // file for students (customers.grade), not a hardcoded/free-text list.
+    const [availableGrades, setAvailableGrades] = useState<string[] | null>(null);
+    const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        api.get<{ grades?: string[] }>("/admin/cardholders?kind=student&page_size=1")
+            .then((data) => setAvailableGrades(data.grades ?? []))
+            .catch(() => setAvailableGrades([]));
+    }, []);
 
     const load = async () => {
         setLoading(true);
@@ -113,6 +126,7 @@ export default function SpendingGroups() {
         setForm(emptyForm());
         setEditShops(null);
         setEditShopSelected(new Set());
+        setSelectedGrades(new Set());
         setModalOpen(true);
     };
 
@@ -127,6 +141,7 @@ export default function SpendingGroups() {
         });
         setEditShops(null);
         setEditShopSelected(new Set());
+        setSelectedGrades(new Set(g.grades));
         setModalOpen(true);
         // Fetch shops + pre-select currently linked ones
         api.get<AssignableShop[]>(`/spending-groups/${g.id}/shops`)
@@ -145,11 +160,13 @@ export default function SpendingGroups() {
         }
         setSaving(true);
         try {
+            const grades = Array.from(selectedGrades);
             if (editTarget) {
                 await api.patch(`/spending-groups/${editTarget.id}`, {
                     name_en: form.name_en,
                     name_th: form.name_th,
                     daily_limit: limitNum,
+                    grades,
                     is_active: form.is_active,
                 });
                 // Save shop membership (only if the list was loaded — avoid
@@ -166,6 +183,7 @@ export default function SpendingGroups() {
                     name_en: form.name_en,
                     name_th: form.name_th,
                     daily_limit: limitNum,
+                    grades,
                     is_active: form.is_active,
                 });
                 toast({ title: t("spendingGroup.create") + " saved" });
@@ -253,6 +271,7 @@ export default function SpendingGroups() {
                                     <TableHead>{t("spendingGroup.nameEn")}</TableHead>
                                     <TableHead>{t("spendingGroup.nameTh")}</TableHead>
                                     <TableHead>{t("spendingGroup.dailyLimit")}</TableHead>
+                                    <TableHead>{t("spendingGroup.grades", { defaultValue: "Grades" })}</TableHead>
                                     <TableHead>{t("spendingGroup.linkedShops")}</TableHead>
                                     <TableHead>{t("spendingGroup.enforce")}</TableHead>
                                     <TableHead />
@@ -265,6 +284,19 @@ export default function SpendingGroups() {
                                         <TableCell>{g.name_en}</TableCell>
                                         <TableCell>{g.name_th}</TableCell>
                                         <TableCell className="font-medium">{formatTHB(g.daily_limit)}</TableCell>
+                                        <TableCell>
+                                            {g.grades.length === 0 ? (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {g.grades.map((grade) => (
+                                                        <Badge key={grade} variant="outline" className="font-mono text-[10px]">
+                                                            {grade}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </TableCell>
                                         <TableCell>
                                             <button
                                                 onClick={() => setAssignTarget(g)}
@@ -358,6 +390,52 @@ export default function SpendingGroups() {
                             />
                             <p className="text-xs text-muted-foreground">{t("spendingGroup.dailyLimitHint")}</p>
                         </div>
+                        <div className="space-y-1">
+                            <Label>{t("spendingGroup.grades", { defaultValue: "Grades" })}</Label>
+                            <p className="text-xs text-muted-foreground">
+                                {t("spendingGroup.gradesHint", {
+                                    defaultValue: "Grades this limit applies to. A student's own limit (set by their parent) always overrides this.",
+                                })}
+                            </p>
+                            <div className="flex flex-wrap gap-2 rounded border bg-muted/30 p-2">
+                                {availableGrades === null ? (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-1 px-1">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Loading grades…
+                                    </div>
+                                ) : availableGrades.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground py-1 px-1">No student grades on file</p>
+                                ) : (
+                                    availableGrades.map((grade) => {
+                                        const checked = selectedGrades.has(grade);
+                                        return (
+                                            <label
+                                                key={grade}
+                                                className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs cursor-pointer transition ${
+                                                    checked
+                                                        ? "border-primary bg-primary/10 text-primary font-medium"
+                                                        : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                                                }`}
+                                            >
+                                                <Checkbox
+                                                    checked={checked}
+                                                    onCheckedChange={() => {
+                                                        setSelectedGrades((prev) => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(grade)) next.delete(grade);
+                                                            else next.add(grade);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="h-3.5 w-3.5"
+                                                />
+                                                {grade}
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
                         <div className="flex items-center gap-3">
                             <Switch
                                 checked={form.is_active}
@@ -417,6 +495,11 @@ export default function SpendingGroups() {
                                                         />
                                                         <span className={`flex-1 ${s.is_active ? "" : "text-muted-foreground line-through"}`}>
                                                             {s.name}
+                                                            {s.linked && s.linked_at && (
+                                                                <span className="block text-[10px] text-muted-foreground font-normal">
+                                                                    linked {fmtDateTime(s.linked_at)}
+                                                                </span>
+                                                            )}
                                                         </span>
                                                         <span className="font-mono text-[10px] text-muted-foreground">{s.id}</span>
                                                     </label>
@@ -585,6 +668,11 @@ function AssignShopsModal({
                                         />
                                         <span className={`flex-1 text-sm ${s.is_active ? "" : "text-muted-foreground line-through"}`}>
                                             {s.name}
+                                            {s.linked && s.linked_at && (
+                                                <span className="block text-[11px] text-muted-foreground">
+                                                    linked {fmtDateTime(s.linked_at)}
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="text-xs font-mono text-muted-foreground">{s.id}</span>
                                     </label>
