@@ -48,6 +48,7 @@ import WalletTransfer from './pages/admin/WalletTransfer';
 import DepartmentAdjust from './pages/admin/DepartmentAdjust';
 import DepartmentDetail from './pages/admin/DepartmentDetail';
 import CustomerDetail from './pages/admin/CustomerDetail';
+import AdminReports from './pages/admin/AdminReports';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/users/UserManagement';
 import UserDetail from './pages/admin/users/UserDetail';
@@ -340,7 +341,7 @@ const App = () => {
                           <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                           <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
                           <Route path="/admin/department/:departmentId" element={<DepartmentDetail />} />
-                          <Route path="/admin/reports" element={<Reports />} />
+                          <Route path="/admin/reports" element={<AdminReports />} />
                         </Route>
 
                         {/* Parent + Admin + Student (self-service view + topup) */}

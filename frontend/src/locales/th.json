@@ -634,6 +634,7 @@
     "startDate": "วันที่เริ่มต้น",
     "endDate": "วันที่สิ้นสุด",
     "exportExcel": "ออกรายงาน Excel",
+    "exportPdf": "ออกรายงาน PDF",
     "exportSuccess": "ออกรายงานสำเร็จ",
     "comingSoon": "รายงานนี้จะเปิดให้ใช้เร็วๆ นี้",
     "colProduct": "สินค้า",
@@ -1146,6 +1147,32 @@
           "body": "คลิกแถวครอบครัวเพื่อขยายดูนักเรียนแต่ละคน · ปุ่ม lock ใช้บล็อก/ปลดบล็อกบัตรทุกใบในครอบครัวพร้อมกัน · ใช้ไอคอนถังขยะเพื่อยกเลิกการเชื่อมโยงผู้ปกครอง–นักเรียน"
         }
       }
+    },
+    "adminReports": {
+      "title": "รายงานผู้ดูแลระบบ",
+      "description": "รายงานการเติมเงินและรายการใช้จ่ายทั้งโรงเรียน (แยกจากรายงานขายของร้าน/โรงอาหาร)",
+      "infoTitle": "รายงานเฉพาะ Admin",
+      "infoBody": "ดูการเติมเงินและการใช้จ่าย POS ทุกสาขา สำหรับรายงานยอดขาย สต็อก และ void ให้ใช้รายงานสหกรณ์หรือรายงานโรงอาหาร",
+      "topupReport": "รายงานการเติมเงิน",
+      "topupReportDesc": "การเติมเงินตามช่องทาง — Kiosk, Online (ผู้ปกครอง) หรือ Cashier (ร้าน)",
+      "transactionReport": "รายงานรายการธุรกรรม",
+      "transactionReportDesc": "การใช้จ่าย POS ทุกสาขา พร้อมผู้จ่าย วิธีชำระ และแคชเชียร์",
+      "channelFilter": "ประเภทการเติมเงิน",
+      "channelAll": "ทุกประเภท",
+      "channelKiosk": "Kiosk",
+      "channelOnline": "Online (ผู้ปกครอง)",
+      "channelCashier": "Cashier (ร้าน)",
+      "colDateTime": "วันที่ / เวลา",
+      "colChannel": "ประเภท",
+      "colToppedBy": "ผู้เติมเงิน",
+      "colRecipient": "ผู้รับเงิน",
+      "colAmount": "ยอด",
+      "colCashier": "แคชเชียร์",
+      "colPayerId": "รหัส",
+      "colPayerName": "ชื่อ-นามสกุล",
+      "colPaymentMethod": "ประเภทการชำระ",
+      "colShop": "ร้าน",
+      "colStatus": "สถานะ"
     },
     "walletAdjust": {
       "title": "ปรับยอดกระเป๋าเงิน",

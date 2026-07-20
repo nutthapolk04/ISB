@@ -634,6 +634,7 @@
     "startDate": "Start Date",
     "endDate": "End Date",
     "exportExcel": "Export Excel",
+    "exportPdf": "Export PDF",
     "exportSuccess": "Report exported successfully",
     "comingSoon": "This report is coming soon",
     "colProduct": "Product",
@@ -1146,6 +1147,32 @@
           "body": "Click a family row to expand and see children inline · The lock button blocks/unblocks all cards in a family at once · Use the trash icon to remove a parent–child link"
         }
       }
+    },
+    "adminReports": {
+      "title": "Admin Reports",
+      "description": "School-wide top-up and transaction reports (separate from store/canteen sales reports)",
+      "infoTitle": "Admin-only reports",
+      "infoBody": "Top-up and POS spending across all shops. For sales, stock, and void reports use Store Reports or Canteen Reports.",
+      "topupReport": "Top-up Report",
+      "topupReportDesc": "Wallet top-ups by channel — Kiosk, Online (Parent), or Cashier (Store)",
+      "transactionReport": "Transaction Report",
+      "transactionReportDesc": "POS spending across all shops with payer, payment method, and cashier",
+      "channelFilter": "Top-up type",
+      "channelAll": "All types",
+      "channelKiosk": "Kiosk",
+      "channelOnline": "Online (Parent)",
+      "channelCashier": "Cashier (Store)",
+      "colDateTime": "Date / Time",
+      "colChannel": "Type",
+      "colToppedBy": "Topped up by",
+      "colRecipient": "Recipient",
+      "colAmount": "Amount",
+      "colCashier": "Cashier",
+      "colPayerId": "ID",
+      "colPayerName": "Name",
+      "colPaymentMethod": "Payment type",
+      "colShop": "Shop",
+      "colStatus": "Status"
     },
     "walletAdjust": {
       "title": "Wallet Adjustment",

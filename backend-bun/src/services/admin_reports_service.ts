@@ -2,9 +2,18 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { walletTransactions, wallets, customers, users, departments } from "@/db/schema";
+import {
+    walletTransactions,
+    wallets,
+    customers,
+    users,
+    departments,
+    paymentIntents,
+    receipts,
+    shops,
+} from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
 export interface AdjustmentReportRow {
@@ -277,3 +286,309 @@ export async function transferReport(args: {
         pages: Math.max(1, Math.ceil(total / args.pageSize)),
     };
 }
+
+// ── Top-up report ──────────────────────────────────────────────────────────
+
+export type TopupChannel = "kiosk" | "online" | "cashier";
+
+export interface TopupReportRow {
+    id: number;
+    created_at: string;
+    channel: TopupChannel;
+    topped_by: string;
+    recipient_name: string;
+    recipient_code: string;
+    amount: number;
+    cashier_name: string | null;
+    payment_method: string | null;
+}
+
+export interface TopupReportResponseDTO {
+    items: TopupReportRow[];
+    total: number;
+    amount_total: number;
+}
+
+function classifyTopupChannel(opts: {
+    transactionType: string;
+    reason: string | null;
+    description: string | null;
+    creatorRole: string | null;
+}): TopupChannel {
+    const text = `${opts.reason ?? ""} ${opts.description ?? ""}`;
+    const role = (opts.creatorRole ?? "").toLowerCase();
+    if (role === "kiosk" || /kiosk\s*top-?up/i.test(text)) return "kiosk";
+    if (role === "parent") return "online";
+    if (opts.transactionType === "ADJUSTMENT" && /^Cash top-up at POS/i.test(opts.reason ?? "")) {
+        return "cashier";
+    }
+    if (["cashier", "manager", "admin", "staff", "kitchen"].includes(role)) return "cashier";
+    // Gateway TOPUP without a parent role — treat as online (parent portal / card).
+    if (opts.transactionType === "TOPUP") return "online";
+    return "cashier";
+}
+
+function kioskDisplayName(reason: string | null, creatorName: string): string {
+    const m = /Kiosk top-up(?: via \w+)? @ ([^(]+)/i.exec(reason ?? "");
+    if (m) return `Kiosk (${m[1].trim()})`;
+    if (/kiosk/i.test(creatorName)) return creatorName;
+    return creatorName || "Kiosk";
+}
+
+/**
+ * Money-in top-ups only:
+ *  - Cash (kiosk / store cashier): ADJUSTMENT with reason "Cash top-up at POS..."
+ *  - Online / QR: TOPUP linked to a confirmed wallet_topup payment_intent
+ * Excludes transfers, admin balance sync, and POS-sale intents.
+ */
+export async function topupReport(args: {
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    channel?: string | null;
+}): Promise<TopupReportResponseDTO> {
+    const dateFrom = args.dateFrom?.trim() || null;
+    let dateToExclusive: string | null = null;
+    if (args.dateTo) {
+        const end = new Date(`${args.dateTo}T00:00:00Z`);
+        end.setUTCDate(end.getUTCDate() + 1);
+        dateToExclusive = end.toISOString();
+    }
+
+    const cashConds = [
+        eq(walletTransactions.transactionType, "ADJUSTMENT"),
+        isNull(wallets.departmentId),
+        sql`${walletTransactions.reason} LIKE 'Cash top-up at POS%'`,
+    ];
+    if (dateFrom) cashConds.push(gte(walletTransactions.createdAt, dateFrom));
+    if (dateToExclusive) cashConds.push(lt(walletTransactions.createdAt, dateToExclusive));
+
+    const cashRows = await db
+        .select({
+            tx: walletTransactions,
+            w: wallets,
+            creator: users,
+        })
+        .from(walletTransactions)
+        .innerJoin(wallets, eq(walletTransactions.walletId, wallets.id))
+        .innerJoin(users, eq(users.id, walletTransactions.createdBy))
+        .where(and(...cashConds))
+        .orderBy(desc(walletTransactions.createdAt));
+
+    const gatewayConds = [
+        eq(walletTransactions.transactionType, "TOPUP"),
+        eq(walletTransactions.referenceType, "payment_intent"),
+        isNull(wallets.departmentId),
+        or(isNull(paymentIntents.intentType), eq(paymentIntents.intentType, "wallet_topup")),
+        eq(paymentIntents.status, "confirmed"),
+    ];
+    if (dateFrom) gatewayConds.push(gte(walletTransactions.createdAt, dateFrom));
+    if (dateToExclusive) gatewayConds.push(lt(walletTransactions.createdAt, dateToExclusive));
+
+    const gatewayRows = await db
+        .select({
+            tx: walletTransactions,
+            w: wallets,
+            pi: paymentIntents,
+            intentCreator: users,
+        })
+        .from(walletTransactions)
+        .innerJoin(wallets, eq(walletTransactions.walletId, wallets.id))
+        .innerJoin(paymentIntents, eq(paymentIntents.id, walletTransactions.referenceId))
+        .leftJoin(users, eq(users.id, paymentIntents.createdBy))
+        .where(and(...gatewayConds))
+        .orderBy(desc(walletTransactions.createdAt));
+
+    // Fallback creators for intents with null created_by
+    const missingCreatorTxIds = gatewayRows
+        .filter((r) => !r.intentCreator)
+        .map((r) => r.tx.createdBy);
+    const fallbackCreators = missingCreatorTxIds.length
+        ? await db.select().from(users).where(inArray(users.id, [...new Set(missingCreatorTxIds)]))
+        : [];
+    const fallbackById = new Map(fallbackCreators.map((u) => [u.id, u] as const));
+
+    type Raw = {
+        tx: typeof walletTransactions.$inferSelect;
+        w: typeof wallets.$inferSelect;
+        creator: typeof users.$inferSelect | null;
+        paymentMethod: string | null;
+    };
+    const combined: Raw[] = [
+        ...cashRows.map((r) => ({ tx: r.tx, w: r.w, creator: r.creator, paymentMethod: "cash" as string | null })),
+        ...gatewayRows.map((r) => ({
+            tx: r.tx,
+            w: r.w,
+            creator: r.intentCreator ?? fallbackById.get(r.tx.createdBy) ?? null,
+            paymentMethod: r.pi.paymentMethod ?? null,
+        })),
+    ];
+    combined.sort((a, b) => String(b.tx.createdAt).localeCompare(String(a.tx.createdAt)));
+
+    const customerIds = [...new Set(combined.filter((r) => r.w.customerId != null).map((r) => r.w.customerId!))];
+    const ownerUserIds = [...new Set(combined.filter((r) => r.w.userId != null).map((r) => r.w.userId!))];
+    const [customerRows, ownerUserRows] = await Promise.all([
+        customerIds.length
+            ? db.select().from(customers).where(inArray(customers.id, customerIds))
+            : Promise.resolve([]),
+        ownerUserIds.length
+            ? db.select().from(users).where(inArray(users.id, ownerUserIds))
+            : Promise.resolve([]),
+    ]);
+    const customerById = new Map(customerRows.map((c) => [c.id, c] as const));
+    const ownerById = new Map(ownerUserRows.map((u) => [u.id, u] as const));
+
+    const channelFilter = (args.channel ?? "all").toLowerCase();
+    const items: TopupReportRow[] = [];
+    for (const r of combined) {
+        const creatorName = r.creator
+            ? (r.creator.fullName || r.creator.username)
+            : String(r.tx.createdBy);
+        const creatorRole = r.creator?.role ?? null;
+        const channel = classifyTopupChannel({
+            transactionType: r.tx.transactionType,
+            reason: r.tx.reason,
+            description: r.tx.description,
+            creatorRole,
+        });
+        if (channelFilter !== "all" && channel !== channelFilter) continue;
+
+        let recipientName = "—";
+        let recipientCode = "—";
+        if (r.w.customerId != null) {
+            const c = customerById.get(r.w.customerId);
+            if (c) {
+                recipientName = c.name;
+                recipientCode = c.studentCode ?? c.customerCode;
+            }
+        } else if (r.w.userId != null) {
+            const u = ownerById.get(r.w.userId);
+            if (u) {
+                recipientName = u.fullName || u.username;
+                recipientCode = u.username;
+            }
+        }
+
+        // Prefer parent/cashier name as "who topped up". For kiosk machines the
+        // RFID parent is not stored on the transaction — show kiosk label and
+        // keep recipient separate so admins can still see who was credited.
+        let toppedBy = creatorName;
+        if (channel === "kiosk") {
+            toppedBy = kioskDisplayName(r.tx.reason, creatorName);
+            // When the wallet belongs to a parent/staff user, that person is the
+            // practical "who topped up" at the kiosk (own wallet). Child wallets
+            // stay as kiosk label until acting_user_id is recorded.
+            if (r.w.userId != null && recipientName !== "—") {
+                toppedBy = recipientName;
+            }
+        }
+
+        items.push({
+            id: r.tx.id,
+            created_at: pgToIso(r.tx.createdAt)!,
+            channel,
+            topped_by: toppedBy,
+            recipient_name: recipientName,
+            recipient_code: recipientCode,
+            amount: pgNumber(r.tx.amount) ?? 0,
+            cashier_name: channel === "cashier" ? creatorName : null,
+            payment_method: r.paymentMethod,
+        });
+    }
+
+    const amountTotal = items.reduce((s, r) => s + r.amount, 0);
+    return { items, total: items.length, amount_total: amountTotal };
+}
+
+// ── Transaction (POS spending) report ──────────────────────────────────────
+
+export interface TransactionReportRow {
+    id: number;
+    created_at: string;
+    payer_id: string;
+    payer_name: string;
+    payment_method: string;
+    shop_name: string;
+    amount: number;
+    cashier_name: string;
+    receipt_number: string;
+    status: string;
+}
+
+export interface TransactionReportResponseDTO {
+    items: TransactionReportRow[];
+    total: number;
+    amount_total: number;
+}
+
+export async function transactionReport(args: {
+    dateFrom?: string | null;
+    dateTo?: string | null;
+}): Promise<TransactionReportResponseDTO> {
+    const dateFrom = args.dateFrom?.trim() || null;
+    const dateTo = args.dateTo?.trim() || null;
+
+    // receipts.transaction_date is timestamptz — include full calendar days.
+    const conds = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
+    if (dateFrom) conds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
+    if (dateTo) conds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
+
+    const rows = await db
+        .select({
+            id: receipts.id,
+            transactionDate: receipts.transactionDate,
+            paymentMethod: receipts.paymentMethod,
+            total: receipts.total,
+            receiptNumber: receipts.receiptNumber,
+            status: receipts.status,
+            createdBy: receipts.createdBy,
+            shopName: shops.name,
+            customerName: customers.name,
+            studentCode: customers.studentCode,
+            customerCode: customers.customerCode,
+            payerFullName: users.fullName,
+            payerUsername: users.username,
+        })
+        .from(receipts)
+        .leftJoin(shops, eq(shops.id, receipts.shopId))
+        .leftJoin(customers, eq(customers.id, receipts.customerId))
+        .leftJoin(users, eq(users.id, receipts.payerUserId))
+        .where(and(...conds))
+        .orderBy(desc(receipts.transactionDate), desc(receipts.id));
+
+    const cashierIds = [...new Set(rows.map((r) => r.createdBy).filter((id): id is number => id != null))];
+    const cashierRows = cashierIds.length
+        ? await db.select({ id: users.id, fullName: users.fullName, username: users.username }).from(users).where(inArray(users.id, cashierIds))
+        : [];
+    const cashierById = new Map(cashierRows.map((u) => [u.id, u] as const));
+
+    const items: TransactionReportRow[] = rows.map((r) => {
+        const payerName = r.customerName
+            ?? r.payerFullName
+            ?? r.payerUsername
+            ?? "—";
+        const payerId = r.studentCode
+            ?? r.customerCode
+            ?? r.payerUsername
+            ?? "—";
+        const cashier = r.createdBy != null ? cashierById.get(r.createdBy) : undefined;
+        return {
+            id: r.id,
+            created_at: String(r.transactionDate),
+            payer_id: payerId,
+            payer_name: payerName,
+            payment_method: String(r.paymentMethod ?? ""),
+            shop_name: r.shopName ?? "—",
+            amount: pgNumber(r.total) ?? 0,
+            cashier_name: cashier ? (cashier.fullName || cashier.username) : "—",
+            receipt_number: r.receiptNumber,
+            status: String(r.status ?? ""),
+        };
+    });
+
+    const amountTotal = items
+        .filter((r) => r.status === "ACTIVE")
+        .reduce((s, r) => s + r.amount, 0);
+
+    return { items, total: items.length, amount_total: amountTotal };
+}
+

@@ -2,7 +2,7 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
-import { adjustmentReport, transferReport } from "@/services/admin_reports_service";
+import { adjustmentReport, transferReport, topupReport, transactionReport } from "@/services/admin_reports_service";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -57,6 +57,49 @@ export const AdminReportsController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    topupReport: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { query } = reqContext;
+        logger.info(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() called.`);
+        if (!hasRole(user.roles, "admin")) {
+            logger.warn(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() forbidden.`);
+            return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+        }
+        try {
+            const result = await topupReport({
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+                channel: query.channel ?? null,
+            });
+            logger.info(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    transactionReport: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { query } = reqContext;
+        logger.info(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() called.`);
+        if (!hasRole(user.roles, "admin")) {
+            logger.warn(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() forbidden.`);
+            return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+        }
+        try {
+            const result = await transactionReport({
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+            });
+            logger.info(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() error:`, e);
             return errorFromService(reqContext, e);
         }
     },

@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or } from "drizzle-orm";
+import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or, not } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -951,6 +951,78 @@ export interface SalesSummaryReport {
   receipt_count: number;
 }
 
+type ReceiptJoinRow = {
+  receipt: typeof receipts.$inferSelect;
+  customer: typeof customers.$inferSelect | null;
+  payer: typeof users.$inferSelect | null;
+  shop: typeof shops.$inferSelect | null;
+};
+
+/** Per-receipt amount breakdown shared by both the "sale" and "void
+ * reversal" legs below — only the sign and displayed date differ. */
+function computeReceiptAmounts(r: typeof receipts.$inferSelect) {
+  const amtReceive = pgNumber(r.total) ?? 0;
+  let amtChange = 0;
+  if (r.paymentMethod === "CASH" && r.cashReceived !== null) {
+    const cashReceived = pgNumber(r.cashReceived) ?? 0;
+    amtChange = Math.max(cashReceived - amtReceive, 0);
+  }
+  const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
+  const buckets: Record<string, number> = {
+    amt_billing: 0, amt_cash: 0, amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_other: 0,
+  };
+  buckets[col] = amtReceive;
+  return { amtReceive, amtChange, buckets };
+}
+
+/**
+ * A voided receipt is shown as TWO rows — its original "sale" leg (dated by
+ * when it was sold, always Active — that sale genuinely happened) and a
+ * "void" reversal leg (dated by when it was actually voided, all amounts
+ * negated) — rather than one row with a flipped sign. Reading the two
+ * together nets to zero, and each row's own date/status is honest about
+ * what happened and when, instead of one row awkwardly claiming both.
+ */
+function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, string[]>, leg: "sale" | "void", seq: number): SalesSummaryRow {
+  const { receipt: r, customer, payer, shop } = entry;
+  const { amtReceive, amtChange, buckets } = computeReceiptAmounts(r);
+  const sign = leg === "sale" ? 1 : -1;
+
+  let custId: string | null = null;
+  let custName: string | null = null;
+  if (customer) {
+    custId = customer.customerCode;
+    custName = customer.name;
+  } else if (payer) {
+    custId = payer.externalId ?? payer.username;
+    custName = payer.fullName;
+  }
+
+  const bundleNames = bundleNamesByReceiptId.get(r.id);
+  const dateSource = leg === "sale" ? r.transactionDate : r.voidedAt!;
+
+  return {
+    seq,
+    transaction_date: pgToIso(dateSource)!,
+    receipt_number: r.receiptNumber,
+    customer_id: custId,
+    customer_name: custName,
+    amt_receive: amtReceive * sign,
+    amt_change: amtChange * sign,
+    amt_billing: buckets.amt_billing * sign,
+    amt_cash: buckets.amt_cash * sign,
+    amt_campus_card: buckets.amt_campus_card * sign,
+    amt_credit_card: buckets.amt_credit_card * sign,
+    amt_qr_code: buckets.amt_qr_code * sign,
+    amt_other: buckets.amt_other * sign,
+    remark: r.notes ?? null,
+    shop_id: r.shopId ?? "",
+    shop_name: shop?.name ?? null,
+    bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
+    status: leg === "sale" ? "ACTIVE" : "VOIDED",
+  };
+}
+
 export async function salesSummaryReport(args: {
   user: AccessTokenPayload;
   dateFrom?: string | null;
@@ -967,27 +1039,45 @@ export async function salesSummaryReport(args: {
   const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
   const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
-  // No status filter — voided receipts are included as their own rows
-  // (tagged via `status`) and excluded from totals below.
-  const conds: SQL[] = [];
-  if (args.dateFrom) conds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
-  if (args.dateTo) conds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
+  // Filters shared by both legs (sale + void reversal) below — the date
+  // range itself is intentionally NOT here since each leg is dated
+  // differently (sale date vs void date).
+  const commonConds: SQL[] = [];
   if (effectiveShopId) {
-    conds.push(eq(receipts.shopId, effectiveShopId));
+    commonConds.push(eq(receipts.shopId, effectiveShopId));
   } else if (effMod) {
     const ids = await moduleShopIds(effMod);
-    if (ids.length > 0) conds.push(inArray(receipts.shopId, ids));
+    if (ids.length > 0) commonConds.push(inArray(receipts.shopId, ids));
   }
-  if (args.receiptNoFrom) conds.push(gte(receipts.receiptNumber, args.receiptNoFrom));
-  if (args.receiptNoTo) conds.push(lte(receipts.receiptNumber, args.receiptNoTo));
+  if (args.receiptNoFrom) commonConds.push(gte(receipts.receiptNumber, args.receiptNoFrom));
+  if (args.receiptNoTo) commonConds.push(lte(receipts.receiptNumber, args.receiptNoTo));
   if (args.receiveType && args.receiveType !== "all") {
     const methods = RECEIVE_TYPE_GROUPS[args.receiveType as ReceiveTypeKey];
-    if (methods) conds.push(inArray(receipts.paymentMethod, [...methods]));
+    if (methods) commonConds.push(inArray(receipts.paymentMethod, [...methods]));
+  }
+  // "Customer Type" here means who the payer IS (parent/student/staff/
+  // guest) — unrelated to customer_types.type_name, which is a billing
+  // price-level enum (PUBLIC/INTERNAL only) and throws a Postgres enum
+  // cast error for any of these values. Parents/staff pay from their own
+  // user wallet (receipts.payer_user_id → users.role); students/guests
+  // pay from a customer wallet (receipts.customer_id → customers.customer_kind,
+  // where "guest" is stored as customer_kind 'other').
+  if (args.customerType && args.customerType !== "all") {
+    if (args.customerType === "parent" || args.customerType === "staff") {
+      commonConds.push(eq(users.role, args.customerType));
+    } else {
+      commonConds.push(eq(customers.customerKind, args.customerType === "guest" ? "other" : args.customerType));
+    }
+  }
+  if (args.familyCode) commonConds.push(eq(customers.familyCode, args.familyCode));
+  if (args.userName) {
+    const pat = `%${args.userName}%`;
+    commonConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
   }
 
-  // Use a single query with left-joins so optional customer filters work without
-  // dropping guest sales when not filtered.
-  const baseQuery = db
+  // Use a single query shape with left-joins so optional customer filters
+  // work without dropping guest sales when not filtered.
+  const baseQuery = () => db
     .select({
       receipt: receipts,
       customer: customers,
@@ -999,36 +1089,44 @@ export async function salesSummaryReport(args: {
     .leftJoin(users, eq(users.id, receipts.payerUserId))
     .leftJoin(shops, eq(shops.id, receipts.shopId));
 
-  const filterConds = [...conds];
-  if (args.customerType && args.customerType !== "all") {
-    // "Customer Type" here means who the payer IS (parent/student/staff/
-    // guest) — unrelated to customer_types.type_name, which is a billing
-    // price-level enum (PUBLIC/INTERNAL only) and throws a Postgres enum
-    // cast error for any of these values. Parents/staff pay from their own
-    // user wallet (receipts.payer_user_id → users.role); students/guests
-    // pay from a customer wallet (receipts.customer_id → customers.customer_kind,
-    // where "guest" is stored as customer_kind 'other').
-    if (args.customerType === "parent" || args.customerType === "staff") {
-      filterConds.push(eq(users.role, args.customerType));
-    } else {
-      filterConds.push(eq(customers.customerKind, args.customerType === "guest" ? "other" : args.customerType));
-    }
-  }
-  if (args.familyCode) filterConds.push(eq(customers.familyCode, args.familyCode));
-  if (args.userName) {
-    const pat = `%${args.userName}%`;
-    filterConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
-  }
+  const saleDateConds: SQL[] = [];
+  if (args.dateFrom) saleDateConds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
+  if (args.dateTo) saleDateConds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
+  const hasDateFilter = saleDateConds.length > 0;
 
-  const allRows = await baseQuery
-    .where(and(...filterConds))
+  // "Sale" leg — every receipt sold within the window, regardless of
+  // whether it was later voided (that reversal is its own leg, dated by
+  // when the void actually happened — handled per-row below).
+  const saleRows = await baseQuery()
+    .where(and(...commonConds, ...saleDateConds))
     .orderBy(asc(shops.name), desc(receipts.transactionDate), desc(receipts.id));
+
+  // Void-reversal-only rows: receipts voided WITHIN this window whose sale
+  // falls OUTSIDE it (e.g. sold Jul 10, voided Jul 15, report filtered to
+  // Jul 12–20 → shows only the reversal). Receipts already in `saleRows`
+  // decide their own possible void leg per-row below, so this only needs
+  // the complement (sale date NOT in range).
+  let voidOnlyRows: typeof saleRows = [];
+  if (hasDateFilter) {
+    const voidDateConds: SQL[] = [];
+    if (args.dateFrom) voidDateConds.push(gte(receipts.voidedAt, `${args.dateFrom}T00:00:00+07:00`));
+    if (args.dateTo) voidDateConds.push(lte(receipts.voidedAt, `${args.dateTo}T23:59:59.999999+07:00`));
+    voidOnlyRows = await baseQuery()
+      .where(and(
+        ...commonConds,
+        eq(receipts.status, "VOIDED"),
+        ...voidDateConds,
+        not(and(...saleDateConds)!),
+      ))
+      .orderBy(asc(shops.name), desc(receipts.voidedAt), desc(receipts.id));
+  }
 
   // Bundle sale lines don't have their own row in this receipt-level report,
   // so collect the bundle name(s) per receipt from receiptItems.options
   // (same is_bundle/bundle_name shape used by salesByItemReport) to surface
   // as a "Bundle" column instead of leaving bundle sales invisible here.
-  const receiptIds = allRows.map(({ receipt: r }) => r.id);
+  const allEntries = [...saleRows, ...voidOnlyRows];
+  const receiptIds = allEntries.map(({ receipt: r }) => r.id);
   const bundleNamesByReceiptId = new Map<number, string[]>();
   if (receiptIds.length > 0) {
     const bundleItemRows = await db
@@ -1046,76 +1144,62 @@ export async function salesSummaryReport(args: {
     }
   }
 
-  const rows: SalesSummaryRow[] = [];
-  const totals: SalesSummaryTotals = {
-    amt_receive: 0,
-    amt_change: 0,
-    amt_billing: 0,
-    amt_cash: 0,
-    amt_campus_card: 0,
-    amt_credit_card: 0,
-    amt_qr_code: 0,
-    amt_other: 0,
-  };
+  function voidedAtInRange(r: typeof receipts.$inferSelect): boolean {
+    if (!r.voidedAt) return false;
+    if (!hasDateFilter) return true;
+    const t = new Date(pgToIso(r.voidedAt)!).getTime();
+    if (args.dateFrom && t < new Date(`${args.dateFrom}T00:00:00+07:00`).getTime()) return false;
+    if (args.dateTo && t > new Date(`${args.dateTo}T23:59:59.999999+07:00`).getTime()) return false;
+    return true;
+  }
 
-  allRows.forEach(({ receipt: r, customer, payer, shop }, idx) => {
-    const amtReceive = pgNumber(r.total) ?? 0;
-    let amtChange = 0;
-    if (r.paymentMethod === "CASH" && r.cashReceived !== null) {
-      const cashReceived = pgNumber(r.cashReceived) ?? 0;
-      amtChange = Math.max(cashReceived - amtReceive, 0);
+  const legs: Array<{ entry: ReceiptJoinRow; leg: "sale" | "void" }> = [];
+  for (const entry of saleRows) {
+    legs.push({ entry, leg: "sale" });
+    if (entry.receipt.status === "VOIDED" && voidedAtInRange(entry.receipt)) {
+      legs.push({ entry, leg: "void" });
     }
+  }
+  for (const entry of voidOnlyRows) {
+    legs.push({ entry, leg: "void" });
+  }
 
-    let custId: string | null = null;
-    let custName: string | null = null;
-    if (customer) {
-      custId = customer.customerCode;
-      custName = customer.name;
-    } else if (payer) {
-      custId = payer.externalId ?? payer.username;
-      custName = payer.fullName;
-    }
-
-    const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
-    const buckets: Omit<
-      SalesSummaryRow,
-      "seq" | "transaction_date" | "receipt_number" | "customer_id" | "customer_name" | "amt_receive" | "amt_change" | "remark" | "shop_id" | "shop_name" | "bundle_names" | "status"
-    > = {
-      amt_billing: 0,
-      amt_cash: 0,
-      amt_campus_card: 0,
-      amt_credit_card: 0,
-      amt_qr_code: 0,
-      amt_other: 0,
-    };
-    (buckets as Record<string, number>)[col] = amtReceive;
-
-    const bundleNames = bundleNamesByReceiptId.get(r.id);
-
-    rows.push({
-      seq: idx + 1,
-      transaction_date: pgToIso(r.transactionDate)!,
-      receipt_number: r.receiptNumber,
-      customer_id: custId,
-      customer_name: custName,
-      amt_receive: amtReceive,
-      amt_change: amtChange,
-      remark: r.notes ?? null,
-      shop_id: r.shopId ?? "",
-      shop_name: shop?.name ?? null,
-      bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
-      status: r.status,
-      ...buckets,
-    });
-
-    if (r.status === "ACTIVE") {
-      totals.amt_receive += amtReceive;
-      totals.amt_change += amtChange;
-      if (col !== "amt_receive" && col !== "amt_change") {
-        totals[col] += amtReceive;
-      }
-    }
+  // Re-sort the combined legs by each leg's OWN effective date (sale legs by
+  // sale time, void legs by void time) so a same-day reversal still lands
+  // right after its sale, but a reversal from a different day sorts on its
+  // own — matches the "show it as it truly happened" ordering.
+  legs.sort((a, b) => {
+    const shopCmp = (a.entry.shop?.name ?? "").localeCompare(b.entry.shop?.name ?? "");
+    if (shopCmp !== 0) return shopCmp;
+    const dateA = new Date(pgToIso(a.leg === "sale" ? a.entry.receipt.transactionDate : a.entry.receipt.voidedAt!)!).getTime();
+    const dateB = new Date(pgToIso(b.leg === "sale" ? b.entry.receipt.transactionDate : b.entry.receipt.voidedAt!)!).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    return b.entry.receipt.id - a.entry.receipt.id;
   });
+
+  const rows: SalesSummaryRow[] = legs.map(({ entry, leg }, idx) => buildLegRow(entry, bundleNamesByReceiptId, leg, idx + 1));
+
+  // Plain sum over every row — a paired sale + void reversal nets to zero
+  // on its own, so there's no special status-based exclusion needed here
+  // any more (unlike the old single-row-per-receipt model).
+  const totals: SalesSummaryTotals = {
+    amt_receive: 0, amt_change: 0, amt_billing: 0, amt_cash: 0,
+    amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_other: 0,
+  };
+  for (const row of rows) {
+    totals.amt_receive += row.amt_receive;
+    totals.amt_change += row.amt_change;
+    totals.amt_billing += row.amt_billing;
+    totals.amt_cash += row.amt_cash;
+    totals.amt_campus_card += row.amt_campus_card;
+    totals.amt_credit_card += row.amt_credit_card;
+    totals.amt_qr_code += row.amt_qr_code;
+    totals.amt_other += row.amt_other;
+  }
+
+  // Count distinct receipts, not rows — a voided receipt showing both legs
+  // still counts once.
+  const distinctReceiptIds = new Set(legs.map(({ entry }) => entry.receipt.id));
 
   return {
     date_from: args.dateFrom ?? null,
@@ -1123,7 +1207,7 @@ export async function salesSummaryReport(args: {
     shop_id: effectiveShopId,
     rows,
     totals,
-    receipt_count: rows.filter((r) => r.status === "ACTIVE").length,
+    receipt_count: distinctReceiptIds.size,
   };
 }
 

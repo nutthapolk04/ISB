@@ -22,8 +22,6 @@ import {
   exportToPDF,
   exportToExcel,
   buildDateFilterLine,
-  SECTION_KEY,
-  EMPHASIS_KEY,
   type ReportColumn,
   type ReportPayload,
 } from "@/lib/reportExport";
@@ -229,21 +227,21 @@ export function SalesSummaryReport({
     const filterLines = buildSalesSummaryFilterLines();
     let bodyRows: Record<string, unknown>[];
     if (multi) {
-      bodyRows = buildVendorSections(ssData.rows, (shopRows) => {
-        const active = shopRows.filter((r) => r.status === "ACTIVE");
-        return {
-          customer_name: "Subtotal",
-          bundle_names: "",
-          amt_receive:      active.reduce((s, r) => s + r.amt_receive,     0),
-          amt_change:       active.reduce((s, r) => s + r.amt_change,      0),
-          amt_billing:      active.reduce((s, r) => s + r.amt_billing,     0),
-          amt_cash:         active.reduce((s, r) => s + r.amt_cash,        0),
-          amt_campus_card:  active.reduce((s, r) => s + r.amt_campus_card, 0),
-          amt_credit_card:  active.reduce((s, r) => s + r.amt_credit_card, 0),
-          amt_qr_code:      active.reduce((s, r) => s + r.amt_qr_code,     0),
-          amt_other:        active.reduce((s, r) => s + r.amt_other,       0),
-        };
-      });
+      // Plain sum per shop — a voided receipt's sale + void reversal legs
+      // are both already in `shopRows` and net to zero on their own, so no
+      // status-based filtering is needed here any more.
+      bodyRows = buildVendorSections(ssData.rows, (shopRows) => ({
+        customer_name: "Subtotal",
+        bundle_names: "",
+        amt_receive:      shopRows.reduce((s, r) => s + r.amt_receive,     0),
+        amt_change:       shopRows.reduce((s, r) => s + r.amt_change,      0),
+        amt_billing:      shopRows.reduce((s, r) => s + r.amt_billing,     0),
+        amt_cash:         shopRows.reduce((s, r) => s + r.amt_cash,        0),
+        amt_campus_card:  shopRows.reduce((s, r) => s + r.amt_campus_card, 0),
+        amt_credit_card:  shopRows.reduce((s, r) => s + r.amt_credit_card, 0),
+        amt_qr_code:      shopRows.reduce((s, r) => s + r.amt_qr_code,     0),
+        amt_other:        shopRows.reduce((s, r) => s + r.amt_other,       0),
+      }));
     } else {
       bodyRows = ssData.rows as unknown as Record<string, unknown>[];
       // Only fill Shop from row data when the UI filter didn't already name it
@@ -255,16 +253,6 @@ export function SalesSummaryReport({
         filterLines.push(`Shop: ${ssData.rows[0].shop_name ?? ssData.rows[0].shop_id}`);
       }
     }
-    // Voided receipts keep showing "ACTIVE" here (customer request — the void
-    // report is the record of what got voided) but flip Amt. Campus card
-    // negative so the reversal is still visible. Totals/subtotals above are
-    // already computed from the untouched rows, so this only affects display.
-    bodyRows = bodyRows.map((row) => {
-      if (SECTION_KEY in row || EMPHASIS_KEY in row) return row;
-      const r = row as unknown as SalesSummaryRow;
-      if (r.status === "ACTIVE") return row;
-      return { ...row, amt_campus_card: -r.amt_campus_card, status: "ACTIVE" };
-    });
 
     return {
       meta: {
@@ -490,21 +478,21 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
                           <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_receive.toFixed(2)}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_change > 0 ? r.amt_change.toFixed(2) : ""}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_billing > 0 ? r.amt_billing.toFixed(2) : ""}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_cash > 0 ? r.amt_cash.toFixed(2) : ""}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">
-                            {r.amt_campus_card > 0
-                              ? (r.status === "ACTIVE" ? r.amt_campus_card : -r.amt_campus_card).toFixed(2)
-                              : ""}
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_credit_card > 0 ? r.amt_credit_card.toFixed(2) : ""}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code > 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_other > 0 ? r.amt_other.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_change !== 0 ? r.amt_change.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_billing !== 0 ? r.amt_billing.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_cash !== 0 ? r.amt_cash.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_campus_card !== 0 ? r.amt_campus_card.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_credit_card !== 0 ? r.amt_credit_card.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code !== 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_other !== 0 ? r.amt_other.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.bundle_names ?? ""}</td>
                           <td className="px-2 py-1.5">
-                            <span className="text-muted-foreground">Active</span>
+                            {r.status === "ACTIVE" ? (
+                              <span className="text-muted-foreground">Active</span>
+                            ) : (
+                              <span className="font-semibold text-destructive">Voided</span>
+                            )}
                           </td>
                         </tr>
                       ))

@@ -115,8 +115,8 @@ const Reports = () => {
     const [reportOpenNonce, setReportOpenNonce] = useState(0);
 
     // Determine which module's Reports page we're rendering. /canteen/reports
-    // narrows the visible cards to canteen-relevant ones; /store/reports and
-    // /admin/reports get every report.
+    // narrows the visible cards to canteen-relevant ones; /store/reports gets
+    // the full store set. Admin uses /admin/reports (AdminReports) instead.
     const location = useLocation();
     const isCanteenReportsPage = location.pathname.startsWith("/canteen/");
 
