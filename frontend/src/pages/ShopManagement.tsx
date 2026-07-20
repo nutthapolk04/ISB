@@ -34,6 +34,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Building2, Plus, Edit, Trash2, Package, Loader2, Store as StoreIcon, ChevronRight, BarChart3 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 
@@ -56,8 +57,16 @@ interface ShopApiResponse {
     is_active: boolean;
     created_at: string;
     module: ShopModule;
-    spending_group_id: number | null;
     shop_number: number | null;
+}
+
+interface AssignableGroup {
+    id: number;
+    code: string;
+    name_en: string;
+    name_th: string;
+    is_active: boolean;
+    linked: boolean;
 }
 
 interface ShopStats {
@@ -74,7 +83,6 @@ interface Shop {
     productCount: number;
     shopType: "avg_cost" | "fifo";
     module: ShopModule;
-    spendingGroupId: number | null;
     shopNumber: number | null;
 }
 
@@ -85,7 +93,6 @@ const emptyShopForm = {
     isActive: "active" as "active" | "inactive",
     shopType: "fifo" as "avg_cost" | "fifo",
     module: "store" as ShopModule,
-    spendingGroupId: "" as string,
     shopNumber: "" as string,
 };
 
@@ -115,6 +122,13 @@ const ShopManagement = () => {
     const [editForm, setEditForm] = useState(emptyShopForm);
     const [activeTab, setActiveTab] = useState<ShopModule>("store");
 
+    // Spending-group membership is many-to-many (shop_spending_groups) —
+    // managed as its own multi-select, separate from the shop id/name form.
+    const [addGroupIds, setAddGroupIds] = useState<Set<number>>(new Set());
+    const [editGroupIds, setEditGroupIds] = useState<Set<number>>(new Set());
+    const [initialEditGroupIds, setInitialEditGroupIds] = useState<Set<number>>(new Set());
+    const [editGroupsLoading, setEditGroupsLoading] = useState(false);
+
     // ── Fetch shops from API ────────────────────────────────────────────────
 
     const fetchShops = useCallback(async () => {
@@ -141,7 +155,6 @@ const ShopManagement = () => {
                         productCount: stats.total_products,
                         shopType: s.shop_type,
                         module: s.module ?? "store",
-                        spendingGroupId: s.spending_group_id ?? null,
                         shopNumber: s.shop_number ?? null,
                     };
                 }),
@@ -172,18 +185,24 @@ const ShopManagement = () => {
         }
         try {
             setSaving(true);
+            const newId = shopForm.id.trim().replace(/\s+/g, "_");
             await api.post("/shops/", {
-                id: shopForm.id.trim().replace(/\s+/g, "_"),
+                id: newId,
                 name: shopForm.name.trim(),
                 description: shopForm.description.trim() || null,
                 shop_type: shopForm.shopType,
                 module: shopForm.module,
-                spending_group_id: shopForm.spendingGroupId ? parseInt(shopForm.spendingGroupId) : null,
                 shop_number: shopForm.shopNumber ? parseInt(shopForm.shopNumber) : null,
             });
+            if (addGroupIds.size > 0) {
+                await api.patch(`/shops/${newId}/spending-groups`, {
+                    spending_group_ids: Array.from(addGroupIds),
+                });
+            }
             toast.success(t("management.shopAdded"));
             setIsAddOpen(false);
             setShopForm(emptyShopForm);
+            setAddGroupIds(new Set());
             await fetchShops();
         } catch (err: any) {
             toast.error(err?.detail ?? t("management.addError", "Failed to add shop"));
@@ -203,9 +222,19 @@ const ShopManagement = () => {
             isActive: shop.isActive ? "active" : "inactive",
             shopType: shop.shopType,
             module: shop.module,
-            spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
             shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
         });
+        setEditGroupIds(new Set());
+        setInitialEditGroupIds(new Set());
+        setEditGroupsLoading(true);
+        api.get<AssignableGroup[]>(`/shops/${shop.id}/spending-groups`)
+            .then((groups) => {
+                const linked = new Set(groups.filter((g) => g.linked).map((g) => g.id));
+                setEditGroupIds(linked);
+                setInitialEditGroupIds(linked);
+            })
+            .catch(() => { /* leave empty — shop may predate this feature */ })
+            .finally(() => setEditGroupsLoading(false));
     };
 
     const handleEditShop = async () => {
@@ -213,19 +242,21 @@ const ShopManagement = () => {
             toast.error(t("management.fillAllRequired"));
             return;
         }
-        const newGroupId = editForm.spendingGroupId ? parseInt(editForm.spendingGroupId) : null;
-        const groupChanged = newGroupId !== editTarget.spendingGroupId;
+        const groupsChanged =
+            editGroupIds.size !== initialEditGroupIds.size ||
+            [...editGroupIds].some((id) => !initialEditGroupIds.has(id));
         try {
             setSaving(true);
             await api.patch(`/shops/${editTarget.id}`, {
                 name: editForm.name.trim(),
                 description: editForm.description.trim() || null,
                 is_active: editForm.isActive === "active",
-                spending_group_id: newGroupId,
                 shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
             });
-            // Warn when spending group changes
-            if (groupChanged && editTarget.spendingGroupId !== null) {
+            if (groupsChanged) {
+                await api.patch(`/shops/${editTarget.id}/spending-groups`, {
+                    spending_group_ids: Array.from(editGroupIds),
+                });
                 sonnerToast(t("spendingGroup.changeWarning"), { duration: 6000 });
             }
             toast.success(t("management.shopUpdated"));
@@ -274,6 +305,7 @@ const ShopManagement = () => {
             module,
             shopType: module === "canteen" ? "avg_cost" : "fifo",
         });
+        setAddGroupIds(new Set());
         setIsAddOpen(true);
     };
 
@@ -375,22 +407,50 @@ const ShopManagement = () => {
                         </div>
                         <div>
                             <Label>{t("spendingGroup.title")}</Label>
-                            <Select
-                                value={shopForm.spendingGroupId || "__none__"}
-                                onValueChange={(v) => setShopForm({ ...shopForm, spendingGroupId: v === "__none__" ? "" : v })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t("spendingGroup.title")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__none__">— None —</SelectItem>
-                                    {spendingGroups.map((g) => (
-                                        <SelectItem key={g.id} value={String(g.id)}>
-                                            {g.name_en} ({g.code})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <p className="text-xs text-muted-foreground mb-1">
+                                {t("spendingGroup.multiHint", "A shop can belong to more than one group.")}
+                            </p>
+                            {spendingGroups.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-1">No spending groups yet</p>
+                            ) : (
+                                <div className="flex flex-col gap-1 rounded border bg-muted/30 p-2 max-h-40 overflow-y-auto">
+                                    <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs font-medium border-b border-border/60 mb-1 pb-1.5">
+                                        <Checkbox
+                                            checked={addGroupIds.size === spendingGroups.length}
+                                            onCheckedChange={() => {
+                                                setAddGroupIds(
+                                                    addGroupIds.size === spendingGroups.length
+                                                        ? new Set()
+                                                        : new Set(spendingGroups.map((g) => g.id)),
+                                                );
+                                            }}
+                                        />
+                                        <span className="flex-1">{t("common.selectAll", "Select all")}</span>
+                                    </label>
+                                    {spendingGroups.map((g) => {
+                                        const checked = addGroupIds.has(g.id);
+                                        return (
+                                            <label
+                                                key={g.id}
+                                                className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs"
+                                            >
+                                                <Checkbox
+                                                    checked={checked}
+                                                    onCheckedChange={() => {
+                                                        setAddGroupIds((prev) => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(g.id)) next.delete(g.id);
+                                                            else next.add(g.id);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                />
+                                                <span className="flex-1">{g.name_en} ({g.code})</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>
@@ -560,22 +620,55 @@ const ShopManagement = () => {
                         </div>
                         <div>
                             <Label>{t("spendingGroup.title")}</Label>
-                            <Select
-                                value={editForm.spendingGroupId || "__none__"}
-                                onValueChange={(v) => setEditForm({ ...editForm, spendingGroupId: v === "__none__" ? "" : v })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t("spendingGroup.title")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__none__">— None —</SelectItem>
-                                    {spendingGroups.map((g) => (
-                                        <SelectItem key={g.id} value={String(g.id)}>
-                                            {g.name_en} ({g.code})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <p className="text-xs text-muted-foreground mb-1">
+                                {t("spendingGroup.multiHint", "A shop can belong to more than one group.")}
+                            </p>
+                            {editGroupsLoading ? (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Loading…
+                                </div>
+                            ) : spendingGroups.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-1">No spending groups yet</p>
+                            ) : (
+                                <div className="flex flex-col gap-1 rounded border bg-muted/30 p-2 max-h-40 overflow-y-auto">
+                                    <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs font-medium border-b border-border/60 mb-1 pb-1.5">
+                                        <Checkbox
+                                            checked={editGroupIds.size === spendingGroups.length}
+                                            onCheckedChange={() => {
+                                                setEditGroupIds(
+                                                    editGroupIds.size === spendingGroups.length
+                                                        ? new Set()
+                                                        : new Set(spendingGroups.map((g) => g.id)),
+                                                );
+                                            }}
+                                        />
+                                        <span className="flex-1">{t("common.selectAll", "Select all")}</span>
+                                    </label>
+                                    {spendingGroups.map((g) => {
+                                        const checked = editGroupIds.has(g.id);
+                                        return (
+                                            <label
+                                                key={g.id}
+                                                className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs"
+                                            >
+                                                <Checkbox
+                                                    checked={checked}
+                                                    onCheckedChange={() => {
+                                                        setEditGroupIds((prev) => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(g.id)) next.delete(g.id);
+                                                            else next.add(g.id);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                />
+                                                <span className="flex-1">{g.name_en} ({g.code})</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>

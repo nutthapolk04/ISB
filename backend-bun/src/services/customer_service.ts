@@ -1,6 +1,6 @@
 import { eq, and, or, ilike, asc, inArray, sql, ne, isNotNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops } from "@/db/schema";
+import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops, shopSpendingGroups } from "@/db/schema";
 import { expandCardUidCandidates } from "@/lib/card_uid";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
@@ -723,7 +723,12 @@ export interface SpendingGroupUsage {
 
 export async function getSpendingGroupsUsageToday(customerId: number): Promise<SpendingGroupUsage[]> {
     const cRows = await db
-        .select({ id: customers.id, dailyLimitCanteen: customers.dailyLimitCanteen, dailyLimitStore: customers.dailyLimitStore })
+        .select({
+            id: customers.id,
+            grade: customers.grade,
+            dailyLimitCanteen: customers.dailyLimitCanteen,
+            dailyLimitStore: customers.dailyLimitStore,
+        })
         .from(customers)
         .where(eq(customers.id, customerId))
         .limit(1);
@@ -732,23 +737,30 @@ export async function getSpendingGroupsUsageToday(customerId: number): Promise<S
         (err as { status?: number }).status = 404;
         throw err;
     }
-    const { dailyLimitCanteen, dailyLimitStore } = cRows[0];
+    const { grade, dailyLimitCanteen, dailyLimitStore } = cRows[0];
 
-    // Get all active spending groups with their module (via linked shops).
-    // GROUP BY instead of selectDistinct so a group linked to shops of mixed
-    // modules collapses to one row (MIN picks "canteen" over "store").
+    // Only groups whose `grades` list covers this student's grade apply to
+    // them — a group with no grade match is irrelevant to this customer.
+    if (!grade) return [];
+
+    // Get every active group covering this grade, with its module (derived
+    // from its linked shops). GROUP BY instead of selectDistinct so a group
+    // linked to shops of mixed modules collapses to one row (MIN picks
+    // "canteen" over "store").
     const groups = await db
         .select({
             id: spendingGroups.id,
             code: spendingGroups.code,
             nameEn: spendingGroups.nameEn,
             nameTh: spendingGroups.nameTh,
+            dailyLimit: spendingGroups.dailyLimit,
             module: sql<string>`MIN(${shops.module})`,
         })
         .from(spendingGroups)
-        .innerJoin(shops, eq(shops.spendingGroupId, spendingGroups.id))
-        .where(eq(spendingGroups.isActive, true))
-        .groupBy(spendingGroups.id, spendingGroups.code, spendingGroups.nameEn, spendingGroups.nameTh);
+        .innerJoin(shopSpendingGroups, eq(shopSpendingGroups.spendingGroupId, spendingGroups.id))
+        .innerJoin(shops, eq(shops.id, shopSpendingGroups.shopId))
+        .where(and(eq(spendingGroups.isActive, true), sql`${spendingGroups.grades} @> ${JSON.stringify([grade])}::jsonb`))
+        .groupBy(spendingGroups.id, spendingGroups.code, spendingGroups.nameEn, spendingGroups.nameTh, spendingGroups.dailyLimit);
 
     if (groups.length === 0) return [];
 
@@ -775,7 +787,10 @@ export async function getSpendingGroupsUsageToday(customerId: number): Promise<S
     return groups.map((g) => {
         const isCanteen = g.module === "canteen";
         const rawLimit = isCanteen ? dailyLimitCanteen : dailyLimitStore;
-        const effectiveLimit = rawLimit != null ? Number(rawLimit) : null;
+        // Parent-set override takes priority; otherwise fall back to this
+        // group's own configured daily_limit (never null — the column is
+        // NOT NULL — so every grade-matched group always has a real limit).
+        const effectiveLimit = rawLimit != null ? Number(rawLimit) : (pgNumber(g.dailyLimit) ?? 0);
         const spent = spentMap.get(g.id) ?? 0;
         return {
             spending_group_id: g.id,
@@ -784,7 +799,7 @@ export async function getSpendingGroupsUsageToday(customerId: number): Promise<S
             name_th: g.nameTh,
             daily_limit: effectiveLimit,
             spent_today: spent,
-            remaining: effectiveLimit != null ? Math.max(0, effectiveLimit - spent) : null,
+            remaining: Math.max(0, effectiveLimit - spent),
         };
     });
 }
@@ -794,26 +809,25 @@ export async function getSpendingGroupUsageToday(
     customerId: number | null,
     userId: number | null,
 ): Promise<SpendingGroupUsage> {
-    const groupRows = await db
-        .selectDistinct({
-            id: spendingGroups.id,
-            code: spendingGroups.code,
-            nameEn: spendingGroups.nameEn,
-            nameTh: spendingGroups.nameTh,
-            module: shops.module,
-            groupDailyLimit: spendingGroups.dailyLimit,
-        })
-        .from(spendingGroups)
-        .innerJoin(shops, eq(shops.spendingGroupId, spendingGroups.id))
-        .where(eq(spendingGroups.id, groupId))
-        .limit(1);
+    const groupRows = await db.select().from(spendingGroups).where(eq(spendingGroups.id, groupId)).limit(1);
     if (!groupRows[0]) {
         const err = new Error("Spending group not found");
         (err as { status?: number }).status = 404;
         throw err;
     }
     const group = groupRows[0];
-    const groupDefault = group.groupDailyLimit != null ? Number(group.groupDailyLimit) : 0;
+    const groupDefault = pgNumber(group.dailyLimit) ?? 0;
+
+    // Module derived from this group's linked shops (MIN picks "canteen"
+    // over "store" if a group is ever linked across mixed modules). A group
+    // with no linked shops yet has no derivable module — falls through to
+    // the group's own default without a canteen/store override lookup.
+    const moduleRows = await db
+        .select({ module: sql<string>`MIN(${shops.module})` })
+        .from(shopSpendingGroups)
+        .innerJoin(shops, eq(shops.id, shopSpendingGroups.shopId))
+        .where(eq(shopSpendingGroups.spendingGroupId, groupId));
+    const groupModule: string | null = moduleRows[0]?.module ?? null;
 
     let effectiveLimit: number;
     if (customerId) {
@@ -827,7 +841,7 @@ export async function getSpendingGroupUsageToday(
             (err as { status?: number }).status = 404;
             throw err;
         }
-        const raw = group.module === "canteen" ? cRows[0].dailyLimitCanteen : cRows[0].dailyLimitStore;
+        const raw = groupModule === "canteen" ? cRows[0].dailyLimitCanteen : cRows[0].dailyLimitStore;
         // Customer's personal limit takes priority. Fall back to the group's default
         // when the customer has no override configured (null) — keeps the chip useful
         // even when limits aren't tuned per student.

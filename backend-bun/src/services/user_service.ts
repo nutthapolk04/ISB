@@ -33,6 +33,7 @@ export interface UserPayerLookupDTO {
     full_name: string;
     role: string;
     photo_url: string | null;
+    external_id: string | null;
     wallet_id: number;
     wallet_balance: number;
     is_active: boolean;
@@ -241,6 +242,7 @@ async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLo
         full_name: target.fullName,
         role: target.role ?? "",
         photo_url: target.photoUrl ?? null,
+        external_id: target.externalId ?? null,
         wallet_id: wallet.id,
         wallet_balance: pgNumber(wallet.balance) ?? 0,
         is_active: target.isActive,
@@ -292,6 +294,21 @@ export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDT
         throw err;
     }
     console.log("[getUserPayerByCard] calling payerView...");
+    return payerView(rows[0]);
+}
+
+export async function getUserPayerByExternalId(externalId: string): Promise<UserPayerLookupDTO> {
+    const rows = await db.select().from(users).where(eq(users.externalId, externalId)).limit(1);
+    if (!rows[0]) {
+        const err = new Error("User not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+    if (!rows[0].isActive) {
+        const err = new Error("User is inactive");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
     return payerView(rows[0]);
 }
 

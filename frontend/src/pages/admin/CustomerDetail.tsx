@@ -48,6 +48,8 @@ interface StudentProfile {
   card_frozen: boolean;
   is_active?: boolean;
   daily_limit?: number | null;
+  daily_limit_canteen?: number | null;
+  daily_limit_store?: number | null;
   negative_credit_limit?: number | null;
   wallet_id?: number | null;
   wallet_balance?: number | null;
@@ -110,8 +112,11 @@ export default function CustomerDetail() {
   const [cardUidDraft, setCardUidDraft] = useState("");
   const [bindingCard, setBindingCard] = useState(false);
 
-  // Daily limit editor
-  const [dailyLimitDraft, setDailyLimitDraft] = useState<string>("");
+  // Daily limit editor (per-module — this is what checkout actually enforces;
+  // the old single `daily_limit` field was never read at checkout, so it's
+  // been replaced with these two).
+  const [canteenLimitDraft, setCanteenLimitDraft] = useState<string>("");
+  const [storeLimitDraft, setStoreLimitDraft] = useState<string>("");
   const [savingLimit, setSavingLimit] = useState(false);
 
   // Negative credit limit editor
@@ -157,7 +162,8 @@ export default function CustomerDetail() {
         dietary_notes: p.dietary_notes ?? "",
         allergy_override_note: p.allergy_override_note ?? "",
       });
-      setDailyLimitDraft(p.daily_limit != null ? String(p.daily_limit) : "");
+      setCanteenLimitDraft(p.daily_limit_canteen != null ? String(p.daily_limit_canteen) : "");
+      setStoreLimitDraft(p.daily_limit_store != null ? String(p.daily_limit_store) : "");
       setNegLimitDraft(p.negative_credit_limit != null ? String(p.negative_credit_limit) : "");
       setCardUidDraft(p.card_uid ?? "");
       if (p.wallet_id) {
@@ -280,8 +286,12 @@ export default function CustomerDetail() {
     if (!profile) return;
     setSavingLimit(true);
     try {
-      const v = dailyLimitDraft.trim() === "" ? null : parseFloat(dailyLimitDraft);
-      await api.patch(`/customers/${profile.id}/limit`, { daily_limit: v });
+      const canteen = canteenLimitDraft.trim() === "" ? null : parseFloat(canteenLimitDraft);
+      const store = storeLimitDraft.trim() === "" ? null : parseFloat(storeLimitDraft);
+      await api.patch(`/customers/${profile.id}/limit`, {
+        daily_limit_canteen: canteen,
+        daily_limit_store: store,
+      });
       toast({ title: t("admin.customer.dailyLimitSaved") });
       loadAll();
     } catch (e) {
@@ -760,12 +770,23 @@ export default function CustomerDetail() {
               {t("admin.customer.info.limits.body")}
             </InfoCallout>
 
-            <div>
-              <Label className="text-xs">{t("admin.customer.dailyLimit")}</Label>
-              <div className="flex gap-2 mt-1">
-                <Input type="number" min="0" step="0.01" value={dailyLimitDraft} onChange={(e) => setDailyLimitDraft(e.target.value)} placeholder={t("admin.customer.dailyLimitPlaceholder")} />
-                <Button size="sm" onClick={handleSaveDailyLimit} disabled={savingLimit}>{t("admin.customer.save")}</Button>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">{t("admin.customer.dailyLimitCanteen", "Daily limit — canteen")}</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input type="number" min="0" step="0.01" value={canteenLimitDraft} onChange={(e) => setCanteenLimitDraft(e.target.value)} placeholder={t("admin.customer.dailyLimitPlaceholder")} />
+                </div>
               </div>
+              <div>
+                <Label className="text-xs">{t("admin.customer.dailyLimitStore", "Daily limit — store")}</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input type="number" min="0" step="0.01" value={storeLimitDraft} onChange={(e) => setStoreLimitDraft(e.target.value)} placeholder={t("admin.customer.dailyLimitPlaceholder")} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("admin.customer.dailyLimitHint", "Leave a field empty to use the grade's spending-group limit (or the school default if none applies).")}
+              </p>
+              <Button size="sm" onClick={handleSaveDailyLimit} disabled={savingLimit}>{t("admin.customer.save")}</Button>
             </div>
 
             <div>

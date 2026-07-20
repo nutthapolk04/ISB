@@ -1,5 +1,5 @@
 import type { SqlTx } from "@/lib/sql_tx";
-import { and, eq, sql, desc, like, inArray } from "drizzle-orm";
+import { and, eq, sql, desc, like, inArray, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
   receipts,
@@ -14,6 +14,8 @@ import {
   bundleItems,
   menuOptionGroups,
   menuOptions,
+  spendingGroups,
+  shopSpendingGroups,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
@@ -218,18 +220,12 @@ export const DEFAULT_DAILY_LIMIT_STORE = 25_000;
 export async function todayDeductedByModule(walletId: number, shopModule: string): Promise<number> {
   const today = new Date().toISOString().slice(0, 10);
   const rows = await db.execute(sql`
-    SELECT COALESCE(SUM(
-      CASE
-        WHEN wt.transaction_type = 'DEDUCTION' THEN wt.amount
-        WHEN wt.transaction_type = 'VOID' THEN -wt.amount
-        ELSE 0
-      END
-    ), 0) AS total
+    SELECT COALESCE(SUM(wt.amount), 0) AS total
     FROM wallet_transactions wt
     JOIN receipts r ON r.id = CAST(wt.reference_id AS integer) AND wt.reference_type = 'receipt'
     JOIN shops s ON s.id = r.shop_id
     WHERE wt.wallet_id = ${walletId}
-      AND wt.transaction_type IN ('DEDUCTION', 'VOID')
+      AND wt.transaction_type = 'DEDUCTION'
       AND wt.created_at >= ${today + "T00:00:00+07:00"}
       AND wt.created_at <= ${today + "T23:59:59.999999+07:00"}
       AND s.module = ${shopModule}
@@ -237,6 +233,34 @@ export async function todayDeductedByModule(walletId: number, shopModule: string
   `);
   const row = (rows as unknown as Array<{ total: string | number }>)[0];
   return pgNumber(String(row?.total ?? "0")) ?? 0;
+}
+
+/**
+ * Grade-band daily-limit fallback: the active spending group linked to this
+ * shop whose `grades` list covers the student's grade — this is the tier
+ * between "no personal override" and the hardcoded module default.
+ * If more than one active group matches (a data-entry overlap), the most
+ * restrictive (lowest) limit wins rather than guessing which one is "right".
+ */
+async function resolveSpendingGroupForShop(
+  shopId: string,
+  grade: string | null,
+): Promise<{ id: number; dailyLimit: number } | null> {
+  if (!grade) return null;
+  const rows = await db
+    .select({ id: spendingGroups.id, dailyLimit: spendingGroups.dailyLimit })
+    .from(spendingGroups)
+    .innerJoin(shopSpendingGroups, eq(shopSpendingGroups.spendingGroupId, spendingGroups.id))
+    .where(
+      and(
+        eq(shopSpendingGroups.shopId, shopId),
+        eq(spendingGroups.isActive, true),
+        sql`${spendingGroups.grades} @> ${JSON.stringify([grade])}::jsonb`,
+      ),
+    )
+    .orderBy(asc(spendingGroups.dailyLimit));
+  if (!rows[0]) return null;
+  return { id: rows[0].id, dailyLimit: pgNumber(rows[0].dailyLimit) ?? 0 };
 }
 
 export async function checkout(input: CheckoutInput) {
@@ -314,16 +338,10 @@ export async function checkout(input: CheckoutInput) {
     throw err;
   }
 
-  // ── Snapshot spending_group_id ──────────────────────────────────────
+  // Snapshot spending_group_id is resolved once the paying customer's grade
+  // is known (see the wallet+customer branch below) — it depends on grade
+  // matching, not just which shop the sale happened at.
   let receiptSpendingGroupId: number | null = null;
-  if (effectiveShopId) {
-    const sgr = await db
-      .select({ sg: shops.spendingGroupId })
-      .from(shops)
-      .where(eq(shops.id, effectiveShopId))
-      .limit(1);
-    receiptSpendingGroupId = sgr[0]?.sg ?? null;
-  }
 
   // ── Negative-balance policy flags ───────────────────────────────────
   const allowNegUser = ((await getSettingRaw("allow_negative_user_wallet")) as boolean) === true;
@@ -580,8 +598,8 @@ export async function checkout(input: CheckoutInput) {
       const uRows = await sqlTx<Array<{ full_name: string | null; username: string }>>`SELECT full_name, username FROM users WHERE id = ${input.payer_user_id} LIMIT 1`;
       payerLabel = uRows[0]?.full_name ?? uRows[0]?.username ?? null;
     } else if (isWalletPayment && input.customer_id !== null && input.customer_id !== undefined) {
-      const cRows = await sqlTx<Array<{ id: number; name: string; card_frozen: boolean; daily_limit: string | null; daily_limit_canteen: string | null; daily_limit_store: string | null; negative_credit_limit: string | null }>>`
-        SELECT id, name, card_frozen, daily_limit, daily_limit_canteen, daily_limit_store, negative_credit_limit
+      const cRows = await sqlTx<Array<{ id: number; name: string; grade: string | null; card_frozen: boolean; daily_limit: string | null; daily_limit_canteen: string | null; daily_limit_store: string | null; negative_credit_limit: string | null }>>`
+        SELECT id, name, grade, card_frozen, daily_limit, daily_limit_canteen, daily_limit_store, negative_credit_limit
         FROM customers WHERE id = ${input.customer_id}
       `;
       const customer = cRows[0];
@@ -611,13 +629,20 @@ export async function checkout(input: CheckoutInput) {
         walletId = wRows[0].id;
         balanceBefore = Number(wRows[0].balance);
       }
-      // Daily limit check (per shop module)
+      // Daily limit check (per shop module). Precedence: parent-set override
+      // (customer.daily_limit_canteen/store) > grade-matched spending group
+      // limit for this shop > hardcoded module default.
+      const matchedGroup = effectiveShopId
+        ? await resolveSpendingGroupForShop(effectiveShopId, customer.grade)
+        : null;
+      if (matchedGroup) receiptSpendingGroupId = matchedGroup.id;
+
       if (effectiveShopModule) {
         const isCanteen = effectiveShopModule === "canteen";
         const customLimit = isCanteen ? customer.daily_limit_canteen : customer.daily_limit_store;
         const effectiveLimit = customLimit !== null
           ? Number(customLimit)
-          : (isCanteen ? DEFAULT_DAILY_LIMIT_CANTEEN : DEFAULT_DAILY_LIMIT_STORE);
+          : (matchedGroup?.dailyLimit ?? (isCanteen ? DEFAULT_DAILY_LIMIT_CANTEEN : DEFAULT_DAILY_LIMIT_STORE));
         const todaySpent = await todayDeductedByModule(walletId, effectiveShopModule);
         if (todaySpent + total > effectiveLimit) {
           const remaining = Math.max(0, effectiveLimit - todaySpent);

@@ -545,17 +545,6 @@ export async function voidReceipt(args: {
                   'receipt_void', ${receiptId},
                   ${"Void refund for receipt " + receipt.receiptNumber}, ${callerId})
         `;
-
-                // Record void transaction to cancel daily spend limit
-                // so spent_today calculation excludes this voided receipt
-                await sqlTx`
-          INSERT INTO wallet_transactions
-            (wallet_id, transaction_type, amount, balance_before, balance_after,
-             reference_type, reference_id, description, created_by)
-          VALUES (${walletId}, 'VOID', ${refundAmt}, ${balanceBefore}, ${balanceAfter},
-                  'receipt_void', ${receiptId},
-                  ${"Spending limit adjustment for voided receipt " + receipt.receiptNumber}, ${callerId})
-        `;
             }
         }
 

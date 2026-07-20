@@ -38,12 +38,22 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SpendingGroupOption {
   id: number;
   code: string;
   name_en: string;
   name_th: string;
+}
+
+interface AssignableGroup {
+  id: number;
+  code: string;
+  name_en: string;
+  name_th: string;
+  is_active: boolean;
+  linked: boolean;
 }
 
 interface ShopApiResponse {
@@ -53,7 +63,6 @@ interface ShopApiResponse {
   description: string | null;
   is_active: boolean;
   module: string;
-  spending_group_id: number | null;
   shop_number: number | null;
 }
 
@@ -68,7 +77,6 @@ interface Shop {
   isActive: boolean;
   productCount: number;
   shopType: "avg_cost" | "fifo";
-  spendingGroupId: number | null;
   shopNumber: number | null;
 }
 
@@ -78,7 +86,6 @@ const emptyForm = {
   description: "",
   isActive: "active" as "active" | "inactive",
   shopType: "avg_cost" as "avg_cost" | "fifo",
-  spendingGroupId: "" as string,
   shopNumber: "" as string,
 };
 
@@ -99,6 +106,13 @@ export default function CanteenManagementOverview() {
   const [editForm, setEditForm] = useState(emptyForm);
 
   const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null);
+
+  // Spending-group membership is many-to-many (shop_spending_groups) —
+  // managed as its own multi-select, separate from the shop id/name form.
+  const [addGroupIds, setAddGroupIds] = useState<Set<number>>(new Set());
+  const [editGroupIds, setEditGroupIds] = useState<Set<number>>(new Set());
+  const [initialEditGroupIds, setInitialEditGroupIds] = useState<Set<number>>(new Set());
+  const [editGroupsLoading, setEditGroupsLoading] = useState(false);
 
   const fetchShops = useCallback(async () => {
     setLoading(true);
@@ -121,7 +135,6 @@ export default function CanteenManagementOverview() {
               isActive: s.is_active,
               productCount: stats.total_products,
               shopType: s.shop_type,
-              spendingGroupId: s.spending_group_id ?? null,
               shopNumber: s.shop_number ?? null,
             };
           }),
@@ -156,18 +169,24 @@ export default function CanteenManagementOverview() {
     }
     setSaving(true);
     try {
+      const newId = addForm.id.trim().toLowerCase().replace(/\s+/g, "_");
       await api.post("/shops/", {
-        id: addForm.id.trim().toLowerCase().replace(/\s+/g, "_"),
+        id: newId,
         name: addForm.name.trim(),
         description: addForm.description.trim() || null,
         shop_type: addForm.shopType,
         module: "canteen",
-        spending_group_id: addForm.spendingGroupId ? parseInt(addForm.spendingGroupId) : null,
         shop_number: addForm.shopNumber ? parseInt(addForm.shopNumber) : null,
       });
+      if (addGroupIds.size > 0) {
+        await api.patch(`/shops/${newId}/spending-groups`, {
+          spending_group_ids: Array.from(addGroupIds),
+        });
+      }
       toast.success(t("management.shopAdded"));
       setAddOpen(false);
       setAddForm(emptyForm);
+      setAddGroupIds(new Set());
       await fetchShops();
     } catch (err: any) {
       toast.error(err?.detail ?? t("management.addError", "Failed to add shop"));
@@ -186,9 +205,19 @@ export default function CanteenManagementOverview() {
       description: shop.description,
       isActive: shop.isActive ? "active" : "inactive",
       shopType: shop.shopType,
-      spendingGroupId: shop.spendingGroupId ? String(shop.spendingGroupId) : "",
       shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
     });
+    setEditGroupIds(new Set());
+    setInitialEditGroupIds(new Set());
+    setEditGroupsLoading(true);
+    api.get<AssignableGroup[]>(`/shops/${shop.id}/spending-groups`)
+      .then((groups) => {
+        const linked = new Set(groups.filter((g) => g.linked).map((g) => g.id));
+        setEditGroupIds(linked);
+        setInitialEditGroupIds(linked);
+      })
+      .catch(() => { /* leave empty — shop may predate this feature */ })
+      .finally(() => setEditGroupsLoading(false));
   };
 
   const handleEdit = async () => {
@@ -196,15 +225,23 @@ export default function CanteenManagementOverview() {
       toast.error(t("management.fillAllRequired"));
       return;
     }
+    const groupsChanged =
+      editGroupIds.size !== initialEditGroupIds.size ||
+      [...editGroupIds].some((id) => !initialEditGroupIds.has(id));
     setSaving(true);
     try {
       await api.patch(`/shops/${editTarget.id}`, {
         name: editForm.name.trim(),
         description: editForm.description.trim() || null,
         is_active: editForm.isActive === "active",
-        spending_group_id: editForm.spendingGroupId ? parseInt(editForm.spendingGroupId) : null,
         shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
       });
+      if (groupsChanged) {
+        await api.patch(`/shops/${editTarget.id}/spending-groups`, {
+          spending_group_ids: Array.from(editGroupIds),
+        });
+        toast(t("spendingGroup.changeWarning"));
+      }
       toast.success(t("management.shopUpdated"));
       setEditTarget(null);
       await fetchShops();
@@ -248,7 +285,7 @@ export default function CanteenManagementOverview() {
           <p className="page-description">{t("canteenMgmt.description")}</p>
         </div>
         {hasRole("admin") && (
-          <Button onClick={() => { setAddForm(emptyForm); setAddOpen(true); }}>
+          <Button onClick={() => { setAddForm(emptyForm); setAddGroupIds(new Set()); setAddOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             {t("canteenMgmt.addStall", "+ Add Canteen Stall")}
           </Button>
@@ -393,22 +430,50 @@ export default function CanteenManagementOverview() {
             </div>
             <div>
               <Label>{t("spendingGroup.title", "Spending Group")}</Label>
-              <Select
-                value={addForm.spendingGroupId || "__none__"}
-                onValueChange={(v) => setAddForm({ ...addForm, spendingGroupId: v === "__none__" ? "" : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("spendingGroup.title", "Spending Group")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">{t("spendingGroup.none", "None")}</SelectItem>
-                  {spendingGroups.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.name_en} ({g.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t("spendingGroup.multiHint", "A shop can belong to more than one group.")}
+              </p>
+              {spendingGroups.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-1">No spending groups yet</p>
+              ) : (
+                <div className="flex flex-col gap-1 rounded border bg-muted/30 p-2 max-h-40 overflow-y-auto">
+                  <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs font-medium border-b border-border/60 mb-1 pb-1.5">
+                    <Checkbox
+                      checked={addGroupIds.size === spendingGroups.length}
+                      onCheckedChange={() => {
+                        setAddGroupIds(
+                          addGroupIds.size === spendingGroups.length
+                            ? new Set()
+                            : new Set(spendingGroups.map((g) => g.id)),
+                        );
+                      }}
+                    />
+                    <span className="flex-1">{t("common.selectAll", "Select all")}</span>
+                  </label>
+                  {spendingGroups.map((g) => {
+                    const checked = addGroupIds.has(g.id);
+                    return (
+                      <label
+                        key={g.id}
+                        className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => {
+                            setAddGroupIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(g.id)) next.delete(g.id);
+                              else next.add(g.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className="flex-1">{g.name_en} ({g.code})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -457,27 +522,58 @@ export default function CanteenManagementOverview() {
                 </SelectContent>
               </Select>
             </div>
-            {spendingGroups.length > 0 && (
-              <div>
-                <Label>{t("spendingGroup.title", "Spending Group")}</Label>
-                <Select
-                  value={editForm.spendingGroupId || "__none__"}
-                  onValueChange={(v) => setEditForm({ ...editForm, spendingGroupId: v === "__none__" ? "" : v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("spendingGroup.title", "Spending Group")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{t("spendingGroup.none", "None")}</SelectItem>
-                    {spendingGroups.map((g) => (
-                      <SelectItem key={g.id} value={String(g.id)}>
-                        {g.name_en} ({g.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div>
+              <Label>{t("spendingGroup.title", "Spending Group")}</Label>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t("spendingGroup.multiHint", "A shop can belong to more than one group.")}
+              </p>
+              {editGroupsLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading…
+                </div>
+              ) : spendingGroups.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-1">No spending groups yet</p>
+              ) : (
+                <div className="flex flex-col gap-1 rounded border bg-muted/30 p-2 max-h-40 overflow-y-auto">
+                  <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs font-medium border-b border-border/60 mb-1 pb-1.5">
+                    <Checkbox
+                      checked={editGroupIds.size === spendingGroups.length}
+                      onCheckedChange={() => {
+                        setEditGroupIds(
+                          editGroupIds.size === spendingGroups.length
+                            ? new Set()
+                            : new Set(spendingGroups.map((g) => g.id)),
+                        );
+                      }}
+                    />
+                    <span className="flex-1">{t("common.selectAll", "Select all")}</span>
+                  </label>
+                  {spendingGroups.map((g) => {
+                    const checked = editGroupIds.has(g.id);
+                    return (
+                      <label
+                        key={g.id}
+                        className="flex items-center gap-2 px-1 py-1 rounded hover:bg-background cursor-pointer text-xs"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => {
+                            setEditGroupIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(g.id)) next.delete(g.id);
+                              else next.add(g.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className="flex-1">{g.name_en} ({g.code})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>{t("common.cancel")}</Button>

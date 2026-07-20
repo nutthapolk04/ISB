@@ -17,6 +17,10 @@ import {
 	updateVoidShortcuts as updateVoidShortcutsService,
 } from "@/services/shop_service";
 import {
+	listGroupsForShop,
+	setGroupsForShop,
+} from "@/services/spending_group_service";
+import {
 	listShopProducts as listShopProductsService,
 	listShopCategories as listShopCategoriesService,
 	listProductBarcodes as listProductBarcodesService,
@@ -109,7 +113,6 @@ export const ShopController = {
 				description: body.description ?? undefined,
 				allow_department_charge: body.allow_department_charge ?? undefined,
 				uses_dual_pricing: body.uses_dual_pricing ?? undefined,
-				spending_group_id: body.spending_group_id ?? undefined,
 				shop_number: body.shop_number ?? undefined,
 			});
 			logger.info(`[${reqContext.requestId} (SH-02)] ShopController.create() completed.`);
@@ -210,6 +213,40 @@ export const ShopController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	listSpendingGroups: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-30)] ShopController.listSpendingGroups() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (SH-30)] ShopController.listSpendingGroups() calling listGroupsForShop().`);
+			const result = await listGroupsForShop(params.shopId);
+			logger.info(`[${reqContext.requestId} (SH-30)] ShopController.listSpendingGroups() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-30)] ShopController.listSpendingGroups() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	setSpendingGroups: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-31)] ShopController.setSpendingGroups() called.`);
+		if (!user.is_superuser && !hasRole(user.roles, "admin")) {
+			logger.warn(`[${reqContext.requestId} (SH-31)] ShopController.setSpendingGroups() forbidden.`);
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			logger.info(`[${reqContext.requestId} (SH-31)] ShopController.setSpendingGroups() calling setGroupsForShop().`);
+			const result = await setGroupsForShop(params.shopId, body.spending_group_ids);
+			logger.info(`[${reqContext.requestId} (SH-31)] ShopController.setSpendingGroups() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-31)] ShopController.setSpendingGroups() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
