@@ -19,7 +19,7 @@ const t = {
         back: 'Back',
         topup: 'Top-up',
         purchase: 'Purchase',
-        voidRefund: 'Void — Receipt #{{receipt}}',
+        voidRefund: 'Void — Receipt #{receipt}',
         voidedBadge: 'Voided',
         noData: 'No transactions found.',
         qty: 'x'
@@ -29,7 +29,7 @@ const t = {
         back: 'ย้อนกลับ',
         topup: 'เติมเงิน',
         purchase: 'ซื้อสินค้า',
-        voidRefund: 'ยกเลิก — ใบเสร็จ #{{receipt}}',
+        voidRefund: 'ยกเลิก — ใบเสร็จ #{receipt}',
         voidedBadge: 'ยกเลิกแล้ว',
         noData: 'ไม่พบรายการ',
         qty: 'x'
@@ -78,7 +78,7 @@ const isCreditTx = (tx: Transaction) => tx.type === 'topup' || tx.type === 'void
 
 const rowLabel = (tx: Transaction) => {
     if (tx.type === 'void_refund') {
-        return currT.value.voidRefund.replace('{{receipt}}', tx.receiptNumber ?? '—');
+        return currT.value.voidRefund.replace('{receipt}', tx.receiptNumber ?? '—');
     }
     return tx.type === 'topup' ? currT.value.topup : currT.value.purchase;
 };
@@ -163,6 +163,14 @@ const rowLabel = (tx: Transaction) => {
 .history-view {
     padding: 2rem;
     justify-content: flex-start;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    box-sizing: border-box;
+    min-height: 0;
+    overflow: hidden;
+    gap: 0;
 }
 
 .header-section {
@@ -170,7 +178,8 @@ const rowLabel = (tx: Transaction) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
 }
 
 .back-btn {
@@ -201,11 +210,16 @@ const rowLabel = (tx: Transaction) => {
 
 .list-container {
     width: 100%;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 1rem;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding-bottom: 2rem;
+    touch-action: pan-y;
 }
 
 .transaction-row {
