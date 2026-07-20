@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet Adjustment — ประวัติการเปลี่ยน design และสิ่งที่หายไป</title>
+<style>
+  :root {
+    --accent: #7c3aed;
+    --accent-light: #f3e8ff;
+    --text: #1f2430;
+    --text-muted: #5b6472;
+    --border: #e4e2ea;
+    --code-bg: #f5f4f8;
+    --bg: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+
+  body {
+    font-family: "Sukhumvit Set", "Noto Sans Thai", "IBM Plex Sans Thai", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 900px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  header.doc-header { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 3px solid var(--accent); }
+
+  header.doc-header .kicker {
+    display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--accent); background: var(--accent-light);
+    padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
+  }
+
+  h1 { font-size: 30px; line-height: 1.35; margin: 0 0 8px; font-weight: 800; }
+  header.doc-header p.subtitle { margin: 0; color: var(--text-muted); font-size: 15px; }
+
+  h2 {
+    font-size: 22px; font-weight: 800; margin: 48px 0 18px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent); display: flex; align-items: center; gap: 10px;
+  }
+
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 30px; padding: 0 6px; border-radius: 8px;
+    background: var(--accent); color: #fff; font-size: 15px; flex: 0 0 auto;
+  }
+
+  h3 { font-size: 17px; font-weight: 700; margin: 28px 0 10px; color: var(--accent); }
+
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  a { color: var(--accent); }
+  strong { color: var(--text); }
+
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-size: 0.88em; color: #4c1d95;
+  }
+
+  pre {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 18px;
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; }
+
+  .note, .warn {
+    border-radius: 8px; padding: 14px 16px; margin: 0 0 18px;
+    font-size: 14.5px; border: 1px solid var(--border);
+  }
+  .note { background: var(--accent-light); border-color: #ddd0fb; }
+  .warn { background: #fff7ed; border-color: #fed7aa; }
+  .note .box-title, .warn .box-title { font-weight: 700; margin-bottom: 6px; }
+  .note ul, .warn ul { margin-bottom: 0; }
+
+  .table-wrap { overflow-x: auto; margin: 0 0 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    background: var(--accent); color: #fff; text-align: left;
+    padding: 10px 14px; font-weight: 700; font-size: 13.5px;
+  }
+  thead th:first-child { border-top-left-radius: 6px; }
+  thead th:last-child { border-top-right-radius: 6px; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:nth-child(even) { background: #faf9fc; }
+
+  .toc {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 20px; margin: 0 0 8px; background: #fbfaff;
+  }
+  .toc .toc-title {
+    font-weight: 700; font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--accent); margin-bottom: 10px;
+  }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 14px; counter-reset: tocitem -1; list-style: none; }
+  .toc ol li { counter-increment: tocitem; margin-bottom: 4px; }
+  .toc ol li::before { content: counter(tocitem) ". "; color: var(--text-muted); }
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer.doc-footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border);
+    color: var(--text-muted); font-size: 13px; text-align: center;
+  }
+
+  hr.sep { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ── Before/After mockup frames ─────────────────────────────────────────── */
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 22px; }
+  @media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+
+  .mock-frame {
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; background: #fff; display: flex; flex-direction: column;
+  }
+  .mock-frame .frame-label {
+    padding: 7px 12px; font-size: 12.5px; font-weight: 700;
+    border-bottom: 1px solid var(--border);
+  }
+  .mock-frame.lost .frame-label { background: #fff7ed; color: #9a3412; }
+  .mock-frame.now .frame-label { background: #f0fdf4; color: #166534; }
+
+  .mock-frame .chrome {
+    display: flex; gap: 5px; padding: 7px 10px;
+    background: #f1f0f5; border-bottom: 1px solid var(--border);
+  }
+  .mock-frame .chrome i {
+    width: 9px; height: 9px; border-radius: 50%; background: #d4d2dc; display: block;
+  }
+
+  .mock-body {
+    padding: 12px; font-size: 12px; line-height: 1.55;
+    background: #fbfbfd; flex: 1;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  /* mock components (โทนเลียนแบบ shadcn/tailwind ของหน้า จริง) */
+  .mk-h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; display: flex; align-items: center; gap: 5px; }
+  .mk-desc { font-size: 11px; color: #71717a; margin-top: 1px; }
+
+  .mk-headercard {
+    border: 1px solid #e4e4ec; background: #fff; border-radius: 12px;
+    padding: 10px 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .mk-card {
+    border: 1px solid #e4e4e7; background: #fff; border-radius: 10px;
+    padding: 10px 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .mk-card-title { font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+  .mk-section-title { font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 5px; }
+
+  .mk-input {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid #e4e4e7; border-radius: 7px; background: #fff;
+    padding: 5px 9px; color: #a1a1aa; font-size: 11.5px; margin-bottom: 8px;
+  }
+
+  .mk-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+  .mk-field { font-size: 10px; color: #52525b; }
+  .mk-field .mk-select, .mk-field .mk-date {
+    display: block; border: 1px solid #e4e4e7; border-radius: 6px; background: #fff;
+    padding: 3px 8px; font-size: 11px; color: #27272a; margin-top: 2px; white-space: nowrap;
+  }
+
+  .mk-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .mk-btn.primary { background: #18181b; color: #fff; }
+  .mk-btn.outline { background: #fff; color: #27272a; border-color: #e4e4e7; }
+  .mk-btn.ghost { background: transparent; color: #52525b; }
+  .mk-btn.disabled { opacity: 0.45; }
+
+  .mk-badge {
+    display: inline-flex; align-items: center; border-radius: 999px;
+    padding: 1px 8px; font-size: 10px; font-weight: 600; white-space: nowrap;
+  }
+  .mk-badge.secondary { background: #f4f4f5; color: #3f3f46; }
+  .mk-badge.green { background: #fff; color: #15803d; border: 1px solid #86efac; }
+  .mk-badge.red { background: #fff; color: #dc2626; border: 1px solid #fecaca; }
+  .mk-badge.destructive { background: #dc2626; color: #fff; }
+  .mk-pill-student { background: #dbeafe; color: #1d4ed8; border-radius: 999px; padding: 1px 8px; font-size: 10px; font-weight: 600; }
+
+  .mk-tablewrap { overflow-x: auto; }
+  .mk-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  .mk-table th {
+    text-align: left; color: #71717a; font-weight: 600;
+    padding: 4px 6px; border-bottom: 1px solid #e4e4e7; white-space: nowrap;
+    background: transparent;
+  }
+  .mk-table td { padding: 4px 6px; border-bottom: 1px solid #f1f1f4; white-space: nowrap; vertical-align: middle; }
+  .mk-table .r { text-align: right; }
+  .mk-table .mono { font-family: "SF Mono", "Menlo", monospace; font-size: 10px; }
+  .mk-table tr:last-child td { border-bottom: none; }
+
+  .mk-summary { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 10.5px; color: #71717a; }
+
+  .mk-footer { display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #71717a; margin-top: 6px; flex-wrap: wrap; gap: 6px; }
+
+  .mk-pager { display: flex; gap: 3px; align-items: center; }
+  .mk-pager span {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; border-radius: 5px; font-size: 10.5px;
+    border: 1px solid #e4e4e7; background: #fff; color: #27272a; padding: 0 4px;
+  }
+  .mk-pager span.on { background: #18181b; color: #fff; border-color: #18181b; }
+  .mk-pager span.nav { border: none; background: transparent; color: #71717a; }
+
+  .caption-under { font-size: 12.5px; color: var(--text-muted); margin: -12px 0 22px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-header">
+    <span class="kicker">ISB POS · Internal Doc</span>
+    <h1>Wallet Adjustment — ประวัติการเปลี่ยน design และสิ่งที่หายไป</h1>
+    <p class="subtitle">ไทม์ไลน์ทุกครั้งที่หน้า <code>frontend/src/pages/admin/WalletAdjust.tsx</code> เปลี่ยนหน้าตา — พร้อม mockup "ก่อน/หลัง" ให้เทียบว่าอะไรหายไป เพื่อประกอบการตัดสินใจ revert</p>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-title">สารบัญ</div>
+    <ol>
+      <li><a href="#sec0">สรุป timeline</a></li>
+      <li><a href="#sec1">Header ธรรมดา → Card header (19 พ.ค.)</a></li>
+      <li><a href="#sec2">เพิ่ม Adjustment Report ไว้บนสุด (8 มิ.ย.)</a></li>
+      <li><a href="#sec3">Credit (+) / Debit (−) → เครื่องหมาย +/− (26 มิ.ย.)</a></li>
+      <li><a href="#sec4">Prev/Next → เลขหน้า + คอลัมน์ No. (30 มิ.ย.)</a></li>
+      <li><a href="#sec5">คำแนะนำการ revert</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ SECTION 0 ============ -->
+  <h2 id="sec0"><span class="num">0</span>สรุป timeline</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>วันที่</th><th>Commit</th><th>ใคร</th><th>เปลี่ยนอะไร</th><th>Revert ยากง่าย</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>12 พ.ค. 2026</td><td><code>134bee9</code></td><td>Oatchat</td>
+          <td>Design แรกเริ่ม — หน้าเดียวการ์ดเดียว "Search Student" + dialog ปรับยอด</td>
+          <td>— (จุดตั้งต้น)</td>
+        </tr>
+        <tr>
+          <td>19 พ.ค. 2026</td><td><code>9a3e73f</code></td><td>Oatchat</td>
+          <td>Header แบบ text ธรรมดา → header ในกล่องการ์ด (<code>.page-shell</code>/<code>.page-header</code> ใช้ร่วมกับหน้า admin ~16 หน้า)</td>
+          <td>ง่าย (จุดเดียว) แต่จะหลุดชุดกับหน้าอื่น</td>
+        </tr>
+        <tr>
+          <td>8 มิ.ย. 2026</td><td><code>a2d1239</code> + <code>4011339</code></td><td>Oatchat</td>
+          <td><strong>ใหญ่สุด:</strong> เพิ่ม section "Adjustment Report" (filters + summary badges + ตาราง 12 คอลัมน์ + export Excel/PDF) วางไว้<strong>เหนือ</strong>การ์ด Search Student — หน้าเปลี่ยนจาก 1 การ์ด → 2 section ซ้อน + เพิ่ม pagination แบบ Prev/Next</td>
+          <td>ยาก — logic พันกับของที่ต้องเก็บไว้ (ดูข้อ 5)</td>
+        </tr>
+        <tr>
+          <td>26 มิ.ย. 2026</td><td><code>ba3c2dd</code></td><td>Passkorn Nabanchang</td>
+          <td>ป้ายข้อความ "Credit (+)" / "Debit (−)" → เหลือสัญลักษณ์ +/− เปล่า ๆ (แก้พร้อมกันใน <code>WalletTransfer.tsx</code>, <code>DepartmentAdjust.tsx</code>)</td>
+          <td>ง่ายสุด — revert commit ตรง ๆ ได้</td>
+        </tr>
+        <tr>
+          <td>30 มิ.ย. 2026</td><td><code>1337edd</code></td><td>Kawinwat</td>
+          <td>เพิ่มคอลัมน์ลำดับ "No." ทั้งสองตาราง; Prev/Next → <code>PaginationBar</code> แบบเลขหน้า; <code>PAGE_SIZE</code> 20 → 10</td>
+          <td>ย้อนได้ แต่เป็นของที่ user แก้เอง</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    Mockup ในเอกสารนี้สร้างจาก JSX จริงของแต่ละ commit
+    (<code>git show 134bee9:...</code>, <code>git show ba3c2dd^:...</code>, ไฟล์ปัจจุบัน)
+    — ย่อส่วนและใช้ข้อมูลตัวอย่างปลอม แต่โครงหน้า/ป้าย/ปุ่มตรงกับของจริง
+  </div>
+
+  <!-- ============ SECTION 1 ============ -->
+  <h2 id="sec1"><span class="num">1</span>Header ธรรมดา → Card header</h2>
+  <p>
+    19 พ.ค. 2026 (<code>9a3e73f</code>) — หัวเรื่องเดิมเป็น text ลอย ๆ
+    (<code>text-2xl font-bold</code> + คำอธิบายสีเทา) ถูกเปลี่ยนเป็นกล่องการ์ด
+    <code>.page-header</code> (ขอบมน <code>rounded-xl</code> + เงา + ตัวหนังสือใหญ่ขึ้นเป็น
+    <code>text-3xl</code> บนจอกว้าง) เพื่อให้เข้าชุดกับหน้า admin อื่น ~16 หน้า
+  </p>
+
+  <div class="compare">
+    <div class="mock-frame lost">
+      <div class="frame-label">ก่อน — สิ่งที่หายไป (12 พ.ค. – 18 พ.ค.)</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div>
+          <div class="mk-h1">👛 Wallet Adjustment</div>
+          <div class="mk-desc">Credit or debit a student's wallet with an audit reason.</div>
+        </div>
+        <div class="mk-card">
+          <div class="mk-card-title">Search Student</div>
+          <div class="mk-input">🔍 Search by name or code…</div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame now">
+      <div class="frame-label">หลัง — ปัจจุบัน</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-headercard">
+          <div class="mk-h1" style="font-size:16.5px;">👛 Wallet Adjustment</div>
+          <div class="mk-desc">Credit or debit a student's wallet with an audit reason.</div>
+        </div>
+        <div class="mk-card">
+          <div class="mk-card-title">Search Student</div>
+          <div class="mk-input">🔍 Search by name or code…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption-under">สิ่งที่หายไป: ความโปร่งของหัวเรื่องแบบไม่มีกรอบ — แลกกับความเป็นชุดเดียวกับหน้า admin อื่นทั้งระบบ</p>
+
+  <!-- ============ SECTION 2 ============ -->
+  <h2 id="sec2"><span class="num">2</span>เพิ่ม Adjustment Report ไว้บนสุด (เปลี่ยนใหญ่สุด)</h2>
+  <p>
+    8 มิ.ย. 2026 (<code>a2d1239</code> + <code>4011339</code>) — เพิ่มทั้ง section
+    รายงานการปรับยอด: การ์ด Filters (ช่วงวันที่ / Direction / Type + ปุ่ม Search),
+    แถบสรุป (จำนวน record + badge ยอด Credit/Debit/Net + ปุ่ม export Excel/PDF)
+    และตารางผล ~12 คอลัมน์ — วางไว้<strong>เหนือ</strong>การ์ด Search Student เดิม
+    ทำให้หน้าเปลี่ยนจาก "การ์ดเดียวจบ" เป็น 2 section ซ้อนกัน และต้อง scroll มากขึ้นกว่าเดิม
+  </p>
+
+  <div class="compare">
+    <div class="mock-frame lost">
+      <div class="frame-label">ก่อน — สิ่งที่หายไป (การ์ดเดียวจบ)</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-headercard">
+          <div class="mk-h1">👛 Wallet Adjustment</div>
+          <div class="mk-desc">Credit or debit a student's wallet with an audit reason.</div>
+        </div>
+        <div class="mk-card">
+          <div class="mk-card-title">Search Student</div>
+          <div class="mk-input">🔍 Search by name or code…</div>
+          <div class="mk-tablewrap">
+            <table class="mk-table">
+              <thead>
+                <tr><th>Name</th><th>Code</th><th>Class</th><th class="r">Balance</th><th class="r">Actions</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>สมชาย ใจดี</strong></td>
+                  <td><span class="mk-badge secondary">STU-0012</span></td>
+                  <td>ป.5/2</td>
+                  <td class="r mono">฿250.00</td>
+                  <td class="r"><span class="mk-btn ghost">View</span> <span class="mk-btn outline">Adjust Balance</span></td>
+                </tr>
+                <tr>
+                  <td><strong>สมหญิง รักเรียน</strong></td>
+                  <td><span class="mk-badge secondary">STU-0034</span></td>
+                  <td>ป.6/1</td>
+                  <td class="r mono">฿1,180.50</td>
+                  <td class="r"><span class="mk-btn ghost">View</span> <span class="mk-btn outline">Adjust Balance</span></td>
+                </tr>
+                <tr>
+                  <td><strong>มานะ อดทน</strong> <span class="mk-badge destructive">Frozen</span></td>
+                  <td><span class="mk-badge secondary">STU-0078</span></td>
+                  <td>ม.1/3</td>
+                  <td class="r mono" style="color:#dc2626;">-฿42.00</td>
+                  <td class="r"><span class="mk-btn ghost">View</span> <span class="mk-btn outline">Adjust Balance</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame now">
+      <div class="frame-label">หลัง — ปัจจุบัน (Report อยู่บน + Search Student ถูกดันลงล่าง)</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-headercard">
+          <div class="mk-h1">👛 Wallet Adjustment</div>
+          <div class="mk-desc">Credit or debit a student's wallet with an audit reason.</div>
+        </div>
+
+        <div class="mk-section-title">📊 Adjustment Report</div>
+        <div class="mk-card">
+          <div class="mk-card-title" style="font-size:11.5px;">Filters</div>
+          <div class="mk-filters">
+            <div class="mk-field">From<span class="mk-date">2026-06-01</span></div>
+            <div class="mk-field">To<span class="mk-date">2026-06-30</span></div>
+            <div class="mk-field">Direction<span class="mk-select">All ▾</span></div>
+            <div class="mk-field">Type<span class="mk-select">Student ▾</span></div>
+            <span class="mk-btn primary">🔍 Search</span>
+          </div>
+        </div>
+        <div class="mk-summary">
+          <span>3 records</span>
+          <span class="mk-badge green">+ ฿700.00</span>
+          <span class="mk-badge red">− ฿120.00</span>
+          <span class="mk-badge secondary">Net: ฿580.00</span>
+          <span style="flex:1"></span>
+          <span class="mk-btn outline">📗 Excel</span>
+          <span class="mk-btn outline">📕 PDF</span>
+        </div>
+        <div class="mk-card" style="padding:0;">
+          <div class="mk-tablewrap">
+            <table class="mk-table">
+              <thead>
+                <tr><th class="r">No.</th><th>Date / Time</th><th>Type</th><th>Name</th><th>Code</th><th>Direction</th><th class="r">Amount</th><th class="r">Balance Before</th><th class="r">Balance After</th><th>Reason</th><th>Ref / Ticket</th><th>Adjusted By</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="r">1</td><td class="mono">30/06 09:12</td>
+                  <td><span class="mk-pill-student">student</span></td>
+                  <td><strong>สมชาย ใจดี</strong></td>
+                  <td><span class="mk-badge secondary mono">STU-0012</span></td>
+                  <td><span class="mk-badge green">+</span></td>
+                  <td class="r mono"><strong>฿500.00</strong></td>
+                  <td class="r mono">฿250.00</td><td class="r mono"><strong>฿750.00</strong></td>
+                  <td>เติมเงินผิดบัญชี แก้คืน</td><td class="mono">TCK-114</td><td>admin.oat</td>
+                </tr>
+                <tr>
+                  <td class="r">2</td><td class="mono">29/06 14:03</td>
+                  <td><span class="mk-pill-student">student</span></td>
+                  <td><strong>สมหญิง รักเรียน</strong></td>
+                  <td><span class="mk-badge secondary mono">STU-0034</span></td>
+                  <td><span class="mk-badge red">−</span></td>
+                  <td class="r mono"><strong>฿120.00</strong></td>
+                  <td class="r mono">฿1,300.50</td><td class="r mono"><strong>฿1,180.50</strong></td>
+                  <td>หักค่าบัตรหาย</td><td class="mono">—</td><td>admin.oat</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mk-card">
+          <div class="mk-card-title">Search Student</div>
+          <div class="mk-input">🔍 Search by name or code…</div>
+          <div class="mk-desc" style="text-align:center;">( ตารางนักเรียนแบบเดิม ถูกดันลงมาอยู่ล่างสุด )</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption-under">สิ่งที่หายไป: ความเรียบง่าย "เปิดมาเจอช่องค้นหานักเรียนทันที" — ตอนนี้ต้องเลื่อนผ่าน Report ก่อนเสมอ (ตาราง Report เลื่อนซ้ายขวาได้เหมือนหน้าเว็บจริง)</p>
+
+  <!-- ============ SECTION 3 ============ -->
+  <h2 id="sec3"><span class="num">3</span>Credit (+) / Debit (−) → เครื่องหมาย +/− เปล่า</h2>
+  <p>
+    26 มิ.ย. 2026 (<code>ba3c2dd</code>, Passkorn) — ตัดคำว่า Credit/Debit
+    ออกจาก dropdown filter, summary badges และ badge ในตาราง เหลือแค่สัญลักษณ์
+    (สื่อความหมายด้วยสีเขียว/แดงแทน) — commit เดียวกันแก้
+    <code>WalletTransfer.tsx</code> และ <code>DepartmentAdjust.tsx</code> ด้วย
+  </p>
+
+  <div class="compare">
+    <div class="mock-frame lost">
+      <div class="frame-label">ก่อน — สิ่งที่หายไป</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-field">Direction
+          <span class="mk-select">Credit (+) ▾</span>
+        </div>
+        <div class="mk-desc">ตัวเลือกใน dropdown: All / <strong>Credit (+)</strong> / <strong>Debit (−)</strong></div>
+        <div class="mk-summary">
+          <span>3 records</span>
+          <span class="mk-badge green">+ Credit: ฿700.00</span>
+          <span class="mk-badge red">− Debit: ฿120.00</span>
+          <span class="mk-badge secondary">Net: ฿580.00</span>
+        </div>
+        <div class="mk-tablewrap">
+          <table class="mk-table">
+            <thead><tr><th>Name</th><th>Direction</th><th class="r">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>สมชาย ใจดี</td><td><span class="mk-badge green">+ Credit</span></td><td class="r mono">฿500.00</td></tr>
+              <tr><td>สมหญิง รักเรียน</td><td><span class="mk-badge red">− Debit</span></td><td class="r mono">฿120.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame now">
+      <div class="frame-label">หลัง — ปัจจุบัน</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-field">Direction
+          <span class="mk-select">+ ▾</span>
+        </div>
+        <div class="mk-desc">ตัวเลือกใน dropdown: All / <strong>+</strong> / <strong>−</strong></div>
+        <div class="mk-summary">
+          <span>3 records</span>
+          <span class="mk-badge green">+ ฿700.00</span>
+          <span class="mk-badge red">− ฿120.00</span>
+          <span class="mk-badge secondary">Net: ฿580.00</span>
+        </div>
+        <div class="mk-tablewrap">
+          <table class="mk-table">
+            <thead><tr><th>Name</th><th>Direction</th><th class="r">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>สมชาย ใจดี</td><td><span class="mk-badge green">+</span></td><td class="r mono">฿500.00</td></tr>
+              <tr><td>สมหญิง รักเรียน</td><td><span class="mk-badge red">−</span></td><td class="r mono">฿120.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption-under">สิ่งที่หายไป: คำอ่านออกเสียงได้ว่ารายการไหนคือ Credit/Debit — เหลือแต่สัญลักษณ์+สี (dropdown ในหน้าค้นหาจะเห็นแค่ "+" / "−" ลอย ๆ)</p>
+
+  <div class="note">
+    หมายเหตุ: dialog ปรับยอด (Credit — add money / Debit — deduct)
+    <strong>ไม่ถูกแตะ</strong>ใน commit นี้ — ป้ายเต็มยังอยู่ครบ
+    เปลี่ยนเฉพาะฝั่ง Report section
+  </div>
+
+  <!-- ============ SECTION 4 ============ -->
+  <h2 id="sec4"><span class="num">4</span>Prev/Next → เลขหน้า + คอลัมน์ No.</h2>
+  <p>
+    30 มิ.ย. 2026 (<code>1337edd</code>, Kawinwat) — เพิ่มคอลัมน์ลำดับ "No."
+    ให้ทั้งตาราง Report และตารางนักเรียน, เปลี่ยนปุ่ม Prev/Next
+    เป็น <code>PaginationBar</code> แบบเลขหน้า และลด <code>PAGE_SIZE</code>
+    จาก 20 → 10 แถวต่อหน้า
+  </p>
+
+  <div class="compare">
+    <div class="mock-frame lost">
+      <div class="frame-label">ก่อน — สิ่งที่หายไป</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-tablewrap">
+          <table class="mk-table">
+            <thead><tr><th>Name</th><th>Code</th><th class="r">Balance</th></tr></thead>
+            <tbody>
+              <tr><td>สมชาย ใจดี</td><td><span class="mk-badge secondary">STU-0012</span></td><td class="r mono">฿250.00</td></tr>
+              <tr><td>สมหญิง รักเรียน</td><td><span class="mk-badge secondary">STU-0034</span></td><td class="r mono">฿1,180.50</td></tr>
+              <tr><td>มานะ อดทน</td><td><span class="mk-badge secondary">STU-0078</span></td><td class="r mono">-฿42.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mk-footer">
+          <span>Showing 1–20 of 45</span>
+          <span>
+            <span class="mk-btn outline">‹ Prev</span>
+            <span class="mk-btn outline">Next ›</span>
+          </span>
+        </div>
+        <div class="mk-desc">แสดง 20 แถว/หน้า — เดินหน้า/ถอยหลังได้ทีละหน้าเท่านั้น</div>
+      </div>
+    </div>
+    <div class="mock-frame now">
+      <div class="frame-label">หลัง — ปัจจุบัน</div>
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div class="mock-body">
+        <div class="mk-tablewrap">
+          <table class="mk-table">
+            <thead><tr><th class="r">No.</th><th>Name</th><th>Code</th><th class="r">Balance</th></tr></thead>
+            <tbody>
+              <tr><td class="r">1</td><td>สมชาย ใจดี</td><td><span class="mk-badge secondary">STU-0012</span></td><td class="r mono">฿250.00</td></tr>
+              <tr><td class="r">2</td><td>สมหญิง รักเรียน</td><td><span class="mk-badge secondary">STU-0034</span></td><td class="r mono">฿1,180.50</td></tr>
+              <tr><td class="r">3</td><td>มานะ อดทน</td><td><span class="mk-badge secondary">STU-0078</span></td><td class="r mono">-฿42.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mk-footer">
+          <span>Showing 1–10 of 45</span>
+          <span class="mk-pager">
+            <span class="nav">«</span>
+            <span class="on">1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+            <span class="nav">»</span>
+          </span>
+        </div>
+        <div class="mk-desc">แสดง 10 แถว/หน้า — กระโดดไปหน้าไหนก็ได้ + มีเลขลำดับแถว</div>
+      </div>
+    </div>
+  </div>
+  <p class="caption-under">สิ่งที่หายไป: หน้าละ 20 แถว (เห็นข้อมูลเยอะกว่าใน 1 หน้าจอ) และปุ่ม Prev/Next แบบเรียบ ๆ</p>
+
+  <!-- ============ SECTION 5 ============ -->
+  <h2 id="sec5"><span class="num">5</span>คำแนะนำการ revert</h2>
+
+  <ol>
+    <li>
+      <strong>เอา Report section ออก กลับไปเป็นการ์ดเดียว (ย้อนข้อ 2)</strong> —
+      ต้อง<strong>แก้มือ (manual edit)</strong> เพราะ logic พันกันแล้ว:
+      แหล่งข้อมูลนักเรียนถูกย้ายไปใช้ <code>/admin/cardholders</code>,
+      backend ของ report ยังต้องอยู่, และ refactor ที่ตามมาทีหลัง
+      (<code>formatTHB</code> / <code>PaginationBar</code>)
+      <strong>ต้องเก็บไว้</strong> — ตัดออกได้เฉพาะ JSX ส่วน Report +
+      state/handler ของมันเท่านั้น
+    </li>
+    <li>
+      <strong>กลับไป header ธรรมดา (ย้อนข้อ 1)</strong> — แก้จุดเดียวจบ
+      (เปลี่ยน <code>.page-header</code> กลับเป็น h1 ลอย)
+      แต่หน้าจะ<strong>ไม่เข้าชุด</strong>กับหน้า admin อื่น ~16 หน้า
+      ที่ใช้ header แบบการ์ดหมดแล้ว
+    </li>
+    <li>
+      <strong>เอา "Credit (+)" / "Debit (−)" กลับมา (ย้อนข้อ 3)</strong> —
+      <strong>สะอาดสุด</strong> เพราะเป็น commit เดี่ยวที่แก้แค่ป้าย 3 ไฟล์:
+      <pre><code>git show ba3c2dd -- frontend/src/pages/admin/WalletAdjust.tsx \
+  frontend/src/pages/admin/WalletTransfer.tsx \
+  frontend/src/pages/admin/DepartmentAdjust.tsx | git apply -R</code></pre>
+    </li>
+    <li>
+      <strong>ย้อน pagination (ข้อ 4)</strong> — ทำได้
+      (กลับไป Prev/Next + 20 แถว/หน้า + ตัดคอลัมน์ No.)
+      แต่เป็นของที่ <strong>user แก้เองเมื่อ 30 มิ.ย.</strong> —
+      ควรยืนยันก่อนว่าจะเอาออกจริง
+    </li>
+  </ol>
+
+  <div class="warn">
+    <div class="box-title">ห้ามเอาไฟล์เก่าทับทั้งไฟล์</div>
+    ห้าม <code>git show &lt;commit เก่า&gt;:... &gt; WalletAdjust.tsx</code>
+    ทับตรง ๆ เด็ดขาด — จะพาของที่ต้องเก็บหายไปด้วย
+    (การย้ายไปใช้ <code>/admin/cardholders</code>, refactor
+    <code>formatTHB</code>/<code>PaginationBar</code>, i18n keys ที่เพิ่มทีหลัง)
+    และพา bug ที่แก้ไปแล้วกลับมา — ให้เลือก revert เป็นจุด ๆ
+    ตามข้อ 1–4 ข้างบนแทน
+  </div>
+
+  <hr class="sep">
+
+  <footer class="doc-footer">
+    อัปเดต 2026-07-17
+  </footer>
+
+</div>
+</body>
+</html>

@@ -24,6 +24,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { CreditCard, Search, Loader2, Eye, ShieldOff, ShieldCheck, RefreshCw } from "lucide-react";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
+import { useRfidListener } from "@/hooks/useRfidListener";
 
 type CardRole = "all" | "staff" | "parent" | "student" | "admin" | "manager" | "cashier" | "visitor";
 
@@ -90,6 +91,15 @@ export default function CardManagement() {
   const [newUid, setNewUid] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const uidInputRef = useRef<HTMLInputElement>(null);
+
+  // Tapping a real card while the Change UID dialog is open fills the field
+  // directly from the reader (PC/SC bridge or keyboard-wedge fallback).
+  useRfidListener({
+    onCapture: (uid) => {
+      if (!changeUidTarget) return;
+      setNewUid(uid);
+    },
+  });
 
   const load = async () => {
     setLoading(true);
@@ -504,6 +514,9 @@ export default function CardManagement() {
                 onKeyDown={(e) => e.key === "Enter" && handleChangeUid()}
                 autoFocus
               />
+              <p className="text-xs text-muted-foreground">
+                {t("admin.cards.changeUidTapHint", "หรือแตะบัตรที่เครื่องอ่านเพื่อเติมอัตโนมัติ")}
+              </p>
             </div>
           </div>
           <DialogFooter>

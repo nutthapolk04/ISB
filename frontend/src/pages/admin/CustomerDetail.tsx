@@ -22,9 +22,10 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 import { resolveAvatarUrl } from "@/lib/avatarFallback";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import {
   ArrowLeft, Camera, CreditCard, GraduationCap, Lock, Unlock, Upload, User as UserIcon,
-  AlertTriangle, Edit3, Save, X, Wifi, ShieldAlert, Plus, Trash2, Loader2,
+  AlertTriangle, Edit3, Save, X, ShieldAlert, Plus, Trash2, Loader2,
 } from "lucide-react";
 
 interface StudentProfile {
@@ -108,7 +109,6 @@ export default function CustomerDetail() {
   const [cardDialogOpen, setCardDialogOpen] = useState(false);
   const [cardUidDraft, setCardUidDraft] = useState("");
   const [bindingCard, setBindingCard] = useState(false);
-  const [webusbReading, setWebusbReading] = useState(false);
 
   // Daily limit editor
   const [dailyLimitDraft, setDailyLimitDraft] = useState<string>("");
@@ -267,36 +267,14 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleWebUSBRead = async () => {
-    // WebUSB requires user gesture + HTTPS. Chrome-only. Best-effort integration:
-    // Prompt user to pick a USB device. If an NFC reader (ACR122U) is selected,
-    // we can't actually read from it without a protocol library — so this stub
-    // just documents the pathway and falls back to manual input.
-    if (!("usb" in navigator)) {
-      toast({
-        title: t("admin.customer.browserNoWebUsb"),
-        description: t("admin.customer.browserNoWebUsbDesc"),
-        variant: "destructive",
-      });
-      return;
-    }
-    setWebusbReading(true);
-    try {
-      // @ts-expect-error: navigator.usb is not in standard TS lib
-      const device = await navigator.usb.requestDevice({ filters: [] });
-      toast({
-        title: t("admin.customer.readerConnected"),
-        description: t("admin.customer.readerConnectedDesc", { name: device.productName || "reader" }),
-      });
-    } catch {
-      toast({
-        title: t("admin.customer.readerNotPicked"),
-        description: t("admin.customer.readerNotPickedDesc"),
-      });
-    } finally {
-      setWebusbReading(false);
-    }
-  };
+  // Tapping a real card while the bind dialog is open fills the field
+  // directly from the reader (PC/SC bridge or keyboard-wedge fallback).
+  useRfidListener({
+    onCapture: (uid) => {
+      if (!cardDialogOpen) return;
+      setCardUidDraft(uid.toUpperCase());
+    },
+  });
 
   const handleSaveDailyLimit = async () => {
     if (!profile) return;
@@ -901,18 +879,9 @@ export default function CustomerDetail() {
                   placeholder={t("admin.customer.bindPlaceholder")}
                   className="font-mono"
                 />
-                <IconButton
-                  tooltip={t("admin.customer.pickReader")}
-                  variant="outline"
-                  onClick={handleWebUSBRead}
-                  disabled={webusbReading}
-                >
-                  <Wifi className="h-4 w-4" />
-                </IconButton>
               </div>
-              <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>{t("admin.customer.bindReaderHint")}</span>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("admin.customer.cardUidTapHint", "หรือแตะบัตรที่เครื่องอ่านเพื่อเติมอัตโนมัติ")}
               </p>
             </div>
             {profile.card_uid && (
