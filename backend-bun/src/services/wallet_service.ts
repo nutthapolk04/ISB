@@ -388,8 +388,11 @@ export async function adjustBalance(args: {
      * distinct from adminUserId (the kiosk/cashier service account making the
      * call). Omitted for anything not attributable to a specific person. */
     actingUserId?: number | null;
+    /** Same as actingUserId but for a student scanning their own card. At
+     * most one of actingUserId / actingCustomerId is ever set. */
+    actingCustomerId?: number | null;
 }): Promise<WalletTransactionResponseDTO> {
-    const { walletId, amount, adminUserId, referenceTicket, actingUserId } = args;
+    const { walletId, amount, adminUserId, referenceTicket, actingUserId, actingCustomerId } = args;
     const reason = args.reason?.trim();
     if (amount === 0) {
         const err = new Error("Adjustment amount must be non-zero");
@@ -441,9 +444,9 @@ export async function adjustBalance(args: {
         }>>`
       INSERT INTO wallet_transactions
         (wallet_id, transaction_type, amount, balance_before, balance_after,
-         reference_type, reference_id, description, reason, reference_ticket, created_by, acting_user_id)
+         reference_type, reference_id, description, reason, reference_ticket, created_by, acting_user_id, acting_customer_id)
       VALUES (${walletId}, 'ADJUSTMENT', ${Math.abs(amount)}, ${balanceBefore}, ${balanceAfter},
-              'admin_adjustment', NULL, ${description}, ${reason}, ${referenceTicket ?? null}, ${adminUserId}, ${actingUserId ?? null})
+              'admin_adjustment', NULL, ${description}, ${reason}, ${referenceTicket ?? null}, ${adminUserId}, ${actingUserId ?? null}, ${actingCustomerId ?? null})
       RETURNING id, wallet_id, transaction_type, amount, balance_before, balance_after,
                 reference_type, reference_id, description, created_at
     `;
@@ -597,6 +600,8 @@ export async function cashierTopup(args: {
     idempotencyKey?: string;
     /** RFID-scanned parent/staff id at a kiosk, if any — see adjustBalance(). */
     actingUserId?: number | null;
+    /** RFID-scanned student's own customer id at a kiosk, if any (self top-up). */
+    actingCustomerId?: number | null;
 }): Promise<CashierTopupDTO> {
     const { walletId, amount, cashierUserId, notes } = args;
     const idempotencyKey = parseIdempotencyKey(args.idempotencyKey);
@@ -649,6 +654,7 @@ export async function cashierTopup(args: {
             reason: "Cash top-up at POS" + (notes ? ` - ${notes}` : ""),
             referenceTicket: idempotencyTicket,
             actingUserId: args.actingUserId,
+            actingCustomerId: args.actingCustomerId,
         });
     } catch (e) {
         if (idempotencyTicket && isPgUniqueViolation(e)) {

@@ -239,6 +239,17 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS acting_user_id INTEGER REFERENCES users(id)`,
         label: "payment_intents.acting_user_id",
     },
+    // A student scanning their own card (a customers row, not a users row)
+    // to top up their own wallet — acting_user_id can't hold this since
+    // customers and users are different tables/id-spaces.
+    {
+        sql: `ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS acting_customer_id INTEGER REFERENCES customers(id)`,
+        label: "wallet_transactions.acting_customer_id",
+    },
+    {
+        sql: `ALTER TABLE payment_intents ADD COLUMN IF NOT EXISTS acting_customer_id INTEGER REFERENCES customers(id)`,
+        label: "payment_intents.acting_customer_id",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

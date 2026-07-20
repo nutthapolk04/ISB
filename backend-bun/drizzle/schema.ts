@@ -858,6 +858,11 @@ export const walletTransactions = pgTable("wallet_transactions", {
 	// the API call). Null for anything not attributable to a specific person
 	// beyond the calling account — see cashierTopup()/adjustBalance().
 	actingUserId: integer("acting_user_id"),
+	// Same as actingUserId but for the case where the scanned card belongs
+	// to a customer (student) rather than a users-table row — e.g. a student
+	// scanning their own card to top up their own wallet. Exactly one of
+	// actingUserId / actingCustomerId is ever set, never both.
+	actingCustomerId: integer("acting_customer_id"),
 }, (table) => [
 	index("ix_wallet_transactions_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	foreignKey({
@@ -870,6 +875,11 @@ export const walletTransactions = pgTable("wallet_transactions", {
 		foreignColumns: [wallets.id],
 		name: "wallet_transactions_wallet_id_fkey"
 	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.actingCustomerId],
+		foreignColumns: [customers.id],
+		name: "wallet_transactions_acting_customer_id_fkey"
+	}),
 	foreignKey({
 		columns: [table.actingUserId],
 		foreignColumns: [users.id],
@@ -1047,6 +1057,9 @@ export const paymentIntents = pgTable("payment_intents", {
 	// copied onto wallet_transactions.acting_user_id at confirm time rather
 	// than threaded through as a function argument — see confirmTopup().
 	actingUserId: integer("acting_user_id"),
+	// Same as actingUserId but for a student scanning their own card (a
+	// customers row, not a users row) — see wallet_transactions.actingCustomerId.
+	actingCustomerId: integer("acting_customer_id"),
 }, (table) => [
 	index("ix_payment_intents_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_payment_intents_ref").using("btree", table.refCode.asc().nullsLast().op("text_ops")),
@@ -1063,6 +1076,11 @@ export const paymentIntents = pgTable("payment_intents", {
 		columns: [table.createdBy],
 		foreignColumns: [users.id],
 		name: "payment_intents_created_by_fkey"
+	}),
+	foreignKey({
+		columns: [table.actingCustomerId],
+		foreignColumns: [customers.id],
+		name: "payment_intents_acting_customer_id_fkey"
 	}),
 	foreignKey({
 		columns: [table.walletId],

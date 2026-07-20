@@ -56,6 +56,7 @@ export const TopupController = {
 				payType: body.pay_type ?? null,
 				lang: body.lang ?? null,
 				actingUserId: hasRole(user.roles, "kiosk") && body.acting_user_id != null ? Number(body.acting_user_id) : undefined,
+				actingCustomerId: hasRole(user.roles, "kiosk") && body.acting_customer_id != null ? Number(body.acting_customer_id) : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (TP-01)] TopupController.createIntent() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
@@ -187,6 +188,7 @@ export const TopupController = {
 				notes: body.notes ?? undefined,
 				idempotencyKey: body.idempotency_key ?? undefined,
 				actingUserId: hasRole(user.roles, "kiosk") && body.acting_user_id != null ? Number(body.acting_user_id) : undefined,
+				actingCustomerId: hasRole(user.roles, "kiosk") && body.acting_customer_id != null ? Number(body.acting_customer_id) : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (TP-05)] TopupController.cashierTopup() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

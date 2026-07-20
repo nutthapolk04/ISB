@@ -14,6 +14,9 @@ export const topupCreateIntent = {
         // tapped their card to start this QR top-up, distinct from the
         // kiosk's own service-account id. Ignored for all other callers.
         acting_user_id: t.Optional(t.Number()),
+        // Same idea but for a student scanning their own card (self top-up)
+        // — at most one of acting_user_id / acting_customer_id is ever sent.
+        acting_customer_id: t.Optional(t.Number()),
     }),
     detail: { tags: ["Wallets"], summary: "Create wallet top-up intent" },
 };
@@ -49,6 +52,9 @@ export const topupCashier = {
         // tapped their card to make this top-up, distinct from the kiosk's
         // own service-account id. Ignored for all other callers.
         acting_user_id: t.Optional(t.Number()),
+        // Same idea but for a student scanning their own card (self top-up)
+        // — at most one of acting_user_id / acting_customer_id is ever sent.
+        acting_customer_id: t.Optional(t.Number()),
     }),
     detail: { tags: ["Wallets"], summary: "Cashier wallet top-up" },
 };

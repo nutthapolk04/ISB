@@ -277,6 +277,10 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
         // string `id` above) — null means a student scanned their own card,
         // where there's no users-table row to attribute a top-up to.
         actingUserId: c.user_id ?? null,
+        // The complement: set only when the scan resolved to a customers row
+        // directly (a student scanning their own card) rather than a users
+        // row — lets a student's self top-up attribute to their own name.
+        actingCustomerId: c.user_id == null ? c.id : null,
     };
 }
 
@@ -376,9 +380,10 @@ export const realApi = {
      * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
      * Returns updated balance_after and the new transaction_id.
      *
-     * `actingUserId` is the RFID-identified parent/staff's user id (from
-     * `store.currentUser.actingUserId`) — null when a student scanned their
-     * own card, since there's no users-table row to attribute the top-up to.
+     * `actingUserId`/`actingCustomerId` are the RFID-identified card owner's
+     * id (from `store.currentUser.actingUserId`/`actingCustomerId`) — a
+     * parent/staff scan sets the former, a student scanning their own card
+     * (self top-up) sets the latter; at most one is ever non-null.
      */
     async topUp(
         walletId: string,
@@ -386,6 +391,7 @@ export const realApi = {
         method: string,
         idempotencyKey?: string,
         actingUserId?: number | null,
+        actingCustomerId?: number | null,
     ): Promise<{ balance_after: number; transaction_id: number }> {
         const location = getKioskDeviceName();
         const deviceId = getKioskDeviceId();
@@ -398,6 +404,9 @@ export const realApi = {
         }
         if (actingUserId != null) {
             body.acting_user_id = actingUserId;
+        }
+        if (actingCustomerId != null) {
+            body.acting_customer_id = actingCustomerId;
         }
         const res = await requestPost<{
             wallet_id: number;
@@ -414,15 +423,16 @@ export const realApi = {
     },
 
     /**
-     * `actingUserId` is the RFID-identified parent/staff's user id (from
-     * `store.currentUser.actingUserId`) — persisted on the intent now since
-     * confirmation happens later, asynchronously (BAY webhook/inquiry), with
-     * no request context to thread it through at that point.
+     * `actingUserId`/`actingCustomerId` are the RFID-identified card owner's
+     * id — persisted on the intent now since confirmation happens later,
+     * asynchronously (BAY webhook/inquiry), with no request context to
+     * thread it through at that point. At most one is ever non-null.
      */
     async createTopupIntent(
         walletId: string,
         amount: number,
         actingUserId?: number | null,
+        actingCustomerId?: number | null,
     ): Promise<{ ref_code: string; qr_payload: string; status: string; payment_method: string }> {
         const location = getKioskDeviceName();
         const body: Record<string, unknown> = {
@@ -432,6 +442,9 @@ export const realApi = {
         };
         if (actingUserId != null) {
             body.acting_user_id = actingUserId;
+        }
+        if (actingCustomerId != null) {
+            body.acting_customer_id = actingCustomerId;
         }
         return requestPost(`/wallets/${walletId}/topup`, body);
     },

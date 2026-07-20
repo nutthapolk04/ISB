@@ -315,7 +315,7 @@ const initQrPayment = async () => {
     activeRefCode.value = null;
     stopPolling();
     try {
-        const intent = await realApi.createTopupIntent(walletId, amountNumber.value, store.currentUser?.actingUserId ?? null);
+        const intent = await realApi.createTopupIntent(walletId, amountNumber.value, store.currentUser?.actingUserId ?? null, store.currentUser?.actingCustomerId ?? null);
         activeRefCode.value = intent.ref_code;
         logKioskEvent('qr', 'info', 'QR intent created', { ref_code: intent.ref_code, amount: amountNumber.value });
         qrDataUrl.value = await QRCode.toDataURL(intent.qr_payload, {
@@ -432,7 +432,7 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
     failDetail.value = null;
     try {
         await bill.stop();
-        const res = await bill.finalizeTopUp(walletId, amount, store.currentUser?.actingUserId ?? null);
+        const res = await bill.finalizeTopUp(walletId, amount, store.currentUser?.actingUserId ?? null, store.currentUser?.actingCustomerId ?? null);
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
         await store.refreshBalance();

@@ -424,7 +424,13 @@ export async function topupReport(args: {
     ];
     combined.sort((a, b) => String(b.tx.createdAt).localeCompare(String(a.tx.createdAt)));
 
-    const customerIds = [...new Set(combined.filter((r) => r.w.customerId != null).map((r) => r.w.customerId!))];
+    // Includes both wallet-recipient customer ids AND acting_customer_id
+    // values (a student scanning their own card) so both lookups share one
+    // batch fetch / customerById map below.
+    const customerIds = [...new Set([
+        ...combined.filter((r) => r.w.customerId != null).map((r) => r.w.customerId!),
+        ...combined.filter((r) => r.tx.actingCustomerId != null).map((r) => r.tx.actingCustomerId!),
+    ])];
     const ownerUserIds = [...new Set(combined.filter((r) => r.w.userId != null).map((r) => r.w.userId!))];
     const [customerRows, ownerUserRows] = await Promise.all([
         customerIds.length
@@ -478,15 +484,18 @@ export async function topupReport(args: {
         }
 
         // Prefer parent/cashier name as "who topped up". For kiosk machines,
-        // acting_user_id (the RFID-scanned card owner) is the real answer
-        // when present; older rows predating that column fall back to the
-        // kiosk device's own label, or the wallet owner's name for a parent
-        // topping up their own wallet.
+        // acting_user_id/acting_customer_id (the RFID-scanned card owner) is
+        // the real answer when present; older rows predating those columns
+        // fall back to the kiosk device's own label, or the wallet owner's
+        // name for a parent topping up their own wallet.
         let toppedBy = creatorName;
         if (channel === "kiosk") {
             const actingUser = r.tx.actingUserId != null ? actingUserById.get(r.tx.actingUserId) : null;
+            const actingCustomer = r.tx.actingCustomerId != null ? customerById.get(r.tx.actingCustomerId) : null;
             if (actingUser) {
                 toppedBy = actingUser.fullName || actingUser.username;
+            } else if (actingCustomer) {
+                toppedBy = actingCustomer.name;
             } else {
                 toppedBy = kioskDisplayName(r.tx.reason, creatorName);
                 if (r.w.userId != null && recipientName !== "—") {

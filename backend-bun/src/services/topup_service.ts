@@ -178,6 +178,8 @@ export interface CreateTopupInput {
      * just passed through) because confirmation happens later and
      * asynchronously — see confirmTopup(). */
     actingUserId?: number | null;
+    /** Same as actingUserId but for a student scanning their own card. */
+    actingCustomerId?: number | null;
 }
 
 export async function createTopupIntent(input: CreateTopupInput): Promise<TopupIntentDTO> {
@@ -221,6 +223,7 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
         createdBy: input.userId,
         notes: input.notes ?? null,
         actingUserId: input.actingUserId ?? null,
+        actingCustomerId: input.actingCustomerId ?? null,
     }).returning();
 
     // PYMT gateway call (after row exists so ref_code is claimed in DB —
@@ -815,8 +818,8 @@ export async function confirmTopup(args: {
 }): Promise<TopupConfirmDTO> {
     let result: TopupConfirmDTO | null = null;
     await pgClient.begin(async (sqlTx) => {
-        const iRows = await sqlTx<Array<{ id: number; ref_code: string; wallet_id: number; amount: string; status: string; payment_method: string; notes: string | null; acting_user_id: number | null }>>`
-      SELECT id, ref_code, wallet_id, amount, status, payment_method, notes, acting_user_id
+        const iRows = await sqlTx<Array<{ id: number; ref_code: string; wallet_id: number; amount: string; status: string; payment_method: string; notes: string | null; acting_user_id: number | null; acting_customer_id: number | null }>>`
+      SELECT id, ref_code, wallet_id, amount, status, payment_method, notes, acting_user_id, acting_customer_id
       FROM payment_intents WHERE ref_code = ${args.refCode} FOR UPDATE
     `;
         const intent = iRows[0];
@@ -855,9 +858,9 @@ export async function confirmTopup(args: {
         const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
       INSERT INTO wallet_transactions
         (wallet_id, transaction_type, amount, balance_before, balance_after,
-         reference_type, reference_id, description, created_by, acting_user_id)
+         reference_type, reference_id, description, created_by, acting_user_id, acting_customer_id)
       VALUES (${wallet.id}, 'TOPUP', ${amount}, ${balanceBefore}, ${balanceAfter},
-              'payment_intent', ${intent.id}, ${description}, ${args.confirmerId}, ${intent.acting_user_id})
+              'payment_intent', ${intent.id}, ${description}, ${args.confirmerId}, ${intent.acting_user_id}, ${intent.acting_customer_id})
       RETURNING id, created_at
     `;
 

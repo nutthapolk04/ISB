@@ -41,6 +41,10 @@ export interface User {
      * own users-table row) — null/absent for a student card scan, where `id`
      * above is a customers.id instead and there's no users row to attribute to. */
     actingUserId?: number | null;
+    /** customers.id when this login was a student's own RFID card scan (a
+     * customers row, not a users row) — set for a self top-up. Exactly one
+     * of actingUserId / actingCustomerId is ever set. */
+    actingCustomerId?: number | null;
 }
 
 const mockUsers: Record<string, User> = {
