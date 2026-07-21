@@ -386,8 +386,8 @@ export async function checkout(input: CheckoutInput) {
 
     for (const item of input.items) {
       const qty = item.quantity;
-      if (qty === 0) {
-        const err = new Error("quantity must be non-zero");
+      if (qty < 1) {
+        const err = new Error(`quantity must be >= 1 (got ${qty})`);
         (err as { status?: number }).status = 400;
         throw err;
       }

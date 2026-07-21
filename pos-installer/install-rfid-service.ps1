@@ -245,8 +245,28 @@ if ($svc -and $svc.Status -eq "Running") {
     exit 1
 }
 
-# ── 6. ตรวจสอบ port 9001 (รอสูงสุด 10 วิ) ────────────────────────
-Write-Step "6️⃣  ตรวจสอบ WebSocket server (port 9001)..."
+# ── 6. ตั้งค่า Chrome Local Network Access policy ────────────────
+# Chrome เวอร์ชันใหม่บล็อกเว็บสาธารณะ (isb.schooney.tech) ไม่ให้ต่อ
+# ws://localhost:9001 เอง (Private Network Access check) แยกจาก CSP คนละชั้น
+# ต้อง whitelist โดเมนผ่าน Enterprise Policy — เดิมเป็นขั้นตอน manual
+# (ดู pos-installer/README.md) ย้ายมาทำอัตโนมัติที่นี่แทน
+Write-Step "6️⃣  ตั้งค่า Chrome Local Network Access policy..."
+$ChromePolicyPath = "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls"
+$AllowedUrl = "isb.schooney.tech"
+$chromePolicyOk = $false
+try {
+    New-Item -Path $ChromePolicyPath -Force | Out-Null
+    Set-ItemProperty -Path $ChromePolicyPath -Name "1" -Value $AllowedUrl
+    $chromePolicyOk = $true
+    Write-Ok "ตั้งค่า LocalNetworkAccessAllowedForUrls = $AllowedUrl แล้ว"
+    Write-Warn "ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ policy ถึงจะมีผล (เช็คได้ที่ chrome://policy)"
+} catch {
+    Write-Err "ตั้งค่า Chrome policy ไม่สำเร็จ: $($_.Exception.Message)"
+    Write-Host "   ตั้งเองได้ภายหลังด้วย: New-Item -Path `"$ChromePolicyPath`" -Force; Set-ItemProperty -Path `"$ChromePolicyPath`" -Name '1' -Value '$AllowedUrl'"
+}
+
+# ── 7. ตรวจสอบ port 9001 (รอสูงสุด 10 วิ) ────────────────────────
+Write-Step "7️⃣  ตรวจสอบ WebSocket server (port 9001)..."
 $portOk = $false
 $deadline = (Get-Date).AddSeconds(10)
 while ((Get-Date) -lt $deadline -and -not $portOk) {
@@ -266,7 +286,7 @@ if ($portOk) {
     Write-Err "port 9001 ไม่ตอบสนอง (รอครบ 10 วิแล้ว) — ดู log ด้วย: Get-Content `"$logsDir\err.log`" -Tail 50"
 }
 
-# ── 7. สรุปผล ───────────────────────────────────────────────────
+# ── 8. สรุปผล ───────────────────────────────────────────────────
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Magenta
 Write-Host "✨ ISB RFID Bridge — สรุปผลการติดตั้ง" -ForegroundColor Magenta
@@ -281,8 +301,14 @@ if ($portOk) {
 } else {
     Write-Host "  Port 9001      : ❌ Not listening" -ForegroundColor Red
 }
+if ($chromePolicyOk) {
+    Write-Host "  Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = $AllowedUrl" -ForegroundColor Green
+} else {
+    Write-Host "  Chrome policy  : ❌ ตั้งไม่สำเร็จ — ดูวิธีตั้งเองด้านบน" -ForegroundColor Red
+}
 Write-Host ""
 Write-Host "  หน้าเว็บ ISB ไม่ต้อง config อะไรเพิ่ม — ws://localhost:9001 ถูก allow ไว้ใน CSP อยู่แล้ว" -ForegroundColor Cyan
+Write-Host "  ⚠️  ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้ง เพื่อให้ policy มีผล ก่อนทดสอบแตะบัตร" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "คำสั่งที่ใช้บ่อย (รันจาก $Root):" -ForegroundColor Cyan
 Write-Host "  Get-Service $ServiceName                    # ดูสถานะ service"

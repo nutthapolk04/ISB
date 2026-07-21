@@ -44,6 +44,7 @@ interface SalesSummaryRow {
   amt_campus_card: number;
   amt_credit_card: number;
   amt_qr_code: number;
+  amt_department: number;
   amt_other: number;
   remark: string | null;
   shop_id: string;
@@ -60,6 +61,7 @@ interface SalesSummaryTotals {
   amt_campus_card: number;
   amt_credit_card: number;
   amt_qr_code: number;
+  amt_department: number;
   amt_other: number;
 }
 
@@ -159,6 +161,7 @@ export function SalesSummaryReport({
       const data = await api.get<SalesSummaryReportData>(
         `/reports/sales-summary${qs ? `?${qs}` : ""}`,
       );
+      console.log("Daily Sales Report data:", data);
       setSsData(data);
       if (data.rows.length === 0) {
         toast.message("No receipts match these filters.");
@@ -217,20 +220,28 @@ export function SalesSummaryReport({
       { header: "Amt. Campus card", key: "amt_campus_card",  format: "currency", width: 58 },
       { header: "Amt. Credit card", key: "amt_credit_card",  format: "currency", width: 58 },
       { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
-      { header: "Amt. Department",       key: "amt_other",        format: "currency", width: 48 },
+      { header: "Amt. Department",  key: "amt_department",  format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
       { header: "Bundle",           key: "bundle_names",     width: 90  },
       { header: "Status",           key: "status",           width: 55  },
     ];
 
-    const multi = isMultiVendor(ssData.rows);
+    // On-screen table stays newest-first (ssData.rows, as returned by the
+    // API). PDF/Excel export only wants the opposite — oldest at the top,
+    // most recent last — so sort a copy here and renumber Seq. to match,
+    // without touching the on-screen order above.
+    const exportRows = [...ssData.rows]
+      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime())
+      .map((r, idx) => ({ ...r, seq: idx + 1 }));
+
+    const multi = isMultiVendor(exportRows);
     const filterLines = buildSalesSummaryFilterLines();
     let bodyRows: Record<string, unknown>[];
     if (multi) {
       // Plain sum per shop — a voided receipt's sale + void reversal legs
       // are both already in `shopRows` and net to zero on their own, so no
       // status-based filtering is needed here any more.
-      bodyRows = buildVendorSections(ssData.rows, (shopRows) => ({
+      bodyRows = buildVendorSections(exportRows, (shopRows) => ({
         customer_name: "Subtotal",
         bundle_names: "",
         amt_receive:      shopRows.reduce((s, r) => s + r.amt_receive,     0),
@@ -240,17 +251,18 @@ export function SalesSummaryReport({
         amt_campus_card:  shopRows.reduce((s, r) => s + r.amt_campus_card, 0),
         amt_credit_card:  shopRows.reduce((s, r) => s + r.amt_credit_card, 0),
         amt_qr_code:      shopRows.reduce((s, r) => s + r.amt_qr_code,     0),
+        amt_department:   shopRows.reduce((s, r) => s + r.amt_department,  0),
         amt_other:        shopRows.reduce((s, r) => s + r.amt_other,       0),
       }));
     } else {
-      bodyRows = ssData.rows as unknown as Record<string, unknown>[];
+      bodyRows = exportRows as unknown as Record<string, unknown>[];
       // Only fill Shop from row data when the UI filter didn't already name it
       // (avoids duplicate "Shop: …" lines in PDF/Excel headers).
       if (
-        ssData.rows.length > 0
+        exportRows.length > 0
         && !filterLines.some((l) => l.startsWith("Shop:"))
       ) {
-        filterLines.push(`Shop: ${ssData.rows[0].shop_name ?? ssData.rows[0].shop_id}`);
+        filterLines.push(`Shop: ${exportRows[0].shop_name ?? exportRows[0].shop_id}`);
       }
     }
 
@@ -273,6 +285,7 @@ export function SalesSummaryReport({
         amt_campus_card: ssData.totals.amt_campus_card,
         amt_credit_card: ssData.totals.amt_credit_card,
         amt_qr_code: ssData.totals.amt_qr_code,
+        amt_department: ssData.totals.amt_department,
         amt_other: ssData.totals.amt_other,
       },
     };
@@ -437,7 +450,7 @@ export function SalesSummaryReport({
                 Found <span className="font-semibold text-foreground">{ssData.receipt_count}</span> receipts
                 {" · "}Grand total{" "}
                 <span className="font-semibold text-foreground">
-                  ฿{ssData.totals.amt_receive.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  ฿{ssData.totals.amt_billing.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="overflow-x-auto rounded-md border">
@@ -484,7 +497,7 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_campus_card !== 0 ? r.amt_campus_card.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_credit_card !== 0 ? r.amt_credit_card.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code !== 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
-                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_other !== 0 ? r.amt_other.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.amt_department !== 0 ? r.amt_department.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.bundle_names ?? ""}</td>
                           <td className="px-2 py-1.5">
@@ -509,7 +522,7 @@ export function SalesSummaryReport({
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_campus_card.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_credit_card.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
-                        <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_other.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_department.toFixed(2)}</td>
                         <td />
                         <td />
                         <td />

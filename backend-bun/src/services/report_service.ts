@@ -241,7 +241,11 @@ export async function salesByPaymentReport(args: {
     return {
       payment_method: r.payment_method,
       receipt_count: count,
-      total,
+      // VOIDED rows show as a negative amount (a reversal of the sale) so a
+      // per-method subtotal that sums every row nets to the correct total —
+      // receipts.total itself is always stored positive regardless of
+      // status, so the sign has to be applied here.
+      total: r.status === "VOIDED" ? -total : total,
       shop_id: r.shop_id ?? "",
       shop_name: r.shop_name,
       status: r.status,
@@ -904,7 +908,7 @@ function amountColumnFor(method: string): string {
   if (method === "WALLET" || method === "CARD_TAP") return "amt_campus_card";
   if (method === "CREDIT_CARD" || method === "DEBIT_CARD" || method === "EDC") return "amt_credit_card";
   if (method === "BANK_TRANSFER") return "amt_qr_code";
-  if (method === "DEPARTMENT") return "amt_billing";
+  if (method === "DEPARTMENT") return "amt_department";
   return "amt_other";
 }
 
@@ -928,11 +932,15 @@ export interface SalesSummaryRow {
   customer_name: string | null;
   amt_receive: number;
   amt_change: number;
+  /** General bill/revenue amount for this row — always equals
+   * amt_receive - amt_change (= receipts.total), regardless of payment
+   * method. Not a payment-method bucket. */
   amt_billing: number;
   amt_cash: number;
   amt_campus_card: number;
   amt_credit_card: number;
   amt_qr_code: number;
+  amt_department: number;
   amt_other: number;
   remark: string | null;
   shop_id: string;
@@ -949,6 +957,7 @@ export interface SalesSummaryTotals {
   amt_campus_card: number;
   amt_credit_card: number;
   amt_qr_code: number;
+  amt_department: number;
   amt_other: number;
 }
 
@@ -972,18 +981,27 @@ type ReceiptJoinRow = {
 /** Per-receipt amount breakdown shared by both the "sale" and "void
  * reversal" legs below — only the sign and displayed date differ. */
 function computeReceiptAmounts(r: typeof receipts.$inferSelect) {
-  const amtReceive = pgNumber(r.total) ?? 0;
+  // billAmount is the actual sale/revenue amount (receipts.total) — this is
+  // what gets recognized as revenue regardless of payment method, and is
+  // what populates the per-method bucket below.
+  const billAmount = pgNumber(r.total) ?? 0;
+  // amtReceive is the gross amount the customer physically handed over.
+  // For CASH that's the tendered cash (can exceed billAmount — the excess
+  // comes back as change); for every other method the customer is charged
+  // exactly billAmount, so there's no separate "tendered" concept.
+  let amtReceive = billAmount;
   let amtChange = 0;
   if (r.paymentMethod === "CASH" && r.cashReceived !== null) {
     const cashReceived = pgNumber(r.cashReceived) ?? 0;
-    amtChange = Math.max(cashReceived - amtReceive, 0);
+    amtReceive = cashReceived;
+    amtChange = Math.max(cashReceived - billAmount, 0);
   }
   const col = amountColumnFor(r.paymentMethod) as keyof SalesSummaryTotals;
   const buckets: Record<string, number> = {
-    amt_billing: 0, amt_cash: 0, amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_other: 0,
+    amt_cash: 0, amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_department: 0, amt_other: 0,
   };
-  buckets[col] = amtReceive;
-  return { amtReceive, amtChange, buckets };
+  buckets[col] = billAmount;
+  return { amtReceive, amtChange, billAmount, buckets };
 }
 
 /**
@@ -996,7 +1014,7 @@ function computeReceiptAmounts(r: typeof receipts.$inferSelect) {
  */
 function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, string[]>, leg: "sale" | "void", seq: number): SalesSummaryRow {
   const { receipt: r, customer, payer, payerDepartment, shop } = entry;
-  const { amtReceive, amtChange, buckets } = computeReceiptAmounts(r);
+  const { amtReceive, amtChange, billAmount, buckets } = computeReceiptAmounts(r);
   const sign = leg === "sale" ? 1 : -1;
 
   let custId: string | null = null;
@@ -1023,11 +1041,12 @@ function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, 
     customer_name: custName,
     amt_receive: amtReceive * sign,
     amt_change: amtChange * sign,
-    amt_billing: buckets.amt_billing * sign,
+    amt_billing: billAmount * sign,
     amt_cash: buckets.amt_cash * sign,
     amt_campus_card: buckets.amt_campus_card * sign,
     amt_credit_card: buckets.amt_credit_card * sign,
     amt_qr_code: buckets.amt_qr_code * sign,
+    amt_department: buckets.amt_department * sign,
     amt_other: buckets.amt_other * sign,
     remark: r.notes ?? null,
     shop_id: r.shopId ?? "",
@@ -1200,7 +1219,7 @@ export async function salesSummaryReport(args: {
   // any more (unlike the old single-row-per-receipt model).
   const totals: SalesSummaryTotals = {
     amt_receive: 0, amt_change: 0, amt_billing: 0, amt_cash: 0,
-    amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_other: 0,
+    amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_department: 0, amt_other: 0,
   };
   for (const row of rows) {
     totals.amt_receive += row.amt_receive;
@@ -1210,6 +1229,7 @@ export async function salesSummaryReport(args: {
     totals.amt_campus_card += row.amt_campus_card;
     totals.amt_credit_card += row.amt_credit_card;
     totals.amt_qr_code += row.amt_qr_code;
+    totals.amt_department += row.amt_department;
     totals.amt_other += row.amt_other;
   }
 
