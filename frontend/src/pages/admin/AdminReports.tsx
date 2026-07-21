@@ -28,6 +28,7 @@ import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt } from "lucide-reac
 import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
 import ShopPicker from "@/components/ShopPicker";
 import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
+import { PaginationBar } from "@/components/PaginationBar";
 
 type ReportKind = "topup" | "transaction";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
@@ -64,8 +65,16 @@ interface TopupReportData {
 
 interface TransactionReportData {
     items: TransactionRow[];
+    total: number;
     amount_total: number;
+    page: number;
+    pages: number;
 }
+
+const TXN_PAGE_SIZE = 50;
+/** Cap for the Export re-fetch — mirrors adjustmentReport/transferReport's
+ * own page_size ceiling (backend-bun/src/controllers/AdminReportsController.ts). */
+const TXN_EXPORT_PAGE_SIZE = 5000;
 
 const CHANNEL_LABEL: Record<string, string> = {
     kiosk: "Kiosk",
@@ -107,6 +116,7 @@ export default function AdminReports() {
     const [txnPaymentMethod, setTxnPaymentMethod] = useState<string>("all");
     const [txnShopId, setTxnShopId] = useState<string | null>(null);
     const [txnShopName, setTxnShopName] = useState<string | null>(null);
+    const [txnPage, setTxnPage] = useState(1);
 
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
@@ -123,14 +133,55 @@ export default function AdminReports() {
         setTxnPaymentMethod("all");
         setTxnShopId(null);
         setTxnShopName(null);
+        setTxnPage(1);
         setSearched(false);
         setTopupData(null);
         setTxnData(null);
     };
 
+    /** Shared filter params for Transaction Report — page is separate since
+     * the Search button and the pagination bar both need to build these but
+     * start from a different page. */
+    const buildTxnParams = (page: number, pageSize: number) => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        if (txnSearch.trim()) params.set("search", txnSearch.trim());
+        if (txnCashier) params.set("cashier_id", String(txnCashier.id));
+        if (txnStatus !== "all") params.set("status", txnStatus);
+        if (txnPaymentMethod !== "all") params.set("payment_method", txnPaymentMethod);
+        if (txnShopId) params.set("shop_id", txnShopId);
+        params.set("page", String(page));
+        params.set("page_size", String(pageSize));
+        return params;
+    };
+
+    const loadTransactionPage = async (page: number) => {
+        setLoading(true);
+        try {
+            const params = buildTxnParams(page, TXN_PAGE_SIZE);
+            const data = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
+            setTxnData(data);
+            setTxnPage(data.page);
+            setSearched(true);
+            if (data.items.length === 0) toast.message("No transactions match these filters.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSearch = async () => {
-        if (!dateFrom || !dateTo) {
+        // Top-up report still requires an explicit date range; Transaction
+        // Report's filters (including date) are all independently optional —
+        // matching how Sales Summary Report's filters behave.
+        if (selected === "topup" && (!dateFrom || !dateTo)) {
             toast.error(t("reports.selectDateRangeDesc"));
+            return;
+        }
+        if (selected === "transaction") {
+            await loadTransactionPage(1);
             return;
         }
         setLoading(true);
@@ -147,16 +198,6 @@ export default function AdminReports() {
                 const data = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
                 setTopupData(data);
                 if (data.items.length === 0) toast.message("No top-ups match these filters.");
-            } else if (selected === "transaction") {
-                const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
-                if (txnSearch.trim()) params.set("search", txnSearch.trim());
-                if (txnCashier) params.set("cashier_id", String(txnCashier.id));
-                if (txnStatus !== "all") params.set("status", txnStatus);
-                if (txnPaymentMethod !== "all") params.set("payment_method", txnPaymentMethod);
-                if (txnShopId) params.set("shop_id", txnShopId);
-                const data = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
-                setTxnData(data);
-                if (data.items.length === 0) toast.message("No transactions match these filters.");
             }
             setSearched(true);
         } catch (err) {
@@ -185,9 +226,12 @@ export default function AdminReports() {
         return lines;
     };
 
-    /** Builds the export payload from whatever is already on screen — no
-     * re-fetch, so what you exported always matches what you searched. */
-    const buildPayload = (): AdminReportExport | null => {
+    /** Builds the export payload. Top-up Report exports whatever is already
+     * on screen (never paginated). Transaction Report is paginated on
+     * screen, so export re-fetches every row matching the current filters
+     * (capped at TXN_EXPORT_PAGE_SIZE) — otherwise exporting would silently
+     * only cover whichever page happened to be showing. */
+    const buildPayload = async (): Promise<AdminReportExport | null> => {
         const filters = buildFilterLines();
         const dateLabel = `_${dateFrom}_${dateTo}`;
 
@@ -222,6 +266,8 @@ export default function AdminReports() {
         }
 
         if (selected === "transaction" && txnData) {
+            const params = buildTxnParams(1, TXN_EXPORT_PAGE_SIZE);
+            const full = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
             return {
                 payload: {
                     meta: {
@@ -242,8 +288,8 @@ export default function AdminReports() {
                         { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
                         { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
                     ],
-                    rows: txnData.items as unknown as Record<string, unknown>[],
-                    totals: { amount: txnData.amount_total },
+                    rows: full.items as unknown as Record<string, unknown>[],
+                    totals: { amount: full.amount_total },
                 },
                 baseFilename: `TransactionReport${dateLabel}`,
             };
@@ -252,26 +298,29 @@ export default function AdminReports() {
         return null;
     };
 
-    const handleExportExcel = () => {
-        const result = buildPayload();
-        if (!result) return;
+    const handleExportExcel = async () => {
+        setExporting(true);
         try {
+            const result = await buildPayload();
+            if (!result) return;
             exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
+            toast.error(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
+        } finally {
+            setExporting(false);
         }
     };
 
     const handleExportPdf = async () => {
-        const result = buildPayload();
-        if (!result) return;
         setExporting(true);
         try {
+            const result = await buildPayload();
+            if (!result) return;
             await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
+            toast.error(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
         } finally {
             setExporting(false);
         }
@@ -401,6 +450,8 @@ export default function AdminReports() {
                                             value={txnCashier?.id ?? null}
                                             onChange={(_, u) => setTxnCashier(u)}
                                             roles={["cashier", "manager", "admin", "staff", "kitchen"]}
+                                            allowNone
+                                            placeholder={t("admin.adminReports.allCashiers", "All cashiers")}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -408,7 +459,6 @@ export default function AdminReports() {
                                         <ShopPicker
                                             value={txnShopId}
                                             onChange={(id, shop) => { setTxnShopId(id); setTxnShopName(shop?.name ?? null); }}
-                                            allowNone={false}
                                             placeholder={t("admin.adminReports.allShops", "All shops")}
                                         />
                                     </div>
@@ -523,7 +573,7 @@ export default function AdminReports() {
                         {searched && selected === "transaction" && txnData && (
                             <div className="space-y-3">
                                 <div className="text-sm text-muted-foreground">
-                                    Found <span className="font-semibold text-foreground">{txnData.items.length}</span> transactions
+                                    Found <span className="font-semibold text-foreground">{txnData.total}</span> transactions
                                     {" · "}Total{" "}
                                     <span className="font-semibold text-foreground">
                                         ฿{txnData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -581,6 +631,13 @@ export default function AdminReports() {
                                             </tfoot>
                                         )}
                                     </table>
+                                </div>
+                                <div className="flex justify-center">
+                                    <PaginationBar
+                                        currentPage={txnPage}
+                                        totalPages={txnData.pages}
+                                        onPageChange={(p) => loadTransactionPage(p)}
+                                    />
                                 </div>
                             </div>
                         )}

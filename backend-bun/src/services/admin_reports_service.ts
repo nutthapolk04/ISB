@@ -592,6 +592,8 @@ export interface TransactionReportResponseDTO {
     items: TransactionReportRow[];
     total: number;
     amount_total: number;
+    page: number;
+    pages: number;
 }
 
 export async function transactionReport(args: {
@@ -606,6 +608,8 @@ export async function transactionReport(args: {
     status?: string | null;
     paymentMethod?: string | null;
     shopId?: string | null;
+    page: number;
+    pageSize: number;
 }): Promise<TransactionReportResponseDTO> {
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
@@ -634,6 +638,24 @@ export async function transactionReport(args: {
         )!);
     }
 
+    // Aggregates (total count, amount_total) are computed over the FULL
+    // filtered set, not just the page being returned — same reasoning as
+    // adjustmentReport/transferReport above. The search filter reaches into
+    // joined columns (customers/users/departments), so this pass needs the
+    // same joins as the page query below, just with a lighter column list.
+    const aggRows = await db
+        .select({ total: receipts.total, status: receipts.status })
+        .from(receipts)
+        .leftJoin(shops, eq(shops.id, receipts.shopId))
+        .leftJoin(customers, eq(customers.id, receipts.customerId))
+        .leftJoin(users, eq(users.id, receipts.payerUserId))
+        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
+        .where(and(...conds));
+    const total = aggRows.length;
+    const amountTotal = aggRows
+        .filter((r) => r.status === "ACTIVE")
+        .reduce((s, r) => s + (pgNumber(r.total) ?? 0), 0);
+
     const rows = await db
         .select({
             id: receipts.id,
@@ -658,7 +680,9 @@ export async function transactionReport(args: {
         .leftJoin(users, eq(users.id, receipts.payerUserId))
         .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
         .where(and(...conds))
-        .orderBy(desc(receipts.transactionDate), desc(receipts.id));
+        .orderBy(desc(receipts.transactionDate), desc(receipts.id))
+        .offset((args.page - 1) * args.pageSize)
+        .limit(args.pageSize);
 
     const cashierIds = [...new Set(rows.map((r) => r.createdBy).filter((id): id is number => id != null))];
     const cashierRows = cashierIds.length
@@ -692,10 +716,12 @@ export async function transactionReport(args: {
         };
     });
 
-    const amountTotal = items
-        .filter((r) => r.status === "ACTIVE")
-        .reduce((s, r) => s + r.amount, 0);
-
-    return { items, total: items.length, amount_total: amountTotal };
+    return {
+        items,
+        total,
+        amount_total: amountTotal,
+        page: args.page,
+        pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
 }
 

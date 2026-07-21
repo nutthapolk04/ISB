@@ -11,6 +11,14 @@
 #   ./deploy.sh uat
 set -euo pipefail
 
+# Remove one layer of surrounding quotes from .env values (Docker --env-file quirk).
+strip_env_value() {
+  local v="$1"
+  v="${v#\"}"; v="${v%\"}"
+  v="${v#\'}"; v="${v%\'}"
+  printf '%s' "$v"
+}
+
 cd "$(dirname "$0")"
 
 ENV="${1:?Usage: ./deploy.sh <prod|uat>}"
@@ -37,20 +45,24 @@ fi
 
 # Container listens on whatever PORT is set to in the env file — host and
 # container port must match or the app won't be reachable.
-APP_PORT="$(grep -E '^PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2)"
+APP_PORT="$(strip_env_value "$(grep -E '^PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2-)")"
 if [ -z "$APP_PORT" ]; then
   echo "No PORT= set in $ENV_FILE"
   exit 1
 fi
 
 # Mount ISB photo dir into the container (host SFTP upload folder).
-PHOTO_DIR="$(grep -E '^ISB_PHOTO_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '"')"
+# ISB_PHOTO_DIR must be an absolute path on the host, e.g. /sftp/sftp-client/upload
+PHOTO_DIR="$(strip_env_value "$(grep -E '^ISB_PHOTO_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2-)")"
 PHOTO_MOUNT=()
+PHOTO_ENV=()
 if [ -n "$PHOTO_DIR" ]; then
   if [ ! -d "$PHOTO_DIR" ]; then
     echo "WARN: ISB_PHOTO_DIR='$PHOTO_DIR' is not a directory on this host — photos will 404 until it exists."
   fi
   PHOTO_MOUNT=(-v "${PHOTO_DIR}:${PHOTO_DIR}:ro")
+  # Override env-file value so stray quotes in .env.uat don't break path.resolve().
+  PHOTO_ENV=(-e "ISB_PHOTO_DIR=${PHOTO_DIR}")
   echo "==> Mounting ISB photos: ${PHOTO_DIR} (read-only)"
 fi
 
@@ -66,6 +78,7 @@ docker run -d \
   --restart unless-stopped \
   -p "${APP_PORT}:${APP_PORT}" \
   --env-file "$ENV_FILE" \
+  "${PHOTO_ENV[@]}" \
   -v "$(pwd)/logs-${ENV}:/app/logs" \
   "${PHOTO_MOUNT[@]}" \
   "$IMAGE"

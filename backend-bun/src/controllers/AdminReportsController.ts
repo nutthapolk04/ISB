@@ -95,6 +95,8 @@ export const AdminReportsController = {
             logger.warn(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
+        const page = query.page ? Math.max(Number(query.page), 1) : 1;
+        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
         try {
             const result = await transactionReport({
                 dateFrom: query.date_from ?? null,
@@ -104,6 +106,8 @@ export const AdminReportsController = {
                 status: query.status ?? null,
                 paymentMethod: query.payment_method ?? null,
                 shopId: query.shop_id ?? null,
+                page,
+                pageSize,
             });
             logger.info(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);

@@ -29,9 +29,15 @@ interface Props {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** Show a "— All —" sentinel option at the top. Default false (unchanged
+   * behavior for existing callers like StoreRequisition/RequisitionDialog,
+   * which always need a specific staff member picked). */
+  allowNone?: boolean;
 }
 
-export default function UserPicker({ value, onChange, roles, placeholder, disabled, className }: Props) {
+const NONE_SENTINEL = "__none__";
+
+export default function UserPicker({ value, onChange, roles, placeholder, disabled, className, allowNone = false }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<StaffPickerUser[]>([]);
@@ -62,9 +68,12 @@ export default function UserPicker({ value, onChange, roles, placeholder, disabl
 
   const selected = useMemo(() => users.find((u) => u.id === value) ?? null, [users, value]);
 
+  const noneLabel = t("userPicker.allStaff", "— All —");
   const buttonLabel = selected
     ? selected.full_name || selected.username
-    : (placeholder ?? t("requisition.selectRequester", "Search staff…"));
+    : value === null && allowNone
+      ? noneLabel
+      : (placeholder ?? t("requisition.selectRequester", "Search staff…"));
 
   return (
     <div className={className}>
@@ -96,6 +105,9 @@ export default function UserPicker({ value, onChange, roles, placeholder, disabl
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command
             filter={(haystack, search) => {
+              if (haystack === NONE_SENTINEL) {
+                return noneLabel.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+              }
               const u = users.find((x) => String(x.id) === haystack);
               if (!u) return 0;
               const blob = `${u.full_name ?? ""} ${u.username} ${u.role} ${u.external_id ?? ""}`.toLowerCase();
@@ -105,6 +117,21 @@ export default function UserPicker({ value, onChange, roles, placeholder, disabl
             <CommandInput placeholder={t("requisition.searchStaffPlaceholder", "Type name, username, or ID…")} />
             <CommandList onWheel={(e) => e.stopPropagation()}>
               <CommandEmpty>{t("requisition.noStaffFound", "No staff matched")}</CommandEmpty>
+              {allowNone && (
+                <CommandItem
+                  value={NONE_SENTINEL}
+                  onSelect={() => {
+                    onChange(null, null);
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Check
+                    className={cn("h-4 w-4 shrink-0", value === null ? "opacity-100" : "opacity-0")}
+                  />
+                  <span className="text-sm text-muted-foreground italic">{noneLabel}</span>
+                </CommandItem>
+              )}
               {users.map((u) => (
                 <CommandItem
                   key={u.id}
