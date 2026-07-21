@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun run --watch src/server.ts",
     "watch": "nodemon",
-    "build": "bun build ./src/server.ts --outdir ./dist --target bun --minify --sourcemap=linked && mkdir -p dist/fixtures && cp src/services/fixtures/*.json dist/fixtures/",
+    "build": "bun build ./src/server.ts --outdir ./dist --target bun --minify --sourcemap=linked",
     "staging:start": "bun run build && pm2 start ./staging.config.cjs",
     "staging:stop": "pm2 stop ./staging.config.cjs",
     "staging:restart": "pm2 stop ./staging.config.cjs && bun run build && pm2 start ./staging.config.cjs",

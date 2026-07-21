@@ -5,6 +5,7 @@
  *   ISB_PHOTO_DIR      — filesystem root (e.g. /sftp/sftp-client/upload)
  *   BACKEND_BASE_URL   — public API origin used when building photo_url for DB storage
  */
+import { logger } from "@/logger";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -79,7 +80,9 @@ export async function readProfilePhoto(filename: string): Promise<ProfilePhotoBi
 
     try {
         const content = await fs.readFile(resolvedFile);
+        logger.debug(`[PP-01] readProfilePhoto() content: ${content}`);
         const contentType = contentTypeFromExt(path.extname(name));
+        logger.debug(`[PP-01] readProfilePhoto() contentType: ${contentType}`);
         return { content, contentType, sizeBytes: content.byteLength };
     } catch (e) {
         if ((e as NodeJS.ErrnoException).code === "ENOENT") {
