@@ -37,12 +37,16 @@ Rebuild ครั้งถัดไปจะเร็วขึ้นเพรา
 `pos-installer/cache/` แล้ว (ลบโฟลเดอร์นี้ทิ้งได้ถ้าอยากบังคับ
 ดาวน์โหลดใหม่)
 
-## โหมด ONLINE vs OFFLINE (npm install บน POS)
+## โหมด OFFLINE (บังคับ) vs ONLINE (opt-in เท่านั้น)
 
 RFID bridge ต้อง compile native module (`@pokusew/pcsclite`) ตอน
 `npm install` ซึ่งต้องมี Visual Studio Build Tools (C++ workload) บน
-เครื่อง POS — ถ้าไม่อยากพึ่งอินเทอร์เน็ต/Build Tools บนเครื่อง POS ทุกครั้ง
-ให้ทำ **OFFLINE trick** นี้:
+เครื่อง POS — เครื่อง POS ที่เพิ่ง provision ใหม่แทบไม่มีทางมีสิ่งนี้ครบ
+`build.sh` เลย **บังคับ OFFLINE mode โดย default** (จะ error ทันทีถ้าไม่มี
+`pos-installer/prebuilt-node_modules.zip`) เพื่อไม่ให้ build ที่พึ่ง
+`npm install` บนเครื่อง POS หลุดออกไปโดยไม่ตั้งใจ
+
+วิธีสร้าง `prebuilt-node_modules.zip`:
 
 1. ที่เครื่อง POS ที่ setup สำเร็จแล้ว (เช่น `C:\Users\isb\Desktop\rfid-bridge`)
    ให้ zip โฟลเดอร์ `node_modules` ทั้งหมด:
@@ -54,11 +58,13 @@ RFID bridge ต้อง compile native module (`@pokusew/pcsclite`) ตอน
 2. ย้ายไฟล์มาไว้ที่ `pos-installer/prebuilt-node_modules.zip` บน Mac
 3. รัน `./build.sh` ใหม่ — script จะ log ว่าเข้าโหมด **OFFLINE** และ bundle
    `node_modules` เข้าไปใน installer เลย ตัวติดตั้งบนเครื่อง POS เครื่องอื่น
-   จะข้าม `npm install` ไปเลย (เร็วกว่า ไม่ต้องมี Build Tools/อินเทอร์เน็ต)
+   จะข้าม `npm install` ไปเลย (ไม่ต้องมี Build Tools/อินเทอร์เน็ตบนเครื่อง POS)
 
-ถ้าไม่มี `prebuilt-node_modules.zip` จะเป็นโหมด **ONLINE** โดย default —
-`install-rfid-service.ps1` จะรัน `npm install` บนเครื่อง POS เอง
-(ต้องมีอินเทอร์เน็ต + แนะนำให้มี Build Tools ติดตั้งไว้ก่อน)
+ถ้าต้องการ build แบบ ONLINE จริงๆ (เช่น ทดสอบบนเครื่อง dev ที่มีเน็ต/Build
+Tools อยู่แล้ว) ต้อง opt-in ชัดเจน:
+```bash
+ALLOW_ONLINE_BUILD=1 ./build.sh
+```
 
 > **สำคัญ:** zip ต้องมาจากเครื่อง POS Windows เท่านั้น — ห้ามใช้
 > `node_modules` จากเครื่อง Mac/Linux (native module `pcsclite.node`
@@ -77,8 +83,11 @@ RFID bridge ต้อง compile native module (`@pokusew/pcsclite`) ตอน
 3 component ให้เลือก (ติ๊กไว้ทั้งหมดโดย default):
 
 1. **EDC card terminal USB driver (whql_Driver2020)** — copy ไฟล์ไปที่
-   `C:\ISB\driver\` แล้วเปิด `DriverInstall.exe` ของ vendor ให้ operator
-   กดตามขั้นตอนเอง (ไม่ silent — เป็น installer ของ vendor)
+   `C:\ISB\driver\` แล้วรัน `DriverInstall.exe` ของ vendor แบบ unattended
+   (ตัว exe เองไม่มี wizard/popup ให้กด ติดตั้ง usb/adb/qcusber/modem
+   driver ให้ทั้งหมดอัตโนมัติภายใน ~30 วิ ตาม `DriverInstall_Guide.pdf`
+   — installer ของเราแค่ป้อน keypress ว่างๆ เข้า stdin ให้ เพราะ exe ตัวนี้
+   จบด้วย "Press any key to exit" ซึ่งจะค้างรอถ้าไม่มีคนกดจริง)
 2. **Paywire EDC bridge** — copy `paywire.exe` ไปที่ `C:\ISB\paywire\`,
    สร้าง shortcut ใน Startup (all users) + Desktop ชื่อ "Paywire Bridge"
    แล้วเปิดโปรแกรมทันทีหลังติดตั้งเสร็จ
@@ -97,19 +106,89 @@ RFID bridge ต้อง compile native module (`@pokusew/pcsclite`) ตอน
 2. คลิกขวา → **Run as administrator**
 3. ผ่านหน้า Welcome → เลือก component (ปล่อย default ติ๊กไว้ทั้งหมด) →
    เลือกโฟลเดอร์ติดตั้ง (default `C:\ISB`) → Install
-4. รอ driver wizard (ถ้ามี popup ให้กดตามขั้นตอน) และรอสคริปต์ RFID
-   service ทำงานจนจบ (หน้าต่าง PowerShell จะแสดง log เป็นภาษาไทย)
+4. รอจนจบ — ทุกอย่างเป็น unattended ทั้งหมด (ไม่มี popup ให้กด, ไม่ต้องมี
+   เน็ต/Build Tools บนเครื่อง POS): driver ติดตั้งเงียบๆ ~30 วิ, RFID
+   service ลงทะเบียนจาก node_modules ที่ bundle มาให้แล้ว (หน้าต่าง
+   PowerShell จะแสดง log เป็นภาษาไทยระหว่างขั้นตอนนี้ แต่ไม่ต้องกดอะไร)
 5. กด Finish
 
-## ตรวจสอบหลังติดตั้ง
+## ตรวจสอบหลังติดตั้ง — เช็คทีละ component ว่าทำงานจริงไหม
 
-- **EDC**: เปิดหน้าจอชำระเงินของ POS แล้วดูสถานะ EDC — ควรขึ้น
-  วงกลม/pill สีเขียว (connected) ถ้า driver + Paywire bridge รันอยู่
-- **RFID**: แตะบัตรที่เครื่องอ่าน ACR1252 — หน้าจอ POS ควรอ่าน UID ได้
-  ทันที (bridge ส่งผ่าน `ws://localhost:9001` ซึ่ง CSP ของเว็บแอปอนุญาต
-  ไว้แล้ว ไม่ต้อง config เพิ่ม)
-- เช็ค service ได้ด้วย PowerShell: `Get-Service rfid-bridge`
-- ดู log ได้ที่ `C:\ISB\rfid-bridge\logs\out.log` และ `err.log`
+ทำตามลำดับนี้ทีละข้อ ถ้าข้อไหนไม่ผ่านให้แก้ก่อนไปข้อถัดไป (ข้อหลังๆ มักพึ่งข้อก่อนหน้า)
+
+### 1. EDC card terminal USB driver
+
+```powershell
+# เปิด Device Manager แล้วเช็คด้วยตา (มีเครื่องหมาย ! สีเหลืองไหม)
+devmgmt.msc
+```
+ไปที่ **Ports (COM & LPT)** หรือ **Universal Serial Bus controllers** — ต้องเห็นอุปกรณ์ Newland (เช่น "FuJian Newland Payment USB2UART") **ไม่มีเครื่องหมาย ⚠️ สีเหลือง** ถ้ามีเครื่องหมายเตือน = driver ไม่สมบูรณ์ ให้ดู `pos-installer/payload/driver/DriverInstall_Guide.pdf` หัวข้อ "Common exception handling"
+
+### 2. Paywire EDC bridge
+
+```powershell
+# เช็คว่า process กำลังรันอยู่
+Get-Process paywire -ErrorAction SilentlyContinue
+```
+ถ้าไม่เจอ ให้เปิดเองจาก shortcut "Paywire Bridge" บน Desktop หรือ Startup — ควรเห็นไอคอนขึ้นใน system tray มุมขวาล่าง
+
+**เช็คว่า bridge ตอบสนองจริง** (รันบนเครื่อง POS เท่านั้น — โดเมนนี้ resolve เป็น localhost เสมอ):
+```powershell
+curl.exe -sk https://pos.local.bridge.schooney.tech:7331/whoami
+```
+ต้องได้ JSON ตอบกลับ (ไม่ใช่ connection refused/timeout)
+
+### 3. RFID bridge service (ACR1252 + NSSM)
+
+```powershell
+# 1) service ต้องขึ้น Running
+Get-Service rfid-bridge
+
+# 2) port 9001 ต้องเปิดฟัง
+Get-NetTCPConnection -LocalPort 9001 -State Listen
+
+# 3) ดู log สด (เปิดค้างไว้แล้วลองแตะบัตรดูคู่กับข้อ 5)
+Get-Content C:\ISB\rfid-bridge\logs\out.log -Tail 20 -Wait
+```
+ถ้า `Get-Service` ไม่เจอ service เลย ให้ดูหัวข้อ "แก้ปัญหา RFID service ไม่ขึ้น" ด้านล่าง
+
+### 4. Chrome Local Network Access policy (จำเป็นสำหรับหน้าเว็บต่อ RFID ได้)
+
+Chrome เวอร์ชันใหม่บล็อกเว็บสาธารณะ (เช่น `isb.schooney.tech`) ไม่ให้ต่อ
+`ws://localhost:9001` เอง ต้อง whitelist ผ่าน Enterprise Policy ก่อน:
+
+```powershell
+# ตั้งค่า (ทำครั้งเดียวต่อเครื่อง)
+New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force | Out-Null
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
+```
+แล้ว **ปิด Chrome ทั้งหมด** (ทุกหน้าต่าง ไม่ใช่แค่ปิด tab) เปิดใหม่ แล้วเช็คว่า policy ถูกอ่านจริง:
+```
+chrome://policy
+```
+ค้นหา `LocalNetworkAccessAllowedForUrls` — ต้องขึ้นสถานะ **OK** พร้อมค่า `isb.schooney.tech` ถ้าไม่เจอในลิสต์ = restart Chrome ไม่สุด หรือ registry path/ค่าผิด
+
+### 5. ทดสอบจริงจากหน้าเว็บ (end-to-end)
+
+1. เปิดหน้าชำระเงินของ POS ใน Chrome (hard refresh `Ctrl+Shift+R` ก่อน)
+2. **EDC**: ดูสถานะ — ควรขึ้นวงกลม/pill สีเขียว "connected"
+3. **RFID**: แตะบัตรที่เครื่องอ่าน ACR1252 — หน้าจอควรอ่าน UID ได้ทันที
+   (ดู log จากข้อ 3.3 คู่กันได้ ควรเห็น `📢 Broadcasting card UID: ...`
+   ขึ้นพร้อมกับที่แอปตอบสนอง)
+4. เปิด DevTools (F12) → Console — **ต้องไม่มี** error สีแดงเกี่ยวกับ
+   `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` หรือ Content Security Policy
+
+### แก้ปัญหา RFID service ไม่ขึ้น (`Get-Service rfid-bridge` ไม่เจอ)
+
+รันสคริปต์ตัวเดิมด้วยมือเพื่อดู error สดๆ ว่าค้าง/พังตรงไหน:
+```powershell
+cd C:\ISB
+powershell -ExecutionPolicy Bypass -File install-rfid-service.ps1
+```
+ดู error ที่ขั้นตอนไหน (0️⃣-7️⃣) แล้วอ้างอิงตามนั้น — สาเหตุที่เจอมาแล้ว:
+สคริปต์เป็น UTF-8 ไม่มี BOM ทำให้ PowerShell อ่านคอมเมนต์ภาษาไทยผิดจน parse
+ทั้งไฟล์พัง (แก้แล้วใน build ปัจจุบัน — ถ้าเจออีกแปลว่าไฟล์ถูกแก้ทับด้วย
+encoding ผิดอีกครั้ง)
 
 ## ถอนการติดตั้ง
 

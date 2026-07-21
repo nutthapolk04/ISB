@@ -69,8 +69,15 @@ Section "EDC card terminal USB driver (whql_Driver2020)" SecDriver
   SetOutPath "$INSTDIR\driver"
   File /r "payload\driver\*.*"
 
-  DetailPrint "Launching EDC USB driver installer (whql_Driver2020) — follow the on-screen wizard..."
-  ExecWait '"$INSTDIR\driver\DriverInstall.exe"'
+  ; DriverInstall.exe (per vendor's own DriverInstall_Guide.pdf) is fully
+  ; unattended — it installs all 4 sub-drivers (usb/adb/qcusber/modem) on its
+  ; own and takes ~30s, no wizard/clicks needed. The ONE blocking step is
+  ; that it ends with "Press any key to exit" on its console — with nobody
+  ; physically present, ExecWait below would hang forever waiting for that
+  ; keypress. Piping a blank line into its stdin via `cmd /c echo.|` supplies
+  ; that keypress automatically so the install proceeds unattended.
+  DetailPrint "Installing EDC USB driver (whql_Driver2020) — unattended, ~30s..."
+  ExecWait 'cmd.exe /c echo.| "$INSTDIR\driver\DriverInstall.exe"'
 SectionEnd
 
 ; ---------------------------------------------------------------------------
@@ -127,7 +134,7 @@ SectionEnd
 ; Component descriptions
 ; ---------------------------------------------------------------------------
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDriver} "Installs the EDC card terminal USB driver (whql_Driver2020). Runs the vendor's own installer wizard."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDriver} "Installs the EDC card terminal USB driver (whql_Driver2020). Unattended, ~30s — no wizard clicks needed."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecPaywire} "Installs the Paywire EDC bridge and sets it to run automatically at every login."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecRfid} "Installs the ACR1252 RFID bridge as a Windows Service (NSSM) listening on ws://localhost:9001."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END

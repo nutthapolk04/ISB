@@ -31,6 +31,10 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   currentMember: StudentLookupResult | null;
   onSelect: (member: StudentLookupResult) => void;
+  /** A member resolved from a physical card tap captured by the page-level
+   *  RFID listener while this modal is open. Routed through the same
+   *  replace-confirmation gate as a manually typed + selected lookup. */
+  scannedMember?: StudentLookupResult | null;
 }
 
 function userToStudent(u: UserPayerLookup): StudentLookupResult {
@@ -46,7 +50,7 @@ function userToStudent(u: UserPayerLookup): StudentLookupResult {
   };
 }
 
-export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Props) {
+export function CardTapModal({ open, onOpenChange, currentMember, onSelect, scannedMember }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +64,12 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
   // / wrong code is impossible to overlook.
   const [notFoundOpen, setNotFoundOpen] = useState(false);
 
+  // Always read the latest currentMember inside the tap-driven effect below
+  // without needing it in the dependency array (which would refire on every
+  // unrelated member change).
+  const currentMemberRef = useRef(currentMember);
+  useEffect(() => { currentMemberRef.current = currentMember; }, [currentMember]);
+
   // Reset state on open
   useEffect(() => {
     if (open) {
@@ -71,6 +81,23 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect }: Pr
       setTimeout(() => inputRef.current?.focus(), 80);
     }
   }, [open]);
+
+  // A physical card tap resolved while this modal is open — go through the
+  // same replace-confirmation gate a manual lookup + select would use.
+  useEffect(() => {
+    if (!open || !scannedMember) return;
+    setFound(scannedMember);
+    setError(null);
+    setNotFoundOpen(false);
+    const current = currentMemberRef.current;
+    if (current && current.id !== scannedMember.id) {
+      setReplaceOpen(true);
+    } else {
+      onSelect(scannedMember);
+      onOpenChange(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannedMember]);
 
   const lookup = async (q: string) => {
     const trimmed = q.trim();

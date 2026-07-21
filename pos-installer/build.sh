@@ -162,10 +162,35 @@ rm -rf "$NSSM_TMP"
 echo "   copied ($(du -h "$PAYLOAD_DIR/nssm.exe" | cut -f1))"
 
 # ---------------------------------------------------------------------------
-# 7. Optional OFFLINE mode: prebuilt node_modules
+# 7. OFFLINE mode: prebuilt node_modules — REQUIRED by default.
+#
+# Without this, install-rfid-service.ps1 runs `npm install` on the POS
+# machine itself, which needs internet AND Visual Studio Build Tools (C++
+# workload, for compiling the native @pokusew/pcsclite module) — neither of
+# which a freshly provisioned POS terminal has. A build shipped without the
+# bundled node_modules is not a "run the .exe and you're done" installer:
+# the RFID service silently fails to register if npm install fails, with
+# no manual follow-up step for anyone to notice or fix on-site.
+#
+# Set ALLOW_ONLINE_BUILD=1 to explicitly opt out for a local/test build
+# where you genuinely want the POS machine to run npm install itself.
 # ---------------------------------------------------------------------------
 echo ""
 PREBUILT_ZIP="$SCRIPT_DIR/prebuilt-node_modules.zip"
+if [ ! -f "$PREBUILT_ZIP" ] && [ "${ALLOW_ONLINE_BUILD:-}" != "1" ]; then
+  echo "ERROR: pos-installer/prebuilt-node_modules.zip not found." >&2
+  echo "" >&2
+  echo "  A build without it requires npm install (internet + Visual Studio" >&2
+  echo "  Build Tools) to succeed unattended on the POS machine — that is not" >&2
+  echo "  a true 'install and it just works' installer. See README.md's" >&2
+  echo "  OFFLINE mode section for how to generate this zip from a POS" >&2
+  echo "  machine where rfid-bridge already works." >&2
+  echo "" >&2
+  echo "  To build anyway (online mode, POS runs npm install itself):" >&2
+  echo "    ALLOW_ONLINE_BUILD=1 ./build.sh" >&2
+  exit 1
+fi
+
 if [ -f "$PREBUILT_ZIP" ]; then
   echo "== OFFLINE mode: bundling prebuilt node_modules into payload/rfid-bridge/node_modules =="
   unzip -q "$PREBUILT_ZIP" -d "$PAYLOAD_DIR/rfid-bridge/" -x "__MACOSX/*"
@@ -213,7 +238,7 @@ if [ -f "$PREBUILT_ZIP" ]; then
 
   echo "   node_modules bundled ($(du -sh "$PAYLOAD_DIR/rfid-bridge/node_modules" | cut -f1))"
 else
-  echo "== ONLINE mode: no pos-installer/prebuilt-node_modules.zip found — installer.nsi will run npm install on the POS machine =="
+  echo "== ONLINE mode (ALLOW_ONLINE_BUILD=1): no prebuilt-node_modules.zip — installer.nsi will run npm install on the POS machine =="
 fi
 
 # ---------------------------------------------------------------------------

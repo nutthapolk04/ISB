@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useRfidInput } from "@/hooks/useRfidInput";
 import {
   Dialog,
   DialogContent,
@@ -64,20 +65,9 @@ export function DepartmentPaymentModal({
 }: DepartmentPaymentModalProps) {
   const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string>("");
-  const [empInput, setEmpInput] = useState("");
   const [empLoading, setEmpLoading] = useState(false);
   const [empError, setEmpError] = useState<string | null>(null);
   const [verifiedEmployee, setVerifiedEmployee] = useState<VerifiedEmployee | null>(null);
-  const empInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) {
-      setSelectedId("");
-      setEmpInput("");
-      setEmpError(null);
-      setVerifiedEmployee(null);
-    }
-  }, [open]);
 
   const selected = departments.find((d) => String(d.id) === selectedId);
   const canConfirm = !!selected && !!verifiedEmployee && !confirming;
@@ -115,6 +105,26 @@ export function DepartmentPaymentModal({
       setEmpLoading(false);
     }
   };
+
+  const {
+    value: empInput,
+    setValue: setEmpInput,
+    inputRef: empInputRef,
+    onChange: onEmpInputChange,
+    onKeyDown: onEmpInputKeyDown,
+  } = useRfidInput({
+    onSubmit: lookupEmployee,
+    enabled: open && !verifiedEmployee,
+  });
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedId("");
+      setEmpInput("");
+      setEmpError(null);
+      setVerifiedEmployee(null);
+    }
+  }, [open, setEmpInput]);
 
   const handleConfirm = async () => {
     if (!selected) return;
@@ -224,9 +234,10 @@ export function DepartmentPaymentModal({
                 <div className="flex gap-2">
                   <Input
                     ref={empInputRef}
+                    autoFocus
                     value={empInput}
-                    onChange={(e) => setEmpInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") lookupEmployee(empInput); }}
+                    onChange={onEmpInputChange}
+                    onKeyDown={onEmpInputKeyDown}
                     placeholder={t("storePos.deptEmpPlaceholder", "แตะบัตรพนักงาน หรือพิมพ์ username…")}
                     autoComplete="off"
                     disabled={empLoading}
