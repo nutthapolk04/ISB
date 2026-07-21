@@ -576,7 +576,11 @@ export async function topupReport(args: {
 // ── Transaction (POS spending) report ──────────────────────────────────────
 
 export interface TransactionReportRow {
+    /** Only unique WITHIN a kind — a sale row and a topup row can share the
+     * same numeric id (they come from different source tables). The
+     * frontend keys rows by `${kind}-${id}`. */
     id: number;
+    kind: "sale" | "adjustment" | "topup" | "transfer" | "other";
     created_at: string;
     payer_id: string;
     payer_name: string;
@@ -584,16 +588,42 @@ export interface TransactionReportRow {
     shop_name: string;
     amount: number;
     cashier_name: string;
-    receipt_number: string;
+    receipt_number: string | null;
     status: string;
 }
 
 export interface TransactionReportResponseDTO {
     items: TransactionReportRow[];
     total: number;
+    /** Sum of ACTIVE POS-sale amounts only (not a sum across every kind —
+     * mixing sale/topup/adjustment/transfer inflows and outflows into one
+     * number would have no coherent business meaning). */
     amount_total: number;
     page: number;
     pages: number;
+}
+
+const CASH_TOPUP_REASON_RE = /^Cash top-up at POS/i;
+
+/** Every kind of wallet-affecting event this report can show. `sale` covers
+ * both a POS sale and its later void/refund (see wallet_service.ts's own
+ * 'receipt' / 'receipt_void' distinction). */
+function classifyWalletTxKind(tx: {
+    transactionType: string;
+    referenceType: string | null;
+    reason: string | null;
+}): "adjustment" | "topup" | "transfer" | "other" {
+    if (tx.referenceType === "family_transfer") return "transfer";
+    if (tx.referenceType === "payment_intent") return "topup";
+    // adjustBalance() always tags reference_type='admin_adjustment' — this
+    // covers both a genuine manual balance correction AND a cash top-up at
+    // POS (distinguished only by `reason`). A separate revert/undo path
+    // reuses the same reference_type but with TOPUP/DEDUCTION transaction
+    // types instead of ADJUSTMENT, so check reference_type first, not type.
+    if (tx.referenceType === "admin_adjustment" || tx.transactionType === "ADJUSTMENT") {
+        return CASH_TOPUP_REASON_RE.test(tx.reason ?? "") ? "topup" : "adjustment";
+    }
+    return "other";
 }
 
 export async function transactionReport(args: {
@@ -604,10 +634,19 @@ export async function transactionReport(args: {
      * or department). */
     search?: string | null;
     cashierId?: number | null;
-    /** ACTIVE | VOIDED — omitted keeps the existing "both" default. */
+    /** ACTIVE | VOIDED — omitted keeps the existing "both" default. Only
+     * meaningful for `kind: "sale"` rows — every other kind is never voided. */
     status?: string | null;
+    /** Only ever matches `kind: "sale"` rows (via receipts.payment_method) or
+     * cash top-ups (derived payment_method "CASH") — every other kind has no
+     * payment-method concept and is excluded whenever this is set. */
     paymentMethod?: string | null;
+    /** Only ever matches `kind: "sale"` rows or cash top-ups (via the
+     * cashier's own shop) — every other kind has no shop concept. */
     shopId?: string | null;
+    /** all | sale | adjustment | topup | transfer — omitted/"all" shows
+     * everything. */
+    type?: string | null;
     page: number;
     pageSize: number;
 }): Promise<TransactionReportResponseDTO> {
@@ -615,17 +654,25 @@ export async function transactionReport(args: {
     const dateTo = args.dateTo?.trim() || null;
 
     // receipts.transaction_date is timestamptz — include full calendar days.
-    const conds = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
-    if (dateFrom) conds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
-    if (dateTo) conds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
-    if (args.status) conds.push(eq(receipts.status, args.status as "ACTIVE" | "VOIDED"));
-    if (args.paymentMethod) conds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
-    if (args.shopId) conds.push(eq(receipts.shopId, args.shopId));
-    if (args.cashierId != null) conds.push(eq(receipts.createdBy, args.cashierId));
+    const typeFilter = (args.type ?? "all").trim().toLowerCase();
+    const includeSale = typeFilter === "all" || typeFilter === "sale";
+    // None of adjustment/topup/transfer are ever voided — a VOIDED-only
+    // filter can only ever match sale rows, so skip the second query outright.
+    const includeOther = args.status !== "VOIDED"
+        && (typeFilter === "all" || typeFilter === "adjustment" || typeFilter === "topup" || typeFilter === "transfer");
+
+    // ── Sale rows (POS receipts) — unchanged from before this rewrite ──────
+    const saleConds = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
+    if (dateFrom) saleConds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
+    if (dateTo) saleConds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
+    if (args.status) saleConds.push(eq(receipts.status, args.status as "ACTIVE" | "VOIDED"));
+    if (args.paymentMethod) saleConds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
+    if (args.shopId) saleConds.push(eq(receipts.shopId, args.shopId));
+    if (args.cashierId != null) saleConds.push(eq(receipts.createdBy, args.cashierId));
     const search = args.search?.trim();
     if (search) {
         const pat = `%${search}%`;
-        conds.push(or(
+        saleConds.push(or(
             ilike(customers.name, pat),
             ilike(customers.studentCode, pat),
             ilike(customers.customerCode, pat),
@@ -638,25 +685,7 @@ export async function transactionReport(args: {
         )!);
     }
 
-    // Aggregates (total count, amount_total) are computed over the FULL
-    // filtered set, not just the page being returned — same reasoning as
-    // adjustmentReport/transferReport above. The search filter reaches into
-    // joined columns (customers/users/departments), so this pass needs the
-    // same joins as the page query below, just with a lighter column list.
-    const aggRows = await db
-        .select({ total: receipts.total, status: receipts.status })
-        .from(receipts)
-        .leftJoin(shops, eq(shops.id, receipts.shopId))
-        .leftJoin(customers, eq(customers.id, receipts.customerId))
-        .leftJoin(users, eq(users.id, receipts.payerUserId))
-        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
-        .where(and(...conds));
-    const total = aggRows.length;
-    const amountTotal = aggRows
-        .filter((r) => r.status === "ACTIVE")
-        .reduce((s, r) => s + (pgNumber(r.total) ?? 0), 0);
-
-    const rows = await db
+    const saleRows = includeSale ? await db
         .select({
             id: receipts.id,
             transactionDate: receipts.transactionDate,
@@ -679,18 +708,17 @@ export async function transactionReport(args: {
         .leftJoin(customers, eq(customers.id, receipts.customerId))
         .leftJoin(users, eq(users.id, receipts.payerUserId))
         .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
-        .where(and(...conds))
-        .orderBy(desc(receipts.transactionDate), desc(receipts.id))
-        .offset((args.page - 1) * args.pageSize)
-        .limit(args.pageSize);
+        .where(and(...saleConds))
+        .orderBy(desc(receipts.transactionDate), desc(receipts.id)) : [];
 
-    const cashierIds = [...new Set(rows.map((r) => r.createdBy).filter((id): id is number => id != null))];
-    const cashierRows = cashierIds.length
-        ? await db.select({ id: users.id, fullName: users.fullName, username: users.username }).from(users).where(inArray(users.id, cashierIds))
-        : [];
-    const cashierById = new Map(cashierRows.map((u) => [u.id, u] as const));
+    // Sale amount_total keeps its original, narrow meaning (ACTIVE sales
+    // only) regardless of the `type`/other filters below — it's computed
+    // from this same saleRows fetch, before any pagination slicing.
+    const amountTotal = saleRows
+        .filter((r) => r.status === "ACTIVE")
+        .reduce((s, r) => s + (pgNumber(r.total) ?? 0), 0);
 
-    const items: TransactionReportRow[] = rows.map((r) => {
+    const saleItems: (TransactionReportRow & { _createdBy: number | null })[] = saleRows.map((r) => {
         const payerName = r.customerName
             ?? r.payerFullName
             ?? r.payerUsername
@@ -701,20 +729,162 @@ export async function transactionReport(args: {
             ?? r.payerUsername
             ?? r.departmentCode
             ?? "—";
-        const cashier = r.createdBy != null ? cashierById.get(r.createdBy) : undefined;
         return {
             id: r.id,
+            kind: "sale" as const,
             created_at: String(r.transactionDate),
             payer_id: payerId,
             payer_name: payerName,
             payment_method: String(r.paymentMethod ?? ""),
             shop_name: r.shopName ?? "—",
             amount: pgNumber(r.total) ?? 0,
-            cashier_name: cashier ? (cashier.fullName || cashier.username) : "—",
+            cashier_name: "—", // filled in below once cashier names are batch-resolved
             receipt_number: r.receiptNumber,
             status: String(r.status ?? ""),
-        };
+            _createdBy: r.createdBy,
+        } as TransactionReportRow & { _createdBy: number | null };
     });
+
+    // ── Every other kind (adjustment / cash+gateway top-up / transfer) ──────
+    // Sourced directly from wallet_transactions — none of it lives in
+    // receipts, so it was invisible to this report before this rewrite.
+    let otherItems: (TransactionReportRow & { _createdBy: number | null })[] = [];
+    if (includeOther) {
+        const otherConds = [sql`(${walletTransactions.referenceType} IS NULL OR ${walletTransactions.referenceType} NOT IN ('receipt', 'receipt_void'))`];
+        if (dateFrom) otherConds.push(sql`${walletTransactions.createdAt} >= ${dateFrom}::date`);
+        if (dateTo) otherConds.push(sql`${walletTransactions.createdAt} < (${dateTo}::date + interval '1 day')`);
+        if (args.cashierId != null) otherConds.push(eq(walletTransactions.createdBy, args.cashierId));
+        if (search) {
+            const pat = `%${search}%`;
+            otherConds.push(or(
+                ilike(customers.name, pat),
+                ilike(customers.studentCode, pat),
+                ilike(customers.customerCode, pat),
+                ilike(customers.externalId, pat),
+                ilike(users.fullName, pat),
+                ilike(users.username, pat),
+                ilike(users.externalId, pat),
+                ilike(departments.departmentName, pat),
+                ilike(departments.departmentCode, pat),
+            )!);
+        }
+
+        const otherRows = await db
+            .select({
+                id: walletTransactions.id,
+                createdAt: walletTransactions.createdAt,
+                transactionType: walletTransactions.transactionType,
+                referenceType: walletTransactions.referenceType,
+                reason: walletTransactions.reason,
+                balanceBefore: walletTransactions.balanceBefore,
+                balanceAfter: walletTransactions.balanceAfter,
+                createdBy: walletTransactions.createdBy,
+                referenceId: walletTransactions.referenceId,
+                walletCustomerId: wallets.customerId,
+                walletUserId: wallets.userId,
+                walletDepartmentId: wallets.departmentId,
+                customerName: customers.name,
+                studentCode: customers.studentCode,
+                customerCode: customers.customerCode,
+                payerFullName: users.fullName,
+                payerUsername: users.username,
+                departmentName: departments.departmentName,
+                departmentCode: departments.departmentCode,
+            })
+            .from(walletTransactions)
+            .innerJoin(wallets, eq(wallets.id, walletTransactions.walletId))
+            .leftJoin(customers, eq(customers.id, wallets.customerId))
+            .leftJoin(users, eq(users.id, wallets.userId))
+            .leftJoin(departments, eq(departments.id, wallets.departmentId))
+            .where(and(...otherConds))
+            .orderBy(desc(walletTransactions.createdAt));
+
+        // Cash top-ups have no shop_id of their own — resolve the creator's
+        // own shop, same technique topupReport() uses for its Cashier channel.
+        const creatorIds = [...new Set(otherRows.map((r) => r.createdBy))];
+        const creatorRows = creatorIds.length
+            ? await db.select({ id: users.id, shopId: users.shopId }).from(users).where(inArray(users.id, creatorIds))
+            : [];
+        const creatorShopIdByUser = new Map(creatorRows.map((u) => [u.id, u.shopId] as const));
+        const shopIds = [...new Set(creatorRows.map((u) => u.shopId).filter((s): s is string => !!s))];
+        const shopRows = shopIds.length
+            ? await db.select({ id: shops.id, name: shops.name }).from(shops).where(inArray(shops.id, shopIds))
+            : [];
+        const shopNameById = new Map(shopRows.map((s) => [s.id, s.name] as const));
+
+        // Gateway (online/parent) top-ups carry their own payment_method on
+        // the payment_intent they're linked to.
+        const intentIds = otherRows
+            .filter((r) => r.referenceType === "payment_intent" && r.referenceId !== null)
+            .map((r) => r.referenceId!) as number[];
+        const intentRows = intentIds.length
+            ? await db.select({ id: paymentIntents.id, paymentMethod: paymentIntents.paymentMethod }).from(paymentIntents).where(inArray(paymentIntents.id, intentIds))
+            : [];
+        const intentMethodById = new Map(intentRows.map((p) => [p.id, p.paymentMethod] as const));
+
+        otherItems = otherRows.map((r) => {
+            const kind = classifyWalletTxKind({ transactionType: r.transactionType, referenceType: r.referenceType, reason: r.reason });
+            const payerName = r.customerName ?? r.payerFullName ?? r.payerUsername ?? r.departmentName ?? "—";
+            const payerId = r.studentCode ?? r.customerCode ?? r.payerUsername ?? r.departmentCode ?? "—";
+            const creatorShopId = creatorShopIdByUser.get(r.createdBy) ?? null;
+            const shopName = kind === "topup" && r.referenceType !== "payment_intent"
+                ? (creatorShopId ? shopNameById.get(creatorShopId) ?? "—" : "—")
+                : "—";
+            const paymentMethod = kind === "topup"
+                ? (r.referenceType === "payment_intent" ? (intentMethodById.get(r.referenceId ?? -1) ?? "") : "CASH")
+                : "";
+            const amount = Math.abs((pgNumber(r.balanceAfter) ?? 0) - (pgNumber(r.balanceBefore) ?? 0));
+            return {
+                id: r.id,
+                kind,
+                created_at: String(r.createdAt),
+                payer_id: payerId,
+                payer_name: payerName,
+                payment_method: paymentMethod,
+                shop_name: shopName,
+                amount,
+                cashier_name: "—",
+                receipt_number: null,
+                status: "ACTIVE",
+                _createdBy: r.createdBy,
+            };
+        });
+
+        // shopId/paymentMethod filters only ever match sale rows or cash
+        // top-ups (see the doc comment on transactionReport's args) — every
+        // other kind is excluded whenever either filter is active.
+        if (args.shopId) {
+            otherItems = otherItems.filter((r) => {
+                if (r.kind !== "topup" || r._createdBy == null) return false;
+                return creatorShopIdByUser.get(r._createdBy) === args.shopId;
+            });
+        }
+        if (args.paymentMethod) {
+            otherItems = otherItems.filter((r) => r.payment_method === args.paymentMethod);
+        }
+        if (typeFilter !== "all") {
+            otherItems = otherItems.filter((r) => r.kind === typeFilter);
+        }
+    }
+
+    // ── Merge, resolve cashier names once for the combined set, sort, paginate ──
+    const merged = [...saleItems, ...otherItems];
+    const cashierIds = [...new Set(merged.map((r) => r._createdBy).filter((id): id is number => id != null))];
+    const cashierRows = cashierIds.length
+        ? await db.select({ id: users.id, fullName: users.fullName, username: users.username }).from(users).where(inArray(users.id, cashierIds))
+        : [];
+    const cashierById = new Map(cashierRows.map((u) => [u.id, u] as const));
+    merged.forEach((r) => {
+        const cashier = r._createdBy != null ? cashierById.get(r._createdBy) : undefined;
+        r.cashier_name = cashier ? (cashier.fullName || cashier.username) : "—";
+    });
+    merged.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const total = merged.length;
+    const offset = (args.page - 1) * args.pageSize;
+    const items: TransactionReportRow[] = merged
+        .slice(offset, offset + args.pageSize)
+        .map(({ _createdBy, ...rest }) => rest);
 
     return {
         items,

@@ -45,8 +45,11 @@ interface TopupRow {
     payment_method: string | null;
 }
 
+type TransactionKind = "sale" | "adjustment" | "topup" | "transfer" | "other";
+
 interface TransactionRow {
     id: number;
+    kind: TransactionKind;
     created_at: string;
     payer_id: string;
     payer_name: string;
@@ -54,9 +57,25 @@ interface TransactionRow {
     shop_name: string;
     amount: number;
     cashier_name: string;
-    receipt_number: string;
+    receipt_number: string | null;
     status: string;
 }
+
+const TXN_KIND_LABEL: Record<TransactionKind, string> = {
+    sale: "Sale",
+    adjustment: "Adjustment",
+    topup: "Top-up",
+    transfer: "Transfer",
+    other: "Other",
+};
+
+const TXN_KIND_COLORS: Record<TransactionKind, string> = {
+    sale: "bg-blue-100 text-blue-800",
+    adjustment: "bg-amber-100 text-amber-800",
+    topup: "bg-green-100 text-green-800",
+    transfer: "bg-purple-100 text-purple-800",
+    other: "bg-gray-100 text-gray-700",
+};
 
 interface TopupReportData {
     items: TopupRow[];
@@ -116,6 +135,7 @@ export default function AdminReports() {
     const [txnPaymentMethod, setTxnPaymentMethod] = useState<string>("all");
     const [txnShopId, setTxnShopId] = useState<string | null>(null);
     const [txnShopName, setTxnShopName] = useState<string | null>(null);
+    const [txnType, setTxnType] = useState<string>("all");
     const [txnPage, setTxnPage] = useState(1);
 
     const openReport = (kind: ReportKind) => {
@@ -133,6 +153,7 @@ export default function AdminReports() {
         setTxnPaymentMethod("all");
         setTxnShopId(null);
         setTxnShopName(null);
+        setTxnType("all");
         setTxnPage(1);
         setSearched(false);
         setTopupData(null);
@@ -151,6 +172,7 @@ export default function AdminReports() {
         if (txnStatus !== "all") params.set("status", txnStatus);
         if (txnPaymentMethod !== "all") params.set("payment_method", txnPaymentMethod);
         if (txnShopId) params.set("shop_id", txnShopId);
+        if (txnType !== "all") params.set("type", txnType);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
         return params;
@@ -222,6 +244,7 @@ export default function AdminReports() {
             if (txnStatus !== "all") lines.push(`Status: ${txnStatus}`);
             if (txnPaymentMethod !== "all") lines.push(`Payment Type: ${txnPaymentMethod}`);
             if (txnShopName) lines.push(`Shop: ${txnShopName}`);
+            if (txnType !== "all") lines.push(`Type: ${TXN_KIND_LABEL[txnType as TransactionKind] ?? txnType}`);
         }
         return lines;
     };
@@ -280,6 +303,7 @@ export default function AdminReports() {
                     },
                     columns: [
                         { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+                        { header: t("admin.adminReports.colType", "Type"), key: "kind_label", width: 12 },
                         { header: t("admin.adminReports.colPayerId"), key: "payer_id", width: 14 },
                         { header: t("admin.adminReports.colPayerName"), key: "payer_name", width: 24 },
                         { header: t("admin.adminReports.colPaymentMethod"), key: "payment_method", width: 14 },
@@ -288,7 +312,7 @@ export default function AdminReports() {
                         { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
                         { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
                     ],
-                    rows: full.items as unknown as Record<string, unknown>[],
+                    rows: full.items.map((r) => ({ ...r, kind_label: TXN_KIND_LABEL[r.kind] })) as unknown as Record<string, unknown>[],
                     totals: { amount: full.amount_total },
                 },
                 baseFilename: `TransactionReport${dateLabel}`,
@@ -463,6 +487,19 @@ export default function AdminReports() {
                                         />
                                     </div>
                                     <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.typeFilter", "Type")}</Label>
+                                        <Select value={txnType} onValueChange={setTxnType}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">{t("admin.adminReports.typeAll", "All")}</SelectItem>
+                                                <SelectItem value="sale">{t("admin.adminReports.typeSale", "Sale")}</SelectItem>
+                                                <SelectItem value="adjustment">{t("admin.adminReports.typeAdjustment", "Adjustment")}</SelectItem>
+                                                <SelectItem value="topup">{t("admin.adminReports.typeTopup", "Top-up")}</SelectItem>
+                                                <SelectItem value="transfer">{t("admin.adminReports.typeTransfer", "Transfer")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
                                         <Label>{t("admin.adminReports.statusFilter", "Status")}</Label>
                                         <Select value={txnStatus} onValueChange={setTxnStatus}>
                                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -584,6 +621,7 @@ export default function AdminReports() {
                                         <thead className="bg-muted/50 whitespace-nowrap">
                                             <tr>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colType", "Type")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerId")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerName")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colPaymentMethod")}</th>
@@ -596,17 +634,22 @@ export default function AdminReports() {
                                         <tbody>
                                             {txnData.items.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
+                                                    <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">
                                                         No transactions match these filters.
                                                     </td>
                                                 </tr>
                                             ) : (
                                                 txnData.items.map((r) => (
-                                                    <tr key={r.id} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
+                                                    <tr key={`${r.kind}-${r.id}`} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                         <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                                        <td className="px-2 py-1.5">
+                                                            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", TXN_KIND_COLORS[r.kind])}>
+                                                                {TXN_KIND_LABEL[r.kind]}
+                                                            </span>
+                                                        </td>
                                                         <td className="px-2 py-1.5 font-mono">{r.payer_id}</td>
                                                         <td className="px-2 py-1.5">{r.payer_name}</td>
-                                                        <td className="px-2 py-1.5">{r.payment_method}</td>
+                                                        <td className="px-2 py-1.5">{r.payment_method || "—"}</td>
                                                         <td className="px-2 py-1.5">{r.shop_name}</td>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                                                         <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
@@ -624,7 +667,7 @@ export default function AdminReports() {
                                         {txnData.items.length > 0 && (
                                             <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                                                 <tr className="border-t">
-                                                    <td colSpan={5} className="px-2 py-2 text-left">TOTAL</td>
+                                                    <td colSpan={6} className="px-2 py-2 text-left">TOTAL (sales only)</td>
                                                     <td className="px-2 py-2 text-right font-mono">{txnData.amount_total.toFixed(2)}</td>
                                                     <td colSpan={2} />
                                                 </tr>

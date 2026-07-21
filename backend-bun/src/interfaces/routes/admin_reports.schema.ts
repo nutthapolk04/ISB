@@ -46,8 +46,10 @@ export const adminTransactionReport = {
         status: t.Optional(t.Nullable(t.String())),
         payment_method: t.Optional(t.Nullable(t.String())),
         shop_id: t.Optional(t.Nullable(t.String())),
+        /** all | sale | adjustment | topup | transfer */
+        type: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
     }),
-    detail: { tags: ["Reports"], summary: "POS transaction (spending) report" },
+    detail: { tags: ["Reports"], summary: "Transaction report — every wallet-affecting event (sale, adjustment, top-up, transfer)" },
 };

@@ -106,6 +106,7 @@ export const AdminReportsController = {
                 status: query.status ?? null,
                 paymentMethod: query.payment_method ?? null,
                 shopId: query.shop_id ?? null,
+                type: query.type ?? null,
                 page,
                 pageSize,
             });
