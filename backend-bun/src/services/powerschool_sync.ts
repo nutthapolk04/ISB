@@ -156,7 +156,7 @@ function loadFixture(name: string): Record<string, unknown> {
 // ── Audit snapshot helpers ────────────────────────────────────────────────
 
 const USER_AUDIT_FIELDS = ["fullName", "email", "role", "customerType", "familyCode", "cardUid", "status", "shopId"] as const;
-const CUSTOMER_AUDIT_FIELDS = ["name", "email", "familyCode", "customerType", "customerKind", "cardUid", "grade", "schoolType", "externalId"] as const;
+const CUSTOMER_AUDIT_FIELDS = ["name", "email", "familyCode", "customerType", "customerKind", "cardUid", "grade", "schoolType", "externalId", "enrollDate", "withdrawDate"] as const;
 
 function snapshot<T extends Record<string, unknown>>(entity: T | null, fields: readonly string[]): Record<string, unknown> {
     if (!entity) return {};
@@ -610,6 +610,11 @@ export interface StudentPayload {
     lastName: string;
     grade?: string;
     schoolType?: string;
+    // "YYYY-MM-DD", or "" from ISB when not applicable (e.g. no withdraw
+    // date yet) — "" must become null, not stored as-is (see cardUid below
+    // for the same "" -> null pattern and why).
+    enrollmentDate?: string;
+    withdrawDate?: string;
     smartCard?: { cardNumber?: string };
 }
 
@@ -622,6 +627,13 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     // unique index, so multiple cardless records would collide on "" the same
     // way blank logins collided on email (see upsertStaff's email fallback).
     const cardUid = payload.smartCard?.cardNumber || null;
+    // ISB sends "" (not omitted) for "not applicable" — e.g. every currently
+    // enrolled student has withdrawDate="". Treated as authoritative every
+    // round, same as grade/schoolType (not guarded like cardUid — a
+    // student's enrollment status should always reflect what ISB reports
+    // right now, not linger from a stale prior round).
+    const enrollDate = payload.enrollmentDate || null;
+    const withdrawDate = payload.withdrawDate || null;
 
     let existing: typeof customers.$inferSelect | undefined;
     if (ctx?.customersByExtId || ctx?.customersByStudentCode) {
@@ -652,6 +664,7 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             externalId: extId,
             familyCode,
             grade, schoolType,
+            enrollDate, withdrawDate,
             customerType: "Student",
             cardUid,
             photoUrl,
@@ -660,6 +673,7 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             target: customers.externalId,
             set: {
                 familyCode, name: fullName, grade, schoolType,
+                enrollDate, withdrawDate,
                 customerType: "Student", customerKind: "student",
                 isActive: true,
                 powerschoolSyncAt: new Date().toISOString(),
@@ -678,6 +692,7 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     } else {
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, name: fullName, grade, schoolType,
+            enrollDate, withdrawDate,
             customerType: "Student", customerKind: "student",
             // Appearing in a current sync means ISB considers them enrolled —
             // reactivate in case a prior sync deactivated them for having
@@ -861,7 +876,7 @@ export async function reconcileFamilyStudents(
     if (currentStudentCustomerIds.length > 0) {
         conds.push(notInArray(customers.id, currentStudentCustomerIds));
     }
-    const staleStudents = await db.select({ id: customers.id }).from(customers).where(and(...conds));
+    const staleStudents = await db.select({ id: customers.id, externalId: customers.externalId }).from(customers).where(and(...conds));
     if (staleStudents.length === 0) return;
     const staleIds = staleStudents.map((s) => s.id);
 
@@ -871,9 +886,22 @@ export async function reconcileFamilyStudents(
         .from(parentChildLinks)
         .where(inArray(parentChildLinks.childCustomerId, staleIds));
     const stillLinked = new Set(stillLinkedRows.map((r) => r.childCustomerId));
-    const trulyOrphaned = staleIds.filter((id) => !stillLinked.has(id));
+    const trulyOrphaned = staleStudents.filter((s) => !stillLinked.has(s.id));
     if (trulyOrphaned.length > 0) {
-        await db.update(customers).set({ familyCode: null, isActive: false }).where(inArray(customers.id, trulyOrphaned));
+        await db.update(customers).set({ familyCode: null, isActive: false }).where(inArray(customers.id, trulyOrphaned.map((s) => s.id)));
+        // Also clear the student's own login user row (role="student",
+        // created by upsertStudent's companion-user block, matched by
+        // external_id since it's a different id-space than customers.id) —
+        // it carries the same family_code and would otherwise leak into
+        // anything that queries users by family_code without an explicit
+        // role!="student" filter (see resolveFamily() in
+        // user_admin_service.ts, which used to have exactly this bug).
+        const orphanedExtIds = trulyOrphaned.map((s) => s.externalId).filter((id): id is string => !!id);
+        if (orphanedExtIds.length > 0) {
+            await db.update(users).set({ familyCode: null }).where(
+                and(inArray(users.externalId, orphanedExtIds), eq(users.role, "student")),
+            );
+        }
     }
 }
 
@@ -911,11 +939,12 @@ export async function reconcileFamilyStudents(
  * incomplete payload than "nobody is in this family now", and detaching
  * everyone on that basis would be worse than doing nothing.
  *
- * Known gap: a student's own login user row (role="student", created by
- * upsertStudent's companion-user block) is not touched here, since nothing
- * that checks family membership (myCoparents/reachFamily) looks at student
- * logins anyway — only the `customers` row and non-student `users` rows
- * matter for this fix.
+ * A student's own login user row (role="student", created by upsertStudent's
+ * companion-user block) is cleared here too — myCoparents()/family_service.ts
+ * already ignores student-role users by design, but the admin User Detail
+ * page's resolveFamily() (user_admin_service.ts) did not, and leaked the
+ * orphaned student back in via its stale family_code until both were fixed
+ * together (2026-07).
  */
 export async function reconcileFamilyMembership(
     familyCode: string,
@@ -941,7 +970,7 @@ export async function reconcileFamilyMembership(
     }
     if (currentStudentCustomerIds.length > 0) {
         const staleStudents = await db
-            .select({ id: customers.id })
+            .select({ id: customers.id, externalId: customers.externalId })
             .from(customers)
             .where(
                 and(
@@ -958,6 +987,15 @@ export async function reconcileFamilyMembership(
             // spending at POS. upsertStudent() re-activates them if ISB ever
             // brings them back into a family's roster.
             await db.update(customers).set({ familyCode: null, isActive: false }).where(inArray(customers.id, staleIds));
+            // Also clear the student's own login user row — see the matching
+            // comment in reconcileFamilyStudents() above (closes the "known
+            // gap" this function's own docstring used to document).
+            const staleExtIds = staleStudents.map((s) => s.externalId).filter((id): id is string => !!id);
+            if (staleExtIds.length > 0) {
+                await db.update(users).set({ familyCode: null }).where(
+                    and(inArray(users.externalId, staleExtIds), eq(users.role, "student")),
+                );
+            }
         }
     }
 }

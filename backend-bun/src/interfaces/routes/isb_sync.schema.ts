@@ -41,6 +41,9 @@ const studentSchema = t.Object({
     lastName: t.String(),
     grade: t.String(),
     schoolType: t.String(),
+    // "YYYY-MM-DD", or "" when not applicable (e.g. no withdraw date yet).
+    enrollmentDate: t.Optional(t.String()),
+    withdrawDate: t.Optional(t.String()),
     profileImage: t.String(),
     smartCard: smartCardSchema,
 });

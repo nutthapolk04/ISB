@@ -295,7 +295,13 @@ async function parentRankMap(family_code: string | null): Promise<Map<number, st
 async function resolveFamily(family_code: string | null): Promise<FamilyMemberDTO[]> {
     if (!family_code) return [];
     const [userRows, ranks] = await Promise.all([
-        db.select().from(users).where(eq(users.familyCode, family_code)),
+        // Excludes role="student" — a student's own login user row (for
+        // kiosk/parent-portal auth) carries the same family_code as their
+        // parents, but is a stale leftover once orphaned (see
+        // reconcileFamilyStudents' known-gap comment in powerschool_sync.ts)
+        // if it isn't cleared there too. Mirrors family_service.ts's
+        // myCoparents(), which already excludes students the same way.
+        db.select().from(users).where(and(eq(users.familyCode, family_code), ne(users.role, "student"))),
         parentRankMap(family_code),
     ]);
     const members: FamilyMemberDTO[] = [];

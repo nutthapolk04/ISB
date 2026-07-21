@@ -202,6 +202,8 @@ interface IsbStudent {
     lastName: string;
     grade: string;
     schoolType: string;
+    enrollmentDate?: string;
+    withdrawDate?: string;
     profileImage: string;
     smartCard: { cardNumber: string };
 }
@@ -409,6 +411,8 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
                     lastName: st.lastName,
                     grade: st.grade,
                     schoolType: st.schoolType,
+                    enrollmentDate: st.enrollmentDate,
+                    withdrawDate: st.withdrawDate,
                     smartCard: { cardNumber: st.smartCard.cardNumber || "" },
                 };
                 const customer = await upsertStudent(studentPayload, familyCode, internalTypeId, logId, ctx);
