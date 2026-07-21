@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1781339175615,
-      "tag": "0000_chilly_overlord",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1781789636000,
-      "tag": "0001_shops_receipt_header_footer",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1781789636001,
-      "tag": "0002_customers_daily_limit_groups",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1782452071000,
-      "tag": "0003_shops_shop_number",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1784535569704,
-      "tag": "0004_shop_spending_groups_m2m",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1784539866606,
-      "tag": "0005_shop_spending_groups_timestamps",
+      "when": 1784606938405,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]

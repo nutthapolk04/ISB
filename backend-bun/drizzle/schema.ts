@@ -378,7 +378,7 @@ export const shopProducts = pgTable("shop_products", {
 	index("ix_shop_products_barcode").using("btree", table.barcode.asc().nullsLast().op("text_ops")),
 	index("ix_shop_products_name").using("btree", table.name.asc().nullsLast().op("text_ops")),
 	index("ix_shop_products_shop_id").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
-	index("ix_shop_products_sort").using("btree", table.shopId.asc().nullsLast().op("text_ops"), table.sortOrder.asc().nullsLast().op("text_ops")),
+	index("ix_shop_products_sort").using("btree", table.shopId.asc().nullsLast().op("text_ops"), table.sortOrder.asc().nullsLast().op("int4_ops")),
 	foreignKey({
 			columns: [table.shopId],
 			foreignColumns: [shops.id],
@@ -861,7 +861,7 @@ export const auditLogs = pgTable("audit_logs", {
 }, (table) => [
 	index("ix_audit_logs_created").using("btree", table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("ix_audit_logs_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
-	index("ix_audit_logs_entity").using("btree", table.entityType.asc().nullsLast().op("int4_ops"), table.entityId.asc().nullsLast().op("int4_ops")),
+	index("ix_audit_logs_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("int4_ops")),
 	index("ix_audit_logs_entity_id").using("btree", table.entityId.asc().nullsLast().op("int4_ops")),
 	index("ix_audit_logs_entity_type").using("btree", table.entityType.asc().nullsLast().op("text_ops")),
 	index("ix_audit_logs_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
@@ -928,7 +928,7 @@ export const identityMappings = pgTable("identity_mappings", {
 	changedBy: integer("changed_by"),
 	changedAt: timestamp("changed_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("ix_identity_mappings_entity").using("btree", table.entityType.asc().nullsLast().op("int4_ops"), table.entityId.asc().nullsLast().op("int4_ops")),
+	index("ix_identity_mappings_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("int4_ops")),
 	index("ix_identity_mappings_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	foreignKey({
 			columns: [table.changedBy],
@@ -946,7 +946,7 @@ export const productOrderHistory = pgTable("product_order_history", {
 	changedAt: timestamp("changed_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	source: varchar({ length: 20 }),
 }, (table) => [
-	index("ix_product_order_history_shop").using("btree", table.shopId.asc().nullsLast().op("int4_ops"), table.version.desc().nullsFirst().op("int4_ops")),
+	index("ix_product_order_history_shop").using("btree", table.shopId.asc().nullsLast().op("text_ops"), table.version.desc().nullsFirst().op("int4_ops")),
 	index("ix_product_order_history_shop_id").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
 	foreignKey({
 			columns: [table.changedBy],
@@ -1034,7 +1034,7 @@ export const syncAuditLogs = pgTable("sync_audit_logs", {
 	changes: json(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("ix_sync_audit_entity").using("btree", table.entityType.asc().nullsLast().op("int4_ops"), table.entityId.asc().nullsLast().op("int4_ops")),
+	index("ix_sync_audit_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("int4_ops")),
 	index("ix_sync_audit_log_id").using("btree", table.syncLogId.asc().nullsLast().op("int4_ops")),
 	index("ix_sync_audit_logs_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_sync_audit_logs_sync_log_id").using("btree", table.syncLogId.asc().nullsLast().op("int4_ops")),
@@ -1188,7 +1188,7 @@ export const receipts = pgTable("receipts", {
 	index("ix_receipts_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_receipts_payer_department_id").using("btree", table.payerDepartmentId.asc().nullsLast().op("int4_ops")),
 	index("ix_receipts_payer_dept").using("btree", table.payerDepartmentId.asc().nullsLast().op("int4_ops")),
-	index("ix_receipts_payer_shop_date").using("btree", table.payerUserId.asc().nullsLast().op("int4_ops"), table.customerId.asc().nullsLast().op("timestamptz_ops"), table.payerDepartmentId.asc().nullsLast().op("int4_ops"), table.spendingGroupId.asc().nullsLast().op("int4_ops"), table.transactionDate.asc().nullsLast().op("timestamptz_ops")).where(sql`(status = 'ACTIVE'::receiptstatus)`),
+	index("ix_receipts_payer_shop_date").using("btree", table.payerUserId.asc().nullsLast().op("int4_ops"), table.customerId.asc().nullsLast().op("int4_ops"), table.payerDepartmentId.asc().nullsLast().op("int4_ops"), table.spendingGroupId.asc().nullsLast().op("int4_ops"), table.transactionDate.asc().nullsLast().op("timestamptz_ops")).where(sql`(status = 'ACTIVE'::receiptstatus)`),
 	index("ix_receipts_payer_user").using("btree", table.payerUserId.asc().nullsLast().op("int4_ops")),
 	index("ix_receipts_payer_user_id").using("btree", table.payerUserId.asc().nullsLast().op("int4_ops")),
 	uniqueIndex("ix_receipts_receipt_number").using("btree", table.receiptNumber.asc().nullsLast().op("text_ops")),
