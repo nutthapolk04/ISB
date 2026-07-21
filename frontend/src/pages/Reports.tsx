@@ -265,23 +265,59 @@ const Reports = () => {
                 `/reports/sales-by-payment?date_from=${startDate}&date_to=${endDate}${shopParam}`,
             );
 
-            // Helper: render a single shop's rows (retail block → Department
-            // sub-section → optional dept row). Reused for both single-vendor and
+            // Display label for a raw receipts.payment_method enum value. Several
+            // raw values collapse into the same displayed bucket (e.g. WALLET and
+            // CARD_TAP are both "Campus Card") — this is display-only and doesn't
+            // go through i18n (this report's labels are English-only by design,
+            // matching the Sales Summary / Daily Sales Report convention).
+            const METHOD_LABEL_FOR = (method: string): string => {
+                const m = (method ?? "").toUpperCase();
+                if (m === "CASH") return "Cash";
+                if (m === "WALLET" || m === "CARD_TAP") return "Campus Card";
+                if (m === "CREDIT_CARD" || m === "DEBIT_CARD" || m === "EDC") return "Credit Card";
+                if (m === "BANK_TRANSFER") return "QR Code";
+                if (m === "DEPARTMENT") return "Department Use";
+                return "Other";
+            };
+            // Fixed display order for method sections — only sections that
+            // actually have rows get emitted (no empty "Credit Card" header
+            // when nothing was paid that way).
+            const METHOD_LABEL_ORDER = ["Cash", "Campus Card", "Credit Card", "QR Code", "Department Use", "Other"];
+
+            // Helper: render one shop's rows grouped by payment-method bucket —
+            // a section header per bucket ("Cash", "Campus Card", ...), one row
+            // per status within it (ACTIVE first, then VOIDED), then a
+            // "Total <Bucket>" subtotal row. Reused for both single-vendor and
             // multi-vendor admin layouts.
-            const renderShopBlock = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
-                const retail = shopRows.filter((r) => r.payment_method.toUpperCase() !== "DEPARTMENT");
-                const dept = shopRows.filter((r) => r.payment_method.toUpperCase() === "DEPARTMENT");
-                const block: Record<string, unknown>[] = [
-                    ...retail.map((r) => ({
-                        payment_method: t(`payment.${(r.payment_method ?? "").toLowerCase()}`) || r.payment_method,
-                        receipt_count: r.receipt_count,
-                        total: r.total,
-                        status: r.status,
-                    })),
-                    { [SECTION_KEY]: t("reports.deptUseHeader", "Department Use (Internal)") },
-                ];
-                for (const d of dept) {
-                    block.push({ payment_method: "Department Use", receipt_count: d.receipt_count, total: d.total, status: d.status });
+            const renderMethodGroups = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
+                const byLabel = new Map<string, Map<string, { receipt_count: number; total: number }>>();
+                for (const r of shopRows) {
+                    const label = METHOD_LABEL_FOR(r.payment_method);
+                    const byStatus = byLabel.get(label) ?? new Map<string, { receipt_count: number; total: number }>();
+                    const cur = byStatus.get(r.status) ?? { receipt_count: 0, total: 0 };
+                    cur.receipt_count += r.receipt_count;
+                    cur.total += r.total;
+                    byStatus.set(r.status, cur);
+                    byLabel.set(label, byStatus);
+                }
+
+                const block: Record<string, unknown>[] = [];
+                for (const label of METHOD_LABEL_ORDER) {
+                    const byStatus = byLabel.get(label);
+                    if (!byStatus) continue;
+                    block.push({ [SECTION_KEY]: label });
+                    const statuses = [...byStatus.keys()].sort((a, b) => (a === "ACTIVE" ? -1 : b === "ACTIVE" ? 1 : 0));
+                    let subtotal = 0;
+                    for (const status of statuses) {
+                        const v = byStatus.get(status)!;
+                        block.push({ payment_method: label, receipt_count: v.receipt_count, total: v.total, status });
+                        subtotal += v.total;
+                    }
+                    block.push({
+                        [EMPHASIS_KEY]: "subtotal" as const,
+                        receipt_count: `Total ${label}`,
+                        total: subtotal,
+                    });
                 }
                 return block;
             };
@@ -299,9 +335,13 @@ const Reports = () => {
                 }
                 bodyRows = [];
                 for (const [shopId, { name, rows: shopRows }] of byShop) {
-                    const activeShopRows = shopRows.filter((r) => r.status === "ACTIVE");
+                    // Exclude Department Use so this subtotal matches the page-level
+                    // TOTAL footer below (data.retail_total), which also excludes it.
+                    const activeShopRows = shopRows.filter(
+                        (r) => r.status === "ACTIVE" && r.payment_method.toUpperCase() !== "DEPARTMENT",
+                    );
                     bodyRows.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
-                    bodyRows.push(...renderShopBlock(shopRows));
+                    bodyRows.push(...renderMethodGroups(shopRows));
                     bodyRows.push({
                         [EMPHASIS_KEY]: "subtotal" as const,
                         payment_method: "Subtotal",
@@ -310,7 +350,7 @@ const Reports = () => {
                     });
                 }
             } else {
-                bodyRows = renderShopBlock(data.rows);
+                bodyRows = renderMethodGroups(data.rows);
                 if (data.rows.length > 0) {
                     reportFilters.push(`Shop: ${data.rows[0].shop_name ?? data.rows[0].shop_id}`);
                 }

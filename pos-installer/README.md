@@ -155,18 +155,22 @@ Get-Content C:\ISB\rfid-bridge\logs\out.log -Tail 20 -Wait
 ### 4. Chrome Local Network Access policy (จำเป็นสำหรับหน้าเว็บต่อ RFID ได้)
 
 Chrome เวอร์ชันใหม่บล็อกเว็บสาธารณะ (เช่น `isb.schooney.tech`) ไม่ให้ต่อ
-`ws://localhost:9001` เอง ต้อง whitelist ผ่าน Enterprise Policy ก่อน:
+`ws://localhost:9001` เอง ต้อง whitelist ผ่าน Enterprise Policy — ขั้นตอนนี้
+**ตั้งอัตโนมัติแล้วโดย `install-rfid-service.ps1` (step 6️⃣)** ตอนรัน installer
+ไม่ต้องทำเองอีก แค่ **ปิด Chrome ทั้งหมด** (ทุกหน้าต่าง ไม่ใช่แค่ปิด tab) แล้วเปิดใหม่
+1 ครั้งหลังติดตั้งเสร็จ เพื่อให้ policy มีผล
 
-```powershell
-# ตั้งค่า (ทำครั้งเดียวต่อเครื่อง)
-New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force | Out-Null
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
-```
-แล้ว **ปิด Chrome ทั้งหมด** (ทุกหน้าต่าง ไม่ใช่แค่ปิด tab) เปิดใหม่ แล้วเช็คว่า policy ถูกอ่านจริง:
+ตรวจว่า policy ถูกอ่านจริงได้ที่:
 ```
 chrome://policy
 ```
 ค้นหา `LocalNetworkAccessAllowedForUrls` — ต้องขึ้นสถานะ **OK** พร้อมค่า `isb.schooney.tech` ถ้าไม่เจอในลิสต์ = restart Chrome ไม่สุด หรือ registry path/ค่าผิด
+
+ถ้าต้องตั้งเอง (fallback กรณี step 6️⃣ fail — ดู log ตอนติดตั้ง):
+```powershell
+New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force | Out-Null
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
+```
 
 ### 5. ทดสอบจริงจากหน้าเว็บ (end-to-end)
 

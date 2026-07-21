@@ -18,8 +18,10 @@ C:\ISB (or the folder you chose during setup):
    - Registered as a native Windows Service named "rfid-bridge"
      (auto-start, auto-restart on crash).
    - WebSocket server on ws://localhost:9001 — the ISB web app
-     already allows this in its Content-Security-Policy, so no
-     further configuration is needed there.
+     already allows this in its Content-Security-Policy, and the
+     installer also sets Chrome's Local Network Access policy
+     automatically (see step 4 below) — just remember to fully
+     restart Chrome once after install.
    - Files kept at: rfid-bridge\, node\ (portable Node.js), nssm.exe
    - Logs: rfid-bridge\logs\out.log and rfid-bridge\logs\err.log
    - Re-run the service installer manually if needed:
@@ -57,15 +59,18 @@ Do these in order; later checks depend on earlier ones passing.
 4) Chrome "Local Network Access" policy (needed for the web app to
    reach ws://localhost:9001 at all — separate from the site's CSP)
    Recent Chrome blocks public sites (isb.schooney.tech) from quietly
-   connecting to localhost/private-network addresses. Allow it once
-   per machine:
+   connecting to localhost/private-network addresses.
 
-     New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force
-     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
-
-   Then fully close Chrome (all windows, not just the tab) and reopen.
+   install-rfid-service.ps1 now sets this registry value automatically
+   during install (step 6 in its output) — nothing to run by hand.
+   You only need to fully close Chrome (all windows, not just the tab)
+   and reopen it once after install for the policy to take effect.
    Verify at chrome://policy — search "LocalNetworkAccessAllowedForUrls",
    should show status OK with value isb.schooney.tech.
+
+   Fallback if step 6 fails (check the install log for the error):
+     New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force
+     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
 
 5) End-to-end test on the actual web app
    - Open the POS payment screen in Chrome (hard refresh: Ctrl+Shift+R)

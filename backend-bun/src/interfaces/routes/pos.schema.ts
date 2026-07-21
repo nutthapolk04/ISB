@@ -2,7 +2,7 @@ import { t } from "elysia";
 
 const checkoutItemSchema = t.Object({
     product_variant_id: t.Number(),
-    quantity: t.Number(),
+    quantity: t.Number({ minimum: 1 }),
     unit_price: t.Number({ minimum: 0 }),
     price_override: t.Optional(t.Nullable(t.Number())),
     discount: t.Optional(t.Nullable(t.Number())),

@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISB POS — Daily Sales Report: ความหมายฟิลด์ amt_*</title>
+<style>
+  :root {
+    --accent: #7c3aed;
+    --accent-light: #f3e8ff;
+    --text: #1f2430;
+    --text-muted: #5b6472;
+    --border: #e4e2ea;
+    --code-bg: #f5f4f8;
+    --code-text: #4c1d95;
+    --bg: #ffffff;
+    --panel-bg: #fbfaff;
+    --row-alt: #faf9fc;
+    --warn-bg: #fff7ed;
+    --warn-border: #fed7aa;
+    --note-border: #ddd0fb;
+    --thead-text: #ffffff;
+    --pill-green: #16a34a;
+    --pill-red: #dc2626;
+    --pill-gray: #6b7280;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #b794f6;
+      --accent-light: #2f2347;
+      --text: #eae7f2;
+      --text-muted: #a39fb0;
+      --border: #3a3548;
+      --code-bg: #221d33;
+      --code-text: #d5c4ff;
+      --bg: #14111f;
+      --panel-bg: #1c1830;
+      --row-alt: #1a1728;
+      --warn-bg: #2e2415;
+      --warn-border: #6b4a1f;
+      --note-border: #4a3a70;
+      --thead-text: #150f24;
+      --pill-green: #4ade80;
+      --pill-red: #f87171;
+      --pill-gray: #9ca3af;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --accent: #b794f6;
+    --accent-light: #2f2347;
+    --text: #eae7f2;
+    --text-muted: #a39fb0;
+    --border: #3a3548;
+    --code-bg: #221d33;
+    --code-text: #d5c4ff;
+    --bg: #14111f;
+    --panel-bg: #1c1830;
+    --row-alt: #1a1728;
+    --warn-bg: #2e2415;
+    --warn-border: #6b4a1f;
+    --note-border: #4a3a70;
+    --thead-text: #150f24;
+    --pill-green: #4ade80;
+    --pill-red: #f87171;
+    --pill-gray: #9ca3af;
+  }
+
+  :root[data-theme="light"] {
+    --accent: #7c3aed;
+    --accent-light: #f3e8ff;
+    --text: #1f2430;
+    --text-muted: #5b6472;
+    --border: #e4e2ea;
+    --code-bg: #f5f4f8;
+    --code-text: #4c1d95;
+    --bg: #ffffff;
+    --panel-bg: #fbfaff;
+    --row-alt: #faf9fc;
+    --warn-bg: #fff7ed;
+    --warn-border: #fed7aa;
+    --note-border: #ddd0fb;
+    --thead-text: #ffffff;
+    --pill-green: #16a34a;
+    --pill-red: #dc2626;
+    --pill-gray: #6b7280;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    font-family: "Sukhumvit Set", "Noto Sans Thai", "IBM Plex Sans Thai", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header.doc-header {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  header.doc-header .kicker {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 30px;
+    line-height: 1.35;
+    margin: 0 0 8px;
+    color: var(--text);
+    font-weight: 800;
+  }
+
+  header.doc-header p.subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 48px 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--thead-text);
+    font-size: 15px;
+    flex: 0 0 auto;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 28px 0 10px;
+    color: var(--accent);
+  }
+
+  p { margin: 0 0 14px; }
+
+  ul, ol {
+    margin: 0 0 16px;
+    padding-left: 22px;
+  }
+
+  li { margin-bottom: 8px; }
+
+  a { color: var(--accent); }
+
+  strong { color: var(--text); }
+
+  code {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.88em;
+    color: var(--code-text);
+  }
+
+  pre {
+    font-family: "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 18px;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  .note, .warn {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 0 0 18px;
+    font-size: 14.5px;
+    border: 1px solid var(--border);
+  }
+
+  .note {
+    background: var(--accent-light);
+    border-color: var(--note-border);
+  }
+
+  .warn {
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+
+  .warn ul { margin-bottom: 0; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .pill.green { background: var(--pill-green); }
+  .pill.red { background: var(--pill-red); }
+  .pill.gray { background: var(--pill-gray); }
+
+  .table-wrap { overflow-x: auto; margin: 0 0 20px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  caption {
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  thead th {
+    background: var(--accent);
+    color: var(--thead-text);
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+
+  thead th:first-child { border-top-left-radius: 6px; }
+  thead th:last-child { border-top-right-radius: 6px; }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+
+  table.mono-first tbody td:first-child {
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 12.8px;
+    color: var(--code-text);
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .toc {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 0 8px;
+    background: var(--panel-bg);
+  }
+
+  .toc .toc-title {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
+
+  .toc li { margin-bottom: 4px; }
+
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+    margin: 0 0 20px;
+  }
+
+  .steps > li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 42px;
+    margin-bottom: 22px;
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--thead-text);
+    font-weight: 700;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .steps > li > .step-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .example {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 0 20px;
+    background: var(--panel-bg);
+  }
+
+  .example .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 14.5px;
+  }
+
+  .example .row:last-child { border-bottom: none; }
+
+  .example .row.total {
+    font-weight: 700;
+    color: var(--accent);
+    border-top: 2px solid var(--accent);
+    margin-top: 4px;
+    padding-top: 10px;
+  }
+
+  footer.doc-footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  hr.sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="doc-header">
+    <span class="kicker">ISB POS · Internal Doc</span>
+    <h1>Daily Sales Report — ความหมายฟิลด์ amt_*</h1>
+    <p class="subtitle">อ้างอิงความหมายของทุกฟิลด์เงินใน Sales Summary / Daily Sales Report เพื่อไม่ให้ตีความผิดซ้ำ (แก้บั๊กจริงเมื่อ 2026-07-21)</p>
+  </header>
+
+  <nav class="toc">
+    <div class="toc-title">สารบัญ</div>
+    <ol>
+      <li><a href="#sec1">ภาพรวม</a></li>
+      <li><a href="#sec2">ตารางฟิลด์ทั้งหมด</a></li>
+      <li><a href="#sec3">Payment Method → Bucket ไหน</a></li>
+      <li><a href="#sec4">ตัวอย่างจริง (เงินสด 138 / รับ 200 / ทอน 62)</a></li>
+      <li><a href="#sec5">Grand Total คำนวณยังไง</a></li>
+      <li><a href="#sec6">ประวัติการแก้ไข (2026-07-21)</a></li>
+      <li><a href="#sec7">ที่ตั้งโค้ด</a></li>
+      <li><a href="#sec8">Sales by Payment Report — Export Grouping</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ SECTION 1 ============ -->
+  <h2 id="sec1"><span class="num">1</span>ภาพรวม</h2>
+
+  <p>
+    รายงาน <strong>Daily Sales Report</strong> (หน้า <code>/canteen/reports</code> และ
+    <code>/store/reports</code>, type <code>salesSummaryReport</code>) ดึงจาก endpoint
+    <code>GET /reports/sales-summary</code> — คำนวณสด (ไม่ใช่ column ใน DB) จาก
+    <code>receipts.total</code> และ <code>receipts.cash_received</code> ต่อใบเสร็จ 1 แถว
+  </p>
+
+  <div class="warn">
+    <strong>สำคัญ:</strong> ชื่อฟิลด์บางตัวอ่านผิวเผินแล้วเข้าใจผิดได้ง่าย
+    โดยเฉพาะ <code>amt_billing</code> ที่ <strong>ไม่ใช่</strong>
+    "ยอดบิลของ DEPARTMENT" อีกต่อไป (เปลี่ยนความหมายไปแล้วเมื่อ 2026-07-21
+    — ดูหัวข้อ 6) อ่านตารางหัวข้อ 2 ให้ครบก่อนแก้โค้ดหรืออ่านตัวเลขจากรายงานนี้
+  </div>
+
+  <!-- ============ SECTION 2 ============ -->
+  <h2 id="sec2"><span class="num">2</span>ตารางฟิลด์ทั้งหมด</h2>
+
+  <div class="table-wrap">
+    <table class="mono-first">
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>ความหมาย</th>
+          <th>สูตร / ที่มา</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>amt_receive</td>
+          <td>เงินที่ลูกค้าจ่ายให้จริง (gross) — สำหรับเงินสดคือยอดที่แคชเชียร์พิมพ์ใน "เงินที่รับมา" อาจมากกว่ายอดบิลเพราะมีเงินทอน</td>
+          <td>CASH: <code>cash_received</code><br>วิธีอื่น: = <code>amt_billing</code> (จ่ายเป๊ะ ไม่มีทอน)</td>
+        </tr>
+        <tr>
+          <td>amt_change</td>
+          <td>เงินทอนที่ให้ลูกค้ากลับไป</td>
+          <td>CASH เท่านั้น: <code>max(cash_received − amt_billing, 0)</code><br>วิธีอื่น: 0 เสมอ</td>
+        </tr>
+        <tr>
+          <td>amt_billing</td>
+          <td><strong>ยอดบิล/ยอดขายจริงของใบเสร็จนี้</strong> (revenue) — เท่ากันทุกวิธีจ่ายเงิน ไม่ใช่ bucket เฉพาะวิธีใดวิธีหนึ่ง</td>
+          <td><code>= amt_receive − amt_change</code><br>(= <code>receipts.total</code> เสมอ)</td>
+        </tr>
+        <tr>
+          <td>amt_cash</td>
+          <td>ส่วนของ amt_billing ที่จ่ายด้วย <strong>เงินสด</strong></td>
+          <td>= amt_billing ถ้า payment_method = CASH, ไม่งั้น 0</td>
+        </tr>
+        <tr>
+          <td>amt_campus_card</td>
+          <td>ส่วนที่จ่ายด้วย <strong>Campus Card (Wallet)</strong></td>
+          <td>= amt_billing ถ้า payment_method = WALLET / CARD_TAP, ไม่งั้น 0</td>
+        </tr>
+        <tr>
+          <td>amt_credit_card</td>
+          <td>ส่วนที่จ่ายด้วย <strong>บัตรเครดิต/เดบิต/EDC</strong></td>
+          <td>= amt_billing ถ้า payment_method = CREDIT_CARD / DEBIT_CARD / EDC, ไม่งั้น 0</td>
+        </tr>
+        <tr>
+          <td>amt_qr_code</td>
+          <td>ส่วนที่จ่ายด้วย <strong>QR Code / โอนเงิน</strong></td>
+          <td>= amt_billing ถ้า payment_method = BANK_TRANSFER, ไม่งั้น 0</td>
+        </tr>
+        <tr>
+          <td>amt_department</td>
+          <td>ส่วนที่ <strong>เรียกเก็บหน่วยงาน</strong> แทนลูกค้าจ่ายเอง (Department Billing)</td>
+          <td>= amt_billing ถ้า payment_method = DEPARTMENT, ไม่งั้น 0</td>
+        </tr>
+        <tr>
+          <td>amt_other</td>
+          <td>ส่วนที่จ่ายด้วยวิธีอื่นนอกเหนือจากด้านบน (ไม่ค่อยเกิดขึ้นจริง)</td>
+          <td>= amt_billing ถ้า payment_method = OTHER, ไม่งั้น 0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    ผลรวมของ 6 field สุดท้าย (<code>amt_cash + amt_campus_card + amt_credit_card
+    + amt_qr_code + amt_department + amt_other</code>) เท่ากับ <code>amt_billing</code>
+    เสมอ — เพราะแต่ละใบเสร็จจ่ายด้วยวิธีเดียว มีแค่ 1 ใน 6 ช่องที่ไม่เป็นศูนย์
+  </p>
+
+  <!-- ============ SECTION 3 ============ -->
+  <h2 id="sec3"><span class="num">3</span>Payment Method → Bucket ไหน</h2>
+
+  <div class="table-wrap">
+    <table class="mono-first">
+      <thead>
+        <tr>
+          <th>receipts.payment_method</th>
+          <th>ลง field ไหน</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>CASH</td><td>amt_cash</td></tr>
+        <tr><td>WALLET, CARD_TAP</td><td>amt_campus_card</td></tr>
+        <tr><td>CREDIT_CARD, DEBIT_CARD, EDC</td><td>amt_credit_card</td></tr>
+        <tr><td>BANK_TRANSFER</td><td>amt_qr_code</td></tr>
+        <tr><td>DEPARTMENT</td><td>amt_department</td></tr>
+        <tr><td>(อื่นๆ ทั้งหมด)</td><td>amt_other</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ SECTION 4 ============ -->
+  <h2 id="sec4"><span class="num">4</span>ตัวอย่างจริง (เงินสด 138 / รับ 200 / ทอน 62)</h2>
+
+  <p>สินค้าราคา ฿138 จ่ายเงินสด ลูกค้ายื่นแบงก์ ฿200 ทอน ฿62:</p>
+
+  <div class="example">
+    <div class="row"><span>amt_receive</span><strong>200.00</strong></div>
+    <div class="row"><span>amt_change</span><strong>62.00</strong></div>
+    <div class="row"><span>amt_billing</span><strong>138.00</strong> <span style="color:var(--text-muted)">(= 200 − 62)</span></div>
+    <div class="row"><span>amt_cash</span><strong>138.00</strong></div>
+    <div class="row"><span>amt_campus_card / amt_credit_card / amt_qr_code / amt_department / amt_other</span><strong>0.00</strong></div>
+  </div>
+
+  <div class="note">
+    <strong>ก่อนแก้ (บั๊กเดิม):</strong> <code>amt_receive</code> ผูกกับ
+    <code>receipts.total</code> เสมอ (ไม่สนใจ <code>cash_received</code>) ทำให้
+    <code>amt_receive = 138</code> (ผิด ควรเป็น 200) และ <code>amt_billing</code>
+    ตอนนั้นยังเป็น bucket เฉพาะ DEPARTMENT เท่านั้น จึงโชว์ <code>0</code>
+    สำหรับการขายเงินสดทุกใบ (คนละความหมายกับตอนนี้)
+  </div>
+
+  <!-- ============ SECTION 5 ============ -->
+  <h2 id="sec5"><span class="num">5</span>Grand Total คำนวณยังไง</h2>
+
+  <p>
+    "Grand total" บนหัวหน้า Daily Sales Report = <strong>sum ของ
+    <code>amt_billing</code> ทุกแถว</strong> (<code>totals.amt_billing</code>) —
+    คือยอดขายสุทธิจริงของวันนั้น <strong>ไม่ใช่</strong> sum ของ
+    <code>amt_receive</code>
+  </p>
+
+  <div class="warn">
+    ห้ามเอา <code>totals.amt_receive</code> มาโชว์เป็น Grand Total —
+    เพราะสำหรับเงินสด <code>amt_receive</code> รวมเงินทอนเข้าไปด้วย
+    ยอดรวมทั้งวันจะพองสูงกว่ายอดขายจริงเท่ากับเงินทอนสะสมทั้งวัน
+  </div>
+
+  <p>
+    แถวย่อยต่อร้าน (multi-vendor subtotal) และ export PDF/Excel ใช้หลักการ
+    เดียวกัน — sum ทุก field แยกตามร้าน แล้วให้ผลรวม 6 bucket เท่ากับ
+    <code>amt_billing</code> ของร้านนั้นเสมอ
+  </p>
+
+  <!-- ============ SECTION 6 ============ -->
+  <h2 id="sec6"><span class="num">6</span>ประวัติการแก้ไข (2026-07-21)</h2>
+
+  <ol class="steps">
+    <li>
+      <div class="step-title">อาการที่พบ</div>
+      <p>
+        ขายเงินสด ฿138 รับเงิน ฿200 ทอน ฿62 — DB/API ตอบ
+        <code>amt_billing: 0</code>, <code>amt_receive: 138</code>
+        ทั้งที่ควรเป็น <code>amt_billing: 138</code>, <code>amt_receive: 200</code>
+      </p>
+    </li>
+    <li>
+      <div class="step-title">สาเหตุ</div>
+      <p>
+        <code>amt_receive</code> ผูกกับ <code>receipts.total</code> เสมอ
+        ไม่เคยอ่าน <code>receipts.cash_received</code> เลย (ใช้แค่คำนวณ
+        <code>amt_change</code> แล้วทิ้ง) และ <code>amt_billing</code>
+        (ตอนนั้น) เป็น bucket เฉพาะ payment_method = DEPARTMENT เท่านั้น
+        จึงเป็น 0 สำหรับการขายเงินสดโดยธรรมชาติ — ไม่ใช่บั๊กในความหมายเดิม
+        แต่ชื่อฟิลด์ทำให้เข้าใจผิดว่าควรเป็นยอดบิลทั่วไป
+      </p>
+    </li>
+    <li>
+      <div class="step-title">การแก้ไข</div>
+      <ul>
+        <li><code>amt_receive</code> เปลี่ยนเป็นเงินที่รับมาจริง (gross tendered) — อ่านจาก <code>cash_received</code> สำหรับ CASH</li>
+        <li><code>amt_billing</code> เปลี่ยนความหมายเป็นยอดบิลทั่วไป = <code>amt_receive − amt_change</code> (เท่ากับ <code>receipts.total</code>) ทุกวิธีจ่ายเงิน</li>
+        <li>เพิ่ม field ใหม่ <code>amt_department</code> รับหน้าที่ bucket ของ DEPARTMENT แทน <code>amt_billing</code> เดิม</li>
+        <li>แก้ label หน้าเว็บ "Amt. Department" ที่เคยผูกผิดกับ <code>amt_other</code> ให้ผูกกับ <code>amt_department</code></li>
+        <li>Grand Total หน้ารายงานเปลี่ยนไปอ้าง <code>totals.amt_billing</code> แทน <code>totals.amt_receive</code></li>
+      </ul>
+    </li>
+  </ol>
+
+  <!-- ============ SECTION 7 ============ -->
+  <h2 id="sec7"><span class="num">7</span>ที่ตั้งโค้ด</h2>
+
+  <div class="table-wrap">
+    <table class="mono-first">
+      <thead>
+        <tr>
+          <th>ไฟล์</th>
+          <th>อะไร</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>backend-bun/src/services/report_service.ts</td>
+          <td><code>amountColumnFor()</code>, <code>computeReceiptAmounts()</code>, <code>buildLegRow()</code> — คำนวณค่าทั้งหมดต่อแถว, และ reduce loop สร้าง <code>totals</code></td>
+        </tr>
+        <tr>
+          <td>backend-bun/src/controllers/ReportController.ts</td>
+          <td>controller ของ <code>GET /reports/sales-summary</code></td>
+        </tr>
+        <tr>
+          <td>frontend/src/pages/reports/SalesSummaryReport.tsx</td>
+          <td>หน้า Daily Sales Report — table on-screen, Grand Total, export PDF/Excel</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ SECTION 8 ============ -->
+  <h2 id="sec8"><span class="num">8</span>Sales by Payment Report — Export Grouping (2026-07-21)</h2>
+
+  <p>
+    รายงานคนละตัวกับ Daily Sales Report ด้านบน — <strong>Sales by Payment
+    Report</strong> (<code>GET /reports/sales-by-payment</code>) สรุปยอดขาย
+    แยกตาม<strong>วิธีจ่ายเงิน</strong> ไม่ใช่แยกตามใบเสร็จ export PDF/Excel
+    ของรายงานนี้เจอบั๊ก + ปรับโครงสร้างเมื่อ 2026-07-21 เช่นกัน
+  </p>
+
+  <h3>อาการที่พบ</h3>
+  <p>
+    คอลัมน์ "Payment Method" ในไฟล์ export โชว์ raw key ดิบ เช่น
+    <code>payment.cash</code>, <code>payment.wallet</code>, <code>payment.edc</code>
+    แทนที่จะเป็นชื่อที่อ่านออก
+  </p>
+
+  <h3>สาเหตุ</h3>
+  <p>
+    โค้ดเดิมเรียก <code>t(`payment.${method}`)</code> โดยหวังว่ามี
+    i18n key ชื่อ <code>payment.cash</code> ที่ root แต่จริงๆ key ชุดนี้ซ้อนอยู่ใต้
+    <code>audit.payment.*</code> เท่านั้น (ใช้สำหรับ audit log โดยเฉพาะ) —
+    ไม่มี key ชื่อ <code>payment</code> ที่ root เลย เมื่อ i18next หา key ไม่เจอ
+    จะคืน key string ดิบกลับมาแทน ("payment.cash") ซึ่งเป็นค่าที่ไม่ว่าง
+    เลยไม่ไปเข้า fallback <code>|| r.payment_method</code> ที่เขียนไว้
+  </p>
+
+  <h3>การแก้ไข</h3>
+  <ul>
+    <li>เลิกพึ่ง i18n สำหรับคอลัมน์นี้ ใช้ label map ตรงๆ ในหน้า Reports.tsx แทน (รายงานนี้เป็นภาษาอังกฤษล้วนอยู่แล้ว)</li>
+    <li><code>WALLET</code> / <code>CARD_TAP</code> → <strong>"Campus Card"</strong> (เดิมโชว์ "Wallet")</li>
+    <li><code>CREDIT_CARD</code> / <code>DEBIT_CARD</code> / <code>EDC</code> → "Credit Card"</li>
+    <li><code>BANK_TRANSFER</code> → "QR Code", <code>DEPARTMENT</code> → "Department Use", อื่นๆ → "Other"</li>
+    <li>โครงสร้าง export เปลี่ยนจาก "retail block + department subsection" เป็น <strong>group ตามวิธีจ่ายเงิน</strong> — หัวข้อ section ต่อวิธี → แถว ACTIVE/VOIDED ต่อวิธี → แถว "Total &lt;วิธี&gt;" สรุปยอด (แสดงเฉพาะวิธีที่มีข้อมูลจริง)</li>
+    <li>raw payment_method หลายค่าที่ควรโชว์บัคเก็ตเดียวกัน (เช่น WALLET + CARD_TAP) จะรวมเป็นแถวเดียวต่อ status ไม่แยกซ้ำ</li>
+  </ul>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>ที่ตั้งโค้ด</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>frontend/src/pages/Reports.tsx</td>
+          <td><code>METHOD_LABEL_FOR()</code>, <code>renderMethodGroups()</code> ใน <code>buildDialogReportPayload()</code> เคส <code>salesByPaymentReport</code></td>
+        </tr>
+        <tr>
+          <td>backend-bun/src/services/report_service.ts</td>
+          <td><code>salesByPaymentReport()</code> — SQL group by shop + payment_method + status (ไม่เปลี่ยน — ยังคง group ตาม raw enum เหมือนเดิม, การ merge เป็นบัคเก็ตทำที่ frontend)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="sep">
+
+  <footer class="doc-footer">
+    อัปเดตล่าสุด 2026-07-21 · ISB POS
+  </footer>
+
+</div>
+</body>
+</html>

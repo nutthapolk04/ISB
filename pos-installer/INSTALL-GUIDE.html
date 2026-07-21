@@ -459,7 +459,8 @@
       <p>
         จะมีหน้าต่าง PowerShell สีดำเปิดขึ้นมา รายงานการติดตั้ง RFID service
         <strong>เป็นภาษาไทยทีละขั้น</strong> (ตรวจสิทธิ์ → ตรวจไฟล์ → SCardSvr →
-        เครื่องอ่าน → dependencies → ลงทะเบียน service → ตรวจ port)
+        เครื่องอ่าน → dependencies → ลงทะเบียน service → ตั้งค่า Chrome policy →
+        ตรวจ port)
       </p>
       <div class="warn"><strong>อย่าปิดหน้าต่างนี้!</strong> ปล่อยให้รันจนจบเอง</div>
     </li>
@@ -467,11 +468,13 @@
       <div class="step-title">รอสรุปผล</div>
       <p>ตอนจบต้องเห็นสรุปผลในหน้าต่าง PowerShell:</p>
       <pre><code>Service status : ✅ Running ('rfid-bridge')
-Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
+Port 9001      : ✅ Listening (ws://localhost:9001)
+Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code></pre>
     </li>
     <li>
       <div class="step-title">Finish</div>
       <p>กลับมาที่หน้าต่างตัวติดตั้ง กด <strong>Finish</strong> เป็นอันเสร็จ</p>
+      <div class="warn">ถ้าเปิด Chrome ค้างไว้อยู่ก่อนแล้ว (ตั้งแต่ก่อนติดตั้ง) ต้อง <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้ง</strong> — ไม่งั้น policy ที่เพิ่งตั้งจะยังไม่มีผล</div>
     </li>
   </ol>
 
@@ -489,7 +492,7 @@ Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
       สถานะต้องเป็น <code>Running</code>
     </li>
     <li>
-      เปิด Chrome ไปที่ <code>https://isb.schooney.tech</code> → หน้า canteen แล้วทดสอบ:
+      <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้งก่อน</strong> (ให้ Chrome policy ที่ installer ตั้งไว้มีผล) แล้วเปิด <code>https://isb.schooney.tech</code> → หน้า canteen แล้วทดสอบ:
       <ul>
         <li><strong>RFID:</strong> แตะบัตรที่เครื่องอ่าน — แอปต้องค้นหาสมาชิกให้อัตโนมัติ</li>
         <li><strong>EDC:</strong> กดชำระเงิน → เลือกจ่ายด้วย EDC — ต้องเห็น pill สีเขียว <span class="pill green">● EDC connected</span></li>
@@ -512,6 +515,7 @@ Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
       <li><strong>ติดตั้งซ้ำได้ปลอดภัย</strong> (idempotent) — รัน exe ซ้ำเพื่อซ่อมเครื่องที่ service พังได้เลย</li>
       <li>ถอนการติดตั้ง<strong>จะไม่ถอน EDC driver</strong> — driver ติดตั้งอยู่กับ Windows ตามปกติ</li>
       <li>CSP ของเว็บ <code>isb.schooney.tech</code> อนุญาต <code>ws://localhost:9001</code> และ <code>pos.local.bridge.schooney.tech:7331</code> แล้ว (แก้เมื่อ 2026-07-16) — <strong>เครื่องใหม่ไม่ต้องตั้งค่าฝั่งเว็บเพิ่ม</strong></li>
+      <li>ตัวติดตั้งตั้งค่า <strong>Chrome Local Network Access policy</strong> (registry <code>HKLM\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls</code>) ให้อัตโนมัติ — เป็นคนละชั้นกับ CSP (Chrome เช็คแยกก่อนอนุญาตเว็บ public ต่อ localhost) แต่ <strong>ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่หลังติดตั้งเสมอ</strong> ไม่งั้น policy จะยังไม่มีผลและแตะบัตรจะไม่ขึ้นอะไรเลย</li>
     </ul>
   </div>
 
@@ -538,6 +542,10 @@ Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
         <tr>
           <td>แตะบัตรแล้วเงียบ</td>
           <td>เช็ค Device Manager หมวด <strong>Smart card readers</strong> ว่าเห็นเครื่องอ่าน และเช็คว่า service <code>SCardSvr</code> รันอยู่</td>
+        </tr>
+        <tr>
+          <td>แตะบัตรแล้วเงียบ + F12 → Console ขึ้น <code>ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS</code></td>
+          <td>Chrome policy ยังไม่มีผล — ปิด Chrome <strong>ทุกหน้าต่าง</strong>แล้วเปิดใหม่ แล้วเช็คที่ <code>chrome://policy</code> ว่า <code>LocalNetworkAccessAllowedForUrls</code> ขึ้น OK พร้อมค่า <code>isb.schooney.tech</code> — ถ้ายังไม่มีให้ตั้งเองด้วย PowerShell (ดู README.md หัวข้อ Chrome Local Network Access policy) แล้วรีสตาร์ท Chrome ใหม่</td>
         </tr>
         <tr>
           <td>EDC pill ขึ้นแดง (not connected)</td>
@@ -582,6 +590,7 @@ Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
         <tr><td>ACR1252U</td><td>เครื่องอ่านบัตร RFID/NFC ของ ACS ที่ต่อ USB กับเครื่อง POS ใช้แตะบัตรสมาชิก</td></tr>
         <tr><td>paywire.exe</td><td>Paywire EDC bridge (tray app, .NET 8) ที่เชื่อมหน้าเว็บ POS กับเครื่อง EDC ผ่าน pos.local.bridge.schooney.tech:7331</td></tr>
         <tr><td>ws://localhost:9001</td><td>WebSocket endpoint ของ RFID bridge ที่หน้าเว็บใช้รับ UID บัตรแบบ real-time</td></tr>
+        <tr><td>Local Network Access (PNA)</td><td>ฟีเจอร์ของ Chrome ที่เช็คแยกจาก CSP — บล็อกเว็บ public ไม่ให้ต่อ localhost/private network เอง ต้อง whitelist โดเมนผ่าน registry policy <code>LocalNetworkAccessAllowedForUrls</code> (installer ตั้งให้อัตโนมัติ แต่ต้องปิด-เปิด Chrome ใหม่ถึงจะมีผล)</td></tr>
         <tr><td>Idempotent</td><td>คุณสมบัติรันซ้ำได้ผลเหมือนเดิมโดยไม่พัง — installer นี้รันซ้ำเพื่อซ่อม/อัปเดตเครื่องเดิมได้ปลอดภัย</td></tr>
         <tr><td>Uninstaller</td><td>C:\ISB\uninstall.exe (รายการ "ISB POS Components" ใน Add/Remove Programs) ใช้ถอนทุกอย่างยกเว้น EDC driver</td></tr>
         <tr><td>EDC driver (whql_Driver2020)</td><td>USB driver ของ vendor สำหรับเครื่อง EDC — ติดตั้งผ่าน wizard ของ vendor และติดอยู่กับ Windows แม้ถอน ISB POS Components แล้ว</td></tr>
@@ -592,7 +601,7 @@ Port 9001      : ✅ Listening (ws://localhost:9001)</code></pre>
   <hr class="sep">
 
   <footer class="doc-footer">
-    อัปเดตล่าสุด 2026-07-16 · ISB-POS-Setup 1.0.0
+    อัปเดตล่าสุด 2026-07-21 · ISB-POS-Setup 1.0.0
   </footer>
 
 </div>
