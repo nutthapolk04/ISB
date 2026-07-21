@@ -47,6 +47,14 @@ export interface BundleStockStatusDTO {
     items: BundleStockItemDTO[];
 }
 
+function isPgUniqueViolation(err: unknown): boolean {
+    if (!err || typeof err !== "object") return false;
+    const code = (err as { code?: string }).code;
+    if (code === "23505") return true;
+    const cause = (err as { cause?: unknown }).cause;
+    return isPgUniqueViolation(cause);
+}
+
 async function assertShop(shopId: string): Promise<void> {
     const rows = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, shopId)).limit(1);
     if (!rows[0]) {
@@ -185,8 +193,16 @@ export async function createBundle(shopId: string, input: CreateBundleInput): Pr
     const productIds = input.items.map((i) => i.product_id);
     await validateBundleProducts(shopId, productIds);
 
-    const bundleId = await pgClient.begin(async (sqlTx) => {
-        const ins = await sqlTx<Array<{ id: number }>>`
+    // The dup check above is a fast, friendly pre-check — it isn't race-safe
+    // on its own (two near-simultaneous requests, e.g. a double-tap on a
+    // touchscreen POS, can both pass it before either commits). The
+    // uq_product_bundles_shop_code DB constraint is the real backstop; a
+    // race that slips past the pre-check surfaces here as 23505, which we
+    // translate to the same friendly 409 instead of a raw 500.
+    let bundleId: number;
+    try {
+        bundleId = await pgClient.begin(async (sqlTx) => {
+            const ins = await sqlTx<Array<{ id: number }>>`
       INSERT INTO product_bundles
         (shop_id, bundle_code, barcode, name, description,
          external_price, internal_price, color, sort_order, is_active)
@@ -196,16 +212,24 @@ export async function createBundle(shopId: string, input: CreateBundleInput): Pr
               ${input.color ?? null}, 0, true)
       RETURNING id
     `;
-        const newId = ins[0].id;
-        for (let idx = 0; idx < input.items.length; idx++) {
-            const it = input.items[idx];
-            await sqlTx`
+            const newId = ins[0].id;
+            for (let idx = 0; idx < input.items.length; idx++) {
+                const it = input.items[idx];
+                await sqlTx`
         INSERT INTO bundle_items (bundle_id, product_id, quantity, sort_order)
         VALUES (${newId}, ${it.product_id}, ${it.quantity}, ${idx})
       `;
+            }
+            return newId;
+        });
+    } catch (e) {
+        if (isPgUniqueViolation(e)) {
+            const err = new Error(`Bundle code '${input.bundle_code}' already exists in this shop`);
+            (err as { status?: number }).status = 409;
+            throw err;
         }
-        return newId;
-    });
+        throw e;
+    }
 
     return getBundle(shopId, bundleId);
 }
@@ -273,21 +297,30 @@ export async function updateBundle(
     if (input.color !== undefined) updates.color = input.color;
     if (input.is_active !== undefined && input.is_active !== null) updates.isActive = input.is_active;
 
-    await pgClient.begin(async (sqlTx) => {
-        if (Object.keys(updates).length > 0) {
-            await db.update(productBundles).set(updates).where(eq(productBundles.id, bundleId));
-        }
-        if (input.items !== undefined && input.items !== null) {
-            await sqlTx`DELETE FROM bundle_items WHERE bundle_id = ${bundleId}`;
-            for (let idx = 0; idx < input.items.length; idx++) {
-                const it = input.items[idx];
-                await sqlTx`
+    try {
+        await pgClient.begin(async (sqlTx) => {
+            if (Object.keys(updates).length > 0) {
+                await db.update(productBundles).set(updates).where(eq(productBundles.id, bundleId));
+            }
+            if (input.items !== undefined && input.items !== null) {
+                await sqlTx`DELETE FROM bundle_items WHERE bundle_id = ${bundleId}`;
+                for (let idx = 0; idx < input.items.length; idx++) {
+                    const it = input.items[idx];
+                    await sqlTx`
           INSERT INTO bundle_items (bundle_id, product_id, quantity, sort_order)
           VALUES (${bundleId}, ${it.product_id}, ${it.quantity}, ${idx})
         `;
+                }
             }
+        });
+    } catch (e) {
+        if (isPgUniqueViolation(e)) {
+            const err = new Error(`Bundle code '${input.bundle_code}' already exists`);
+            (err as { status?: number }).status = 409;
+            throw err;
         }
-    });
+        throw e;
+    }
 
     return getBundle(shopId, bundleId);
 }

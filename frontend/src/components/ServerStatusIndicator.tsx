@@ -2,6 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Server } from "lucide-react";
+import { API_BASE_URL } from "@/lib/constants";
+
+// /health lives at the API origin's root (e.g. http://host:port/health),
+// not under the /api/v1 prefix that API_BASE_URL points at.
+const HEALTH_URL = `${new URL(API_BASE_URL).origin}/health`;
 
 export function ServerStatusIndicator() {
   const { t } = useTranslation();
@@ -20,13 +25,20 @@ export function ServerStatusIndicator() {
     try {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 3500);
-      const response = await fetch(`/isb-logo.svg?ping=${Date.now()}`, {
-        method: "HEAD",
+      // Ping the actual backend API (and its DB connection) — a same-origin
+      // static asset would still respond even if the backend process is down.
+      const response = await fetch(`${HEALTH_URL}?ping=${Date.now()}`, {
+        method: "GET",
         cache: "no-store",
         signal: controller.signal,
       });
       window.clearTimeout(timeoutId);
-      setIsOnline(response.ok);
+      if (!response.ok) {
+        setIsOnline(false);
+        return;
+      }
+      const data = await response.json();
+      setIsOnline(data.status === "ok");
     } catch {
       setIsOnline(false);
     }

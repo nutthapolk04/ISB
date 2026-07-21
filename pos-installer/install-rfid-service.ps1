@@ -1,4 +1,4 @@
-<#
+﻿<#
   ISB RFID Bridge — POS Installer Service Registration (Windows, NSSM edition)
   รันโดย ISB-POS-Setup-1.0.0.exe ตอนติดตั้ง component "RFID bridge service"
   ดัดแปลงจาก rfid-bridge\setup-windows-nssm.ps1 ให้ใช้กับ payload ที่ bundle

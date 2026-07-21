@@ -1105,6 +1105,7 @@ export const productBundles = pgTable("product_bundles", {
 			foreignColumns: [shops.id],
 			name: "product_bundles_shop_id_fkey"
 		}).onDelete("cascade"),
+	unique("uq_product_bundles_shop_code").on(table.shopId, table.bundleCode),
 ]);
 
 export const shopCategories = pgTable("shop_categories", {

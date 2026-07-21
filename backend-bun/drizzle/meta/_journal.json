@@ -15,6 +15,13 @@
       "when": 1784611575380,
       "tag": "0001_unique_external_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784622773713,
+      "tag": "0002_melted_pepper_potts",
+      "breakpoints": true
     }
   ]
 }

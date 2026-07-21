@@ -1,0 +1,1 @@
+ALTER TABLE "product_bundles" ADD CONSTRAINT "uq_product_bundles_shop_code" UNIQUE("shop_id","bundle_code");

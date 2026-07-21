@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,10 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
     const [deletingBundle, setDeletingBundle] = useState<Bundle | null>(null);
     const [printBarcodeOpen, setPrintBarcodeOpen] = useState(false);
     const [selectedBundleForBarcode, setSelectedBundleForBarcode] = useState<BarcodePrintProduct | null>(null);
+    // Guards against a double-click/double-tap firing handleSave twice before
+    // the `saving` state re-render disables the button — a ref updates
+    // synchronously, a state flag does not.
+    const savingRef = useRef(false);
 
     // Product search for adding items to bundle
     const [products, setProducts] = useState<Product[]>([]);
@@ -237,6 +241,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
     };
 
     const handleSave = async () => {
+        if (savingRef.current) return;
         if (!formData.bundle_code.trim()) {
             toast.error(t("bundles.errorCodeRequired") || "Bundle code is required");
             return;
@@ -255,6 +260,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
             return;
         }
 
+        savingRef.current = true;
         setSaving(true);
         try {
             const bundleItems: BundleItemCreate[] = formData.items.map((i) => ({
@@ -293,6 +299,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
         } catch (e: any) {
             toast.error(e?.detail || e?.message || "Failed to save bundle");
         } finally {
+            savingRef.current = false;
             setSaving(false);
         }
     };

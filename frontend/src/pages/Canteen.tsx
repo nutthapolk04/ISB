@@ -311,6 +311,10 @@ export default function Canteen() {
     const [deptOpen, setDeptOpen] = useState(false);
     const [memberSearchOpen, setMemberSearchOpen] = useState(false);
     const [cardTapOpen, setCardTapOpen] = useState(false);
+    // Result of a physical card tap captured while CardTapModal is open — fed
+    // into the modal so its own replace-confirmation gate applies, instead of
+    // the page-level listener silently overwriting preSelectedMember.
+    const [cardTapScan, setCardTapScan] = useState<StudentLookupResult | null>(null);
     const [topupOpen, setTopupOpen] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
@@ -433,8 +437,14 @@ export default function Canteen() {
                     } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
                 }
                 if (result) {
-                    setPreSelectedMember(result);
-                    setSearch("");
+                    if (cardTapOpen) {
+                        // Let CardTapModal's own replace-confirmation gate decide
+                        // whether to swap the selected member.
+                        setCardTapScan(result);
+                    } else {
+                        setPreSelectedMember(result);
+                        setSearch("");
+                    }
                     const bal = result.wallet_balance != null
                         ? `฿${Number(result.wallet_balance).toFixed(2)}`
                         : undefined;
@@ -1372,11 +1382,16 @@ export default function Canteen() {
             />
             <CardTapModal
                 open={cardTapOpen}
-                onOpenChange={setCardTapOpen}
+                onOpenChange={(v) => {
+                    setCardTapOpen(v);
+                    if (!v) setCardTapScan(null);
+                }}
                 currentMember={preSelectedMember}
+                scannedMember={cardTapScan}
                 onSelect={(member) => {
                     setPreSelectedMember(member);
                     setCardTapOpen(false);
+                    setCardTapScan(null);
                 }}
             />
             <CashierTopupModal
