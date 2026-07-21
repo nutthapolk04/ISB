@@ -58,7 +58,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import CreateCardholderDialog from "./CreateCardholderDialog";
-import SyncRunDialog from "./SyncRunDialog";
 import { getFallbackAvatar, resolveAvatarUrl } from "@/lib/avatarFallback";
 
 type SchoolFilter = "all" | "ES Student" | "MS Student" | "HS Student";
@@ -164,7 +163,6 @@ export default function CardholderList() {
   }, [cardholdersQuery.isError]);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [syncOpen, setSyncOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [linkStudentFor, setLinkStudentFor] = useState<Cardholder | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
@@ -645,12 +643,6 @@ export default function CardholderList() {
           reload();
         }}
       />
-      <SyncRunDialog
-        open={syncOpen}
-        onOpenChange={setSyncOpen}
-        onFinished={() => reload()}
-      />
-
       {/* Link student dialog */}
       <Dialog open={!!linkStudentFor} onOpenChange={(o) => { if (!o) setLinkStudentFor(null); }}>
         <DialogContent>

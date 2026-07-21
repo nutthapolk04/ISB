@@ -42,11 +42,11 @@ function resolvePhotoUrl(filename: string | undefined | null): string | null {
 
 // ── Sync log ──────────────────────────────────────────────────────────────
 
-async function createSyncLog(syncType: string): Promise<number> {
+async function createSyncLog(syncType: string, triggeredById: number | null = null): Promise<number> {
     const [log] = await db.insert(syncLogs).values({
         syncType,
         targetRoles: [],
-        triggeredBy: null,
+        triggeredBy: triggeredById,
         status: "running",
         recordsTotal: 0,
         recordsSuccess: 0,
@@ -83,7 +83,7 @@ export interface BatchResult {
 
 // ── Staff batch ───────────────────────────────────────────────────────────
 
-interface IsbStaff {
+export interface IsbStaff {
     customerId: number;
     customerType: "Staff";
     staffType: string;
@@ -115,12 +115,12 @@ async function processInChunks<T>(
     }
 }
 
-export async function processStaffBatch(staffs: IsbStaff[]): Promise<BatchResult> {
+export async function processStaffBatch(staffs: IsbStaff[], triggeredById: number | null = null): Promise<BatchResult> {
     if (staffs.length === 0) {
         return { success: 0, failed: 0, errors: [] };
     }
     const batchStart = performance.now();
-    const logId = await createSyncLog("isb_staff");
+    const logId = await createSyncLog("isb_staff", triggeredById);
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
 
@@ -208,7 +208,7 @@ interface IsbStudent {
     smartCard: { cardNumber: string };
 }
 
-interface IsbFamily {
+export interface IsbFamily {
     familyCode: number;
     notificationEmails: string[];
     mainParent: IsbParent;
@@ -341,12 +341,12 @@ async function buildFamilyBatchCtx(families: IsbFamily[]): Promise<FamilyBatchCt
     };
 }
 
-export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchResult> {
+export async function processFamilyBatch(families: IsbFamily[], triggeredById: number | null = null): Promise<BatchResult> {
     if (families.length === 0) {
         return { success: 0, failed: 0, errors: [] };
     }
     const batchStart = performance.now();
-    const logId = await createSyncLog("isb_family");
+    const logId = await createSyncLog("isb_family", triggeredById);
     const internalTypeId = await getInternalTypeId();
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
@@ -464,7 +464,7 @@ export async function processFamilyBatch(families: IsbFamily[]): Promise<BatchRe
 
 // ── Department batch ──────────────────────────────────────────────────────
 
-interface IsbDepartment {
+export interface IsbDepartment {
     departmentId: string;
     customerType: "Department";
     departmentDescription: string;
@@ -472,12 +472,12 @@ interface IsbDepartment {
     smartCard?: { cardNumber: string };
 }
 
-export async function processDepartmentBatch(depts: IsbDepartment[]): Promise<BatchResult> {
+export async function processDepartmentBatch(depts: IsbDepartment[], triggeredById: number | null = null): Promise<BatchResult> {
     if (depts.length === 0) {
         return { success: 0, failed: 0, errors: [] };
     }
     const batchStart = performance.now();
-    const logId = await createSyncLog("isb_department");
+    const logId = await createSyncLog("isb_department", triggeredById);
     let success = 0, failed = 0;
     const errors: BatchResult["errors"] = [];
     const currentYear = new Date().getFullYear();

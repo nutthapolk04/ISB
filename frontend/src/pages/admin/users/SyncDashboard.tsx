@@ -15,22 +15,6 @@ import { api, ApiError } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { RefreshCw, TrendingUp, TrendingDown, Clock } from "lucide-react";
 
@@ -43,29 +27,10 @@ interface SyncStats {
   daily: { date: string; success: number; failed: number }[];
 }
 
-interface SyncResponse {
-  sync_log_id: number;
-  status: string;
-  sync_type: string;
-  target_roles: string[];
-  records_total: number;
-  records_success: number;
-  records_failed: number;
-  started_at: string;
-  finished_at: string | null;
-  error_log: string | null;
-}
-
-const ALL_ROLES = ["student", "parent", "staff", "admin", "manager", "cashier"];
-
 export default function SyncDashboard() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<SyncStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [syncType, setSyncType] = useState<"delta" | "full">("delta");
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(["student", "parent", "staff"]);
-  const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -86,38 +51,6 @@ export default function SyncDashboard() {
   useEffect(() => {
     load();
   }, []);
-
-  const toggleRole = (r: string) => {
-    setSelectedRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
-  };
-
-  const runSync = async () => {
-    if (selectedRoles.length === 0) {
-      toast({ title: t("sync.selectRole"), variant: "destructive" });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await api.post<SyncResponse>("/sync/powerschool", {
-        sync_type: syncType,
-        target_roles: selectedRoles,
-      });
-      toast({
-        title: `Sync ${res.status}`,
-        description: `${res.records_success} success, ${res.records_failed} failed (${res.records_total} total)`,
-      });
-      setDialogOpen(false);
-      load();
-    } catch (e) {
-      toast({
-        title: t("sync.failed"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -184,9 +117,6 @@ export default function SyncDashboard() {
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
-            <Button onClick={() => setDialogOpen(true)}>
-              <RefreshCw className="h-4 w-4 mr-1" /> Sync Now
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -225,56 +155,6 @@ export default function SyncDashboard() {
           )}
         </CardContent>
       </Card>
-
-      {/* Sync dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Trigger PowerSchool Sync</DialogTitle>
-            <DialogDescription>
-              {t("sync.description")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Sync type</Label>
-              <Select value={syncType} onValueChange={(v) => setSyncType(v as "delta" | "full")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="delta">Delta — only recent changes (~60%)</SelectItem>
-                  <SelectItem value="full">Full — every matching record</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Target roles</Label>
-              <div className="flex flex-wrap gap-2">
-                {ALL_ROLES.map((r) => (
-                  <Badge
-                    key={r}
-                    variant={selectedRoles.includes(r) ? "default" : "outline"}
-                    className="cursor-pointer capitalize"
-                    onClick={() => toggleRole(r)}
-                  >
-                    {r}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={runSync} disabled={submitting}>
-              {submitting ? t("sync.syncing") : t("sync.startSync")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

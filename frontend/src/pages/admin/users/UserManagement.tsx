@@ -2,12 +2,13 @@ import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Activity, ListChecks, IdCard, CreditCard, Link2, Loader2 } from "lucide-react";
+import { Users, Activity, ListChecks, IdCard, CreditCard, Link2, Loader2, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShopUserManagement } from "@/components/ShopUserManagement";
 import CardholderList from "./CardholderList";
 import SyncDashboard from "./SyncDashboard";
 import SyncLog from "./SyncLog";
+import ManualSyncPanel from "./ManualSyncPanel";
 
 const CardManagement = lazy(() => import("@/pages/admin/CardManagement"));
 const FamilyLinks = lazy(() => import("@/pages/admin/FamilyLinks"));
@@ -74,6 +75,9 @@ export default function UserManagement() {
           <TabsTrigger value="dashboard" className="gap-2">
             <Activity className="h-4 w-4" /> {t("admin.users.tabSyncDashboard")}
           </TabsTrigger>
+          <TabsTrigger value="manualSync" className="gap-2">
+            <RefreshCw className="h-4 w-4" /> {t("admin.users.tabManualSync", "Manual Sync")}
+          </TabsTrigger>
           <TabsTrigger value="log" className="gap-2">
             <ListChecks className="h-4 w-4" /> {t("admin.users.tabSyncLog")}
           </TabsTrigger>
@@ -94,6 +98,9 @@ export default function UserManagement() {
         </TabsContent>
         <TabsContent value="dashboard" className="space-y-4">
           <SyncDashboard />
+        </TabsContent>
+        <TabsContent value="manualSync" className="space-y-4">
+          <ManualSyncPanel />
         </TabsContent>
         <TabsContent value="log" className="space-y-4">
           <SyncLog />

@@ -1,9 +1,10 @@
 /**
- * Mock PowerSchool sync — fixture-based port of FastAPI
- * app/services/powerschool_sync.py.
+ * ISB sync upsert primitives — shared by the real /sync/families,
+ * /sync/staffs, /sync/departments intake path (isb_sync_service.ts) and by
+ * Manual Sync replays of a captured round (sync_capture_service.ts).
  *
- * Reads bundled JSON fixtures and upserts users/customers/family_profiles/
- * parent_child_links idempotently. Writes sync_logs + sync_audit_logs.
+ * Upserts users/customers/family_profiles/parent_child_links idempotently.
+ * Writes sync_logs + sync_audit_logs.
  *
  * The Cloudinary photo upload chain is NOT ported — Bun uses the realistic
  * portrait fallback URL (same as FastAPI does on photo-upload failure).
@@ -14,13 +15,9 @@ import {
     users, customers, wallets, syncLogs, syncAuditLogs, parentChildLinks,
     familyProfiles, customerTypes, userLoginEmails,
 } from "@/db/schema";
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 
 const PARENT_DEFAULT_PASSWORD = "parent";
-const FAILURE_RATE = 0.08;
 
 /**
  * bcrypt cost for sync-created placeholder accounts (this file only — real,
@@ -67,8 +64,7 @@ function takeHash(pool: string[] | undefined): Promise<string> | string {
  * record. Passing `ctx` into the upsert functions below makes them read
  * from these maps instead of hitting the DB — falling back to the original
  * per-record SELECT whenever a given map isn't supplied, so every existing
- * call site (runSync/processFamily, processStaffBatch) that doesn't pass a
- * ctx keeps its exact original behavior.
+ * call site that doesn't pass a ctx keeps its exact original behavior.
  */
 export interface FamilyBatchCtx {
     familyProfiles?: Map<string, typeof familyProfiles.$inferSelect>;
@@ -83,8 +79,6 @@ export interface FamilyBatchCtx {
     links?: Map<string, typeof parentChildLinks.$inferSelect>;
     hashPool?: string[];
 }
-
-const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 // ── Portraits (deterministic by seed) ─────────────────────────────────────
 
@@ -129,28 +123,6 @@ function realisticPhoto(role: string, seed: string): string {
     const pool = PORTRAIT_POOLS[role] ?? STAFF_PORTRAITS;
     const h = parseInt(createHash("md5").update(seed).digest("hex").slice(0, 12), 16);
     return pool[h % pool.length];
-}
-
-// ── Seeded RNG (mirrors Python random.Random(seed).random()) ──────────────
-// Uses a 32-bit Mulberry32 PRNG seeded by SHA-1 of input — same input string
-// always produces the same sequence, satisfying "deterministic per sync run".
-
-function makeRng(seed: string): () => number {
-    const hex = createHash("sha1").update(seed).digest("hex");
-    let s = parseInt(hex.slice(0, 8), 16) >>> 0;
-    return function () {
-        s |= 0; s = (s + 0x6d2b79f5) | 0;
-        let t = Math.imul(s ^ (s >>> 15), 1 | s);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
-
-// ── Fixture loading ───────────────────────────────────────────────────────
-
-function loadFixture(name: string): Record<string, unknown> {
-    const path = join(FIXTURE_DIR, name);
-    return JSON.parse(readFileSync(path, "utf-8"));
 }
 
 // ── Audit snapshot helpers ────────────────────────────────────────────────
@@ -1000,203 +972,3 @@ export async function reconcileFamilyMembership(
     }
 }
 
-// ── Family orchestration ──────────────────────────────────────────────────
-
-interface FamilyPayload {
-    familyCode: number | string;
-    login?: string[];
-    notificationEmails?: string[];
-    mainParent?: StaffPayload;
-    secondaryParent?: StaffPayload;
-    students?: StudentPayload[];
-}
-
-async function processFamily(args: {
-    family: FamilyPayload;
-    targetRoles: string[];
-    rng: () => number;
-    internalTypeId: number;
-    faultRate: number;
-    syncLogId: number;
-}): Promise<{ success: number; failed: number; errors: string[] }> {
-    let success = 0, failed = 0;
-    const errors: string[] = [];
-    const familyCode = String(args.family.familyCode);
-
-    try {
-        await upsertFamilyProfile(
-            familyCode,
-            args.family.notificationEmails ?? [],
-            args.family.login ?? [],
-        );
-        success += 1;
-    } catch (e) {
-        failed += 1;
-        errors.push(`family_profile ${familyCode}: ${(e as Error).message}`);
-    }
-
-    const loginArray = args.family.login ?? [];
-    const parentsWithRank: Array<{ rank: string; payload: StaffPayload }> = [];
-    if (args.family.mainParent) parentsWithRank.push({ rank: "main", payload: args.family.mainParent });
-    if (args.family.secondaryParent) parentsWithRank.push({ rank: "secondary", payload: args.family.secondaryParent });
-
-    const parentUserRows: Array<{ user: typeof users.$inferSelect; rank: string }> = [];
-    for (let idx = 0; idx < parentsWithRank.length; idx++) {
-        const { rank, payload } = parentsWithRank[idx];
-        const ctype = payload.customerType ?? "Parent";
-        const roleKey = ctype === "Staff" ? "staff" : "parent";
-        if (!args.targetRoles.includes(roleKey)) continue;
-
-        if (args.rng() < args.faultRate) {
-            failed += 1;
-            errors.push(`Validation error: ${roleKey} #${payload.customerId} (${familyCode})`);
-            continue;
-        }
-        try {
-            let user: typeof users.$inferSelect;
-            if (ctype === "Staff") {
-                user = await upsertStaffParentRef(payload, familyCode, args.syncLogId);
-            } else {
-                const logins = idx < loginArray.length ? [loginArray[idx]] : [];
-                user = await upsertParent(payload, familyCode, logins, args.syncLogId);
-            }
-            parentUserRows.push({ user, rank });
-            success += 1;
-        } catch (e) {
-            failed += 1;
-            errors.push(`parent ${payload.customerId}: ${(e as Error).message}`);
-        }
-    }
-
-    if (args.targetRoles.includes("student")) {
-        for (const sp of args.family.students ?? []) {
-            if (args.rng() < args.faultRate) {
-                failed += 1;
-                errors.push(`Invalid grade for student #${sp.customerId}`);
-                continue;
-            }
-            try {
-                const student = await upsertStudent(sp, familyCode, args.internalTypeId, args.syncLogId);
-                for (const { user, rank } of parentUserRows) {
-                    await upsertLink(user.id, student.id, rank);
-                }
-                await reconcileParentLinks(student.id, parentUserRows.map((p) => p.user.id));
-                success += 1;
-            } catch (e) {
-                failed += 1;
-                errors.push(`student ${sp.customerId}: ${(e as Error).message}`);
-            }
-        }
-    }
-
-    return { success, failed, errors };
-}
-
-function selectSubset<T>(items: T[], syncType: string, rng: () => number): T[] {
-    if (syncType === "full") return items;
-    return items.filter(() => rng() < 0.6);
-}
-
-// ── Entry point ───────────────────────────────────────────────────────────
-
-export interface RunSyncInput {
-    triggeredById: number | null;
-    syncType: "full" | "delta";
-    targetRoles: string[];
-    faultRate?: number;
-}
-
-export interface RunSyncResult {
-    sync_log_id: number;
-    status: string;
-    sync_type: string;
-    target_roles: string[];
-    records_total: number;
-    records_success: number;
-    records_failed: number;
-    started_at: string;
-    finished_at: string | null;
-    error_log: string | null;
-}
-
-export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
-    const targetRoles = input.targetRoles.length > 0 ? input.targetRoles : ["student", "parent", "staff"];
-    const faultRate = input.faultRate ?? FAILURE_RATE;
-
-    // Create running sync_log first
-    const [log] = await db.insert(syncLogs).values({
-        syncType: input.syncType,
-        targetRoles,
-        triggeredBy: input.triggeredById,
-        status: "running",
-        recordsTotal: 0,
-        recordsSuccess: 0,
-        recordsFailed: 0,
-    }).returning();
-
-    const rng = makeRng(`${log.id}-${input.syncType}`);
-    const internalTypeId = await getInternalTypeId();
-    const errors: string[] = [];
-    let total = 0, success = 0, failed = 0;
-
-    try {
-        if (targetRoles.includes("staff")) {
-            const staffs = (loadFixture("ps_staffs.json").staffs as StaffPayload[]) ?? [];
-            const subset = selectSubset(staffs, input.syncType, rng);
-            for (const s of subset) {
-                total += 1;
-                if (rng() < faultRate) {
-                    failed += 1;
-                    errors.push(`Validation error: staff #${s.customerId} missing email`);
-                    continue;
-                }
-                try {
-                    await upsertStaff(s, log.id);
-                    success += 1;
-                } catch (e) {
-                    failed += 1;
-                    errors.push(`staff ${s.customerId}: ${(e as Error).message}`);
-                }
-            }
-        }
-
-        const families = (loadFixture("ps_families.json").families as FamilyPayload[]) ?? [];
-        const famSubset = selectSubset(families, input.syncType, rng);
-        for (const fam of famSubset) {
-            const r = await processFamily({
-                family: fam, targetRoles, rng, internalTypeId, faultRate, syncLogId: log.id,
-            });
-            total += r.success + r.failed;
-            success += r.success;
-            failed += r.failed;
-            errors.push(...r.errors);
-        }
-    } catch (e) {
-        errors.push(`Engine crash: ${(e as Error).message}`);
-        failed += 1;
-    }
-
-    const status = failed === 0 ? "success" : success === 0 ? "failed" : "partial";
-    const finishedAt = new Date().toISOString();
-    await db.update(syncLogs).set({
-        recordsTotal: total,
-        recordsSuccess: success,
-        recordsFailed: failed,
-        status,
-        finishedAt,
-        errorLog: errors.length > 0 ? errors.slice(0, 50).join("\n") : null,
-    }).where(eq(syncLogs.id, log.id));
-
-    return {
-        sync_log_id: log.id,
-        status,
-        sync_type: input.syncType,
-        target_roles: targetRoles,
-        records_total: total,
-        records_success: success,
-        records_failed: failed,
-        started_at: typeof log.startedAt === "string" ? log.startedAt : new Date().toISOString(),
-        finished_at: finishedAt,
-        error_log: errors.length > 0 ? errors.slice(0, 50).join("\n") : null,
-    };
-}

@@ -7,3 +7,7 @@ node_modules
 bun.lockb
 .DS_Store
 dist
+
+# Captured raw ISB sync payloads (see sync_capture_service.ts) — runtime
+# data for the admin Manual Sync feature, not committed.
+/data/sync_captures/

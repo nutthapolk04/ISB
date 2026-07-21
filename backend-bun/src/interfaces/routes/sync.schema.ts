@@ -1,19 +1,20 @@
 import { t } from "elysia";
 
-export const syncRun = {
-    body: t.Object({
-        sync_type: t.Optional(t.Union([t.Literal("full"), t.Literal("delta")])),
-        target_roles: t.Optional(t.Array(t.String())),
-    }),
-    detail: { tags: ["Admin"], summary: "Run PowerSchool sync (delta default)" },
+const syncChannelParam = t.Union([t.Literal("families"), t.Literal("staffs"), t.Literal("departments")]);
+
+export const syncCapturesList = {
+    params: t.Object({ channel: syncChannelParam }),
+    detail: { tags: ["Admin"], summary: "List captured ISB sync rounds for a channel" },
 };
 
-export const syncPowerschool = {
-    body: t.Object({
-        sync_type: t.Optional(t.Union([t.Literal("full"), t.Literal("delta")])),
-        target_roles: t.Optional(t.Array(t.String())),
-    }),
-    detail: { tags: ["Admin"], summary: "Run PowerSchool sync (full default)" },
+export const syncCapturesPreview = {
+    params: t.Object({ channel: syncChannelParam, roundId: t.String() }),
+    detail: { tags: ["Admin"], summary: "Preview a captured ISB sync round" },
+};
+
+export const syncCapturesRun = {
+    params: t.Object({ channel: syncChannelParam, roundId: t.String() }),
+    detail: { tags: ["Admin"], summary: "Run Manual Sync from a captured ISB sync round" },
 };
 
 export const syncLogs = {

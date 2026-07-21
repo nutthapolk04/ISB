@@ -319,14 +319,16 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     // ── Sync ────────────────────────────────────────────────────────────────
     .group("/sync", (app) =>
         app
-            .post("/run", SyncController.run, SyncSchema.syncRun)
-            .post("/powerschool", SyncController.powerschool, SyncSchema.syncPowerschool)
             .get("/logs", SyncController.logs, SyncSchema.syncLogs)
             .get("/stats", SyncController.stats, SyncSchema.syncStats)
     )
     .get("/admin/sync-logs", SyncController.listSyncLogs, SyncSchema.syncListStatuses)
     .get("/admin/sync-logs/:syncLogId", SyncController.getSyncLog, SyncSchema.syncGetLog)
     .get("/admin/sync-audit/:syncLogId", SyncController.syncAudit, SyncSchema.syncAudit)
+    // Manual Sync — captured ISB payloads, replayed on demand (see sync_capture_service.ts)
+    .get("/admin/sync-captures/:channel", SyncController.listCaptures, SyncSchema.syncCapturesList)
+    .get("/admin/sync-captures/:channel/:roundId", SyncController.previewCapture, SyncSchema.syncCapturesPreview)
+    .post("/admin/sync-captures/:channel/:roundId/run", SyncController.runCapture, SyncSchema.syncCapturesRun)
     .post("/canteen/:shopId/close-day", CanteenController.closeDay, CanteenSchema.canteenCloseDay)
     // ── Spending groups ─────────────────────────────────────────────────────
     .group("/spending-groups", (app) =>

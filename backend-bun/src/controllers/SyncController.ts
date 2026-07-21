@@ -4,60 +4,106 @@ import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
 import { listSyncLogs, syncStats } from "@/services/sync_log_service";
 import { getSyncLog, listSyncStatuses, listSyncAudit } from "@/services/cardholder_service";
-import { runSync } from "@/services/powerschool_sync";
+import {
+	processDepartmentBatch,
+	processFamilyBatch,
+	processStaffBatch,
+	type IsbDepartment,
+	type IsbFamily,
+	type IsbStaff,
+} from "@/services/isb_sync_service";
+import { listRounds, loadRoundRecords, type SyncChannel } from "@/services/sync_capture_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
+/**
+ * A captured round concatenates every original batch call in that window —
+ * unlike a single real ISB batch, the SAME record (e.g. a family swapped
+ * twice within the hour) can legitimately appear more than once across those
+ * batches. processFamilyBatch/etc. upsert concurrently in chunks (see
+ * isb_sync_service.ts::processInChunks) — replaying two records for the same
+ * key in one call races on their shared insert (e.g. duplicate-key on
+ * family_profiles.family_code). Keeping only the LAST occurrence per key
+ * converges to the same end state a real, race-free sequential replay would
+ * reach, while removing the race.
+ */
+function dedupeByKeyKeepLast<T>(records: T[], keyOf: (r: T) => string | number): T[] {
+	const byKey = new Map<string | number, T>();
+	for (const r of records) byKey.set(keyOf(r), r);
+	return [...byKey.values()];
+}
+
 export const SyncController = {
-	run: async (ctx: any) => {
+	/** List captured ISB sync rounds for a channel (families/staffs/departments) — see sync_capture_service.ts. */
+	listCaptures: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
-		const { body } = reqContext;
-		logger.info(`[${reqContext.requestId} (SY-01)] SyncController.run() called.`);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SY-01)] SyncController.listCaptures() called.`);
 		if (!hasRole(user.roles, "admin")) {
-			logger.warn(`[${reqContext.requestId} (SY-01)] SyncController.run() forbidden.`);
+			logger.warn(`[${reqContext.requestId} (SY-01)] SyncController.listCaptures() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			logger.info(`[${reqContext.requestId} (SY-01)] SyncController.run() calling runSync().`);
-			const result = await runSync({
-				triggeredById: Number(user.sub),
-				syncType: (body.sync_type as "full" | "delta") ?? "delta",
-				targetRoles: body.target_roles ?? ["student", "parent", "staff"],
-			});
-			logger.info(`[${reqContext.requestId} (SY-01)] SyncController.run() completed.`);
-			return successResponse(reqContext, result, ResponseStatus.OK);
+			logger.info(`[${reqContext.requestId} (SY-01)] SyncController.listCaptures() calling listRounds().`);
+			const result = await listRounds(params.channel as SyncChannel);
+			logger.info(`[${reqContext.requestId} (SY-01)] SyncController.listCaptures() completed.`);
+			return successResponse(reqContext, { items: result }, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (SY-01)] SyncController.run() error:`, e);
+			logger.error(`[${reqContext.requestId} (SY-01)] SyncController.listCaptures() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
 
-	powerschool: async (ctx: any) => {
+	/** Preview every record captured in one round (all its batches concatenated) before Manual Sync. */
+	previewCapture: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
-		const { body } = reqContext;
-		logger.info(`[${reqContext.requestId} (SY-02)] SyncController.powerschool() called.`);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SY-02)] SyncController.previewCapture() called.`);
 		if (!hasRole(user.roles, "admin")) {
-			logger.warn(`[${reqContext.requestId} (SY-02)] SyncController.powerschool() forbidden.`);
+			logger.warn(`[${reqContext.requestId} (SY-02)] SyncController.previewCapture() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
-		const valid = new Set(["student", "parent", "staff", "admin", "manager", "cashier"]);
-		const targetRoles = (body.target_roles ?? []).filter((r: string) => valid.has(r));
-		if (targetRoles.length === 0) {
-			logger.warn(`[${reqContext.requestId} (SY-02)] SyncController.powerschool() invalid target roles.`);
-			return errorResponse(reqContext, "At least one valid target role is required", ResponseStatus.BAD_REQUEST);
+		try {
+			logger.info(`[${reqContext.requestId} (SY-02)] SyncController.previewCapture() calling loadRoundRecords().`);
+			const records = await loadRoundRecords(params.channel as SyncChannel, params.roundId);
+			logger.info(`[${reqContext.requestId} (SY-02)] SyncController.previewCapture() completed.`);
+			return successResponse(reqContext, { count: records.length, records }, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SY-02)] SyncController.previewCapture() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	/**
+	 * Manual Sync — replays a captured round's records through the SAME real
+	 * upsert path a live ISB batch uses (processFamilyBatch/processStaffBatch/
+	 * processDepartmentBatch), tagged with triggered_by = the calling admin so
+	 * sync_logs distinguishes it from a real ISB-triggered sync.
+	 */
+	runCapture: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() called.`);
+		if (!hasRole(user.roles, "admin")) {
+			logger.warn(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() forbidden.`);
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			logger.info(`[${reqContext.requestId} (SY-02)] SyncController.powerschool() calling runSync().`);
-			const result = await runSync({
-				triggeredById: Number(user.sub),
-				syncType: (body.sync_type as "full" | "delta") ?? "full",
-				targetRoles,
-			});
-			logger.info(`[${reqContext.requestId} (SY-02)] SyncController.powerschool() completed.`);
+			const channel = params.channel as SyncChannel;
+			logger.info(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() loading captured records.`);
+			const rawRecords = await loadRoundRecords(channel, params.roundId);
+			const triggeredById = Number(user.sub);
+			logger.info(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() running ${channel} Manual Sync (${rawRecords.length} records).`);
+			const result = channel === "families"
+				? await processFamilyBatch(dedupeByKeyKeepLast(rawRecords as IsbFamily[], (f) => f.familyCode), triggeredById)
+				: channel === "staffs"
+					? await processStaffBatch(dedupeByKeyKeepLast(rawRecords as IsbStaff[], (s) => s.customerId), triggeredById)
+					: await processDepartmentBatch(dedupeByKeyKeepLast(rawRecords as IsbDepartment[], (d) => d.departmentId), triggeredById);
+			logger.info(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (SY-02)] SyncController.powerschool() error:`, e);
+			logger.error(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

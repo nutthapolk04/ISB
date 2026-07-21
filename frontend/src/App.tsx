@@ -10,7 +10,6 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ServerStatusIndicator } from '@/components/ServerStatusIndicator';
-import { ReSyncControl } from '@/components/ReSyncControl';
 import { AuthProvider, useAuth, UserRole } from '@/contexts/AuthContext';
 import { SchoolInfoProvider } from '@/contexts/SchoolInfoContext';
 import { RequireModule } from '@/components/guards/RequireModule';
@@ -115,12 +114,7 @@ function AppShell() {
           <header className="app-topbar">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
-              {showOpsWidgets && (
-                <>
-                  <ServerStatusIndicator />
-                  <ReSyncControl />
-                </>
-              )}
+              {showOpsWidgets && <ServerStatusIndicator />}
               <LanguageSwitcher />
               {user && (
                 <div className="flex items-center gap-2 border-l border-border/60 pl-2">

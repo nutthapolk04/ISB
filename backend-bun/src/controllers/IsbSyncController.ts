@@ -12,6 +12,7 @@ import {
 	processFamilyBatch,
 	processStaffBatch,
 } from "@/services/isb_sync_service";
+import { captureSyncBatch } from "@/services/sync_capture_service";
 
 async function handleBatchResult(
 	set: { status?: number | string },
@@ -33,6 +34,7 @@ export const IsbSyncController = {
 			return syncAuthFailed(reqContext.set);
 		}
 		try {
+			await captureSyncBatch("staffs", body);
 			logger.info(`[${reqContext.requestId} (IS-01)] IsbSyncController.staffs() calling processStaffBatch().`);
 			const result = await processStaffBatch(body.staffs);
 			logger.info(`[${reqContext.requestId} (IS-01)] IsbSyncController.staffs() completed.`);
@@ -57,6 +59,7 @@ export const IsbSyncController = {
 			return syncAuthFailed(reqContext.set);
 		}
 		try {
+			await captureSyncBatch("families", body);
 			logger.info(`[${reqContext.requestId} (IS-02)] IsbSyncController.families() calling processFamilyBatch().`);
 			const result = await processFamilyBatch(body.families);
 			logger.info(`[${reqContext.requestId} (IS-02)] IsbSyncController.families() completed.`);
@@ -81,6 +84,7 @@ export const IsbSyncController = {
 			return syncAuthFailed(reqContext.set);
 		}
 		try {
+			await captureSyncBatch("departments", body);
 			logger.info(`[${reqContext.requestId} (IS-03)] IsbSyncController.departments() calling processDepartmentBatch().`);
 			const result = await processDepartmentBatch(body.departments);
 			logger.info(`[${reqContext.requestId} (IS-03)] IsbSyncController.departments() completed.`);
