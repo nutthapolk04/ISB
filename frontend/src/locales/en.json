@@ -1536,7 +1536,7 @@
       "relation": "Relation",
       "parentRank": "Parent rank",
       "notFound": "User not found",
-      "noShopAny": "— No shop (can view all) —",
+      "noShopAny": "— All —",
       "shopHint": "Manager/Cashier can only see and transact items from their assigned shop",
       "extIdChangeWarning": "External ID will change — reason required",
       "noAllergies": "No data from PowerSchool",
@@ -2026,7 +2026,7 @@
     "selectShop": "Select shop…",
     "searchPlaceholder": "Search shop…",
     "noResults": "No shop matched",
-    "noShop": "— No shop (can view all) —"
+    "noShop": "— All —"
   },
   "requisition": {
     "title": "Issue to staff",
