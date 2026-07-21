@@ -43,6 +43,17 @@ if [ -z "$APP_PORT" ]; then
   exit 1
 fi
 
+# Mount ISB photo dir into the container (host SFTP upload folder).
+PHOTO_DIR="$(grep -E '^ISB_PHOTO_DIR=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '"')"
+PHOTO_MOUNT=()
+if [ -n "$PHOTO_DIR" ]; then
+  if [ ! -d "$PHOTO_DIR" ]; then
+    echo "WARN: ISB_PHOTO_DIR='$PHOTO_DIR' is not a directory on this host — photos will 404 until it exists."
+  fi
+  PHOTO_MOUNT=(-v "${PHOTO_DIR}:${PHOTO_DIR}:ro")
+  echo "==> Mounting ISB photos: ${PHOTO_DIR} (read-only)"
+fi
+
 echo "==> Building image from pre-built dist/ ($DOCKERFILE)"
 docker build -f "$DOCKERFILE" -t "$IMAGE" .
 
@@ -56,6 +67,7 @@ docker run -d \
   -p "${APP_PORT}:${APP_PORT}" \
   --env-file "$ENV_FILE" \
   -v "$(pwd)/logs-${ENV}:/app/logs" \
+  "${PHOTO_MOUNT[@]}" \
   "$IMAGE"
 
 echo "==> Done. Tail logs with: docker logs -f $CONTAINER"

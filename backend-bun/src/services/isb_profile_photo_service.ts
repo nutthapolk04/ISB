@@ -48,7 +48,7 @@ export function buildProfilePhotoUrl(filename: string | undefined | null): strin
     }
 
     const legacyBase = process.env.ISB_PHOTO_BASE_URL?.replace(/\/$/, "");
-    if (legacyBase) {
+    if (legacyBase && /^https?:\/\//i.test(legacyBase)) {
         return `${legacyBase}/${name}`;
     }
 
@@ -80,12 +80,24 @@ export async function readProfilePhoto(filename: string): Promise<ProfilePhotoBi
 
     try {
         const content = await fs.readFile(resolvedFile);
-        logger.debug(`[PP-01] readProfilePhoto() content: ${content}`);
         const contentType = contentTypeFromExt(path.extname(name));
-        logger.debug(`[PP-01] readProfilePhoto() contentType: ${contentType}`);
         return { content, contentType, sizeBytes: content.byteLength };
     } catch (e) {
         if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+            // Case mismatch on disk (e.g. .JPG vs .jpg) — try once before 404.
+            try {
+                const entries = await fs.readdir(resolvedDir);
+                const hit = entries.find((entry) => entry.toLowerCase() === name.toLowerCase());
+                if (hit) {
+                    const altPath = path.join(resolvedDir, hit);
+                    const content = await fs.readFile(altPath);
+                    const contentType = contentTypeFromExt(path.extname(hit));
+                    return { content, contentType, sizeBytes: content.byteLength };
+                }
+            } catch {
+                // fall through to 404
+            }
+            logger.warn(`[PP-01] readProfilePhoto() missing file: ${resolvedFile}`);
             throw statusErr(404, "Profile photo not found");
         }
         throw e;
