@@ -5,15 +5,17 @@
  * Reuses upsert primitives from powerschool_sync.ts (no fault simulation,
  * no fixture loading — data comes from the HTTP request body).
  *
- * Photo URL: ISB sends a filename only ("202468_SF.jpg"). We store it as-is
- * until ISB confirms the base URL. Set ISB_PHOTO_BASE_URL env var to prepend
- * automatically once known.
+ * Photo URL: ISB sends a filename only ("202468_SF.jpg"). When BACKEND_BASE_URL
+ * is set we store a public URL to GET /api/v1/profile-photos/:filename (files
+ * read from ISB_PHOTO_DIR on disk). Legacy ISB_PHOTO_BASE_URL prepend still
+ * works as a fallback.
  */
 
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { customers, departments, familyProfiles, parentChildLinks, syncLogs, userLoginEmails, users } from "@/db/schema";
 import { logger } from "@/logger";
+import { buildProfilePhotoUrl } from "@/services/isb_profile_photo_service";
 import {
     getInternalTypeId,
     reconcileFamilyMembership,
@@ -30,15 +32,6 @@ import {
     type StaffPayload,
     type StudentPayload,
 } from "@/services/powerschool_sync";
-
-// ── Photo URL helper ──────────────────────────────────────────────────────
-
-function resolvePhotoUrl(filename: string | undefined | null): string | null {
-    if (!filename) return null;
-    const base = process.env.ISB_PHOTO_BASE_URL;
-    if (base) return `${base.replace(/\/$/, "")}/${filename}`;
-    return filename; // store raw filename until base URL is confirmed
-}
 
 // ── Sync log ──────────────────────────────────────────────────────────────
 
@@ -158,7 +151,7 @@ export async function processStaffBatch(staffs: IsbStaff[], triggeredById: numbe
             }
 
             // Override photoUrl with ISB filename (upsertStaff sets randomuser portrait)
-            const photoUrl = resolvePhotoUrl(s.profileImage);
+            const photoUrl = buildProfilePhotoUrl(s.profileImage);
             if (photoUrl && user.photoUrl !== photoUrl) {
                 await db.update(users).set({ photoUrl }).where(eq(users.id, user.id));
             }
@@ -394,7 +387,7 @@ export async function processFamilyBatch(families: IsbFamily[], triggeredById: n
                 }
 
                 // Override photo with ISB filename
-                const photoUrl = resolvePhotoUrl(parent.profileImage);
+                const photoUrl = buildProfilePhotoUrl(parent.profileImage);
                 if (photoUrl && user.photoUrl !== photoUrl) {
                     await db.update(users).set({ photoUrl }).where(eq(users.id, user.id));
                 }
@@ -419,7 +412,7 @@ export async function processFamilyBatch(families: IsbFamily[], triggeredById: n
                 studentCustomerIds.push(customer.id);
 
                 // Override photo
-                const photoUrl = resolvePhotoUrl(st.profileImage);
+                const photoUrl = buildProfilePhotoUrl(st.profileImage);
                 if (photoUrl && customer.photoUrl !== photoUrl) {
                     await db.update(customers).set({ photoUrl }).where(eq(customers.id, customer.id));
                 }

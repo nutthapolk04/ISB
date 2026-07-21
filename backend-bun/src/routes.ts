@@ -28,6 +28,7 @@ import { SpendingGroupController } from "@/controllers/SpendingGroupController";
 import { UomController } from "@/controllers/UomController";
 import { CardholderController } from "@/controllers/CardholderController";
 import { CustomerDisplayController } from "@/controllers/CustomerDisplayController";
+import { ProfilePhotoController } from "@/controllers/ProfilePhotoController";
 import { AdminImportController } from "@/controllers/AdminImportController";
 import { AdminReportsController } from "@/controllers/AdminReportsController";
 import { CanteenController } from "@/controllers/CanteenController";
@@ -39,6 +40,7 @@ import * as VendorWalletSchema from "@/interfaces/routes/vendor_wallet.schema";
 import * as BayCallbackSchema from "@/interfaces/routes/bay_callback.schema";
 import * as AdminSettingsSchema from "@/interfaces/routes/admin_settings.schema";
 import * as CustomerDisplaySchema from "@/interfaces/routes/customer_display.schema";
+import * as ProfilePhotoSchema from "@/interfaces/routes/profile_photo.schema";
 import * as DepartmentSchema from "@/interfaces/routes/department.schema";
 import * as UserSchema from "@/interfaces/routes/user.schema";
 import * as UsersAdminSchema from "@/interfaces/routes/users_admin.schema";
@@ -441,6 +443,7 @@ const router = (app: Elysia) =>
         })
         .get("/api/v1/customer-display/images", CustomerDisplayController.listPublic, CustomerDisplaySchema.customerDisplayListPublic)
         .get("/api/v1/customer-display/images/:id/binary", CustomerDisplayController.getBinary, CustomerDisplaySchema.customerDisplayGetBinary)
+        .get("/api/v1/profile-photos/:filename", ProfilePhotoController.getBinary, ProfilePhotoSchema.profilePhotoGetBinary)
         // 4. Authenticated API bundle
         .use(apiV1Authed);
 
