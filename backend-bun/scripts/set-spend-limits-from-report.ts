@@ -28,6 +28,19 @@
  * null — a missing value in the file means "don't know", not "remove the
  * limit".
  *
+ * Grade-tier default (2026-07 review): a PARSED SPENDLIMIT value below 1
+ * (this includes 0 and negative numbers — applied literally, no manual
+ * review of *why* it's low) is never written as-is. Instead it's replaced
+ * with a grade-tier default looked up from customers.grade:
+ *   - Grade K0/K00, K1/K01, 00, 01, 02, 03, 04 ("low" tier): 0.1 for BOTH
+ *     canteen and store, regardless of the row's own category.
+ *   - Grade 05-12 ("high" tier): 500 for canteen, 25000 for store.
+ * A customer whose grade doesn't resolve to either tier (null, or any value
+ * outside the above) is skipped and reported (`skipped_low_value_unknown_grade`)
+ * — never guessed. The report's `raw_file_value` column always preserves the
+ * original SPENDLIMIT from the file even when overridden, and `override_tier`
+ * shows which tier (if any) was applied, so the substitution is auditable.
+ *
  * SAFETY: defaults to DRY RUN. Pass --execute to write customers.
  *
  * Usage (from backend-bun/):
@@ -77,6 +90,31 @@ const CATEGORY_MAP: Record<string, LimitCategory> = {
     canteen: "canteen",
     shop: "store",
 };
+
+// ── grade-tier default (see header doc comment) ─────────────────────────────
+
+type GradeTier = "low" | "high";
+
+const LOW_TIER_DEFAULT = 0.1;
+const HIGH_TIER_DEFAULT = { canteen: 500, store: 25000 } as const;
+
+// Real ISB payloads use zero-padded numeric grades ("00".."12") and, so far,
+// only "K0"/"K1" for kindergarten — accepting the "K00"/"K01" padded form too
+// since that's how this rule was specified, in case either shows up.
+const LOW_TIER_KINDERGARTEN = new Set(["K0", "K00", "K1", "K01"]);
+
+/** Returns null (never guessed) for anything that isn't cleanly K0/K1/00-12 —
+ * callers must skip-and-report rather than assume a tier for those. */
+function classifyGradeTier(gradeRaw: string | null): GradeTier | null {
+    if (!gradeRaw) return null;
+    const grade = gradeRaw.trim().toUpperCase();
+    if (LOW_TIER_KINDERGARTEN.has(grade)) return "low";
+    if (!/^\d+$/.test(grade)) return null;
+    const num = Number(grade);
+    if (num >= 0 && num <= 4) return "low";
+    if (num >= 5 && num <= 12) return "high";
+    return null;
+}
 
 function readLimitRows(inputPath: string): LimitRow[] {
     const wb = XLSX.readFile(inputPath, { raw: true });
@@ -137,6 +175,7 @@ async function main() {
                 id: customers.id,
                 externalId: customers.externalId,
                 name: customers.name,
+                grade: customers.grade,
                 dailyLimitCanteen: customers.dailyLimitCanteen,
                 dailyLimitStore: customers.dailyLimitStore,
             })
@@ -147,7 +186,12 @@ async function main() {
     const byExternalId = new Map(dbRows.map((r) => [r.externalId as string, r]));
     console.log(`Matched ${byExternalId.size}/${externalIds.length} unique CustomerId(s) to a customer via external_id.`);
 
-    type ReportRow = [number, string, string, string, string | number, string, string | number, string | number, string | number, string];
+    type ReportRow = [
+        number, string, string, string,
+        string | number, string, string,
+        string | number, string | number, string | number, string | number,
+        string, string,
+    ];
     const reportRows: ReportRow[] = [];
 
     let updated = 0;
@@ -155,6 +199,8 @@ async function main() {
     let skippedNotFound = 0;
     let skippedBadCategory = 0;
     let skippedMissingValue = 0;
+    let skippedUnknownGradeForOverride = 0;
+    let overridden = 0;
 
     let rowIdx = 0;
     for (const row of rows) {
@@ -169,7 +215,7 @@ async function main() {
             skippedNotFound += 1;
             reportRows.push([
                 row.rowNum, row.externalId, row.nameInFile, row.rawCategory,
-                "", "", "", row.targetLimit ?? "", "", "skipped_not_found",
+                "", "", "", "", row.targetLimit ?? "", "", "", "skipped_not_found", "",
             ]);
             continue;
         }
@@ -178,7 +224,7 @@ async function main() {
             skippedBadCategory += 1;
             reportRows.push([
                 row.rowNum, row.externalId, row.nameInFile, row.rawCategory,
-                dbCustomer.id, dbCustomer.name, "", row.targetLimit ?? "", "", "skipped_unrecognized_category",
+                dbCustomer.id, dbCustomer.name, dbCustomer.grade ?? "", "", row.targetLimit ?? "", "", "", "skipped_unrecognized_category", "",
             ]);
             continue;
         }
@@ -187,35 +233,60 @@ async function main() {
             skippedMissingValue += 1;
             reportRows.push([
                 row.rowNum, row.externalId, row.nameInFile, row.rawCategory,
-                dbCustomer.id, dbCustomer.name, "", "", "", "skipped_missing_spendlimit",
+                dbCustomer.id, dbCustomer.name, dbCustomer.grade ?? "", "", "", "", "", "skipped_missing_spendlimit", "",
             ]);
             continue;
+        }
+
+        // Grade-tier default (2026-07 review): a parsed value below 1 —
+        // including 0 and negatives, applied literally, no exception — is
+        // never written as-is. See the header doc comment for the exact
+        // tiers/values; classifyGradeTier() never guesses, so an
+        // unresolvable grade is skipped and reported rather than defaulted
+        // to either tier.
+        let effectiveLimit = row.targetLimit;
+        let overrideTier = "";
+        if (row.targetLimit < 1) {
+            const tier = classifyGradeTier(dbCustomer.grade);
+            if (tier === null) {
+                skippedUnknownGradeForOverride += 1;
+                reportRows.push([
+                    row.rowNum, row.externalId, row.nameInFile, row.rawCategory,
+                    dbCustomer.id, dbCustomer.name, dbCustomer.grade ?? "", "", row.targetLimit, "", "",
+                    "skipped_low_value_unknown_grade", "",
+                ]);
+                continue;
+            }
+            effectiveLimit = tier === "low" ? LOW_TIER_DEFAULT : HIGH_TIER_DEFAULT[row.category];
+            overrideTier = tier;
+            overridden += 1;
         }
 
         const column = row.category === "canteen" ? "dailyLimitCanteen" : "dailyLimitStore";
         const currentRaw = row.category === "canteen" ? dbCustomer.dailyLimitCanteen : dbCustomer.dailyLimitStore;
         const current = currentRaw != null ? Number(currentRaw) : null;
 
-        if (current !== null && Math.abs(row.targetLimit - current) < DELTA_EPSILON) {
+        if (current !== null && Math.abs(effectiveLimit - current) < DELTA_EPSILON) {
             skippedAtTarget += 1;
             reportRows.push([
                 row.rowNum, row.externalId, row.nameInFile, row.rawCategory,
-                dbCustomer.id, dbCustomer.name, current, row.targetLimit, 0, "skipped_at_target",
+                dbCustomer.id, dbCustomer.name, dbCustomer.grade ?? "", current, row.targetLimit, effectiveLimit, 0,
+                "skipped_at_target", overrideTier,
             ]);
             continue;
         }
 
         if (args.execute) {
             await db.update(customers)
-                .set({ [column]: row.targetLimit.toFixed(2) })
+                .set({ [column]: effectiveLimit.toFixed(2) })
                 .where(eq(customers.id, dbCustomer.id));
         }
         updated += 1;
-        const delta = current !== null ? Math.round((row.targetLimit - current) * 100) / 100 : "";
+        const delta = current !== null ? Math.round((effectiveLimit - current) * 100) / 100 : "";
         reportRows.push([
             row.rowNum, row.externalId, row.nameInFile, row.rawCategory,
-            dbCustomer.id, dbCustomer.name, current ?? "", row.targetLimit, delta,
-            args.execute ? "executed" : "planned",
+            dbCustomer.id, dbCustomer.name, dbCustomer.grade ?? "", current ?? "", row.targetLimit, effectiveLimit, delta,
+            args.execute ? "executed" : "planned", overrideTier,
         ]);
     }
 
@@ -227,7 +298,8 @@ async function main() {
         toCsv(
             [
                 "row", "customer_id_in_file", "name_in_file", "category_in_file",
-                "db_customer_id", "db_name", "current_limit", "target_limit", "delta", "status",
+                "db_customer_id", "db_name", "db_grade", "current_limit", "raw_file_value", "target_limit", "delta",
+                "status", "override_tier",
             ],
             reportRows as unknown as Array<Array<string | number>>,
         ),
@@ -235,13 +307,15 @@ async function main() {
 
     console.log("");
     console.log("── Summary ──────────────────────────────");
-    console.log(`Rows in file              : ${rows.length}`);
-    console.log(`Matched customers         : ${byExternalId.size}/${externalIds.length}`);
-    console.log(`${args.execute ? "Updated" : "Would update"}                  : ${updated}`);
-    console.log(`Skipped (already @target) : ${skippedAtTarget}`);
-    console.log(`Skipped (not found)       : ${skippedNotFound}`);
-    console.log(`Skipped (bad category)    : ${skippedBadCategory}`);
-    console.log(`Skipped (missing value)   : ${skippedMissingValue}`);
+    console.log(`Rows in file                     : ${rows.length}`);
+    console.log(`Matched customers                : ${byExternalId.size}/${externalIds.length}`);
+    console.log(`${args.execute ? "Updated" : "Would update"}                         : ${updated}`);
+    console.log(`  of which grade-tier overridden  : ${overridden}`);
+    console.log(`Skipped (already @target)        : ${skippedAtTarget}`);
+    console.log(`Skipped (not found)              : ${skippedNotFound}`);
+    console.log(`Skipped (bad category)           : ${skippedBadCategory}`);
+    console.log(`Skipped (missing value)          : ${skippedMissingValue}`);
+    console.log(`Skipped (<1, unresolvable grade)  : ${skippedUnknownGradeForOverride}`);
     if (!args.execute) console.log("(dry run — pass --execute to apply)");
     console.log(`Report written to ${reportPath}`);
 }
