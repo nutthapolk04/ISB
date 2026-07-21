@@ -315,6 +315,17 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
     let userRow: typeof users.$inferSelect;
     if (created) {
         const hash = await Bun.password.hash(PARENT_DEFAULT_PASSWORD, { algorithm: "bcrypt", cost: 12 });
+        // Race-safety net: two concurrent syncs (e.g. /sync/staffs and
+        // /sync/families both reporting this external_id for the first
+        // time) can each pass the "does this exist" check above before
+        // either commits — external_id has a unique index (see
+        // ix_users_external_id) specifically so Postgres resolves this
+        // atomically here instead of one side erroring or a duplicate row
+        // silently existing. The losing insert becomes this DO UPDATE.
+        // Identity fields (username/email/hashedPassword) are deliberately
+        // left untouched — whichever insert actually won keeps its own; a
+        // later normal sequential sync reconciles everything else via the
+        // plain UPDATE branch below.
         const [u] = await db.insert(users).values({
             username, email, fullName,
             hashedPassword: hash,
@@ -327,6 +338,16 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
             cardUid,
             photoUrl,
             lastSyncedAt: new Date().toISOString(),
+        }).onConflictDoUpdate({
+            target: users.externalId,
+            set: {
+                familyCode, fullName,
+                customerType: "Staff",
+                staffType: payload.staffType ?? null,
+                psDepartment: payload.department ?? null,
+                isActive: true, status: "active",
+                lastSyncedAt: new Date().toISOString(),
+            },
         }).returning();
         userRow = u;
     } else {
@@ -411,6 +432,10 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
     let userRow: typeof users.$inferSelect;
     if (created) {
         const hash = await takeHash(ctx?.hashPool);
+        // Race-safety net — see the matching comment in upsertStaff. This
+        // channel and /sync/staffs (via upsertStaffParentRef) both key off
+        // the same external_id and can race on a brand-new person's first
+        // appearance in either.
         const [u] = await db.insert(users).values({
             username, email, fullName,
             hashedPassword: hash,
@@ -420,6 +445,13 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
             customerType: "Parent",
             cardUid, photoUrl,
             lastSyncedAt: new Date().toISOString(),
+        }).onConflictDoUpdate({
+            target: users.externalId,
+            set: {
+                familyCode, fullName,
+                customerType: "Parent", role: "parent",
+                lastSyncedAt: new Date().toISOString(),
+            },
         }).returning();
         userRow = u;
     } else {
@@ -507,6 +539,10 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
     if (created) {
         const email = `${(payload.firstName ?? "staff").toLowerCase()}${extId}@isb.ac.th`;
         const hash = await takeHash(ctx?.hashPool);
+        // Race-safety net — see the matching comment in upsertStaff. This
+        // channel and /sync/staffs (via upsertStaff) both key off the same
+        // external_id and can race on a brand-new person's first appearance
+        // in either.
         const [u] = await db.insert(users).values({
             username: `staff_${extId}`, email, fullName,
             hashedPassword: hash,
@@ -516,6 +552,14 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
             familyCode,
             cardUid: payload.smartCard?.cardNumber || null,
             lastSyncedAt: new Date().toISOString(),
+        }).onConflictDoUpdate({
+            target: users.externalId,
+            set: {
+                familyCode, fullName,
+                role: "staff", customerType: "Staff",
+                isActive: true, status: "active",
+                lastSyncedAt: new Date().toISOString(),
+            },
         }).returning();
         userRow = u;
     } else {
@@ -593,6 +637,10 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     const photoUrl = realisticPhoto("student", extId);
     let custRow: typeof customers.$inferSelect;
     if (created) {
+        // Race-safety net — see the matching comment in upsertStaff. The
+        // same student can appear in overlapping/retried family batches
+        // (ISB's batches are independent, arbitrary-order HTTP calls), so a
+        // brand-new student's first appearance can race with itself.
         const [c] = await db.insert(customers).values({
             customerCode: `PS-${extId}`,
             studentCode: extId,
@@ -608,9 +656,25 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             cardUid,
             photoUrl,
             powerschoolSyncAt: new Date().toISOString(),
+        }).onConflictDoUpdate({
+            target: customers.externalId,
+            set: {
+                familyCode, name: fullName, grade, schoolType,
+                customerType: "Student", customerKind: "student",
+                isActive: true,
+                powerschoolSyncAt: new Date().toISOString(),
+            },
         }).returning();
         custRow = c;
-        await db.insert(wallets).values({ customerId: c.id, balance: "0", isActive: true });
+        // The conflict branch above updates an already-existing customer row,
+        // which already has a wallet from its original creation — only a
+        // genuine fresh insert needs one. onConflictDoUpdate's RETURNING
+        // can't tell us which happened, so check explicitly rather than risk
+        // a second wallet row for the same customer.
+        const walletExists = (await db.select({ id: wallets.id }).from(wallets).where(eq(wallets.customerId, c.id)).limit(1))[0];
+        if (!walletExists) {
+            await db.insert(wallets).values({ customerId: c.id, balance: "0", isActive: true });
+        }
     } else {
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, name: fullName, grade, schoolType,
@@ -640,6 +704,10 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
         : (await db.select({ id: users.id }).from(users).where(eq(users.username, extId)).limit(1))[0];
     if (!studentUser) {
         const hash = await takeHash(ctx?.hashPool);
+        // Race-safety net — see the matching comment above. username=extId
+        // is this row's own unique key; onConflictDoNothing is enough here
+        // (unlike the upserts above, this row never needs updating once it
+        // exists — it's just a login shell resolved by username elsewhere).
         const [su] = await db.insert(users).values({
             username: extId,
             email: `${extId}@students.isb.ac.th`,
@@ -651,7 +719,8 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             externalId: extId, familyCode,
             photoUrl: custRow.photoUrl,
             lastSyncedAt: new Date().toISOString(),
-        }).returning({ id: users.id });
+        }).onConflictDoNothing({ target: users.username })
+          .returning({ id: users.id });
         ctx?.studentLoginUsersByUsername?.set(extId, su);
     }
     ctx?.customersByExtId?.set(extId, custRow);

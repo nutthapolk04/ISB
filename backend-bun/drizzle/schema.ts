@@ -162,7 +162,7 @@ export const customers = pgTable("customers", {
 	uniqueIndex("ix_customers_card_uid").using("btree", table.cardUid.asc().nullsLast().op("text_ops")),
 	uniqueIndex("ix_customers_customer_code").using("btree", table.customerCode.asc().nullsLast().op("text_ops")),
 	index("ix_customers_customer_kind").using("btree", table.customerKind.asc().nullsLast().op("text_ops")),
-	index("ix_customers_external_id").using("btree", table.externalId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("ix_customers_external_id").using("btree", table.externalId.asc().nullsLast().op("text_ops")),
 	index("ix_customers_family_code").using("btree", table.familyCode.asc().nullsLast().op("text_ops")),
 	index("ix_customers_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_customers_kind").using("btree", table.customerKind.asc().nullsLast().op("text_ops")),
@@ -800,7 +800,7 @@ export const users = pgTable("users", {
 }, (table) => [
 	index("ix_users_card_uid").using("btree", table.cardUid.asc().nullsLast().op("text_ops")),
 	uniqueIndex("ix_users_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
-	index("ix_users_external_id").using("btree", table.externalId.asc().nullsLast().op("text_ops")),
+	uniqueIndex("ix_users_external_id").using("btree", table.externalId.asc().nullsLast().op("text_ops")),
 	index("ix_users_family_code").using("btree", table.familyCode.asc().nullsLast().op("text_ops")),
 	index("ix_users_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_users_shop_id").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
