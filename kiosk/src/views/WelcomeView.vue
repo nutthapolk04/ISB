@@ -145,7 +145,7 @@ const t = {
         </div>
 
         <div class="welcome-content">
-            <div class="rfid-animation mb-8">
+            <div class="rfid-animation mb-12">
                 <div :class="['card-icon', { 'card-error': rfidError }]">
                     <!-- <CreditCard :size="120" stroke-width="1.5" /> -->
                     <img src="/images/decor-card.png" alt="Card icon" class="object-cover" />
@@ -231,12 +231,13 @@ const t = {
     align-items: center;
     /* flex: 1; */
     justify-content: center;
+    margin-bottom: 8rem;
     /* cursor: pointer; */
 }
 
 .rfid-animation {
     position: relative;
-    margin-bottom: 3rem;
+    margin-bottom: 4rem !important;
 }
 
 .card-icon {
@@ -348,7 +349,7 @@ const t = {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 3rem;
+    margin-bottom: 4rem;
 }
 
 .school-logo {
