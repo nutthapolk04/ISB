@@ -140,8 +140,8 @@ const t = {
 
         <!-- School branding -->
         <div class="school-brand">
-            <img src="/isb-logo%201.svg" class="school-logo" alt="School logo" />
-            <h2 v-if="store.schoolInfo.school_name" class="school-name">{{ store.schoolInfo.school_name }}</h2>
+            <img src="/ISB_LogoN2025.png" class="school-logo" alt="School logo" />
+            <!-- <h2 v-if="store.schoolInfo.school_name" class="school-name">{{ store.schoolInfo.school_name }}</h2> -->
         </div>
 
         <div class="welcome-content">
@@ -353,8 +353,8 @@ const t = {
 }
 
 .school-logo {
-    height: 150px;
-    max-width: 200px;
+    /* height: 150px; */
+    max-width: 300px;
     object-fit: contain;
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
 }
