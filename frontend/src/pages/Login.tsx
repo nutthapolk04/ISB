@@ -358,30 +358,31 @@ const Login = () => {
                             <CardDescription>Enter your credentials to access the system</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="username">Username</Label>
-                                    <Input
-                                        id="username" autoFocus autoComplete="username"
-                                        value={username} onChange={(e) => setUsername(e.target.value)}
-                                        placeholder="Enter username"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="password">Password</Label>
-                                    <PasswordInput
-                                        id="password" autoComplete="current-password"
-                                        value={password} onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Enter password"
-                                    />
-                                </div>
-                                {error && <p className="text-sm text-destructive">{error}</p>}
-                                <Button type="submit" className="w-full" disabled={loading || ssoLoading}>
-                                    <LogIn className="mr-2 h-4 w-4" />
-                                    {loading ? "Signing in…" : "Sign In"}
-                                </Button>
-                            </form>
-
+                            {ssoStep != "pdpa" && (
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="username">Username</Label>
+                                        <Input
+                                            id="username" autoFocus autoComplete="username"
+                                            value={username} onChange={(e) => setUsername(e.target.value)}
+                                            placeholder="Enter username"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="password">Password</Label>
+                                        <PasswordInput
+                                            id="password" autoComplete="current-password"
+                                            value={password} onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Enter password"
+                                        />
+                                    </div>
+                                    {error && <p className="text-sm text-destructive">{error}</p>}
+                                    <Button type="submit" className="w-full" disabled={loading || ssoLoading}>
+                                        <LogIn className="mr-2 h-4 w-4" />
+                                        {loading ? "Signing in…" : "Sign In"}
+                                    </Button>
+                                </form>
+                            )}
                             {/* Google SSO — only shown when VITE_GOOGLE_CLIENT_ID is
                   configured. The provider in App.tsx mounts unconditionally
                   with a placeholder when the env is missing so the page
