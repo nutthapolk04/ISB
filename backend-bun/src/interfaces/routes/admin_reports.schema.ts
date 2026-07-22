@@ -32,6 +32,8 @@ export const adminTopupReport = {
         topped_by_customer_id: t.Optional(t.Nullable(t.String())),
         recipient_user_id: t.Optional(t.Nullable(t.String())),
         recipient_customer_id: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["Reports"], summary: "Wallet top-up report (kiosk / online / cashier)" },
 };

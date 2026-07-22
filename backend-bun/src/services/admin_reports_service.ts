@@ -310,6 +310,8 @@ export interface TopupReportResponseDTO {
     items: TopupReportRow[];
     total: number;
     amount_total: number;
+    page: number;
+    pages: number;
 }
 
 function classifyTopupChannel(opts: {
@@ -357,6 +359,8 @@ export async function topupReport(args: {
     // Who received the money — the topped-up wallet's owner.
     recipientUserId?: number | null;
     recipientCustomerId?: number | null;
+    page: number;
+    pageSize: number;
 }): Promise<TopupReportResponseDTO> {
     const dateFrom = args.dateFrom?.trim() || null;
     let dateToExclusive: string | null = null;
@@ -570,8 +574,20 @@ export async function topupReport(args: {
         });
     }
 
+    // amount_total is computed over the FULL filtered set, before pagination
+    // slicing — same reasoning as every other paginated report in this file.
     const amountTotal = items.reduce((s, r) => s + r.amount, 0);
-    return { items, total: items.length, amount_total: amountTotal };
+    const total = items.length;
+    const offset = (args.page - 1) * args.pageSize;
+    const pageItems = items.slice(offset, offset + args.pageSize);
+
+    return {
+        items: pageItems,
+        total,
+        amount_total: amountTotal,
+        page: args.page,
+        pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
 }
 
 // ── Transaction (POS spending) report ──────────────────────────────────────

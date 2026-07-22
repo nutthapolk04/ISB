@@ -324,23 +324,36 @@ const clearQrTimer = () => {
 };
 
 // --- Cash idle timeout (kiosk only — no touch/bill activity) ---
-const CASH_IDLE_MS = 15_000;
-let cashIdleTimer: number | null = null;
+const CASH_IDLE_SEC = 15;
+const cashTimeLeft = ref(CASH_IDLE_SEC);
+let cashIdleInterval: number | null = null;
+
+const cashProgress = computed(() => cashTimeLeft.value / CASH_IDLE_SEC);
 
 const clearCashIdleTimer = () => {
-    if (cashIdleTimer != null) {
-        clearTimeout(cashIdleTimer);
-        cashIdleTimer = null;
+    if (cashIdleInterval != null) {
+        clearInterval(cashIdleInterval);
+        cashIdleInterval = null;
     }
+};
+
+const handleCashIdleExpired = () => {
+    if (currentStep.value !== 'cash-confirm') return;
+    clearCashIdleTimer();
+    logKioskEvent('cash', 'info', 'Cash top-up idle timeout', { collected: bill.collectedThb.value });
+    void executeCancelTopup();
 };
 
 const resetCashIdleTimer = () => {
     clearCashIdleTimer();
     if (currentStep.value !== 'cash-confirm') return;
-    cashIdleTimer = window.setTimeout(() => {
-        logKioskEvent('cash', 'info', 'Cash top-up idle timeout', { collected: bill.collectedThb.value });
-        void executeCancelTopup();
-    }, CASH_IDLE_MS);
+    cashTimeLeft.value = CASH_IDLE_SEC;
+    cashIdleInterval = window.setInterval(() => {
+        cashTimeLeft.value--;
+        if (cashTimeLeft.value <= 0) {
+            handleCashIdleExpired();
+        }
+    }, 1000);
 };
 
 const onTopupActivity = () => {
@@ -854,6 +867,17 @@ const overpayExceedsCap = computed(() => {
                         <span class="cash-stat-label">{{ currT.cashRemaining }}</span>
                         <span class="cash-stat-value">฿{{ formatCurrency(bill.remainingThb.value) }}</span>
                     </div>
+                </div>
+
+                <div class="qr-timer cash-timer"
+                    :class="{ 'timer-warning': cashTimeLeft <= 10, 'timer-danger': cashTimeLeft <= 5 }">
+                    <Timer :size="18" />
+                    <span>{{ currT.timeRemaining }}: </span>
+                    <span class="timer-value">0:{{ cashTimeLeft.toString().padStart(2, '0') }}</span>
+                </div>
+                <div class="timer-bar cash-timer-bar">
+                    <div class="timer-bar-fill" :style="{ width: (cashProgress * 100) + '%' }"
+                        :class="{ 'bar-warning': cashTimeLeft <= 10, 'bar-danger': cashTimeLeft <= 5 }"></div>
                 </div>
 
                 <p class="cash-note">{{ currT.cashConfirmNote }}</p>

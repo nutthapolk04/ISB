@@ -80,7 +80,10 @@ const TXN_KIND_COLORS: Record<TransactionKind, string> = {
 
 interface TopupReportData {
     items: TopupRow[];
+    total: number;
     amount_total: number;
+    page: number;
+    pages: number;
 }
 
 interface TransactionReportData {
@@ -323,6 +326,7 @@ export default function AdminReports() {
     const [toppedByLabel, setToppedByLabel] = useState<string | null>(null);
     const [recipientValue, setRecipientValue] = useState<CardholderPickerValue | null>(null);
     const [recipientLabel, setRecipientLabel] = useState<string | null>(null);
+    const [topupPage, setTopupPage] = useState(1);
 
     // Transaction Report filters
     const [txnSearch, setTxnSearch] = useState("");
@@ -349,6 +353,7 @@ export default function AdminReports() {
         setToppedByLabel(null);
         setRecipientValue(null);
         setRecipientLabel(null);
+        setTopupPage(1);
         setTxnSearch("");
         setTxnCashier(null);
         setTxnStatus("all");
@@ -482,12 +487,48 @@ export default function AdminReports() {
         }
     };
 
+    /** Shared filter params for Top-up Report — same page/pageSize split as
+     * Transaction Report's buildTxnParams (Search resets to page 1; the
+     * pagination bar keeps every other filter and just changes page). */
+    const buildTopupParams = (page: number, pageSize: number) => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        if (channel !== "all") params.set("channel", channel);
+        if (toppedByValue) {
+            params.set(toppedByValue.entity_type === "user" ? "topped_by_user_id" : "topped_by_customer_id", String(toppedByValue.entity_id));
+        }
+        if (recipientValue) {
+            params.set(recipientValue.entity_type === "user" ? "recipient_user_id" : "recipient_customer_id", String(recipientValue.entity_id));
+        }
+        params.set("page", String(page));
+        params.set("page_size", String(pageSize));
+        return params;
+    };
+
+    const loadTopupPage = async (page: number) => {
+        setLoading(true);
+        try {
+            const params = buildTopupParams(page, TXN_PAGE_SIZE);
+            const data = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
+            setTopupData(data);
+            setTopupPage(data.page);
+            setSearched(true);
+            if (data.items.length === 0) toast.message("No top-ups match these filters.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSearch = async () => {
-        // Top-up report still requires an explicit date range; Transaction
-        // Report's filters (including date) are all independently optional —
-        // matching how Sales Summary Report's filters behave.
-        if (selected === "topup" && (!dateFrom || !dateTo)) {
-            toast.error(t("reports.selectDateRangeDesc"));
+        // Every report's filters (including date) are independently optional —
+        // matching Sales Summary Report's / Transaction Report's behavior. Now
+        // that Top-up Report is paginated too, an unscoped search is bounded
+        // by page size instead of risking an unbounded full-table fetch.
+        if (selected === "topup") {
+            await loadTopupPage(1);
             return;
         }
         if (selected === "transaction") {
@@ -497,27 +538,6 @@ export default function AdminReports() {
         if (selected === "kiosk") {
             await loadKioskReport();
             return;
-        }
-        setLoading(true);
-        try {
-            if (selected === "topup") {
-                const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
-                if (channel !== "all") params.set("channel", channel);
-                if (toppedByValue) {
-                    params.set(toppedByValue.entity_type === "user" ? "topped_by_user_id" : "topped_by_customer_id", String(toppedByValue.entity_id));
-                }
-                if (recipientValue) {
-                    params.set(recipientValue.entity_type === "user" ? "recipient_user_id" : "recipient_customer_id", String(recipientValue.entity_id));
-                }
-                const data = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
-                setTopupData(data);
-                if (data.items.length === 0) toast.message("No top-ups match these filters.");
-            }
-            setSearched(true);
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -570,6 +590,11 @@ export default function AdminReports() {
         ];
 
         if (selected === "topup" && topupData) {
+            // Paginated on screen — export re-fetches every row matching the
+            // current filters (capped at TXN_EXPORT_PAGE_SIZE), same reasoning
+            // as Transaction Report's export just below.
+            const params = buildTopupParams(1, TXN_EXPORT_PAGE_SIZE);
+            const full = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
             return [{
                 payload: {
                     meta: {
@@ -588,12 +613,12 @@ export default function AdminReports() {
                         { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
                         { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
                     ],
-                    rows: topupData.items.map((r) => ({
+                    rows: full.items.map((r) => ({
                         ...r,
                         channel_label: CHANNEL_LABEL[r.channel] ?? r.channel,
                         cashier_name: r.cashier_name ?? "",
                     })) as unknown as Record<string, unknown>[],
-                    totals: { amount: topupData.amount_total },
+                    totals: { amount: full.amount_total },
                 },
                 baseFilename: `TopupReport${dateLabel}`,
             }];
@@ -949,7 +974,7 @@ export default function AdminReports() {
                         {searched && selected === "topup" && topupData && (
                             <div className="space-y-3">
                                 <div className="text-sm text-muted-foreground">
-                                    Found <span className="font-semibold text-foreground">{topupData.items.length}</span> top-ups
+                                    Found <span className="font-semibold text-foreground">{topupData.total}</span> top-ups
                                     {" · "}Total{" "}
                                     <span className="font-semibold text-foreground">
                                         ฿{topupData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -997,6 +1022,13 @@ export default function AdminReports() {
                                             </tfoot>
                                         )}
                                     </table>
+                                </div>
+                                <div className="flex justify-center">
+                                    <PaginationBar
+                                        currentPage={topupPage}
+                                        totalPages={topupData.pages}
+                                        onPageChange={(p) => loadTopupPage(p)}
+                                    />
                                 </div>
                             </div>
                         )}

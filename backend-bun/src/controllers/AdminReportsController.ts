@@ -69,6 +69,8 @@ export const AdminReportsController = {
             logger.warn(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
+        const page = query.page ? Math.max(Number(query.page), 1) : 1;
+        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
         try {
             const result = await topupReport({
                 dateFrom: query.date_from ?? null,
@@ -78,6 +80,8 @@ export const AdminReportsController = {
                 toppedByCustomerId: query.topped_by_customer_id ? Number(query.topped_by_customer_id) : null,
                 recipientUserId: query.recipient_user_id ? Number(query.recipient_user_id) : null,
                 recipientCustomerId: query.recipient_customer_id ? Number(query.recipient_customer_id) : null,
+                page,
+                pageSize,
             });
             logger.info(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
