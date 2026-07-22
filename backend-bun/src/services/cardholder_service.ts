@@ -95,6 +95,7 @@ function userSearchCond(pattern: string | null) {
         ilike(users.email, pattern),
         ilike(users.externalId, pattern),
         ilike(users.familyCode, pattern),
+        ilike(users.cardUid, pattern),
     );
 }
 
@@ -162,6 +163,7 @@ function customerSearchCond(pattern: string | null) {
         ilike(customers.studentCode, pattern),
         ilike(customers.externalId, pattern),
         ilike(customers.familyCode, pattern),
+        ilike(customers.cardUid, pattern),
     );
 }
 

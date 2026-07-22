@@ -92,12 +92,16 @@ export default function CardManagement() {
   const [actionLoading, setActionLoading] = useState(false);
   const uidInputRef = useRef<HTMLInputElement>(null);
 
-  // Tapping a real card while the Change UID dialog is open fills the field
-  // directly from the reader (PC/SC bridge or keyboard-wedge fallback).
+  // Tapping a real card fills the Change UID field when that dialog is open
+  // (PC/SC bridge or keyboard-wedge fallback); otherwise it fills the Search
+  // box so scanning a card jumps straight to its row.
   useRfidListener({
     onCapture: (uid) => {
-      if (!changeUidTarget) return;
-      setNewUid(uid);
+      if (changeUidTarget) {
+        setNewUid(uid);
+      } else {
+        setSearch(uid);
+      }
     },
   });
 

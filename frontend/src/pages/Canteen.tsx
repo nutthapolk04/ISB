@@ -414,6 +414,10 @@ export default function Canteen() {
         onCapture: async (q: string) => {
             const trimmed = q.trim();
             if (!trimmed || trimmed.length < 3) return;
+            // A member is already selected (or a payment modal is open) — ignore
+            // further taps until that transaction is paid or cancelled. Prevents
+            // a second scan mid-checkout from silently swapping the payer.
+            if (!cardTapOpen && (preSelectedMember || paymentModalOpen)) return;
             try {
                 let result: StudentLookupResult | null = null;
                 try {

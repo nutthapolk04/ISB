@@ -668,6 +668,7 @@ export function useStoreCheckout({
         setWalletLimitError,
         preSelectedMember,
         setPreSelectedMember,
+        paymentModalOpen,
         chipRefreshKey,
         handleOpenPayment,
         handlePickMethod,

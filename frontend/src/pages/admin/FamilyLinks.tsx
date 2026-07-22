@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { getPaginationRange } from "@/lib/pagination";
@@ -55,6 +56,7 @@ interface UserRow {
   family_code?: string | null;
   external_id?: string | null;
   customer_type?: string | null;
+  card_uid?: string | null;
 }
 
 interface StudentRow {
@@ -69,6 +71,7 @@ interface StudentRow {
   photo_url?: string | null;
   family_code?: string | null;
   external_id?: string | null;
+  card_uid?: string | null;
 }
 
 interface OrphanParent {
@@ -163,6 +166,12 @@ export default function FamilyLinks() {
   const [parents, setParents] = useState<UserRow[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [search, setSearch] = useState("");
+
+  // Tapping a card fills the search box directly (PC/SC bridge or
+  // keyboard-wedge fallback), same as Card Management / Cardholder list.
+  useRfidListener({
+    onCapture: (uid) => setSearch(uid),
+  });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -285,14 +294,22 @@ export default function FamilyLinks() {
       if (q) {
         const match =
           u.familyCode.toLowerCase().includes(q) ||
-          u.parents.some((p) => p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)) ||
-          u.children.some((c) => c.name.toLowerCase().includes(q) || (c.studentCode ?? "").toLowerCase().includes(q));
+          u.parents.some((p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.username.toLowerCase().includes(q) ||
+            (parentById.get(p.userId)?.card_uid ?? "").toLowerCase().includes(q)
+          ) ||
+          u.children.some((c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.studentCode ?? "").toLowerCase().includes(q) ||
+            (studentById.get(c.customerId)?.card_uid ?? "").toLowerCase().includes(q)
+          );
         if (!match) return false;
       }
       if (statusFilter !== "all" && unitStatus(u) !== statusFilter) return false;
       return true;
     });
-  }, [familyUnits, search, statusFilter]);
+  }, [familyUnits, search, statusFilter, parentById, studentById]);
 
   const sortedUnits = useMemo(() => {
     const arr = [...filteredUnits];
