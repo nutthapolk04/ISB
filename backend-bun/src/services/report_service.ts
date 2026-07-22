@@ -577,7 +577,10 @@ export async function voidReport(args: {
 
   let totalVoided = 0;
   const mapped: VoidRow[] = rows.map((r) => {
-    const total = pgNumber(r.total) ?? 0;
+    // Every row here is a void by definition — shown as a negative amount,
+    // same convention as every other report (salesSummaryReport's void leg,
+    // salesByPaymentReport, transactionReport, salesByItemReport).
+    const total = -(pgNumber(r.total) ?? 0);
     totalVoided += total;
     return {
       id: r.id,
@@ -1048,7 +1051,10 @@ function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, 
     amt_qr_code: buckets.amt_qr_code * sign,
     amt_department: buckets.amt_department * sign,
     amt_other: buckets.amt_other * sign,
-    remark: r.notes ?? null,
+    // The void leg has its own remark (the admin-entered void reason) —
+    // reusing r.notes (the ORIGINAL sale's checkout note) here would make
+    // the void row show the sale's remark instead of its own.
+    remark: leg === "sale" ? (r.notes ?? null) : (r.voidedReason ?? null),
     shop_id: r.shopId ?? "",
     shop_name: shop?.name ?? null,
     bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
@@ -1362,6 +1368,10 @@ export async function salesByItemReport(args: {
     const bundleCode = isBundle && typeof opts.bundle_code === "string" ? opts.bundle_code : null;
     const bundleName = isBundle && typeof opts.bundle_name === "string" ? opts.bundle_name : null;
 
+    // A voided line shows as a negative qty/amount — same convention as
+    // salesSummaryReport()'s void leg and salesByPaymentReport().
+    const sign = r.status === "VOIDED" ? -1 : 1;
+
     rows.push({
       seq: idx + 1,
       transaction_date: pgToIso(r.transactionDate)!,
@@ -1371,8 +1381,8 @@ export async function salesByItemReport(args: {
       receipt_number: r.receiptNumber,
       customer_id: custId,
       customer_name: custName,
-      sales_qty: qty,
-      sales_amt: amt,
+      sales_qty: qty * sign,
+      sales_amt: amt * sign,
       receive_type: PAYMENT_METHOD_LABEL[r.paymentMethod] ?? "Other",
       remark: r.notes ?? null,
       status: r.status,

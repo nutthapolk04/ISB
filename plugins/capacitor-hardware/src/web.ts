@@ -1,5 +1,5 @@
 import { WebPlugin } from '@capacitor/core';
-import type { HardwarePlugin } from './definitions';
+import type { HardwarePlugin, PollStatusResult } from './definitions';
 
 export class HardwareWeb extends WebPlugin implements HardwarePlugin {
     async getPlatform() {
@@ -27,6 +27,10 @@ export class HardwareWeb extends WebPlugin implements HardwarePlugin {
     }
 
     async returnBill(): Promise<void> {
+        throw this.unimplemented('Not available on web');
+    }
+
+    async pollStatus(): Promise<PollStatusResult> {
         throw this.unimplemented('Not available on web');
     }
 

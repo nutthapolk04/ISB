@@ -9,7 +9,8 @@ export type UserRole =
   | "kitchen"
   | "canteen_owner"
   | "refund_officer"
-  | "kiosk";
+  | "kiosk"
+  | "finance";
 
 export type ShopId = string;
 

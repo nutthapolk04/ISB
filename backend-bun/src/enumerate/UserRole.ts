@@ -13,6 +13,7 @@ export enum Role {
 	CanteenOwner = "canteen_owner",
 	RefundOfficer = "refund_officer",
 	Kiosk = "kiosk",
+	Finance = "finance",
 }
 
 export type { UserRole };

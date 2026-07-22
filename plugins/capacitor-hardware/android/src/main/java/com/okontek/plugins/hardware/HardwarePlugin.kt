@@ -111,6 +111,26 @@ class HardwarePlugin : Plugin() {
     }
 
     @PluginMethod
+    fun pollStatus(call: PluginCall) {
+        try {
+            val result = serialManager.pollStatus()
+            if (result == null) {
+                call.reject("Bill acceptor not connected")
+                return
+            }
+            val ret = JSObject()
+            ret.put("statusHex", result.statusHex)
+            ret.put("status", result.status)
+            result.message?.let { ret.put("message", it) }
+            call.resolve(ret)
+        } catch (e: Throwable) {
+            val message = e.message ?: "Failed to poll bill acceptor status"
+            val cause = if (e is Exception) e else Exception(e)
+            call.reject(message, cause)
+        }
+    }
+
+    @PluginMethod
     fun connectPrinter(call: PluginCall) {
         try {
             // USB printer detection + permission may be async (permission dialog).

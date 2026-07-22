@@ -32,6 +32,7 @@ import {
     type KioskLogLevel,
 } from '../lib/kioskLog';
 import { useKioskDebugMode } from '../lib/debugMode';
+import { Hardware, type PollStatusResult } from 'capacitor-hardware';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -45,6 +46,10 @@ const savingLocation = ref(false);
 const saveMessage = ref('');
 const copyMessage = ref('');
 const searchQuery = ref('');
+
+const billPollLoading = ref(false);
+const billPollResult = ref<PollStatusResult | null>(null);
+const billPollError = ref('');
 
 const selectedDay = ref('');
 const categoryFilter = ref<KioskLogCategory | 'all'>('all');
@@ -116,6 +121,15 @@ const t = computed(() => ({
         debugModeHint: 'Lower top-up minimum to ฿1 for QR testing. Stored on this device only.',
         debugOn: 'On',
         debugOff: 'Off',
+        billAcceptor: 'Bill acceptor',
+        billPoll: 'Poll status (0x0C)',
+        billPolling: 'Polling…',
+        billPollHint: 'Send one ICT status poll and show enabled / inhibited / error.',
+        billPollEnabled: 'Enabled',
+        billPollInhibited: 'Inhibited',
+        billPollError: 'Error',
+        billPollTimeout: 'No response',
+        billPollFailed: 'Poll failed',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -154,6 +168,15 @@ const t = computed(() => ({
         debugModeHint: 'ลดยอดเติมขั้นต่ำเหลือ 1 บาท สำหรับทดสอบ QR — เก็บในเครื่องนี้เท่านั้น',
         debugOn: 'เปิด',
         debugOff: 'ปิด',
+        billAcceptor: 'เครื่องรับธนบัตร',
+        billPoll: 'Poll สถานะ (0x0C)',
+        billPolling: 'กำลัง poll…',
+        billPollHint: 'ส่ง ICT status poll ครั้งเดียว แสดง enabled / inhibited / error',
+        billPollEnabled: 'พร้อมรับ',
+        billPollInhibited: 'ห้ามรับ',
+        billPollError: 'ข้อผิดพลาด',
+        billPollTimeout: 'ไม่มีตอบกลับ',
+        billPollFailed: 'Poll ล้มเหลว',
     },
 }[store.language]));
 
@@ -261,6 +284,42 @@ function toggleDebugMode() {
     logKioskEvent('system', 'info', next ? 'Debug mode enabled' : 'Debug mode disabled', {
         minTopup: next ? 1 : 100,
     });
+}
+
+const billPollStatusLabel = computed(() => {
+    const r = billPollResult.value;
+    if (!r) return '';
+    const labels: Record<string, string> = {
+        enabled: t.value.billPollEnabled,
+        inhibited: t.value.billPollInhibited,
+        error: t.value.billPollError,
+        timeout: t.value.billPollTimeout,
+        unknown: r.statusHex || '—',
+    };
+    return labels[r.status] ?? r.status;
+});
+
+async function runBillPoll() {
+    if (billPollLoading.value) return;
+    billPollLoading.value = true;
+    billPollError.value = '';
+    billPollResult.value = null;
+    try {
+        const result = await Hardware.pollStatus();
+        billPollResult.value = result;
+        logKioskEvent('bill', result.status === 'error' || result.status === 'timeout' ? 'warn' : 'info', 'Technician bill poll', {
+            status: result.status,
+            statusHex: result.statusHex,
+            message: result.message,
+        });
+    } catch (e) {
+        billPollError.value = e instanceof Error ? e.message : t.value.billPollFailed;
+        logKioskEvent('bill', 'error', 'Technician bill poll failed', {
+            error: billPollError.value,
+        });
+    } finally {
+        billPollLoading.value = false;
+    }
 }
 </script>
 
@@ -403,17 +462,36 @@ function toggleDebugMode() {
                                 </div>
                                 <p class="debug-hint">{{ t.debugModeHint }}</p>
                             </div>
-                            <button
-                                class="debug-switch"
-                                type="button"
-                                role="switch"
-                                :aria-checked="debugMode"
-                                :class="{ 'is-on': debugMode }"
-                                @click="toggleDebugMode"
-                            >
+                            <button class="debug-switch" type="button" role="switch" :aria-checked="debugMode"
+                                :class="{ 'is-on': debugMode }" @click="toggleDebugMode">
                                 <span class="debug-knob" />
                             </button>
                         </div>
+                    </div>
+
+                    <div class="debug-block bill-poll-block">
+                        <div class="debug-copy">
+                            <div class="field-label with-icon debug-label">
+                                <Activity :size="14" />
+                                {{ t.billAcceptor }}
+                            </div>
+                            <p class="debug-hint">{{ t.billPollHint }}</p>
+                        </div>
+                        <button class="btn-outline bill-poll-btn" type="button" :disabled="billPollLoading"
+                            @click="runBillPoll">
+                            {{ billPollLoading ? t.billPolling : t.billPoll }}
+                        </button>
+                        <p v-if="billPollResult" class="bill-poll-result" :class="`is-${billPollResult.status}`">
+                            <span class="bill-poll-status">{{ billPollStatusLabel }}</span>
+                            <span v-if="billPollResult.statusHex" class="bill-poll-hex mono">0x{{
+                                billPollResult.statusHex }}</span>
+                            <span v-if="billPollResult.message" class="bill-poll-msg">{{ billPollResult.message
+                            }}</span>
+                        </p>
+                        <p v-if="billPollError" class="error-line">
+                            <XCircle :size="14" />
+                            {{ billPollError }}
+                        </p>
                     </div>
 
                     <p class="retention-line">
@@ -1017,6 +1095,61 @@ function toggleDebugMode() {
     text-transform: none;
     letter-spacing: normal;
     font-weight: 400;
+}
+
+.bill-poll-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.bill-poll-btn {
+    align-self: flex-start;
+}
+
+.bill-poll-result {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    background: #f8fafc;
+    box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+
+.bill-poll-result.is-enabled {
+    background: #ecfdf5;
+    box-shadow: inset 0 0 0 1px #a7f3d0;
+}
+
+.bill-poll-result.is-inhibited,
+.bill-poll-result.is-timeout {
+    background: #fff7ed;
+    box-shadow: inset 0 0 0 1px #fed7aa;
+}
+
+.bill-poll-result.is-error {
+    background: #fef2f2;
+    box-shadow: inset 0 0 0 1px #fecaca;
+}
+
+.bill-poll-status {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.bill-poll-hex {
+    font-size: 0.75rem;
+    color: #475569;
+}
+
+.bill-poll-msg {
+    flex-basis: 100%;
+    color: #64748b;
+    font-size: 0.75rem;
 }
 
 .debug-switch {

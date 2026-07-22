@@ -33,6 +33,7 @@ npx cap sync
 * [`stopCollecting()`](#stopcollecting)
 * [`acceptBill()`](#acceptbill)
 * [`returnBill()`](#returnbill)
+* [`pollStatus()`](#pollstatus)
 * [`connectPrinter()`](#connectprinter)
 * [`disconnectPrinter()`](#disconnectprinter)
 * [`printRaw(...)`](#printraw)
@@ -130,6 +131,20 @@ Return the bill currently held in escrow (resolves an `overpayPending` prompt).
 --------------------
 
 
+### pollStatus()
+
+```typescript
+pollStatus() => Promise<PollStatusResult>
+```
+
+Send one ICT status poll (0x0C) and return the acceptor's reply.
+For technician / debug use — the background poll loop runs automatically after init.
+
+**Returns:** <code>Promise&lt;<a href="#pollstatusresult">PollStatusResult</a>&gt;</code>
+
+--------------------
+
+
 ### connectPrinter()
 
 ```typescript
@@ -199,6 +214,15 @@ addListener(eventName: 'billEvent', listenerFunc: (event: BillEvent) => void) =>
 | **`baudRate`** | <code>number</code> |
 
 
+#### PollStatusResult
+
+| Prop            | Type                                                      |
+| --------------- | --------------------------------------------------------- |
+| **`statusHex`** | <code>string</code>                                       |
+| **`status`**    | <code><a href="#billpollstatus">BillPollStatus</a></code> |
+| **`message`**   | <code>string</code>                                       |
+
+
 #### PluginListenerHandle
 
 | Prop         | Type                                      |
@@ -221,6 +245,11 @@ addListener(eventName: 'billEvent', listenerFunc: (event: BillEvent) => void) =>
 
 
 ### Type Aliases
+
+
+#### BillPollStatus
+
+<code>'enabled' | 'inhibited' | 'error' | 'timeout' | 'unknown'</code>
 
 
 #### BillEventType

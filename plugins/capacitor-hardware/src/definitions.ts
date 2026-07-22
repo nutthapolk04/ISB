@@ -34,6 +34,14 @@ export interface BillEvent {
     message?: string;
 }
 
+export type BillPollStatus = 'enabled' | 'inhibited' | 'error' | 'timeout' | 'unknown';
+
+export interface PollStatusResult {
+    statusHex: string;
+    status: BillPollStatus;
+    message?: string;
+}
+
 export interface HardwarePlugin {
     getPlatform(): Promise<{ platform: string }>;
 
@@ -56,6 +64,12 @@ export interface HardwarePlugin {
 
     /** Return the bill currently held in escrow (resolves an `overpayPending` prompt). */
     returnBill(): Promise<void>;
+
+    /**
+     * Send one ICT status poll (0x0C) and return the acceptor's reply.
+     * For technician / debug use — the background poll loop runs automatically after init.
+     */
+    pollStatus(): Promise<PollStatusResult>;
 
     /**
      * Detect and open the 80mm USB thermal receipt printer (auto-detects the USB

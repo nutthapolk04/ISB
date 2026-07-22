@@ -5,6 +5,15 @@ import android.util.Log
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+/** Result of a manual or on-demand status poll (0x0C). */
+data class BillPollResult(
+    val statusHex: String,
+    val status: String,
+    val message: String? = null,
+)
 
 data class BillEvent(
     val type: String,
@@ -35,6 +44,11 @@ data class BillEvent(
  *     collected + bill  > target → hold (0x18, freezes the 5s clock) → emit overpayPending;
  *                                  JS decides via acceptBill() (0x02) or returnBill() (0x0F).
  * - stopCollecting(): disable (0x5E).
+ *
+ * Polling (ICT104U §3.3):
+ * - After init, a background thread sends 0x0C every POLL_INTERVAL_MS so the acceptor stays
+ *   responsive and reports escrow / status bytes.
+ * - pollStatus() sends a one-shot 0x0C and waits up to POLL_STATUS_TIMEOUT_MS for the reply.
  *
  * A bill that stacks (0x10) is in the cashbox and CANNOT be returned — only bills still in
  * escrow can be returned (0x0F).
@@ -77,8 +91,15 @@ class Nk77Reader(
 
     private var thread: Thread? = null
     private var promptThread: Thread? = null
+    private var pollThread: Thread? = null
     private val writeLock = Any()
     private val stateLock = Any()
+    private val pollWaitLock = Any()
+    private var pollWaiter: PollWaiter? = null
+
+    private class PollWaiter(val latch: CountDownLatch) {
+        var statusByte: Int? = null
+    }
 
     fun start() {
         if (running) return
@@ -92,6 +113,7 @@ class Nk77Reader(
         running = false
         promptThread?.interrupt()
         promptThread = null
+        stopPollLoop()
         thread?.interrupt()
         thread = null
         resetState()
@@ -110,7 +132,43 @@ class Nk77Reader(
         }
         Log.i(TAG, "startCollecting(target=$target THB) — enable (0x3E)")
         sendCommand(CMD_ENABLE)
+        sendCommand(CMD_STATUS_POLL)
         emit(BillEvent(type = "collecting", targetThb = target, collectedThb = 0, rawHex = "3E", message = "Collecting up to $target THB"))
+    }
+
+    /**
+     * Send one status poll (0x0C) and wait for the next status byte.
+     * Intended for technician / debug use from the Capacitor bridge.
+     */
+    fun pollStatus(timeoutMs: Long = POLL_STATUS_TIMEOUT_MS): BillPollResult {
+        val waiter = PollWaiter(CountDownLatch(1))
+        synchronized(pollWaitLock) {
+            pollWaiter = waiter
+            Log.i(TAG, "pollStatus — TX 0x0C (timeout=${timeoutMs}ms)")
+            sendCommand(CMD_STATUS_POLL)
+        }
+        try {
+            val got = waiter.latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+            val byte = waiter.statusByte
+            return when {
+                byte != null -> {
+                    val hex = "%02X".format(byte)
+                    val status = interpretPollStatus(byte)
+                    val message = pollStatusMessage(byte)
+                    Log.i(TAG, "pollStatus — RX 0x$hex ($status)")
+                    BillPollResult(statusHex = hex, status = status, message = message)
+                }
+                got -> BillPollResult(statusHex = "", status = "timeout", message = "Poll completed without status byte")
+                else -> BillPollResult(statusHex = "", status = "timeout", message = "No response within ${timeoutMs}ms")
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return BillPollResult(statusHex = "", status = "timeout", message = e.message ?: "Poll interrupted")
+        } finally {
+            synchronized(pollWaitLock) {
+                if (pollWaiter === waiter) pollWaiter = null
+            }
+        }
     }
 
     /** End the session: inhibit the acceptor so no further bills are taken. */
@@ -222,7 +280,36 @@ class Nk77Reader(
         Log.i(TAG, "Init done ($reason) — disable (0x5E) until a session starts")
         // Keep the bezel inhibited until a top-up session explicitly starts.
         sendCommand(CMD_DISABLE)
+        startPollLoop()
         emit(BillEvent(type = "ready", rawHex = "3E", message = "Bill acceptor ready"))
+    }
+
+    /** ICT104U §3.3 — periodic 0x0C keeps the acceptor communicating during idle and collecting. */
+    private fun startPollLoop() {
+        stopPollLoop()
+        pollThread = Thread {
+            try {
+                pollLoop@ while (running && initDone) {
+                    Thread.sleep(POLL_INTERVAL_MS)
+                    if (!running || !initDone) break
+                    synchronized(pollWaitLock) {
+                        if (pollWaiter != null) continue@pollLoop
+                        sendCommand(CMD_STATUS_POLL)
+                    }
+                }
+            } catch (_: InterruptedException) {
+                // Reader stopped or poll loop restarted.
+            }
+        }.apply {
+            isDaemon = true
+            name = "nk77-poll"
+            start()
+        }
+    }
+
+    private fun stopPollLoop() {
+        pollThread?.interrupt()
+        pollThread = null
     }
 
     /** 3.1 Power Up: device sends 0x80/0x8F every 2s until it gets 0x02. ACK it, then enable once. */
@@ -246,7 +333,8 @@ class Nk77Reader(
     }
 
     /** 3.3 poll reply: BA enabled. */
-    private fun onPollEnabled(hex: String) {
+    private fun onPollEnabled(hex: String, byte: Int) {
+        notifyPollResponse(byte)
         Log.d(TAG, "Poll: enabled (0x3E)")
         if (!initDone) {
             finishInit("poll status 0x$hex")
@@ -254,7 +342,8 @@ class Nk77Reader(
     }
 
     /** 3.3 poll reply: BA inhibited. */
-    private fun onPollInhibited() {
+    private fun onPollInhibited(byte: Int) {
+        notifyPollResponse(byte)
         Log.d(TAG, "Poll: inhibited (0x5E)")
         if (!initDone) {
             // Device answered → it's alive. Enable, then init will disable until a session.
@@ -264,6 +353,33 @@ class Nk77Reader(
             // Should be enabled during a session — re-assert.
             Log.w(TAG, "Inhibited mid-session — re-enable (0x3E)")
             sendCommand(CMD_ENABLE)
+        }
+    }
+
+    private fun notifyPollResponse(byte: Int) {
+        synchronized(pollWaitLock) {
+            pollWaiter?.let { waiter ->
+                waiter.statusByte = byte
+                waiter.latch.countDown()
+            }
+        }
+    }
+
+    private fun interpretPollStatus(byte: Int): String {
+        return when (byte) {
+            STATUS_ENABLED -> "enabled"
+            STATUS_INHIBIT -> "inhibited"
+            in CMD_EXCEPTION_MIN..CMD_EXCEPTION_MAX -> "error"
+            else -> "unknown"
+        }
+    }
+
+    private fun pollStatusMessage(byte: Int): String {
+        return when (byte) {
+            STATUS_ENABLED -> "Bill acceptor enabled (0x3E)"
+            STATUS_INHIBIT -> "Bill acceptor inhibited (0x5E)"
+            in CMD_EXCEPTION_MIN..CMD_EXCEPTION_MAX -> exceptionMessage(byte)
+            else -> "Unclassified poll response 0x${"%02X".format(byte)}"
         }
     }
 
@@ -373,9 +489,9 @@ class Nk77Reader(
         }
 
         when (byte) {
-            STATUS_ENABLED -> onPollEnabled(hex)
+            STATUS_ENABLED -> onPollEnabled(hex, byte)
 
-            STATUS_INHIBIT -> onPollInhibited()
+            STATUS_INHIBIT -> onPollInhibited(byte)
 
             CMD_ESCROW -> {
                 if (!initDone) return
@@ -391,6 +507,7 @@ class Nk77Reader(
             CMD_REJECTED -> onReturned(hex)
 
             in CMD_EXCEPTION_MIN..CMD_EXCEPTION_MAX -> {
+                notifyPollResponse(byte)
                 val msg = exceptionMessage(byte)
                 Log.w(TAG, "Exception 0x$hex — $msg")
                 emit(BillEvent(type = "exception", billCode = byte, rawHex = hex, message = msg))
@@ -516,8 +633,11 @@ class Nk77Reader(
         private const val TAG = "Nk77Reader"
 
         private const val STATUS_PROMPT_MS = 3_000L
+        private const val POLL_INTERVAL_MS = 300L
+        private const val POLL_STATUS_TIMEOUT_MS = 500L
 
         private const val CMD_ACK = 0x02
+        private const val CMD_STATUS_POLL = 0x0C
         private const val CMD_ACCEPT = 0x02
         private const val CMD_DECLINE = 0x0F
         private const val CMD_HOLD = 0x18

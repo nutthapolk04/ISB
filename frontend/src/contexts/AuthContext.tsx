@@ -18,7 +18,8 @@ export type UserRole =
     | "teacher"
     | "kitchen"
     | "canteen_owner"
-    | "refund_officer";
+    | "refund_officer"
+    | "finance";
 /** Shop id is a free-form string now — canteens can have many sub-shops (e.g. canteen_thai) */
 export type ShopId = string;
 /** Functional module drives which POS/UI a user sees. */

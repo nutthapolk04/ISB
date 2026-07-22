@@ -11,7 +11,7 @@ export const AdminReportsController = {
         const { reqContext, user } = authedCtx(ctx);
         const { query } = reqContext;
         logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() called.`);
-        if (!hasRole(user.roles, "admin")) {
+        if (!hasRole(user.roles, "admin", "finance")) {
             logger.warn(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
@@ -39,7 +39,7 @@ export const AdminReportsController = {
         const { reqContext, user } = authedCtx(ctx);
         const { query } = reqContext;
         logger.info(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() called.`);
-        if (!hasRole(user.roles, "admin")) {
+        if (!hasRole(user.roles, "admin", "finance")) {
             logger.warn(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
@@ -65,7 +65,7 @@ export const AdminReportsController = {
         const { reqContext, user } = authedCtx(ctx);
         const { query } = reqContext;
         logger.info(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() called.`);
-        if (!hasRole(user.roles, "admin")) {
+        if (!hasRole(user.roles, "admin", "finance")) {
             logger.warn(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
@@ -91,7 +91,7 @@ export const AdminReportsController = {
         const { reqContext, user } = authedCtx(ctx);
         const { query } = reqContext;
         logger.info(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() called.`);
-        if (!hasRole(user.roles, "admin")) {
+        if (!hasRole(user.roles, "admin", "finance")) {
             logger.warn(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
@@ -123,7 +123,7 @@ export const AdminReportsController = {
         const { reqContext, user } = authedCtx(ctx);
         const { query } = reqContext;
         logger.info(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() called.`);
-        if (!hasRole(user.roles, "admin")) {
+        if (!hasRole(user.roles, "admin", "finance")) {
             logger.warn(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() forbidden.`);
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }

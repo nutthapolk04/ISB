@@ -1,6 +1,7 @@
 package com.okontek.plugins.hardware.serial
 
 import com.okontek.plugins.hardware.billacceptor.BillEvent
+import com.okontek.plugins.hardware.billacceptor.BillPollResult
 import com.okontek.plugins.hardware.billacceptor.Nk77Reader
 import com.okontek.plugins.hardware.native.SerialPort
 import java.io.File
@@ -54,5 +55,9 @@ class SerialManager {
 
     fun returnBill() {
         reader?.returnBill()
+    }
+
+    fun pollStatus(): BillPollResult? {
+        return reader?.pollStatus()
     }
 }

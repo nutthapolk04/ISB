@@ -89,6 +89,15 @@ interface BaseProduct {
   short_name: string | null;
 }
 
+/** Products and bundles have independent id sequences (both `serial` PKs
+ * starting at 1), so a product and a bundle can share the same numeric id.
+ * Every lookup/draft-map keyed off an item must use this composite key, not
+ * `product_id` alone — see the "bundle drags in an unrelated product with
+ * the same id" bug this was written to fix. */
+function itemKey(it: { is_bundle?: boolean; product_id: number }): string {
+  return `${it.is_bundle ? "b" : "p"}-${it.product_id}`;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PANEL_COLORS = [
@@ -135,8 +144,8 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
   const [panelItemsLoading, setPanelItemsLoading] = useState<Record<number, boolean>>({});
   const [panelLoadError, setPanelLoadError] = useState<Record<number, string | null>>({});
   const [panelFilter, setPanelFilter] = useState<Record<number, string>>({});
-  const [cellDrafts, setCellDrafts] = useState<Record<number, Record<number, string>>>({});
-  const [shortNameDrafts, setShortNameDrafts] = useState<Record<number, Record<number, string>>>({});
+  const [cellDrafts, setCellDrafts] = useState<Record<number, Record<string, string>>>({});
+  const [shortNameDrafts, setShortNameDrafts] = useState<Record<number, Record<string, string>>>({});
 
   // New panel dialog
   const [newPanelDialogOpen, setNewPanelDialogOpen] = useState(false);
@@ -184,11 +193,11 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
         `/shops/${shopId}/price-panels/${panelId}/items`,
       );
       setPanelItems((p) => ({ ...p, [panelId]: data }));
-      const priceDrafts: Record<number, string> = {};
-      const snDrafts: Record<number, string> = {};
+      const priceDrafts: Record<string, string> = {};
+      const snDrafts: Record<string, string> = {};
       data.forEach((item) => {
-        priceDrafts[item.product_id] = item.panel_price != null ? String(item.panel_price) : "";
-        snDrafts[item.product_id] = item.short_name ?? "";
+        priceDrafts[itemKey(item)] = item.panel_price != null ? String(item.panel_price) : "";
+        snDrafts[itemKey(item)] = item.short_name ?? "";
       });
       setCellDrafts((p) => ({ ...p, [panelId]: priceDrafts }));
       setShortNameDrafts((p) => ({ ...p, [panelId]: snDrafts }));
@@ -218,12 +227,11 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
 
   // ── CRUD handlers ──────────────────────────────────────────────────────────
 
-  const itemPatchPath = (panelId: number, rowKey: number) => {
-    const row = (panelItems[panelId] ?? []).find((i) => i.product_id === rowKey);
-    if (row?.is_bundle) {
-      return `/shops/${shopId}/price-panels/${panelId}/bundle-items/${row.bundle_id ?? rowKey}`;
+  const itemPatchPath = (panelId: number, item: PricePanelItem) => {
+    if (item.is_bundle) {
+      return `/shops/${shopId}/price-panels/${panelId}/bundle-items/${item.bundle_id ?? item.product_id}`;
     }
-    return `/shops/${shopId}/price-panels/${panelId}/items/${rowKey}`;
+    return `/shops/${shopId}/price-panels/${panelId}/items/${item.product_id}`;
   };
 
   const handleCreatePanel = async () => {
@@ -308,17 +316,18 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
     }
   };
 
-  const handleCellBlur = async (panelId: number, productId: number) => {
-    const raw = cellDrafts[panelId]?.[productId] ?? "";
+  const handleCellBlur = async (panelId: number, item: PricePanelItem) => {
+    const key = itemKey(item);
+    const raw = cellDrafts[panelId]?.[key] ?? "";
     const trimmed = raw.trim();
     const price = trimmed === "" ? null : parseFloat(trimmed);
     if (trimmed !== "" && (isNaN(price!) || price! < 0)) return;
     try {
-      await api.patch(itemPatchPath(panelId, productId), { price });
+      await api.patch(itemPatchPath(panelId, item), { price });
       setPanelItems((p) => ({
         ...p,
-        [panelId]: (p[panelId] ?? []).map((item) =>
-          item.product_id === productId ? { ...item, panel_price: price } : item,
+        [panelId]: (p[panelId] ?? []).map((it) =>
+          itemKey(it) === key ? { ...it, panel_price: price } : it,
         ),
       }));
     } catch {
@@ -326,14 +335,15 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
     }
   };
 
-  const handleShortNameBlur = async (panelId: number, productId: number) => {
-    const val = shortNameDrafts[panelId]?.[productId] ?? "";
+  const handleShortNameBlur = async (panelId: number, item: PricePanelItem) => {
+    const key = itemKey(item);
+    const val = shortNameDrafts[panelId]?.[key] ?? "";
     try {
-      await api.patch(itemPatchPath(panelId, productId), { short_name: val.trim() || null });
+      await api.patch(itemPatchPath(panelId, item), { short_name: val.trim() || null });
       setPanelItems((p) => ({
         ...p,
-        [panelId]: (p[panelId] ?? []).map((item) =>
-          item.product_id === productId ? { ...item, short_name: val.trim() || null } : item,
+        [panelId]: (p[panelId] ?? []).map((it) =>
+          itemKey(it) === key ? { ...it, short_name: val.trim() || null } : it,
         ),
       }));
     } catch {
@@ -341,14 +351,15 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
     }
   };
 
-  const handleInclusionToggle = async (panelId: number, productId: number, currentIncluded: boolean) => {
-    const newVal = !currentIncluded;
+  const handleInclusionToggle = async (panelId: number, item: PricePanelItem) => {
+    const key = itemKey(item);
+    const newVal = !item.included;
     try {
-      await api.patch(itemPatchPath(panelId, productId), { included: newVal });
+      await api.patch(itemPatchPath(panelId, item), { included: newVal });
       setPanelItems((p) => ({
         ...p,
-        [panelId]: (p[panelId] ?? []).map((item) =>
-          item.product_id === productId ? { ...item, included: newVal } : item,
+        [panelId]: (p[panelId] ?? []).map((it) =>
+          itemKey(it) === key ? { ...it, included: newVal } : it,
         ),
       }));
     } catch (err: any) {
@@ -576,7 +587,7 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        handleInclusionToggle(panel.id, it.product_id, false);
+                                        handleInclusionToggle(panel.id, it);
                                         setPanelFilter((p) => ({ ...p, [panel.id]: "" }));
                                       }}
                                       className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-amber-100/60 transition"
@@ -631,11 +642,12 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                               </TableHeader>
                               <TableBody>
                                 {visible.map((item) => {
-                                  const draftVal = cellDrafts[panel.id]?.[item.product_id] ?? "";
+                                  const key = itemKey(item);
+                                  const draftVal = cellDrafts[panel.id]?.[key] ?? "";
                                   const differs = item.panel_price != null && item.panel_price !== item.external_price;
-                                  const snDraft = shortNameDrafts[panel.id]?.[item.product_id] ?? "";
+                                  const snDraft = shortNameDrafts[panel.id]?.[key] ?? "";
                                   return (
-                                    <TableRow key={`${item.is_bundle ? "b" : "p"}-${item.product_id}`}>
+                                    <TableRow key={key}>
                                       <TableCell className="font-mono text-xs text-muted-foreground">{item.product_code}</TableCell>
                                       <TableCell className="text-sm font-medium">
                                         <span className="inline-flex items-center gap-1.5">
@@ -652,10 +664,10 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                                           onChange={(e) =>
                                             setShortNameDrafts((p) => ({
                                               ...p,
-                                              [panel.id]: { ...(p[panel.id] ?? {}), [item.product_id]: e.target.value },
+                                              [panel.id]: { ...(p[panel.id] ?? {}), [key]: e.target.value },
                                             }))
                                           }
-                                          onBlur={() => handleShortNameBlur(panel.id, item.product_id)}
+                                          onBlur={() => handleShortNameBlur(panel.id, item)}
                                           className="h-7 w-32 text-xs"
                                         />
                                       </TableCell>
@@ -669,10 +681,10 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                                           onChange={(e) =>
                                             setCellDrafts((p) => ({
                                               ...p,
-                                              [panel.id]: { ...(p[panel.id] ?? {}), [item.product_id]: e.target.value },
+                                              [panel.id]: { ...(p[panel.id] ?? {}), [key]: e.target.value },
                                             }))
                                           }
-                                          onBlur={() => handleCellBlur(panel.id, item.product_id)}
+                                          onBlur={() => handleCellBlur(panel.id, item)}
                                           className={`h-7 w-28 text-right text-xs ml-auto ${differs ? "border-yellow-400 bg-yellow-50" : ""}`}
                                         />
                                       </TableCell>
@@ -680,7 +692,7 @@ export function PricePanelManager({ shopId, autoLoad = false }: Props) {
                                         <Button
                                           variant="ghost" size="sm"
                                           className="h-7 px-2 text-destructive hover:text-destructive"
-                                          onClick={() => handleInclusionToggle(panel.id, item.product_id, true)}
+                                          onClick={() => handleInclusionToggle(panel.id, item)}
                                           title="Remove from panel"
                                         >
                                           <X className="h-3.5 w-3.5" />

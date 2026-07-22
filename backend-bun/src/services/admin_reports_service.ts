@@ -746,7 +746,9 @@ export async function transactionReport(args: {
             payer_name: payerName,
             payment_method: String(r.paymentMethod ?? ""),
             shop_name: r.shopName ?? "—",
-            amount: pgNumber(r.total) ?? 0,
+            // A voided sale shows as a negative amount — same convention as
+            // salesSummaryReport()/salesByPaymentReport()'s void leg.
+            amount: (pgNumber(r.total) ?? 0) * (r.status === "VOIDED" ? -1 : 1),
             cashier_name: "—", // filled in below once cashier names are batch-resolved
             receipt_number: r.receiptNumber,
             status: String(r.status ?? ""),
