@@ -9,6 +9,7 @@ import { usePrinter } from '../hooks/usePrinter';
 import { logKioskEvent } from '../lib/kioskLog';
 import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
+import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
 import QRCode from 'qrcode';
 
 const router = useRouter();
@@ -629,7 +630,7 @@ const buildReceiptData = (): TopupReceiptData => {
 
     return {
         schoolName: store.schoolInfo.school_name || undefined,
-        logoUrl: store.schoolInfo.school_logo_url || undefined,
+        logoUrl: KIOSK_RECEIPT_LOGO_URL,
         title: tt.receiptTitle,
         typeLabel: tt.receiptType,
         rows,

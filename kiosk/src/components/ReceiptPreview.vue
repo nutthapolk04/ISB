@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import type { Transaction } from '../api/mockApi';
 import { usePrinter } from '../hooks/usePrinter';
 import type { ReceiptData, ReceiptItem } from '../lib/escpos';
+import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
 
 const props = defineProps<{
     transaction: Transaction
@@ -187,7 +188,7 @@ const buildReceiptData = (): ReceiptData => {
 
     return {
         schoolName: store.schoolInfo.school_name || undefined,
-        logoUrl: store.schoolInfo.school_logo_url || undefined,
+        logoUrl: KIOSK_RECEIPT_LOGO_URL,
         title: tt.title,
         typeLabel: typeLabel.value,
         rows,
@@ -230,11 +231,8 @@ const handlePrint = async () => {
                     <!-- Header -->
                     <div class="receipt-header">
                         <!-- School logo -->
-                        <div v-if="store.schoolInfo.school_logo_url" class="receipt-school-logo">
-                            <img :src="store.schoolInfo.school_logo_url" alt="School" class="school-logo-img" />
-                        </div>
-                        <div v-else class="receipt-logo">
-                            <CheckCircle2 :size="40" class="text-success" />
+                        <div class="receipt-school-logo">
+                            <img :src="KIOSK_RECEIPT_LOGO_URL" alt="ISB" class="school-logo-img receipt-header-logo" />
                         </div>
                         <h2 v-if="store.schoolInfo.school_name" class="receipt-school-name">{{
                             store.schoolInfo.school_name }}</h2>
@@ -453,6 +451,12 @@ const handlePrint = async () => {
     width: auto;
     max-width: 140px;
     object-fit: contain;
+}
+
+.receipt-header-logo {
+    height: 72px;
+    max-width: 220px;
+    filter: invert(1);
 }
 
 .receipt-school-name {

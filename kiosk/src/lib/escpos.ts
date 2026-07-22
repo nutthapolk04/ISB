@@ -12,6 +12,12 @@ const PRINT_WIDTH = 576;
 const BYTES_PER_ROW = PRINT_WIDTH / 8;
 const MAX_HEIGHT = 2400;
 
+/** Kiosk receipt header — bundled in `public/`. */
+export const KIOSK_RECEIPT_LOGO_URL = '/isb-receipt.png';
+
+const RECEIPT_LOGO_MAX_W = 400;
+const RECEIPT_LOGO_MAX_H = 140;
+
 /** A "monochrome threshold" — pixels darker than this become black dots. */
 const LUMA_THRESHOLD = 160;
 
@@ -53,7 +59,12 @@ export interface ReceiptData {
 export type TopupReceiptData = ReceiptData;
 
 /** Load an image and return clean ImageData, or null if it can't be read (CORS taint, 404, ...). */
-async function tryLoadLogo(url: string, maxW: number, maxH: number): Promise<HTMLCanvasElement | null> {
+async function tryLoadLogo(
+    url: string,
+    maxW: number,
+    maxH: number,
+    invert = false,
+): Promise<HTMLCanvasElement | null> {
     try {
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
             const el = new Image();
@@ -69,7 +80,20 @@ async function tryLoadLogo(url: string, maxW: number, maxH: number): Promise<HTM
         c.width = w;
         c.height = h;
         const cx = c.getContext('2d')!;
+        cx.fillStyle = '#fff';
+        cx.fillRect(0, 0, w, h);
         cx.drawImage(img, 0, 0, w, h);
+        if (invert) {
+            const imgData = cx.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                if (d[i + 3] < 32) continue;
+                d[i] = 255 - d[i];
+                d[i + 1] = 255 - d[i + 1];
+                d[i + 2] = 255 - d[i + 2];
+            }
+            cx.putImageData(imgData, 0, 0);
+        }
         // Probe: throws if the canvas is tainted. If so, we fall back to text-only.
         cx.getImageData(0, 0, 1, 1);
         return c;
@@ -97,9 +121,11 @@ async function drawReceipt(ctx: CanvasRenderingContext2D, data: ReceiptData): Pr
     ctx.fillStyle = '#000';
     ctx.textBaseline = 'top';
 
-    // Logo (optional)
-    if (data.logoUrl) {
-        const logo = await tryLoadLogo(data.logoUrl, 200, 120);
+    // Logo (optional — defaults to bundled ISB receipt header)
+    const logoUrl = data.logoUrl ?? KIOSK_RECEIPT_LOGO_URL;
+    if (logoUrl) {
+        const invert = logoUrl === KIOSK_RECEIPT_LOGO_URL;
+        const logo = await tryLoadLogo(logoUrl, RECEIPT_LOGO_MAX_W, RECEIPT_LOGO_MAX_H, invert);
         if (logo) {
             ctx.drawImage(logo, cx - logo.width / 2, y);
             y += logo.height + 12;
