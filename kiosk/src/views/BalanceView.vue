@@ -20,7 +20,7 @@ const t = {
     EN: {
         balance: 'Current Balance',
         balanceUnit: '(Baht)',
-        empId: 'Employee ID',
+        empId: 'ISB ID',
         cardId: 'Card ID',
         menuTitle: 'Please select the service you need',
         topup: 'Top-up',
@@ -39,7 +39,7 @@ const t = {
     TH: {
         balance: 'ยอดเงินคงเหลือ',
         balanceUnit: '(บาท)',
-        empId: 'รหัสพนักงาน',
+        empId: 'รหัสISB',
         cardId: 'เลขบัตร',
         menuTitle: 'โปรดเลือกรายการที่ท่านต้องการ',
         topup: 'เติมเงิน',
@@ -262,8 +262,8 @@ onUnmounted(() => {
                         </div>
                     </div>
                     <div class="user-meta-row">
-                        <span class="meta-badge">{{ currT.empId }}: {{ maskData(store.currentUser!.employeeId) }}</span>
-                        <span class="meta-badge">{{ currT.cardId }}: {{ maskData(wallet.cardId) }}</span>
+                        <span class="meta-badge">{{ currT.empId }}: {{ maskData(store.currentUser!.externalId ?? '')
+                            }}</span>
                     </div>
                 </div>
             </div>
