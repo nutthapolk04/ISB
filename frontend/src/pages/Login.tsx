@@ -388,15 +388,16 @@ const Login = () => {
                   with a placeholder when the env is missing so the page
                   doesn't crash, but we hide the button here because clicking
                   it would fail against the placeholder. */}
+                            {ssoStep != "pdpa" && (
+                                <div className="relative my-4">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-background px-2 text-muted-foreground">or</span>
+                                    </div>
+                                </div>
+                            )}
                             {GOOGLE_CLIENT_ID && (
                                 <>
-                                    <div className="relative my-4">
-                                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                                        <div className="relative flex justify-center text-xs uppercase">
-                                            <span className="bg-background px-2 text-muted-foreground">or</span>
-                                        </div>
-                                    </div>
-
                                     {ssoStep === null && (
                                         <Button type="button" variant="outline" className="w-full gap-2"
                                             onClick={() => googleLogin()}
