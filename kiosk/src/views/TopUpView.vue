@@ -60,9 +60,9 @@ const t = {
         changeMethod: 'Change Payment Method',
         seconds: 'sec',
         cashConfirmTitle: 'Insert Cash',
-        cashConfirmDesc: 'Insert banknotes into the machine one at a time. Accepts ฿100, ฿500 and ฿1,000 only.',
-        cashConfirmNote: '฿20 and ฿50 notes are returned. Bills are accepted automatically. Top-up completes when the target is reached.',
-        cashTarget: 'Target amount',
+        cashConfirmDesc: 'Insert banknotes into the machine one at a time.',
+        cashConfirmNote: 'Accepts only ฿100, ฿500 and ฿1,000.',
+        cashTarget: 'Desired',
         cashInserted: 'Inserted',
         cashRemaining: 'Remaining',
         cashOverpayTitle: 'Bill exceeds target',
@@ -135,8 +135,8 @@ const t = {
         changeMethod: 'เปลี่ยนช่องทางชำระ',
         seconds: 'วินาที',
         cashConfirmTitle: 'สอดเงินสด',
-        cashConfirmDesc: 'สอดธนบัตรเข้าเครื่องทีละใบ รับเฉพาะแบงค์ 100 / 500 / 1,000 บาท',
-        cashConfirmNote: 'แบงค์ 20 และ 50 บาทจะถูกคืน เครื่องรับแบงค์อัตโนมัติ เติมเงินสำเร็จเมื่อครบยอดที่ต้องการ',
+        cashConfirmDesc: 'สอดธนบัตรเข้าเครื่องทีละใบ',
+        cashConfirmNote: 'รับเฉพาะแบงค์ 100 / 500 / 1,000 บาท',
         cashTarget: 'ยอดที่ต้องการเติม',
         cashInserted: 'สอดแล้ว',
         cashRemaining: 'คงเหลือ',
@@ -852,7 +852,6 @@ const overpayExceedsCap = computed(() => {
                     <Banknote :size="64" class="cash-icon-svg" />
                 </div>
                 <h3 class="cash-title">{{ currT.cashConfirmTitle }}</h3>
-                <p class="cash-desc">{{ currT.cashConfirmDesc }}</p>
 
                 <div class="cash-stats">
                     <div class="cash-stat">
@@ -880,7 +879,7 @@ const overpayExceedsCap = computed(() => {
                         :class="{ 'bar-warning': cashTimeLeft <= 10, 'bar-danger': cashTimeLeft <= 5 }"></div>
                 </div>
 
-                <p class="cash-note">{{ currT.cashConfirmNote }}</p>
+                <p class="cash-note">{{ currT.cashConfirmDesc }}<br />{{ currT.cashConfirmNote }}</p>
                 <p v-if="cashLocked && !bill.isTargetMet.value" class="cash-partial-hint">
                     {{ currT.cashPartialHint }}
                 </p>
