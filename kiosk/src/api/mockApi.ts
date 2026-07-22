@@ -34,6 +34,8 @@ export interface Wallet {
     colorTheme: string; // hex color or class
     photoUrl?: string;  // face photo for avatar
     role?: string | null; // holder's role: parent/staff/student/...
+    /** PowerSchool / HR sync id for the wallet holder. */
+    externalId?: string | null;
 }
 
 export interface User {
@@ -41,6 +43,7 @@ export interface User {
     name: string;
     employeeId: string;
     role?: string; // 'parent' | 'staff' | 'student' | etc.
+    externalId?: string | null;
     wallets: Wallet[];
     /** users.id when this login was a parent/staff RFID card scan (has its
      * own users-table row) — null/absent for a student card scan, where `id`

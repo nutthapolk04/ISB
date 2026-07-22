@@ -39,7 +39,8 @@ const t = {
         poweredBy: 'This document is system-generated',
         items: 'Items',
         qty: 'x',
-        buyer: 'Member',
+        buyer: 'Payer',
+        payerIsbId: 'Payer ISB ID',
         seller: 'Shop / Location',
         paymentMethod: 'Payment Method',
         shopName: 'Shop / Branch',
@@ -76,7 +77,8 @@ const t = {
         poweredBy: 'เอกสารออกจากระบบอัตโนมัติ',
         items: 'รายการสินค้า',
         qty: 'x',
-        buyer: 'สมาชิก',
+        buyer: 'ผู้ชำระ',
+        payerIsbId: 'รหัส ISB ผู้ชำระ',
         seller: 'ร้าน / สถานที่',
         paymentMethod: 'วิธีชำระเงิน',
         shopName: 'ร้าน / สาขา',
@@ -143,6 +145,16 @@ const printer = usePrinter();
 type PrintState = 'idle' | 'printing' | 'done' | 'error';
 const printState = ref<PrintState>('idle');
 
+const payerInfo = computed(() => {
+    if (!store.currentUser) return null;
+    const idx = store.transactionWalletIndex >= 0 ? store.transactionWalletIndex : store.activeWalletIndex;
+    const wallet = store.currentUser.wallets[idx] ?? store.currentWallet;
+    return {
+        name: wallet?.holderName ?? store.currentUser.name,
+        externalId: wallet?.externalId ?? store.currentUser.externalId ?? null,
+    };
+});
+
 const buildReceiptData = (): ReceiptData => {
     const tx = props.transaction;
     const tt = currT.value;
@@ -155,7 +167,12 @@ const buildReceiptData = (): ReceiptData => {
     if (tx.type === 'topup' && store.deviceProfile?.full_name) {
         rows.push({ label: tt.device, value: store.deviceProfile.full_name });
     }
-    if (store.currentUser) rows.push({ label: tt.buyer, value: store.currentUser.name });
+    if (payerInfo.value) {
+        if (payerInfo.value.externalId) {
+            rows.push({ label: tt.payerIsbId, value: payerInfo.value.externalId });
+        }
+        rows.push({ label: tt.buyer, value: payerInfo.value.name });
+    }
     if (tx.shop_name) rows.push({ label: tt.shopName, value: tx.shop_name });
     else if (tx.machine) rows.push({ label: tt.location, value: tx.machine });
     if (paymentMethodLabel.value) rows.push({ label: tt.paymentMethod, value: String(paymentMethodLabel.value) });
@@ -257,9 +274,13 @@ const handlePrint = async () => {
                             <span class="r-label">{{ currT.location }}</span>
                             <span class="r-value">{{ props.transaction.machine }}</span>
                         </div>
-                        <div v-if="store.currentUser" class="receipt-row">
+                        <div v-if="payerInfo?.externalId" class="receipt-row">
+                            <span class="r-label">{{ currT.payerIsbId }}</span>
+                            <span class="r-value mono">{{ payerInfo.externalId }}</span>
+                        </div>
+                        <div v-if="payerInfo" class="receipt-row">
                             <span class="r-label">{{ currT.buyer }}</span>
-                            <span class="r-value">{{ store.currentUser.name }}</span>
+                            <span class="r-value">{{ payerInfo.name }}</span>
                         </div>
                         <div v-if="props.transaction.shop_name" class="receipt-row">
                             <span class="r-label">{{ currT.shopName }}</span>

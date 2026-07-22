@@ -33,6 +33,7 @@ interface ISBCustomerLookupResult {
     photo_url: string | null;
     wallet_balance: number;
     wallet_id: number | null;
+    external_id?: string | null;
 }
 
 interface ISBChildSummary {
@@ -46,6 +47,7 @@ interface ISBChildSummary {
     photo_url?: string | null;
     wallet_id?: number | null;
     wallet_balance?: number | null;
+    external_id?: string | null;
 }
 
 interface ISBCoParentSummary {
@@ -57,6 +59,7 @@ interface ISBCoParentSummary {
     wallet_balance?: number | null;
     photo_url?: string | null;
     username: string;
+    external_id?: string | null;
 }
 
 interface ISBFamilyResponse {
@@ -239,6 +242,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
             colorTheme: colorForRole(c.customer_kind),
             photoUrl: c.photo_url ?? undefined,
             role: c.customer_kind ?? null,
+            externalId: c.external_id ?? null,
         }
         : null;
 
@@ -254,6 +258,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
             colorTheme: colorForRole(cp.role),
             photoUrl: cp.photo_url ?? undefined,
             role: cp.role ?? null,
+            externalId: cp.external_id ?? null,
         }));
 
     const childWallets: Wallet[] = family.children
@@ -268,6 +273,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
             colorTheme: STUDENT_GRADIENT,
             photoUrl: ch.photo_url ?? undefined,
             role: 'student',
+            externalId: ch.external_id ?? null,
         }));
 
     return {
@@ -275,6 +281,7 @@ function mapCustomer(c: ISBCustomerLookupResult, family: ISBFamilyResponse = { c
         name: c.name,
         employeeId: c.student_code ?? c.customer_code ?? String(c.id),
         role: c.customer_kind ?? undefined,
+        externalId: c.external_id ?? null,
         wallets: [...(personalWallet ? [personalWallet] : []), ...coparentWallets, ...childWallets],
         // Explicitly from c.user_id (not falling back to c.id like the
         // string `id` above) — null means a student scanned their own card,

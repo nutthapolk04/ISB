@@ -637,12 +637,12 @@ export async function updateAdminUser(
 // ── PATCH /{user_id}/password ───────────────────────────────────────────────
 
 export async function adminChangePassword(callerRoles: string[], userId: number, newPassword: string): Promise<void> {
-  requireAdmin(callerRoles);
-  if (!newPassword || newPassword.length < 8) throw statusErr(400, "Password must be at least 8 characters");
-  const rows = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
-  if (!rows[0]) throw statusErr(404, "User not found");
-  const hashed = await Bun.password.hash(newPassword, { algorithm: "bcrypt", cost: 12 });
-  await db.update(users).set({ hashedPassword: hashed }).where(eq(users.id, userId));
+    requireAdmin(callerRoles);
+    if (!newPassword || newPassword.length < 8) throw statusErr(400, "Password must be at least 8 characters");
+    const rows = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!rows[0]) throw statusErr(404, "User not found");
+    const hashed = await Bun.password.hash(newPassword, { algorithm: "bcrypt", cost: 12 });
+    await db.update(users).set({ hashedPassword: hashed }).where(eq(users.id, userId));
 }
 
 // ── POST /students ──────────────────────────────────────────────────────────
@@ -741,9 +741,9 @@ export async function updateFamilyProfile(
         if (Object.prototype.hasOwnProperty.call(payload, "login_ids")) {
             updates.loginIds = (payload.login_ids ?? []) as unknown as never;
         }
-        if (!existing[0].lastSyncedAt) {
-            updates.lastSyncedAt = sql`NOW()` as unknown as string;
-        }
+        // if (!existing[0].lastSyncedAt) {
+        //     updates.lastSyncedAt = sql`NOW()` as unknown as string;
+        // }
         if (Object.keys(updates).length > 0) {
             const [upd] = await db
                 .update(familyProfiles)
@@ -761,7 +761,7 @@ export async function updateFamilyProfile(
                 familyCode,
                 notificationEmails: (payload.notification_emails ?? []) as unknown as never,
                 loginIds: (payload.login_ids ?? []) as unknown as never,
-                lastSyncedAt: sql`NOW()` as unknown as string,
+                // lastSyncedAt: sql`NOW()` as unknown as string,
             })
             .returning();
         row = created;

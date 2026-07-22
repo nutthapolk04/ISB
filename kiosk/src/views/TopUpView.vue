@@ -82,7 +82,8 @@ const t = {
         receiptTitle: 'Receipt',
         receiptType: 'Top-up',
         receiptTxId: 'Transaction No.',
-        receiptMember: 'Member',
+        receiptPayerIsbId: 'Payer ISB ID',
+        receiptPayer: 'Payer',
         receiptDevice: 'Machine',
         receiptBalanceAfter: 'Remaining Balance',
         receiptThankYou: 'Thank you for using our service',
@@ -156,7 +157,8 @@ const t = {
         receiptTitle: 'ใบเสร็จรับเงิน',
         receiptType: 'เติมเงิน',
         receiptTxId: 'เลขที่รายการ',
-        receiptMember: 'สมาชิก',
+        receiptPayerIsbId: 'รหัส ISB ผู้ชำระ',
+        receiptPayer: 'ผู้ชำระ',
         receiptDevice: 'เครื่อง',
         receiptBalanceAfter: 'ยอดคงเหลือ',
         receiptThankYou: 'ขอบคุณที่ใช้บริการ',
@@ -559,7 +561,10 @@ const buildReceiptData = (): TopupReceiptData => {
         rows.push({ label: tt.receiptDevice, value: deviceName });
     }
     if (wallet) {
-        rows.push({ label: tt.receiptMember, value: wallet.holderName });
+        if (wallet.externalId) {
+            rows.push({ label: tt.receiptPayerIsbId, value: wallet.externalId });
+        }
+        rows.push({ label: tt.receiptPayer, value: wallet.holderName });
     }
     rows.push({ label: tt.successMethod, value: methodLabel });
 
