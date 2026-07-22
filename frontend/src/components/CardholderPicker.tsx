@@ -108,14 +108,21 @@ export default function CardholderPicker({ value, onChange, placeholder, disable
             <span className={cn("truncate", !selectedItem && "text-muted-foreground")}>{buttonLabel}</span>
             <span className="flex items-center gap-1 ml-2 shrink-0">
               {selectedItem && (
-                <X
-                  className="h-4 w-4 opacity-50 hover:opacity-100"
+                // Button's base styles set `[&_svg]:pointer-events-none` on every
+                // svg, so a click here would fall through to the button (opening
+                // the popover) before the svg's own handler ever fired. Wrapping
+                // in a span (unaffected by that svg-only selector) gives the
+                // clear action a real hit target.
+                <span
+                  className="h-4 w-4 flex items-center justify-center opacity-50 hover:opacity-100 pointer-events-auto"
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedItem(null);
                     onChange(null, null);
                   }}
-                />
+                >
+                  <X className="h-4 w-4" />
+                </span>
               )}
               <ChevronsUpDown className="h-4 w-4 opacity-50" />
             </span>

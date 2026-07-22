@@ -147,7 +147,7 @@ const menuGroups: MenuGroup[] = [
         labelKey: "nav.groupParent",
         module: null,
         items: [
-            { titleKey: "nav.familyDashboard", url: "/parent/dashboard", icon: Users, roles: ["parent"] },
+            { titleKey: "nav.familyDashboard", url: "/parent/dashboard", icon: Users, roles: ["parent", "staff", "teacher", "student"] },
         ],
     },
 ];

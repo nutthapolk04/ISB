@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth, type UserRole } from "@/contexts/AuthContext";
+import { useAuth, moduleOf, type AppModule, type UserRole } from "@/contexts/AuthContext";
+import { BackButton } from "@/components/BackButton";
 import {
     ShieldCheck,
     Users,
@@ -314,6 +315,22 @@ function roleToGuideId(
     return role;
 }
 
+function guideHomePath(
+    role: string,
+    shopId: string | null | undefined,
+    shopModule: AppModule | null | undefined,
+): string {
+    if (role === "admin") return "/admin";
+    if (role === "finance") return "/admin/reports";
+    if (role === "refund_officer") return "/refund";
+    if (role === "staff" && shopId) return "/";
+    if (role === "cashier" || role === "manager" || role === "kitchen") {
+        const mod = shopModule ?? moduleOf(shopId ?? null);
+        return mod === "canteen" ? "/canteen" : "/store";
+    }
+    return "/parent/dashboard";
+}
+
 export default function GuidePage() {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -359,12 +376,19 @@ export default function GuidePage() {
     const activeGuide =
         visibleGuides.find((r) => r.id === activeRole) ?? visibleGuides[0] ?? roleGuides[0];
 
+    const homePath = guideHomePath(
+        user?.role ?? "cashier",
+        user?.shopId,
+        user?.shopModule ?? null,
+    );
+
     return (
         <div className="page-shell">
             {/* Floating page header */}
             <div className="page-header flex items-center gap-3">
-                <BookOpen className="h-7 w-7 text-primary" />
-                <div>
+                <BackButton to={homePath} />
+                <BookOpen className="h-7 w-7 text-primary shrink-0" />
+                <div className="min-w-0">
                     <h1 className="page-title">{t("guide.title")}</h1>
                     <p className="page-description">{t("guide.subtitle")}</p>
                 </div>
