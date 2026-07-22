@@ -13,8 +13,8 @@ const buildInfo = `V${__APP_VERSION__} ${__BUILD_TIME__}`;
 
 // Auto-reset logic
 // topup page gets 5 min (user is paying via phone — no kiosk interaction)
-const TIMEOUT_TOPUP = 300_000;
-const TIMEOUT_DEFAULT = 60_000;
+const TIMEOUT_TOPUP = 3_000;
+const TIMEOUT_DEFAULT = 5_000;
 let timeoutId: number | null = null;
 
 const resetTimeout = () => {
