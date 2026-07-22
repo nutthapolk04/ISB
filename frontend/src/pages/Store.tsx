@@ -303,7 +303,13 @@ const Store = () => {
     const rfidScanner = useStoreRfidScanner({
         products: allProducts,
         onProductMatch: checkout.addToCart,
-        onMemberFound: checkout.setPreSelectedMember,
+        onMemberFound: (member) => {
+            // A member is already selected (or a payment modal is open) —
+            // ignore further taps until that transaction is paid or
+            // cancelled. Mirrors the Canteen page guard.
+            if (checkout.preSelectedMember || checkout.paymentModalOpen) return;
+            checkout.setPreSelectedMember(member);
+        },
     });
 
     // ── Outside click closes search dropdown ────────────────────────────────

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import {
   useCardholders,
   useFamilyLinks,
@@ -122,6 +123,12 @@ export default function CardholderList() {
   const [kind, setKind] = useState<Cardholder["kind"] | "all">(initialKind);
   const [q, setQ] = useState("");
   const debouncedQ = useDebounce(q, 300);
+
+  // Tapping a card fills the search box directly (PC/SC bridge or
+  // keyboard-wedge fallback), same as Card Management's search field.
+  useRfidListener({
+    onCapture: (uid) => setQ(uid),
+  });
   const [school, setSchool] = useState<SchoolFilter>("all");
   const [grade, setGrade] = useState<string>("all");
   const [page, setPage] = useState(1);
