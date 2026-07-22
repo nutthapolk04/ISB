@@ -1367,3 +1367,27 @@ export const shopSpendingGroups = pgTable("shop_spending_groups", {
 		}).onDelete("cascade"),
 	primaryKey({ columns: [table.shopId, table.spendingGroupId], name: "shop_spending_groups_pkey"}),
 ]);
+
+/** On-device kiosk event log entries (system/auth/api/bill/cash/qr/pending),
+ * uploaded best-effort in batches by the kiosk app — see
+ * kiosk/src/lib/kioskLog.ts (the source of truth for the entry shape) and
+ * kiosk/src/lib/kioskLogUploader.ts (the uploader). Powers the admin Kiosk
+ * Report's "Event log" view. */
+export const kioskLogs = pgTable("kiosk_logs", {
+	id: serial().primaryKey().notNull(),
+	kioskUserId: integer("kiosk_user_id").notNull(),
+	ts: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
+	level: varchar({ length: 10 }).notNull(),
+	category: varchar({ length: 20 }).notNull(),
+	message: varchar({ length: 500 }).notNull(),
+	data: json(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("ix_kiosk_logs_kiosk_ts").using("btree", table.kioskUserId.asc().nullsLast().op("int4_ops"), table.ts.desc().nullsFirst().op("timestamptz_ops")),
+	index("ix_kiosk_logs_ts").using("btree", table.ts.desc().nullsFirst().op("timestamptz_ops")),
+	foreignKey({
+			columns: [table.kioskUserId],
+			foreignColumns: [users.id],
+			name: "kiosk_logs_kiosk_user_id_fkey"
+		}).onDelete("cascade"),
+]);

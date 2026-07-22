@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { realApi, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
+import { startKioskLogUploader } from '../lib/kioskLogUploader';
 
 export type BootStatus = 'loading' | 'ready' | 'error';
 export type LoginFailureReason = 'not_found' | 'network' | 'busy';
@@ -25,6 +26,8 @@ export const useKioskStore = defineStore('kiosk', () => {
     const loginSource = ref<'rfid' | 'manual'>('rfid');
     // Index of the wallet whose transactions are currently loaded (-1 = parent's active wallet)
     const transactionWalletIndex = ref(-1);
+    /** When true, App.vue skips the global idle logout (TopUpView manages QR/cash timers). */
+    const suppressGlobalIdleTimeout = ref(false);
 
     const isReady = computed(() => bootStatus.value === 'ready');
     const isAuthenticated = computed(() => !!currentUser.value);
@@ -47,6 +50,10 @@ export const useKioskStore = defineStore('kiosk', () => {
 
     function updateActivity() {
         lastActivity.value = Date.now();
+    }
+
+    function setSuppressGlobalIdle(suppress: boolean) {
+        suppressGlobalIdleTimeout.value = suppress;
     }
 
     async function fetchSchoolInfo() {
@@ -89,6 +96,7 @@ export const useKioskStore = defineStore('kiosk', () => {
             await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
             bootStatus.value = 'ready';
             logKioskEvent('system', 'info', 'Kiosk bootstrap ready');
+            startKioskLogUploader();
         } catch (e) {
             bootStatus.value = 'error';
             bootError.value = e instanceof Error ? e.message : 'Could not connect to server';
@@ -203,9 +211,11 @@ export const useKioskStore = defineStore('kiosk', () => {
         isAuthenticated,
         loginSource,
         transactionWalletIndex,
+        suppressGlobalIdleTimeout,
         setLanguage,
         setActiveWallet,
         updateActivity,
+        setSuppressGlobalIdle,
         bootstrap,
         login,
         logout,

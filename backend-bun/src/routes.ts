@@ -259,6 +259,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
         app
             .get("/me", KioskController.me, KioskSchema.kioskMe)
             .patch("/me/location", KioskController.updateLocation, KioskSchema.kioskUpdateLocation)
+            .post("/logs", KioskController.uploadLogs, KioskSchema.kioskUploadLogs)
     )
     .group("/admin/departments", (app) =>
         app
@@ -380,7 +381,8 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     .get("/wallets/admin/adjustment-report", AdminReportsController.adjustmentReport, AdminReportsSchema.adminAdjustmentReport)
     .get("/wallets/admin/transfer-report", AdminReportsController.transferReport, AdminReportsSchema.adminTransferReport)
     .get("/wallets/admin/topup-report", AdminReportsController.topupReport, AdminReportsSchema.adminTopupReport)
-    .get("/wallets/admin/transaction-report", AdminReportsController.transactionReport, AdminReportsSchema.adminTransactionReport);
+    .get("/wallets/admin/transaction-report", AdminReportsController.transactionReport, AdminReportsSchema.adminTransactionReport)
+    .get("/admin/kiosk-logs", AdminReportsController.kioskLogReport, AdminReportsSchema.adminKioskLogReport);
 
 const apiV1Authed = new Elysia({ name: "api-v1-authed", prefix: "/api/v1" })
     .use(requireAuth)

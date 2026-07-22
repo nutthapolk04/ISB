@@ -11,9 +11,8 @@ const route = useRoute();
 const store = useKioskStore();
 const buildInfo = `V${__APP_VERSION__} ${__BUILD_TIME__}`;
 
-// Auto-reset logic
-// topup page gets 5 min (user is paying via phone — no kiosk interaction)
-const TIMEOUT_TOPUP = 7_000;
+// Global idle logout for authenticated pages (balance, history, top-up amount/methods).
+// QR and cash-confirm steps suppress this — TopUpView owns those timers.
 const TIMEOUT_DEFAULT = 5_000;
 let timeoutId: number | null = null;
 
@@ -22,9 +21,9 @@ const resetTimeout = () => {
     store.updateActivity();
 
     if (route.name === 'welcome' || route.name === 'technician') return;
+    if (store.suppressGlobalIdleTimeout) return;
 
-    const duration = route.path.startsWith('/topup') ? TIMEOUT_TOPUP : TIMEOUT_DEFAULT;
-    timeoutId = window.setTimeout(handleTimeout, duration);
+    timeoutId = window.setTimeout(handleTimeout, TIMEOUT_DEFAULT);
 };
 
 const handleTimeout = () => {
@@ -32,7 +31,6 @@ const handleTimeout = () => {
     router.push('/');
 };
 
-// Global event listeners for interaction
 const handleInteraction = () => {
     resetTimeout();
 };
@@ -44,7 +42,6 @@ onMounted(async () => {
     resetTimeout();
     void store.bootstrap().then(() => retryPendingCashTopup());
 
-    // NK77 bill acceptor — FM-3568D maps UART1 to /dev/ttyS2 (9600 8E1)
     Hardware.connect({
         port: '/dev/ttyS2',
         baudRate: 9600,
@@ -56,7 +53,6 @@ onMounted(async () => {
             console.warn('[Hardware] connect failed:', err);
         });
 
-    // 80mm receipt printer on its own UART (see usePrinter for port/baud). Non-fatal on failure.
     void connectPrinter();
 });
 
@@ -67,9 +63,15 @@ onUnmounted(() => {
     if (timeoutId) clearTimeout(timeoutId);
 });
 
-// Watch route changes to reset timer
 watch(
     () => route.path,
+    () => {
+        resetTimeout();
+    },
+);
+
+watch(
+    () => store.suppressGlobalIdleTimeout,
     () => {
         resetTimeout();
     },

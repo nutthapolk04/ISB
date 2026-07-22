@@ -241,6 +241,7 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
                 refCode,
                 walletId: input.walletId,
                 remark: input.remark ?? null,
+                expiredMinutes: 3,
             });
             qrPayload = r.qrcode_content;
             txnNo = r.txn_no;

@@ -2,7 +2,7 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
-import { adjustmentReport, transferReport, topupReport, transactionReport } from "@/services/admin_reports_service";
+import { adjustmentReport, transferReport, topupReport, transactionReport, kioskLogReport } from "@/services/admin_reports_service";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -107,6 +107,7 @@ export const AdminReportsController = {
                 paymentMethod: query.payment_method ?? null,
                 shopId: query.shop_id ?? null,
                 type: query.type ?? null,
+                cashierRole: query.cashier_role ?? null,
                 page,
                 pageSize,
             });
@@ -114,6 +115,34 @@ export const AdminReportsController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    kioskLogReport: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { query } = reqContext;
+        logger.info(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() called.`);
+        if (!hasRole(user.roles, "admin")) {
+            logger.warn(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() forbidden.`);
+            return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+        }
+        const page = query.page ? Math.max(Number(query.page), 1) : 1;
+        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
+        try {
+            const result = await kioskLogReport({
+                kioskUserId: query.kiosk_user_id ? Number(query.kiosk_user_id) : null,
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+                level: query.level ?? null,
+                category: query.category ?? null,
+                page,
+                pageSize,
+            });
+            logger.info(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() error:`, e);
             return errorFromService(reqContext, e);
         }
     },

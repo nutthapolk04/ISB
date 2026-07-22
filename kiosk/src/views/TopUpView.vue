@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
 import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut, Printer } from 'lucide-vue-next';
-import { ref, computed, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
 import { useBillAcceptor } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
@@ -282,13 +282,23 @@ const confirmAmount = () => {
     currentStep.value = 'methods';
 };
 
-// --- QR Timer (600 seconds = 10 min to match BAY gateway expiry) ---
-const QR_TIMEOUT = 600;
+// --- QR Timer (180 seconds = 3 min — matches BAY gateway expiry) ---
+const QR_TIMEOUT = 180;
 const qrTimeLeft = ref(QR_TIMEOUT);
 let qrTimerInterval: number | null = null;
 
 const qrProgress = computed(() => qrTimeLeft.value / QR_TIMEOUT);
 const isQrExpired = computed(() => qrTimeLeft.value <= 0);
+
+const handleQrSessionExpired = () => {
+    if (currentStep.value !== 'qr') return;
+    stopPolling();
+    logKioskEvent('qr', 'warn', 'QR session timed out', { ref_code: activeRefCode.value });
+    store.setSuppressGlobalIdle(false);
+    void bill.stop();
+    store.logout();
+    router.push('/');
+};
 
 const startQrTimer = () => {
     clearQrTimer();
@@ -296,7 +306,11 @@ const startQrTimer = () => {
     qrTimerInterval = window.setInterval(() => {
         qrTimeLeft.value--;
         if (qrTimeLeft.value <= 0) {
-            clearQrTimer();
+            if (qrTimerInterval) {
+                clearInterval(qrTimerInterval);
+                qrTimerInterval = null;
+            }
+            handleQrSessionExpired();
         }
     }, 1000);
 };
@@ -307,6 +321,30 @@ const clearQrTimer = () => {
         qrTimerInterval = null;
     }
     stopPolling();
+};
+
+// --- Cash idle timeout (kiosk only — no touch/bill activity) ---
+const CASH_IDLE_MS = 15_000;
+let cashIdleTimer: number | null = null;
+
+const clearCashIdleTimer = () => {
+    if (cashIdleTimer != null) {
+        clearTimeout(cashIdleTimer);
+        cashIdleTimer = null;
+    }
+};
+
+const resetCashIdleTimer = () => {
+    clearCashIdleTimer();
+    if (currentStep.value !== 'cash-confirm') return;
+    cashIdleTimer = window.setTimeout(() => {
+        logKioskEvent('cash', 'info', 'Cash top-up idle timeout', { collected: bill.collectedThb.value });
+        void executeCancelTopup();
+    }, CASH_IDLE_MS);
+};
+
+const onTopupActivity = () => {
+    if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
 };
 
 const initQrPayment = async () => {
@@ -413,8 +451,16 @@ const scheduleSuccessLogout = () => {
 onUnmounted(() => {
     clearSuccessLogoutTimer();
     clearQrTimer();
-    stopPolling();
+    clearCashIdleTimer();
+    store.setSuppressGlobalIdle(false);
+    window.removeEventListener('mousedown', onTopupActivity);
+    window.removeEventListener('touchstart', onTopupActivity);
     void bill.stop();
+});
+
+onMounted(() => {
+    window.addEventListener('mousedown', onTopupActivity);
+    window.addEventListener('touchstart', onTopupActivity);
 });
 
 // Auto-finalize when the acceptor reports the target is met.
@@ -598,6 +644,15 @@ const printReceipt = async () => {
 // so this also recovers when the boot-time printer connect failed.
 // Also schedule a short auto-logout so the next member can tap in right away.
 watch(currentStep, (step) => {
+    const suppress = step === 'qr' || step === 'cash-confirm' || step === 'success' || step === 'fail';
+    store.setSuppressGlobalIdle(suppress);
+
+    if (step === 'cash-confirm') {
+        resetCashIdleTimer();
+    } else {
+        clearCashIdleTimer();
+    }
+
     if (step === 'success') {
         if (!autoPrinted) {
             autoPrinted = true;
@@ -607,6 +662,10 @@ watch(currentStep, (step) => {
         return;
     }
     clearSuccessLogoutTimer();
+});
+
+watch(() => bill.collectedThb.value, () => {
+    if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
 });
 
 const selectedColor = (prop: 'colorBg' | 'colorText' | 'border') => {
@@ -746,7 +805,7 @@ const overpayExceedsCap = computed(() => {
                     <span>{{ currT.timeRemaining }}: </span>
                     <span class="timer-value">{{ Math.floor(qrTimeLeft / 60) }}:{{ (qrTimeLeft %
                         60).toString().padStart(2, '0')
-                        }}</span>
+                    }}</span>
                 </div>
 
                 <!-- Timer Progress Bar -->
@@ -906,14 +965,14 @@ const overpayExceedsCap = computed(() => {
                     {{ currT.printFailed }}
                     <span v-if="printer.lastPrinterError.value" class="print-error-detail">({{
                         printer.lastPrinterError.value
-                        }})</span>
+                    }})</span>
                 </p>
 
                 <button class="kiosk-btn btn-secondary print-receipt-btn" :disabled="printState === 'printing'"
                     @click="printReceipt">
                     <Printer :size="22" />
                     <span>{{ printState === 'done' || printState === 'error' ? currT.reprint : currT.printReceipt
-                        }}</span>
+                    }}</span>
                 </button>
             </div>
 

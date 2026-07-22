@@ -98,7 +98,7 @@ export async function createQrPayment(args: {
         ref1: sanitizeRef(args.refCode, 20),
         ref2: sanitizeRef(`W${args.walletId}`, 20),
         channel: args.channel ?? 2,
-        expiredMinutes: args.expiredMinutes ?? 10,
+        expiredMinutes: args.expiredMinutes ?? 3,
     };
     if (args.remark && args.remark.trim()) payload.remark = args.remark.trim();
     const subMerchantCode = buildSubMerchantCode();

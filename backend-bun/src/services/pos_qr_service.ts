@@ -106,6 +106,7 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
             // ref2 (max 20 char alphanumeric) keeps reconciliation traceable.
             walletId: 0,
             remark: input.cart.notes ?? null,
+            expiredMinutes: 3,
         });
         await db
             .update(paymentIntents)

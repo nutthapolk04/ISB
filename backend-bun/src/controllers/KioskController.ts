@@ -1,7 +1,7 @@
-/** Kiosk device — profile / location label (role=kiosk) */
+/** Kiosk device — profile / location label / event-log upload (role=kiosk) */
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
-import { getKioskProfile, updateKioskLocation } from "@/services/kiosk_service";
+import { getKioskProfile, updateKioskLocation, ingestKioskLogs } from "@/services/kiosk_service";
 import { errorFromService, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -30,6 +30,20 @@ export const KioskController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (KC-02)] KioskController.updateLocation() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    uploadLogs: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { body } = reqContext;
+        logger.info(`[${reqContext.requestId} (KC-03)] KioskController.uploadLogs() called (${body.entries.length} entries).`);
+        try {
+            const result = await ingestKioskLogs(user as Parameters<typeof ingestKioskLogs>[0], body.entries);
+            logger.info(`[${reqContext.requestId} (KC-03)] KioskController.uploadLogs() inserted ${result.inserted}.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (KC-03)] KioskController.uploadLogs() error:`, e);
             return errorFromService(reqContext, e);
         }
     },

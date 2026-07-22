@@ -13,6 +13,7 @@ import {
     paymentIntents,
     receipts,
     shops,
+    kioskLogs,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
@@ -634,6 +635,10 @@ export async function transactionReport(args: {
      * or department). */
     search?: string | null;
     cashierId?: number | null;
+    /** Restricts createdBy to users of this role (e.g. "kiosk") — ignored
+     * whenever cashierId is set (a specific device always wins over the
+     * role-wide view). Powers the Kiosk Report's "All kiosks" option. */
+    cashierRole?: string | null;
     /** ACTIVE | VOIDED — omitted keeps the existing "both" default. Only
      * meaningful for `kind: "sale"` rows — every other kind is never voided. */
     status?: string | null;
@@ -668,7 +673,11 @@ export async function transactionReport(args: {
     if (args.status) saleConds.push(eq(receipts.status, args.status as "ACTIVE" | "VOIDED"));
     if (args.paymentMethod) saleConds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
     if (args.shopId) saleConds.push(eq(receipts.shopId, args.shopId));
-    if (args.cashierId != null) saleConds.push(eq(receipts.createdBy, args.cashierId));
+    if (args.cashierId != null) {
+        saleConds.push(eq(receipts.createdBy, args.cashierId));
+    } else if (args.cashierRole) {
+        saleConds.push(inArray(receipts.createdBy, db.select({ id: users.id }).from(users).where(eq(users.role, args.cashierRole))));
+    }
     const search = args.search?.trim();
     if (search) {
         const pat = `%${search}%`;
@@ -753,7 +762,11 @@ export async function transactionReport(args: {
         const otherConds = [sql`(${walletTransactions.referenceType} IS NULL OR ${walletTransactions.referenceType} NOT IN ('receipt', 'receipt_void'))`];
         if (dateFrom) otherConds.push(sql`${walletTransactions.createdAt} >= ${dateFrom}::date`);
         if (dateTo) otherConds.push(sql`${walletTransactions.createdAt} < (${dateTo}::date + interval '1 day')`);
-        if (args.cashierId != null) otherConds.push(eq(walletTransactions.createdBy, args.cashierId));
+        if (args.cashierId != null) {
+            otherConds.push(eq(walletTransactions.createdBy, args.cashierId));
+        } else if (args.cashierRole) {
+            otherConds.push(inArray(walletTransactions.createdBy, db.select({ id: users.id }).from(users).where(eq(users.role, args.cashierRole))));
+        }
         if (search) {
             const pat = `%${search}%`;
             otherConds.push(or(
@@ -890,6 +903,91 @@ export async function transactionReport(args: {
         items,
         total,
         amount_total: amountTotal,
+        page: args.page,
+        pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
+}
+
+// ── Kiosk event-log report ──────────────────────────────────────────────────
+// Reads kiosk_logs (uploaded best-effort by the kiosk app — see
+// kiosk_service.ts::ingestKioskLogs). Every filter here is a plain column,
+// so this uses true SQL-level pagination (unlike transactionReport above).
+
+export interface KioskLogReportRow {
+    id: number;
+    kiosk_user_id: number;
+    kiosk_name: string;
+    ts: string;
+    level: string;
+    category: string;
+    message: string;
+    data: unknown;
+}
+
+export interface KioskLogReportResponseDTO {
+    items: KioskLogReportRow[];
+    total: number;
+    page: number;
+    pages: number;
+}
+
+export async function kioskLogReport(args: {
+    kioskUserId?: number | null;
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    level?: string | null;
+    category?: string | null;
+    page: number;
+    pageSize: number;
+}): Promise<KioskLogReportResponseDTO> {
+    const dateFrom = args.dateFrom?.trim() || null;
+    const dateTo = args.dateTo?.trim() || null;
+
+    const conds = [];
+    if (args.kioskUserId != null) conds.push(eq(kioskLogs.kioskUserId, args.kioskUserId));
+    if (dateFrom) conds.push(sql`${kioskLogs.ts} >= ${dateFrom}::date`);
+    if (dateTo) conds.push(sql`${kioskLogs.ts} < (${dateTo}::date + interval '1 day')`);
+    if (args.level) conds.push(eq(kioskLogs.level, args.level));
+    if (args.category) conds.push(eq(kioskLogs.category, args.category));
+
+    const where = conds.length > 0 ? and(...conds) : undefined;
+
+    const totalRows = await db.select({ id: kioskLogs.id }).from(kioskLogs).where(where);
+    const total = totalRows.length;
+
+    const rows = await db
+        .select({
+            id: kioskLogs.id,
+            kioskUserId: kioskLogs.kioskUserId,
+            ts: kioskLogs.ts,
+            level: kioskLogs.level,
+            category: kioskLogs.category,
+            message: kioskLogs.message,
+            data: kioskLogs.data,
+            kioskFullName: users.fullName,
+            kioskUsername: users.username,
+        })
+        .from(kioskLogs)
+        .leftJoin(users, eq(users.id, kioskLogs.kioskUserId))
+        .where(where)
+        .orderBy(desc(kioskLogs.ts))
+        .offset((args.page - 1) * args.pageSize)
+        .limit(args.pageSize);
+
+    const items: KioskLogReportRow[] = rows.map((r) => ({
+        id: r.id,
+        kiosk_user_id: r.kioskUserId,
+        kiosk_name: r.kioskFullName || r.kioskUsername || String(r.kioskUserId),
+        ts: String(r.ts),
+        level: r.level,
+        category: r.category,
+        message: r.message,
+        data: r.data,
+    }));
+
+    return {
+        items,
+        total,
         page: args.page,
         pages: Math.max(1, Math.ceil(total / args.pageSize)),
     };

@@ -10,3 +10,16 @@ export const kioskUpdateLocation = {
     }),
     detail: { tags: ["Kiosk"], summary: "Update kiosk installation location label (full_name)" },
 };
+
+export const kioskUploadLogs = {
+    body: t.Object({
+        entries: t.Array(t.Object({
+            ts: t.String(),
+            level: t.String(),
+            category: t.String(),
+            message: t.String(),
+            data: t.Optional(t.Unknown()),
+        })),
+    }),
+    detail: { tags: ["Kiosk"], summary: "Upload a batch of on-device kiosk event-log entries" },
+};

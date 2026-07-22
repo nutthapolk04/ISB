@@ -152,7 +152,7 @@ export default function WalletDetail() {
   useEffect(() => {
     if (!qrOpen || !intent) return;
     let cancelled = false;
-    const MAX_WAIT_MS = 10 * 60 * 1000;
+    const MAX_WAIT_MS = 3 * 60 * 1000;
     const POLL_INTERVAL_MS = 2_000;
     const startTime = Date.now();
     async function poll() {

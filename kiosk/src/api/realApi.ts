@@ -399,6 +399,12 @@ export const realApi = {
         return !!expected && password === expected;
     },
 
+    /** Uploads a batch of on-device event-log entries — see kioskLogUploader.ts,
+     * which calls this on an interval and tracks its own "already sent" cursor. */
+    async uploadKioskLogs(entries: Array<{ ts: string; level: string; category: string; message: string; data?: Record<string, unknown> }>): Promise<{ inserted: number }> {
+        return requestPost<{ inserted: number }>('/kiosk/logs', { entries });
+    },
+
     /**
      * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
      * Returns updated balance_after and the new transaction_id.

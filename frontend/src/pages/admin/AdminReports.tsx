@@ -24,13 +24,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown } from "lucide-react";
 import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
 import ShopPicker from "@/components/ShopPicker";
 import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
 import { PaginationBar } from "@/components/PaginationBar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-type ReportKind = "topup" | "transaction";
+type ReportKind = "topup" | "transaction" | "kiosk";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
 
 interface TopupRow {
@@ -106,6 +107,199 @@ interface AdminReportExport {
     baseFilename: string;
 }
 
+/** Shared by the Transaction Report section and the Kiosk Report's
+ * "Transaction" view — both render the same TransactionReportData shape. */
+function TransactionTable({
+    data,
+    page,
+    onPageChange,
+}: {
+    data: TransactionReportData;
+    page: number;
+    onPageChange: (p: number) => void;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+                Found <span className="font-semibold text-foreground">{data.total}</span> transactions
+                {" · "}Total{" "}
+                <span className="font-semibold text-foreground">
+                    ฿{data.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </span>
+            </div>
+            <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-xs">
+                    <thead className="bg-muted/50 whitespace-nowrap">
+                        <tr>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colType", "Type")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerId")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerName")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colPaymentMethod")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colShop")}</th>
+                            <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colStatus")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.length === 0 ? (
+                            <tr>
+                                <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">
+                                    No transactions match these filters.
+                                </td>
+                            </tr>
+                        ) : (
+                            data.items.map((r) => (
+                                <tr key={`${r.kind}-${r.id}`} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                    <td className="px-2 py-1.5">
+                                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", TXN_KIND_COLORS[r.kind])}>
+                                            {TXN_KIND_LABEL[r.kind]}
+                                        </span>
+                                    </td>
+                                    <td className="px-2 py-1.5 font-mono">{r.payer_id}</td>
+                                    <td className="px-2 py-1.5">{r.payer_name}</td>
+                                    <td className="px-2 py-1.5">{r.payment_method || "—"}</td>
+                                    <td className="px-2 py-1.5">{r.shop_name}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                                    <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
+                                    <td className="px-2 py-1.5">
+                                        {r.status === "ACTIVE" ? (
+                                            <span className="text-muted-foreground">Active</span>
+                                        ) : (
+                                            <span className="font-semibold text-destructive">Voided</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    {data.items.length > 0 && (
+                        <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                            <tr className="border-t">
+                                <td colSpan={6} className="px-2 py-2 text-left">TOTAL (sales only)</td>
+                                <td className="px-2 py-2 text-right font-mono">{data.amount_total.toFixed(2)}</td>
+                                <td colSpan={2} />
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+            <div className="flex justify-center">
+                <PaginationBar currentPage={page} totalPages={data.pages} onPageChange={onPageChange} />
+            </div>
+        </div>
+    );
+}
+
+interface KioskLogRow {
+    id: number;
+    kiosk_user_id: number;
+    kiosk_name: string;
+    ts: string;
+    level: string;
+    category: string;
+    message: string;
+    data: unknown;
+}
+
+interface KioskLogReportData {
+    items: KioskLogRow[];
+    total: number;
+    page: number;
+    pages: number;
+}
+
+const KIOSK_LEVEL_COLORS: Record<string, string> = {
+    info: "bg-blue-100 text-blue-800",
+    warn: "bg-amber-100 text-amber-800",
+    error: "bg-red-100 text-red-800",
+};
+
+function KioskLogDataCell({ data }: { data: unknown }) {
+    const [open, setOpen] = useState(false);
+    if (data == null) return <span className="text-muted-foreground">—</span>;
+    return (
+        <Collapsible open={open} onOpenChange={setOpen}>
+            <CollapsibleTrigger asChild>
+                <button type="button" className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                    <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+                    {open ? "Hide" : "View"}
+                </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <pre className="mt-1 max-w-xs whitespace-pre-wrap break-all rounded bg-muted p-1.5 text-[10px]">
+                    {JSON.stringify(data, null, 2)}
+                </pre>
+            </CollapsibleContent>
+        </Collapsible>
+    );
+}
+
+/** Kiosk Report's "Event log" view — reads the on-device log entries the
+ * kiosk app uploads best-effort (kiosk/src/lib/kioskLogUploader.ts). */
+function KioskEventTable({
+    data,
+    page,
+    onPageChange,
+}: {
+    data: KioskLogReportData;
+    page: number;
+    onPageChange: (p: number) => void;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+                Found <span className="font-semibold text-foreground">{data.total}</span> event log entries
+            </div>
+            <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-xs">
+                    <thead className="bg-muted/50 whitespace-nowrap">
+                        <tr>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colKiosk", "Kiosk")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colLevel", "Level")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colCategory", "Category")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colMessage", "Message")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colData", "Data")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
+                                    No event log entries match these filters.
+                                </td>
+                            </tr>
+                        ) : (
+                            data.items.map((r) => (
+                                <tr key={r.id} className="border-t align-top">
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.ts.slice(0, 19).replace("T", " ")}</td>
+                                    <td className="px-2 py-1.5">{r.kiosk_name}</td>
+                                    <td className="px-2 py-1.5">
+                                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase", KIOSK_LEVEL_COLORS[r.level] ?? "bg-gray-100 text-gray-700")}>
+                                            {r.level}
+                                        </span>
+                                    </td>
+                                    <td className="px-2 py-1.5">{r.category}</td>
+                                    <td className="px-2 py-1.5 max-w-md">{r.message}</td>
+                                    <td className="px-2 py-1.5"><KioskLogDataCell data={r.data} /></td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            <div className="flex justify-center">
+                <PaginationBar currentPage={page} totalPages={data.pages} onPageChange={onPageChange} />
+            </div>
+        </div>
+    );
+}
+
 export default function AdminReports() {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -121,6 +315,8 @@ export default function AdminReports() {
 
     const [topupData, setTopupData] = useState<TopupReportData | null>(null);
     const [txnData, setTxnData] = useState<TransactionReportData | null>(null);
+    const [kioskEventData, setKioskEventData] = useState<KioskLogReportData | null>(null);
+    const [kioskTxnData, setKioskTxnData] = useState<TransactionReportData | null>(null);
 
     // Top-up Report filters
     const [toppedByValue, setToppedByValue] = useState<CardholderPickerValue | null>(null);
@@ -137,6 +333,12 @@ export default function AdminReports() {
     const [txnShopName, setTxnShopName] = useState<string | null>(null);
     const [txnType, setTxnType] = useState<string>("all");
     const [txnPage, setTxnPage] = useState(1);
+
+    // Kiosk Report filters
+    const [kioskDevice, setKioskDevice] = useState<StaffPickerUser | null>(null);
+    const [kioskLogType, setKioskLogType] = useState<"all" | "event" | "transaction">("all");
+    const [kioskEventPage, setKioskEventPage] = useState(1);
+    const [kioskTxnPage, setKioskTxnPage] = useState(1);
 
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
@@ -155,9 +357,15 @@ export default function AdminReports() {
         setTxnShopName(null);
         setTxnType("all");
         setTxnPage(1);
+        setKioskDevice(null);
+        setKioskLogType("all");
+        setKioskEventPage(1);
+        setKioskTxnPage(1);
         setSearched(false);
         setTopupData(null);
         setTxnData(null);
+        setKioskEventData(null);
+        setKioskTxnData(null);
     };
 
     /** Shared filter params for Transaction Report — page is separate since
@@ -194,6 +402,86 @@ export default function AdminReports() {
         }
     };
 
+    /** Kiosk Report — "Event log" view params. Reuses date range; kioskDevice
+     * null means "all kiosks" (the endpoint just omits kiosk_user_id). */
+    const buildKioskEventParams = (page: number, pageSize: number) => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        if (kioskDevice) params.set("kiosk_user_id", String(kioskDevice.id));
+        params.set("page", String(page));
+        params.set("page_size", String(pageSize));
+        return params;
+    };
+
+    /** Kiosk Report — "Transaction" view params. A specific device filters by
+     * cashier_id (exact match, same as the main Transaction Report); "All
+     * kiosks" uses cashier_role=kiosk instead (backend-side subquery over
+     * every kiosk-role user, see admin_reports_service.ts::transactionReport). */
+    const buildKioskTxnParams = (page: number, pageSize: number) => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        if (kioskDevice) params.set("cashier_id", String(kioskDevice.id));
+        else params.set("cashier_role", "kiosk");
+        params.set("page", String(page));
+        params.set("page_size", String(pageSize));
+        return params;
+    };
+
+    const fetchKioskEvent = async (page: number) => {
+        const params = buildKioskEventParams(page, TXN_PAGE_SIZE);
+        const data = await api.get<KioskLogReportData>(`/admin/kiosk-logs?${params.toString()}`);
+        setKioskEventData(data);
+        setKioskEventPage(data.page);
+    };
+
+    const fetchKioskTxn = async (page: number) => {
+        const params = buildKioskTxnParams(page, TXN_PAGE_SIZE);
+        const data = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
+        setKioskTxnData(data);
+        setKioskTxnPage(data.page);
+    };
+
+    const onKioskEventPageChange = async (page: number) => {
+        try {
+            await fetchKioskEvent(page);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        }
+    };
+
+    const onKioskTxnPageChange = async (page: number) => {
+        try {
+            await fetchKioskTxn(page);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        }
+    };
+
+    const loadKioskReport = async () => {
+        setLoading(true);
+        try {
+            const tasks: Promise<void>[] = [];
+            if (kioskLogType === "all" || kioskLogType === "event") {
+                tasks.push(fetchKioskEvent(1));
+            } else {
+                setKioskEventData(null);
+            }
+            if (kioskLogType === "all" || kioskLogType === "transaction") {
+                tasks.push(fetchKioskTxn(1));
+            } else {
+                setKioskTxnData(null);
+            }
+            await Promise.all(tasks);
+            setSearched(true);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSearch = async () => {
         // Top-up report still requires an explicit date range; Transaction
         // Report's filters (including date) are all independently optional —
@@ -204,6 +492,10 @@ export default function AdminReports() {
         }
         if (selected === "transaction") {
             await loadTransactionPage(1);
+            return;
+        }
+        if (selected === "kiosk") {
+            await loadKioskReport();
             return;
         }
         setLoading(true);
@@ -246,20 +538,39 @@ export default function AdminReports() {
             if (txnShopName) lines.push(`Shop: ${txnShopName}`);
             if (txnType !== "all") lines.push(`Type: ${TXN_KIND_LABEL[txnType as TransactionKind] ?? txnType}`);
         }
+        if (selected === "kiosk") {
+            lines.push(`Kiosk: ${kioskDevice ? (kioskDevice.full_name || kioskDevice.username) : "All kiosks"}`);
+            lines.push(`Log type: ${kioskLogType === "all" ? "All" : kioskLogType === "event" ? "Event log" : "Transaction"}`);
+        }
         return lines;
     };
 
-    /** Builds the export payload. Top-up Report exports whatever is already
-     * on screen (never paginated). Transaction Report is paginated on
-     * screen, so export re-fetches every row matching the current filters
-     * (capped at TXN_EXPORT_PAGE_SIZE) — otherwise exporting would silently
-     * only cover whichever page happened to be showing. */
-    const buildPayload = async (): Promise<AdminReportExport | null> => {
+    /** Builds the export payload(s) — an array since the Kiosk Report can
+     * have two independent sections on screen at once (Event log +
+     * Transaction), each becoming its own file. Top-up Report exports
+     * whatever is already on screen (never paginated). Transaction/Kiosk
+     * Reports are paginated on screen, so export re-fetches every row
+     * matching the current filters (capped at TXN_EXPORT_PAGE_SIZE) —
+     * otherwise exporting would silently only cover whichever page happened
+     * to be showing. */
+    const buildPayload = async (): Promise<AdminReportExport[] | null> => {
         const filters = buildFilterLines();
         const dateLabel = `_${dateFrom}_${dateTo}`;
 
+        const transactionColumns = [
+            { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime" as const, width: 20 },
+            { header: t("admin.adminReports.colType", "Type"), key: "kind_label", width: 12 },
+            { header: t("admin.adminReports.colPayerId"), key: "payer_id", width: 14 },
+            { header: t("admin.adminReports.colPayerName"), key: "payer_name", width: 24 },
+            { header: t("admin.adminReports.colPaymentMethod"), key: "payment_method", width: 14 },
+            { header: t("admin.adminReports.colShop"), key: "shop_name", width: 20 },
+            { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency" as const, align: "right" as const, width: 14 },
+            { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
+            { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
+        ];
+
         if (selected === "topup" && topupData) {
-            return {
+            return [{
                 payload: {
                     meta: {
                         title: t("admin.adminReports.topupReport"),
@@ -285,13 +596,13 @@ export default function AdminReports() {
                     totals: { amount: topupData.amount_total },
                 },
                 baseFilename: `TopupReport${dateLabel}`,
-            };
+            }];
         }
 
         if (selected === "transaction" && txnData) {
             const params = buildTxnParams(1, TXN_EXPORT_PAGE_SIZE);
             const full = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
-            return {
+            return [{
                 payload: {
                     meta: {
                         title: t("admin.adminReports.transactionReport"),
@@ -301,22 +612,67 @@ export default function AdminReports() {
                         filters,
                         runByName: user?.fullName ?? user?.username,
                     },
-                    columns: [
-                        { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
-                        { header: t("admin.adminReports.colType", "Type"), key: "kind_label", width: 12 },
-                        { header: t("admin.adminReports.colPayerId"), key: "payer_id", width: 14 },
-                        { header: t("admin.adminReports.colPayerName"), key: "payer_name", width: 24 },
-                        { header: t("admin.adminReports.colPaymentMethod"), key: "payment_method", width: 14 },
-                        { header: t("admin.adminReports.colShop"), key: "shop_name", width: 20 },
-                        { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
-                        { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
-                        { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
-                    ],
+                    columns: transactionColumns,
                     rows: full.items.map((r) => ({ ...r, kind_label: TXN_KIND_LABEL[r.kind] })) as unknown as Record<string, unknown>[],
                     totals: { amount: full.amount_total },
                 },
                 baseFilename: `TransactionReport${dateLabel}`,
-            };
+            }];
+        }
+
+        if (selected === "kiosk" && (kioskEventData || kioskTxnData)) {
+            const exports: AdminReportExport[] = [];
+            const kioskLabel = kioskDevice ? (kioskDevice.full_name || kioskDevice.username) : "AllKiosks";
+
+            if (kioskEventData) {
+                const params = buildKioskEventParams(1, TXN_EXPORT_PAGE_SIZE);
+                const full = await api.get<KioskLogReportData>(`/admin/kiosk-logs?${params.toString()}`);
+                exports.push({
+                    payload: {
+                        meta: {
+                            title: t("admin.adminReports.kioskEventLogReport", "Kiosk Event Log"),
+                            schoolName: school.name,
+                            schoolLogoUrl: school.logoUrl || undefined,
+                            reportId: "ISB-ADM-KIOSK-LOG",
+                            filters,
+                            runByName: user?.fullName ?? user?.username,
+                        },
+                        columns: [
+                            { header: t("admin.adminReports.colDateTime"), key: "ts", format: "datetime", width: 20 },
+                            { header: t("admin.adminReports.colKiosk", "Kiosk"), key: "kiosk_name", width: 20 },
+                            { header: t("admin.adminReports.colLevel", "Level"), key: "level", width: 10 },
+                            { header: t("admin.adminReports.colCategory", "Category"), key: "category", width: 12 },
+                            { header: t("admin.adminReports.colMessage", "Message"), key: "message", width: 40 },
+                            { header: t("admin.adminReports.colData", "Data"), key: "data_json", width: 40 },
+                        ],
+                        rows: full.items.map((r) => ({ ...r, data_json: r.data ? JSON.stringify(r.data) : "" })) as unknown as Record<string, unknown>[],
+                    },
+                    baseFilename: `KioskEventLog_${kioskLabel}${dateLabel}`,
+                });
+            }
+
+            if (kioskTxnData) {
+                const params = buildKioskTxnParams(1, TXN_EXPORT_PAGE_SIZE);
+                const full = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
+                exports.push({
+                    payload: {
+                        meta: {
+                            title: t("admin.adminReports.kioskTransactionReport", "Kiosk Transactions"),
+                            schoolName: school.name,
+                            schoolLogoUrl: school.logoUrl || undefined,
+                            reportId: "ISB-ADM-KIOSK-TXN",
+                            filters,
+                            runByName: user?.fullName ?? user?.username,
+                        },
+                        columns: transactionColumns,
+                        rows: full.items.map((r) => ({ ...r, kind_label: TXN_KIND_LABEL[r.kind] })) as unknown as Record<string, unknown>[],
+                        totals: { amount: full.amount_total },
+                    },
+                    baseFilename: `KioskTransactions_${kioskLabel}${dateLabel}`,
+                });
+            }
+
+            return exports;
         }
 
         return null;
@@ -325,9 +681,11 @@ export default function AdminReports() {
     const handleExportExcel = async () => {
         setExporting(true);
         try {
-            const result = await buildPayload();
-            if (!result) return;
-            exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
+            const results = await buildPayload();
+            if (!results) return;
+            for (const result of results) {
+                exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
+            }
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
             toast.error(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
@@ -339,9 +697,11 @@ export default function AdminReports() {
     const handleExportPdf = async () => {
         setExporting(true);
         try {
-            const result = await buildPayload();
-            if (!result) return;
-            await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
+            const results = await buildPayload();
+            if (!results) return;
+            for (const result of results) {
+                await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
+            }
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
             toast.error(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : t("shopUsers.errorGeneric"));
@@ -363,9 +723,18 @@ export default function AdminReports() {
             title: t("admin.adminReports.transactionReport"),
             desc: t("admin.adminReports.transactionReportDesc"),
         },
+        {
+            kind: "kiosk" as const,
+            icon: Monitor,
+            title: t("admin.adminReports.kioskReport", "Kiosk Report"),
+            desc: t("admin.adminReports.kioskReportDesc", "Per-device event log and top-up/transaction activity for kiosk terminals"),
+        },
     ];
 
-    const hasData = selected === "topup" ? !!topupData : selected === "transaction" ? !!txnData : false;
+    const hasData = selected === "topup" ? !!topupData
+        : selected === "transaction" ? !!txnData
+            : selected === "kiosk" ? !!(kioskEventData || kioskTxnData)
+                : false;
 
     return (
         <div className="page-shell">
@@ -406,8 +775,8 @@ export default function AdminReports() {
                 <Card className="mt-6">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" /> : <Receipt className="h-5 w-5 text-primary" />}
-                            {selected === "topup" ? t("admin.adminReports.topupReport") : t("admin.adminReports.transactionReport")}
+                            {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" /> : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" /> : <Monitor className="h-5 w-5 text-primary" />}
+                            {selected === "topup" ? t("admin.adminReports.topupReport") : selected === "transaction" ? t("admin.adminReports.transactionReport") : t("admin.adminReports.kioskReport", "Kiosk Report")}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
                     </CardHeader>
@@ -531,6 +900,31 @@ export default function AdminReports() {
                                     </div>
                                 </>
                             )}
+                            {selected === "kiosk" && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.kioskDeviceFilter", "Kiosk device")}</Label>
+                                        <UserPicker
+                                            value={kioskDevice?.id ?? null}
+                                            onChange={(_, u) => setKioskDevice(u)}
+                                            roles={["kiosk"]}
+                                            allowNone
+                                            placeholder={t("admin.adminReports.allKiosks", "All kiosks")}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.logTypeFilter", "Log type")}</Label>
+                                        <Select value={kioskLogType} onValueChange={(v) => setKioskLogType(v as typeof kioskLogType)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">{t("admin.adminReports.logTypeAll", "All")}</SelectItem>
+                                                <SelectItem value="event">{t("admin.adminReports.logTypeEvent", "Event log")}</SelectItem>
+                                                <SelectItem value="transaction">{t("admin.adminReports.logTypeTransaction", "Transaction")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -608,80 +1002,13 @@ export default function AdminReports() {
                         )}
 
                         {searched && selected === "transaction" && txnData && (
-                            <div className="space-y-3">
-                                <div className="text-sm text-muted-foreground">
-                                    Found <span className="font-semibold text-foreground">{txnData.total}</span> transactions
-                                    {" · "}Total{" "}
-                                    <span className="font-semibold text-foreground">
-                                        ฿{txnData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                                    </span>
-                                </div>
-                                <div className="overflow-x-auto rounded-md border">
-                                    <table className="w-full text-xs">
-                                        <thead className="bg-muted/50 whitespace-nowrap">
-                                            <tr>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colType", "Type")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerId")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerName")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colPaymentMethod")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colShop")}</th>
-                                                <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colStatus")}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {txnData.items.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">
-                                                        No transactions match these filters.
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                txnData.items.map((r) => (
-                                                    <tr key={`${r.kind}-${r.id}`} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
-                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
-                                                        <td className="px-2 py-1.5">
-                                                            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", TXN_KIND_COLORS[r.kind])}>
-                                                                {TXN_KIND_LABEL[r.kind]}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-2 py-1.5 font-mono">{r.payer_id}</td>
-                                                        <td className="px-2 py-1.5">{r.payer_name}</td>
-                                                        <td className="px-2 py-1.5">{r.payment_method || "—"}</td>
-                                                        <td className="px-2 py-1.5">{r.shop_name}</td>
-                                                        <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
-                                                        <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
-                                                        <td className="px-2 py-1.5">
-                                                            {r.status === "ACTIVE" ? (
-                                                                <span className="text-muted-foreground">Active</span>
-                                                            ) : (
-                                                                <span className="font-semibold text-destructive">Voided</span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                        {txnData.items.length > 0 && (
-                                            <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
-                                                <tr className="border-t">
-                                                    <td colSpan={6} className="px-2 py-2 text-left">TOTAL (sales only)</td>
-                                                    <td className="px-2 py-2 text-right font-mono">{txnData.amount_total.toFixed(2)}</td>
-                                                    <td colSpan={2} />
-                                                </tr>
-                                            </tfoot>
-                                        )}
-                                    </table>
-                                </div>
-                                <div className="flex justify-center">
-                                    <PaginationBar
-                                        currentPage={txnPage}
-                                        totalPages={txnData.pages}
-                                        onPageChange={(p) => loadTransactionPage(p)}
-                                    />
-                                </div>
+                            <TransactionTable data={txnData} page={txnPage} onPageChange={(p) => loadTransactionPage(p)} />
+                        )}
+
+                        {searched && selected === "kiosk" && (kioskEventData || kioskTxnData) && (
+                            <div className="space-y-6">
+                                {kioskEventData && <KioskEventTable data={kioskEventData} page={kioskEventPage} onPageChange={onKioskEventPageChange} />}
+                                {kioskTxnData && <TransactionTable data={kioskTxnData} page={kioskTxnPage} onPageChange={onKioskTxnPageChange} />}
                             </div>
                         )}
                     </CardContent>

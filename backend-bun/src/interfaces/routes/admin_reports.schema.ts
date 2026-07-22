@@ -48,8 +48,25 @@ export const adminTransactionReport = {
         shop_id: t.Optional(t.Nullable(t.String())),
         /** all | sale | adjustment | topup | transfer */
         type: t.Optional(t.Nullable(t.String())),
+        /** Restricts to createdBy IN (users where role = this) when no
+         * specific cashier_id is given — used by the Kiosk Report's
+         * "All kiosks" transaction view (cashier_role=kiosk). */
+        cashier_role: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["Reports"], summary: "Transaction report — every wallet-affecting event (sale, adjustment, top-up, transfer)" },
+};
+
+export const adminKioskLogReport = {
+    query: t.Object({
+        kiosk_user_id: t.Optional(t.Nullable(t.String())),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        level: t.Optional(t.Nullable(t.String())),
+        category: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: { tags: ["Reports"], summary: "Kiosk device event-log report" },
 };
