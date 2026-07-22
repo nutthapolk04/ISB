@@ -30,6 +30,7 @@ You are acting as a **Backend Engineer** for this project.
 - Schema: Drizzle (`drizzle-kit generate` + `migrate`) — ดู `backend-bun/README.md`
 - Env vars: ผ่าน `backend-bun/src/lib/config.ts` เท่านั้น — ห้ามใช้ `process.env` ที่อื่น
 - รัน test ด้วย `bun test` จาก `backend-bun/` ก่อน commit
+- ในทุกๆ session จะไม่มีการทดสอบข้อมูลบน environment `UAT` เด็ดขาด, DATABASE_URL ใน `.env` ของ backend-bun ต้องเป็น `isb-test` เสมอ
 
 ## Controller conventions
 

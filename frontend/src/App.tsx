@@ -273,8 +273,11 @@ const App = () => {
                           <Route element={<RequireRole roles={['admin', 'manager']} />}>
                             <Route path="/canteen/management" element={<CanteenManagementOverview />} />
                             <Route path="/canteen/management/:shopId" element={<CanteenShopDetail />} />
-                            <Route path="/canteen/reports" element={<Reports />} />
                             <Route path="/canteen/audit-logs" element={<AuditLogList />} />
+                          </Route>
+                          {/* Canteen reports — admin + manager + finance (finance is read-only, school-wide) */}
+                          <Route element={<RequireRole roles={['admin', 'manager', 'finance']} />}>
+                            <Route path="/canteen/reports" element={<Reports />} />
                           </Route>
                         </Route>
 
@@ -297,8 +300,11 @@ const App = () => {
                           {/* Legacy redirect — Store Users merged into /users */}
                           <Route path="/store/users" element={<Navigate to="/users" replace />} />
                           <Route element={<RequireRole roles={['admin', 'manager', 'cashier']} />}>
-                            <Route path="/store/reports" element={<Reports />} />
                             <Route path="/store/audit-logs" element={<AuditLogList />} />
+                          </Route>
+                          {/* Store reports — admin + manager + cashier + finance (finance is read-only, school-wide) */}
+                          <Route element={<RequireRole roles={['admin', 'manager', 'cashier', 'finance']} />}>
+                            <Route path="/store/reports" element={<Reports />} />
                           </Route>
                           <Route element={<RequireRole roles={['admin']} />}>
                             <Route path="/store/balance-file" element={<BalanceFileReport />} />
@@ -335,6 +341,10 @@ const App = () => {
                           <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                           <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
                           <Route path="/admin/department/:departmentId" element={<DepartmentDetail />} />
+                        </Route>
+
+                        {/* Wallet reports — admin + finance (finance is read-only reporting, no wallet-adjust/transfer access) */}
+                        <Route element={<RequireRole roles={['admin', 'finance']} />}>
                           <Route path="/admin/reports" element={<AdminReports />} />
                         </Route>
 

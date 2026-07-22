@@ -71,7 +71,7 @@ const menuGroups: MenuGroup[] = [
         labelKey: "nav.groupReports",
         module: null,
         items: [
-            { titleKey: "nav.adminReports", url: "/admin/reports", icon: BarChart3, roles: ["admin"] },
+            { titleKey: "nav.adminReports", url: "/admin/reports", icon: BarChart3, roles: ["admin", "finance"] },
         ],
     },
     {
@@ -102,7 +102,7 @@ const menuGroups: MenuGroup[] = [
             { titleKey: "nav.canteenPos", url: "/canteen", icon: UtensilsCrossed, roles: ["manager", "cashier"] },
             { titleKey: "nav.canteenReceipts", url: "/canteen/receipts", icon: Receipt, roles: ["manager", "cashier", "admin"] },
             { titleKey: "nav.canteenProducts", url: "/canteen/products", icon: Package, roles: ["manager"] },
-            { titleKey: "nav.canteenReports", url: "/canteen/reports", icon: BarChart3, roles: ["admin", "manager"] },
+            { titleKey: "nav.canteenReports", url: "/canteen/reports", icon: BarChart3, roles: ["admin", "manager", "finance"] },
         ],
     },
     {
@@ -122,7 +122,7 @@ const menuGroups: MenuGroup[] = [
             { titleKey: "nav.storeReceipts", url: "/store/receipts", icon: Receipt, roles: ["manager", "cashier", "admin"] },
             // { titleKey: "nav.storeReturns",    url: "/store/returns",        icon: RefreshCw,   roles: ["manager", "cashier", "admin"] },
             // { titleKey: "nav.storeReturnHist", url: "/store/return-history", icon: History,     roles: ["manager", "cashier", "admin"] },
-            { titleKey: "nav.storeReports", url: "/store/reports", icon: BarChart3, roles: ["admin", "manager", "cashier"] },
+            { titleKey: "nav.storeReports", url: "/store/reports", icon: BarChart3, roles: ["admin", "manager", "cashier", "finance"] },
             { titleKey: "nav.storeBalanceFile", url: "/store/balance-file", icon: BookOpen, roles: ["admin"] },
         ],
     },
@@ -182,7 +182,10 @@ export function AppSidebar() {
         if (location.pathname === "/" && allRoles.length > 1) return false;
         if (g.module === null) return true; // gated at per-item role level
         if (!user) return false;
-        if (activeRole === "admin") return true;
+        // finance is a read-only, school-wide reporting role with no shop of
+        // its own — bypass module-gating like admin (the per-item roles
+        // list below still limits it to just the Reports item in each group).
+        if (activeRole === "admin" || activeRole === "finance") return true;
         // Hide shop/canteen nav when user is on Hub or parent/wallet pages
         if (location.pathname === "/" || location.pathname.startsWith("/parent")) return false;
         return (user.shopModule ?? moduleOf(user.shopId)) === g.module;

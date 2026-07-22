@@ -9,7 +9,10 @@ export function RequireModule({ module }: RequireModuleProps) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   const activeRole = user.activeRole ?? user.role;
-  if (activeRole === "admin") return <Outlet />;
+  // finance is a read-only, school-wide reporting role with no shop of its
+  // own — bypass module-gating the same way admin does, rather than
+  // redirecting a shopless user to /parent/dashboard below.
+  if (activeRole === "admin" || activeRole === "finance") return <Outlet />;
   // Users without shop access (pure parent/staff) belong on /parent/dashboard.
   // Multi-role users with shopId (e.g. parent+manager) stay on the module route
   // even when activeRole=parent — capability, not mode, decides access.

@@ -95,6 +95,7 @@ export default function HomeHub() {
     if (!isMulti) {
         const role = user.activeRole ?? user.role;
         if (role === "admin") return <Navigate to="/admin" replace />;
+        if (role === "finance") return <Navigate to="/admin/reports" replace />;
         if (role === "parent" || role === "staff") return <Navigate to="/parent/dashboard" replace />;
         const userModule = user.shopModule ?? moduleOf(user.shopId);
         if (userModule === "canteen") return <Navigate to="/canteen" replace />;
