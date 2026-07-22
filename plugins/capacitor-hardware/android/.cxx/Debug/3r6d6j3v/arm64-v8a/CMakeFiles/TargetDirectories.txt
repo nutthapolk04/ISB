@@ -1,0 +1,3 @@
+/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/.cxx/Debug/3r6d6j3v/arm64-v8a/CMakeFiles/okontek_serial.dir
+/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/.cxx/Debug/3r6d6j3v/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/.cxx/Debug/3r6d6j3v/arm64-v8a/CMakeFiles/rebuild_cache.dir

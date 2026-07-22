@@ -1,0 +1,1 @@
+/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/src/main/cpp/CMakeLists.txt
