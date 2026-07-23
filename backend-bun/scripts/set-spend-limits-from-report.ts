@@ -51,10 +51,15 @@
  */
 
 import { eq, inArray } from "drizzle-orm";
-import * as path from "path";
+import * as path from "node:path";
 import * as XLSX from "xlsx";
 import { customers } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
+import {
+    classifyGradeTier,
+    HIGH_TIER_LIMITS,
+    LOW_TIER_LIMITS,
+} from "../src/services/grade_spending_limits";
 
 // ── CLI ──────────────────────────────────────────────────────────────────
 
@@ -93,28 +98,8 @@ const CATEGORY_MAP: Record<string, LimitCategory> = {
 
 // ── grade-tier default (see header doc comment) ─────────────────────────────
 
-type GradeTier = "low" | "high";
-
-const LOW_TIER_DEFAULT = 0.1;
-const HIGH_TIER_DEFAULT = { canteen: 500, store: 25000 } as const;
-
-// Real ISB payloads use zero-padded numeric grades ("00".."12") and, so far,
-// only "K0"/"K1" for kindergarten — accepting the "K00"/"K01" padded form too
-// since that's how this rule was specified, in case either shows up.
-const LOW_TIER_KINDERGARTEN = new Set(["K0", "K00", "K1", "K01"]);
-
-/** Returns null (never guessed) for anything that isn't cleanly K0/K1/00-12 —
- * callers must skip-and-report rather than assume a tier for those. */
-function classifyGradeTier(gradeRaw: string | null): GradeTier | null {
-    if (!gradeRaw) return null;
-    const grade = gradeRaw.trim().toUpperCase();
-    if (LOW_TIER_KINDERGARTEN.has(grade)) return "low";
-    if (!/^\d+$/.test(grade)) return null;
-    const num = Number(grade);
-    if (num >= 0 && num <= 4) return "low";
-    if (num >= 5 && num <= 12) return "high";
-    return null;
-}
+const LOW_TIER_DEFAULT = LOW_TIER_LIMITS.canteen;
+const HIGH_TIER_DEFAULT = HIGH_TIER_LIMITS;
 
 function readLimitRows(inputPath: string): LimitRow[] {
     const wb = XLSX.readFile(inputPath, { raw: true });

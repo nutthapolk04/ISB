@@ -44,6 +44,11 @@ interface Transaction {
     confirmed_via?: string | null;
     is_voided?: boolean;
     receipt_number?: string | null;
+    // Reclassifies transaction_type — a cash top-up at a Kiosk or POS cashier
+    // is stored as transaction_type "ADJUSTMENT" server-side, indistinguishable
+    // from a genuine manual balance correction without this (see
+    // wallet_tx_classify.ts on the backend).
+    kind?: "adjustment" | "topup" | "transfer" | "other";
     created_at: string;
 }
 
@@ -89,18 +94,25 @@ export default function TransactionHistory() {
             deduction: t("parent.transactions.txDeduction"),
             REFUND: t("parent.transactions.txRefund"),
             refund: t("parent.transactions.txRefund"),
-            ADJUSTMENT_CREDIT: t("parent.transactions.txAdjCredit"),
-            ADJUSTMENT_DEBIT: t("parent.transactions.txAdjDebit"),
         };
         return map[type] ?? type;
     };
 
     // A void refund names the receipt it reverses instead of a generic
     // "Refund" label, so it visually pairs with the original purchase row.
-    const rowLabel = (tx: Transaction): string =>
-        tx.reference_type === "receipt_void"
-            ? t("parent.transactions.txVoidRefund", { receipt: tx.receipt_number ?? "—" })
-            : txTypeLabel(tx.transaction_type);
+    const rowLabel = (tx: Transaction): string => {
+        if (tx.reference_type === "receipt_void") {
+            return t("parent.transactions.txVoidRefund", { receipt: tx.receipt_number ?? "—" });
+        }
+        // `kind` reclassifies a cash top-up at a Kiosk/POS cashier — the raw
+        // transaction_type is "ADJUSTMENT" for those (see Transaction.kind).
+        if (tx.kind === "topup") return t("parent.transactions.txTopup");
+        if (tx.kind === "adjustment") {
+            const isCredit = tx.balance_after >= tx.balance_before;
+            return isCredit ? t("parent.transactions.txAdjCredit") : t("parent.transactions.txAdjDebit");
+        }
+        return txTypeLabel(tx.transaction_type);
+    };
 
     const loadTransactions = async (walletId: number) => {
         const params = new URLSearchParams();
@@ -230,7 +242,7 @@ export default function TransactionHistory() {
             return `
         <tr>
           <td>${formatDate(tx.created_at)}</td>
-          <td>${txTypeLabel(tx.transaction_type)}</td>
+          <td>${rowLabel(tx)}</td>
           <td>${tx.shop_name ?? ""}</td>
           <td>${tx.description ?? ""}</td>
           <td style="text-align:right;font-weight:600;color:${isCredit ? "#16a34a" : "#dc2626"}">${isCredit ? "+" : "-"}${formatTHB(Math.abs(tx.amount))}</td>

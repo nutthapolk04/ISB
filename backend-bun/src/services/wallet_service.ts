@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
+import { classifyWalletTxKind } from "@/services/wallet_tx_classify";
 
 const MAX_WALLET_BALANCE = 50_000;
 const WALLET_USER_ROLES = new Set(["parent", "staff", "cashier", "manager", "kitchen", "admin"]);
@@ -68,6 +69,12 @@ export interface WalletTransactionResponseDTO {
     // The receipt number for 'receipt'/'receipt_void' rows, so a refund row
     // can be labeled "Void — Receipt #..." instead of a generic "Refund".
     receipt_number: string | null;
+    // Reclassifies the raw transaction_type — a cash top-up at a Kiosk or POS
+    // cashier is stored as transaction_type='ADJUSTMENT' (see adjustBalance()
+    // below), indistinguishable from a genuine manual balance correction
+    // without this. Only set by listTransactions(); other DTO construction
+    // sites here return a transaction the caller already knows the kind of.
+    kind?: "adjustment" | "topup" | "transfer" | "other";
     created_at: string;
 }
 
@@ -385,6 +392,11 @@ export async function listTransactions(
                 : null,
             is_voided: !!isVoided,
             receipt_number: isReceiptTx ? (receiptShop?.receiptNumber ?? null) : null,
+            kind: classifyWalletTxKind({
+                transactionType: t.transactionType,
+                referenceType: t.referenceType ?? null,
+                reason: t.reason ?? null,
+            }),
             created_at: pgToIso(t.createdAt)!,
         };
     });

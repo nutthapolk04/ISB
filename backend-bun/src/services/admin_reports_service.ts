@@ -16,6 +16,7 @@ import {
     kioskLogs,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { classifyWalletTxKind, classifyTopupChannel, type TopupChannel } from "@/services/wallet_tx_classify";
 
 export interface AdjustmentReportRow {
     id: number;
@@ -290,8 +291,6 @@ export async function transferReport(args: {
 
 // ── Top-up report ──────────────────────────────────────────────────────────
 
-export type TopupChannel = "kiosk" | "online" | "cashier";
-
 export interface TopupReportRow {
     id: number;
     created_at: string;
@@ -312,25 +311,6 @@ export interface TopupReportResponseDTO {
     amount_total: number;
     page: number;
     pages: number;
-}
-
-function classifyTopupChannel(opts: {
-    transactionType: string;
-    reason: string | null;
-    description: string | null;
-    creatorRole: string | null;
-}): TopupChannel {
-    const text = `${opts.reason ?? ""} ${opts.description ?? ""}`;
-    const role = (opts.creatorRole ?? "").toLowerCase();
-    if (role === "kiosk" || /kiosk\s*top-?up/i.test(text)) return "kiosk";
-    if (role === "parent") return "online";
-    if (opts.transactionType === "ADJUSTMENT" && /^Cash top-up at POS/i.test(opts.reason ?? "")) {
-        return "cashier";
-    }
-    if (["cashier", "manager", "admin", "staff", "kitchen"].includes(role)) return "cashier";
-    // Gateway TOPUP without a parent role — treat as online (parent portal / card).
-    if (opts.transactionType === "TOPUP") return "online";
-    return "cashier";
 }
 
 function kioskDisplayName(reason: string | null, creatorName: string): string {
@@ -618,29 +598,6 @@ export interface TransactionReportResponseDTO {
     amount_total: number;
     page: number;
     pages: number;
-}
-
-const CASH_TOPUP_REASON_RE = /^Cash top-up at POS/i;
-
-/** Every kind of wallet-affecting event this report can show. `sale` covers
- * both a POS sale and its later void/refund (see wallet_service.ts's own
- * 'receipt' / 'receipt_void' distinction). */
-function classifyWalletTxKind(tx: {
-    transactionType: string;
-    referenceType: string | null;
-    reason: string | null;
-}): "adjustment" | "topup" | "transfer" | "other" {
-    if (tx.referenceType === "family_transfer") return "transfer";
-    if (tx.referenceType === "payment_intent") return "topup";
-    // adjustBalance() always tags reference_type='admin_adjustment' — this
-    // covers both a genuine manual balance correction AND a cash top-up at
-    // POS (distinguished only by `reason`). A separate revert/undo path
-    // reuses the same reference_type but with TOPUP/DEDUCTION transaction
-    // types instead of ADJUSTMENT, so check reference_type first, not type.
-    if (tx.referenceType === "admin_adjustment" || tx.transactionType === "ADJUSTMENT") {
-        return CASH_TOPUP_REASON_RE.test(tx.reason ?? "") ? "topup" : "adjustment";
-    }
-    return "other";
 }
 
 export async function transactionReport(args: {
