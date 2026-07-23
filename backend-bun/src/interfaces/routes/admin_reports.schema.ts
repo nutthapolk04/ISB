@@ -60,6 +60,16 @@ export const adminTransactionReport = {
     detail: { tags: ["Reports"], summary: "Transaction report — every wallet-affecting event (sale, adjustment, top-up, transfer)" },
 };
 
+export const adminInternalUsedReport = {
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        department_id: t.Optional(t.Nullable(t.String())),
+        requester_user_id: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: { tags: ["Reports"], summary: "Internal Used Report — staff requisitions charged against a department's budget" },
+};
+
 export const adminKioskLogReport = {
     query: t.Object({
         kiosk_user_id: t.Optional(t.Nullable(t.String())),

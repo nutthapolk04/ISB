@@ -1185,7 +1185,18 @@
       "statusActive": "Active",
       "statusVoided": "Voided",
       "paymentMethodFilter": "Payment Type",
-      "paymentMethodAll": "All"
+      "paymentMethodAll": "All",
+      "internalUsedReport": "Internal Used Report",
+      "internalUsedReportDesc": "Staff requisitions charged against a department's budget at a shop, grouped by department",
+      "departmentFilter": "Department",
+      "staffFilter": "Staff",
+      "colReceiptNo": "Receipt NO.",
+      "colAmountReceived": "Amount Received",
+      "colStaffId": "Staff ID.",
+      "colStaffName": "Name",
+      "colRemarks": "Remarks",
+      "totalByDepartment": "Total by Department",
+      "grandTotal": "Grand Total"
     },
     "walletAdjust": {
       "title": "Wallet Adjustment",

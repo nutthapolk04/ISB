@@ -2,7 +2,7 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
-import { adjustmentReport, transferReport, topupReport, transactionReport, kioskLogReport } from "@/services/admin_reports_service";
+import { adjustmentReport, transferReport, topupReport, transactionReport, kioskLogReport, internalUsedReport } from "@/services/admin_reports_service";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -119,6 +119,29 @@ export const AdminReportsController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    internalUsedReport: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { query } = reqContext;
+        logger.info(`[${reqContext.requestId} (AR-06)] AdminReportsController.internalUsedReport() called.`);
+        if (!hasRole(user.roles, "admin", "finance")) {
+            logger.warn(`[${reqContext.requestId} (AR-06)] AdminReportsController.internalUsedReport() forbidden.`);
+            return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+        }
+        try {
+            const result = await internalUsedReport({
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+                departmentId: query.department_id ? Number(query.department_id) : null,
+                requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : null,
+            });
+            logger.info(`[${reqContext.requestId} (AR-06)] AdminReportsController.internalUsedReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AR-06)] AdminReportsController.internalUsedReport() error:`, e);
             return errorFromService(reqContext, e);
         }
     },

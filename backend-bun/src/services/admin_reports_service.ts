@@ -2,7 +2,7 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     walletTransactions,
@@ -965,6 +965,116 @@ export async function kioskLogReport(args: {
         total,
         page: args.page,
         pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
+}
+
+// ── Internal Used Report ────────────────────────────────────────────────
+
+export interface InternalUsedRow {
+    id: number;
+    created_at: string;
+    receipt_number: string;
+    amount: number;
+    staff_id: string;
+    staff_name: string;
+    remarks: string | null;
+    status: string;
+}
+
+export interface InternalUsedDepartmentGroup {
+    department_id: number;
+    department_code: string;
+    department_name: string;
+    rows: InternalUsedRow[];
+    subtotal: number;
+}
+
+export interface InternalUsedReportResponseDTO {
+    groups: InternalUsedDepartmentGroup[];
+    grand_total: number;
+}
+
+/**
+ * Staff requisitioning goods/services against a department's budget at a
+ * shop — receipts.transaction_mode='INTERNAL_ISSUE' with payer_department_id
+ * set (see ShopController.requisition() / pos_checkout_service.ts's
+ * INTERNAL_ISSUE handling). Grouped by department server-side, like
+ * voidReport()'s grouping by date — the template this mirrors shows a
+ * subtotal per department followed by a grand total, and page-based row
+ * slicing would risk splitting a department's rows across pages and
+ * breaking that subtotal, so this report isn't paginated.
+ */
+export async function internalUsedReport(args: {
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    departmentId?: number | null;
+    requesterUserId?: number | null;
+}): Promise<InternalUsedReportResponseDTO> {
+    const dateFrom = args.dateFrom?.trim() || null;
+    const dateTo = args.dateTo?.trim() || null;
+
+    const conds = [eq(receipts.transactionMode, "INTERNAL_ISSUE")];
+    if (dateFrom) conds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
+    if (dateTo) conds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
+    if (args.departmentId != null) conds.push(eq(receipts.payerDepartmentId, args.departmentId));
+    if (args.requesterUserId != null) conds.push(eq(receipts.requesterUserId, args.requesterUserId));
+
+    const rows = await db
+        .select({
+            id: receipts.id,
+            transactionDate: receipts.transactionDate,
+            receiptNumber: receipts.receiptNumber,
+            total: receipts.total,
+            status: receipts.status,
+            notes: receipts.notes,
+            departmentId: departments.id,
+            departmentCode: departments.departmentCode,
+            departmentName: departments.departmentName,
+            requesterUsername: users.username,
+            requesterFullName: users.fullName,
+        })
+        .from(receipts)
+        // Inner join — a department-charged requisition always has a real
+        // department row (FK-enforced), so this never drops a valid receipt.
+        .innerJoin(departments, eq(departments.id, receipts.payerDepartmentId))
+        .leftJoin(users, eq(users.id, receipts.requesterUserId))
+        .where(and(...conds))
+        .orderBy(asc(departments.departmentCode), desc(receipts.transactionDate));
+
+    const groupMap = new Map<number, InternalUsedDepartmentGroup>();
+    let grandTotal = 0;
+    for (const r of rows) {
+        // A voided requisition shows as a negative amount — same convention
+        // as every other report (transactionReport, salesByItemReport, ...).
+        const amount = (pgNumber(r.total) ?? 0) * (r.status === "VOIDED" ? -1 : 1);
+        let group = groupMap.get(r.departmentId!);
+        if (!group) {
+            group = {
+                department_id: r.departmentId!,
+                department_code: r.departmentCode!,
+                department_name: r.departmentName!,
+                rows: [],
+                subtotal: 0,
+            };
+            groupMap.set(r.departmentId!, group);
+        }
+        group.rows.push({
+            id: r.id,
+            created_at: pgToIso(r.transactionDate)!,
+            receipt_number: r.receiptNumber,
+            amount,
+            staff_id: r.requesterUsername ?? "—",
+            staff_name: r.requesterFullName || r.requesterUsername || "—",
+            remarks: r.notes ?? null,
+            status: String(r.status ?? ""),
+        });
+        group.subtotal += amount;
+        grandTotal += amount;
+    }
+
+    return {
+        groups: [...groupMap.values()],
+        grand_total: grandTotal,
     };
 }
 

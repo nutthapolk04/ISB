@@ -23,6 +23,7 @@ import {
     Layers,
     HandCoins,
     BellRing,
+    HomeIcon,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -147,7 +148,7 @@ const menuGroups: MenuGroup[] = [
         labelKey: "nav.groupParent",
         module: null,
         items: [
-            { titleKey: "nav.familyDashboard", url: "/parent/dashboard", icon: Users, roles: ["parent", "staff", "teacher", "student"] },
+            { titleKey: "nav.familyDashboard", url: "/parent/dashboard", icon: HomeIcon, roles: ["parent", "staff", "teacher", "student"] },
         ],
     },
 ];

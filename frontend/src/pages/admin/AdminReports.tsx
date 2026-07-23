@@ -7,6 +7,8 @@ import {
     exportToPDF,
     exportToExcel,
     buildDateFilterLine,
+    SECTION_KEY,
+    EMPHASIS_KEY,
     type ReportPayload,
 } from "@/lib/reportExport";
 import { Button } from "@/components/ui/button";
@@ -24,14 +26,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2 } from "lucide-react";
 import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
 import ShopPicker from "@/components/ShopPicker";
 import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
+import DepartmentPicker, { type DepartmentPickerValue } from "@/components/DepartmentPicker";
 import { PaginationBar } from "@/components/PaginationBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-type ReportKind = "topup" | "transaction" | "kiosk";
+type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
 
 interface TopupRow {
@@ -215,6 +218,30 @@ interface KioskLogReportData {
     pages: number;
 }
 
+interface InternalUsedRow {
+    id: number;
+    created_at: string;
+    receipt_number: string;
+    amount: number;
+    staff_id: string;
+    staff_name: string;
+    remarks: string | null;
+    status: string;
+}
+
+interface InternalUsedDepartmentGroup {
+    department_id: number;
+    department_code: string;
+    department_name: string;
+    rows: InternalUsedRow[];
+    subtotal: number;
+}
+
+interface InternalUsedReportData {
+    groups: InternalUsedDepartmentGroup[];
+    grand_total: number;
+}
+
 const KIOSK_LEVEL_COLORS: Record<string, string> = {
     info: "bg-blue-100 text-blue-800",
     warn: "bg-amber-100 text-amber-800",
@@ -303,6 +330,78 @@ function KioskEventTable({
     );
 }
 
+/** Grouped by department server-side — each group renders as its own
+ * mini-table with a subtotal row, then an overall grand total at the end.
+ * Mirrors the SECTION_KEY/EMPHASIS_KEY structure buildPayload() uses for the
+ * Excel/PDF export, so what's on screen matches what gets exported. */
+function InternalUsedTable({ data }: { data: InternalUsedReportData }) {
+    const { t } = useTranslation();
+    if (data.groups.length === 0) {
+        return (
+            <div className="rounded-md border px-3 py-6 text-center text-sm text-muted-foreground">
+                No internal-use receipts match these filters.
+            </div>
+        );
+    }
+    return (
+        <div className="space-y-6">
+            {data.groups.map((g) => (
+                <div key={g.department_id} className="space-y-2">
+                    <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-semibold">
+                        Department code : {g.department_code}   {g.department_name}
+                    </div>
+                    <div className="overflow-x-auto rounded-md border">
+                        <table className="w-full text-xs">
+                            <thead className="bg-muted/50 whitespace-nowrap">
+                                <tr>
+                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colReceiptNo")}</th>
+                                    <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmountReceived")}</th>
+                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffId")}</th>
+                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffName")}</th>
+                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colRemarks")}</th>
+                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colStatus")}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {g.rows.map((r) => (
+                                    <tr key={r.id} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
+                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                        <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
+                                        <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                                        <td className="px-2 py-1.5 font-mono">{r.staff_id}</td>
+                                        <td className="px-2 py-1.5">{r.staff_name}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{r.remarks ?? ""}</td>
+                                        <td className="px-2 py-1.5">
+                                            {r.status === "ACTIVE" ? (
+                                                <span className="text-muted-foreground">Active</span>
+                                            ) : (
+                                                <span className="font-semibold text-destructive">Voided</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                                <tr className="border-t">
+                                    <td className="px-2 py-2 text-left">{t("admin.adminReports.totalByDepartment", "Total by Department")}</td>
+                                    <td />
+                                    <td className="px-2 py-2 text-right font-mono">{g.subtotal.toFixed(2)}</td>
+                                    <td colSpan={4} />
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            ))}
+            <div className="flex items-center justify-end gap-2 rounded-md border bg-muted px-3 py-2 text-sm font-bold">
+                {t("admin.adminReports.grandTotal", "Grand Total")}
+                <span className="font-mono">{data.grand_total.toFixed(2)}</span>
+            </div>
+        </div>
+    );
+}
+
 export default function AdminReports() {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -320,6 +419,7 @@ export default function AdminReports() {
     const [txnData, setTxnData] = useState<TransactionReportData | null>(null);
     const [kioskEventData, setKioskEventData] = useState<KioskLogReportData | null>(null);
     const [kioskTxnData, setKioskTxnData] = useState<TransactionReportData | null>(null);
+    const [internalUsedData, setInternalUsedData] = useState<InternalUsedReportData | null>(null);
 
     // Top-up Report filters
     const [toppedByValue, setToppedByValue] = useState<CardholderPickerValue | null>(null);
@@ -344,6 +444,10 @@ export default function AdminReports() {
     const [kioskEventPage, setKioskEventPage] = useState(1);
     const [kioskTxnPage, setKioskTxnPage] = useState(1);
 
+    // Internal Used Report filters
+    const [internalUsedDept, setInternalUsedDept] = useState<DepartmentPickerValue | null>(null);
+    const [internalUsedStaff, setInternalUsedStaff] = useState<StaffPickerUser | null>(null);
+
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
         setDateFrom("");
@@ -366,11 +470,14 @@ export default function AdminReports() {
         setKioskLogType("all");
         setKioskEventPage(1);
         setKioskTxnPage(1);
+        setInternalUsedDept(null);
+        setInternalUsedStaff(null);
         setSearched(false);
         setTopupData(null);
         setTxnData(null);
         setKioskEventData(null);
         setKioskTxnData(null);
+        setInternalUsedData(null);
     };
 
     /** Shared filter params for Transaction Report — page is separate since
@@ -522,6 +629,34 @@ export default function AdminReports() {
         }
     };
 
+    /** Internal Used Report — grouped by department server-side (see
+     * internalUsedReport() on the backend), so unlike every other report
+     * here there's no page/pageSize: paginating flat rows would risk
+     * splitting a department's rows across pages and breaking its subtotal. */
+    const buildInternalUsedParams = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        if (internalUsedDept) params.set("department_id", String(internalUsedDept.id));
+        if (internalUsedStaff) params.set("requester_user_id", String(internalUsedStaff.id));
+        return params;
+    };
+
+    const loadInternalUsedReport = async () => {
+        setLoading(true);
+        try {
+            const params = buildInternalUsedParams();
+            const data = await api.get<InternalUsedReportData>(`/wallets/admin/internal-used-report?${params.toString()}`);
+            setInternalUsedData(data);
+            setSearched(true);
+            if (data.groups.length === 0) toast.message("No internal-use receipts match these filters.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSearch = async () => {
         // Every report's filters (including date) are independently optional —
         // matching Sales Summary Report's / Transaction Report's behavior. Now
@@ -537,6 +672,10 @@ export default function AdminReports() {
         }
         if (selected === "kiosk") {
             await loadKioskReport();
+            return;
+        }
+        if (selected === "internal_used") {
+            await loadInternalUsedReport();
             return;
         }
     };
@@ -561,6 +700,10 @@ export default function AdminReports() {
         if (selected === "kiosk") {
             lines.push(`Kiosk: ${kioskDevice ? (kioskDevice.full_name || kioskDevice.username) : "All kiosks"}`);
             lines.push(`Log type: ${kioskLogType === "all" ? "All" : kioskLogType === "event" ? "Event log" : "Transaction"}`);
+        }
+        if (selected === "internal_used") {
+            if (internalUsedDept) lines.push(`Department: ${internalUsedDept.department_name} (${internalUsedDept.department_code})`);
+            if (internalUsedStaff) lines.push(`Staff: ${internalUsedStaff.full_name || internalUsedStaff.username}`);
         }
         return lines;
     };
@@ -700,6 +843,43 @@ export default function AdminReports() {
             return exports;
         }
 
+        if (selected === "internal_used" && internalUsedData) {
+            const bodyRows: Record<string, unknown>[] = [];
+            for (const g of internalUsedData.groups) {
+                bodyRows.push({ [SECTION_KEY]: `Department code : ${g.department_code}   ${g.department_name}` });
+                bodyRows.push(...(g.rows as unknown as Record<string, unknown>[]));
+                bodyRows.push({
+                    [EMPHASIS_KEY]: "total" as const,
+                    receipt_number: t("admin.adminReports.totalByDepartment", "Total by Department"),
+                    amount: g.subtotal,
+                });
+            }
+            return [{
+                payload: {
+                    meta: {
+                        title: t("admin.adminReports.internalUsedReport"),
+                        schoolName: school.name,
+                        schoolLogoUrl: school.logoUrl || undefined,
+                        reportId: "ISB-ADM-INTUSE",
+                        filters,
+                        runByName: user?.fullName ?? user?.username,
+                    },
+                    columns: [
+                        { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+                        { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 20 },
+                        { header: t("admin.adminReports.colAmountReceived"), key: "amount", format: "currency", align: "right", width: 14 },
+                        { header: t("admin.adminReports.colStaffId"), key: "staff_id", width: 14 },
+                        { header: t("admin.adminReports.colStaffName"), key: "staff_name", width: 22 },
+                        { header: t("admin.adminReports.colRemarks"), key: "remarks", width: 30 },
+                        { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
+                    ],
+                    rows: bodyRows,
+                    totals: { amount: internalUsedData.grand_total },
+                },
+                baseFilename: `InternalUsedReport${dateLabel}`,
+            }];
+        }
+
         return null;
     };
 
@@ -754,12 +934,19 @@ export default function AdminReports() {
             title: t("admin.adminReports.kioskReport", "Kiosk Report"),
             desc: t("admin.adminReports.kioskReportDesc", "Per-device event log and top-up/transaction activity for kiosk terminals"),
         },
+        {
+            kind: "internal_used" as const,
+            icon: Building2,
+            title: t("admin.adminReports.internalUsedReport"),
+            desc: t("admin.adminReports.internalUsedReportDesc"),
+        },
     ];
 
     const hasData = selected === "topup" ? !!topupData
         : selected === "transaction" ? !!txnData
             : selected === "kiosk" ? !!(kioskEventData || kioskTxnData)
-                : false;
+                : selected === "internal_used" ? !!internalUsedData
+                    : false;
 
     return (
         <div className="page-shell">
@@ -800,8 +987,14 @@ export default function AdminReports() {
                 <Card className="mt-6">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" /> : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" /> : <Monitor className="h-5 w-5 text-primary" />}
-                            {selected === "topup" ? t("admin.adminReports.topupReport") : selected === "transaction" ? t("admin.adminReports.transactionReport") : t("admin.adminReports.kioskReport", "Kiosk Report")}
+                            {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" />
+                                : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" />
+                                    : selected === "internal_used" ? <Building2 className="h-5 w-5 text-primary" />
+                                        : <Monitor className="h-5 w-5 text-primary" />}
+                            {selected === "topup" ? t("admin.adminReports.topupReport")
+                                : selected === "transaction" ? t("admin.adminReports.transactionReport")
+                                    : selected === "internal_used" ? t("admin.adminReports.internalUsedReport")
+                                        : t("admin.adminReports.kioskReport", "Kiosk Report")}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
                     </CardHeader>
@@ -950,6 +1143,26 @@ export default function AdminReports() {
                                     </div>
                                 </>
                             )}
+                            {selected === "internal_used" && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.departmentFilter", "Department")}</Label>
+                                        <DepartmentPicker
+                                            value={internalUsedDept}
+                                            onChange={setInternalUsedDept}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.staffFilter", "Staff")}</Label>
+                                        <UserPicker
+                                            value={internalUsedStaff?.id ?? null}
+                                            onChange={(_, u) => setInternalUsedStaff(u)}
+                                            allowNone
+                                            placeholder={t("admin.adminReports.allStaff", "All staff")}
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -1042,6 +1255,10 @@ export default function AdminReports() {
                                 {kioskEventData && <KioskEventTable data={kioskEventData} page={kioskEventPage} onPageChange={onKioskEventPageChange} />}
                                 {kioskTxnData && <TransactionTable data={kioskTxnData} page={kioskTxnPage} onPageChange={onKioskTxnPageChange} />}
                             </div>
+                        )}
+
+                        {searched && selected === "internal_used" && internalUsedData && (
+                            <InternalUsedTable data={internalUsedData} />
                         )}
                     </CardContent>
                 </Card>

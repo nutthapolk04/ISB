@@ -1185,7 +1185,18 @@
       "statusActive": "Active",
       "statusVoided": "Voided",
       "paymentMethodFilter": "ประเภทการชำระ",
-      "paymentMethodAll": "ทั้งหมด"
+      "paymentMethodAll": "ทั้งหมด",
+      "internalUsedReport": "รายงานการเบิกใช้ภายใน",
+      "internalUsedReportDesc": "รายการที่พนักงานเบิกใช้จากงบประมาณของแผนกที่ร้านค้า จัดกลุ่มตามแผนก",
+      "departmentFilter": "แผนก",
+      "staffFilter": "พนักงาน",
+      "colReceiptNo": "เลขที่ใบเสร็จ",
+      "colAmountReceived": "จำนวนเงิน",
+      "colStaffId": "รหัสพนักงาน",
+      "colStaffName": "ชื่อ-นามสกุล",
+      "colRemarks": "หมายเหตุ",
+      "totalByDepartment": "รวมตามแผนก",
+      "grandTotal": "รวมทั้งหมด"
     },
     "walletAdjust": {
       "title": "ปรับยอดกระเป๋าเงิน",
