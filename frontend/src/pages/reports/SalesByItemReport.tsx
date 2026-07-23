@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,46 @@ interface SalesByItemReportData {
     line_count: number;
 }
 
+interface GroupedItemRow {
+    seq: number;
+    item_no: string | null;
+    item_name: string;
+    is_bundle: boolean;
+    transaction_count: number;
+    sales_qty: number;
+    sales_amt: number;
+}
+
+/** Voided lines carry no real sales weight, so — like the ranking sort below
+ * and the backend's own totals — they're excluded from grouped figures. */
+function groupRowsByItem(rows: SalesByItemRow[]): GroupedItemRow[] {
+    const groups = new Map<string, GroupedItemRow>();
+    for (const row of rows) {
+        if (row.status !== "ACTIVE") continue;
+        const key = row.item_no ?? row.item_name;
+        const existing = groups.get(key);
+        if (existing) {
+            existing.transaction_count += 1;
+            existing.sales_qty += row.sales_qty;
+            existing.sales_amt += row.sales_amt;
+        } else {
+            groups.set(key, {
+                seq: 0,
+                item_no: row.item_no,
+                item_name: row.item_name,
+                is_bundle: row.is_bundle,
+                transaction_count: 1,
+                sales_qty: row.sales_qty,
+                sales_amt: row.sales_amt,
+            });
+        }
+    }
+    const grouped = Array.from(groups.values());
+    grouped.sort((a, b) => b.sales_qty - a.sales_qty);
+    grouped.forEach((g, i) => { g.seq = i + 1; });
+    return grouped;
+}
+
 interface SalesByItemReportProps {
     reportId: string;
     needsShopSelector: boolean;
@@ -92,6 +133,9 @@ export function SalesByItemReport({
     const [siItemNoTo, setSiItemNoTo] = useState("");
     const [siLoading, setSiLoading] = useState(false);
     const [siData, setSiData] = useState<SalesByItemReportData | null>(null);
+    const [siGroupByItem, setSiGroupByItem] = useState(false);
+
+    const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows) : null;
 
     const buildSalesByItemQuery = (): string => {
         const params = new URLSearchParams();
@@ -168,6 +212,38 @@ export function SalesByItemReport({
 
     const buildSalesByItemPayload = (): ReportPayload<Record<string, unknown>> | null => {
         if (!siData) return null;
+        const meta = {
+            title,
+            schoolName: school.name,
+            schoolLogoUrl: school.logoUrl || undefined,
+            reportId,
+            filters: buildSalesByItemFilterLines(),
+        };
+        const bundleSuffix = t("reports.bundleSuffix", " (BUNDLE)");
+
+        if (siGroupedRows) {
+            const columns: ReportColumn[] = [
+                { header: "Seq.", key: "seq", format: "number", align: "right", width: 40 },
+                { header: "Item NO.", key: "item_no", width: 100 },
+                { header: "Item Name", key: "item_name", width: 220 },
+                { header: "Transactions", key: "transaction_count", format: "number", align: "right", width: 90 },
+                { header: "Sales Qty.", key: "sales_qty", format: "number", align: "right", width: 80 },
+                { header: "Sales AMT.", key: "sales_amt", format: "currency", align: "right", width: 100 },
+            ];
+            return {
+                meta,
+                columns,
+                rows: siGroupedRows.map((r) => ({
+                    ...r,
+                    item_name: r.is_bundle ? `${bundleSuffix} ${r.item_name}` : r.item_name,
+                })) as unknown as Record<string, unknown>[],
+                totals: {
+                    sales_qty: siData.totals.sales_qty,
+                    sales_amt: siData.totals.sales_amt,
+                },
+            };
+        }
+
         // 11 columns — comfortable on A4 landscape at 7pt font. Total widths
         // ≈ 770pt (table budget). Header strings kept short to avoid the
         // vertical-stack wrapping bug seen at narrower defaults.
@@ -186,19 +262,13 @@ export function SalesByItemReport({
             { header: "Status", key: "status", width: 50 },
         ];
         return {
-            meta: {
-                title,
-                schoolName: school.name,
-                schoolLogoUrl: school.logoUrl || undefined,
-                reportId,
-                filters: buildSalesByItemFilterLines(),
-            },
+            meta,
             columns,
             // Exports read item_name directly (no JSX), so bake the bundle suffix
             // into the value itself rather than relying on the table's <span>.
             rows: siData.rows.map((r) => ({
                 ...r,
-                item_name: r.is_bundle ? `${t("reports.bundleSuffix", " (BUNDLE)")} ${r.item_name}` : r.item_name,
+                item_name: r.is_bundle ? `${bundleSuffix} ${r.item_name}` : r.item_name,
             })) as unknown as Record<string, unknown>[],
             totals: {
                 sales_qty: siData.totals.sales_qty,
@@ -293,11 +363,19 @@ export function SalesByItemReport({
                         )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button onClick={handleLoadSalesByItem} disabled={siLoading}>
                             {siLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                             Search
                         </Button>
+                        <div className="flex items-center gap-2 ml-2">
+                            <Switch
+                                id="siGroupByItem"
+                                checked={siGroupByItem}
+                                onCheckedChange={setSiGroupByItem}
+                            />
+                            <Label htmlFor="siGroupByItem" className="cursor-pointer">Group by Item</Label>
+                        </div>
                         {siData && (
                             <>
                                 <Button variant="outline" onClick={handleExportSalesByItemPdf}>
@@ -324,71 +402,121 @@ export function SalesByItemReport({
                                 </span>
                             </div>
                             <div className="overflow-x-auto rounded-md border">
-                                <table className="w-full text-xs">
-                                    <thead className="bg-muted/50 whitespace-nowrap">
-                                        <tr>
-                                            <th className="px-2 py-2 text-right">Seq.</th>
-                                            <th className="px-2 py-2 text-left">Date/Time</th>
-                                            <th className="px-2 py-2 text-left">Item NO.</th>
-                                            <th className="px-2 py-2 text-left">Item Name</th>
-                                            <th className="px-2 py-2 text-left">Receipt NO.</th>
-                                            <th className="px-2 py-2 text-left">ID.</th>
-                                            <th className="px-2 py-2 text-left">Name</th>
-                                            <th className="px-2 py-2 text-right">Sales Qty.</th>
-                                            <th className="px-2 py-2 text-right">Sales AMT.</th>
-                                            <th className="px-2 py-2 text-left">Receive Type</th>
-                                            <th className="px-2 py-2 text-left">Remark</th>
-                                            <th className="px-2 py-2 text-left">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {siData.rows.length === 0 ? (
+                                {siGroupedRows ? (
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-muted/50 whitespace-nowrap">
                                             <tr>
-                                                <td colSpan={12} className="px-3 py-4 text-center text-muted-foreground">
-                                                    No line items match these filters.
-                                                </td>
+                                                <th className="px-2 py-2 text-right">Seq.</th>
+                                                <th className="px-2 py-2 text-left">Item NO.</th>
+                                                <th className="px-2 py-2 text-left">Item Name</th>
+                                                <th className="px-2 py-2 text-right">Transactions</th>
+                                                <th className="px-2 py-2 text-right">Sales Qty.</th>
+                                                <th className="px-2 py-2 text-right">Sales AMT.</th>
                                             </tr>
-                                        ) : (
-                                            siData.rows.map((r) => (
-                                                <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
-                                                    <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
-                                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
-                                                    <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
-                                                    <td className="px-2 py-1.5">
-                                                        {r.item_name}
-                                                        {r.is_bundle && (
-                                                            <span className="text-muted-foreground">{t("reports.bundleSuffix", " (BUNDLE)")}</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
-                                                    <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
-                                                    <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>
-                                                    <td className="px-2 py-1.5 text-right font-mono">{r.sales_qty}</td>
-                                                    <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
-                                                    <td className="px-2 py-1.5">{r.receive_type}</td>
-                                                    <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
-                                                    <td className="px-2 py-1.5">
-                                                        {r.status === "ACTIVE" ? (
-                                                            <span className="text-muted-foreground">Active</span>
-                                                        ) : (
-                                                            <span className="font-semibold text-destructive">Voided</span>
-                                                        )}
+                                        </thead>
+                                        <tbody>
+                                            {siGroupedRows.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
+                                                        No line items match these filters.
                                                     </td>
                                                 </tr>
-                                            ))
+                                            ) : (
+                                                siGroupedRows.map((r) => (
+                                                    <tr key={r.seq} className="border-t">
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
+                                                        <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
+                                                        <td className="px-2 py-1.5">
+                                                            {r.item_name}
+                                                            {r.is_bundle && (
+                                                                <span className="text-muted-foreground">{t("reports.bundleSuffix", " (BUNDLE)")}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.transaction_count}</td>
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.sales_qty}</td>
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                        {siGroupedRows.length > 0 && (
+                                            <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                                                <tr className="border-t">
+                                                    <td colSpan={3} className="px-2 py-2 text-left">TOTAL By Item</td>
+                                                    <td />
+                                                    <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
+                                                    <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
+                                                </tr>
+                                            </tfoot>
                                         )}
-                                    </tbody>
-                                    {siData.rows.length > 0 && (
-                                        <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
-                                            <tr className="border-t">
-                                                <td colSpan={7} className="px-2 py-2 text-left">TOTAL By Item</td>
-                                                <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
-                                                <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
-                                                <td colSpan={3} />
+                                    </table>
+                                ) : (
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-muted/50 whitespace-nowrap">
+                                            <tr>
+                                                <th className="px-2 py-2 text-right">Seq.</th>
+                                                <th className="px-2 py-2 text-left">Date/Time</th>
+                                                <th className="px-2 py-2 text-left">Item NO.</th>
+                                                <th className="px-2 py-2 text-left">Item Name</th>
+                                                <th className="px-2 py-2 text-left">Receipt NO.</th>
+                                                <th className="px-2 py-2 text-left">ID.</th>
+                                                <th className="px-2 py-2 text-left">Name</th>
+                                                <th className="px-2 py-2 text-right">Sales Qty.</th>
+                                                <th className="px-2 py-2 text-right">Sales AMT.</th>
+                                                <th className="px-2 py-2 text-left">Receive Type</th>
+                                                <th className="px-2 py-2 text-left">Remark</th>
+                                                <th className="px-2 py-2 text-left">Status</th>
                                             </tr>
-                                        </tfoot>
-                                    )}
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {siData.rows.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={12} className="px-3 py-4 text-center text-muted-foreground">
+                                                        No line items match these filters.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                siData.rows.map((r) => (
+                                                    <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
+                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
+                                                        <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
+                                                        <td className="px-2 py-1.5">
+                                                            {r.item_name}
+                                                            {r.is_bundle && (
+                                                                <span className="text-muted-foreground">{t("reports.bundleSuffix", " (BUNDLE)")}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
+                                                        <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
+                                                        <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.sales_qty}</td>
+                                                        <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
+                                                        <td className="px-2 py-1.5">{r.receive_type}</td>
+                                                        <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
+                                                        <td className="px-2 py-1.5">
+                                                            {r.status === "ACTIVE" ? (
+                                                                <span className="text-muted-foreground">Active</span>
+                                                            ) : (
+                                                                <span className="font-semibold text-destructive">Voided</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                        {siData.rows.length > 0 && (
+                                            <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                                                <tr className="border-t">
+                                                    <td colSpan={7} className="px-2 py-2 text-left">TOTAL By Item</td>
+                                                    <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
+                                                    <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
+                                                    <td colSpan={3} />
+                                                </tr>
+                                            </tfoot>
+                                        )}
+                                    </table>
+                                )}
                             </div>
                         </div>
                     )}

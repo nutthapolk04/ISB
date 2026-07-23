@@ -1,5 +1,6 @@
 import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or, not } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
     receipts,
@@ -953,6 +954,7 @@ export interface SalesSummaryRow {
     shop_name: string | null;
     bundle_names: string | null;
     status: string;
+    cashier_id: string | null;
 }
 
 export interface SalesSummaryTotals {
@@ -982,6 +984,7 @@ type ReceiptJoinRow = {
     payer: typeof users.$inferSelect | null;
     payerDepartment: typeof departments.$inferSelect | null;
     shop: typeof shops.$inferSelect | null;
+    seller: typeof users.$inferSelect | null;
 };
 
 /** Per-receipt amount breakdown shared by both the "sale" and "void
@@ -1019,7 +1022,7 @@ function computeReceiptAmounts(r: typeof receipts.$inferSelect) {
  * what happened and when, instead of one row awkwardly claiming both.
  */
 function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, string[]>, leg: "sale" | "void", seq: number): SalesSummaryRow {
-    const { receipt: r, customer, payer, payerDepartment, shop } = entry;
+    const { receipt: r, customer, payer, payerDepartment, shop, seller } = entry;
     const { amtReceive, amtChange, billAmount, buckets } = computeReceiptAmounts(r);
     const sign = leg === "sale" ? 1 : -1;
 
@@ -1062,6 +1065,7 @@ function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, 
         shop_name: shop?.name ?? null,
         bundle_names: bundleNames && bundleNames.length > 0 ? bundleNames.join(", ") : null,
         status: leg === "sale" ? "ACTIVE" : "VOIDED",
+        cashier_id: seller?.username ?? null,
     };
 }
 
@@ -1075,11 +1079,16 @@ export async function salesSummaryReport(args: {
     receiptNoFrom?: string;
     receiptNoTo?: string;
     receiveType?: string;
+    cashierId?: string;
     shopId?: string;
     module?: string;
 }): Promise<SalesSummaryReport> {
     const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
     const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+    // Separate alias from `users` (already joined as the wallet `payer` below)
+    // since receipts.created_by is the cashier who rang up the sale, not
+    // necessarily the person paying for it.
+    const cashierUsers = alias(users, "cashier_users");
 
     // Filters shared by both legs (sale + void reversal) below — the date
     // range itself is intentionally NOT here since each leg is dated
@@ -1116,6 +1125,9 @@ export async function salesSummaryReport(args: {
         const pat = `%${args.userName}%`;
         commonConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
     }
+    if (args.cashierId) {
+        commonConds.push(ilike(cashierUsers.username, `%${args.cashierId}%`));
+    }
 
     // Use a single query shape with left-joins so optional customer filters
     // work without dropping guest sales when not filtered.
@@ -1126,12 +1138,14 @@ export async function salesSummaryReport(args: {
             payer: users,
             payerDepartment: departments,
             shop: shops,
+            seller: cashierUsers,
         })
         .from(receipts)
         .leftJoin(customers, eq(customers.id, receipts.customerId))
         .leftJoin(users, eq(users.id, receipts.payerUserId))
         .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
-        .leftJoin(shops, eq(shops.id, receipts.shopId));
+        .leftJoin(shops, eq(shops.id, receipts.shopId))
+        .leftJoin(cashierUsers, eq(cashierUsers.id, receipts.createdBy));
 
     const saleDateConds: SQL[] = [];
     if (args.dateFrom) saleDateConds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
