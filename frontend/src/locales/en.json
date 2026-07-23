@@ -2012,7 +2012,7 @@
   "errors": {
     "INSUFFICIENT_USER_WALLET": "Wallet balance is insufficient. Current: ฿{{balance}}, charge: ฿{{amount}}",
     "INSUFFICIENT_USER_WALLET_TRANSFER": "Source wallet balance is insufficient. Current: ฿{{balance}}, transfer: ฿{{amount}}",
-    "EXCEEDS_NEGATIVE_CREDIT_LIMIT": "Wallet would exceed the negative-credit limit. Current: ฿{{balance}}, charge: ฿{{amount}}, allowed overdraft: ฿{{maxOverdraft}}",
+    "EXCEEDS_NEGATIVE_CREDIT_LIMIT": "Wallet would exceed the negative-credit limit. Current: ฿{{balance}}, charge: ฿{{amount}}",
     "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "Wallet would exceed the negative-credit limit. Current: ฿{{balance}}, transfer: ฿{{amount}}",
     "DAILY_LIMIT_EXCEEDED": "Daily spending limit reached. Spent: ฿{{spent}}, limit: ฿{{limit}}",
     "SHOP_NOT_ASSIGNED_SPENDING_GROUP": "This shop has no spending group assigned"
