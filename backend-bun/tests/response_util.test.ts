@@ -23,8 +23,13 @@ describe("errorFromService", () => {
 	it("returns structured detail when service error has code", () => {
 		const ctx = mockCtx();
 		const err = new Error("ยอด wallet จะติดลบเกินขีดจำกัด");
-		(err as { status?: number; code?: string }).status = 400;
+		(err as { status?: number; code?: string; params?: Record<string, unknown> }).status = 400;
 		(err as { code?: string }).code = "EXCEEDS_NEGATIVE_CREDIT_LIMIT";
+		(err as { params?: Record<string, unknown> }).params = {
+			balance: "50.00",
+			amount: "80.00",
+			maxOverdraft: "0.00",
+		};
 
 		const body = errorFromService(ctx as never, err);
 
@@ -33,6 +38,11 @@ describe("errorFromService", () => {
 			detail: {
 				code: "EXCEEDS_NEGATIVE_CREDIT_LIMIT",
 				message: "ยอด wallet จะติดลบเกินขีดจำกัด",
+				params: {
+					balance: "50.00",
+					amount: "80.00",
+					maxOverdraft: "0.00",
+				},
 			},
 		});
 	});

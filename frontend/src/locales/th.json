@@ -2013,7 +2013,7 @@
     "INSUFFICIENT_USER_WALLET": "ยอดเงินใน wallet ไม่พอ. คงเหลือ ฿{{balance}}, ต้องชำระ ฿{{amount}}",
     "INSUFFICIENT_USER_WALLET_TRANSFER": "ยอดเงินใน wallet ผู้โอนไม่พอ. คงเหลือ ฿{{balance}}, จะโอน ฿{{amount}}",
     "EXCEEDS_NEGATIVE_CREDIT_LIMIT": "ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿{{balance}}, ต้องชำระ ฿{{amount}}, overdraft ที่อนุญาต ฿{{maxOverdraft}}",
-    "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿{{balance}}, จะโอน ฿{{amount}}, overdraft ที่อนุญาต ฿{{maxOverdraft}}",
+    "EXCEEDS_NEGATIVE_CREDIT_LIMIT_TRANSFER": "ยอด wallet จะติดลบเกินขีดจำกัด. คงเหลือ ฿{{balance}}, จะโอน ฿{{amount}}",
     "DAILY_LIMIT_EXCEEDED": "ใช้วงเงินวันนี้ครบแล้ว ใช้ไปแล้ว ฿{{spent}} จากวงเงิน ฿{{limit}}",
     "SHOP_NOT_ASSIGNED_SPENDING_GROUP": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน"
   },
