@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api";
+import { formatBahtAmount } from "@/lib/format";
 import type {
   MenuOptionGroup,
   OptionSelectionType,
@@ -232,7 +233,7 @@ function GroupRow({
             >
               <span>{o.name}</span>
               <span className="font-mono text-muted-foreground">
-                {o.price_delta > 0 ? `+฿${o.price_delta.toFixed(0)}` : "—"}
+                {o.price_delta > 0 ? `+฿${formatBahtAmount(o.price_delta)}` : "—"}
               </span>
             </div>
           ))}

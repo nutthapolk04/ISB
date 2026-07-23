@@ -38,6 +38,7 @@ import {
 } from "@dnd-kit/sortable";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { formatBahtAmount } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import {
@@ -1190,7 +1191,7 @@ export default function Canteen() {
                 >
                     <ShoppingCart className="h-5 w-5 mr-2" />
                     <span className="tabular-nums">
-                        ฿{cart.total.toFixed(0)} · {cart.items.reduce((s, i) => s + i.quantity, 0)}
+                        ฿{formatBahtAmount(cart.total)} · {cart.items.reduce((s, i) => s + i.quantity, 0)}
                     </span>
                 </Button>
             )}

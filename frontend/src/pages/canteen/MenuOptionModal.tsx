@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
+import { formatBahtAmount } from "@/lib/format";
 import type { CanteenProduct } from "@/hooks/useCanteenCart";
 import type {
   MenuOptionGroup,
@@ -189,7 +190,7 @@ export default function MenuOptionModal({
                       <span className="text-sm">{o.name}</span>
                       {o.price_delta > 0 && (
                         <span className="text-xs text-muted-foreground font-mono">
-                          +฿{o.price_delta.toFixed(0)}
+                          +฿{formatBahtAmount(o.price_delta)}
                         </span>
                       )}
                     </span>

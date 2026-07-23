@@ -58,6 +58,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api";
+import { formatBahtAmount } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getCanteenImage,
@@ -409,11 +410,11 @@ export default function CanteenProducts({ shopId: propShopId, embedded }: { shop
                       <Badge variant="outline">{p.category}</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      ฿{Number(p.external_price).toFixed(0)}
+                      ฿{formatBahtAmount(Number(p.external_price))}
                     </TableCell>
                     {usesDualPricing && (
                       <TableCell className="text-right tabular-nums text-muted-foreground">
-                        ฿{Number(p.internal_price).toFixed(0)}
+                        ฿{formatBahtAmount(Number(p.internal_price))}
                       </TableCell>
                     )}
                     <TableCell className="text-center">
