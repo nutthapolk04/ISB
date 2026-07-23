@@ -5,6 +5,7 @@ import { Check, Palette, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import type { CanteenProduct, PriceMode } from "@/hooks/useCanteenCart";
+import { formatBahtAmount } from "@/lib/format";
 
 interface ProductCardProps {
     product: CanteenProduct;
@@ -110,7 +111,7 @@ export function ProductCard({
             {/* Footer: price + (palette) + category */}
             <div className="mt-auto flex items-end justify-between pt-1">
                 <span className="text-lg font-extrabold tabular-nums text-zinc-900">
-                    ฿{displayPrice.toFixed(0)}
+                    ฿{formatBahtAmount(displayPrice)}
                 </span>
                 <div className="flex items-center gap-1">
                     {showColorPicker && (

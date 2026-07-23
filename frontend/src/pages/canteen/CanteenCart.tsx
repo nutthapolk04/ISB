@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { formatBahtAmount } from "@/lib/format";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { getCanteenImage, getCanteenFallback } from "./canteenImages";
 import type {
@@ -189,7 +190,7 @@ export function CanteenCart({
     billDiscountValue > 0
       ? billDiscountMode === "percent"
         ? `${billDiscountValue}%`
-        : `฿${billDiscountValue.toFixed(0)}`
+        : `฿${formatBahtAmount(billDiscountValue)}`
       : null;
 
   return (
@@ -396,7 +397,7 @@ export function CanteenCart({
                           className="inline-flex items-center gap-0.5 rounded hover:bg-muted px-1 py-0.5 -ml-1"
                           aria-label={t("canteen.cart.editPriceAria")}
                         >
-                          ฿{unit.toFixed(0)}
+                          ฿{formatBahtAmount(unit)}
                           <Pencil className="h-3 w-3 opacity-60" />
                         </button>
                         <span>·</span>
@@ -490,7 +491,7 @@ export function CanteenCart({
                             </span>
                             {o.priceDelta > 0 && (
                               <span className="tabular-nums">
-                                +฿{(o.priceDelta * o.quantity).toFixed(0)}
+                                +฿{formatBahtAmount(o.priceDelta * o.quantity)}
                               </span>
                             )}
                           </div>
