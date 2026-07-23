@@ -202,78 +202,80 @@ export function CanteenCart({
 
       {/* Selected Member */}
       {selectedMember && (
-        <div className="mx-3 mb-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
-          <div className="flex items-center gap-3">
-            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
-              <img
-                src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
-                alt={selectedMember.name}
-                className="h-full w-full object-cover"
-                onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold text-sm truncate">{selectedMember.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {selectedMember.student_code ?? selectedMember.customer_code}
-                {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
+        <div className="mx-3 mb-2 relative rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+          {onClearMember && (
+            <button
+              type="button"
+              onClick={onClearMember}
+              className="absolute right-2 top-2 shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
+              aria-label={t("canteen.cart.clearMemberAria")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+          <div className="flex items-start gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3 pr-6">
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+                <img
+                  src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
+                  alt={selectedMember.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
+                />
               </div>
-              <div className="text-sm font-bold tabular-nums text-emerald-600">
-                ฿{(selectedMember.wallet_balance ?? 0).toFixed(2)}
-              </div>
-            </div>
-            {onClearMember && (
-              <button
-                type="button"
-                onClick={onClearMember}
-                className="shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
-                aria-label={t("canteen.cart.clearMemberAria")}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {/* Daily Spending Limit panel */}
-          {selectedMember.customer_kind !== "department" && selectedMember.user_id == null && (() => {
-            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-            const rows: { label: string; limit: number; spent: number }[] = [];
-            if (selectedMember.daily_limit_canteen != null)
-              rows.push({ label: "Canteen", limit: Number(selectedMember.daily_limit_canteen), spent: Number(selectedMember.spent_today_canteen ?? 0) });
-            if (selectedMember.daily_limit_store != null)
-              rows.push({ label: "Store", limit: Number(selectedMember.daily_limit_store), spent: Number(selectedMember.spent_today_store ?? 0) });
-            if (rows.length === 0) return null;
-            return (
-              <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
-                <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                  Daily Spending remaining / limit
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-sm truncate">{selectedMember.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {selectedMember.student_code ?? selectedMember.customer_code}
+                  {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
                 </div>
-                {rows.map(({ label, limit, spent }) => {
-                  const remaining = Math.max(0, limit - spent);
-                  const remainingPct = limit > 0 ? Math.max(0, (remaining / limit) * 100) : 100;
-                  const over = spent >= limit;
-                  const warn = remainingPct <= 20 && !over;
-                  const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
-                  return (
-                    <div key={label} className="space-y-1">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-foreground font-medium">{label}</span>
-                        <span className={cn("font-bold tabular-nums", valueColor)}>
-                          {fmt(remaining)}{" "}
-                          <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                <div className="text-sm font-bold tabular-nums text-emerald-600">
+                  ฿{(selectedMember.wallet_balance ?? 0).toFixed(2)}
+                </div>
               </div>
-            );
-          })()}
+            </div>
+            {/* Daily Spending Limit panel — sits to the right of the member info */}
+            {selectedMember.customer_kind !== "department" && selectedMember.user_id == null && (() => {
+              const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+              const rows: { label: string; limit: number; spent: number }[] = [];
+              if (selectedMember.daily_limit_canteen != null)
+                rows.push({ label: "Canteen", limit: Number(selectedMember.daily_limit_canteen), spent: Number(selectedMember.spent_today_canteen ?? 0) });
+              if (selectedMember.daily_limit_store != null)
+                rows.push({ label: "Store", limit: Number(selectedMember.daily_limit_store), spent: Number(selectedMember.spent_today_store ?? 0) });
+              if (rows.length === 0) return null;
+              return (
+                <div className="w-48 shrink-0 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
+                  <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                    Daily Spending remaining / limit
+                  </div>
+                  {rows.map(({ label, limit, spent }) => {
+                    const remaining = Math.max(0, limit - spent);
+                    const remainingPct = limit > 0 ? Math.max(0, (remaining / limit) * 100) : 100;
+                    const over = spent >= limit;
+                    const warn = remainingPct <= 20 && !over;
+                    const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
+                    return (
+                      <div key={label} className="space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-foreground font-medium">{label}</span>
+                          <span className={cn("font-bold tabular-nums", valueColor)}>
+                            {fmt(remaining)}{" "}
+                            <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
       <div className="px-5 pt-5 pb-3 flex items-start justify-between">
