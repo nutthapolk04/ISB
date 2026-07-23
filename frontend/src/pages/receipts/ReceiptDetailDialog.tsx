@@ -162,6 +162,10 @@ export function ReceiptDetailDialog({ receipt, open, onOpenChange }: ReceiptDeta
                   </div>
                 )}
                 {receipt.tax > 0 && row(t("receipts.tax", "Tax"), `฿${receipt.tax.toLocaleString()}`)}
+                {(receipt.edc_card_fee ?? 0) > 0 && row(
+                    t("receipts.cardFee", "Card Fee (3%)"),
+                    `฿${(receipt.edc_card_fee ?? 0).toLocaleString()}`,
+                )}
                 <div className="flex justify-between text-base font-bold">
                   <span>{t("receipts.grandTotal")}</span>
                   <span className="text-primary data-number">฿{receipt.total.toLocaleString()}</span>

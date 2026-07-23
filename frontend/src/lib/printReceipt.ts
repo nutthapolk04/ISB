@@ -71,6 +71,7 @@ export interface ReceiptApi {
   subtotal: number;
   discount: number;
   tax: number;
+  edc_card_fee?: number;
   total: number;
   payment_method: string;
   status: string;
@@ -128,6 +129,7 @@ const RECEIPT_LABELS = {
     itemDiscount: "ส่วนลด",
     billDiscount: "ส่วนลดท้ายบิล",
     tax: "ภาษี",
+    cardFee: "ค่าธรรมเนียมบัตร 3%",
     subtotal: "ยอดรวม",
     grandTotal: "รวมสุทธิ",
     balanceBefore: "ยอดก่อนซื้อ",
@@ -148,6 +150,7 @@ const RECEIPT_LABELS = {
     itemDiscount: "Discount",
     billDiscount: "Bill Discount",
     tax: "Tax",
+    cardFee: "Card Fee (3%)",
     subtotal: "Subtotal",
     grandTotal: "Grand Total",
     balanceBefore: "Balance Before This Sale",
@@ -222,6 +225,9 @@ export function buildReceiptHtml(
     : "";
   const taxSection = r.tax > 0
     ? `<div class="row small"><span>${lbl.tax}</span><span>฿${r.tax.toLocaleString()}</span></div>`
+    : "";
+  const cardFeeSection = (r.edc_card_fee ?? 0) > 0
+    ? `<div class="row small"><span>${lbl.cardFee}</span><span>฿${(r.edc_card_fee ?? 0).toLocaleString()}</span></div>`
     : "";
   const payerSection = r.payer_label
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
@@ -342,6 +348,7 @@ export function buildReceiptHtml(
   <div class="row small"><span>${lbl.subtotal}</span><span>฿${r.subtotal.toLocaleString()}</span></div>
   ${discountSection}
   ${taxSection}
+  ${cardFeeSection}
   <div class="row total"><span>${lbl.grandTotal}</span><span>฿${r.total.toLocaleString()}</span></div>
   ${balanceAfterSection}
   ${r.payment_method.toLowerCase() === "cash" && r.cash_received != null ? `

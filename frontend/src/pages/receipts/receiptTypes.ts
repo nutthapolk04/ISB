@@ -58,6 +58,7 @@ export interface ReceiptApi {
   subtotal: number;
   discount: number;
   tax: number;
+  edc_card_fee?: number;
   total: number;
   payment_method: string;
   status: string;

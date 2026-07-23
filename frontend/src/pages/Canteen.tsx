@@ -578,7 +578,7 @@ export default function Canteen() {
             | { kind: "department"; departmentId: number },
         extras?: {
             cashReceived?: number;
-            edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string };
+            edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string; mode?: "qr" | "card" };
         },
     ) => {
         setConfirming(true);
@@ -598,6 +598,7 @@ export default function Canteen() {
                 edc_approval_code: extras?.edcRefs?.approval_code,
                 edc_terminal_ref: extras?.edcRefs?.terminal_ref,
                 edc_masked_card: extras?.edcRefs?.masked_card,
+                edc_mode: extras?.edcRefs?.mode,
                 shop_id: CANTEEN_SHOP_ID,
                 items: cart.items.map((i) => ({
                     product_variant_id: i.id,
@@ -832,7 +833,7 @@ export default function Canteen() {
     // calls back through `onPaid` once the webhook produces a receipt.
     // (Old handleConfirmQr removed; the modal owns the checkout side-effect.)
 
-    const handleConfirmEdc = async (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) => {
+    const handleConfirmEdc = async (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) => {
         setEdcOpen(false);
         const amount = cart.total;
         display.processing({

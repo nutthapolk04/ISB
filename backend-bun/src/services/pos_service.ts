@@ -70,6 +70,7 @@ export interface ReceiptDTO {
     edc_terminal_ref: string | null;
     edc_approval_code: string | null;
     edc_masked_card: string | null;
+    edc_card_fee: number;
     cash_received: number | null;
     created_at: string;
     created_by: number;
@@ -257,6 +258,7 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
         edc_terminal_ref: receipt.edcTerminalRef ?? null,
         edc_approval_code: receipt.edcApprovalCode ?? null,
         edc_masked_card: receipt.edcMaskedCard ?? null,
+        edc_card_fee: pgNumber(receipt.edcCardFee) ?? 0,
         cash_received: pgNumber(receipt.cashReceived),
         created_at: pgToIso(receipt.createdAt)!,
         created_by: receipt.createdBy,

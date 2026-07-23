@@ -39,6 +39,11 @@ const ALLOWED_PAYMENT_METHODS = new Set([
   "QR_PROMPTPAY",
 ]);
 
+// Surcharge passed on to the customer for EDC card-swipe/tap sales (never
+// QR) — the acquirer's interchange fee, recovered at checkout rather than
+// absorbed by the shop.
+const EDC_CARD_FEE_RATE = 0.03;
+
 export interface SelectedOptionInput {
   option_id: number;
   quantity?: number;
@@ -67,6 +72,10 @@ export interface CheckoutInput {
   edc_terminal_ref?: string | null;
   edc_approval_code?: string | null;
   edc_masked_card?: string | null;
+  // "card" (physical swipe/tap) carries a 3% surcharge computed server-side
+  // below; "qr" (Thai QR) never does. Absent/other values are treated as no
+  // fee — safe-by-default, never silently overcharges the customer.
+  edc_mode?: "qr" | "card" | null;
   cash_received?: number | null;
   discount?: number;
   notes?: string | null;
@@ -528,7 +537,12 @@ export async function checkout(input: CheckoutInput) {
     }
 
     const billDiscount = Math.max(0, Math.min(input.discount ?? 0, subtotal));
-    const total = Math.round((subtotal - billDiscount) * 100) / 100;
+    const netAfterDiscount = Math.round((subtotal - billDiscount) * 100) / 100;
+    const edcCardFee =
+      paymentMethod === "EDC" && input.edc_mode === "card"
+        ? Math.round(netAfterDiscount * EDC_CARD_FEE_RATE * 100) / 100
+        : 0;
+    const total = Math.round((netAfterDiscount + edcCardFee) * 100) / 100;
 
     // ── Wallet deduction (department / user / customer) ──────────────
     let walletDeductData: {
@@ -688,13 +702,13 @@ export async function checkout(input: CheckoutInput) {
         (receipt_number, transaction_mode, payment_method,
          customer_id, payer_user_id, payer_department_id, requester_user_id,
          shop_id, subtotal, discount, tax, total, status,
-         notes, edc_terminal_ref, edc_approval_code, edc_masked_card,
+         notes, edc_terminal_ref, edc_approval_code, edc_masked_card, edc_card_fee,
          cash_received, spending_group_id, created_by)
       VALUES (${receiptNumber}, ${transactionMode}, ${paymentMethod},
               ${receiptCustomerId}, ${receiptPayerUserId}, ${receiptPayerDeptId}, ${input.requester_user_id ?? null},
               ${effectiveShopId}, ${subtotal}, ${billDiscount}, 0, ${total}, 'ACTIVE',
               ${input.notes ?? null}, ${input.edc_terminal_ref ?? null},
-              ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null},
+              ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFee},
               ${paymentMethod === "CASH" ? input.cash_received ?? null : null},
               ${receiptSpendingGroupId}, ${input.userId})
       RETURNING id
@@ -732,6 +746,7 @@ export async function checkout(input: CheckoutInput) {
               ${JSON.stringify({
                 payment_method: paymentMethod.toLowerCase(),
                 total,
+                edc_card_fee: edcCardFee,
                 items: prepared.length,
                 products: auditLines,
                 payer_kind: payerKind,

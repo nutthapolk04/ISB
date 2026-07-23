@@ -9,8 +9,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { CheckCircle2, ChevronLeft, CreditCard, Loader2, Nfc, QrCode, XCircle } from "lucide-react";
 import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
 
@@ -18,10 +16,17 @@ interface EdcRefs {
     approval_code: string;
     terminal_ref?: string;
     masked_card?: string;
+    /** Drives the 3% card-swipe surcharge server-side — never applied for "qr". */
+    mode: EdcMode;
 }
 
 /** Which way the customer pays on the terminal — drives qrSale vs sale. */
 export type EdcMode = "qr" | "card";
+
+/** Customer-facing card surcharge — must match EDC_CARD_FEE_RATE in
+ * backend-bun/src/services/pos_checkout_service.ts; the backend recomputes
+ * and is the source of truth, this is only for the on-screen preview. */
+const EDC_CARD_FEE_RATE = 0.03;
 
 interface EdcPaymentModalProps {
     open: boolean;
@@ -46,16 +51,16 @@ export function EdcPaymentModal({
     confirming,
 }: EdcPaymentModalProps) {
     const { t } = useTranslation();
-    const [step, setStep] = useState<"choice" | "processing" | "approved" | "declined" | "form">(
+    const [step, setStep] = useState<"choice" | "processing" | "approved" | "declined">(
         "choice",
     );
     const [edcMode, setEdcMode] = useState<EdcMode | null>(null);
-    const [approvalCode, setApprovalCode] = useState("");
-    const [terminalRef, setTerminalRef] = useState("");
-    const [maskedCard, setMaskedCard] = useState("");
-    const [approved, setApproved] = useState(false);
+    // True when the terminal approved the sale but the modal couldn't record it
+    // (bridge unreachable, or no approval code came back) — distinguishes this
+    // from a genuine bank decline so "declined" doesn't offer a naive "Try
+    // again" that could double-charge the customer.
+    const [approvedNoRecord, setApprovedNoRecord] = useState(false);
     const [declineInfo, setDeclineInfo] = useState<DeclineInfo | null>(null);
-    const [bridgeError, setBridgeError] = useState<string | null>(null);
     const [qrShown, setQrShown] = useState(false);
     const [terminalStatus, setTerminalStatus] = useState<"connected" | "disconnected" | "unknown">(
         "unknown",
@@ -65,8 +70,8 @@ export function EdcPaymentModal({
     // any in-flight attempt bumps this ref to invalidate itself before touching state.
     const attemptRef = useRef(0);
     const idempotencyKeyRef = useRef("");
-    // Guards onConfirm against double-fires from both the auto-confirm path
-    // (runAttempt) and the manual fallback path (handleConfirm).
+    // Guards onConfirm against a double-fire if the result stream somehow
+    // emits more than one approved result for the same attempt.
     const pendingRef = useRef(false);
 
     useEffect(() => {
@@ -74,12 +79,8 @@ export function EdcPaymentModal({
             attemptRef.current += 1;
             setStep("choice");
             setEdcMode(null);
-            setApprovalCode("");
-            setTerminalRef("");
-            setMaskedCard("");
-            setApproved(false);
+            setApprovedNoRecord(false);
             setDeclineInfo(null);
-            setBridgeError(null);
             setQrShown(false);
         }
     }, [open]);
@@ -121,11 +122,7 @@ export function EdcPaymentModal({
 
     const resetAttemptState = () => {
         setDeclineInfo(null);
-        setBridgeError(null);
-        setApproved(false);
-        setApprovalCode("");
-        setTerminalRef("");
-        setMaskedCard("");
+        setApprovedNoRecord(false);
         setQrShown(false);
     };
 
@@ -143,7 +140,12 @@ export function EdcPaymentModal({
             if (!isCurrent()) return;
 
             const edc = getEdcClient();
-            const satang = Math.round(total * 100);
+            // Card swipe/tap carries a 3% surcharge the customer pays on top of
+            // the goods total — QR never does. Backend recomputes and stores
+            // this independently; this is what's actually charged at the terminal.
+            const cardFee = mode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
+            const chargeAmount = total + cardFee;
+            const satang = Math.round(chargeAmount * 100);
             const stream =
                 mode === "qr"
                     ? edc.qrSale({
@@ -175,11 +177,6 @@ export function EdcPaymentModal({
                         // are ignored, matching handleCancelProcessing's contract — the
                         // terminal-side charge, if any, is reconciled manually.
                         if (isCurrent()) {
-                            setApprovalCode(nextApprovalCode);
-                            setTerminalRef(nextTerminalRef);
-                            setMaskedCard(nextMaskedCard);
-                            setApproved(true);
-
                             if (nextApprovalCode.trim().length > 0) {
                                 // Auto-confirm — no manual entry needed when the terminal already
                                 // gave us an approval code.
@@ -191,6 +188,7 @@ export function EdcPaymentModal({
                                             approval_code: nextApprovalCode.trim(),
                                             terminal_ref: nextTerminalRef.trim() || undefined,
                                             masked_card: nextMaskedCard.trim() || undefined,
+                                            mode,
                                         });
                                     } catch (err) {
                                         // onConfirm already closes the modal and shows its own error
@@ -201,8 +199,19 @@ export function EdcPaymentModal({
                                     }
                                 }
                             } else {
-                                // No approval code to auto-confirm with — fall back to manual entry.
-                                setStep("form");
+                                // Terminal approved but gave no approval code to record the
+                                // receipt with — cannot auto-confirm, and manual entry is
+                                // intentionally not offered (see below). Surfaced as a distinct
+                                // "approved but unrecorded" state so cashiers never retry blindly.
+                                setApprovedNoRecord(true);
+                                setDeclineInfo({
+                                    code: "",
+                                    message: t(
+                                        "storePos.edcApprovedNoCode",
+                                        "เครื่องอนุมัติรายการแล้วแต่ไม่ได้รับรหัสยืนยันกลับมา — ห้ามลองใหม่ซ้ำ (อาจตัดเงินซ้ำ) กรุณาติดต่อผู้ดูแลระบบเพื่อบันทึกใบเสร็จด้วยตนเอง",
+                                    ),
+                                });
+                                setStep("declined");
                             }
                         }
                     } else {
@@ -218,13 +227,14 @@ export function EdcPaymentModal({
             if (!isCurrent()) return;
             // Never log full card data — the SDK never exposes it, but keep this guard in mind.
             console.error("[EDC] bridge/transaction error", err);
-            setBridgeError(
-                t(
+            setDeclineInfo({
+                code: "",
+                message: t(
                     "storePos.edcBridgeUnreachable",
-                    "เชื่อมต่อ EDC bridge ไม่ได้ — กรอกข้อมูลเองได้",
+                    "เชื่อมต่อ EDC bridge ไม่ได้ — ลองใหม่อีกครั้ง หรือแจ้งผู้ดูแลระบบ",
                 ),
-            );
-            setStep("form");
+            });
+            setStep("declined");
         }
     };
 
@@ -251,21 +261,14 @@ export function EdcPaymentModal({
         if (edcMode) void runAttempt(edcMode);
     };
 
-    const canConfirm = step === "form" && approvalCode.trim().length > 0 && !confirming;
-
-    const handleConfirm = async () => {
-        if (pendingRef.current || !canConfirm) return;
-        pendingRef.current = true;
-        try {
-            await onConfirm({
-                approval_code: approvalCode.trim(),
-                terminal_ref: terminalRef.trim() || undefined,
-                masked_card: maskedCard.trim() || undefined,
-            });
-        } finally {
-            pendingRef.current = false;
-        }
-    };
+    // Once a QR/card attempt is in flight (or has just been approved and is
+    // being recorded), block Escape/outside-click dismissal — the cashier
+    // must use the explicit Cancel button (which only resets the step, it
+    // never closes the dialog) rather than accidentally losing the modal
+    // mid-transaction. Does not affect the parent's own `setEdcOpen(false)`
+    // call after a successful onConfirm, since that happens outside
+    // onOpenChange entirely.
+    const dismissLocked = step === "processing" || step === "approved";
 
     const showModeHeader = step !== "choice" && edcMode !== null;
     const HeaderIcon = showModeHeader ? (edcMode === "qr" ? QrCode : CreditCard) : Nfc;
@@ -275,6 +278,12 @@ export function EdcPaymentModal({
             : t("storePos.edcModalTitleCard", "EDC — Credit Card")
         : t("storePos.edcModalTitle", "EDC — Credit / Debit Card");
 
+    // Card mode adds the 3% surcharge on top of the goods total — shown once
+    // the cashier has actually picked "card" so the choice screen itself
+    // still reads as one flat total per method.
+    const cardFee = edcMode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
+    const chargeTotal = total + cardFee;
+
     const description =
         step === "choice"
             ? t("storePos.edcModeChoiceDesc", "Choose how the customer will pay.")
@@ -282,11 +291,7 @@ export function EdcPaymentModal({
                 ? t("storePos.edcProcessingDesc", "Waiting for the terminal…")
                 : step === "approved"
                     ? t("storePos.edcAutoConfirmDesc", "Transaction approved — recording the receipt…")
-                    : step === "declined"
-                        ? t("storePos.edcDeclinedDesc", "The transaction was not approved.")
-                        : approved
-                            ? t("storePos.edcApprovedDesc", "Transaction approved — confirm to record the receipt.")
-                            : t("storePos.edcManualDesc", "Enter the approval code manually.");
+                    : t("storePos.edcDeclinedDesc", "The transaction was not approved.");
 
     const footerBackDisabled = confirming;
     const footerBackLabel =
@@ -295,15 +300,36 @@ export function EdcPaymentModal({
         step === "choice" ? onBack : step === "processing" ? handleCancelProcessing : handleBackToChoice;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md canteen-modal-pop " showCloseButton={false}>
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                if (dismissLocked && !next) return;
+                onOpenChange(next);
+            }}
+        >
+            <DialogContent
+                className="sm:max-w-md canteen-modal-pop "
+                showCloseButton={false}
+                onEscapeKeyDown={(e) => { if (dismissLocked) e.preventDefault(); }}
+                onPointerDownOutside={(e) => { if (dismissLocked) e.preventDefault(); }}
+                onInteractOutside={(e) => { if (dismissLocked) e.preventDefault(); }}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <HeaderIcon className="h-6 w-6 text-violet-500" />
                         {headerTitle} —{" "}
-                        <span className="text-violet-600 tabular-nums">฿{total.toFixed(2)}</span>
+                        <span className="text-violet-600 tabular-nums">฿{chargeTotal.toFixed(2)}</span>
                     </DialogTitle>
                     <DialogDescription>{description}</DialogDescription>
+                    {cardFee > 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                            {t(
+                                "storePos.edcCardFeeNote",
+                                "รวมค่าธรรมเนียมบัตร 3%: ฿{{fee}} (ยอดสินค้า ฿{{goods}})",
+                                { fee: cardFee.toFixed(2), goods: total.toFixed(2) },
+                            )}
+                        </p>
+                    )}
                     <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
                         <span
                             className={`h-2 w-2 rounded-full ${terminalStatus === "connected"
@@ -344,6 +370,9 @@ export function EdcPaymentModal({
                                 <CreditCard className="h-8 w-8" />
                             </div>
                             <div className="font-semibold">{t("storePos.edcModeCard", "CREDIT CARD")}</div>
+                            <div className="text-xs text-muted-foreground">
+                                {t("storePos.edcCardFeeHint", "+3% fee")}
+                            </div>
                         </button>
                     </div>
                 )}
@@ -386,86 +415,35 @@ export function EdcPaymentModal({
 
                 {step === "declined" && (
                     <div className="space-y-4">
-                        <div className="flex flex-col items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-center">
-                            <XCircle className="h-8 w-8 text-destructive" />
-                            <div className="font-semibold text-destructive">
-                                {t("storePos.edcDeclined", "DECLINED")}
+                        <div
+                            className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center ${approvedNoRecord
+                                ? "border-amber-400/50 bg-amber-50 dark:bg-amber-950/30"
+                                : "border-destructive/40 bg-destructive/10"
+                                }`}
+                        >
+                            <XCircle
+                                className={`h-8 w-8 ${approvedNoRecord ? "text-amber-600 dark:text-amber-400" : "text-destructive"}`}
+                            />
+                            <div
+                                className={`font-semibold ${approvedNoRecord ? "text-amber-800 dark:text-amber-300" : "text-destructive"}`}
+                            >
+                                {approvedNoRecord
+                                    ? t("storePos.edcApprovedUnrecorded", "APPROVED — NOT RECORDED")
+                                    : t("storePos.edcDeclined", "DECLINED")}
                             </div>
                             <div className="text-sm text-muted-foreground">
                                 {[declineInfo?.code, declineInfo?.message].filter(Boolean).join(" — ")}
                             </div>
                         </div>
-                        <Button
-                            type="button"
-                            onClick={handleTryAgain}
-                            className="w-full gap-2 h-12 bg-violet-600 hover:bg-violet-700 text-white"
-                        >
-                            {t("storePos.edcTryAgain", "Try again")}
-                        </Button>
-                    </div>
-                )}
-
-                {step === "form" && (
-                    <div className="space-y-4">
-                        {approved && (
-                            <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-50 p-3 text-center dark:bg-emerald-950/30">
-                                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                                    {t("storePos.edcApproved", "APPROVED")}
-                                </span>
-                            </div>
+                        {!approvedNoRecord && (
+                            <Button
+                                type="button"
+                                onClick={handleTryAgain}
+                                className="w-full gap-2 h-12 bg-violet-600 hover:bg-violet-700 text-white"
+                            >
+                                {t("storePos.edcTryAgain", "Try again")}
+                            </Button>
                         )}
-
-                        {bridgeError && (
-                            <div className="rounded-xl border border-amber-400/50 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                                {bridgeError}
-                            </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edc-approval">
-                                {t("storePos.edcApproval", "Approval code")}{" "}
-                                <span className="text-destructive">*</span>
-                            </Label>
-                            <Input
-                                id="edc-approval"
-                                value={approvalCode}
-                                onChange={(e) => setApprovalCode(e.target.value)}
-                                placeholder="AUTH123456"
-                                autoComplete="off"
-                                className="font-mono"
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edc-terminal">
-                                {t("storePos.edcTerminalRef", "Terminal reference")}{" "}
-                                <span className="text-muted-foreground text-xs">({t("storePos.optional", "optional")})</span>
-                            </Label>
-                            <Input
-                                id="edc-terminal"
-                                value={terminalRef}
-                                onChange={(e) => setTerminalRef(e.target.value)}
-                                placeholder="TXN12345678"
-                                autoComplete="off"
-                                className="font-mono"
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edc-card">
-                                {t("storePos.edcMaskedCard", "Masked card")}{" "}
-                                <span className="text-muted-foreground text-xs">({t("storePos.optional", "optional")})</span>
-                            </Label>
-                            <Input
-                                id="edc-card"
-                                value={maskedCard}
-                                onChange={(e) => setMaskedCard(e.target.value)}
-                                placeholder="**** **** **** 1234"
-                                autoComplete="off"
-                                className="font-mono"
-                            />
-                        </div>
                     </div>
                 )}
 
@@ -478,16 +456,6 @@ export function EdcPaymentModal({
                         >
                             <ChevronLeft className="h-4 w-4 mr-1" />
                             {footerBackLabel}
-                        </Button>
-                    )}
-                    {step === "form" && (
-                        <Button
-                            onClick={handleConfirm}
-                            disabled={!canConfirm}
-                            className="bg-violet-600 hover:bg-violet-700 text-white"
-                        >
-                            {confirming && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {t("storePos.confirmCharge", "Confirm charge")}
                         </Button>
                     )}
                 </DialogFooter>
