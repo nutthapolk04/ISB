@@ -26,6 +26,7 @@ import { toast } from "@/hooks/use-toast";
 import { CreditCard, Search, Loader2, Eye, ShieldOff, ShieldCheck, RefreshCw } from "lucide-react";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { useRfidListener } from "@/hooks/useRfidListener";
+import { expandCardUidCandidates, toCanonicalCardUid } from "@/lib/cardUid";
 
 type CardRole = "all" | "staff" | "parent" | "student" | "admin" | "manager" | "cashier" | "visitor";
 
@@ -97,13 +98,17 @@ export default function CardManagement() {
 
   // Tapping a real card fills the Change UID field when that dialog is open
   // (PC/SC bridge or keyboard-wedge fallback); otherwise it fills the Search
-  // box so scanning a card jumps straight to its row.
+  // box so scanning a card jumps straight to its row. Readers can emit the
+  // same physical card as decimal or hex depending on mode — convert to the
+  // canonical (byte-reversed hex) form the DB stores so both fields always
+  // show a consistent, matchable value.
   useRfidListener({
     onCapture: (uid) => {
+      const canonical = toCanonicalCardUid(uid);
       if (changeUidTarget) {
-        setNewUid(uid);
+        setNewUid(canonical);
       } else {
-        setSearch(uid);
+        setSearch(canonical);
       }
     },
   });
@@ -173,6 +178,13 @@ export default function CardManagement() {
 
   const filteredCards = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // A scanned card can reach this box in whatever format the reader
+    // emitted (hex, byte-reversed hex, or decimal) — expand it to every
+    // equivalent form so a scan always matches the stored uid regardless of
+    // which format it came in as.
+    const uidCandidates = search.trim()
+      ? expandCardUidCandidates(search.trim()).map((c) => c.toLowerCase())
+      : [];
     return boundCards.filter((c) => {
       if (roleFilter !== "all") {
         if (roleFilter === "student") {
@@ -182,8 +194,10 @@ export default function CardManagement() {
         }
       }
       if (!q) return true;
+      const uidLower = c.uid.toLowerCase();
       return (
-        c.uid.toLowerCase().includes(q) ||
+        uidLower.includes(q) ||
+        uidCandidates.some((cand) => uidLower === cand) ||
         c.name.toLowerCase().includes(q) ||
         (c.identifier ?? "").toLowerCase().includes(q) ||
         (c.familyCode ?? "").toLowerCase().includes(q) ||

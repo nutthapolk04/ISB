@@ -300,10 +300,10 @@ export function RfidPaymentModal({
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
 
-      // 4. User by username
+      // 4. User by staff code (external_id — e.g. EMP-001)
       try {
         const result = await api.get<UserPayerLookup>(
-          `/users/by-username/${encodeURIComponent(q)}`,
+          `/users/by-external-id/${encodeURIComponent(q)}`,
         );
         setUserPayer(result);
         setStudent(null);

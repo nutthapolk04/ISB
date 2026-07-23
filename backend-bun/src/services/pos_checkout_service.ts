@@ -592,28 +592,35 @@ export async function checkout(input: CheckoutInput) {
           INSERT INTO wallets (user_id, balance, is_active)
           VALUES (${input.payer_user_id}, 0, true) RETURNING id
         `;
-                walletId = ins[0].id;
-                balanceBefore = 0;
-            } else {
-                walletId = wRows[0].id;
-                balanceBefore = Number(wRows[0].balance);
-            }
-            const projected = balanceBefore - total;
-            if (!allowNegUser && projected < 0) {
-                const err = new Error(
-                    `Insufficient wallet balance. Available: ฿${balanceBefore.toFixed(2)}, Required: ฿${total.toFixed(2)}`,
-                );
-                (err as { status?: number; code?: string }).status = 400;
-                (err as { code?: string }).code = "INSUFFICIENT_USER_WALLET";
-                throw err;
-            }
-            await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
-            walletDeductData = { walletId, balanceBefore, balanceAfter: projected, amount: total };
-            payerEntityId = input.payer_user_id ?? null;
-            const uRows = await sqlTx<Array<{ full_name: string | null; username: string }>>`SELECT full_name, username FROM users WHERE id = ${input.payer_user_id} LIMIT 1`;
-            payerLabel = uRows[0]?.full_name ?? uRows[0]?.username ?? null;
-        } else if (isWalletPayment && input.customer_id !== null && input.customer_id !== undefined) {
-            const cRows = await sqlTx<Array<{ id: number; name: string; grade: string | null; card_frozen: boolean; daily_limit: string | null; daily_limit_canteen: string | null; daily_limit_store: string | null; negative_credit_limit: string | null }>>`
+        walletId = ins[0].id;
+        balanceBefore = 0;
+      } else {
+        walletId = wRows[0].id;
+        balanceBefore = Number(wRows[0].balance);
+      }
+      const projected = balanceBefore - total;
+      if (!allowNegUser && projected < 0) {
+        const err = new Error(
+          `Insufficient wallet balance. Available: ฿${balanceBefore.toFixed(2)}, Required: ฿${total.toFixed(2)}`,
+        );
+        (err as { status?: number; code?: string; params?: Record<string, unknown> }).status = 400;
+        (err as { code?: string }).code = "INSUFFICIENT_USER_WALLET";
+        // Real figures for the frontend's localized template (errors.INSUFFICIENT_USER_WALLET
+        // interpolates {{balance}}/{{amount}}) — without these it renders the
+        // placeholders empty instead of the actual amounts.
+        (err as { params?: Record<string, unknown> }).params = {
+          balance: balanceBefore.toFixed(2),
+          amount: total.toFixed(2),
+        };
+        throw err;
+      }
+      await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
+      walletDeductData = { walletId, balanceBefore, balanceAfter: projected, amount: total };
+      payerEntityId = input.payer_user_id ?? null;
+      const uRows = await sqlTx<Array<{ full_name: string | null; username: string }>>`SELECT full_name, username FROM users WHERE id = ${input.payer_user_id} LIMIT 1`;
+      payerLabel = uRows[0]?.full_name ?? uRows[0]?.username ?? null;
+    } else if (isWalletPayment && input.customer_id !== null && input.customer_id !== undefined) {
+      const cRows = await sqlTx<Array<{ id: number; name: string; grade: string | null; card_frozen: boolean; daily_limit: string | null; daily_limit_canteen: string | null; daily_limit_store: string | null; negative_credit_limit: string | null }>>`
         SELECT id, name, grade, card_frozen, daily_limit, daily_limit_canteen, daily_limit_store, negative_credit_limit
         FROM customers WHERE id = ${input.customer_id}
       `;
