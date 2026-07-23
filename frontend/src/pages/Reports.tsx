@@ -78,22 +78,23 @@ interface SalesByPaymentReportData {
     department_receipts: number;
 }
 
-// Reports that apply to BOTH modules (canteen + store).
+// Reports that apply to BOTH modules (canteen + store). Void receipts can
+// happen in either module, so returnReport (title: "Void") lives here even
+// though it's named after the older "returns" concept.
 const COMMON_REPORTS = [
     { type: "salesReport", icon: FileText, needsRange: true },
     { type: "topSellingReport", icon: TrendingUp, needsRange: true },
     { type: "salesByPaymentReport", icon: CreditCard, needsRange: true },
     { type: "salesSummaryReport", icon: FileText, needsRange: false },
     { type: "salesByItemReport", icon: Package, needsRange: false },
+    { type: "returnReport", icon: ArrowLeftRight, needsRange: true },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
-// Store-only reports — these don't make sense in a canteen context.
-// Canteen has no returns (food can't be returned) and uses portion-based
-// daily prep rather than SKU-level stock tracking, so per-SKU stock and
-// stock-card reports belong to the store/coop module only.
+// Store-only reports — these don't make sense in a canteen context. Canteen
+// uses portion-based daily prep rather than SKU-level stock tracking, so
+// per-SKU stock and stock-card reports belong to the store/coop module only.
 const STORE_ONLY_REPORTS = [
     { type: "stockReport", icon: Package, needsRange: false },
-    { type: "returnReport", icon: ArrowLeftRight, needsRange: true },
     { type: "stockCardReport", icon: ClipboardList, needsRange: true },
     { type: "bundleReport", icon: Package, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
@@ -130,6 +131,7 @@ const Reports = () => {
             salesByPaymentReport: "N003",
             salesSummaryReport: "N004",
             salesByItemReport: "N005",
+            returnReport: "N006",
         }
         : {
             salesReport: "S006",
