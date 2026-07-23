@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
 import { useRfidListener } from "@/hooks/useRfidListener";
+import { expandCardUidCandidates, toCanonicalCardUid } from "@/lib/cardUid";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { getPaginationRange } from "@/lib/pagination";
@@ -169,8 +170,11 @@ export default function FamilyLinks() {
 
   // Tapping a card fills the search box directly (PC/SC bridge or
   // keyboard-wedge fallback), same as Card Management / Cardholder list.
+  // Readers can emit the same physical card as decimal or hex depending on
+  // mode — convert to the canonical (byte-reversed hex) form the DB stores
+  // so the box always shows a consistent, matchable value.
   useRfidListener({
-    onCapture: (uid) => setSearch(uid),
+    onCapture: (uid) => setSearch(toCanonicalCardUid(uid)),
   });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -290,6 +294,17 @@ export default function FamilyLinks() {
 
   const filteredUnits = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // A scanned card can reach this box in whatever format the reader
+    // emitted (hex, byte-reversed hex, or decimal) — expand it to every
+    // equivalent form so a scan always matches the stored uid regardless of
+    // which format it came in as.
+    const uidCandidates = search.trim()
+      ? expandCardUidCandidates(search.trim()).map((c) => c.toLowerCase())
+      : [];
+    const uidMatches = (uid: string | null | undefined) => {
+      const lower = (uid ?? "").toLowerCase();
+      return lower.length > 0 && uidCandidates.some((cand) => lower === cand);
+    };
     return familyUnits.filter((u) => {
       if (q) {
         const match =
@@ -297,12 +312,14 @@ export default function FamilyLinks() {
           u.parents.some((p) =>
             p.name.toLowerCase().includes(q) ||
             p.username.toLowerCase().includes(q) ||
-            (parentById.get(p.userId)?.card_uid ?? "").toLowerCase().includes(q)
+            (parentById.get(p.userId)?.card_uid ?? "").toLowerCase().includes(q) ||
+            uidMatches(parentById.get(p.userId)?.card_uid)
           ) ||
           u.children.some((c) =>
             c.name.toLowerCase().includes(q) ||
             (c.studentCode ?? "").toLowerCase().includes(q) ||
-            (studentById.get(c.customerId)?.card_uid ?? "").toLowerCase().includes(q)
+            (studentById.get(c.customerId)?.card_uid ?? "").toLowerCase().includes(q) ||
+            uidMatches(studentById.get(c.customerId)?.card_uid)
           );
         if (!match) return false;
       }

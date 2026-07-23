@@ -141,10 +141,10 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect, scan
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
 
-      // 4. User by username
+      // 4. User by staff code (external_id — e.g. EMP-001)
       try {
         const result = await api.get<UserPayerLookup>(
-          `/users/by-username/${encodeURIComponent(trimmed)}`,
+          `/users/by-external-id/${encodeURIComponent(trimmed)}`,
         );
         setFound(userToStudent(result));
         return;
@@ -201,7 +201,7 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect, scan
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void lookup(query);
                 }}
-                placeholder={t("canteen.cardTap.placeholder", "UID / รหัสนักเรียน / username")}
+                placeholder={t("canteen.cardTap.placeholder", "UID / รหัสนักเรียน / ISB_ID_Number")}
                 disabled={loading}
                 className="flex-1"
               />

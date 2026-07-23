@@ -128,6 +128,24 @@ export default function SpendingGroups() {
         setEditShopSelected(new Set());
         setSelectedGrades(new Set());
         setModalOpen(true);
+        // No group id exists yet to hit /spending-groups/{id}/shops, so pull the
+        // plain shop list instead — every shop defaults to selected (ticked) so
+        // a brand-new group starts out covering the whole school unless the
+        // admin deliberately narrows it down.
+        api.get<{ id: string; name: string; module: string; is_active: boolean }[]>("/shops/?active_only=false")
+            .then((data) => {
+                const mapped: AssignableShop[] = data.map((s) => ({
+                    id: s.id,
+                    name: s.name,
+                    module: s.module,
+                    is_active: s.is_active,
+                    linked: true,
+                    linked_at: null,
+                }));
+                setEditShops(mapped);
+                setEditShopSelected(new Set(mapped.map((s) => s.id)));
+            })
+            .catch(() => setEditShops([]));
     };
 
     const openEdit = (g: SpendingGroup) => {
@@ -178,7 +196,7 @@ export default function SpendingGroups() {
                 }
                 toast({ title: t("spendingGroup.edit") + " saved" });
             } else {
-                await api.post("/spending-groups/", {
+                const created = await api.post<SpendingGroup>("/spending-groups/", {
                     code: form.code,
                     name_en: form.name_en,
                     name_th: form.name_th,
@@ -186,6 +204,11 @@ export default function SpendingGroups() {
                     grades,
                     is_active: form.is_active,
                 });
+                if (editShops !== null) {
+                    await api.patch(`/spending-groups/${created.id}/shops`, {
+                        shop_ids: Array.from(editShopSelected),
+                    });
+                }
                 toast({ title: t("spendingGroup.create") + " saved" });
             }
             setModalOpen(false);
@@ -343,55 +366,73 @@ export default function SpendingGroups() {
 
             {/* Create / Edit modal */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>
                             {editTarget ? t("spendingGroup.edit") : t("spendingGroup.create")}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
-                        <div className="space-y-1">
-                            <Label>{t("spendingGroup.code")}</Label>
-                            <Input
-                                value={form.code}
-                                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-                                placeholder="e.g. canteen"
-                                disabled={!!editTarget}
-                            />
-                            {!editTarget && (
-                                <p className="text-xs text-muted-foreground">{t("spendingGroup.codeHint")}</p>
-                            )}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label>{t("spendingGroup.code")}</Label>
+                                <Input
+                                    value={form.code}
+                                    onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                                    placeholder="e.g. canteen"
+                                    disabled={!!editTarget}
+                                />
+                                {!editTarget && (
+                                    <p className="text-xs text-muted-foreground">{t("spendingGroup.codeHint")}</p>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                <Label>{t("spendingGroup.nameEn")}</Label>
+                                <Input
+                                    value={form.name_en}
+                                    onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))}
+                                    placeholder="Canteen"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label>{t("spendingGroup.nameTh")}</Label>
+                                <Input
+                                    value={form.name_th}
+                                    onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))}
+                                    placeholder="โรงอาหาร"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label>{t("spendingGroup.dailyLimit")}</Label>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={form.daily_limit}
+                                    onChange={(e) => setForm((f) => ({ ...f, daily_limit: e.target.value }))}
+                                    placeholder="500"
+                                />
+                                <p className="text-xs text-muted-foreground">{t("spendingGroup.dailyLimitHint")}</p>
+                            </div>
                         </div>
                         <div className="space-y-1">
-                            <Label>{t("spendingGroup.nameEn")}</Label>
-                            <Input
-                                value={form.name_en}
-                                onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))}
-                                placeholder="Canteen"
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <Label>{t("spendingGroup.nameTh")}</Label>
-                            <Input
-                                value={form.name_th}
-                                onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))}
-                                placeholder="โรงอาหาร"
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <Label>{t("spendingGroup.dailyLimit")}</Label>
-                            <Input
-                                type="number"
-                                min={1}
-                                step={1}
-                                value={form.daily_limit}
-                                onChange={(e) => setForm((f) => ({ ...f, daily_limit: e.target.value }))}
-                                placeholder="500"
-                            />
-                            <p className="text-xs text-muted-foreground">{t("spendingGroup.dailyLimitHint")}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <Label>{t("spendingGroup.grades", { defaultValue: "Grades" })}</Label>
+                            <div className="flex items-center justify-between">
+                                <Label>{t("spendingGroup.grades", { defaultValue: "Grades" })}</Label>
+                                {availableGrades !== null && availableGrades.length > 0 && (
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                                        <Checkbox
+                                            checked={availableGrades.every((g) => selectedGrades.has(g))}
+                                            onCheckedChange={(v) => {
+                                                setSelectedGrades(v ? new Set(availableGrades) : new Set());
+                                            }}
+                                            className="h-3.5 w-3.5"
+                                        />
+                                        {t("common.selectAll", { defaultValue: "Select all" })}
+                                    </label>
+                                )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                                 {t("spendingGroup.gradesHint", {
                                     defaultValue: "Grades this limit applies to. A student's own limit (set by their parent) always overrides this.",
@@ -446,13 +487,28 @@ export default function SpendingGroups() {
                             </Label>
                         </div>
 
-                        {/* Shop assignment — only on edit (need a group id to PATCH against) */}
-                        {editTarget && (
-                            <div className="space-y-2 pt-3 border-t">
-                                <Label className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4" />
-                                    {t("spendingGroup.linkedShops", { defaultValue: "Linked Shops" })}
-                                </Label>
+                        {/* Shop assignment — available on both create (defaults to all
+                            shops selected, saved right after the group is created) and
+                            edit (pre-selects the currently linked shops). */}
+                        <div className="space-y-2 pt-3 border-t">
+                                <div className="flex items-center justify-between">
+                                    <Label className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4" />
+                                        {t("spendingGroup.linkedShops", { defaultValue: "Linked Shops" })}
+                                    </Label>
+                                    {editShops !== null && editShops.length > 0 && (
+                                        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                                            <Checkbox
+                                                checked={editShops.every((s) => editShopSelected.has(s.id))}
+                                                onCheckedChange={(v) => {
+                                                    setEditShopSelected(v ? new Set(editShops.map((s) => s.id)) : new Set());
+                                                }}
+                                                className="h-3.5 w-3.5"
+                                            />
+                                            {t("common.selectAll", { defaultValue: "Select all" })}
+                                        </label>
+                                    )}
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                     {t("spendingGroup.linkedShopsHint", {
                                         defaultValue: "Tick the shops that belong to this group. Daily limit applies across all ticked shops.",
@@ -509,7 +565,6 @@ export default function SpendingGroups() {
                                     )}
                                 </div>
                             </div>
-                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>

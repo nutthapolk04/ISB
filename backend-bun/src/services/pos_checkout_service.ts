@@ -603,8 +603,15 @@ export async function checkout(input: CheckoutInput) {
         const err = new Error(
           `Insufficient wallet balance. Available: ฿${balanceBefore.toFixed(2)}, Required: ฿${total.toFixed(2)}`,
         );
-        (err as { status?: number; code?: string }).status = 400;
+        (err as { status?: number; code?: string; params?: Record<string, unknown> }).status = 400;
         (err as { code?: string }).code = "INSUFFICIENT_USER_WALLET";
+        // Real figures for the frontend's localized template (errors.INSUFFICIENT_USER_WALLET
+        // interpolates {{balance}}/{{amount}}) — without these it renders the
+        // placeholders empty instead of the actual amounts.
+        (err as { params?: Record<string, unknown> }).params = {
+          balance: balanceBefore.toFixed(2),
+          amount: total.toFixed(2),
+        };
         throw err;
       }
       await sqlTx`UPDATE wallets SET balance = ${projected}, updated_at = NOW() WHERE id = ${walletId}`;
@@ -678,8 +685,17 @@ export async function checkout(input: CheckoutInput) {
           const err = new Error(
             `Wallet would exceed negative credit limit. Available: ฿${balanceBefore.toFixed(2)}, Required: ฿${total.toFixed(2)}, Overdraft allowed: ฿${maxOverdraft.toFixed(2)}`,
           );
-          (err as { status?: number; code?: string }).status = 400;
+          (err as { status?: number; code?: string; params?: Record<string, unknown> }).status = 400;
           (err as { code?: string }).code = "EXCEEDS_NEGATIVE_CREDIT_LIMIT";
+          // Real figures for the frontend's localized template
+          // (errors.EXCEEDS_NEGATIVE_CREDIT_LIMIT interpolates {{balance}}/
+          // {{amount}}/{{maxOverdraft}}) — without these it renders the
+          // placeholders empty instead of the actual amounts.
+          (err as { params?: Record<string, unknown> }).params = {
+            balance: balanceBefore.toFixed(2),
+            amount: total.toFixed(2),
+            maxOverdraft: maxOverdraft.toFixed(2),
+          };
           throw err;
         }
       }

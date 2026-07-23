@@ -172,6 +172,11 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
     }
     const limit = p.limit ?? 10;
     const pattern = `%${q}%`;
+    // A scanned card can reach this search box in whatever format the reader
+    // emitted (hex, byte-reversed hex, or decimal) — see card_uid.ts. Expand
+    // the raw query to every equivalent form and match card_uid against all
+    // of them too, on top of the plain substring match for partial/manual typing.
+    const cardUidCandidates = expandCardUidCandidates(q);
 
     // Students / departments
     const customerRows = await db
@@ -185,6 +190,7 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
                     ilike(customers.studentCode, pattern),
                     ilike(customers.customerCode, pattern),
                     ilike(customers.cardUid, pattern),
+                    ...cardUidCandidates.map((c) => ilike(customers.cardUid, c)),
                     ilike(customers.familyCode, pattern),
                     ilike(customers.externalId, pattern),
                     ilike(customers.email, pattern),
@@ -210,6 +216,7 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
                     ilike(users.familyCode, pattern),
                     ilike(users.externalId, pattern),
                     ilike(users.cardUid, pattern),
+                    ...cardUidCandidates.map((c) => ilike(users.cardUid, c)),
                 ),
             ),
         )
@@ -241,10 +248,17 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
 }
 
 export async function getCustomerByCode(code: string): Promise<StudentProfileDTO | null> {
+    // external_id must be searchable in every case, not just for staff — a
+    // manually-created "other"/visitor customer can carry an external_id
+    // (ISB ID number) with no student_code/customer_code match at all.
     const rows = await db
         .select()
         .from(customers)
-        .where(or(ilike(customers.studentCode, code), ilike(customers.customerCode, code)))
+        .where(or(
+            ilike(customers.studentCode, code),
+            ilike(customers.customerCode, code),
+            ilike(customers.externalId, code),
+        ))
         .limit(1);
     if (!rows[0]) return null;
     const ws = await walletByCustomerIds([rows[0].id]);

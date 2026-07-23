@@ -1738,7 +1738,7 @@
       "titleVerify": "Verify Identity",
       "desc": "Tap student / staff / parent card",
       "descAuto": "System auto-detects identity",
-      "inputLabel": "Card UID / Student Code / Staff Username",
+      "inputLabel": "Card UID / Student Code / ISB_ID_Number",
       "inputPlaceholder": "Scan card or type code…",
       "searchBtn": "Search",
       "noCard": "No card? Search family by staff username",
@@ -2774,7 +2774,7 @@
       },
       "step2": {
         "title": "Process Payment — Wallet",
-        "desc": "Tap Charge → select Wallet → the 'Tap Card or Enter Code' dialog opens. Scan an RFID card OR type: Student Code (e.g. S12345), Card UID, Staff Username, or Department Code (e.g. D0001). Press Search — the system auto-detects who it is. Verify the name and remaining balance, then press Confirm."
+        "desc": "Tap Charge → select Wallet → the 'Tap Card or Enter Code' dialog opens. Scan an RFID card OR type: Student Code (e.g. S12345), Card UID, ISB_ID_Number, or Department Code (e.g. D0001). Press Search — the system auto-detects who it is. Verify the name and remaining balance, then press Confirm."
       },
       "step3": {
         "title": "View Receipts & Void",

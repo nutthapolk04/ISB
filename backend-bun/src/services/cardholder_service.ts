@@ -1,8 +1,23 @@
-import { and, asc, desc, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, customers, departments, wallets, syncLogs, syncAuditLogs, customerTypes, shops } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { createDepartment } from "@/services/department_service";
+import { expandCardUidCandidates } from "@/lib/card_uid";
+import type { PgColumn } from "drizzle-orm/pg-core";
+
+// A scanned card can reach a search box in whatever format the physical
+// reader happened to emit (hex, byte-reversed hex, or decimal) — see
+// card_uid.ts for why. `pattern` is always "%<query>%"; strip the wrapper to
+// recover the raw scan and try every equivalent form against card_uid too,
+// on top of the plain substring match already covering manual/partial typing.
+function cardUidExpansionCond(column: PgColumn, pattern: string | null): SQL | undefined {
+    if (!pattern || pattern.length < 2) return undefined;
+    const raw = pattern.slice(1, -1);
+    const candidates = expandCardUidCandidates(raw);
+    if (candidates.length === 0) return undefined;
+    return or(...candidates.map((c) => ilike(column, c)));
+}
 
 export type CardholderKind = "student" | "parent" | "staff" | "department" | "other";
 
@@ -89,14 +104,17 @@ function userRoleSetFor(kind: UserKind): string[] {
 
 function userSearchCond(pattern: string | null) {
     if (!pattern) return undefined;
-    return or(
+    const conds: SQL[] = [
         ilike(users.username, pattern),
         ilike(users.fullName, pattern),
         ilike(users.email, pattern),
         ilike(users.externalId, pattern),
         ilike(users.familyCode, pattern),
         ilike(users.cardUid, pattern),
-    );
+    ];
+    const uidCond = cardUidExpansionCond(users.cardUid, pattern);
+    if (uidCond) conds.push(uidCond);
+    return or(...conds);
 }
 
 function userWhere(kind: UserKind, pattern: string | null, shopId?: string | null, hasWallet?: boolean) {
@@ -157,14 +175,17 @@ async function fetchUsersPage(
 
 function customerSearchCond(pattern: string | null) {
     if (!pattern) return undefined;
-    return or(
+    const conds: SQL[] = [
         ilike(customers.name, pattern),
         ilike(customers.customerCode, pattern),
         ilike(customers.studentCode, pattern),
         ilike(customers.externalId, pattern),
         ilike(customers.familyCode, pattern),
         ilike(customers.cardUid, pattern),
-    );
+    ];
+    const uidCond = cardUidExpansionCond(customers.cardUid, pattern);
+    if (uidCond) conds.push(uidCond);
+    return or(...conds);
 }
 
 function customerWhere(

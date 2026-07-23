@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useRfidListener } from "@/hooks/useRfidListener";
+import { toCanonicalCardUid } from "@/lib/cardUid";
 import {
   useCardholders,
   useFamilyLinks,
@@ -126,8 +127,11 @@ export default function CardholderList() {
 
   // Tapping a card fills the search box directly (PC/SC bridge or
   // keyboard-wedge fallback), same as Card Management's search field.
+  // Readers can emit the same physical card as decimal or hex depending on
+  // mode — convert to the canonical (byte-reversed hex) form the DB stores
+  // so the box always shows a consistent, matchable value.
   useRfidListener({
-    onCapture: (uid) => setQ(uid),
+    onCapture: (uid) => setQ(toCanonicalCardUid(uid)),
   });
   const [school, setSchool] = useState<SchoolFilter>("all");
   const [grade, setGrade] = useState<string>("all");
