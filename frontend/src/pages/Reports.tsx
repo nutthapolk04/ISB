@@ -120,24 +120,27 @@ const Reports = () => {
     const location = useLocation();
     const isCanteenReportsPage = location.pathname.startsWith("/canteen/");
 
+    // N = canteen, S = store — same catalog numbers as before, just prefixed
+    // per module instead of a shared "ISB" prefix, so the exported Report ID
+    // also identifies which side (canteen/store) it came from.
     const REPORT_ID_MAP: Record<string, string> = isCanteenReportsPage
         ? {
-            salesReport: "ISB001",
-            topSellingReport: "ISB002",
-            salesByPaymentReport: "ISB003",
-            salesSummaryReport: "ISB004",
-            salesByItemReport: "ISB005",
+            salesReport: "N001",
+            topSellingReport: "N002",
+            salesByPaymentReport: "N003",
+            salesSummaryReport: "N004",
+            salesByItemReport: "N005",
         }
         : {
-            salesReport: "ISB006",
-            topSellingReport: "ISB007",
-            salesByPaymentReport: "ISB008",
-            salesSummaryReport: "ISB009",
-            salesByItemReport: "ISB010",
-            stockReport: "ISB011",
-            returnReport: "ISB012",
-            stockCardReport: "ISB013",
-            bundleReport: "ISB014",
+            salesReport: "S006",
+            topSellingReport: "S007",
+            salesByPaymentReport: "S008",
+            salesSummaryReport: "S009",
+            salesByItemReport: "S010",
+            stockReport: "S011",
+            returnReport: "S012",
+            stockCardReport: "S013",
+            bundleReport: "S014",
         };
     const visibleReports = useMemo(
         () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
