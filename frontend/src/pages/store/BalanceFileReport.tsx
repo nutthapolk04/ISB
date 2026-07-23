@@ -260,7 +260,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
         const periodLabel = formatPeriod(data.month, data.year, lang);
         const shopLabel = data.shop_name ?? shopId;
         const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US", { calendar: "gregory" });
-        const reportId = "ISB014";
+        const reportId = "S015";
         const schoolName = school.name || "International School Bangkok";
         const logoHtml = school.logoUrl
             ? `<img src="${school.logoUrl}" alt="logo" style="height:48px;object-fit:contain;margin-right:12px;vertical-align:middle;" />`
