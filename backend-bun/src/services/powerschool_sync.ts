@@ -16,9 +16,6 @@ import {
     familyProfiles, customerTypes, userLoginEmails,
 } from "@/db/schema";
 import { createHash } from "node:crypto";
-import {
-    resolveStudentSpendingLimits,
-} from "@/services/grade_spending_limits";
 
 const PARENT_DEFAULT_PASSWORD = "parent";
 
@@ -186,39 +183,6 @@ async function emitAudit(args: {
         action,
         changes,
     });
-}
-
-async function emitSpendingLimitAudit(args: {
-    syncLogId: number;
-    entityId: number;
-    entityName: string | null;
-    externalId: string;
-    beforeCanteen: string | null;
-    beforeStore: string | null;
-    afterCanteen: string;
-    afterStore: string;
-}): Promise<void> {
-    const oldSummary = `canteen=${args.beforeCanteen ?? "null"} store=${args.beforeStore ?? "null"}`;
-    const newSummary = `canteen=${args.afterCanteen} store=${args.afterStore}`;
-    await db.insert(syncAuditLogs).values({
-        syncLogId: args.syncLogId,
-        entityType: "customer",
-        entityId: args.entityId,
-        entityName: args.entityName,
-        externalId: args.externalId,
-        action: "update",
-        changes: {
-            spendingLimit: { old: oldSummary, new: `Default Spending Limit Init (${newSummary})` },
-        },
-    });
-}
-
-function applySpendingLimitPatch(
-    patch: Record<string, unknown>,
-    resolution: ReturnType<typeof resolveStudentSpendingLimits>,
-): void {
-    if (resolution.canteen !== null) patch.dailyLimitCanteen = resolution.canteen;
-    if (resolution.store !== null) patch.dailyLimitStore = resolution.store;
 }
 
 // ── Internal CustomerType ─────────────────────────────────────────────────
@@ -654,14 +618,6 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     const created = !existing;
     const before = snapshot(existing as unknown as Record<string, unknown> | null, CUSTOMER_AUDIT_FIELDS);
 
-    const limitResolution = resolveStudentSpendingLimits({
-        isNew: created,
-        newGrade: grade,
-        oldGrade: existing?.grade ?? null,
-        currentCanteen: existing?.dailyLimitCanteen ?? null,
-        currentStore: existing?.dailyLimitStore ?? null,
-    });
-
     const photoUrl = realisticPhoto("student", extId);
     let custRow: typeof customers.$inferSelect;
     if (created) {
@@ -682,7 +638,6 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             photoUrl,
             powerschoolSyncAt: new Date().toISOString(),
         };
-        applySpendingLimitPatch(insertValues, limitResolution);
         const conflictSet: Record<string, unknown> = {
             familyCode, name: fullName, grade, schoolType,
             enrollDate, withdrawDate,
@@ -690,7 +645,6 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             isActive: true,
             powerschoolSyncAt: new Date().toISOString(),
         };
-        applySpendingLimitPatch(conflictSet, limitResolution);
         const [c] = await db.insert(customers).values(insertValues as typeof customers.$inferInsert).onConflictDoUpdate({
             target: customers.externalId,
             set: conflictSet,
@@ -718,22 +672,8 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
             powerschoolSyncAt: new Date().toISOString(),
         };
         if (cardUid) updates.cardUid = cardUid;
-        applySpendingLimitPatch(updates, limitResolution);
         await db.update(customers).set(updates).where(eq(customers.id, existing!.id));
         custRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof customers.$inferSelect;
-    }
-
-    if (limitResolution.reason) {
-        await emitSpendingLimitAudit({
-            syncLogId,
-            entityId: custRow.id,
-            entityName: custRow.name,
-            externalId: extId,
-            beforeCanteen: existing?.dailyLimitCanteen ?? null,
-            beforeStore: existing?.dailyLimitStore ?? null,
-            afterCanteen: custRow.dailyLimitCanteen ?? limitResolution.canteen ?? "0.00",
-            afterStore: custRow.dailyLimitStore ?? limitResolution.store ?? "0.00",
-        });
     }
 
     const after = snapshot(custRow as unknown as Record<string, unknown>, CUSTOMER_AUDIT_FIELDS);
