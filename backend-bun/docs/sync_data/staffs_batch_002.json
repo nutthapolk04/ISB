@@ -13,7 +13,9 @@
       "smartCard": {
         "cardNumber": "758D9D96"
       },
-      "login": ["roberta@isb.ac.th"]
+      "login": [
+        "roberta@isb.ac.th"
+      ]
     },
     {
       "customerId": 202652,
@@ -28,7 +30,9 @@
       "smartCard": {
         "cardNumber": "75542296"
       },
-      "login": ["apichayr@isb.ac.th"]
+      "login": [
+        "apichayr@isb.ac.th"
+      ]
     },
     {
       "customerId": 202653,
@@ -43,7 +47,9 @@
       "smartCard": {
         "cardNumber": "3F6B4FB6"
       },
-      "login": ["chayachp@isb.ac.th"]
+      "login": [
+        "chayachp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202654,
@@ -58,7 +64,9 @@
       "smartCard": {
         "cardNumber": "75338896"
       },
-      "login": ["nattaphp@isb.ac.th"]
+      "login": [
+        "nattaphp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202657,
@@ -73,7 +81,9 @@
       "smartCard": {
         "cardNumber": "675B1654"
       },
-      "login": ["sirawitt@isb.ac.th"]
+      "login": [
+        "sirawitt@isb.ac.th"
+      ]
     },
     {
       "customerId": 202658,
@@ -88,7 +98,10 @@
       "smartCard": {
         "cardNumber": "FF3465D1"
       },
-      "login": ["hannahn@isb.ac.th", "202658@parents.isb.ac.th"]
+      "login": [
+        "hannahn@isb.ac.th",
+        "202658@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202659,
@@ -103,7 +116,10 @@
       "smartCard": {
         "cardNumber": "1F6963D1"
       },
-      "login": ["mikeb@isb.ac.th", "202659@parents.isb.ac.th"]
+      "login": [
+        "mikeb@isb.ac.th",
+        "202659@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202660,
@@ -118,7 +134,10 @@
       "smartCard": {
         "cardNumber": "6569C696"
       },
-      "login": ["davef@isb.ac.th", "202660@parents.isb.ac.th"]
+      "login": [
+        "davef@isb.ac.th",
+        "202660@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202661,
@@ -133,7 +152,9 @@
       "smartCard": {
         "cardNumber": "7593B996"
       },
-      "login": ["candaceb@isb.ac.th"]
+      "login": [
+        "candaceb@isb.ac.th"
+      ]
     },
     {
       "customerId": 202662,
@@ -148,7 +169,10 @@
       "smartCard": {
         "cardNumber": "DFE551B6"
       },
-      "login": ["carolync@isb.ac.th", "202662@parents.isb.ac.th"]
+      "login": [
+        "carolync@isb.ac.th",
+        "202662@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202663,
@@ -163,7 +187,9 @@
       "smartCard": {
         "cardNumber": "6F815CD1"
       },
-      "login": ["jenniferde@isb.ac.th"]
+      "login": [
+        "jenniferde@isb.ac.th"
+      ]
     },
     {
       "customerId": 202664,
@@ -178,7 +204,9 @@
       "smartCard": {
         "cardNumber": "DFE168D1"
       },
-      "login": ["paulf@isb.ac.th"]
+      "login": [
+        "paulf@isb.ac.th"
+      ]
     },
     {
       "customerId": 202665,
@@ -193,7 +221,10 @@
       "smartCard": {
         "cardNumber": "6595D196"
       },
-      "login": ["natalyah@isb.ac.th", "202665@parents.isb.ac.th"]
+      "login": [
+        "natalyah@isb.ac.th",
+        "202665@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202666,
@@ -208,7 +239,9 @@
       "smartCard": {
         "cardNumber": "850C0B96"
       },
-      "login": ["granth@isb.ac.th"]
+      "login": [
+        "granth@isb.ac.th"
+      ]
     },
     {
       "customerId": 202667,
@@ -223,7 +256,9 @@
       "smartCard": {
         "cardNumber": "0F6E58B6"
       },
-      "login": ["johnki@isb.ac.th"]
+      "login": [
+        "johnki@isb.ac.th"
+      ]
     },
     {
       "customerId": 202668,
@@ -238,7 +273,9 @@
       "smartCard": {
         "cardNumber": "FF8958B6"
       },
-      "login": ["margarel@isb.ac.th"]
+      "login": [
+        "margarel@isb.ac.th"
+      ]
     },
     {
       "customerId": 202669,
@@ -253,7 +290,9 @@
       "smartCard": {
         "cardNumber": "DF9654B6"
       },
-      "login": ["benl@isb.ac.th"]
+      "login": [
+        "benl@isb.ac.th"
+      ]
     },
     {
       "customerId": 202670,
@@ -268,7 +307,10 @@
       "smartCard": {
         "cardNumber": "2FD486D1"
       },
-      "login": ["lukem@isb.ac.th", "202670@parents.isb.ac.th"]
+      "login": [
+        "lukem@isb.ac.th",
+        "202670@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202671,
@@ -283,7 +325,9 @@
       "smartCard": {
         "cardNumber": "DFCD51D1"
       },
-      "login": ["miram@isb.ac.th"]
+      "login": [
+        "miram@isb.ac.th"
+      ]
     },
     {
       "customerId": 202672,
@@ -298,7 +342,10 @@
       "smartCard": {
         "cardNumber": "85339196"
       },
-      "login": ["steven@isb.ac.th", "202672@parents.isb.ac.th"]
+      "login": [
+        "steven@isb.ac.th",
+        "202672@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202676,
@@ -313,7 +360,10 @@
       "smartCard": {
         "cardNumber": "858FCC96"
       },
-      "login": ["emilysi@isb.ac.th", "202676@parents.isb.ac.th"]
+      "login": [
+        "emilysi@isb.ac.th",
+        "202676@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202677,
@@ -328,7 +378,9 @@
       "smartCard": {
         "cardNumber": "AFF456D1"
       },
-      "login": ["smitas@isb.ac.th"]
+      "login": [
+        "smitas@isb.ac.th"
+      ]
     },
     {
       "customerId": 202678,
@@ -343,7 +395,9 @@
       "smartCard": {
         "cardNumber": "4F195DD1"
       },
-      "login": ["davidwo@isb.ac.th"]
+      "login": [
+        "davidwo@isb.ac.th"
+      ]
     },
     {
       "customerId": 202680,
@@ -358,7 +412,10 @@
       "smartCard": {
         "cardNumber": "65176A96"
       },
-      "login": ["katem@isb.ac.th", "202680@parents.isb.ac.th"]
+      "login": [
+        "katem@isb.ac.th",
+        "202680@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202681,
@@ -373,7 +430,9 @@
       "smartCard": {
         "cardNumber": "75678196"
       },
-      "login": ["pongpatl@isb.ac.th"]
+      "login": [
+        "pongpatl@isb.ac.th"
+      ]
     },
     {
       "customerId": 202683,
@@ -388,7 +447,10 @@
       "smartCard": {
         "cardNumber": "75B34E96"
       },
-      "login": ["kristenf@isb.ac.th", "202683@parents.isb.ac.th"]
+      "login": [
+        "kristenf@isb.ac.th",
+        "202683@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202693,
@@ -403,7 +465,9 @@
       "smartCard": {
         "cardNumber": "7F0B70D1"
       },
-      "login": ["avdoon@isb.ac.th"]
+      "login": [
+        "avdoon@isb.ac.th"
+      ]
     },
     {
       "customerId": 202694,
@@ -418,7 +482,9 @@
       "smartCard": {
         "cardNumber": "3F8660D1"
       },
-      "login": ["sudatipk@isb.ac.th"]
+      "login": [
+        "sudatipk@isb.ac.th"
+      ]
     },
     {
       "customerId": 202697,
@@ -433,7 +499,9 @@
       "smartCard": {
         "cardNumber": "752B4196"
       },
-      "login": ["orakanyw@isb.ac.th"]
+      "login": [
+        "orakanyw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202698,
@@ -448,7 +516,10 @@
       "smartCard": {
         "cardNumber": "651B9E96"
       },
-      "login": ["angelm@isb.ac.th", "202698@parents.isb.ac.th"]
+      "login": [
+        "angelm@isb.ac.th",
+        "202698@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202700,
@@ -463,7 +534,9 @@
       "smartCard": {
         "cardNumber": "CFC767D1"
       },
-      "login": ["emilyr@isb.ac.th"]
+      "login": [
+        "emilyr@isb.ac.th"
+      ]
     },
     {
       "customerId": 202704,
@@ -478,7 +551,9 @@
       "smartCard": {
         "cardNumber": "AFCE54D1"
       },
-      "login": ["darbyd@isb.ac.th"]
+      "login": [
+        "darbyd@isb.ac.th"
+      ]
     },
     {
       "customerId": 202705,
@@ -493,7 +568,9 @@
       "smartCard": {
         "cardNumber": "FFEF61D1"
       },
-      "login": ["justinm@isb.ac.th"]
+      "login": [
+        "justinm@isb.ac.th"
+      ]
     },
     {
       "customerId": 202706,
@@ -508,7 +585,9 @@
       "smartCard": {
         "cardNumber": "FF7D57D1"
       },
-      "login": ["jenniferr@isb.ac.th"]
+      "login": [
+        "jenniferr@isb.ac.th"
+      ]
     },
     {
       "customerId": 202708,
@@ -523,7 +602,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["amornratw@isb.ac.th"]
+      "login": [
+        "amornratw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202711,
@@ -538,7 +619,9 @@
       "smartCard": {
         "cardNumber": "85F56C96"
       },
-      "login": ["amyc@isb.ac.th"]
+      "login": [
+        "amyc@isb.ac.th"
+      ]
     },
     {
       "customerId": 202715,
@@ -553,7 +636,9 @@
       "smartCard": {
         "cardNumber": "AFC159D1"
       },
-      "login": ["jennifert@isb.ac.th"]
+      "login": [
+        "jennifert@isb.ac.th"
+      ]
     },
     {
       "customerId": 202719,
@@ -568,7 +653,9 @@
       "smartCard": {
         "cardNumber": "85E68A96"
       },
-      "login": ["jirawatp@isb.ac.th"]
+      "login": [
+        "jirawatp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202720,
@@ -583,7 +670,9 @@
       "smartCard": {
         "cardNumber": "85784A96"
       },
-      "login": ["benyapornr@isb.ac.th"]
+      "login": [
+        "benyapornr@isb.ac.th"
+      ]
     },
     {
       "customerId": 202721,
@@ -598,7 +687,9 @@
       "smartCard": {
         "cardNumber": "951D1F96"
       },
-      "login": ["adoolm@isb.ac.th"]
+      "login": [
+        "adoolm@isb.ac.th"
+      ]
     },
     {
       "customerId": 202722,
@@ -613,7 +704,9 @@
       "smartCard": {
         "cardNumber": "7F7A5AD1"
       },
-      "login": ["anitap@isb.ac.th"]
+      "login": [
+        "anitap@isb.ac.th"
+      ]
     },
     {
       "customerId": 202727,
@@ -628,7 +721,9 @@
       "smartCard": {
         "cardNumber": "651C2D96"
       },
-      "login": ["kanitthab@isb.ac.th"]
+      "login": [
+        "kanitthab@isb.ac.th"
+      ]
     },
     {
       "customerId": 202728,
@@ -643,7 +738,9 @@
       "smartCard": {
         "cardNumber": "65E3C896"
       },
-      "login": ["perya@isb.ac.th"]
+      "login": [
+        "perya@isb.ac.th"
+      ]
     },
     {
       "customerId": 202732,
@@ -658,7 +755,9 @@
       "smartCard": {
         "cardNumber": "851E0396"
       },
-      "login": ["thepphithakn@isb.ac.th"]
+      "login": [
+        "thepphithakn@isb.ac.th"
+      ]
     },
     {
       "customerId": 202735,
@@ -673,7 +772,9 @@
       "smartCard": {
         "cardNumber": "65931296"
       },
-      "login": ["atichai@isb.ac.th"]
+      "login": [
+        "atichai@isb.ac.th"
+      ]
     },
     {
       "customerId": 202737,
@@ -703,7 +804,9 @@
       "smartCard": {
         "cardNumber": "3F8967D1"
       },
-      "login": ["jirapinyas@isb.ac.th"]
+      "login": [
+        "jirapinyas@isb.ac.th"
+      ]
     },
     {
       "customerId": 202741,
@@ -718,7 +821,9 @@
       "smartCard": {
         "cardNumber": "BF825BD1"
       },
-      "login": ["janpeny@isb.ac.th"]
+      "login": [
+        "janpeny@isb.ac.th"
+      ]
     },
     {
       "customerId": 202742,
@@ -733,7 +838,10 @@
       "smartCard": {
         "cardNumber": "75C56B96"
       },
-      "login": ["josephinel@isb.ac.th", "202742@parents.isb.ac.th"]
+      "login": [
+        "josephinel@isb.ac.th",
+        "202742@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202748,
@@ -748,7 +856,9 @@
       "smartCard": {
         "cardNumber": "65A0C896"
       },
-      "login": ["pauloq@isb.ac.th"]
+      "login": [
+        "pauloq@isb.ac.th"
+      ]
     },
     {
       "customerId": 202750,
@@ -763,7 +873,9 @@
       "smartCard": {
         "cardNumber": "BE23AC87"
       },
-      "login": ["jantimac@isb.ac.th"]
+      "login": [
+        "jantimac@isb.ac.th"
+      ]
     },
     {
       "customerId": 202751,
@@ -778,7 +890,9 @@
       "smartCard": {
         "cardNumber": "7540FE96"
       },
-      "login": ["panwan@isb.ac.th"]
+      "login": [
+        "panwan@isb.ac.th"
+      ]
     },
     {
       "customerId": 202755,
@@ -793,7 +907,9 @@
       "smartCard": {
         "cardNumber": "7501C696"
       },
-      "login": ["sirichain@isb.ac.th"]
+      "login": [
+        "sirichain@isb.ac.th"
+      ]
     },
     {
       "customerId": 202756,
@@ -808,7 +924,9 @@
       "smartCard": {
         "cardNumber": "4FD12B02"
       },
-      "login": ["mueanfanm@isb.ac.th"]
+      "login": [
+        "mueanfanm@isb.ac.th"
+      ]
     },
     {
       "customerId": 202760,
@@ -823,7 +941,9 @@
       "smartCard": {
         "cardNumber": "3F6763D1"
       },
-      "login": ["willc@isb.ac.th"]
+      "login": [
+        "willc@isb.ac.th"
+      ]
     },
     {
       "customerId": 202761,
@@ -838,7 +958,9 @@
       "smartCard": {
         "cardNumber": "FF0C6CD1"
       },
-      "login": ["ploypraewn@isb.ac.th"]
+      "login": [
+        "ploypraewn@isb.ac.th"
+      ]
     },
     {
       "customerId": 202767,
@@ -853,7 +975,9 @@
       "smartCard": {
         "cardNumber": "1F74C6D0"
       },
-      "login": ["charatk@isb.ac.th"]
+      "login": [
+        "charatk@isb.ac.th"
+      ]
     },
     {
       "customerId": 202768,
@@ -868,7 +992,9 @@
       "smartCard": {
         "cardNumber": "4FB263D1"
       },
-      "login": ["sittirakt@isb.ac.th"]
+      "login": [
+        "sittirakt@isb.ac.th"
+      ]
     },
     {
       "customerId": 202769,
@@ -883,7 +1009,9 @@
       "smartCard": {
         "cardNumber": "FF6F64D1"
       },
-      "login": ["rangsimanp@isb.ac.th"]
+      "login": [
+        "rangsimanp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202774,
@@ -913,7 +1041,9 @@
       "smartCard": {
         "cardNumber": "7F9F6AD1"
       },
-      "login": ["nantakarnw@isb.ac.th"]
+      "login": [
+        "nantakarnw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202777,
@@ -928,7 +1058,9 @@
       "smartCard": {
         "cardNumber": "DF964CB6"
       },
-      "login": ["apisitk@isb.ac.th"]
+      "login": [
+        "apisitk@isb.ac.th"
+      ]
     },
     {
       "customerId": 202805,
@@ -943,7 +1075,9 @@
       "smartCard": {
         "cardNumber": "2F1C66D1"
       },
-      "login": ["nopparatt@isb.ac.th"]
+      "login": [
+        "nopparatt@isb.ac.th"
+      ]
     },
     {
       "customerId": 202806,
@@ -958,7 +1092,9 @@
       "smartCard": {
         "cardNumber": "CFE457D1"
       },
-      "login": ["natjapaks@isb.ac.th"]
+      "login": [
+        "natjapaks@isb.ac.th"
+      ]
     },
     {
       "customerId": 202811,
@@ -973,7 +1109,9 @@
       "smartCard": {
         "cardNumber": "DF9A57D1"
       },
-      "login": ["patchakonc@isb.ac.th"]
+      "login": [
+        "patchakonc@isb.ac.th"
+      ]
     },
     {
       "customerId": 202812,
@@ -988,7 +1126,9 @@
       "smartCard": {
         "cardNumber": "8FBA55F2"
       },
-      "login": ["kritsanas@isb.ac.th"]
+      "login": [
+        "kritsanas@isb.ac.th"
+      ]
     },
     {
       "customerId": 202815,
@@ -1003,7 +1143,9 @@
       "smartCard": {
         "cardNumber": "5FC368D1"
       },
-      "login": ["wiratb@isb.ac.th"]
+      "login": [
+        "wiratb@isb.ac.th"
+      ]
     },
     {
       "customerId": 202816,
@@ -1018,7 +1160,9 @@
       "smartCard": {
         "cardNumber": "EF5B6CD1"
       },
-      "login": ["chanyaw@isb.ac.th"]
+      "login": [
+        "chanyaw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202817,
@@ -1033,7 +1177,9 @@
       "smartCard": {
         "cardNumber": "9FFC4BB6"
       },
-      "login": ["sirina@isb.ac.th"]
+      "login": [
+        "sirina@isb.ac.th"
+      ]
     },
     {
       "customerId": 202818,
@@ -1048,7 +1194,10 @@
       "smartCard": {
         "cardNumber": "3F5B62B6"
       },
-      "login": ["adamz@isb.ac.th", "202818@parents.isb.ac.th"]
+      "login": [
+        "adamz@isb.ac.th",
+        "202818@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202824,
@@ -1063,7 +1212,9 @@
       "smartCard": {
         "cardNumber": "6FF9D1D0"
       },
-      "login": ["nutchanatk@isb.ac.th"]
+      "login": [
+        "nutchanatk@isb.ac.th"
+      ]
     },
     {
       "customerId": 202825,
@@ -1078,7 +1229,9 @@
       "smartCard": {
         "cardNumber": "CFD8B1D0"
       },
-      "login": ["waithayat@isb.ac.th"]
+      "login": [
+        "waithayat@isb.ac.th"
+      ]
     },
     {
       "customerId": 202826,
@@ -1093,7 +1246,9 @@
       "smartCard": {
         "cardNumber": "2F006AD1"
       },
-      "login": ["nonchapaj@isb.ac.th"]
+      "login": [
+        "nonchapaj@isb.ac.th"
+      ]
     },
     {
       "customerId": 202827,
@@ -1108,7 +1263,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["evanh@isb.ac.th", "202827@parents.isb.ac.th"]
+      "login": [
+        "evanh@isb.ac.th",
+        "202827@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202828,
@@ -1123,7 +1281,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["sarahh@isb.ac.th", "202828@parents.isb.ac.th"]
+      "login": [
+        "sarahh@isb.ac.th",
+        "202828@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202829,
@@ -1138,7 +1299,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["koffik@isb.ac.th"]
+      "login": [
+        "koffik@isb.ac.th"
+      ]
     },
     {
       "customerId": 202830,
@@ -1153,7 +1316,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["alexandrak@isb.ac.th"]
+      "login": [
+        "alexandrak@isb.ac.th"
+      ]
     },
     {
       "customerId": 202831,
@@ -1168,7 +1333,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["davidgr@isb.ac.th", "202831@parents.isb.ac.th"]
+      "login": [
+        "davidgr@isb.ac.th",
+        "202831@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202832,
@@ -1183,7 +1351,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["kims@isb.ac.th", "202832@parents.isb.ac.th"]
+      "login": [
+        "kims@isb.ac.th",
+        "202832@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202833,
@@ -1198,7 +1369,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["jayd@isb.ac.th", "202833@parents.isb.ac.th"]
+      "login": [
+        "jayd@isb.ac.th",
+        "202833@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202834,
@@ -1213,7 +1387,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["shannont@isb.ac.th", "202834@parents.isb.ac.th"]
+      "login": [
+        "shannont@isb.ac.th",
+        "202834@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202835,
@@ -1228,7 +1405,9 @@
       "smartCard": {
         "cardNumber": "EF797DD1"
       },
-      "login": ["carreb@isb.ac.th"]
+      "login": [
+        "carreb@isb.ac.th"
+      ]
     },
     {
       "customerId": 202836,
@@ -1243,7 +1422,9 @@
       "smartCard": {
         "cardNumber": "262279AF"
       },
-      "login": ["kentc@isb.ac.th"]
+      "login": [
+        "kentc@isb.ac.th"
+      ]
     },
     {
       "customerId": 202837,
@@ -1258,7 +1439,9 @@
       "smartCard": {
         "cardNumber": "064EA2AF"
       },
-      "login": ["lavicae@isb.ac.th"]
+      "login": [
+        "lavicae@isb.ac.th"
+      ]
     },
     {
       "customerId": 202838,
@@ -1273,7 +1456,10 @@
       "smartCard": {
         "cardNumber": "06C600AF"
       },
-      "login": ["justink@isb.ac.th", "202838@parents.isb.ac.th"]
+      "login": [
+        "justink@isb.ac.th",
+        "202838@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202839,
@@ -1288,7 +1474,9 @@
       "smartCard": {
         "cardNumber": "064A15AF"
       },
-      "login": ["harleyp@isb.ac.th"]
+      "login": [
+        "harleyp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202840,
@@ -1303,7 +1491,10 @@
       "smartCard": {
         "cardNumber": "2658E5AF"
       },
-      "login": ["yoanav@isb.ac.th", "202840@parents.isb.ac.th"]
+      "login": [
+        "yoanav@isb.ac.th",
+        "202840@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202841,
@@ -1318,7 +1509,10 @@
       "smartCard": {
         "cardNumber": "2604ECAF"
       },
-      "login": ["sapphirab@isb.ac.th", "202841@parents.isb.ac.th"]
+      "login": [
+        "sapphirab@isb.ac.th",
+        "202841@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202845,
@@ -1333,7 +1527,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["andrewg@isb.ac.th", "202845@parents.isb.ac.th"]
+      "login": [
+        "andrewg@isb.ac.th",
+        "202845@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202846,
@@ -1348,7 +1545,10 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["sarahc@isb.ac.th", "202846@parents.isb.ac.th"]
+      "login": [
+        "sarahc@isb.ac.th",
+        "202846@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202847,
@@ -1363,7 +1563,9 @@
       "smartCard": {
         "cardNumber": "16EE1FAF"
       },
-      "login": ["tommys@isb.ac.th"]
+      "login": [
+        "tommys@isb.ac.th"
+      ]
     },
     {
       "customerId": 202848,
@@ -1378,7 +1580,9 @@
       "smartCard": {
         "cardNumber": "160DE2AF"
       },
-      "login": ["cristic@isb.ac.th"]
+      "login": [
+        "cristic@isb.ac.th"
+      ]
     },
     {
       "customerId": 202849,
@@ -1393,7 +1597,9 @@
       "smartCard": {
         "cardNumber": "06C140AF"
       },
-      "login": ["john@isb.ac.th"]
+      "login": [
+        "john@isb.ac.th"
+      ]
     },
     {
       "customerId": 202850,
@@ -1408,7 +1614,9 @@
       "smartCard": {
         "cardNumber": "16AC69AF"
       },
-      "login": ["felinah@isb.ac.th"]
+      "login": [
+        "felinah@isb.ac.th"
+      ]
     },
     {
       "customerId": 202851,
@@ -1423,7 +1631,9 @@
       "smartCard": {
         "cardNumber": "0656ADAF"
       },
-      "login": ["gregt@isb.ac.th"]
+      "login": [
+        "gregt@isb.ac.th"
+      ]
     },
     {
       "customerId": 202852,
@@ -1438,7 +1648,10 @@
       "smartCard": {
         "cardNumber": "066F30AF"
       },
-      "login": ["jakew@isb.ac.th", "202852@parents.isb.ac.th"]
+      "login": [
+        "jakew@isb.ac.th",
+        "202852@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202853,
@@ -1453,7 +1666,9 @@
       "smartCard": {
         "cardNumber": "16D597AF"
       },
-      "login": ["johnkim@isb.ac.th"]
+      "login": [
+        "johnkim@isb.ac.th"
+      ]
     },
     {
       "customerId": 202854,
@@ -1468,7 +1683,10 @@
       "smartCard": {
         "cardNumber": "064CCFAF"
       },
-      "login": ["simonn@isb.ac.th", "202854@parents.isb.ac.th"]
+      "login": [
+        "simonn@isb.ac.th",
+        "202854@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202855,
@@ -1483,7 +1701,9 @@
       "smartCard": {
         "cardNumber": "FF3554B6"
       },
-      "login": ["thanarees@isb.ac.th"]
+      "login": [
+        "thanarees@isb.ac.th"
+      ]
     },
     {
       "customerId": 202856,
@@ -1498,7 +1718,9 @@
       "smartCard": {
         "cardNumber": "5FF157D1"
       },
-      "login": ["sirichaic@isb.ac.th"]
+      "login": [
+        "sirichaic@isb.ac.th"
+      ]
     },
     {
       "customerId": 202859,
@@ -1513,7 +1735,9 @@
       "smartCard": {
         "cardNumber": "651ADBDA"
       },
-      "login": ["lize@isb.ac.th"]
+      "login": [
+        "lize@isb.ac.th"
+      ]
     },
     {
       "customerId": 202860,
@@ -1528,7 +1752,9 @@
       "smartCard": {
         "cardNumber": "0677E3AF"
       },
-      "login": ["teear@isb.ac.th"]
+      "login": [
+        "teear@isb.ac.th"
+      ]
     },
     {
       "customerId": 202861,
@@ -1543,7 +1769,9 @@
       "smartCard": {
         "cardNumber": "262047AF"
       },
-      "login": ["juanpablov@isb.ac.th"]
+      "login": [
+        "juanpablov@isb.ac.th"
+      ]
     },
     {
       "customerId": 202862,
@@ -1558,7 +1786,9 @@
       "smartCard": {
         "cardNumber": "06F94BAF"
       },
-      "login": ["alyciab@isb.ac.th"]
+      "login": [
+        "alyciab@isb.ac.th"
+      ]
     },
     {
       "customerId": 202863,
@@ -1573,7 +1803,9 @@
       "smartCard": {
         "cardNumber": "1630BAAF"
       },
-      "login": ["kirbym@isb.ac.th"]
+      "login": [
+        "kirbym@isb.ac.th"
+      ]
     },
     {
       "customerId": 202864,
@@ -1588,7 +1820,9 @@
       "smartCard": {
         "cardNumber": "55549DDA"
       },
-      "login": ["gabriels@isb.ac.th"]
+      "login": [
+        "gabriels@isb.ac.th"
+      ]
     },
     {
       "customerId": 202865,
@@ -1603,7 +1837,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["adelepa@isb.ac.th"]
+      "login": [
+        "adelepa@isb.ac.th"
+      ]
     },
     {
       "customerId": 202866,
@@ -1618,7 +1854,9 @@
       "smartCard": {
         "cardNumber": "DF42C3D0"
       },
-      "login": ["soponwitj@isb.ac.th"]
+      "login": [
+        "soponwitj@isb.ac.th"
+      ]
     },
     {
       "customerId": 202867,
@@ -1633,7 +1871,9 @@
       "smartCard": {
         "cardNumber": "CFB3C9D0"
       },
-      "login": ["chakkitc@isb.ac.th"]
+      "login": [
+        "chakkitc@isb.ac.th"
+      ]
     },
     {
       "customerId": 202869,
@@ -1648,7 +1888,9 @@
       "smartCard": {
         "cardNumber": "065019AF"
       },
-      "login": ["jessief@isb.ac.th"]
+      "login": [
+        "jessief@isb.ac.th"
+      ]
     },
     {
       "customerId": 202871,
@@ -1663,7 +1905,9 @@
       "smartCard": {
         "cardNumber": "DFF661B6"
       },
-      "login": ["gaysornp@isb.ac.th"]
+      "login": [
+        "gaysornp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202872,
@@ -1678,7 +1922,10 @@
       "smartCard": {
         "cardNumber": "260E70AF"
       },
-      "login": ["dannyb@isb.ac.th", "202872@parents.isb.ac.th"]
+      "login": [
+        "dannyb@isb.ac.th",
+        "202872@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202876,
@@ -1693,7 +1940,9 @@
       "smartCard": {
         "cardNumber": "7545CDDA"
       },
-      "login": ["sydneyk@isb.ac.th"]
+      "login": [
+        "sydneyk@isb.ac.th"
+      ]
     },
     {
       "customerId": 202877,
@@ -1708,7 +1957,9 @@
       "smartCard": {
         "cardNumber": "06A85EAF"
       },
-      "login": ["michaeld@isb.ac.th"]
+      "login": [
+        "michaeld@isb.ac.th"
+      ]
     },
     {
       "customerId": 202878,
@@ -1723,7 +1974,9 @@
       "smartCard": {
         "cardNumber": "0F9864D1"
       },
-      "login": ["seguno@isb.ac.th"]
+      "login": [
+        "seguno@isb.ac.th"
+      ]
     },
     {
       "customerId": 202879,
@@ -1738,7 +1991,9 @@
       "smartCard": {
         "cardNumber": "1F96D6D0"
       },
-      "login": ["karaneem@isb.ac.th"]
+      "login": [
+        "karaneem@isb.ac.th"
+      ]
     },
     {
       "customerId": 202882,
@@ -1768,7 +2023,9 @@
       "smartCard": {
         "cardNumber": "CF1178D1"
       },
-      "login": ["phikuny@isb.ac.th"]
+      "login": [
+        "phikuny@isb.ac.th"
+      ]
     },
     {
       "customerId": 202885,
@@ -1783,7 +2040,9 @@
       "smartCard": {
         "cardNumber": "FFC2B7D0"
       },
-      "login": ["wannisak@isb.ac.th"]
+      "login": [
+        "wannisak@isb.ac.th"
+      ]
     },
     {
       "customerId": 202888,
@@ -1798,7 +2057,9 @@
       "smartCard": {
         "cardNumber": "260D10AF"
       },
-      "login": ["supitchak@isb.ac.th"]
+      "login": [
+        "supitchak@isb.ac.th"
+      ]
     },
     {
       "customerId": 202889,
@@ -1813,7 +2074,9 @@
       "smartCard": {
         "cardNumber": "CFCC60D1"
       },
-      "login": ["wutm@isb.ac.th"]
+      "login": [
+        "wutm@isb.ac.th"
+      ]
     },
     {
       "customerId": 202890,
@@ -1828,7 +2091,9 @@
       "smartCard": {
         "cardNumber": "06176FAF"
       },
-      "login": ["jens@isb.ac.th"]
+      "login": [
+        "jens@isb.ac.th"
+      ]
     },
     {
       "customerId": 202891,
@@ -1843,7 +2108,9 @@
       "smartCard": {
         "cardNumber": "9F4961F2"
       },
-      "login": ["rachenb@isb.ac.th"]
+      "login": [
+        "rachenb@isb.ac.th"
+      ]
     },
     {
       "customerId": 202892,
@@ -1858,7 +2125,9 @@
       "smartCard": {
         "cardNumber": "6FE64BF2"
       },
-      "login": ["sunisap@isb.ac.th"]
+      "login": [
+        "sunisap@isb.ac.th"
+      ]
     },
     {
       "customerId": 202893,
@@ -1873,7 +2142,9 @@
       "smartCard": {
         "cardNumber": "1617D4AF"
       },
-      "login": ["daisyp@isb.ac.th"]
+      "login": [
+        "daisyp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202895,
@@ -1888,7 +2159,9 @@
       "smartCard": {
         "cardNumber": "06816AAF"
       },
-      "login": ["202895@parents.isb.ac.th"]
+      "login": [
+        "202895@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202901,
@@ -1903,7 +2176,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["suphachokw@isb.ac.th"]
+      "login": [
+        "suphachokw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202907,
@@ -1933,7 +2208,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["202908@parents.isb.ac.th"]
+      "login": [
+        "202908@parents.isb.ac.th"
+      ]
     },
     {
       "customerId": 202909,
@@ -1963,7 +2240,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["pimpanuts@isb.ac.th"]
+      "login": [
+        "pimpanuts@isb.ac.th"
+      ]
     },
     {
       "customerId": 202911,
@@ -1978,7 +2257,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["yonladac@isb.ac.th"]
+      "login": [
+        "yonladac@isb.ac.th"
+      ]
     },
     {
       "customerId": 202912,
@@ -1993,7 +2274,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["siripattariyaw@isb.ac.th"]
+      "login": [
+        "siripattariyaw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202913,
@@ -2008,7 +2291,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["paweenad@isb.ac.th"]
+      "login": [
+        "paweenad@isb.ac.th"
+      ]
     },
     {
       "customerId": 202914,
@@ -2023,7 +2308,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["taksaporns@isb.ac.th"]
+      "login": [
+        "taksaporns@isb.ac.th"
+      ]
     },
     {
       "customerId": 202915,
@@ -2058,8 +2345,8 @@
     {
       "customerId": 202919,
       "customerType": "Staff",
-      "staffType": "Classified Staff",
-      "department": "",
+      "staffType": "Certified Staff",
+      "department": "MIDDLE SCHOOL OFFICE",
       "familyCode": 202919,
       "firstName": "James Robert",
       "lastName": "HUMBERSON",
@@ -2083,7 +2370,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["chonladap@isb.ac.th"]
+      "login": [
+        "chonladap@isb.ac.th"
+      ]
     },
     {
       "customerId": 202924,
@@ -2098,7 +2387,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["aliceb@isb.ac.th"]
+      "login": [
+        "aliceb@isb.ac.th"
+      ]
     },
     {
       "customerId": 202925,
@@ -2113,7 +2404,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["boonyarutk@isb.ac.th"]
+      "login": [
+        "boonyarutk@isb.ac.th"
+      ]
     },
     {
       "customerId": 202926,
@@ -2128,7 +2421,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["nilittak@isb.ac.th"]
+      "login": [
+        "nilittak@isb.ac.th"
+      ]
     },
     {
       "customerId": 202927,
@@ -2143,7 +2438,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["phuthanesl@isb.ac.th"]
+      "login": [
+        "phuthanesl@isb.ac.th"
+      ]
     },
     {
       "customerId": 202928,
@@ -2173,7 +2470,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["tiwatp@isb.ac.th"]
+      "login": [
+        "tiwatp@isb.ac.th"
+      ]
     },
     {
       "customerId": 202930,
@@ -2188,7 +2487,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["suphachokw@isb.ac.th"]
+      "login": [
+        "suphachokw@isb.ac.th"
+      ]
     },
     {
       "customerId": 202931,
@@ -2203,7 +2504,9 @@
       "smartCard": {
         "cardNumber": ""
       },
-      "login": ["panchaphons@isb.ac.th"]
+      "login": [
+        "panchaphons@isb.ac.th"
+      ]
     },
     {
       "customerId": 260402,
@@ -2218,7 +2521,9 @@
       "smartCard": {
         "cardNumber": "2FE06BD1"
       },
-      "login": ["donc@isb.ac.th"]
+      "login": [
+        "donc@isb.ac.th"
+      ]
     },
     {
       "customerId": 265112,
@@ -2233,7 +2538,9 @@
       "smartCard": {
         "cardNumber": "DF125FB6"
       },
-      "login": ["wisuchak@isb.ac.th"]
+      "login": [
+        "wisuchak@isb.ac.th"
+      ]
     },
     {
       "customerId": 265156,
@@ -2248,7 +2555,9 @@
       "smartCard": {
         "cardNumber": "AB576072"
       },
-      "login": ["supawank@isb.ac.th"]
+      "login": [
+        "supawank@isb.ac.th"
+      ]
     }
   ]
 }
