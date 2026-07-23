@@ -17,7 +17,13 @@
     "dev:all": "concurrently \"bun --cwd backend-bun dev\" \"bun --cwd frontend dev\" \"npm --prefix rfid-bridge start\"",
     "start": "npm --prefix rfid-bridge start",
     "start:rfid-bridge": "npm --prefix rfid-bridge start",
-    "test:backend": "bun --cwd backend-bun test"
+    "test:backend": "bun --cwd backend-bun test",
+    "balance:set": "bun --cwd backend-bun run balance:set",
+    "balance:set:report": "bun --cwd backend-bun run balance:set:report",
+    "balance:redistribute": "bun --cwd backend-bun run balance:redistribute",
+    "balance:redistribute:report": "bun --cwd backend-bun run balance:redistribute:report",
+    "spendlimit:set": "bun --cwd backend-bun run spendlimit:set",
+    "spendlimit:set:report": "bun --cwd backend-bun run spendlimit:set:report"
   },
   "engines": {
     "bun": ">=1.3.0"

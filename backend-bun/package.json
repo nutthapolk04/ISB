@@ -27,7 +27,13 @@
     "db:studio": "drizzle-kit studio",
     "db:seed-kiosk": "bun scripts/seed-kiosk-user.ts",
     "db:seed-demo": "bun scripts/seed-demo-users.ts",
-    "loadtest": "bun scripts/loadtest.ts"
+    "loadtest": "bun scripts/loadtest.ts",
+    "balance:set": "bun scripts/set-family-child-balances-from-report.ts",
+    "balance:set:report": "bun scripts/set-family-child-balances-from-report.ts docs/CustomerBalanceReportAsof16Jul2026-summary.xlsx",
+    "balance:redistribute": "bun scripts/redistribute-family-balance.ts",
+    "balance:redistribute:report": "bun scripts/redistribute-family-balance.ts docs/CustomerBalanceReport-31-3-2026.xlsx",
+    "spendlimit:set": "bun scripts/set-spend-limits-from-report.ts",
+    "spendlimit:set:report": "bun scripts/set-spend-limits-from-report.ts docs/spend-limit.xlsx"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.0",
