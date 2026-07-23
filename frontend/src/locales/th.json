@@ -2517,6 +2517,7 @@
       "creditCard": "บัตรเครดิต/เดบิต",
       "creditFee": "ค่าธรรมเนียม 3%",
       "amountLabel": "จำนวนเงิน (บาท)",
+      "amountPlaceholder": "ใส่จำนวนเงิน",
       "topUpBtn": "เติมเงิน",
       "processingBank": "กำลังดำเนินการกับธนาคาร...",
       "creatingQr": "กำลังสร้าง QR...",

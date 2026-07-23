@@ -2519,6 +2519,7 @@
       "creditCard": "Credit/Debit",
       "creditFee": "3% fee",
       "amountLabel": "Amount (THB)",
+      "amountPlaceholder": "Enter amount",
       "topUpBtn": "Top up",
       "processingBank": "Processing with bank...",
       "creatingQr": "Creating QR...",

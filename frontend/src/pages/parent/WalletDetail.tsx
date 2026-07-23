@@ -75,7 +75,7 @@ export default function WalletDetail() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [amount, setAmount] = useState<string>("100");
+  const [amount, setAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"qr_promptpay" | "credit_card">("qr_promptpay");
   const minTopupAmount = 1;
   const [creating, setCreating] = useState(false);
@@ -509,13 +509,13 @@ export default function WalletDetail() {
                     step="1"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="100"
+                    placeholder={t("parent.wallet.amountPlaceholder", "Enter amount")}
                     className="h-11 border-amber-200 focus-visible:ring-amber-400"
                   />
                 </div>
                 <Button
                   onClick={handleCreateTopup}
-                  disabled={creating}
+                  disabled={creating || amtNumber < minTopupAmount || amtNumber > MAX_TOPUP_THB}
                   className="h-11 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-md hover:from-orange-600 hover:to-amber-600 border-0"
                 >
                   {creating ? (
@@ -549,7 +549,7 @@ export default function WalletDetail() {
               )}
 
               <div className="flex flex-wrap gap-2">
-                {[500, 1000, 2000, 5000, 10000, 20000, 50000].map((v) => (
+                {[100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000].map((v) => (
                   <Button
                     key={v}
                     onClick={() => setAmount(String(v))}
