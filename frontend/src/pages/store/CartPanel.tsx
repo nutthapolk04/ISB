@@ -105,73 +105,75 @@ export function CartPanel({
 
             {/* Selected Member */}
             {preSelectedMember && (
-                <div className="mx-3 mt-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
-                    <div className="flex items-center gap-3">
-                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
-                            <img
-                                src={resolveAvatarUrl(preSelectedMember.photo_url, preSelectedMember.name || String(preSelectedMember.id))}
-                                alt={preSelectedMember.name}
-                                className="h-full w-full object-cover"
-                                onError={(e) => { e.currentTarget.src = getFallbackAvatar(preSelectedMember.name || String(preSelectedMember.id)); }}
-                            />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-sm truncate">{preSelectedMember.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                                {preSelectedMember.student_code ?? preSelectedMember.customer_code}
-                                {preSelectedMember.grade && ` · Grade ${preSelectedMember.grade}`}
+                <div className="mx-3 mt-3 relative rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
+                    <button
+                        type="button"
+                        onClick={onClearMember}
+                        className="absolute right-2 top-2 shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
+                        aria-label={t("common.cancel")}
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                    <div className="flex items-start gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 pr-6">
+                            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-300">
+                                <img
+                                    src={resolveAvatarUrl(preSelectedMember.photo_url, preSelectedMember.name || String(preSelectedMember.id))}
+                                    alt={preSelectedMember.name}
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(preSelectedMember.name || String(preSelectedMember.id)); }}
+                                />
                             </div>
-                            <div className="text-sm font-bold tabular-nums text-emerald-600">
-                                ฿{(preSelectedMember.wallet_balance ?? 0).toFixed(2)}
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={onClearMember}
-                            className="shrink-0 rounded-full p-1.5 hover:bg-red-100 text-red-500 hover:text-red-600"
-                            aria-label={t("common.cancel")}
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                    {/* Daily Spending Limit panel */}
-                    {preSelectedMember.customer_kind !== "department" && preSelectedMember.user_id == null && (() => {
-                        const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                        const rows: { label: string; limit: number; spent: number }[] = [];
-                        if (preSelectedMember.daily_limit_canteen != null)
-                            rows.push({ label: "Canteen", limit: Number(preSelectedMember.daily_limit_canteen), spent: Number(preSelectedMember.spent_today_canteen ?? 0) });
-                        if (preSelectedMember.daily_limit_store != null)
-                            rows.push({ label: "Store", limit: Number(preSelectedMember.daily_limit_store), spent: Number(preSelectedMember.spent_today_store ?? 0) });
-                        if (rows.length === 0) return null;
-                        return (
-                            <div className="mt-2.5 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
-                                <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                                    Daily Spending Limit
+                            <div className="min-w-0 flex-1">
+                                <div className="font-semibold text-sm truncate">{preSelectedMember.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {preSelectedMember.student_code ?? preSelectedMember.customer_code}
+                                    {preSelectedMember.grade && ` · Grade ${preSelectedMember.grade}`}
                                 </div>
-                                {rows.map(({ label, limit, spent }) => {
-                                    const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-                                    const over = spent >= limit;
-                                    const warn = pct >= 80;
-                                    const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
-                                    const barColor = over ? "bg-red-500" : "bg-amber-500";
-                                    return (
-                                        <div key={label} className="space-y-1">
-                                            <div className="flex justify-between items-center text-xs">
-                                                <span className="text-foreground font-medium">{label}</span>
-                                                <span className={cn("font-bold tabular-nums", valueColor)}>
-                                                    {fmt(spent)}{" "}
-                                                    <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
-                                                </span>
-                                            </div>
-                                            <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
-                                                <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                <div className="text-sm font-bold tabular-nums text-emerald-600">
+                                    ฿{(preSelectedMember.wallet_balance ?? 0).toFixed(2)}
+                                </div>
                             </div>
-                        );
-                    })()}
+                        </div>
+                        {/* Daily Spending Limit panel — sits to the right of the member info */}
+                        {preSelectedMember.customer_kind !== "department" && preSelectedMember.user_id == null && (() => {
+                            const fmt = (n: number) => "฿" + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            const rows: { label: string; limit: number; spent: number }[] = [];
+                            if (preSelectedMember.daily_limit_canteen != null)
+                                rows.push({ label: "Canteen", limit: Number(preSelectedMember.daily_limit_canteen), spent: Number(preSelectedMember.spent_today_canteen ?? 0) });
+                            if (preSelectedMember.daily_limit_store != null)
+                                rows.push({ label: "Store", limit: Number(preSelectedMember.daily_limit_store), spent: Number(preSelectedMember.spent_today_store ?? 0) });
+                            if (rows.length === 0) return null;
+                            return (
+                                <div className="w-48 shrink-0 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
+                                    <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                                        Daily Spending Limit
+                                    </div>
+                                    {rows.map(({ label, limit, spent }) => {
+                                        const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                                        const over = spent >= limit;
+                                        const warn = pct >= 80;
+                                        const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
+                                        const barColor = over ? "bg-red-500" : "bg-amber-500";
+                                        return (
+                                            <div key={label} className="space-y-1">
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="text-foreground font-medium">{label}</span>
+                                                    <span className={cn("font-bold tabular-nums", valueColor)}>
+                                                        {fmt(spent)}{" "}
+                                                        <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
+                                                    </span>
+                                                </div>
+                                                <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                                                    <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </div>
                 </div>
             )}
 

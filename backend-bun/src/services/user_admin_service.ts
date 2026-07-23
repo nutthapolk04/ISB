@@ -184,7 +184,11 @@ export async function listStaffForPicker(args: {
 }
 
 export async function listStudentsForLink(q?: string | null): Promise<StudentPickerItemDTO[]> {
-    const conds = [isNotNull(customers.studentCode)];
+    // customer_kind is the real, direct signal for "this is a student" — a
+    // manually-created student (via Card Management's create dialog) can have
+    // no student_code at all if no Student ID was entered, so filtering on
+    // isNotNull(studentCode) silently dropped them from every list/count here.
+    const conds = [eq(customers.customerKind, "student")];
     if (q?.trim()) {
         const pat = `%${q.trim().toLowerCase()}%`;
         conds.push(
@@ -197,12 +201,15 @@ export async function listStudentsForLink(q?: string | null): Promise<StudentPic
         );
     }
 
+    // No limit — both consumers (Card Management's KPI/table, LinkStudentDialog's
+    // picker) need the FULL student list when no search term is given, not a
+    // truncated page. A school easily has more than 200 students; capping here
+    // silently dropped real students out of every count downstream.
     const rows = await db
         .select()
         .from(customers)
         .where(and(...conds))
-        .orderBy(asc(customers.id))
-        .limit(200);
+        .orderBy(asc(customers.id));
 
     return rows.map((c) => ({
         id: c.id,

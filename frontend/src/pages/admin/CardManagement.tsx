@@ -21,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
+import { PaginationBar } from "@/components/PaginationBar";
 import { toast } from "@/hooks/use-toast";
 import { CreditCard, Search, Loader2, Eye, ShieldOff, ShieldCheck, RefreshCw } from "lucide-react";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
@@ -84,6 +85,8 @@ export default function CardManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<CardRole>("all");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // ── Action state ────────────────────────────────────────────────────────────
   const [freezeTarget, setFreezeTarget] = useState<BoundCard | null>(null);
@@ -188,6 +191,17 @@ export default function CardManagement() {
       );
     });
   }, [boundCards, search, roleFilter]);
+
+  // Jump back to page 1 whenever the filtered set changes shape — otherwise a
+  // search/filter narrowing the results could strand the view on a page past
+  // the new last page.
+  useEffect(() => { setPage(1); }, [search, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
+  const pagedCards = useMemo(
+    () => filteredCards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredCards, page],
+  );
 
   // ── Freeze / unfreeze ───────────────────────────────────────────────────────
   const handleFreezeToggle = async () => {
@@ -404,7 +418,7 @@ export default function CardManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCards.map((c) => (
+                {pagedCards.map((c) => (
                   <TableRow
                     key={`${c.kind}-${c.id}`}
                     className={c.isFrozen || !c.isActive ? "bg-rose-50/50" : undefined}
@@ -471,6 +485,19 @@ export default function CardManagement() {
           )}
         </CardContent>
       </Card>
+
+      {!loading && filteredCards.length > 0 && (
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            {t("admin.cards.paginationSummary", "Showing {{from}}–{{to}} of {{total}}", {
+              from: (page - 1) * PAGE_SIZE + 1,
+              to: Math.min(page * PAGE_SIZE, filteredCards.length),
+              total: filteredCards.length,
+            })}
+          </p>
+          <PaginationBar currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
+      )}
 
       {/* ── Freeze / Unfreeze confirm ──────────────────────────────────────── */}
       <AlertDialog open={!!freezeTarget} onOpenChange={(o) => !o && setFreezeTarget(null)}>
