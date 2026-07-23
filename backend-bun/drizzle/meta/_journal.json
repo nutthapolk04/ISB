@@ -29,6 +29,13 @@
       "when": 1784702412700,
       "tag": "0003_add_kiosk_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784796595179,
+      "tag": "0004_edc_card_fee",
+      "breakpoints": true
     }
   ]
 }
