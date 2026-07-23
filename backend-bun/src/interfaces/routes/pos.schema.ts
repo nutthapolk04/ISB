@@ -2,7 +2,10 @@ import { t } from "elysia";
 
 const checkoutItemSchema = t.Object({
     product_variant_id: t.Number(),
-    quantity: t.Number({ minimum: 1 }),
+    // Store allows negative quantity (refund-via-POS on a normal sale line);
+    // Canteen requires >= 1. Enforced per-shop-module in
+    // pos_checkout_service.ts::checkout(), not here — schema just bounds it.
+    quantity: t.Number({ minimum: -1_000_000, maximum: 1_000_000 }),
     unit_price: t.Number({ minimum: 0 }),
     price_override: t.Optional(t.Nullable(t.Number())),
     discount: t.Optional(t.Nullable(t.Number())),

@@ -395,8 +395,17 @@ export async function checkout(input: CheckoutInput) {
 
         for (const item of input.items) {
             const qty = item.quantity;
-            if (qty < 1) {
-                const err = new Error(`quantity must be >= 1 (got ${qty})`);
+            // Canteen sells forward-only; Store additionally allows a negative
+            // quantity as its "refund via POS" line (see useStoreCheckout.ts's
+            // updateQuantity — pressing minus at qty=1 goes to -1 instead of 0).
+            if (effectiveShopModule === "canteen") {
+                if (qty < 1) {
+                    const err = new Error(`quantity must be >= 1 (got ${qty})`);
+                    (err as { status?: number }).status = 400;
+                    throw err;
+                }
+            } else if (qty === 0) {
+                const err = new Error(`quantity must not be 0`);
                 (err as { status?: number }).status = 400;
                 throw err;
             }

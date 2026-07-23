@@ -2750,37 +2750,41 @@
     "parent": {
       "step1": {
         "title": "View Children's Wallets",
-        "desc": "Go to My Family from the sidebar. You will see all linked children with their current wallet balance, card status, and allergy info."
+        "desc": "Go to Each Member of the Family on the main dashboard to see all linked children along with their current wallet balances."
       },
       "step2": {
-        "title": "Top Up a Wallet",
-        "desc": "Click Top Up next to any child's name. PromptPay shows a QR code to scan from your banking app. Credit/Debit redirects to the secure bank-hosted payment page (Krungsri EASYPay) — you enter your card on the bank's site, not inside ISB. Maximum ฿50,000 per transaction; credit card fee is 3%."
+        "title": "Top Up a Child's Wallet",
+        "desc": "Click Top Up in your child's section. PromptPay QR shows a code to scan from your banking app. Credit/Debit redirects to the secure, bank-hosted Krungsri EASYPay portal — no card information is stored within ISB. Maximum ฿50,000 per transaction; credit card top-ups have a 3% fee."
       },
       "step3": {
         "title": "View Transaction History",
-        "desc": "Click History next to a child's name. Filter by date range to see all purchases, top-ups, refunds, and adjustments. Click any transaction to view the full receipt."
+        "desc": "Click History in your child's section and filter by date range to review purchases, top-ups, refunds, and adjustments. Click any row to view the detailed digital receipt."
       },
       "step4": {
-        "title": "Manage Card Settings",
-        "desc": "Click Profile for a child. You can freeze or unfreeze their RFID card and set a daily spending limit (leave blank for unlimited). Changes take effect immediately at the POS."
+        "title": "Manage Card Settings & Daily Spending Limits",
+        "desc": "Click Settings for the child whose limits you want to adjust. Enter a daily spending limit for the canteen and/or all school shops — leave blank to use the standard school default — then click Save Limits."
+      },
+      "step5": {
+        "title": "Low-Balance Email Alerts",
+        "desc": "Toggle the Enable Email Alert switch on, then click Save to confirm."
       }
     },
     "staff": {
       "step1": {
-        "title": "Check Your Wallet Balance",
-        "desc": "Go to My Wallet in the sidebar. You will see your current balance and RFID card status. Your wallet is used at the canteen and cooperative store."
+        "title": "Check Your Balance",
+        "desc": "View your current balance directly on the Main Dashboard. Your wallet balance is accepted at all ISB shops and the campus canteen."
       },
       "step2": {
         "title": "Top Up Your Wallet",
-        "desc": "Click Top Up on your wallet page. PromptPay shows a QR code to scan from your banking app. Credit/Debit redirects to the secure bank-hosted payment page (Krungsri EASYPay) — you enter your card on the bank's site, not inside ISB. Maximum ฿50,000 per transaction; credit card fee is 3%."
+        "desc": "Click Top Up on your dashboard. PromptPay QR shows a code to scan from your banking app. Credit Card redirects to the secure Krungsri EASYPay portal — enter your card details there and click Next. Maximum ฿50,000 per wallet; credit card top-ups have a 3% fee."
       },
       "step3": {
         "title": "View Transaction History",
-        "desc": "Go to My Wallet → History. Filter by date range to see all purchases, top-ups, refunds, and adjustments. Click any row to view the full receipt."
+        "desc": "Go to History and filter by date range to see purchases, top-ups, refunds, and adjustments. Click any row to open the full detail view."
       },
       "step4": {
-        "title": "Pay at the Canteen or Store",
-        "desc": "Tap your RFID card at the POS, or give the cashier your staff username to look you up. The cashier presses Search and deducts from your wallet balance."
+        "title": "Transfer Funds",
+        "desc": "Transfers are only allowed between registered family members. Select the source (From) and destination (To) wallet, enter the amount and a note, then click Confirm Transfer."
       }
     },
     "canteen": {

@@ -13,7 +13,6 @@ import {
     FileText,
     Settings,
     CreditCard,
-    Search,
     ShoppingCart,
     RotateCcw,
     TrendingUp,
@@ -26,6 +25,7 @@ import {
     Upload,
     History as HistoryIcon,
     GraduationCap,
+    Bell,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -121,12 +121,12 @@ const roleGuides: RoleGuide[] = [
             {
                 titleKey: "guide.parent.step1.title",
                 descKey: "guide.parent.step1.desc",
-                icon: Search,
+                icon: Users,
             },
             {
                 titleKey: "guide.parent.step2.title",
                 descKey: "guide.parent.step2.desc",
-                icon: Wallet,
+                icon: CreditCard,
             },
             {
                 titleKey: "guide.parent.step3.title",
@@ -136,7 +136,12 @@ const roleGuides: RoleGuide[] = [
             {
                 titleKey: "guide.parent.step4.title",
                 descKey: "guide.parent.step4.desc",
-                icon: CreditCard,
+                icon: Settings,
+            },
+            {
+                titleKey: "guide.parent.step5.title",
+                descKey: "guide.parent.step5.desc",
+                icon: Bell,
             },
         ],
     },
@@ -165,7 +170,7 @@ const roleGuides: RoleGuide[] = [
             {
                 titleKey: "guide.staff.step4.title",
                 descKey: "guide.staff.step4.desc",
-                icon: ShoppingCart,
+                icon: ArrowLeftRight,
             },
         ],
     },
