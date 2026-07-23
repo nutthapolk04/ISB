@@ -9,6 +9,7 @@ import {
 	me as meService,
 	mockSso as mockSsoService,
 	googleSso as googleSsoService,
+	googleSsoCode as googleSsoCodeService,
 	listUserRoles as listUserRolesService,
 	assignRoleToUser,
 	removeRoleFromUser,
@@ -75,6 +76,21 @@ export const AuthController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (AU-04)] AuthController.googleSso() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	googleSsoCallback: async (ctx: any) => {
+		const reqContext = publicCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (AU-11)] AuthController.googleSsoCallback() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (AU-11)] AuthController.googleSsoCallback() calling googleSsoCode().`);
+			const result = await googleSsoCodeService(body.code, body.redirect_uri);
+			logger.info(`[${reqContext.requestId} (AU-11)] AuthController.googleSsoCallback() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (AU-11)] AuthController.googleSsoCallback() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

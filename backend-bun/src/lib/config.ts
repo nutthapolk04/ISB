@@ -27,6 +27,11 @@ export const config = {
   databaseUrl: required("DATABASE_URL"),
   corsOrigins: corsOriginsFromEnv(),
   nodeEnv: process.env.NODE_ENV ?? "development",
+  // Google SSO (auth-code redirect flow) — leave both blank to disable;
+  // googleSsoCode() in auth_service.ts throws a clear 500 rather than
+  // failing boot, since Google SSO is opt-in per deployment.
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
 } as const;
 
 export const APP_VERSION = "0.1.0";

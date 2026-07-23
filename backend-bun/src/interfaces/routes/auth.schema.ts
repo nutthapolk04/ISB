@@ -31,6 +31,14 @@ export const googleSso = {
     detail: { tags: ["Auth"], summary: "Google SSO login" },
 };
 
+export const googleSsoCallback = {
+    body: t.Object({
+        code: t.String(),
+        redirect_uri: t.String(),
+    }),
+    detail: { tags: ["Auth"], summary: "Google SSO login (auth-code redirect flow)" },
+};
+
 export const logout = {
     detail: { tags: ["Auth"], summary: "Logout current session" },
 };

@@ -48,7 +48,7 @@ interface AuthContextValue {
     isAuthenticated: boolean;
     login: (username: string, password: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
     loginWithMockSSO: (email: string, fullName?: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
-    loginWithGoogle: (accessToken: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
+    loginWithGoogleCode: (code: string, redirectUri: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
     logout: () => void;
     hasRole: (...roles: UserRole[]) => boolean;
     hasShopAccess: (shopId: ShopId) => boolean;
@@ -375,14 +375,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const loginWithGoogle = async (
-        accessToken: string,
+    const loginWithGoogleCode = async (
+        code: string,
+        redirectUri: string,
     ): Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }> => {
         try {
-            const res = await fetch(`${API_BASE_URL}/auth/sso/google`, {
+            const res = await fetch(`${API_BASE_URL}/auth/sso/google/callback`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ access_token: accessToken }),
+                body: JSON.stringify({ code, redirect_uri: redirectUri }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ detail: "Google login failed" }));
@@ -470,7 +471,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, login, loginWithMockSSO, loginWithGoogle, logout, hasRole, hasShopAccess, setActiveRole }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, login, loginWithMockSSO, loginWithGoogleCode, logout, hasRole, hasShopAccess, setActiveRole }}>
             {children}
         </AuthContext.Provider>
     );

@@ -456,3 +456,57 @@ export async function googleSso(accessToken: string): Promise<TokenResponseDTO> 
     }
     return createTokens(user);
 }
+
+/**
+ * Auth-code redirect flow — replaces the old popup+implicit-token flow, which
+ * broke silently whenever Google's own popup enforced Cross-Origin-Opener-Policy
+ * (e.g. a first-time account forced through Google's own password-change
+ * screen): GIS's popup-closed poll reads `popup.closed` across origins, COOP
+ * blocks that read, and the poll misfires "popup_closed" even after the user
+ * finished on Google's side. A full-page redirect never opens a popup, so
+ * there's nothing for COOP to sever.
+ */
+export async function googleSsoCode(code: string, redirectUri: string): Promise<TokenResponseDTO> {
+    if (!code) {
+        const err = new Error("code is required");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    if (!config.googleClientId || !config.googleClientSecret) {
+        const err = new Error("Google SSO is not configured on this server");
+        (err as { status?: number }).status = 500;
+        throw err;
+    }
+    let tokenData: { access_token?: string };
+    try {
+        const resp = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                code,
+                client_id: config.googleClientId,
+                client_secret: config.googleClientSecret,
+                redirect_uri: redirectUri,
+                grant_type: "authorization_code",
+            }),
+            signal: AbortSignal.timeout(10_000),
+        });
+        if (!resp.ok) {
+            const err = new Error("Invalid or expired Google authorization code");
+            (err as { status?: number }).status = 401;
+            throw err;
+        }
+        tokenData = (await resp.json()) as { access_token?: string };
+    } catch (e) {
+        if ((e as { status?: number }).status) throw e;
+        const err = new Error("Cannot reach Google authentication service");
+        (err as { status?: number }).status = 503;
+        throw err;
+    }
+    if (!tokenData.access_token) {
+        const err = new Error("Invalid or expired Google authorization code");
+        (err as { status?: number }).status = 401;
+        throw err;
+    }
+    return googleSso(tokenData.access_token);
+}
