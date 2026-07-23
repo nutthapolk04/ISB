@@ -1178,6 +1178,10 @@ export const receipts = pgTable("receipts", {
 	edcTerminalRef: varchar("edc_terminal_ref", { length: 50 }),
 	edcApprovalCode: varchar("edc_approval_code", { length: 20 }),
 	edcMaskedCard: varchar("edc_masked_card", { length: 30 }),
+	// 3% surcharge added to `total` when paid via EDC credit/debit card swipe
+	// (never QR) — customer pays it, broken out here so reports/receipts can
+	// show it as its own line instead of it being buried inside `total`.
+	edcCardFee: numeric("edc_card_fee", { precision: 10, scale: 2 }).notNull().default("0"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	createdBy: integer("created_by").notNull(),
 	voidedAt: timestamp("voided_at", { withTimezone: true, mode: 'string' }),

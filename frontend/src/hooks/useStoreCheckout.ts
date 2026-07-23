@@ -42,7 +42,7 @@ interface CheckoutCtx {
     payer?: WalletPayer;
     deptId?: number;
     empCode?: string | null;
-    edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string };
+    edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string; mode?: "qr" | "card" };
     cashReceived?: number;
 }
 
@@ -388,6 +388,7 @@ export function useStoreCheckout({
                 edc_terminal_ref: ctx.edcRefs?.terminal_ref,
                 edc_approval_code: ctx.edcRefs?.approval_code,
                 edc_masked_card: ctx.edcRefs?.masked_card,
+                edc_mode: ctx.edcRefs?.mode,
             };
 
             const receipt = await api.post<{ receipt_number: string; total: number }>(
@@ -608,7 +609,7 @@ export function useStoreCheckout({
     // polling + auto-receipt via webhook). handleConfirmQr no longer needed.
     const handleConfirmDept = (deptId: number, empCode: string | null) =>
         doCheckout("department", { deptId, empCode });
-    const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string }) =>
+    const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) =>
         doCheckout("edc", { edcRefs: refs });
 
     // ── Available payment methods ───────────────────────────────────────────

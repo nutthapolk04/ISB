@@ -1,0 +1,1 @@
+ALTER TABLE "receipts" ADD COLUMN "edc_card_fee" numeric(10, 2) DEFAULT '0' NOT NULL;

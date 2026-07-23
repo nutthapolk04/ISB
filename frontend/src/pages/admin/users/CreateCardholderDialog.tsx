@@ -225,7 +225,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else onOpenChange(true); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={step === "form" ? "sm:max-w-2xl" : "sm:max-w-lg"}>
         <DialogHeader>
           <DialogTitle>{t("cardholders.create_.title")}</DialogTitle>
           <DialogDescription>
@@ -257,11 +257,14 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
         )}
 
         {step === "form" && (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {kind === "student" && (
               <>
                 <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
-                <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
+                  <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Grade"><Input value={grade} onChange={e => setGrade(e.target.value)} placeholder="04" /></Field>
                   <Field label="School type">
@@ -275,63 +278,68 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                     </Select>
                   </Field>
                 </div>
-                <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
-                <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} placeholder="MIFARE hex" /></Field>
-                <Field label="Initial balance (THB)"><Input type="number" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} placeholder="MIFARE hex" /></Field>
+                  <Field label="Initial balance (THB)"><Input type="number" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field>
+                </div>
               </>
             )}
 
             {(kind === "parent" || kind === "staff") && (
               <>
-                <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
-                <Field label="Username *"><Input value={username} onChange={e => setUsername(e.target.value)} /></Field>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Email</Label>
-                  <div className="space-y-2">
-                    {emails.map((val, i) => (
-                      <div key={i} className="flex gap-1.5">
-                        <Input
-                          type="email"
-                          placeholder={`Email ${i + 1}`}
-                          value={val}
-                          onChange={(e) => {
-                            const next = [...emails];
-                            next[i] = e.target.value;
-                            setEmails(next);
-                          }}
-                        />
-                        {emails.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setEmails(emails.filter((_, j) => j !== i))}
-                            className="shrink-0 text-muted-foreground hover:text-destructive"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {emails.length < 3 && (
-                      <button
-                        type="button"
-                        onClick={() => setEmails([...emails, ""])}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        + Add Email
-                      </button>
-                    )}
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
+                  <Field label="Username *"><Input value={username} onChange={e => setUsername(e.target.value)} /></Field>
                 </div>
-                <Field label="Password *">
-                  <PasswordInput
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    autoComplete="new-password"
-                    showRequirements
-                  />
-                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Email</Label>
+                    <div className="space-y-1.5">
+                      {emails.map((val, i) => (
+                        <div key={i} className="flex gap-1.5">
+                          <Input
+                            type="email"
+                            placeholder={`Email ${i + 1}`}
+                            value={val}
+                            onChange={(e) => {
+                              const next = [...emails];
+                              next[i] = e.target.value;
+                              setEmails(next);
+                            }}
+                          />
+                          {emails.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setEmails(emails.filter((_, j) => j !== i))}
+                              className="shrink-0 text-muted-foreground hover:text-destructive"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {emails.length < 3 && (
+                        <button
+                          type="button"
+                          onClick={() => setEmails([...emails, ""])}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          + Add Email
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <Field label="Password *">
+                    <PasswordInput
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      autoComplete="new-password"
+                      showRequirements
+                    />
+                  </Field>
+                </div>
                 {kind === "staff" && (
-                  <>
+                  <div className="grid grid-cols-2 gap-2">
                     <Field label="Role *">
                       <Select
                         value={staffRole}
@@ -353,7 +361,8 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                     {/* Shop dropdown only matters for roles that operate within a
                         single shop (cashier / manager / kitchen). General staff
                         users — teachers and office staff — never bind to a shop,
-                        so we hide the picker entirely to keep the form tidy. */}
+                        so we hide the picker entirely (leaving this grid cell
+                        blank) to keep the form tidy. */}
                     {shopRequired && (
                       <Field label="Shop *">
                         <Select
@@ -422,25 +431,29 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                         )}
                       </Field>
                     )}
-                  </>
+                  </div>
                 )}
-                <Field label={kind === "staff" ? "Employee ID" : "Parent ID"}>
-                  <Input
-                    value={externalId}
-                    onChange={e => setExternalId(e.target.value)}
-                    placeholder={kind === "staff" ? "e.g. EMP-001" : "e.g. P-001"}
-                  />
-                </Field>
-                <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={kind === "staff" ? "Employee ID" : "Parent ID"}>
+                    <Input
+                      value={externalId}
+                      onChange={e => setExternalId(e.target.value)}
+                      placeholder={kind === "staff" ? "e.g. EMP-001" : "e.g. P-001"}
+                    />
+                  </Field>
+                  <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
+                </div>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
               </>
             )}
 
             {kind === "department" && (
               <>
-                <Field label="Department ID *"><Input value={deptCode} onChange={e => setDeptCode(e.target.value)} placeholder="DEPT-XXX" /></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Department ID *"><Input value={deptCode} onChange={e => setDeptCode(e.target.value)} placeholder="DEPT-XXX" /></Field>
+                  <Field label="Initial credit (THB)"><Input type="number" value={initialCredit} onChange={e => setInitialCredit(e.target.value)} /></Field>
+                </div>
                 <Field label="Department name *"><Input value={deptName} onChange={e => setDeptName(e.target.value)} /></Field>
-                <Field label="Initial credit (THB)"><Input type="number" value={initialCredit} onChange={e => setInitialCredit(e.target.value)} /></Field>
                 <p className="text-xs text-muted-foreground">
                   {t("cardholders.deptHint", 'Department wallet may go negative — admin tops it up monthly via "Department wallet adjust"')}
                 </p>
@@ -450,10 +463,14 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
             {kind === "other" && (
               <>
                 <Field label={t("cardholders.fields.name", "Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
-                <Field label="Visitor code (Customer code)"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="auto if blank" /></Field>
-                <Field label="Email"><Input type="email" value={otherEmail} onChange={e => setOtherEmail(e.target.value)} /></Field>
-                <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
-                <Field label="Other ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Visitor code (Customer code)"><Input value={customerCode} onChange={e => setCustomerCode(e.target.value)} placeholder="auto if blank" /></Field>
+                  <Field label="Email"><Input type="email" value={otherEmail} onChange={e => setOtherEmail(e.target.value)} /></Field>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
+                  <Field label="Other ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
+                </div>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={withWallet} onCheckedChange={(v) => setWithWallet(!!v)} />
@@ -480,9 +497,9 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <Label className={cn("text-xs font-medium")}>{label}</Label>
       {children}
     </div>
