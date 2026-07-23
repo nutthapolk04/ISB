@@ -16,6 +16,7 @@ const salesFilterQuery = {
     receipt_no_from: t.Optional(t.Nullable(t.String())),
     receipt_no_to: t.Optional(t.Nullable(t.String())),
     receive_type: t.Optional(t.Nullable(t.String())),
+    cashier_id: t.Optional(t.Nullable(t.String())),
     shop_id: t.Optional(t.Nullable(t.String())),
     module: t.Optional(t.Nullable(t.String())),
 };

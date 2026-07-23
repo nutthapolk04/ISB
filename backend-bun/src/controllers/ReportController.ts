@@ -159,6 +159,7 @@ export const ReportController = {
 				receiptNoFrom: query.receipt_no_from ?? undefined,
 				receiptNoTo: query.receipt_no_to ?? undefined,
 				receiveType: query.receive_type ?? undefined,
+				cashierId: query.cashier_id ?? undefined,
 				shopId: query.shop_id ?? undefined,
 				module: query.module ?? undefined,
 			});

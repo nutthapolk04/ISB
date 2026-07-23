@@ -51,6 +51,7 @@ interface SalesSummaryRow {
   shop_name: string | null;
   bundle_names: string | null;
   status: string;
+  cashier_id: string | null;
 }
 
 interface SalesSummaryTotals {
@@ -125,6 +126,7 @@ export function SalesSummaryReport({
   const [ssReceiptNoFrom, setSsReceiptNoFrom] = useState("");
   const [ssReceiptNoTo, setSsReceiptNoTo] = useState("");
   const [ssReceiveType, setSsReceiveType] = useState("all");
+  const [ssCashierId, setSsCashierId] = useState("");
   const [ssLoading, setSsLoading] = useState(false);
   const [ssData, setSsData] = useState<SalesSummaryReportData | null>(null);
 
@@ -142,6 +144,7 @@ export function SalesSummaryReport({
     if (ssReceiptNoFrom.trim()) params.set("receipt_no_from", ssReceiptNoFrom.trim());
     if (ssReceiptNoTo.trim()) params.set("receipt_no_to", ssReceiptNoTo.trim());
     if (ssReceiveType && ssReceiveType !== "all") params.set("receive_type", ssReceiveType);
+    if (ssCashierId.trim()) params.set("cashier_id", ssCashierId.trim());
 
     // Admin + canteen-area-manager pick a shop from the dropdown; other shop
     // users are locked to their own shop scope (handled server-side).
@@ -194,6 +197,7 @@ export function SalesSummaryReport({
       const label = RECEIVE_TYPE_OPTIONS.find((o) => o.value === ssReceiveType)?.label ?? ssReceiveType;
       lines.push(`Receive Type: ${label}`);
     }
+    if (ssCashierId.trim()) lines.push(`Cashier ID: ${ssCashierId.trim()}`);
     if (needsShopSelector && selectedStall !== "all") {
       const stall = canteenStalls.find((s) => s.id === selectedStall);
       if (stall) lines.push(`Shop: ${stall.name}`);
@@ -213,6 +217,7 @@ export function SalesSummaryReport({
       { header: "Receipt NO.",       key: "receipt_number",   width: 70  },
       { header: "ID.",               key: "customer_id",      width: 55  },
       { header: "Name",             key: "customer_name",    width: 100 },
+      { header: "Cashier ID",       key: "cashier_id",       width: 80  },
       { header: "Amt. Receive",     key: "amt_receive",      format: "currency", width: 55 },
       { header: "Amt. Change",      key: "amt_change",       format: "currency", width: 50 },
       { header: "Amt. Billing",     key: "amt_billing",      format: "currency", width: 50 },
@@ -396,6 +401,16 @@ export function SalesSummaryReport({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="ssCashierId">Cashier ID</Label>
+              <Input
+                id="ssCashierId"
+                placeholder="Search cashier ID"
+                value={ssCashierId}
+                onChange={(e) => setSsCashierId(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="ssReceiveType">Receive Type</Label>
               <Select value={ssReceiveType} onValueChange={setSsReceiveType}>
                 <SelectTrigger id="ssReceiveType"><SelectValue /></SelectTrigger>
@@ -462,6 +477,7 @@ export function SalesSummaryReport({
                       <th className="px-2 py-2 text-left">Receipt NO.</th>
                       <th className="px-2 py-2 text-left">ID.</th>
                       <th className="px-2 py-2 text-left">Name</th>
+                      <th className="px-2 py-2 text-left">Cashier ID</th>
                       <th className="px-2 py-2 text-right">Amt. Receive</th>
                       <th className="px-2 py-2 text-right">Amt. Change</th>
                       <th className="px-2 py-2 text-right">Amt. Billing</th>
@@ -478,7 +494,7 @@ export function SalesSummaryReport({
                   <tbody>
                     {ssData.rows.length === 0 ? (
                       <tr>
-                        <td colSpan={16} className="px-3 py-4 text-center text-muted-foreground">
+                        <td colSpan={17} className="px-3 py-4 text-center text-muted-foreground">
                           No receipts match these filters.
                         </td>
                       </tr>
@@ -490,6 +506,7 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
                           <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
                           <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>
+                          <td className="px-2 py-1.5 font-mono">{r.cashier_id ?? "—"}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_receive.toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_change !== 0 ? r.amt_change.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_billing !== 0 ? r.amt_billing.toFixed(2) : ""}</td>
@@ -514,7 +531,7 @@ export function SalesSummaryReport({
                   {ssData.rows.length > 0 && (
                     <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                       <tr className="border-t">
-                        <td colSpan={5} className="px-2 py-2 text-left">TOTAL</td>
+                        <td colSpan={6} className="px-2 py-2 text-left">TOTAL</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_receive.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_change.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_billing.toFixed(2)}</td>
