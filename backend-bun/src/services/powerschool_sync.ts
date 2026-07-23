@@ -258,6 +258,21 @@ async function syncLoginEmails(
     );
 }
 
+/**
+ * Staff/parent syncs used to leave wallet creation lazy (first login/topup/
+ * transfer), unlike upsertStudent() below which always creates one. Wallet
+ * Transfer needs both sides to already have a wallet row to look up, so
+ * every staff/parent synced here gets one eagerly too, same as students —
+ * check-then-insert, not onConflict, since these people aren't looked up by
+ * wallet_id and a second sync round must never create a duplicate.
+ */
+async function ensureUserWallet(userId: number): Promise<void> {
+    const walletExists = (await db.select({ id: wallets.id }).from(wallets).where(eq(wallets.userId, userId)).limit(1))[0];
+    if (!walletExists) {
+        await db.insert(wallets).values({ userId, balance: "0", isActive: true });
+    }
+}
+
 export async function upsertStaff(payload: StaffPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     const logins = payload.login ?? [];
@@ -362,6 +377,7 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
     await syncLoginEmails(userRow.id, logins, "staff");
+    await ensureUserWallet(userRow.id);
     return userRow;
 }
 
@@ -477,6 +493,7 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
     await syncLoginEmails(userRow.id, logins.length > 0 ? logins : [email], "family");
+    await ensureUserWallet(userRow.id);
     ctx?.usersByExtId?.set(extId, userRow);
     ctx?.usersByEmail?.set(email, userRow);
     return userRow;
@@ -572,6 +589,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
         before, after, fields: USER_AUDIT_FIELDS, created,
     });
     await syncLoginEmails(userRow.id, logins, "family");
+    await ensureUserWallet(userRow.id);
     ctx?.usersByExtId?.set(extId, userRow);
     return userRow;
 }
