@@ -13,7 +13,7 @@ const buildInfo = `V${__APP_VERSION__} ${__BUILD_TIME__}`;
 
 // Global idle logout for authenticated pages (balance, history, top-up amount/methods).
 // QR and cash-confirm steps suppress this — TopUpView owns those timers.
-const TIMEOUT_DEFAULT = 5_000;
+const TIMEOUT_DEFAULT = 10_000;
 let timeoutId: number | null = null;
 
 const resetTimeout = () => {

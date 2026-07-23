@@ -1261,6 +1261,8 @@
       "noteLabel": "Note",
       "notePlaceholder": "e.g. monthly allowance",
       "preview": "Balance after transfer",
+      "insufficientBalance": "Amount exceeds source wallet balance",
+      "maxAmountHint": "Maximum transfer: {{amount}}",
       "negativeWarning": "Source wallet will go negative",
       "cancel": "Cancel",
       "confirm": "Transfer",
@@ -2570,6 +2572,8 @@
       "previewTitle": "Balance after transfer",
       "fromBadge": "From",
       "toBadge": "To",
+      "insufficientBalance": "Amount exceeds source wallet balance",
+      "maxAmountHint": "Maximum transfer: {{amount}}",
       "negativeWarning": "Source wallet will go negative after transfer",
       "cancel": "Cancel",
       "confirmBtn": "Confirm transfer",
@@ -2979,6 +2983,9 @@
     "clearAll": "Clear all",
     "addedCount": "Added {{count}} barcode(s)",
     "allAlreadyAdded": "All products are already in the list"
+  },
+  "qrCountdown": {
+    "timeRemaining": "Time remaining"
   },
   "topup": {
     "title": "Top-up",

@@ -26,6 +26,7 @@ import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
+import { QrCountdownBar, QR_TOPUP_TIMEOUT_SEC } from "@/components/QrCountdownBar";
 
 interface CustomerResult {
   id: number;
@@ -283,7 +284,7 @@ export function CashierTopupModal({
   useEffect(() => {
     if (step !== "qr" || !intent) return;
     let cancelled = false;
-    const MAX_WAIT_MS = 15 * 60 * 1000;
+    const MAX_WAIT_MS = QR_TOPUP_TIMEOUT_SEC * 1000;
     const POLL_INTERVAL_MS = 3_000;
     const startTime = Date.now();
     const refCode = intent.ref_code;
@@ -681,6 +682,14 @@ export function CashierTopupModal({
               <QRCodeSVG value={intent.qr_payload} size={220} />
             </div>
 
+            {qrStatus === "waiting" && (
+              <QrCountdownBar
+                active
+                resetKey={intent.ref_code}
+                onExpired={() => setQrStatus("timeout")}
+              />
+            )}
+
             <div className="space-y-1 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-emerald-700">{t("topup.qrRefCode", "Reference")}</span>
@@ -711,11 +720,6 @@ export function CashierTopupModal({
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{t("topup.qrTimedOut", "QR timed out")}</span>
               </div>
-            )}
-            {qrStatus === "waiting" && (
-              <p className="text-xs text-center text-muted-foreground">
-                {t("topup.timeoutWarning", "QR expires in 15 minutes")}
-              </p>
             )}
 
             <div className="flex gap-2">

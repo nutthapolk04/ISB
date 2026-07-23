@@ -1261,6 +1261,8 @@
       "noteLabel": "หมายเหตุ",
       "notePlaceholder": "เช่น ค่าขนม รายเดือน",
       "preview": "ยอดเงินหลังโอน",
+      "insufficientBalance": "จำนวนเงินเกินยอดในกระเป๋าต้นทาง",
+      "maxAmountHint": "โอนได้สูงสุด: {{amount}}",
       "negativeWarning": "กระเป๋าต้นทางจะติดลบ",
       "cancel": "ยกเลิก",
       "confirm": "โอนเงิน",
@@ -2568,6 +2570,8 @@
       "previewTitle": "ยอดหลังการโอน",
       "fromBadge": "จาก",
       "toBadge": "ไปยัง",
+      "insufficientBalance": "จำนวนเงินเกินยอดในกระเป๋าต้นทาง",
+      "maxAmountHint": "โอนได้สูงสุด: {{amount}}",
       "negativeWarning": "ยอดจากกระเป๋าต้นทางจะติดลบหลังโอน",
       "cancel": "ยกเลิก",
       "confirmBtn": "ยืนยันการโอน",
@@ -2977,6 +2981,9 @@
     "clearAll": "ล้างทั้งหมด",
     "addedCount": "เพิ่ม {{count}} รายการ",
     "allAlreadyAdded": "เลือกครบทุกสินค้าแล้ว"
+  },
+  "qrCountdown": {
+    "timeRemaining": "เวลาที่เหลือ"
   },
   "topup": {
     "title": "เติมเงิน",

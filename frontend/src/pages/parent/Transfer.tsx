@@ -135,7 +135,16 @@ export default function Transfer() {
   const sameWallet = fromKey && toKey && fromKey === toKey;
   const fromBalance = fromWallet?.balance ?? 0;
   const toBalance = toWallet?.balance ?? 0;
-  const canSubmit = fromWallet && toWallet && !sameWallet && amt >= 100 && amt <= 50000 && note.trim().length > 0 && !submitting;
+  const exceedsBalance = amt > fromBalance;
+  const canSubmit =
+    fromWallet &&
+    toWallet &&
+    !sameWallet &&
+    amt >= 100 &&
+    amt <= 50000 &&
+    amt <= fromBalance &&
+    note.trim().length > 0 &&
+    !submitting;
 
   const handleSubmit = async () => {
     if (!fromWallet || !toWallet) return;
@@ -276,12 +285,18 @@ export default function Transfer() {
                   key={v}
                   variant="outline"
                   onClick={() => setAmount(String(v))}
+                  disabled={!fromWallet || v > fromBalance}
                   className="h-10 text-sm tabular-nums"
                 >
                   ฿{v.toLocaleString()}
                 </Button>
               ))}
             </div>
+            {fromWallet && (
+              <p className="text-xs text-muted-foreground">
+                {t("parent.transfer.maxAmountHint", { amount: formatTHB(fromBalance) })}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -310,7 +325,7 @@ export default function Transfer() {
                 </div>
                 <div className="font-mono">
                   {formatTHB(fromBalance)} →{" "}
-                  <span className={fromBalance - amt < 0 ? "text-destructive font-semibold" : "font-semibold"}>
+                  <span className="font-semibold">
                     {formatTHB(fromBalance - amt)}
                   </span>
                 </div>
@@ -325,10 +340,10 @@ export default function Transfer() {
                   <span className="font-semibold text-green-600">{formatTHB(toBalance + amt)}</span>
                 </div>
               </div>
-              {fromBalance - amt < 0 && (
+              {exceedsBalance && (
                 <p className="text-xs text-destructive flex items-center gap-1">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  {t("parent.transfer.negativeWarning")}
+                  {t("parent.transfer.insufficientBalance")}
                 </p>
               )}
             </div>

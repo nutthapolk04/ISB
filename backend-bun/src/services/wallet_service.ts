@@ -46,6 +46,7 @@ export interface WalletResponseDTO {
     daily_limit: number | null;
     username: string | null;
     role: string | null;
+    external_id: string | null;
     department_code: string | null;
 }
 
@@ -98,6 +99,7 @@ async function enrichWallet(w: WalletRow): Promise<WalletResponseDTO> {
         daily_limit: null as number | null,
         username: null as string | null,
         role: null as string | null,
+        external_id: null as string | null,
         department_code: null as string | null,
     };
 
@@ -113,6 +115,7 @@ async function enrichWallet(w: WalletRow): Promise<WalletResponseDTO> {
             username: u?.username ?? null,
             card_uid: u?.cardUid ?? null,
             role: u?.role ?? null,
+            external_id: u?.externalId ?? null,
         };
     }
     if (w.departmentId !== null) {
@@ -141,6 +144,7 @@ async function enrichWallet(w: WalletRow): Promise<WalletResponseDTO> {
             grade: c?.grade ?? null,
             card_frozen: c?.cardFrozen ?? null,
             daily_limit: c ? pgNumber(c.dailyLimit) : null,
+            external_id: c?.externalId ?? null,
         };
     }
     return { ...base, owner_type: "customer" };
@@ -931,8 +935,16 @@ export async function transferWithinFamily(args: {
         const fromBalanceBefore = Number(fromW.balance);
         const toBalanceBefore = Number(toW.balance);
         if (fromBalanceBefore < amount) {
-            const err = new Error(`Insufficient balance in source wallet (have ฿${fromBalanceBefore.toFixed(2)})`);
-            (err as { status?: number }).status = 400;
+            const err = new Error(
+                `ยอดเงินใน wallet ผู้โอนไม่พอ. คงเหลือ ฿${fromBalanceBefore.toFixed(2)}, จะโอน ฿${amount.toFixed(2)}`,
+            );
+            (err as { status?: number; code?: string; params?: Record<string, unknown> }).status = 400;
+            (err as { status?: number; code?: string; params?: Record<string, unknown> }).code =
+                "INSUFFICIENT_USER_WALLET_TRANSFER";
+            (err as { status?: number; code?: string; params?: Record<string, unknown> }).params = {
+                balance: fromBalanceBefore,
+                amount,
+            };
             throw err;
         }
         const toBalanceAfter = toBalanceBefore + amount;

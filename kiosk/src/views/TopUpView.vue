@@ -31,8 +31,8 @@ const t = {
         demo: 'This is a demo screen',
         backToMenu: 'Back to methods',
         enterAmount: 'Select top-up amount',
-        maxAmount: 'Max 50,000 Baht per transaction',
-        maxTopupHint: 'Top up up to {n} Baht',
+        maxAmount: 'Wallet limit : 50,000 ฿',
+        maxTopupHint: 'Max Topup Amount : {n} ฿',
         limitReachedHint: 'Remaining limit is below the {n} Baht minimum',
         overpayCapExceeded: 'Accepting would exceed the 50,000 Baht limit',
         confirm: 'Confirm',
@@ -819,7 +819,7 @@ const overpayExceedsCap = computed(() => {
                     <span>{{ currT.timeRemaining }}: </span>
                     <span class="timer-value">{{ Math.floor(qrTimeLeft / 60) }}:{{ (qrTimeLeft %
                         60).toString().padStart(2, '0')
-                        }}</span>
+                    }}</span>
                 </div>
 
                 <!-- Timer Progress Bar -->
@@ -989,14 +989,14 @@ const overpayExceedsCap = computed(() => {
                     {{ currT.printFailed }}
                     <span v-if="printer.lastPrinterError.value" class="print-error-detail">({{
                         printer.lastPrinterError.value
-                        }})</span>
+                    }})</span>
                 </p>
 
                 <button class="kiosk-btn btn-secondary print-receipt-btn" :disabled="printState === 'printing'"
                     @click="printReceipt">
                     <Printer :size="22" />
                     <span>{{ printState === 'done' || printState === 'error' ? currT.reprint : currT.printReceipt
-                        }}</span>
+                    }}</span>
                 </button>
             </div>
 

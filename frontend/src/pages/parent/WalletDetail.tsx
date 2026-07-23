@@ -18,6 +18,7 @@ import { getRoleStyle, getRoleLabel } from "@/lib/roleStyles";
 import { BackButton } from "@/components/BackButton";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
 import { TopupDetailDialog, type TopupTransaction } from "@/components/TopupDetailDialog";
+import { QrCountdownBar } from "@/components/QrCountdownBar";
 import { Wallet as WalletIcon, CheckCircle2, AlertCircle, History, Loader2, QrCode, CreditCard } from "lucide-react";
 import { KrungsriGatewayDialog } from "@/components/KrungsriGatewayDialog";
 import { storeBayIntent } from "@/pages/payment/MockBayGateway";
@@ -592,6 +593,13 @@ export default function WalletDetail() {
                 <div className="flex justify-center rounded-xl bg-white p-4 sm:p-6 border border-amber-100 shadow-inner">
                   <QRCodeSVG value={intent.qr_payload} size={200} className="sm:!h-[220px] sm:!w-[220px]" />
                 </div>
+                {qrStatus === "waiting" && (
+                  <QrCountdownBar
+                    active
+                    resetKey={intent.ref_code}
+                    onExpired={() => setQrStatus("timeout")}
+                  />
+                )}
                 <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-amber-700">{t("parent.wallet.qrAmount")}</span>

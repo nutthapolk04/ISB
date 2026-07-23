@@ -437,6 +437,7 @@ export default function WalletTransfer() {
     target !== null &&
     target.counterparty.wallet_id != null &&
     amt > 0 &&
+    amt <= fromBalance &&
     note.trim().length > 0 &&
     !transferring;
 
@@ -865,12 +866,16 @@ export default function WalletTransfer() {
                     variant="outline"
                     size="sm"
                     onClick={() => setAmount(String(v))}
+                    disabled={v > fromBalance}
                     className="h-8 tabular-nums"
                   >
                     ฿{v.toLocaleString()}
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                {t("admin.walletTransfer.maxAmountHint", { amount: formatTHB(fromBalance) })}
+              </p>
             </div>
 
             {/* Note */}
@@ -914,9 +919,9 @@ export default function WalletTransfer() {
                   </span>
                 </div>
                 {willGoNegative && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3.5 w-3.5" />
-                    {t("admin.walletTransfer.negativeWarning")}
+                    {t("admin.walletTransfer.insufficientBalance")}
                   </p>
                 )}
               </div>

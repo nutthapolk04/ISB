@@ -1014,10 +1014,10 @@ const Returns = () => {
                 onItemSelect={handleItemSelect}
                 onQuantityChange={handleQuantityChange}
                 onCancel={() => {
-                    setIsEditDialogOpen(false);
-                    setSelectedItems({});
-                    setViewingReceipt(null);
-                    setExchangeItems({});
+                            setIsEditDialogOpen(false);
+                            setSelectedItems({});
+                            setViewingReceipt(null);
+                            setExchangeItems({});
                 }}
                 onRequestRefund={() => handleUpdateReturn("refund")}
                 onRequestExchange={() => handleUpdateReturn("exchange")}
