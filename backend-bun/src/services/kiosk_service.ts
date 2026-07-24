@@ -14,7 +14,7 @@ export interface KioskProfileDTO {
     role: string;
 }
 
-function requireKiosk(caller: AccessTokenPayload): void {
+export function requireKiosk(caller: AccessTokenPayload): void {
     if (!caller.roles.includes("kiosk")) {
         const err = new Error("Kiosk role required");
         (err as { status?: number }).status = 403;

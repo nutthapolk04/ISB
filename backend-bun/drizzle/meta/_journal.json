@@ -50,6 +50,13 @@
       "when": 1784872084929,
       "tag": "0006_grad_refund_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784874743403,
+      "tag": "0007_kiosk_heartbeat_monitoring",
+      "breakpoints": true
     }
   ]
 }

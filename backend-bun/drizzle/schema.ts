@@ -798,6 +798,11 @@ export const users = pgTable("users", {
 	sessionToken: varchar("session_token", { length: 64 }),
 	staffType: varchar("staff_type", { length: 30 }),
 	psDepartment: varchar("ps_department", { length: 100 }),
+	// Kiosk online/offline monitoring (role='kiosk' rows only) — set by
+	// kiosk_monitoring_service.ts's heartbeat handler and offline sweep.
+	kioskLastHeartbeatAt: timestamp("kiosk_last_heartbeat_at", { withTimezone: true, mode: 'string' }),
+	kioskStatus: varchar("kiosk_status", { length: 20 }),
+	kioskOfflineSince: timestamp("kiosk_offline_since", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("ix_users_card_uid").using("btree", table.cardUid.asc().nullsLast().op("text_ops")),
 	uniqueIndex("ix_users_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
@@ -816,6 +821,29 @@ export const users = pgTable("users", {
 			foreignColumns: [shops.id],
 			name: "users_shop_id_fkey"
 		}).onDelete("set null"),
+]);
+
+// Who to notify when a kiosk (users.role='kiosk') goes offline/comes back —
+// many-to-many since one kiosk can have several responsible staff and one
+// staff member can be responsible for several kiosks.
+export const kioskCustodians = pgTable("kiosk_custodians", {
+	id: serial().primaryKey().notNull(),
+	kioskUserId: integer("kiosk_user_id").notNull(),
+	custodianUserId: integer("custodian_user_id").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("ix_kiosk_custodians_kiosk_user_id").using("btree", table.kioskUserId.asc().nullsLast().op("int4_ops")),
+	uniqueIndex("ix_kiosk_custodians_pair").using("btree", table.kioskUserId.asc().nullsLast().op("int4_ops"), table.custodianUserId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.kioskUserId],
+			foreignColumns: [users.id],
+			name: "kiosk_custodians_kiosk_user_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.custodianUserId],
+			foreignColumns: [users.id],
+			name: "kiosk_custodians_custodian_user_id_fkey"
+		}).onDelete("cascade"),
 ]);
 
 export const approvalRequests = pgTable("approval_requests", {

@@ -390,6 +390,15 @@ export const realApi = {
         return request<KioskProfile>('/kiosk/me');
     },
 
+    /** Liveness ping — see kioskHeartbeat.ts, which calls this on an interval
+     * independent of whether a member is currently tapped in. Uses the same
+     * Bearer token (and auto-refresh-on-401) as every other kiosk call —
+     * no separate credential payload needed since the kiosk is already
+     * authenticated for the whole process lifetime. */
+    async sendHeartbeat(): Promise<{ status: string }> {
+        return requestPost<{ status: string }>('/kiosk/heartbeat', {});
+    },
+
     async updateKioskLocation(fullName: string): Promise<KioskProfile> {
         return requestPatch<KioskProfile>('/kiosk/me/location', { full_name: fullName });
     },

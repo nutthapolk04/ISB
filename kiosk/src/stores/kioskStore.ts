@@ -4,6 +4,7 @@ import { realApi, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
+import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
 
 export type BootStatus = 'loading' | 'ready' | 'error';
 export type LoginFailureReason = 'not_found' | 'network' | 'busy';
@@ -97,6 +98,7 @@ export const useKioskStore = defineStore('kiosk', () => {
             bootStatus.value = 'ready';
             logKioskEvent('system', 'info', 'Kiosk bootstrap ready');
             startKioskLogUploader();
+            startKioskHeartbeat();
         } catch (e) {
             bootStatus.value = 'error';
             bootError.value = e instanceof Error ? e.message : 'Could not connect to server';

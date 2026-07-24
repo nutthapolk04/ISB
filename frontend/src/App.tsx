@@ -43,6 +43,7 @@ import AlertSettings from './pages/parent/AlertSettings';
 import ChildSettings from './pages/parent/ChildSettings';
 import Transfer from './pages/parent/Transfer';
 import WalletAdjust from './pages/admin/WalletAdjust';
+import KioskMonitoring from './pages/admin/KioskMonitoring';
 import WalletTransfer from './pages/admin/WalletTransfer';
 import DepartmentAdjust from './pages/admin/DepartmentAdjust';
 import DepartmentDetail from './pages/admin/DepartmentDetail';
@@ -333,6 +334,7 @@ const App = () => {
                           <Route path="/admin/wallet-transfer" element={<WalletTransfer />} />
                           <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
                           <Route path="/admin/audit-logs" element={<AuditLogList />} />
+                          <Route path="/admin/kiosk-monitoring" element={<KioskMonitoring />} />
                           <Route path="/admin/settings" element={<SystemSettings />} />
                           <Route path="/admin/low-balance-alert" element={<LowBalanceAlert />} />
                           <Route path="/admin/customer-display" element={<CustomerDisplaySettings />} />

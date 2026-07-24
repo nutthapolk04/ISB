@@ -10,6 +10,7 @@ import { logError, logger, logging } from "@/logger";
 import { startLowBalanceScheduler } from "@/services/low_balance_scheduler";
 import { startIsbSyncSweepScheduler } from "@/services/isb_sync_sweep_scheduler";
 import { startTopupReconcileScheduler } from "@/services/topup_reconcile_scheduler";
+import { startKioskHealthScheduler } from "@/services/kiosk_health_scheduler";
 import { mapValidationError, syncValidationFailed } from "@/lib/isb_sync_response";
 import { version } from "../package.json";
 
@@ -70,6 +71,7 @@ export async function initializeServices() {
         startLowBalanceScheduler();
         startTopupReconcileScheduler();
         startIsbSyncSweepScheduler();
+        startKioskHealthScheduler();
         logger.info(
             `✅ Ready on port ${config.port} (env=${config.nodeEnv}, version=${APP_VERSION})`,
         );

@@ -33,6 +33,7 @@ import { AdminImportController } from "@/controllers/AdminImportController";
 import { AdminReportsController } from "@/controllers/AdminReportsController";
 import { CanteenController } from "@/controllers/CanteenController";
 import { KioskController } from "@/controllers/KioskController";
+import { KioskMonitoringController } from "@/controllers/KioskMonitoringController";
 import * as HealthSchema from "@/interfaces/routes/health.schema";
 import * as AuthSchema from "@/interfaces/routes/auth.schema";
 import * as IsbSyncSchema from "@/interfaces/routes/isb_sync.schema";
@@ -64,6 +65,7 @@ import * as AdminImportSchema from "@/interfaces/routes/admin_import.schema";
 import * as AdminReportsSchema from "@/interfaces/routes/admin_reports.schema";
 import * as CanteenSchema from "@/interfaces/routes/canteen.schema";
 import * as KioskSchema from "@/interfaces/routes/kiosk.schema";
+import * as KioskMonitoringSchema from "@/interfaces/routes/kiosk_monitoring.schema";
 
 /**
  * ISB vendor sync + wallet-adjust-balance — public, x-api-key only (no JWT).
@@ -260,6 +262,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/me", KioskController.me, KioskSchema.kioskMe)
             .patch("/me/location", KioskController.updateLocation, KioskSchema.kioskUpdateLocation)
             .post("/logs", KioskController.uploadLogs, KioskSchema.kioskUploadLogs)
+            .post("/heartbeat", KioskController.heartbeat, KioskSchema.kioskHeartbeat)
     )
     .group("/admin/departments", (app) =>
         app
@@ -383,7 +386,13 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     .get("/wallets/admin/topup-report", AdminReportsController.topupReport, AdminReportsSchema.adminTopupReport)
     .get("/wallets/admin/transaction-report", AdminReportsController.transactionReport, AdminReportsSchema.adminTransactionReport)
     .get("/wallets/admin/internal-used-report", AdminReportsController.internalUsedReport, AdminReportsSchema.adminInternalUsedReport)
-    .get("/admin/kiosk-logs", AdminReportsController.kioskLogReport, AdminReportsSchema.adminKioskLogReport);
+    .get("/admin/kiosk-logs", AdminReportsController.kioskLogReport, AdminReportsSchema.adminKioskLogReport)
+    // ── Admin: kiosk online/offline monitoring ─────────────────────────────
+    .group("/admin/kiosk-monitoring", (app) =>
+        app
+            .get("/", KioskMonitoringController.list, KioskMonitoringSchema.kioskMonitoringList)
+            .put("/:kiosk_user_id/custodians", KioskMonitoringController.setCustodians, KioskMonitoringSchema.kioskMonitoringSetCustodians)
+    );
 
 const apiV1Authed = new Elysia({ name: "api-v1-authed", prefix: "/api/v1" })
     .use(requireAuth)

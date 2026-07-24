@@ -11,6 +11,10 @@ export const kioskUpdateLocation = {
     detail: { tags: ["Kiosk"], summary: "Update kiosk installation location label (full_name)" },
 };
 
+export const kioskHeartbeat = {
+    detail: { tags: ["Kiosk"], summary: "Kiosk liveness ping — call every ~1 min while the app is running" },
+};
+
 export const kioskUploadLogs = {
     body: t.Object({
         entries: t.Array(t.Object({

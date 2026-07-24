@@ -24,6 +24,7 @@ import {
     HandCoins,
     BellRing,
     HomeIcon,
+    Wifi,
 } from "lucide-react";
 declare const __BUILD_TIME__: string;
 import { NavLink } from "@/components/NavLink";
@@ -66,6 +67,7 @@ const menuGroups: MenuGroup[] = [
         items: [
             { titleKey: "nav.adminDashboard", url: "/admin", icon: LayoutDashboard, roles: ["admin"] },
             { titleKey: "nav.adminAuditLogs", url: "/admin/audit-logs", icon: History, roles: ["admin"] },
+            { titleKey: "nav.adminKioskMonitoring", url: "/admin/kiosk-monitoring", icon: Wifi, roles: ["admin"] },
         ],
     },
     {
