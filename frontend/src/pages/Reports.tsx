@@ -345,11 +345,7 @@ const Reports = () => {
                 }
                 bodyRows = [];
                 for (const [shopId, { name, rows: shopRows }] of byShop) {
-                    // Exclude Department Use so this subtotal matches the page-level
-                    // TOTAL footer below (data.retail_total), which also excludes it.
-                    const activeShopRows = shopRows.filter(
-                        (r) => r.status === "ACTIVE" && r.payment_method.toUpperCase() !== "DEPARTMENT",
-                    );
+                    const activeShopRows = shopRows.filter((r) => r.status === "ACTIVE");
                     bodyRows.push({ [SECTION_KEY]: `Vendor: ${name ?? shopId}` });
                     bodyRows.push(...renderMethodGroups(shopRows));
                     bodyRows.push({
@@ -383,7 +379,7 @@ const Reports = () => {
                         { header: "Status", key: "status", width: 15 },
                     ],
                     rows: bodyRows,
-                    totals: { total: data.retail_total },
+                    totals: { total: data.grand_total },
                 },
                 baseFilename: `SalesByPaymentReport${dateLabel}`,
             };
@@ -664,13 +660,10 @@ const Reports = () => {
                         {selectedReportType === "salesByPaymentReport" && (
                             <div className="border border-dashed border-muted-foreground/40 bg-muted/40 rounded-lg p-3 space-y-1">
                                 <p className="text-sm font-semibold text-muted-foreground">
-                                    Department Use (Internal)
+                                    {t("reports.deptUseHeader", "Department Use (Internal)")}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    {t("reports.deptUseSeparated", "Department Use is tracked separately from normal sales.")}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {t("reports.deptUseExcludedFromGrand", "Grand Total in this report covers normal sales only — Department Use is excluded.")}
+                                    {t("reports.deptUseIncludedInGrand", "Department Use appears in its own section; the report TOTAL includes it.")}
                                 </p>
                             </div>
                         )}

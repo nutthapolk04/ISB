@@ -607,6 +607,7 @@
     "deptUseHeader": "Department Use (Internal) — ยอดเบิกภายใน",
     "deptUseSeparated": "ยอดเบิกภายใน (Department Use) แยกจากยอดขายปกติ",
     "deptUseExcludedFromGrand": "Grand Total ในรายงานนี้แสดงเฉพาะยอดขายปกติ — ไม่รวม Department Use",
+    "deptUseIncludedInGrand": "Department Use แสดงในหมวดของตัวเอง และยอดรวม TOTAL ด้านล่างรวมยอดนี้ด้วย",
     "title": "รายงาน",
     "description": "ดูรายงานและสถิติต่างๆ ของระบบ",
     "info": {
