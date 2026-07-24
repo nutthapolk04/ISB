@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { CreditCard, X } from "lucide-react";
 import type { UserDetailData } from "./userDetailTypes";
 import { useRfidListener } from "@/hooks/useRfidListener";
+import { toCanonicalCardUid } from "@/lib/cardUid";
 
 interface CardBindingDialogProps {
   open: boolean;
@@ -34,12 +35,12 @@ export function CardBindingDialog({ open, onOpenChange, userId, initialCardUid, 
   useRfidListener({
     onCapture: (uid) => {
       if (!open) return;
-      setCardInput(uid.toUpperCase());
+      setCardInput(toCanonicalCardUid(uid));
     },
   });
 
   const saveCardUid = async () => {
-    const cleaned = cardInput.trim().toUpperCase() || null;
+    const cleaned = cardInput.trim() ? toCanonicalCardUid(cardInput.trim()) : null;
     setSavingCard(true);
     try {
       const updated = await api.patch<UserDetailData>(`/users-admin/${userId}`, {
@@ -76,6 +77,7 @@ export function CardBindingDialog({ open, onOpenChange, userId, initialCardUid, 
             <Input
               value={cardInput}
               onChange={(e) => setCardInput(e.target.value.toUpperCase())}
+              onBlur={(e) => setCardInput(toCanonicalCardUid(e.target.value))}
               placeholder="D7F8F836"
               className="font-mono"
               maxLength={20}

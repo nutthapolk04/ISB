@@ -261,10 +261,11 @@ export default function CustomerDetail() {
 
   const handleBindCard = async () => {
     if (!profile) return;
+    const canonicalUid = cardUidDraft.trim() ? toCanonicalCardUid(cardUidDraft.trim()) : null;
     setBindingCard(true);
     try {
-      await api.patch(`/customers/${profile.id}/card`, { card_uid: cardUidDraft.trim() || null });
-      toast({ title: cardUidDraft ? t("admin.customer.cardBound") : t("admin.customer.cardUnboundToast") });
+      await api.patch(`/customers/${profile.id}/card`, { card_uid: canonicalUid });
+      toast({ title: canonicalUid ? t("admin.customer.cardBound") : t("admin.customer.cardUnboundToast") });
       setCardDialogOpen(false);
       loadAll();
     } catch (e) {
@@ -898,6 +899,7 @@ export default function CustomerDetail() {
                 <Input
                   value={cardUidDraft}
                   onChange={(e) => setCardUidDraft(e.target.value.toUpperCase())}
+                  onBlur={(e) => setCardUidDraft(toCanonicalCardUid(e.target.value))}
                   placeholder={t("admin.customer.bindPlaceholder")}
                   className="font-mono"
                 />
