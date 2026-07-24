@@ -160,12 +160,14 @@ export default function KioskMonitoring() {
     }
   };
 
+  // Search by full name / external_id only — username is deliberately
+  // excluded per admin request (usernames aren't how staff recognize each
+  // other; searching by them just surfaces confusing false matches).
   const filteredCandidates = candidates.filter((c) => {
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
     return (
       c.full_name.toLowerCase().includes(q) ||
-      c.username.toLowerCase().includes(q) ||
       (c.external_id ?? "").toLowerCase().includes(q)
     );
   });
@@ -287,9 +289,9 @@ export default function KioskMonitoring() {
                     onCheckedChange={() => toggleCandidate(c.id)}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm">{c.full_name || c.username}</p>
+                    <p className="truncate text-sm">{c.full_name || c.external_id || "—"}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {c.username}{c.role ? ` · ${c.role}` : ""}
+                      {t("cardholders.colIsbId", "ISB ID")}: {c.external_id || "—"}{c.role ? ` · ${c.role}` : ""}
                     </p>
                   </div>
                 </label>

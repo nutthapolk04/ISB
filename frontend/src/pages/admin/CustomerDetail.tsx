@@ -22,6 +22,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 import { resolveAvatarUrl } from "@/lib/avatarFallback";
+import { toCanonicalCardUid } from "@/lib/cardUid";
 import { useRfidListener } from "@/hooks/useRfidListener";
 import {
   ArrowLeft, Camera, CreditCard, GraduationCap, Lock, Unlock, Upload, User as UserIcon,
@@ -278,7 +279,7 @@ export default function CustomerDetail() {
   useRfidListener({
     onCapture: (uid) => {
       if (!cardDialogOpen) return;
-      setCardUidDraft(uid.toUpperCase());
+      setCardUidDraft(toCanonicalCardUid(uid));
     },
   });
 

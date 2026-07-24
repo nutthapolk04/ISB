@@ -729,12 +729,25 @@ export interface FamilyProfileUpdateDTO {
     login_ids?: string[] | null;
 }
 
+// Practical email format check (not full RFC 5322) — rejects obvious junk
+// like a bare "1" while allowing normal address shapes. Mirrors the
+// frontend's own check in NotificationEmailsEditor.tsx; this is the
+// authoritative one since a direct API call bypasses the UI.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function updateFamilyProfile(
     callerRoles: string[],
     familyCode: string,
     payload: FamilyProfileUpdateDTO,
 ): Promise<FamilyProfileDTO> {
     requireAdmin(callerRoles);
+
+    if (payload.admin_notification_emails) {
+        const invalid = payload.admin_notification_emails.filter((e) => !EMAIL_RE.test(e.trim().toLowerCase()));
+        if (invalid.length > 0) {
+            throw statusErr(400, `Invalid email address: ${invalid.join(", ")}`);
+        }
+    }
 
     const existing = await db
         .select()

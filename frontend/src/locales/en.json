@@ -1570,6 +1570,7 @@
       "cardUidRemoved": "Card UID removed",
       "cardUidError": "Failed to save Card UID",
       "addEmailError": "Failed to add notification email",
+      "invalidEmail": "Please enter a valid email address",
       "removeEmailError": "Failed to remove email",
       "removeLinkSuccess": "Link removed",
       "removeLinkError": "Failed to remove link",

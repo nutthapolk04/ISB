@@ -1570,6 +1570,7 @@
       "cardUidRemoved": "ลบ Card UID เรียบร้อย",
       "cardUidError": "บันทึก Card UID ไม่สำเร็จ",
       "addEmailError": "เพิ่มอีเมลแจ้งเตือนไม่สำเร็จ",
+      "invalidEmail": "กรุณากรอกอีเมลให้ถูกต้อง",
       "removeEmailError": "ลบอีเมลไม่สำเร็จ",
       "removeLinkSuccess": "ลบลิงก์เรียบร้อย",
       "removeLinkError": "ลบลิงก์ไม่สำเร็จ",

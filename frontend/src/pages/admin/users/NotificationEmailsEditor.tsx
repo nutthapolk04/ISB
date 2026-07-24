@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Mail, X } from "lucide-react";
 import type { FamilyProfileData } from "./userDetailTypes";
 
+// Practical email format check (not full RFC 5322) — good enough to reject
+// obvious junk like a bare "1" while allowing normal address shapes.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface NotificationEmailsEditorProps {
   familyCode: string;
   /** From PowerSchool sync (family_profiles.notification_emails) — read-only
@@ -30,6 +34,10 @@ export function NotificationEmailsEditor({ familyCode, syncedEmails, adminEmails
   const addNotifEmail = async () => {
     const raw = notifDraft.trim().toLowerCase();
     if (!raw) return;
+    if (!EMAIL_RE.test(raw)) {
+      toast({ title: t("admin.users.invalidEmail"), variant: "destructive" });
+      return;
+    }
     if (adminEmails.includes(raw)) {
       setNotifDraft("");
       return;
