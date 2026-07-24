@@ -315,7 +315,7 @@
   <header class="doc-header">
     <span class="kicker">ISB POS · Internal Doc</span>
     <h1>ISB POS — คู่มือติดตั้งเครื่อง POS (ISB-POS-Setup)</h1>
-    <p class="subtitle">คู่มือใช้ตัวติดตั้ง <code>ISB-POS-Setup-1.0.0.exe</code> เพื่อ provision เครื่อง POS Windows ให้พร้อมใช้ EDC + RFID ในครั้งเดียว</p>
+    <p class="subtitle">คู่มือใช้ตัวติดตั้ง <code>ISB-POS-Setup-1.0.0.exe</code> เพื่อ provision เครื่อง POS Windows ให้พร้อมใช้ EDC + เปิด Chrome kiosk อัตโนมัติในครั้งเดียว</p>
   </header>
 
   <nav class="toc">
@@ -336,13 +336,18 @@
 
   <p>
     <code>pos-installer/dist/ISB-POS-Setup-1.0.0.exe</code> คือตัวติดตั้ง (NSIS)
-    สำหรับเครื่อง POS Windows — build ล่าสุดเมื่อ <strong>2026-07-16</strong>
-    บนเครื่อง Mac ด้วย <code>makensis</code> เป็นรุ่น <strong>OFFLINE</strong>
-    ขนาด <strong>157MB</strong> (ฝัง <code>node_modules</code> มาแล้ว
-    ไม่ต้องใช้อินเทอร์เน็ตตอนติดตั้ง) ติดตั้งลง <code>C:\ISB</code>
-    และรันซ้ำได้ปลอดภัย (idempotent — รอบใหม่จะ stop service เดิม / ปิด
+    สำหรับเครื่อง POS Windows — build ล่าสุดเมื่อ <strong>2026-07-24</strong>
+    บนเครื่อง Mac ด้วย <code>makensis</code> ขนาด <strong>~128MB</strong>
+    ไม่ต้องใช้อินเทอร์เน็ตตอนติดตั้งเลย (ไม่มีการดาวน์โหลดอะไรอีกต่อไป)
+    ติดตั้งลง <code>C:\ISB</code> และรันซ้ำได้ปลอดภัย (idempotent — รอบใหม่จะปิด
     paywire ที่ค้างอยู่ก่อนเขียนทับเอง)
   </p>
+
+  <div class="note">
+    รุ่นนี้ตัด <strong>RFID bridge (ACR1252 + NSSM)</strong> ออกจาก installer แล้ว
+    — สำหรับเครื่อง POS ที่ใช้ <strong>EDC อย่างเดียว</strong> ถ้าเครื่องไหนยังต้องการ
+    RFID ให้ใช้ <code>rfid-bridge/</code> ที่ root ของ repo แยกต่างหาก
+  </div>
 
   <p>ตัวติดตั้งมี 3 component (ติ๊กไว้ทั้งหมดโดย default):</p>
 
@@ -357,9 +362,9 @@
       <tbody>
         <tr>
           <td><strong>1. EDC USB driver</strong><br>(whql_Driver2020)</td>
-          <td>copy driver ไป <code>C:\ISB\driver\</code> แล้วเปิด
-            <code>DriverInstall.exe</code> ซึ่งเป็น wizard ของ vendor
-            ให้ผู้ติดตั้งกดตามขั้นตอนเอง (ไม่ silent)</td>
+          <td>copy driver ไป <code>C:\ISB\driver\</code> แล้วรัน
+            <code>DriverInstall.exe</code> ของ vendor แบบ <strong>unattended</strong>
+            (ไม่มี wizard/popup ให้กด ติดตั้งอัตโนมัติภายใน ~30 วิ)</td>
         </tr>
         <tr>
           <td><strong>2. Paywire EDC bridge</strong></td>
@@ -369,15 +374,13 @@
             <code>pos.local.bridge.schooney.tech:7331</code></td>
         </tr>
         <tr>
-          <td><strong>3. RFID bridge service</strong><br>(ACR1252 + NSSM)</td>
-          <td>วาง Node.js portable <strong>v26.5.0</strong> +
-            <code>nssm.exe</code> แล้วรัน <code>install-rfid-service.ps1</code>
-            เพื่อลงทะเบียน Windows Service ชื่อ <code>rfid-bridge</code>
-            (auto-start, auto-restart เมื่อ crash, log ที่
-            <code>C:\ISB\rfid-bridge\logs\out.log</code> + <code>err.log</code>,
-            ฟังที่ <code>ws://localhost:9001</code>) — สคริปต์รายงานเป็น
-            <strong>ภาษาไทยทีละขั้น</strong> จบด้วยสรุปผล
-            (Service Running ✅ + Port 9001 ✅)</td>
+          <td><strong>3. Chrome kiosk auto-start</strong></td>
+          <td>ตั้ง Chrome enterprise policy
+            <code>LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
+            (ให้หน้าเว็บต่อ Paywire bridge ได้โดยไม่โดน permission prompt บล็อก)
+            แล้วสร้าง shortcut "ISB POS Kiosk" ใน Startup (all users) ที่เปิด
+            Chrome แบบ <code>--kiosk https://isb.schooney.tech/login</code>
+            ทุกครั้งที่ล็อกอิน และเปิดให้ทันทีหลังติดตั้งเสร็จ</td>
         </tr>
       </tbody>
     </table>
@@ -388,16 +391,6 @@
 ├── driver\               ← ไฟล์ EDC USB driver (whql_Driver2020)
 ├── paywire\
 │   └── paywire.exe       ← Paywire EDC bridge (tray app)
-├── rfid-bridge\
-│   ├── rfid-server.js
-│   ├── node_modules\     ← ฝังมากับ installer (รุ่น OFFLINE)
-│   └── logs\
-│       ├── out.log
-│       └── err.log
-├── node\
-│   └── node.exe          ← Node.js portable v26.5.0
-├── nssm.exe              ← ตัวจัดการ Windows Service
-├── install-rfid-service.ps1
 ├── README.txt
 └── uninstall.exe</code></pre>
 
@@ -414,16 +407,14 @@
 
   <ul>
     <li>เครื่อง POS ที่รัน <strong>Windows 10/11 x64</strong></li>
-    <li>สิทธิ์ <strong>Administrator</strong> บนเครื่องนั้น (จำเป็น — ลงทะเบียน Windows Service ไม่ได้ถ้าไม่มี)</li>
+    <li>สิทธิ์ <strong>Administrator</strong> บนเครื่องนั้น (จำเป็น — เขียน registry policy ของ Chrome ไม่ได้ถ้าไม่มี)</li>
     <li><strong>USB drive</strong> ที่มีไฟล์ <code>ISB-POS-Setup-1.0.0.exe</code></li>
     <li>เครื่อง <strong>EDC</strong> + สาย USB</li>
-    <li>เครื่องอ่านบัตร <strong>ACR1252U</strong></li>
+    <li><strong>Google Chrome</strong> ติดตั้งไว้แล้วบนเครื่อง (installer หา path ของ Chrome จาก registry — ถ้ายังไม่ได้ติดตั้ง Chrome จะข้าม shortcut ให้พร้อมคำเตือน)</li>
   </ul>
 
   <div class="note">
-    รุ่นที่ build ปัจจุบันเป็นรุ่น <strong>OFFLINE</strong> —
-    <strong>ไม่ต้องใช้อินเทอร์เน็ต</strong>ระหว่างติดตั้ง
-    (node_modules ถูกฝังมาในตัว exe แล้ว ตัวติดตั้งจะข้าม npm install ไปเลย)
+    ไม่ต้องใช้อินเทอร์เน็ตระหว่างติดตั้งเลย — ไฟล์ทั้งหมดฝังมาในตัว exe แล้ว
   </div>
 
   <!-- ============ SECTION 3 ============ -->
@@ -451,35 +442,34 @@
       <p>ตรวจว่า component ทั้ง <strong>3 ตัวติ๊กครบ</strong> (ค่า default ติ๊กไว้ให้แล้ว) → Next → ปล่อยโฟลเดอร์ติดตั้งเป็น <code>C:\ISB</code> → กด <strong>Install</strong></p>
     </li>
     <li>
-      <div class="step-title">Driver wizard ของ vendor</div>
-      <p>ระหว่างติดตั้งจะมีหน้าต่าง wizard ของ vendor (<code>DriverInstall.exe</code>) เด้งขึ้นมาสำหรับ EDC USB driver — <strong>กดตามขั้นตอนจนจบ</strong></p>
-    </li>
-    <li>
-      <div class="step-title">หน้าต่าง PowerShell ของ RFID service</div>
+      <div class="step-title">รอจนจบ (unattended ทั้งหมด)</div>
       <p>
-        จะมีหน้าต่าง PowerShell สีดำเปิดขึ้นมา รายงานการติดตั้ง RFID service
-        <strong>เป็นภาษาไทยทีละขั้น</strong> (ตรวจสิทธิ์ → ตรวจไฟล์ → SCardSvr →
-        เครื่องอ่าน → dependencies → ลงทะเบียน service → ตั้งค่า Chrome policy →
-        ตรวจ port)
+        ทุกขั้นตอนเป็น unattended ไม่มี wizard/popup ให้กด — driver ติดตั้งเงียบๆ
+        ~30 วิ, Paywire bridge เปิดขึ้นมาให้เห็นใน system tray, แล้ว Chrome จะเปิดขึ้นมา
+        แสดงหน้า login ของ ISB POS โดยอัตโนมัติ (kiosk mode) เป็นสัญญาณว่าติดตั้งสำเร็จ
       </p>
-      <div class="warn"><strong>อย่าปิดหน้าต่างนี้!</strong> ปล่อยให้รันจนจบเอง</div>
-    </li>
-    <li>
-      <div class="step-title">รอสรุปผล</div>
-      <p>ตอนจบต้องเห็นสรุปผลในหน้าต่าง PowerShell:</p>
-      <pre><code>Service status : ✅ Running ('rfid-bridge')
-Port 9001      : ✅ Listening (ws://localhost:9001)
-Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code></pre>
     </li>
     <li>
       <div class="step-title">Finish</div>
       <p>กลับมาที่หน้าต่างตัวติดตั้ง กด <strong>Finish</strong> เป็นอันเสร็จ</p>
-      <div class="warn">ถ้าเปิด Chrome ค้างไว้อยู่ก่อนแล้ว (ตั้งแต่ก่อนติดตั้ง) ต้อง <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้ง</strong> — ไม่งั้น policy ที่เพิ่งตั้งจะยังไม่มีผล</div>
+      <div class="warn">ถ้าเปิด Chrome ค้างไว้อยู่ก่อนแล้ว (ตั้งแต่ก่อนติดตั้ง) ต้อง <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้ง</strong> — ไม่งั้น Local Network Access policy ที่เพิ่งตั้งจะยังไม่มีผล และ EDC bridge จะต่อไม่ติด</div>
     </li>
   </ol>
 
   <!-- ============ SECTION 4 ============ -->
   <h2 id="sec4"><span class="num">4</span>ตรวจรับหลังติดตั้ง</h2>
+
+  <div class="note">
+    <strong>ทางลัด:</strong> รันสคริปต์ <code>check-pos.ps1</code> ที่ติดตั้งมาให้แล้วที่
+    <code>C:\ISB\</code> — เช็ค driver, Paywire bridge, kiosk shortcut, และ
+    Chrome policy <strong>และแก้ให้อัตโนมัติเท่าที่ทำได้</strong> ในครั้งเดียว
+    (ลง patch driver, เปิด Paywire ที่ค้าง, สร้าง kiosk shortcut ใหม่, ตั้งค่า
+    Chrome policy) พร้อมสรุปผล OK/FAIL แยกรายการท้ายสุด — <strong>ต้อง Run as
+    administrator</strong> (ลง Windows patch/เขียน registry ให้), รันซ้ำได้ไม่จำกัด:
+    <pre><code>cd C:\ISB
+powershell -ExecutionPolicy Bypass -File check-pos.ps1</code></pre>
+    ด้านล่างคือรายละเอียดแต่ละข้อเผื่อต้องดีบักเองว่าทำไมข้อไหนไม่ผ่าน
+  </div>
 
   <ol>
     <li>
@@ -487,14 +477,13 @@ Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
       Windows) — ต้องรันอยู่
     </li>
     <li>
-      เปิด PowerShell แล้วเช็ค service:
-      <pre><code>Get-Service rfid-bridge</code></pre>
-      สถานะต้องเป็น <code>Running</code>
+      เช็คว่า kiosk shortcut ถูกสร้างไว้จริง:
+      <pre><code>Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\ISB POS Kiosk.lnk"</code></pre>
+      ต้องได้ <code>True</code> — ลอง log out แล้ว log in ใหม่ (หรือ restart เครื่อง) ควรเห็น Chrome เปิดหน้า login ของ ISB POS อัตโนมัติ
     </li>
     <li>
       <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้งก่อน</strong> (ให้ Chrome policy ที่ installer ตั้งไว้มีผล) แล้วเปิด <code>https://isb.schooney.tech</code> → หน้า canteen แล้วทดสอบ:
       <ul>
-        <li><strong>RFID:</strong> แตะบัตรที่เครื่องอ่าน — แอปต้องค้นหาสมาชิกให้อัตโนมัติ</li>
         <li><strong>EDC:</strong> กดชำระเงิน → เลือกจ่ายด้วย EDC — ต้องเห็น pill สีเขียว <span class="pill green">● EDC connected</span></li>
         <li>กดปุ่ม <strong>QR CODE</strong> — ยอดเงิน + QR ต้องขึ้นบนจอเครื่อง EDC</li>
       </ul>
@@ -506,16 +495,13 @@ Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
 
   <div class="warn">
     <ul>
-      <li>ต้อง <strong>Run as administrator เสมอ</strong> — ไม่งั้นลงทะเบียน Windows Service ไม่ได้ (สคริปต์จะหยุดพร้อม error)</li>
-      <li><strong>ห้ามปิดหน้าต่าง PowerShell</strong> ระหว่างติดตั้ง — ปล่อยให้รันจนเห็นสรุปผล</li>
-      <li><strong>ห้ามลบ/ย้ายโฟลเดอร์ <code>C:\ISB</code></strong> หลังติดตั้ง — ทั้ง service และ shortcut autostart ชี้ path นี้ตรง ๆ</li>
-      <li>รุ่น <strong>OFFLINE เท่านั้น</strong>ที่ไม่ต้องมีเน็ต — ถ้าเป็นรุ่น ONLINE (build โดยไม่มี <code>prebuilt-node_modules.zip</code>) เครื่อง POS ต้องมีอินเทอร์เน็ต + ติดตั้ง Visual Studio Build Tools (C++ workload) ไว้ก่อน</li>
-      <li><strong>prebuilt node_modules ต้องมาจากเครื่อง POS Windows เท่านั้น</strong> — <code>build.sh</code> บน Mac มี guard ตรวจว่า <code>pcsclite.node</code> เป็น Windows x64 DLL (PE32+) และจะปฏิเสธ zip ที่มาจาก Mac (Mach-O) อัตโนมัติ — และต้อง build ด้วย <strong>Node v26.x</strong> ให้ ABI ตรงกับ Node portable ที่ฝังมา (v26.5.0)</li>
-      <li>เสียบ <strong>ACR1252U ก่อนติดตั้งได้ยิ่งดี</strong> — แต่ไม่เสียบก็ติดตั้งได้ (installer แค่เตือน bridge จะ detect เครื่องอ่านเองเมื่อเสียบภายหลัง)</li>
-      <li><strong>ติดตั้งซ้ำได้ปลอดภัย</strong> (idempotent) — รัน exe ซ้ำเพื่อซ่อมเครื่องที่ service พังได้เลย</li>
-      <li>ถอนการติดตั้ง<strong>จะไม่ถอน EDC driver</strong> — driver ติดตั้งอยู่กับ Windows ตามปกติ</li>
-      <li>CSP ของเว็บ <code>isb.schooney.tech</code> อนุญาต <code>ws://localhost:9001</code> และ <code>pos.local.bridge.schooney.tech:7331</code> แล้ว (แก้เมื่อ 2026-07-16) — <strong>เครื่องใหม่ไม่ต้องตั้งค่าฝั่งเว็บเพิ่ม</strong></li>
-      <li>ตัวติดตั้งตั้งค่า <strong>Chrome Local Network Access policy</strong> (registry <code>HKLM\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls</code>) ให้อัตโนมัติ — เป็นคนละชั้นกับ CSP (Chrome เช็คแยกก่อนอนุญาตเว็บ public ต่อ localhost) แต่ <strong>ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่หลังติดตั้งเสมอ</strong> ไม่งั้น policy จะยังไม่มีผลและแตะบัตรจะไม่ขึ้นอะไรเลย</li>
+      <li>ต้อง <strong>Run as administrator เสมอ</strong> — ไม่งั้นเขียน registry policy ของ Chrome ไม่ได้</li>
+      <li><strong>ห้ามลบ/ย้ายโฟลเดอร์ <code>C:\ISB</code></strong> หลังติดตั้ง — shortcut ของ Paywire ชี้ path นี้ตรง ๆ</li>
+      <li><strong>ติดตั้งซ้ำได้ปลอดภัย</strong> (idempotent) — รัน exe ซ้ำเพื่อซ่อมเครื่องที่มีปัญหาได้เลย</li>
+      <li>ถอนการติดตั้ง<strong>จะไม่ถอน EDC driver หรือ Chrome เอง</strong> — ทั้งสองยังอยู่บนเครื่องตามปกติ</li>
+      <li>CSP ของเว็บ <code>isb.schooney.tech</code> อนุญาต <code>pos.local.bridge.schooney.tech:7331</code> แล้ว (แก้เมื่อ 2026-07-16) — <strong>เครื่องใหม่ไม่ต้องตั้งค่าฝั่งเว็บเพิ่ม</strong></li>
+      <li>ตัวติดตั้งตั้งค่า <strong>Chrome Local Network Access policy</strong> (registry <code>HKLM\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls</code>) ให้อัตโนมัติ — เป็นคนละชั้นกับ CSP (Chrome เช็คแยกก่อนอนุญาตเว็บ public ต่อ local network) แต่ <strong>ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่หลังติดตั้งเสมอ</strong> ไม่งั้น policy จะยังไม่มีผลและ EDC bridge จะต่อไม่ติด</li>
+      <li>ฟีเจอร์ Local Network Access ของ Chrome ยังค่อนข้างใหม่และเคยเปลี่ยนชื่อ/รูปแบบ policy มาแล้วหลายรอบ — ถ้า <code>chrome://policy</code> ไม่แสดง <code>LocalNetworkAccessAllowedForUrls</code> เป็น OK เลย ให้เช็คเวอร์ชัน Chrome จริงที่ <code>chrome://version</code> แล้วเทียบชื่อ policy ที่ถูกต้องกับเวอร์ชันนั้นก่อนแก้ <code>installer.nsi</code></li>
     </ul>
   </div>
 
@@ -532,28 +518,27 @@ Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
       </thead>
       <tbody>
         <tr>
-          <td>service <code>rfid-bridge</code> ไม่ Running</td>
-          <td>ดู error log:<br><code>Get-Content C:\ISB\rfid-bridge\logs\err.log -Tail 50</code></td>
+          <td>EDC driver ขึ้นเครื่องหมาย ⚠️ สีเหลืองใน Device Manager</td>
+          <td><code>check-pos.ps1</code> (หัวข้อ 4 ด้านบน) เรียก <code>fix-edc-driver.ps1</code> ให้อัตโนมัติอยู่แล้ว — หรือจะรันตัวแก้ driver อย่างเดียวก็ได้ (ต้อง Run as administrator):
+            <pre><code>cd C:\ISB
+powershell -ExecutionPolicy Bypass -File fix-edc-driver.ps1</code></pre>
+            เช็ค Windows Service Pack 1 (เฉพาะ Win7) → ลง patch <code>Windows6.1-KB3033929-x64.msu</code> ที่ bundle มาให้แล้ว → rescan hardware ให้อัตโนมัติตาม <code>DriverInstall_Guide.pdf</code> หัวข้อ 4.3 — ถ้ายังไม่หายให้ทำ manual update driver เอง (ดูหัวข้อ 4.5 ใน PDF เดียวกัน)</td>
         </tr>
         <tr>
-          <td>port 9001 ไม่ตอบ</td>
-          <td>restart service:<br><code>C:\ISB\nssm.exe restart rfid-bridge</code></td>
-        </tr>
-        <tr>
-          <td>แตะบัตรแล้วเงียบ</td>
-          <td>เช็ค Device Manager หมวด <strong>Smart card readers</strong> ว่าเห็นเครื่องอ่าน และเช็คว่า service <code>SCardSvr</code> รันอยู่</td>
-        </tr>
-        <tr>
-          <td>แตะบัตรแล้วเงียบ + F12 → Console ขึ้น <code>ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS</code></td>
-          <td>Chrome policy ยังไม่มีผล — ปิด Chrome <strong>ทุกหน้าต่าง</strong>แล้วเปิดใหม่ แล้วเช็คที่ <code>chrome://policy</code> ว่า <code>LocalNetworkAccessAllowedForUrls</code> ขึ้น OK พร้อมค่า <code>isb.schooney.tech</code> — ถ้ายังไม่มีให้ตั้งเองด้วย PowerShell (ดู README.md หัวข้อ Chrome Local Network Access policy) แล้วรีสตาร์ท Chrome ใหม่</td>
+          <td>F12 → Console ขึ้น <code>ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS</code></td>
+          <td>Chrome policy ยังไม่มีผล — ปิด Chrome <strong>ทุกหน้าต่าง</strong>แล้วเปิดใหม่ แล้วเช็คที่ <code>chrome://policy</code> ว่า <code>LocalNetworkAccessAllowedForUrls</code> ขึ้น OK พร้อมค่า <code>isb.schooney.tech</code> — ถ้ายังไม่มีให้ตั้งเองด้วย PowerShell (ดู README.md หัวข้อ Chrome Local Network Access policy) แล้วรีสตาร์ท Chrome ใหม่ — ถ้าตั้งแล้วยัง Ignored ให้เช็คว่า Chrome เวอร์ชันนี้เปลี่ยนชื่อ policy ไปหรือยัง</td>
         </tr>
         <tr>
           <td>EDC pill ขึ้นแดง (not connected)</td>
           <td>เช็คว่า paywire รันอยู่ใน system tray — ถ้าไม่อยู่ให้ดับเบิลคลิก Desktop shortcut "Paywire Bridge" เปิดใหม่ แล้วเช็ค error เพิ่มด้วย F12 → Console</td>
         </tr>
         <tr>
+          <td>เปิดเครื่อง/login แล้ว Chrome ไม่เปิดหน้า login อัตโนมัติ</td>
+          <td>เช็คว่า shortcut มีอยู่จริง: <code>Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\ISB POS Kiosk.lnk"</code> — ถ้าไม่มี (เช่นตอนติดตั้ง Chrome ยังไม่ได้ลงไว้) ให้ติดตั้ง Chrome แล้วรัน <code>ISB-POS-Setup-1.0.0.exe</code> ซ้ำอีกรอบ</td>
+        </tr>
+        <tr>
           <td>อยากติดตั้งซ้ำทั้งชุด</td>
-          <td>รัน <code>ISB-POS-Setup-1.0.0.exe</code> ใหม่ได้เลย (idempotent — จัดการ service/ไฟล์เดิมให้เอง)</td>
+          <td>รัน <code>ISB-POS-Setup-1.0.0.exe</code> ใหม่ได้เลย (idempotent — จัดการไฟล์เดิมให้เอง)</td>
         </tr>
       </tbody>
     </table>
@@ -573,27 +558,16 @@ Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
       </thead>
       <tbody>
         <tr><td>Installer (NSIS)</td><td>ตัวติดตั้ง Windows ที่สร้างด้วย NSIS (Nullsoft Scriptable Install System) — build จาก installer.nsi ด้วย makensis ได้ไฟล์ .exe เดียว</td></tr>
-        <tr><td>Component</td><td>หน่วยติดตั้งที่เลือกติ๊กได้ในหน้า Components ของตัวติดตั้ง (ชุดนี้มี 3 ตัว: driver, Paywire, RFID)</td></tr>
-        <tr><td>NSSM</td><td>Non-Sucking Service Manager — โปรแกรมที่ห่อ process ธรรมดา (เช่น node.exe) ให้กลายเป็น Windows Service ได้</td></tr>
-        <tr><td>Windows Service</td><td>โปรแกรมที่ Windows รันเบื้องหลังโดยไม่ต้อง login และจัดการ start/stop ผ่านระบบ service</td></tr>
-        <tr><td>Auto-start / Auto-restart</td><td>ตั้งให้ service เริ่มเองตอนเปิดเครื่อง และ NSSM สั่ง restart ให้เองเมื่อ process crash</td></tr>
-        <tr><td>Node.js portable</td><td>Node.js แบบแตกโฟลเดอร์ใช้ได้เลยโดยไม่ต้องติดตั้งลงระบบ — ฝังมาที่ C:\ISB\node (v26.5.0) ไม่พึ่ง Node บน PATH</td></tr>
-        <tr><td>node_modules</td><td>โฟลเดอร์ dependencies ของโปรเจกต์ Node.js ที่ได้จาก npm install</td></tr>
-        <tr><td>Native module</td><td>module ของ Node ที่มีส่วนเป็น binary ต้อง compile ต่อ platform (เช่น @pokusew/pcsclite ของ RFID bridge)</td></tr>
-        <tr><td>PE32+ vs Mach-O</td><td>รูปแบบไฟล์ binary ของ Windows x64 vs Mac — native module ที่ build บน Mac (Mach-O) รันบน Windows ไม่ได้ จึง zip node_modules ข้ามเครื่องต่าง platform ไม่ได้</td></tr>
-        <tr><td>OFFLINE / ONLINE mode</td><td>โหมด build ของ installer — OFFLINE ฝัง node_modules สำเร็จรูปมาเลย ส่วน ONLINE ให้เครื่อง POS รัน npm install เอง (ต้องมีเน็ต + Build Tools)</td></tr>
-        <tr><td>VS Build Tools</td><td>Visual Studio Build Tools (workload "Desktop development with C++") ที่ node-gyp ใช้ compile native module บน Windows — จำเป็นเฉพาะโหมด ONLINE</td></tr>
+        <tr><td>Component</td><td>หน่วยติดตั้งที่เลือกติ๊กได้ในหน้า Components ของตัวติดตั้ง (ชุดนี้มี 3 ตัว: driver, Paywire, Chrome kiosk auto-start)</td></tr>
         <tr><td>Tray app</td><td>โปรแกรมที่รันเป็น icon ใน system tray (มุมขวาล่าง) — paywire.exe เป็นแบบนี้</td></tr>
+        <tr><td>Kiosk mode</td><td>โหมดของ Chrome (flag <code>--kiosk</code>) ที่เปิดเต็มจอ ไม่มี address bar/แถบ tab ให้กด ใช้สำหรับหน้าจอ POS ที่ต้องล็อกให้ใช้ได้แค่หน้าเดียว</td></tr>
         <tr><td>UAC / Run as administrator</td><td>กลไกขอสิทธิ์ผู้ดูแลระบบของ Windows — ตัวติดตั้งนี้ต้องได้สิทธิ์นี้เสมอ (RequestExecutionLevel admin)</td></tr>
-        <tr><td>SCardSvr</td><td>Windows Smart Card service ที่ระบบ PC/SC ต้องใช้ — สคริปต์ติดตั้งตั้งเป็น Automatic + Start ให้อัตโนมัติ</td></tr>
-        <tr><td>PC/SC</td><td>มาตรฐานการคุยกับ smart card reader บน PC ที่เครื่องอ่าน ACR1252U ใช้</td></tr>
-        <tr><td>ACR1252U</td><td>เครื่องอ่านบัตร RFID/NFC ของ ACS ที่ต่อ USB กับเครื่อง POS ใช้แตะบัตรสมาชิก</td></tr>
+        <tr><td>App Paths (registry)</td><td>รายการ registry ที่ Windows ใช้เก็บ path จริงของโปรแกรมที่ติดตั้งไว้ (เช่น chrome.exe) — installer อ่านจากตรงนี้แทนการเดา path ของ Program Files ตรงๆ</td></tr>
         <tr><td>paywire.exe</td><td>Paywire EDC bridge (tray app, .NET 8) ที่เชื่อมหน้าเว็บ POS กับเครื่อง EDC ผ่าน pos.local.bridge.schooney.tech:7331</td></tr>
-        <tr><td>ws://localhost:9001</td><td>WebSocket endpoint ของ RFID bridge ที่หน้าเว็บใช้รับ UID บัตรแบบ real-time</td></tr>
-        <tr><td>Local Network Access (PNA)</td><td>ฟีเจอร์ของ Chrome ที่เช็คแยกจาก CSP — บล็อกเว็บ public ไม่ให้ต่อ localhost/private network เอง ต้อง whitelist โดเมนผ่าน registry policy <code>LocalNetworkAccessAllowedForUrls</code> (installer ตั้งให้อัตโนมัติ แต่ต้องปิด-เปิด Chrome ใหม่ถึงจะมีผล)</td></tr>
+        <tr><td>Local Network Access (PNA)</td><td>ฟีเจอร์ของ Chrome ที่เช็คแยกจาก CSP — บล็อกเว็บ public ไม่ให้ต่อ localhost/private network เอง (เช่น Paywire bridge ที่ 127.0.0.1:7331) ต้อง whitelist โดเมนผ่าน registry policy <code>LocalNetworkAccessAllowedForUrls</code> (installer ตั้งให้อัตโนมัติ แต่ต้องปิด-เปิด Chrome ใหม่ถึงจะมีผล) — ฟีเจอร์นี้ยังใหม่และเคยเปลี่ยนชื่อ policy มาแล้ว ถ้าไม่ได้ผลให้เช็คชื่อ policy ที่ถูกต้องสำหรับเวอร์ชัน Chrome ที่ใช้จริง</td></tr>
         <tr><td>Idempotent</td><td>คุณสมบัติรันซ้ำได้ผลเหมือนเดิมโดยไม่พัง — installer นี้รันซ้ำเพื่อซ่อม/อัปเดตเครื่องเดิมได้ปลอดภัย</td></tr>
-        <tr><td>Uninstaller</td><td>C:\ISB\uninstall.exe (รายการ "ISB POS Components" ใน Add/Remove Programs) ใช้ถอนทุกอย่างยกเว้น EDC driver</td></tr>
-        <tr><td>EDC driver (whql_Driver2020)</td><td>USB driver ของ vendor สำหรับเครื่อง EDC — ติดตั้งผ่าน wizard ของ vendor และติดอยู่กับ Windows แม้ถอน ISB POS Components แล้ว</td></tr>
+        <tr><td>Uninstaller</td><td>C:\ISB\uninstall.exe (รายการ "ISB POS Components" ใน Add/Remove Programs) ใช้ถอนทุกอย่างยกเว้น EDC driver และ Chrome เอง</td></tr>
+        <tr><td>EDC driver (whql_Driver2020)</td><td>USB driver ของ vendor สำหรับเครื่อง EDC — ติดตั้งแบบ unattended และติดอยู่กับ Windows แม้ถอน ISB POS Components แล้ว</td></tr>
       </tbody>
     </table>
   </div>
@@ -601,7 +575,7 @@ Chrome policy  : ✅ LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
   <hr class="sep">
 
   <footer class="doc-footer">
-    อัปเดตล่าสุด 2026-07-21 · ISB-POS-Setup 1.0.0
+    อัปเดตล่าสุด 2026-07-24 · ISB-POS-Setup 1.0.0 (EDC-only, no RFID)
   </footer>
 
 </div>

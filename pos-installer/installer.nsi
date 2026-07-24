@@ -4,11 +4,18 @@
 ; Components:
 ;   a. EDC card terminal USB driver (whql_Driver2020)
 ;   b. Paywire EDC bridge (paywire.exe, autostart)
-;   c. RFID bridge service (ACR1252 + NSSM, Windows Service on port 9001)
+;   c. Chrome kiosk auto-start (https://isb.schooney.tech/login) + the
+;      Local Network Access enterprise policy the EDC bridge needs
+;
+; RFID (ACR1252 bridge/NSSM service) was dropped from this installer —
+; this build targets EDC-only POS terminals. rfid-bridge/ itself still
+; exists at the repo root for other deployments; only this installer's
+; packaging of it was removed.
 
 Unicode true
 
 !include "MUI2.nsh"
+!include "LogicLib.nsh"
 
 ; ---------------------------------------------------------------------------
 ; General
@@ -39,15 +46,13 @@ SetCompressor /SOLID lzma
 
 ; ---------------------------------------------------------------------------
 ; Always-run hidden section: common files, uninstaller, Add/Remove Programs
-; entry. MUST come first in script order — SecRfid's ExecWait runs
-; $INSTDIR\install-rfid-service.ps1, which this section installs.
-; (Hidden sections execute in script order; the visible components page
-; ordering is unaffected.)
+; entry.
 ; ---------------------------------------------------------------------------
 Section "-Common" SecCommon
   SetOutPath "$INSTDIR"
-  File "install-rfid-service.ps1"
   File "README.txt"
+  File "check-pos.ps1"
+  File "fix-edc-driver.ps1"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
@@ -106,28 +111,33 @@ Section "Paywire EDC bridge" SecPaywire
 SectionEnd
 
 ; ---------------------------------------------------------------------------
-; Section: RFID bridge service (ACR1252 + NSSM)
+; Section: Chrome kiosk auto-start + Local Network Access policy
 ; ---------------------------------------------------------------------------
-Section "RFID bridge service (ACR1252 + NSSM)" SecRfid
-  ; Reinstall case: stop the existing rfid-bridge service so its node.exe
-  ; releases file locks on $INSTDIR\node and $INSTDIR\rfid-bridge before we
-  ; overwrite them. The PowerShell script later does its own idempotent
-  ; remove + reinstall of the service.
-  IfFileExists "$INSTDIR\nssm.exe" 0 rfid_no_old_svc
-    ExecWait '"$INSTDIR\nssm.exe" stop rfid-bridge'
-  rfid_no_old_svc:
+Section "Chrome kiosk auto-start (isb.schooney.tech/login)" SecKiosk
+  ; Recent Chrome versions gate a public HTTPS page (isb.schooney.tech)
+  ; reaching a local-network/loopback service (the EDC Paywire bridge on
+  ; 127.0.0.1:7331) behind a "Local Network Access" permission prompt —
+  ; with nobody there to click "Allow", the bridge connection silently
+  ; fails. This enterprise policy auto-grants it for our origin. List-type
+  ; Chrome policies are stored as one registry value per list item, named
+  ; "1", "2", ... under a subkey named after the policy itself.
+  WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" "1" "isb.schooney.tech"
 
-  SetOutPath "$INSTDIR\rfid-bridge"
-  File /r "payload\rfid-bridge\*.*"
+  ; Resolve the installed Chrome's real path via its registered App Path
+  ; instead of guessing a hardcoded Program Files location (differs between
+  ; 32/64-bit and per-machine/per-user installs).
+  ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe" ""
+  ${If} $0 == ""
+    DetailPrint "WARNING: Google Chrome not found — install it, then re-run this installer (or create the kiosk shortcut by hand) to enable kiosk auto-start."
+  ${Else}
+    SetShellVarContext all
+    CreateDirectory "$SMSTARTUP"
+    CreateShortcut "$SMSTARTUP\ISB POS Kiosk.lnk" "$0" '--kiosk "https://isb.schooney.tech/login" --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+    SetShellVarContext current
 
-  SetOutPath "$INSTDIR\node"
-  File /r "payload\node\*.*"
-
-  SetOutPath "$INSTDIR"
-  File "payload\nssm.exe"
-
-  DetailPrint "Registering rfid-bridge Windows Service (this may take a minute)..."
-  ExecWait 'powershell -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\install-rfid-service.ps1"'
+    DetailPrint "Starting Chrome in kiosk mode..."
+    Exec '"$0" --kiosk "https://isb.schooney.tech/login" --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+  ${EndIf}
 SectionEnd
 
 ; ---------------------------------------------------------------------------
@@ -136,24 +146,22 @@ SectionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDriver} "Installs the EDC card terminal USB driver (whql_Driver2020). Unattended, ~30s — no wizard clicks needed."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecPaywire} "Installs the Paywire EDC bridge and sets it to run automatically at every login."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecRfid} "Installs the ACR1252 RFID bridge as a Windows Service (NSSM) listening on ws://localhost:9001."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecKiosk} "Sets Chrome to auto-launch https://isb.schooney.tech/login in kiosk mode on every login, and allow-lists the EDC bridge for Chrome's Local Network Access check."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ; ---------------------------------------------------------------------------
 ; Uninstaller
 ; ---------------------------------------------------------------------------
 Section "Uninstall"
-  ; Stop and remove the rfid-bridge Windows Service
-  IfFileExists "$INSTDIR\nssm.exe" 0 un_no_svc
-    ExecWait '"$INSTDIR\nssm.exe" stop rfid-bridge'
-    ExecWait '"$INSTDIR\nssm.exe" remove rfid-bridge confirm'
-  un_no_svc:
-
   ; Remove shortcuts
   SetShellVarContext all
   Delete "$SMSTARTUP\Paywire Bridge.lnk"
+  Delete "$SMSTARTUP\ISB POS Kiosk.lnk"
   Delete "$DESKTOP\Paywire Bridge.lnk"
   SetShellVarContext current
+
+  ; Remove the Local Network Access policy this installer added
+  DeleteRegKey HKLM "SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls"
 
   ; Remove registry entries
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ISBPOS"
