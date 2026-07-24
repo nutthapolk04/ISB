@@ -112,6 +112,11 @@ interface SalesByItemReportProps {
      * template under its own name — see Reports.tsx's `salesReport` gate. */
     title?: string;
     filenamePrefix?: string;
+    /** Sales by Item Report ranks by best-selling quantity; "Sales Report"
+     * (same component, different title) wants a plain chronological log
+     * instead — oldest first, latest at the bottom. Defaults to the
+     * original ranking behavior so Sales by Item Report is unaffected. */
+    rankByBestSelling?: boolean;
 }
 
 export function SalesByItemReport({
@@ -123,6 +128,7 @@ export function SalesByItemReport({
     canteenStalls,
     title = "Sales by Item Report",
     filenamePrefix = "SalesByItem",
+    rankByBestSelling = true,
 }: SalesByItemReportProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -177,25 +183,32 @@ export function SalesByItemReport({
                 `/reports/sales-by-item${qs ? `?${qs}` : ""}`,
             );
 
-            // Sort by best-selling item (highest total qty first) unless the filter
-            // targets exactly one item code (from == to, both non-empty).
-            const from = siItemNoFrom.trim();
-            const to = siItemNoTo.trim();
-            const isSingleItem = from !== "" && to !== "" && from.toLowerCase() === to.toLowerCase();
-            if (!isSingleItem && data.rows.length > 0) {
-                // Voided lines don't count toward "best selling" ranking weight.
-                const qtyByItem = new Map<string, number>();
-                for (const row of data.rows) {
-                    if (row.status !== "ACTIVE") continue;
-                    const key = row.item_no ?? "";
-                    qtyByItem.set(key, (qtyByItem.get(key) ?? 0) + row.sales_qty);
+            if (rankByBestSelling) {
+                // Sort by best-selling item (highest total qty first) unless the
+                // filter targets exactly one item code (from == to, both non-empty).
+                const from = siItemNoFrom.trim();
+                const to = siItemNoTo.trim();
+                const isSingleItem = from !== "" && to !== "" && from.toLowerCase() === to.toLowerCase();
+                if (!isSingleItem && data.rows.length > 0) {
+                    // Voided lines don't count toward "best selling" ranking weight.
+                    const qtyByItem = new Map<string, number>();
+                    for (const row of data.rows) {
+                        if (row.status !== "ACTIVE") continue;
+                        const key = row.item_no ?? "";
+                        qtyByItem.set(key, (qtyByItem.get(key) ?? 0) + row.sales_qty);
+                    }
+                    data.rows.sort((a, b) => {
+                        const qa = qtyByItem.get(a.item_no ?? "") ?? 0;
+                        const qb = qtyByItem.get(b.item_no ?? "") ?? 0;
+                        if (qb !== qa) return qb - qa;
+                        return b.transaction_date.localeCompare(a.transaction_date);
+                    });
+                    data.rows.forEach((r, i) => { r.seq = i + 1; });
                 }
-                data.rows.sort((a, b) => {
-                    const qa = qtyByItem.get(a.item_no ?? "") ?? 0;
-                    const qb = qtyByItem.get(b.item_no ?? "") ?? 0;
-                    if (qb !== qa) return qb - qa;
-                    return b.transaction_date.localeCompare(a.transaction_date);
-                });
+            } else if (data.rows.length > 0) {
+                // "Sales Report" — plain chronological log, oldest first so the
+                // latest transaction lands at the bottom of the table.
+                data.rows.sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
                 data.rows.forEach((r, i) => { r.seq = i + 1; });
             }
 
