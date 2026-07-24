@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,7 +26,10 @@ import {
     type ReportColumn,
     type ReportPayload,
 } from "@/lib/reportExport";
+import { PaginationBar } from "@/components/PaginationBar";
 import type { CanteenShop } from "./reportHelpers";
+
+const SI_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface SalesByItemRow {
     seq: number;
@@ -109,6 +112,11 @@ interface SalesByItemReportProps {
      * template under its own name — see Reports.tsx's `salesReport` gate. */
     title?: string;
     filenamePrefix?: string;
+    /** Sales by Item Report ranks by best-selling quantity; "Sales Report"
+     * (same component, different title) wants a plain chronological log
+     * instead — oldest first, latest at the bottom. Defaults to the
+     * original ranking behavior so Sales by Item Report is unaffected. */
+    rankByBestSelling?: boolean;
 }
 
 export function SalesByItemReport({
@@ -120,6 +128,7 @@ export function SalesByItemReport({
     canteenStalls,
     title = "Sales by Item Report",
     filenamePrefix = "SalesByItem",
+    rankByBestSelling = true,
 }: SalesByItemReportProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -134,8 +143,20 @@ export function SalesByItemReport({
     const [siLoading, setSiLoading] = useState(false);
     const [siData, setSiData] = useState<SalesByItemReportData | null>(null);
     const [siGroupByItem, setSiGroupByItem] = useState(false);
+    const [siPage, setSiPage] = useState(1);
+    const [siPageSize, setSiPageSize] = useState(25);
 
     const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows) : null;
+    const siRowCount = siGroupedRows ? siGroupedRows.length : (siData?.rows.length ?? 0);
+    const siTotalPages = Math.max(1, Math.ceil(siRowCount / siPageSize));
+
+    // New search results, a grouping toggle, or a page-size change all
+    // change what page 1 even means, so land back on it rather than
+    // stranding the user on a page number that may no longer exist (or
+    // silently shows the wrong rows).
+    useEffect(() => {
+        setSiPage(1);
+    }, [siData, siGroupByItem, siPageSize]);
 
     const buildSalesByItemQuery = (): string => {
         const params = new URLSearchParams();
@@ -162,25 +183,32 @@ export function SalesByItemReport({
                 `/reports/sales-by-item${qs ? `?${qs}` : ""}`,
             );
 
-            // Sort by best-selling item (highest total qty first) unless the filter
-            // targets exactly one item code (from == to, both non-empty).
-            const from = siItemNoFrom.trim();
-            const to = siItemNoTo.trim();
-            const isSingleItem = from !== "" && to !== "" && from.toLowerCase() === to.toLowerCase();
-            if (!isSingleItem && data.rows.length > 0) {
-                // Voided lines don't count toward "best selling" ranking weight.
-                const qtyByItem = new Map<string, number>();
-                for (const row of data.rows) {
-                    if (row.status !== "ACTIVE") continue;
-                    const key = row.item_no ?? "";
-                    qtyByItem.set(key, (qtyByItem.get(key) ?? 0) + row.sales_qty);
+            if (rankByBestSelling) {
+                // Sort by best-selling item (highest total qty first) unless the
+                // filter targets exactly one item code (from == to, both non-empty).
+                const from = siItemNoFrom.trim();
+                const to = siItemNoTo.trim();
+                const isSingleItem = from !== "" && to !== "" && from.toLowerCase() === to.toLowerCase();
+                if (!isSingleItem && data.rows.length > 0) {
+                    // Voided lines don't count toward "best selling" ranking weight.
+                    const qtyByItem = new Map<string, number>();
+                    for (const row of data.rows) {
+                        if (row.status !== "ACTIVE") continue;
+                        const key = row.item_no ?? "";
+                        qtyByItem.set(key, (qtyByItem.get(key) ?? 0) + row.sales_qty);
+                    }
+                    data.rows.sort((a, b) => {
+                        const qa = qtyByItem.get(a.item_no ?? "") ?? 0;
+                        const qb = qtyByItem.get(b.item_no ?? "") ?? 0;
+                        if (qb !== qa) return qb - qa;
+                        return b.transaction_date.localeCompare(a.transaction_date);
+                    });
+                    data.rows.forEach((r, i) => { r.seq = i + 1; });
                 }
-                data.rows.sort((a, b) => {
-                    const qa = qtyByItem.get(a.item_no ?? "") ?? 0;
-                    const qb = qtyByItem.get(b.item_no ?? "") ?? 0;
-                    if (qb !== qa) return qb - qa;
-                    return b.transaction_date.localeCompare(a.transaction_date);
-                });
+            } else if (data.rows.length > 0) {
+                // "Sales Report" — plain chronological log, oldest first so the
+                // latest transaction lands at the bottom of the table.
+                data.rows.sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
                 data.rows.forEach((r, i) => { r.seq = i + 1; });
             }
 
@@ -422,7 +450,7 @@ export function SalesByItemReport({
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                siGroupedRows.map((r) => (
+                                                siGroupedRows.slice((siPage - 1) * siPageSize, siPage * siPageSize).map((r) => (
                                                     <tr key={r.seq} className="border-t">
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                                                         <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
@@ -476,7 +504,7 @@ export function SalesByItemReport({
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                siData.rows.map((r) => (
+                                                siData.rows.slice((siPage - 1) * siPageSize, siPage * siPageSize).map((r) => (
                                                     <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                                                         <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
@@ -517,6 +545,20 @@ export function SalesByItemReport({
                                         )}
                                     </table>
                                 )}
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</Label>
+                                    <Select value={String(siPageSize)} onValueChange={(v) => setSiPageSize(parseInt(v))}>
+                                        <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {SI_PAGE_SIZE_OPTIONS.map((n) => (
+                                                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <PaginationBar currentPage={siPage} totalPages={siTotalPages} onPageChange={setSiPage} />
                             </div>
                         </div>
                     )}

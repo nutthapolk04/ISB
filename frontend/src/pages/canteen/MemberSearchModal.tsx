@@ -72,9 +72,9 @@ export function MemberSearchModal({
     try {
       // Run customer search + department search in parallel
       const [customers, depts] = await Promise.all([
-        // narrow=1 — match only name / family_code / external_id / card_uid
-        // (see customer_service.ts) so a query that happens to overlap
-        // someone else's phone/email/student_code doesn't surface a false hit.
+        // narrow=1 — match only name / family_code / external_id (see
+        // customer_service.ts) so a query that happens to overlap someone
+        // else's phone/email/student_code/card_uid doesn't surface a false hit.
         api.get<StudentLookupResult[]>(
           `/customers/search?q=${encodeURIComponent(q)}&limit=10&narrow=1`
         ).catch(() => [] as StudentLookupResult[]),

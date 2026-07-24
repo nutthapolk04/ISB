@@ -161,10 +161,12 @@ function userToProfile(
 export interface SearchCustomersParams {
     q: string;
     limit?: number;
-    /** Restrict matching to name + family_code + external_id + card_uid only
-     * — the POS member-search box uses this so a query digit-matching an
-     * unrelated person's phone/email/student_code/customer_code doesn't
-     * surface them as a false hit. */
+    /** Restrict matching to name + family_code + external_id only — the POS
+     * member-search box uses this so a query digit-matching an unrelated
+     * person's phone/email/student_code/customer_code/card_uid doesn't
+     * surface them as a false hit. Deliberately excludes card_uid: this box
+     * has no card reader wired to it, so a typed query matching someone
+     * else's card number would be a coincidence, not an intentional search. */
     narrow?: boolean;
 }
 
@@ -195,8 +197,6 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
                         ilike(customers.name, pattern),
                         ilike(customers.familyCode, pattern),
                         ilike(customers.externalId, pattern),
-                        ilike(customers.cardUid, pattern),
-                        ...cardUidCandidates.map((c) => ilike(customers.cardUid, c)),
                     )
                     : or(
                         ilike(customers.name, pattern),
@@ -227,8 +227,6 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
                         ilike(users.fullName, pattern),
                         ilike(users.familyCode, pattern),
                         ilike(users.externalId, pattern),
-                        ilike(users.cardUid, pattern),
-                        ...cardUidCandidates.map((c) => ilike(users.cardUid, c)),
                     )
                     : or(
                         ilike(users.fullName, pattern),
