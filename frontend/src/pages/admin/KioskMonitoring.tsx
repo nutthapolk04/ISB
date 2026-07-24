@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
+import { useDebounce } from "@/hooks/useDebounce";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -87,8 +88,15 @@ export default function KioskMonitoring() {
   const [candidates, setCandidates] = useState<StaffPickerItem[]>([]);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
+
+  // /users-admin/staff-picker's own default role list (staff, manager,
+  // cashier, kitchen, admin) misses "teacher" and other legitimate
+  // staff-ish roles — pass the full set explicitly so e.g. a teacher
+  // account isn't invisible to this picker.
+  const CUSTODIAN_ROLES = "staff,teacher,manager,cashier,kitchen,admin,canteen_owner,refund_officer,finance";
 
   const load = async () => {
     try {
@@ -111,24 +119,39 @@ export default function KioskMonitoring() {
     return () => clearInterval(id);
   }, []);
 
-  const openEdit = async (k: KioskMonitoringItem) => {
+  const openEdit = (k: KioskMonitoringItem) => {
     setEditing(k);
     setSelectedIds(new Set(k.custodians.map((c) => c.user_id)));
     setSearch("");
-    setCandidatesLoading(true);
-    try {
-      const staff = await api.get<StaffPickerItem[]>("/users-admin/staff-picker");
-      setCandidates(staff);
-    } catch (e) {
-      toast({
-        title: t("admin.kioskMonitoring.loadStaffError", "Failed to load staff list"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setCandidatesLoading(false);
-    }
   };
+
+  // Server-side search, not client-side filtering — the picker endpoint caps
+  // results at 200 rows (ordered by full_name), so fetching once with no
+  // query and then filtering in the browser silently hides anyone who don't
+  // fit in that first page alphabetically. Sending the typed text as `q`
+  // lets the DB filter BEFORE the cap applies, so a targeted search always
+  // finds a match regardless of how many staff exist. Also (re-)fires when
+  // the dialog opens, since debouncedSearch starts at "" already.
+  useEffect(() => {
+    if (!editing) return;
+    let cancelled = false;
+    setCandidatesLoading(true);
+    const params = new URLSearchParams({ roles: CUSTODIAN_ROLES });
+    if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
+    api
+      .get<StaffPickerItem[]>(`/users-admin/staff-picker?${params.toString()}`)
+      .then((staff) => { if (!cancelled) setCandidates(staff); })
+      .catch((e) => {
+        if (cancelled) return;
+        toast({
+          title: t("admin.kioskMonitoring.loadStaffError", "Failed to load staff list"),
+          description: e instanceof ApiError ? e.detail : "Unknown error",
+          variant: "destructive",
+        });
+      })
+      .finally(() => { if (!cancelled) setCandidatesLoading(false); });
+    return () => { cancelled = true; };
+  }, [editing, debouncedSearch]);
 
   const toggleCandidate = (id: number) => {
     setSelectedIds((prev) => {

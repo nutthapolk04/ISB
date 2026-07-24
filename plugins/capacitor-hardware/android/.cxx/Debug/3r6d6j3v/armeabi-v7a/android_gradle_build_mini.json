@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/etirpz/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/.cxx/Debug/3r6d6j3v/armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/etirpz/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/.cxx/Debug/3r6d6j3v/armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "okontek_serial::@6890427a1f51a3e7e1df": {
+      "artifactName": "okontek_serial",
+      "abi": "armeabi-v7a",
+      "output": "/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/build/intermediates/cxx/Debug/3r6d6j3v/obj/armeabi-v7a/libokontek_serial.so",
+      "runtimeFiles": []
+    }
+  }
+}

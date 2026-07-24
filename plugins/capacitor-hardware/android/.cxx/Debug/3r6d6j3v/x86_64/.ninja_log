@@ -1,0 +1,3 @@
+# ninja log v5
+0	55	1784884381834699706	CMakeFiles/okontek_serial.dir/SerialPort.cpp.o	a771bc7332bac8e4
+55	92	1784884381870985335	/Users/etirpz/Works/Okontek/ISB/plugins/capacitor-hardware/android/build/intermediates/cxx/Debug/3r6d6j3v/obj/x86_64/libokontek_serial.so	5ab3171e810dbbda
