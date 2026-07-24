@@ -127,7 +127,7 @@ function realisticPhoto(role: string, seed: string): string {
 
 // ── Audit snapshot helpers ────────────────────────────────────────────────
 
-const USER_AUDIT_FIELDS = ["fullName", "email", "role", "customerType", "familyCode", "cardUid", "status", "shopId"] as const;
+const USER_AUDIT_FIELDS = ["externalId", "fullName", "email", "role", "customerType", "familyCode", "cardUid", "status", "shopId"] as const;
 const CUSTOMER_AUDIT_FIELDS = ["name", "email", "familyCode", "customerType", "customerKind", "cardUid", "grade", "schoolType", "externalId", "enrollDate", "withdrawDate"] as const;
 
 function snapshot<T extends Record<string, unknown>>(entity: T | null, fields: readonly string[]): Record<string, unknown> {
@@ -366,6 +366,13 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
             updates.username = username;
         }
         if (cardUid) updates.cardUid = cardUid;
+        // This row's external_id is being reassigned to a different PowerSchool
+        // record (matched here via the email/username fallback, not external_id
+        // itself) — it may now represent a different real person. Rotate
+        // session_token so any outstanding JWT for the old identity is rejected
+        // on its next request instead of silently authenticating as whoever
+        // occupies this row now (see AuthUtils.verifySessionToken).
+        if (existing!.externalId !== extId) updates.sessionToken = null;
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
     }
@@ -465,6 +472,10 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
             updates.username = username;
         }
         if (cardUid) updates.cardUid = cardUid;
+        // See upsertStaff's matching comment: this row may now represent a
+        // different real person than whoever last held a valid session for
+        // it, so rotate session_token to invalidate any outstanding JWT.
+        if (existing!.externalId !== extId) updates.sessionToken = null;
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
 
@@ -578,6 +589,10 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
             lastSyncedAt: new Date().toISOString(),
         };
         if (payload.smartCard?.cardNumber) updates.cardUid = payload.smartCard.cardNumber;
+        // See upsertStaff's matching comment: this row may now represent a
+        // different real person than whoever last held a valid session for
+        // it, so rotate session_token to invalidate any outstanding JWT.
+        if (existing!.externalId !== extId) updates.sessionToken = null;
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
     }

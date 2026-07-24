@@ -1,9 +1,12 @@
 import jwt from "@elysiajs/jwt";
+import { eq } from "drizzle-orm";
 import { Elysia, type Context } from "elysia";
 import type { UserRole } from "@isb/shared";
 import { Role } from "@/enumerate/UserRole";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { config } from "@/lib/config";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
 import { logger } from "@/logger";
 import { errorResponse } from "@/utils/ResponseUtil";
 
@@ -51,6 +54,25 @@ function rolesFromPayload(user: AccessTokenPayload): UserRole[] {
 }
 
 /**
+ * Check the token's `sid` claim against `users.session_token`. This is what
+ * actually revokes an outstanding JWT: login/refresh/sync-driven identity
+ * changes rotate `session_token`, but the JWT itself stays valid (signature +
+ * exp) until this check runs. Without it, an old-but-unexpired token for a
+ * `users` row that sync later reassigned to a different real person would
+ * silently keep authenticating as whoever now occupies that row.
+ */
+export async function verifySessionToken(payload: AccessTokenPayload): Promise<boolean> {
+	if (!payload.sid) return false;
+	const rows = await db
+		.select({ sessionToken: users.sessionToken })
+		.from(users)
+		.where(eq(users.id, Number(payload.sub)))
+		.limit(1);
+	const row = rows[0];
+	return !!row && row.sessionToken === payload.sid;
+}
+
+/**
  * Validate Bearer access token and attach payload to `context.store.user`.
  * Returns `true` on success or an error response body.
  */
@@ -70,6 +92,14 @@ export async function validateToken(context: AuthContext) {
 			return errorResponse(
 				context,
 				"Invalid or expired token",
+				ResponseStatus.UNAUTHORIZED,
+			);
+		}
+
+		if (!(await verifySessionToken(payload))) {
+			return errorResponse(
+				context,
+				"Session has been invalidated, please log in again",
 				ResponseStatus.UNAUTHORIZED,
 			);
 		}

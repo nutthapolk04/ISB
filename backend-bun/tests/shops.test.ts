@@ -1,4 +1,7 @@
 import { describe, expect, it, beforeAll } from "bun:test";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
 
 /**
  * Contract tests for GET /shops — verify response shape matches the
@@ -9,10 +12,17 @@ import { describe, expect, it, beforeAll } from "bun:test";
  */
 
 const REQUIRED_DB_TEST = !!process.env.DATABASE_URL;
+const TEST_SID = "test-sid-shops-contract";
 
-beforeAll(() => {
+beforeAll(async () => {
   if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = "change-me-in-production-32chars!!";
+  }
+  // Auth now checks the token's `sid` claim against users.session_token
+  // (see AuthUtils.verifySessionToken) — minted test tokens need a matching
+  // session_token row for user id 1, not just a valid signature.
+  if (REQUIRED_DB_TEST) {
+    await db.update(users).set({ sessionToken: TEST_SID }).where(eq(users.id, 1));
   }
 });
 
@@ -44,6 +54,7 @@ describe("GET /api/v1/shops contract", () => {
       is_superuser: true,
       type: "access",
       exp: Math.floor(Date.now() / 1000) + 3600,
+      sid: TEST_SID,
     });
 
     const res = await app.handle(
@@ -102,6 +113,7 @@ describe("GET /api/v1/shops contract", () => {
       is_superuser: true,
       type: "access",
       exp: Math.floor(Date.now() / 1000) + 3600,
+      sid: TEST_SID,
     });
 
     const res = await app.handle(

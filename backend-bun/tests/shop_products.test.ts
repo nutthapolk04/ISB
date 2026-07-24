@@ -1,10 +1,20 @@
 import { describe, expect, it, beforeAll } from "bun:test";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
 
 const HAS_DB = !!process.env.DATABASE_URL;
+const TEST_SID = "test-sid-shop-products";
 
-beforeAll(() => {
+beforeAll(async () => {
   if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = "change-me-in-production-32chars!!";
+  }
+  // Auth now checks the token's `sid` claim against users.session_token
+  // (see AuthUtils.verifySessionToken) — minted test tokens need a matching
+  // session_token row for user id 1, not just a valid signature.
+  if (HAS_DB) {
+    await db.update(users).set({ sessionToken: TEST_SID }).where(eq(users.id, 1));
   }
 });
 
@@ -31,6 +41,7 @@ function token() {
     is_superuser: true,
     type: "access",
     exp: Math.floor(Date.now() / 1000) + 3600,
+    sid: TEST_SID,
   });
 }
 
