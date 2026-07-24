@@ -82,14 +82,21 @@ const RPT_COLUMNS = [
     { header: "Type", key: "entity_type", format: "text" as const, width: 12 },
     { header: "Name", key: "entity_name", format: "text" as const, width: 24 },
     { header: "Code", key: "entity_code", format: "text" as const, width: 16 },
-    { header: "Direction", key: "direction", format: "text" as const, width: 10 },
-    { header: "Amount (฿)", key: "amount", format: "currency" as const, width: 14, align: "right" as const },
+    // Sign carries the direction instead of a separate column — see
+    // signedAmount() below.
+    { header: "Amount (฿)", key: "amount", format: "text" as const, width: 14, align: "right" as const },
     { header: "Balance Before", key: "balance_before", format: "currency" as const, width: 14, align: "right" as const },
     { header: "Balance After", key: "balance_after", format: "currency" as const, width: 14, align: "right" as const },
     { header: "Reason", key: "reason", format: "text" as const, width: 30 },
     { header: "Ref / Ticket", key: "reference_ticket", format: "text" as const, width: 16 },
     { header: "Adjusted By", key: "adjusted_by", format: "text" as const, width: 20 },
 ];
+
+/** "+2,000.00" / "-100.00" — amount is stored as an unsigned magnitude with
+ * direction carried separately, so build the signed display string the
+ * export's Amount column now shows in place of the old Direction column. */
+const signedAmount = (r: AdjustmentRow): string =>
+    `${r.direction === "credit" ? "+" : "-"}${Math.abs(r.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface Cardholder {
     key: string;
@@ -145,10 +152,11 @@ export default function WalletAdjust() {
     const [rptDateTo, setRptDateTo] = useState(today);
     const [rptDirection, setRptDirection] = useState<"all" | "credit" | "debit">("all");
     // Type filter sent to /wallets/admin/adjustment-report?type=...; 'student'
-    // maps directly to entity_type, 'staff' bundles user-owned wallets
-    // (cashier/manager/teacher/etc.). Department adjustments live on a separate
-    // page (/admin/department-adjust) and are excluded from this report.
-    const [rptType, setRptType] = useState<"all" | "student" | "staff" | "other">("all");
+    // maps directly to entity_type, and each user-owned role (parent/staff/
+    // teacher/visitor) gets its own bucket too. Department adjustments live
+    // on a separate page (/admin/department-adjust) and are excluded from
+    // this report.
+    const [rptType, setRptType] = useState<"all" | "student" | "parent" | "staff" | "teacher" | "visitor" | "other">("all");
     const [rptRows, setRptRows] = useState<AdjustmentRow[]>([]);
     const [rptLoading, setRptLoading] = useState(false);
     const [rptSearched, setRptSearched] = useState(false);
@@ -228,7 +236,7 @@ export default function WalletAdjust() {
         setRptExporting(true);
         try {
             const rows = await fetchAllReportRows();
-            const exportRows = rows.map((r) => ({ ...r, reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
+            const exportRows = rows.map((r) => ({ ...r, amount: signedAmount(r), reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
             const totals = { entity_name: `${rptTotal} records`, amount: rptCreditTotal - rptDebitTotal };
             exportToExcel(
                 { meta: { title: "Wallet Adjustment Report", schoolName: schoolInfo?.name ?? "ISB", filters: [rptFilterLabel] }, columns: RPT_COLUMNS, rows: exportRows, totals },
@@ -249,7 +257,7 @@ export default function WalletAdjust() {
         setRptExporting(true);
         try {
             const rows = await fetchAllReportRows();
-            const exportRows = rows.map((r) => ({ ...r, reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
+            const exportRows = rows.map((r) => ({ ...r, amount: signedAmount(r), reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
             const totals = { entity_name: `${rptTotal} records`, amount: rptCreditTotal - rptDebitTotal };
             await exportToPDF(
                 { meta: { title: "Wallet Adjustment Report", schoolName: schoolInfo?.name ?? "ISB", schoolLogoUrl: schoolInfo?.logoUrl || undefined, filters: [rptFilterLabel] }, columns: RPT_COLUMNS, rows: exportRows, totals },
@@ -609,7 +617,10 @@ export default function WalletAdjust() {
                                     <SelectContent>
                                         <SelectItem value="all">{t("adjustmentReport.typeAll", "All")}</SelectItem>
                                         <SelectItem value="student">{t("adjustmentReport.typeStudent", "Student")}</SelectItem>
+                                        <SelectItem value="parent">{t("adjustmentReport.typeParent", "Parent")}</SelectItem>
                                         <SelectItem value="staff">{t("adjustmentReport.typeStaff", "Staff")}</SelectItem>
+                                        <SelectItem value="teacher">{t("adjustmentReport.typeTeacher", "Teacher")}</SelectItem>
+                                        <SelectItem value="visitor">{t("adjustmentReport.typeVisitor", "Visitor")}</SelectItem>
                                         <SelectItem value="other">{t("adjustmentReport.typeOther", "Other")}</SelectItem>
                                     </SelectContent>
                                 </Select>

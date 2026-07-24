@@ -233,6 +233,9 @@ export function SalesSummaryReport({
     // row without wrapping into vertical char-stacks. Header rows in the
     // helper are tight on 6.5pt font (see reportExport.ts); short strings
     // keep them readable. Widths sum to ~770pt (table width budget).
+    // Canteen never sells bundles (that's a store-only feature — see
+    // STORE_ONLY_REPORTS in Reports.tsx), so the Bundle column would always
+    // be blank there — drop it entirely for the canteen page.
     const columns: ReportColumn[] = [
       { header: "Seq.",              key: "seq",              format: "number",   align: "right", width: 26  },
       { header: "Date/Time",        key: "transaction_date", format: "datetime", width: 90  },
@@ -249,7 +252,7 @@ export function SalesSummaryReport({
       { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
       { header: "Amt. Department",  key: "amt_department",  format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
-      { header: "Bundle",           key: "bundle_names",     width: 90  },
+      ...(isCanteenReportsPage ? [] : [{ header: "Bundle", key: "bundle_names", width: 90 }]),
       { header: "Status",           key: "status",           width: 55  },
     ];
 
@@ -509,14 +512,14 @@ export function SalesSummaryReport({
                       <th className="px-2 py-2 text-right">Amt. QR Code</th>
                       <th className="px-2 py-2 text-right">Amt. Department</th>
                       <th className="px-2 py-2 text-left">Remark</th>
-                      <th className="px-2 py-2 text-left">Bundle</th>
+                      {!isCanteenReportsPage && <th className="px-2 py-2 text-left">Bundle</th>}
                       <th className="px-2 py-2 text-left">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ssDisplayRows.length === 0 ? (
                       <tr>
-                        <td colSpan={17} className="px-3 py-4 text-center text-muted-foreground">
+                        <td colSpan={isCanteenReportsPage ? 16 : 17} className="px-3 py-4 text-center text-muted-foreground">
                           No receipts match these filters.
                         </td>
                       </tr>
@@ -538,7 +541,7 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code !== 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_department !== 0 ? r.amt_department.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">{r.bundle_names ?? ""}</td>
+                          {!isCanteenReportsPage && <td className="px-2 py-1.5 text-muted-foreground">{r.bundle_names ?? ""}</td>}
                           <td className="px-2 py-1.5">
                             {r.status === "ACTIVE" ? (
                               <span className="text-muted-foreground">Active</span>
@@ -563,7 +566,7 @@ export function SalesSummaryReport({
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_department.toFixed(2)}</td>
                         <td />
-                        <td />
+                        {!isCanteenReportsPage && <td />}
                         <td />
                       </tr>
                     </tfoot>
