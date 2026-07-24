@@ -1793,7 +1793,7 @@
     },
     "memberSearch": {
       "title": "ค้นหาสมาชิก",
-      "placeholder": "ชื่อ / รหัสนักเรียน / username / บัตร / รหัสครอบครัว...",
+      "placeholder": "ชื่อ / Card ID / External ID / รหัสครอบครัว...",
       "minChars": "พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา",
       "noResults": "ไม่พบข้อมูล",
       "error": "เกิดข้อผิดพลาด",
@@ -2227,6 +2227,7 @@
     "colName": "ชื่อ",
     "colKind": "ประเภท",
     "colIdentifier": "เลขประจำตัว",
+    "colExternalId": "รหัสISB",
     "colFamily": "รหัสครอบครัว",
     "colCard": "เลขบัตร",
     "colBalance": "ยอดเงินในกระเป๋า",

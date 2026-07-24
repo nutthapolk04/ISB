@@ -280,7 +280,7 @@ const Reports = () => {
                 if (m === "CASH") return "Cash";
                 if (m === "WALLET" || m === "CARD_TAP") return "Campus Card";
                 if (m === "CREDIT_CARD" || m === "DEBIT_CARD" || m === "EDC") return "Credit Card";
-                if (m === "BANK_TRANSFER") return "QR Code";
+                if (m === "BANK_TRANSFER" || m === "QR_PROMPTPAY") return "QR Code";
                 if (m === "DEPARTMENT") return "Department Use";
                 return "Other";
             };

@@ -1317,7 +1317,7 @@ export default function Canteen() {
                         ),
                     })),
                 })}
-                onPaid={(info) => {
+                onPaid={async (info) => {
                     setQrOpen(false);
                     const receiptNumber = info.receiptNumber ?? "";
                     display.success({
@@ -1326,7 +1326,19 @@ export default function Canteen() {
                         method: "qr",
                         receiptNumber,
                     });
-                    finalizeSuccess(receiptNumber, cart.total, null, null, undefined);
+                    // BAY only hands back the receipt id/number — fetch the full
+                    // receipt so finalizeSuccess can actually auto-print it (it
+                    // silently skips printing when fullReceipt is undefined).
+                    let fullReceipt: ReceiptApi | undefined;
+                    if (info.receiptId != null) {
+                        try {
+                            fullReceipt = await api.get<ReceiptApi>(`/pos/receipt/${info.receiptId}`);
+                        } catch {
+                            // Best-effort — payment already succeeded server-side;
+                            // finalizeSuccess just won't be able to auto-print.
+                        }
+                    }
+                    finalizeSuccess(receiptNumber, cart.total, null, null, fullReceipt);
                 }}
                 onIntentReady={(info) => {
                     // Push the BAY QR onto the customer-facing screen the moment

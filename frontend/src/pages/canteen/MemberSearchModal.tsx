@@ -29,6 +29,13 @@ interface MemberSearchModalProps {
   onSelect?: (member: StudentLookupResult) => void;
 }
 
+/** "ISBCard: {external_id}" when the school-issued external_id is set,
+ * falling back to student_code/customer_code (no "ISBCard" label — those
+ * aren't ISB card codes) for records not yet synced with one. */
+function idLineFor(m: Pick<StudentLookupResult, "external_id" | "student_code" | "customer_code">): string {
+  return m.external_id ? `ISBCard: ${m.external_id}` : (m.student_code ?? m.customer_code);
+}
+
 export function MemberSearchModal({
   open,
   onOpenChange,
@@ -65,8 +72,11 @@ export function MemberSearchModal({
     try {
       // Run customer search + department search in parallel
       const [customers, depts] = await Promise.all([
+        // narrow=1 — match only name / family_code / external_id / card_uid
+        // (see customer_service.ts) so a query that happens to overlap
+        // someone else's phone/email/student_code doesn't surface a false hit.
         api.get<StudentLookupResult[]>(
-          `/customers/search?q=${encodeURIComponent(q)}&limit=10`
+          `/customers/search?q=${encodeURIComponent(q)}&limit=10&narrow=1`
         ).catch(() => [] as StudentLookupResult[]),
         api.get<DepartmentLookupResult[]>(
           `/departments/?q=${encodeURIComponent(q)}&active_only=false`
@@ -219,8 +229,13 @@ export function MemberSearchModal({
                       <div className="text-xs text-muted-foreground">
                         {member.customer_kind === "department"
                           ? member.customer_code
-                          : member.user_id != null ? member.customer_code : (member.student_code ?? member.customer_code)}
+                          : idLineFor(member)}
                       </div>
+                      {member.customer_kind !== "department" && member.family_code && (
+                        <div className="text-xs text-muted-foreground">
+                          Family: {member.family_code}
+                        </div>
+                      )}
                     </div>
 
                     {/* Balance */}
@@ -279,9 +294,16 @@ export function MemberSearchModal({
                   {selectedMember.name}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {selectedMember.student_code ?? selectedMember.customer_code}
+                  {selectedMember.customer_kind === "department"
+                    ? selectedMember.customer_code
+                    : idLineFor(selectedMember)}
                   {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
                 </div>
+                {selectedMember.customer_kind !== "department" && selectedMember.family_code && (
+                  <div className="text-sm text-muted-foreground">
+                    Family: {selectedMember.family_code}
+                  </div>
+                )}
                 <div className="mt-2 text-lg font-bold tabular-nums">
                   {t("canteen.memberSearch.balance")}:{" "}
                   <span

@@ -54,6 +54,8 @@ export interface StudentLookupResult {
   customer_code: string;
   student_code?: string | null;
   family_code?: string | null;
+  external_id?: string | null;
+  card_uid?: string | null;
   customer_kind?: string | null;
   /** Set when this result is a User-based payer (parent/staff/teacher). */
   user_id?: number | null;

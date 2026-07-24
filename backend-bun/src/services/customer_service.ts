@@ -161,6 +161,11 @@ function userToProfile(
 export interface SearchCustomersParams {
     q: string;
     limit?: number;
+    /** Restrict matching to name + family_code + external_id + card_uid only
+     * — the POS member-search box uses this so a query digit-matching an
+     * unrelated person's phone/email/student_code/customer_code doesn't
+     * surface them as a false hit. */
+    narrow?: boolean;
 }
 
 export async function searchCustomers(p: SearchCustomersParams): Promise<StudentProfileDTO[]> {
@@ -185,17 +190,25 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
         .where(
             and(
                 eq(customers.isActive, true),
-                or(
-                    ilike(customers.name, pattern),
-                    ilike(customers.studentCode, pattern),
-                    ilike(customers.customerCode, pattern),
-                    ilike(customers.cardUid, pattern),
-                    ...cardUidCandidates.map((c) => ilike(customers.cardUid, c)),
-                    ilike(customers.familyCode, pattern),
-                    ilike(customers.externalId, pattern),
-                    ilike(customers.email, pattern),
-                    ilike(customers.phone, pattern),
-                ),
+                p.narrow
+                    ? or(
+                        ilike(customers.name, pattern),
+                        ilike(customers.familyCode, pattern),
+                        ilike(customers.externalId, pattern),
+                        ilike(customers.cardUid, pattern),
+                        ...cardUidCandidates.map((c) => ilike(customers.cardUid, c)),
+                    )
+                    : or(
+                        ilike(customers.name, pattern),
+                        ilike(customers.studentCode, pattern),
+                        ilike(customers.customerCode, pattern),
+                        ilike(customers.cardUid, pattern),
+                        ...cardUidCandidates.map((c) => ilike(customers.cardUid, c)),
+                        ilike(customers.familyCode, pattern),
+                        ilike(customers.externalId, pattern),
+                        ilike(customers.email, pattern),
+                        ilike(customers.phone, pattern),
+                    ),
             ),
         )
         .orderBy(asc(customers.name))
@@ -209,15 +222,23 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
             and(
                 eq(users.isActive, true),
                 inArray(users.role, ["parent", "staff", "teacher", "visitor"]),
-                or(
-                    ilike(users.fullName, pattern),
-                    ilike(users.username, pattern),
-                    ilike(users.email, pattern),
-                    ilike(users.familyCode, pattern),
-                    ilike(users.externalId, pattern),
-                    ilike(users.cardUid, pattern),
-                    ...cardUidCandidates.map((c) => ilike(users.cardUid, c)),
-                ),
+                p.narrow
+                    ? or(
+                        ilike(users.fullName, pattern),
+                        ilike(users.familyCode, pattern),
+                        ilike(users.externalId, pattern),
+                        ilike(users.cardUid, pattern),
+                        ...cardUidCandidates.map((c) => ilike(users.cardUid, c)),
+                    )
+                    : or(
+                        ilike(users.fullName, pattern),
+                        ilike(users.username, pattern),
+                        ilike(users.email, pattern),
+                        ilike(users.familyCode, pattern),
+                        ilike(users.externalId, pattern),
+                        ilike(users.cardUid, pattern),
+                        ...cardUidCandidates.map((c) => ilike(users.cardUid, c)),
+                    ),
             ),
         )
         .orderBy(asc(users.fullName))
