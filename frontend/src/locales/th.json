@@ -3073,7 +3073,10 @@
     "type": "ประเภท",
     "typeAll": "ทั้งหมด",
     "typeStudent": "นักเรียน",
+    "typeParent": "ผู้ปกครอง",
     "typeStaff": "พนักงาน",
+    "typeTeacher": "ครู",
+    "typeVisitor": "ผู้เยี่ยมชม",
     "typeDepartment": "แผนก",
     "typeOther": "อื่นๆ"
   },

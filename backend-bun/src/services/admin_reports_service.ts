@@ -136,9 +136,10 @@ export async function adjustmentReport(args: {
 
         if (args.typeFilter) {
             const wanted = args.typeFilter.trim().toLowerCase();
-            const bucket = entityType === "student" ? "student"
-                : entityType === "unknown" ? "other"
-                    : "staff";
+            // entityType for a user-owned wallet is users.role verbatim
+            // ("parent", "staff", "teacher", "visitor", ...) — each role gets
+            // its own bucket instead of bundling them all under "staff".
+            const bucket = entityType === "unknown" ? "other" : entityType;
             if (wanted !== bucket) continue;
         }
 

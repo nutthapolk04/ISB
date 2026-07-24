@@ -3075,7 +3075,10 @@
     "type": "Type",
     "typeAll": "All",
     "typeStudent": "Student",
+    "typeParent": "Parent",
     "typeStaff": "Staff",
+    "typeTeacher": "Teacher",
+    "typeVisitor": "Visitor",
     "typeDepartment": "Department",
     "typeOther": "Other"
   },
