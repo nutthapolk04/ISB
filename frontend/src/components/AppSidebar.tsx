@@ -84,7 +84,7 @@ const menuGroups: MenuGroup[] = [
             // Managers see this link too — the Users page renders a shop-scoped
             // ShopUserManagement view for non-admins (see UserManagement.tsx),
             // so a canteen manager can create cashiers in their own shop only.
-            { titleKey: "nav.users", url: "/users", icon: UserCog, roles: ["admin", "manager"], matchPrefix: true },
+            { titleKey: "nav.users", url: "/users", icon: HomeIcon, roles: ["admin", "manager"], matchPrefix: true },
         ],
     },
     {
