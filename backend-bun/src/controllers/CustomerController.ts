@@ -139,7 +139,7 @@ export const CustomerController = {
 		}
 		try {
 			logger.info(`[${reqContext.requestId} (CU-06)] CustomerController.create() calling createStudent().`);
-			const result = await createStudent(body);
+			const result = await createStudent(body, Number(user.sub));
 			logger.info(`[${reqContext.requestId} (CU-06)] CustomerController.create() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {

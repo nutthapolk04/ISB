@@ -98,6 +98,7 @@ export const RefundController = {
 				method: body.method,
 				notes: body.notes ?? null,
 				userId: Number(user.sub),
+				idempotencyKey: body.idempotency_key,
 			});
 			logger.info(`[${reqContext.requestId} (RF-04)] RefundController.create() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

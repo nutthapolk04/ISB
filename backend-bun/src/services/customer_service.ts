@@ -490,7 +490,7 @@ export interface CreateStudentInput {
     initial_balance?: number;
 }
 
-export async function createStudent(input: CreateStudentInput): Promise<StudentProfileDTO> {
+export async function createStudent(input: CreateStudentInput, createdByUserId: number): Promise<StudentProfileDTO> {
     // Uniqueness checks
     const dupCode = await db.select({ id: customers.id }).from(customers).where(eq(customers.customerCode, input.customer_code)).limit(1);
     if (dupCode[0]) {
@@ -542,10 +542,25 @@ export async function createStudent(input: CreateStudentInput): Promise<StudentP
       RETURNING id
     `;
         const newId = cRows[0].id;
-        await sqlTx`
+        const initBalance = input.initial_balance ?? 0;
+        const wRows = await sqlTx<Array<{ id: number }>>`
       INSERT INTO wallets (customer_id, balance, is_active)
-      VALUES (${newId}, ${input.initial_balance ?? 0}, true)
+      VALUES (${newId}, ${initBalance}, true)
+      RETURNING id
     `;
+        // See department_service.ts::createDepartment's matching comment —
+        // a non-zero starting balance needs a ledger row or it's invisible
+        // to reconciliation/reporting, which treat wallet_transactions as
+        // the full source of truth for a wallet's history.
+        if (initBalance !== 0) {
+            await sqlTx`
+        INSERT INTO wallet_transactions
+          (wallet_id, transaction_type, amount, balance_before, balance_after,
+           reference_type, description, created_by)
+        VALUES (${wRows[0].id}, 'ADJUSTMENT', ${initBalance}, 0, ${initBalance},
+                'initial_balance', ${"Initial balance on student creation"}, ${createdByUserId})
+      `;
+        }
         return newId;
     });
 

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "ix_wallet_tx_grad_refund_idempotency" ON "wallet_transactions" USING btree ("reference_ticket" text_ops) WHERE ((reference_ticket)::text ~~ 'grad-refund:%'::text);

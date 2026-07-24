@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { customers, wallets } from "@/db/schema";
+import { customers, wallets, walletTransactions } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { isPgUniqueViolation, parseIdempotencyKey } from "@/services/wallet_service";
 
 const VALID_METHODS = new Set(["CASH", "BANK_TRANSFER", "CHEQUE"]);
 const METHOD_LABEL: Record<string, string> = {
@@ -9,6 +10,65 @@ const METHOD_LABEL: Record<string, string> = {
     BANK_TRANSFER: "Bank transfer",
     CHEQUE: "Cheque",
 };
+
+// Refund officers can lose their network connection after the server already
+// committed the debit — an optional client-supplied idempotency_key (see the
+// matching pattern in wallet_service.ts's cashierTopup) lets a retried
+// request return the SAME transaction instead of debiting the customer's
+// balance a second time. Backed by a partial unique index on
+// wallet_transactions.reference_ticket (see drizzle/schema.ts).
+const GRAD_REFUND_PREFIX = "grad-refund:";
+
+async function lookupIdempotentGraduationRefund(args: {
+    walletId: number;
+    customerId: number;
+    amount: number;
+    method: string;
+    notes: string | null;
+    userId: number;
+    ticket: string;
+}): Promise<RefundResponseDTO | null> {
+    const rows = await db
+        .select({
+            id: walletTransactions.id,
+            amount: walletTransactions.amount,
+            balanceBefore: walletTransactions.balanceBefore,
+            balanceAfter: walletTransactions.balanceAfter,
+            createdAt: walletTransactions.createdAt,
+        })
+        .from(walletTransactions)
+        .where(
+            and(
+                eq(walletTransactions.walletId, args.walletId),
+                eq(walletTransactions.referenceTicket, args.ticket),
+                eq(walletTransactions.transactionType, "REFUND"),
+            ),
+        )
+        .limit(1);
+    const tx = rows[0];
+    if (!tx) return null;
+
+    const txAmount = pgNumber(tx.amount) ?? 0;
+    if (Math.abs(txAmount - args.amount) > 0.001) {
+        const err = new Error("Idempotency key reused with a different amount");
+        (err as { status?: number }).status = 409;
+        throw err;
+    }
+
+    return {
+        transaction_id: tx.id,
+        customer_id: args.customerId,
+        wallet_id: args.walletId,
+        amount: args.amount,
+        refund_method: args.method,
+        balance_before: pgNumber(tx.balanceBefore) ?? 0,
+        balance_after: pgNumber(tx.balanceAfter) ?? 0,
+        reason: "graduation_refund",
+        notes: args.notes,
+        created_at: pgToIso(tx.createdAt)!,
+        created_by_user_id: args.userId,
+    };
+}
 
 export interface RefundCandidateDTO {
     id: number;
@@ -107,6 +167,7 @@ export async function createGraduationRefund(args: {
     method: string;
     notes: string | null;
     userId: number;
+    idempotencyKey?: string;
 }): Promise<RefundResponseDTO> {
     const { customerId, amount, method, notes, userId } = args;
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -119,56 +180,98 @@ export async function createGraduationRefund(args: {
         (err as { status?: number }).status = 400;
         throw err;
     }
+    const idempotencyKey = parseIdempotencyKey(args.idempotencyKey);
+    const idempotencyTicket = idempotencyKey ? `${GRAD_REFUND_PREFIX}${idempotencyKey}` : undefined;
 
-    return await pgClient.begin(async (sqlTx) => {
-        const wRows = await sqlTx<Array<{ id: number; balance: string; is_active: boolean }>>`
+    // Resolve the wallet up front (outside the transaction) so a replayed
+    // request with a known ticket can be answered from the ledger alone,
+    // without taking a row lock at all.
+    const walletLookup = await db.select({ id: wallets.id }).from(wallets).where(eq(wallets.customerId, customerId)).limit(1);
+    if (idempotencyTicket && walletLookup[0]) {
+        const cached = await lookupIdempotentGraduationRefund({
+            walletId: walletLookup[0].id,
+            customerId,
+            amount,
+            method,
+            notes,
+            userId,
+            ticket: idempotencyTicket,
+        });
+        if (cached) return cached;
+    }
+
+    try {
+        return await pgClient.begin(async (sqlTx) => {
+            const wRows = await sqlTx<Array<{ id: number; balance: string; is_active: boolean }>>`
       SELECT id, balance, is_active FROM wallets WHERE customer_id = ${customerId} FOR UPDATE
     `;
-        if (wRows.length === 0) {
-            const err = new Error(`Wallet not found for customer ${customerId}`);
-            (err as { status?: number }).status = 404;
-            throw err;
-        }
-        const wallet = wRows[0];
-        if (!wallet.is_active) {
-            const err = new Error(`Wallet ${wallet.id} is inactive`);
-            (err as { status?: number }).status = 400;
-            throw err;
-        }
-        const balanceBefore = Number(wallet.balance);
-        if (amount > balanceBefore) {
-            const err = new Error(`Refund amount ฿${amount.toFixed(2)} exceeds wallet balance ฿${balanceBefore.toFixed(2)}`);
-            (err as { status?: number }).status = 400;
-            throw err;
-        }
-        const balanceAfter = balanceBefore - amount;
-        await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${wallet.id}`;
+            if (wRows.length === 0) {
+                const err = new Error(`Wallet not found for customer ${customerId}`);
+                (err as { status?: number }).status = 404;
+                throw err;
+            }
+            const wallet = wRows[0];
+            if (!wallet.is_active) {
+                const err = new Error(`Wallet ${wallet.id} is inactive`);
+                (err as { status?: number }).status = 400;
+                throw err;
+            }
+            const balanceBefore = Number(wallet.balance);
+            if (amount > balanceBefore) {
+                const err = new Error(`Refund amount ฿${amount.toFixed(2)} exceeds wallet balance ฿${balanceBefore.toFixed(2)}`);
+                (err as { status?: number }).status = 400;
+                throw err;
+            }
+            const balanceAfter = balanceBefore - amount;
+            await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${wallet.id}`;
 
-        const notePart = notes && notes.trim() ? ` — ${notes.trim()}` : "";
-        const description = `Graduation refund (${METHOD_LABEL[method]})${notePart}`;
+            const notePart = notes && notes.trim() ? ` — ${notes.trim()}` : "";
+            const description = `Graduation refund (${METHOD_LABEL[method]})${notePart}`;
 
-        const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
+            const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
       INSERT INTO wallet_transactions
         (wallet_id, transaction_type, amount, balance_before, balance_after,
-         reference_type, reference_id, description, reason, refund_method, created_by)
+         reference_type, reference_id, description, reason, refund_method, reference_ticket, created_by)
       VALUES (${wallet.id}, 'REFUND', ${amount}, ${balanceBefore}, ${balanceAfter},
               'graduation_refund', NULL, ${description}, 'graduation_refund',
-              ${method}, ${userId})
+              ${method}, ${idempotencyTicket ?? null}, ${userId})
       RETURNING id, created_at
     `;
 
-        return {
-            transaction_id: txRows[0].id,
-            customer_id: customerId,
-            wallet_id: wallet.id,
-            amount,
-            refund_method: method,
-            balance_before: balanceBefore,
-            balance_after: balanceAfter,
-            reason: "graduation_refund",
-            notes,
-            created_at: pgToIso(txRows[0].created_at)!,
-            created_by_user_id: userId,
-        };
-    });
+            return {
+                transaction_id: txRows[0].id,
+                customer_id: customerId,
+                wallet_id: wallet.id,
+                amount,
+                refund_method: method,
+                balance_before: balanceBefore,
+                balance_after: balanceAfter,
+                reason: "graduation_refund" as const,
+                notes,
+                created_at: pgToIso(txRows[0].created_at)!,
+                created_by_user_id: userId,
+            };
+        });
+    } catch (e) {
+        // Race: two concurrent requests with the same idempotency_key both
+        // passed the pre-check above — the unique index rejects the second
+        // INSERT, and we resolve it to the same replay response instead of
+        // surfacing a confusing constraint-violation error.
+        if (idempotencyTicket && isPgUniqueViolation(e)) {
+            const wid = walletLookup[0]?.id;
+            if (wid) {
+                const cached = await lookupIdempotentGraduationRefund({
+                    walletId: wid,
+                    customerId,
+                    amount,
+                    method,
+                    notes,
+                    userId,
+                    ticket: idempotencyTicket,
+                });
+                if (cached) return cached;
+            }
+        }
+        throw e;
+    }
 }

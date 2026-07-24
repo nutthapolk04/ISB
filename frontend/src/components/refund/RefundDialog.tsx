@@ -83,6 +83,12 @@ export function RefundDialog({ candidate, open, onClose }: RefundDialogProps) {
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<RefundMethod | "">("");
   const [notes, setNotes] = useState<string>("");
+  // Fixed for the lifetime of one dialog-open for one candidate — a retried
+  // "Confirm" click (e.g. after a dropped connection made a successful
+  // refund look like it failed) reuses this SAME key so the backend can
+  // recognize the replay and return the original result instead of debiting
+  // the customer's balance twice. See idempotency_key in refund.schema.ts.
+  const [idempotencyKey, setIdempotencyKey] = useState<string>("");
 
   // Reset form whenever a new candidate is opened.
   useEffect(() => {
@@ -91,6 +97,7 @@ export function RefundDialog({ candidate, open, onClose }: RefundDialogProps) {
       setAmount(candidate.wallet_balance.toFixed(2));
       setMethod("");
       setNotes("");
+      setIdempotencyKey(crypto.randomUUID());
     }
   }, [open, candidate]);
 
@@ -138,6 +145,7 @@ export function RefundDialog({ candidate, open, onClose }: RefundDialogProps) {
           amount: parsedAmount,
           method: method as RefundMethod,
           notes: notes.trim() ? notes.trim() : undefined,
+          idempotency_key: idempotencyKey,
         },
       },
       {

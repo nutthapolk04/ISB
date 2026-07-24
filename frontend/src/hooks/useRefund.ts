@@ -31,6 +31,8 @@ export interface RefundCreateRequest {
   amount: number;
   method: RefundMethod;
   notes?: string;
+  /** Client-generated key — lets a retried request replay the same result instead of double-refunding. */
+  idempotency_key?: string;
 }
 
 export interface RefundResponse {

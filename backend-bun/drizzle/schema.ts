@@ -701,6 +701,7 @@ export const walletTransactions = pgTable("wallet_transactions", {
 	index("ix_wallet_transactions_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	uniqueIndex("ix_wallet_tx_cashier_idempotency").using("btree", table.referenceTicket.asc().nullsLast().op("text_ops")).where(sql`((reference_ticket)::text ~~ 'cashier-idem:%'::text)`),
 	uniqueIndex("ix_wallet_tx_vendor_idempotency").using("btree", table.referenceTicket.asc().nullsLast().op("text_ops")).where(sql`((reference_ticket)::text ~~ 'vendor-adjust:%'::text)`),
+	uniqueIndex("ix_wallet_tx_grad_refund_idempotency").using("btree", table.referenceTicket.asc().nullsLast().op("text_ops")).where(sql`((reference_ticket)::text ~~ 'grad-refund:%'::text)`),
 	foreignKey({
 			columns: [table.createdBy],
 			foreignColumns: [users.id],

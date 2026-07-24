@@ -527,7 +527,7 @@ export interface CashierTopupDTO {
 
 const CASHIER_IDEM_PREFIX = "cashier-idem:";
 
-function isPgUniqueViolation(err: unknown): boolean {
+export function isPgUniqueViolation(err: unknown): boolean {
     if (!err || typeof err !== "object") return false;
     const code = (err as { code?: string }).code;
     if (code === "23505") return true;
@@ -535,7 +535,7 @@ function isPgUniqueViolation(err: unknown): boolean {
     return isPgUniqueViolation(cause);
 }
 
-function parseIdempotencyKey(key: string | undefined): string | undefined {
+export function parseIdempotencyKey(key: string | undefined): string | undefined {
     if (!key) return undefined;
     const trimmed = key.trim();
     if (trimmed.length < 8 || trimmed.length > 64) {

@@ -48,7 +48,7 @@ export const CardholderController = {
 		}
 		try {
 			logger.info(`[${reqContext.requestId} (CH-02)] CardholderController.create() calling createCardholder().`);
-			const result = await createCardholder(body as Parameters<typeof createCardholder>[0]);
+			const result = await createCardholder(body as Parameters<typeof createCardholder>[0], Number(user.sub));
 			logger.info(`[${reqContext.requestId} (CH-02)] CardholderController.create() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {

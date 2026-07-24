@@ -386,6 +386,20 @@ export async function processRefund(args: {
     let refundedTo: Record<string, unknown> = { type: "cash", label: "Cash drawer (receipt not found)" };
 
     await pgClient.begin(async (sqlTx) => {
+        // Idempotency guard: lock the return_request row and re-check status
+        // under the lock — the earlier read at the top of this function used
+        // the plain `db` client with no lock, so a double-click or retried
+        // request could otherwise pass that check twice and double-restore
+        // stock + double-credit the wallet for the same return.
+        const lockedRr = await sqlTx<Array<{ status: string }>>`
+      SELECT status FROM return_requests WHERE id = ${rr.id} FOR UPDATE
+    `;
+        if (lockedRr[0]?.status !== "pending") {
+            const err = new Error(`Return request ${rr.id} already ${lockedRr[0]?.status ?? "processed"}`);
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+
         // ── Restore stock ──
         if (rr.bundleId !== null && bundleItemRows.length > 0) {
             for (const bi of bundleItemRows) {
@@ -575,6 +589,16 @@ export async function processExchange(args: {
     const exchangeCodes: string[] = [];
 
     await pgClient.begin(async (sqlTx) => {
+        // Idempotency guard — see matching comment in processRefund.
+        const lockedRr = await sqlTx<Array<{ status: string }>>`
+      SELECT status FROM return_requests WHERE id = ${rr.id} FOR UPDATE
+    `;
+        if (lockedRr[0]?.status !== "pending") {
+            const err = new Error(`Return request ${rr.id} already ${lockedRr[0]?.status ?? "processed"}`);
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+
         // Restore returned stock
         if (rr.bundleId !== null && bundleItemRows.length > 0) {
             for (const bi of bundleItemRows) {

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
     receipts,
@@ -380,12 +380,6 @@ export async function voidReceipt(args: {
         (err as { status?: number }).status = 403;
         throw err;
     }
-    if (receipt.status === "VOIDED") {
-        const err = new Error("Receipt already voided");
-        (err as { status?: number }).status = 400;
-        throw err;
-    }
-
     // Load items + product info upfront (read-only, no lock needed).
     const items = await db
         .select({ item: receiptItems, product: shopProducts })
@@ -431,20 +425,29 @@ export async function voidReceipt(args: {
     const voidLines: Array<{ name: string; qty: number; price: number }> = [];
     const today = new Date().toISOString().slice(0, 10);
 
-    // Mark receipt voided OUTSIDE the inner transaction so we can identify
-    // whether the postgres-js 'Object' bind error originates from the
-    // UPDATE itself or from one of the loop SQL statements below.
-    await db
-        .update(receipts)
-        .set({
-            status: "VOIDED",
-            voidedAt: sql`NOW()`,
-            voidedBy: callerId,
-            voidedReason: reason,
-        })
-        .where(eq(receipts.id, receiptId));
-
     await pgClient.begin(async (sqlTx) => {
+        // Lock the receipt row and re-check status under the lock — closes
+        // the race where two concurrent void requests both pass the earlier
+        // read-only status check before either writes, which would otherwise
+        // restore stock and credit the wallet twice. Marking VOIDED here
+        // (instead of on the plain `db` client before this transaction
+        // opened) also means a crash/connection-drop anywhere in this block
+        // rolls back everything together — the receipt can never end up
+        // permanently VOIDED without stock restored and the wallet credited.
+        const lockedReceipt = await sqlTx<Array<{ status: string }>>`
+      SELECT status FROM receipts WHERE id = ${receiptId} FOR UPDATE
+    `;
+        if (lockedReceipt[0]?.status === "VOIDED") {
+            const err = new Error("Receipt already voided");
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+
+        await sqlTx`
+      UPDATE receipts
+      SET status = 'VOIDED', voided_at = NOW(), voided_by = ${callerId}, voided_reason = ${reason ?? null}
+      WHERE id = ${receiptId}
+    `;
 
         // Restore stock per item
         for (const { item, product } of items) {

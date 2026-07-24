@@ -549,7 +549,7 @@ async function ensureCustomerTypeId(typeName: "INTERNAL" | "PUBLIC"): Promise<nu
     return created.id;
 }
 
-export async function createCardholder(input: CreateCardholderInput): Promise<CardholderDTO> {
+export async function createCardholder(input: CreateCardholderInput, createdByUserId: number): Promise<CardholderDTO> {
     const kind = input.kind;
 
     if (kind === "student") {
@@ -579,6 +579,17 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
         INSERT INTO wallets (customer_id, balance, is_active) VALUES (${custId}, ${initBalance}, true) RETURNING id
       `;
             walletId = wins[0].id;
+            // See department_service.ts::createDepartment's matching comment
+            // — a non-zero starting balance needs a ledger row.
+            if (initBalance !== 0) {
+                await sqlTx`
+          INSERT INTO wallet_transactions
+            (wallet_id, transaction_type, amount, balance_before, balance_after,
+             reference_type, description, created_by)
+          VALUES (${walletId}, 'ADJUSTMENT', ${initBalance}, 0, ${initBalance},
+                  'initial_balance', ${"Initial balance on student creation"}, ${createdByUserId})
+        `;
+            }
             // Optional student user login
             if (input.student_code) {
                 const studentCode = input.student_code;
@@ -670,6 +681,7 @@ export async function createCardholder(input: CreateCardholderInput): Promise<Ca
             code: input.department_code!,
             name: input.department_name!,
             initialCredit: input.initial_credit ?? 0,
+            createdByUserId,
         });
         return {
             ...blank(),

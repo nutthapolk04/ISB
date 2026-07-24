@@ -514,29 +514,38 @@ export async function updateUser(
         }
     }
 
-    const updates: Record<string, unknown> = {};
-    if (input.shop_id !== undefined) updates.shopId = input.shop_id;
+    // Snake_case column map (not the Drizzle-style camelCase `updates` this
+    // used to build) — passed straight to postgres.js's dynamic-columns
+    // helper (`sqlTx(row, ...columns)`) below so this UPDATE runs on the
+    // SAME transaction connection as the wallet insert. Drizzle's query
+    // builder can't be scoped to `sqlTx` here: `drizzle(sqlTx)` crashes at
+    // runtime (`TransactionSql` lacks the `.options.parsers` Drizzle's
+    // postgres-js driver expects on construction) — it's a `Sql`-shaped
+    // tagged template, not a full pool client.
+    const rowUpdates: Record<string, unknown> = {};
+    if (input.shop_id !== undefined) rowUpdates.shop_id = input.shop_id;
     let roleChangedTo: string | undefined;
     if (input.role !== undefined && input.role !== null) {
-        updates.role = input.role;
+        rowUpdates.role = input.role;
         roleChangedTo = input.role;
         if (userIsAdmin(caller)) {
-            updates.isSuperuser = input.role === "admin";
+            rowUpdates.is_superuser = input.role === "admin";
         }
     }
-    if (input.full_name !== undefined && input.full_name !== null) updates.fullName = input.full_name;
-    if (input.email !== undefined && input.email !== null) updates.email = input.email;
+    if (input.full_name !== undefined && input.full_name !== null) rowUpdates.full_name = input.full_name;
+    if (input.email !== undefined && input.email !== null) rowUpdates.email = input.email;
     if (input.is_active !== undefined && input.is_active !== null) {
-        updates.isActive = input.is_active;
-        updates.status = input.is_active ? "active" : "inactive";
+        rowUpdates.is_active = input.is_active;
+        rowUpdates.status = input.is_active ? "active" : "inactive";
     }
     if (input.family_code !== undefined) {
-        updates.familyCode = typeof input.family_code === "string" ? (input.family_code.trim() || null) : null;
+        rowUpdates.family_code = typeof input.family_code === "string" ? (input.family_code.trim() || null) : null;
     }
+    const updateColumns = Object.keys(rowUpdates);
 
     await pgClient.begin(async (sqlTx) => {
-        if (Object.keys(updates).length > 0) {
-            await db.update(users).set(updates).where(eq(users.id, userId));
+        if (updateColumns.length > 0) {
+            await sqlTx`UPDATE users SET ${sqlTx(rowUpdates, ...updateColumns)} WHERE id = ${userId}`;
         }
         const finalRole = roleChangedTo ?? target.role ?? "";
         if (WALLET_ROLES.has(finalRole)) {

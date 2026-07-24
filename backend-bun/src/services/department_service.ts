@@ -57,6 +57,7 @@ export async function createDepartment(args: {
     code: string;
     name: string;
     initialCredit?: number;
+    createdByUserId: number;
 }): Promise<{ id: number; code: string; name: string; walletId: number; walletBalance: number }> {
     const dup = await db.select({ id: departments.id }).from(departments).where(eq(departments.departmentCode, args.code)).limit(1);
     if (dup[0]) {
@@ -78,6 +79,19 @@ export async function createDepartment(args: {
       VALUES (${deptId}, ${credit}, true) RETURNING id
     `;
         walletId = wins[0].id;
+        // A non-zero starting balance must have a matching ledger row —
+        // wallet_transactions is relied on elsewhere as the full source of
+        // truth for a wallet's history, and a balance with no matching
+        // transaction is invisible to reconciliation/reporting.
+        if (credit !== 0) {
+            await sqlTx`
+        INSERT INTO wallet_transactions
+          (wallet_id, transaction_type, amount, balance_before, balance_after,
+           reference_type, description, created_by)
+        VALUES (${walletId}, 'ADJUSTMENT', ${credit}, 0, ${credit},
+                'initial_balance', ${"Initial balance on department creation"}, ${args.createdByUserId})
+      `;
+        }
     });
     return { id: deptId, code: args.code, name: args.name, walletId, walletBalance: credit };
 }
