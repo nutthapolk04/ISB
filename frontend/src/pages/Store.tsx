@@ -690,6 +690,7 @@ const Store = () => {
                     payer_kind: "customer",
                     shop_id: user?.shopId ?? undefined,
                     discount: checkout.billDiscountAmount,
+                    notes: checkout.receiptNote.trim() || undefined,
                     items: checkout.cart.map((i) => ({
                         product_variant_id: i.id,
                         quantity: i.quantity,

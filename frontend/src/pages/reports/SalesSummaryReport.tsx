@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,6 +26,9 @@ import {
   type ReportPayload,
 } from "@/lib/reportExport";
 import { buildVendorSections, isMultiVendor, type CanteenShop } from "./reportHelpers";
+import { PaginationBar } from "@/components/PaginationBar";
+
+const SS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 // Per-receipt summary with payment-method breakdown. Mirrors the backend
 // /api/v1/reports/sales-summary contract. Every filter is optional and an
@@ -129,6 +132,16 @@ export function SalesSummaryReport({
   const [ssCashierId, setSsCashierId] = useState("");
   const [ssLoading, setSsLoading] = useState(false);
   const [ssData, setSsData] = useState<SalesSummaryReportData | null>(null);
+  const [ssPage, setSsPage] = useState(1);
+  const [ssPageSize, setSsPageSize] = useState(25);
+  const ssTotalPages = Math.max(1, Math.ceil((ssData?.rows.length ?? 0) / ssPageSize));
+
+  // New search results or a page-size change both mean page 1 might not
+  // even exist in the fresh data (or would silently show the wrong rows),
+  // so land back on it.
+  useEffect(() => {
+    setSsPage(1);
+  }, [ssData, ssPageSize]);
 
   /**
    * Build the /reports/sales-summary querystring. Skip empty filters so the
@@ -499,7 +512,7 @@ export function SalesSummaryReport({
                         </td>
                       </tr>
                     ) : (
-                      ssData.rows.map((r) => (
+                      ssData.rows.slice((ssPage - 1) * ssPageSize, ssPage * ssPageSize).map((r) => (
                         <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                           <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
@@ -547,6 +560,20 @@ export function SalesSummaryReport({
                     </tfoot>
                   )}
                 </table>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</Label>
+                  <Select value={String(ssPageSize)} onValueChange={(v) => setSsPageSize(parseInt(v))}>
+                    <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SS_PAGE_SIZE_OPTIONS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <PaginationBar currentPage={ssPage} totalPages={ssTotalPages} onPageChange={setSsPage} />
               </div>
             </div>
           )}

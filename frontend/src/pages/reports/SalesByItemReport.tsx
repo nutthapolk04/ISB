@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,7 +26,10 @@ import {
     type ReportColumn,
     type ReportPayload,
 } from "@/lib/reportExport";
+import { PaginationBar } from "@/components/PaginationBar";
 import type { CanteenShop } from "./reportHelpers";
+
+const SI_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface SalesByItemRow {
     seq: number;
@@ -134,8 +137,20 @@ export function SalesByItemReport({
     const [siLoading, setSiLoading] = useState(false);
     const [siData, setSiData] = useState<SalesByItemReportData | null>(null);
     const [siGroupByItem, setSiGroupByItem] = useState(false);
+    const [siPage, setSiPage] = useState(1);
+    const [siPageSize, setSiPageSize] = useState(25);
 
     const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows) : null;
+    const siRowCount = siGroupedRows ? siGroupedRows.length : (siData?.rows.length ?? 0);
+    const siTotalPages = Math.max(1, Math.ceil(siRowCount / siPageSize));
+
+    // New search results, a grouping toggle, or a page-size change all
+    // change what page 1 even means, so land back on it rather than
+    // stranding the user on a page number that may no longer exist (or
+    // silently shows the wrong rows).
+    useEffect(() => {
+        setSiPage(1);
+    }, [siData, siGroupByItem, siPageSize]);
 
     const buildSalesByItemQuery = (): string => {
         const params = new URLSearchParams();
@@ -422,7 +437,7 @@ export function SalesByItemReport({
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                siGroupedRows.map((r) => (
+                                                siGroupedRows.slice((siPage - 1) * siPageSize, siPage * siPageSize).map((r) => (
                                                     <tr key={r.seq} className="border-t">
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                                                         <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
@@ -476,7 +491,7 @@ export function SalesByItemReport({
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                siData.rows.map((r) => (
+                                                siData.rows.slice((siPage - 1) * siPageSize, siPage * siPageSize).map((r) => (
                                                     <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                                                         <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
@@ -517,6 +532,20 @@ export function SalesByItemReport({
                                         )}
                                     </table>
                                 )}
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</Label>
+                                    <Select value={String(siPageSize)} onValueChange={(v) => setSiPageSize(parseInt(v))}>
+                                        <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {SI_PAGE_SIZE_OPTIONS.map((n) => (
+                                                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <PaginationBar currentPage={siPage} totalPages={siTotalPages} onPageChange={setSiPage} />
                             </div>
                         </div>
                     )}
