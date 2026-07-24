@@ -59,12 +59,12 @@
   },
   "resync": {
     "trigger": "ซิงก์",
-    "title": "Sync ข้อมูลจาก PowerSchool",
+    "title": "Sync ข้อมูลจาก API Data Sync",
     "description": "ดึงข้อมูล staff / ผู้ปกครอง / นักเรียน ล่าสุดจากระบบโรงเรียน",
     "info": {
       "schedule": {
         "title": "ตารางการ sync อัตโนมัติ",
-        "body": "ในโหมด production ระบบจะ sync ข้อมูลจาก PowerSchool ทุก 1 วัน · กด 'Sync Now' ด้านล่างเพื่อ trigger sync ทันที (เช่น หลังเพิ่ม staff ใหม่)"
+        "body": "ในโหมด production ระบบจะ sync ข้อมูลจาก API Data Sync ทุก 1 วัน · กด 'Sync Now' ด้านล่างเพื่อ trigger sync ทันที (เช่น หลังเพิ่ม staff ใหม่)"
       }
     },
     "lastSync": "Sync ล่าสุด",
@@ -77,7 +77,7 @@
     "daysAgo": "{{count}} วันที่แล้ว",
     "syncNow": "Sync Now",
     "loadingTitle": "กำลัง sync ข้อมูล...",
-    "loadingDescription": "กำลังดึงข้อมูลจาก PowerSchool — โปรดรอสักครู่",
+    "loadingDescription": "กำลังดึงข้อมูลจาก API Data Sync — โปรดรอสักครู่",
     "successTitle": "Sync สำเร็จ",
     "errorTitle": "Sync ไม่สำเร็จ",
     "retry": "ลองใหม่",
@@ -1134,7 +1134,7 @@
       "otherStudents": "นักเรียนอื่นๆ",
       "reconciliation": {
         "title": "ต้องการตรวจสอบ — {{parents}} ผู้ปกครอง + {{students}} นักเรียน ยังไม่ถูกผูก",
-        "description": "รายการนี้แสดงผู้ปกครอง/นักเรียนที่มีรหัสครอบครัวใน PowerSchool แต่ยังไม่มีการผูกใน Schooney · กด 'ผูก' เพื่อเปิดฟอร์มพร้อมข้อมูล",
+        "description": "รายการนี้แสดงผู้ปกครอง/นักเรียนที่มีรหัสครอบครัวใน API Data Sync แต่ยังไม่มีการผูกใน Schooney · กด 'ผูก' เพื่อเปิดฟอร์มพร้อมข้อมูล",
         "parentsHeader": "ผู้ปกครองที่ยังไม่มีนักเรียน ({{count}})",
         "studentsHeader": "นักเรียนที่ยังไม่มีผู้ปกครอง ({{count}})",
         "linkSuggestion": "ผูก ({{count}} รายการตรงกัน)",
@@ -1288,11 +1288,11 @@
     },
     "cards": {
       "title": "จัดการบัตร (UID Mapping)",
-      "description": "รายการบัตรทั้งหมดที่ผูกกับ staff / ผู้ปกครอง / นักเรียน / visitor พร้อม sync จาก PowerSchool",
+      "description": "รายการบัตรทั้งหมดที่ผูกกับ staff / ผู้ปกครอง / นักเรียน / visitor พร้อม sync จาก API Data Sync",
       "info": {
         "intro": {
           "title": "UID Mapping คืออะไร",
-          "body": "UID คือรหัสบัตร RFID ที่แตะที่ POS · การ sync PowerSchool จะ map UID → ผู้ใช้ อัตโนมัติ · หากต้องการแก้ไข/ปลดบัตรให้คลิกไอคอนดูข้อมูลในแถว → แก้จากหน้าโปรไฟล์"
+          "body": "UID คือรหัสบัตร RFID ที่แตะที่ POS · การ sync API Data Sync จะ map UID → ผู้ใช้ อัตโนมัติ · หากต้องการแก้ไข/ปลดบัตรให้คลิกไอคอนดูข้อมูลในแถว → แก้จากหน้าโปรไฟล์"
         }
       },
       "kpiTotal": "บัตรทั้งหมด",
@@ -1366,7 +1366,7 @@
       "basicSaved": "บันทึกข้อมูลพื้นฐานแล้ว",
       "basicSaveError": "บันทึกไม่สำเร็จ",
       "allergyTitle": "ข้อมูลการแพ้ / อาหาร",
-      "allergiesLabel": "แพ้อาหาร (ซิงก์จาก PowerSchool)",
+      "allergiesLabel": "แพ้อาหาร (ซิงก์จาก API Data Sync)",
       "dietaryNotes": "บันทึกข้อจำกัดอาหาร",
       "overrideNote": "หมายเหตุพิเศษจากผู้ดูแลระบบ (แสดงเน้นที่ POS)",
       "overrideBadge": "หมายเหตุจากผู้ดูแลระบบ",
@@ -1453,9 +1453,9 @@
       "unlinkParent": "ยกเลิกการเชื่อมต่อผู้ปกครอง"
     },
     "users": {
-      "extIdReasonPlaceholder": "เช่น: PowerSchool renumbered during annual rollover",
+      "extIdReasonPlaceholder": "เช่น: API Data Sync renumbered during annual rollover",
       "title": "จัดการผู้ใช้",
-      "description": "จัดการผู้ใช้งานทั้งระบบ (เชื่อมต่อกับ PowerSchool middleware)",
+      "description": "จัดการผู้ใช้งานทั้งระบบ (เชื่อมต่อกับ API Data Sync middleware)",
       "tabUsers": "ผู้ใช้",
       "tabSyncDashboard": "แดชบอร์ดการซิงก์",
       "tabSyncLog": "บันทึกการซิงก์",
@@ -1497,7 +1497,7 @@
       "fullName": "ชื่อ-นามสกุล",
       "email": "อีเมล",
       "role": "บทบาท",
-      "externalId": "External ID (PowerSchool)",
+      "externalId": "External ID (API Data Sync)",
       "familyCode": "รหัสครอบครัว",
       "shopAssignment": "ร้านที่สังกัด",
       "noShop": "ไม่ผูกกับร้าน",
@@ -1554,7 +1554,7 @@
       "noShopAny": "— ไม่ผูกกับร้าน (ดูได้ทุกร้าน) —",
       "shopHint": "ผู้จัดการ/แคชเชียร์จะเห็นและทำรายการได้เฉพาะสินค้าของร้านที่ผูกไว้",
       "extIdChangeWarning": "External ID จะถูกเปลี่ยน — ต้องระบุเหตุผล",
-      "noAllergies": "ไม่มีข้อมูลจาก PowerSchool",
+      "noAllergies": "ไม่มีข้อมูลจาก API Data Sync",
       "allergyOverrideHint": "ข้อมูล override เพิ่มเติมสำหรับนักเรียนดูได้ที่หน้าโปรไฟล์นักเรียน",
       "noNotifEmails": "— ยังไม่มี —",
       "noLinkedStudents": "ยังไม่มีนักเรียนเชื่อมโยง — กด \"Link student\" เพื่อเพิ่ม",
@@ -2128,7 +2128,7 @@
     "colActions": "การจัดการ",
     "colEmail": "อีเมล",
     "colCurrentlyAt": "ร้านปัจจุบัน",
-    "originPowerschool": "PowerSchool",
+    "originPowerschool": "API Data Sync",
     "originManual": "สร้างเอง",
     "statusActive": "ใช้งาน",
     "statusInactive": "ปิดใช้งาน",
@@ -2138,14 +2138,14 @@
     "actionAssign": "มอบสิทธิ์",
     "actionReassign": "ย้ายร้าน",
     "directorySearchTitle": "ค้นหาผู้ใช้เพื่อเพิ่มเข้าทีม",
-    "directorySearchHint": "ค้นหาผู้ใช้ทั้งหมด (รวมบัญชีที่ซิงก์จาก PowerSchool) แล้วมอบสิทธิ์ให้ {{shopName}}",
+    "directorySearchHint": "ค้นหาผู้ใช้ทั้งหมด (รวมบัญชีที่ซิงก์จาก API Data Sync) แล้วมอบสิทธิ์ให้ {{shopName}}",
     "directorySearchPlaceholder": "ค้นหาด้วยชื่อ, username หรือ email...",
     "directorySearchEmpty": "พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา",
     "directorySearchNoResults": "ไม่พบผู้ใช้",
     "directorySearchFailed": "ค้นหาไม่สำเร็จ",
     "directoryUnassigned": "ยังไม่ได้มอบสิทธิ์",
     "createSubhead": "สร้างบัญชีแคชเชียร์หรือผู้จัดการแบบสร้างเองสำหรับ {{shopName}}",
-    "createHint": "บัญชีที่สร้างเองไม่ได้เชื่อมกับ PowerSchool — ตั้งรหัสผ่าน/แก้ข้อมูลที่นี่ได้เลย",
+    "createHint": "บัญชีที่สร้างเองไม่ได้เชื่อมกับ API Data Sync — ตั้งรหัสผ่าน/แก้ข้อมูลที่นี่ได้เลย",
     "fieldUsername": "Username *",
     "fieldUsernameMin": "ต้องมีอย่างน้อย 3 ตัวอักษร",
     "fieldUsernamePlaceholder": "เช่น cashier_coop2",
@@ -2705,7 +2705,7 @@
     "admin": {
       "step1": {
         "title": "จัดการผู้ใช้งาน",
-        "desc": "ไปที่ Admin Ops → ผู้ใช้งาน สร้างหรือซิงค์บัญชี staff ผู้ปกครอง และนักเรียน กำหนดบทบาทและร้านค้า ใช้แท็บ Directory เพื่อค้นหาและมอบหมายบัญชีจาก PowerSchool"
+        "desc": "ไปที่ Admin Ops → ผู้ใช้งาน สร้างหรือซิงค์บัญชี staff ผู้ปกครอง และนักเรียน กำหนดบทบาทและร้านค้า ใช้แท็บ Directory เพื่อค้นหาและมอบหมายบัญชีจาก API Data Sync"
       },
       "step2": {
         "title": "จัดการบัตร",

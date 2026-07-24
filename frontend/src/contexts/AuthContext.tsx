@@ -113,6 +113,24 @@ export function moduleOf(shopId: ShopId | null | undefined): AppModule | null {
 const STORAGE_KEY = "schooney_auth_user";
 const TOKEN_KEY = "access_token";
 
+/**
+ * Reads the `sub` claim out of a JWT's payload without verifying its
+ * signature — this is a client-side sanity check only (the backend already
+ * verifies every token on every request); it exists purely to detect when
+ * the *shared* localStorage token no longer belongs to the user this tab
+ * thinks is logged in. Returns null on any malformed/unexpected token.
+ */
+function decodeJwtSub(token: string): number | null {
+    try {
+        const payloadB64 = token.split(".")[1];
+        const json = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+        const payload = JSON.parse(json) as { sub?: string | number };
+        return payload.sub != null ? Number(payload.sub) : null;
+    } catch {
+        return null;
+    }
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -156,6 +174,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             autoOpenedRef.current = true;
             void autoOpenCustomerDisplayWindow();
         }
+    }, [user]);
+
+    // Shared-browser / shared-kiosk safety net. `access_token`/`refresh_token`/
+    // STORAGE_KEY live in localStorage, which every tab of the same browser
+    // shares — a second person logging in on another tab (or even this tab's
+    // own silent 401→refresh in api.ts picking up a refresh_token someone
+    // else's login already overwrote) replaces the credentials out from
+    // under this tab without it knowing. Since every API call re-reads the
+    // token fresh from localStorage at call time (api.ts) while this tab's
+    // `user` state was only ever set once at login, the two would silently
+    // drift apart — the navbar keeps showing the old person while every new
+    // API response is actually the new person's data. `storage` only fires
+    // in tabs OTHER than the one that made the change, which is exactly the
+    // idle tab we need to protect. Detect the mismatch and force a clean
+    // re-login rather than let this tab keep mixing two identities.
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key !== TOKEN_KEY && e.key !== STORAGE_KEY) return;
+            if (!user) return;
+
+            const currentToken = localStorage.getItem(TOKEN_KEY);
+            if (!currentToken) {
+                // Another tab logged out — the shared credentials this tab
+                // relies on are gone too.
+                setUser(null);
+                return;
+            }
+            const tokenSub = decodeJwtSub(currentToken);
+            if (tokenSub !== null && tokenSub !== user.id) {
+                setUser(null);
+                window.location.href = "/login";
+            }
+        };
+        window.addEventListener("storage", handleStorageChange);
+        return () => window.removeEventListener("storage", handleStorageChange);
     }, [user]);
 
     const login = async (

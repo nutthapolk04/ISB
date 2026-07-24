@@ -64,7 +64,7 @@
     "info": {
       "schedule": {
         "title": "Automatic sync schedule",
-        "body": "In production the system syncs from PowerSchool every 24 hours · press 'Sync Now' below to trigger an immediate sync (e.g. after adding a new staff member)."
+        "body": "In production the system syncs from API Data Sync every 24 hours · press 'Sync Now' below to trigger an immediate sync (e.g. after adding a new staff member)."
       }
     },
     "lastSync": "Last sync",
@@ -1134,7 +1134,7 @@
       "otherStudents": "Other students",
       "reconciliation": {
         "title": "Needs attention — {{parents}} parent + {{students}} student not linked",
-        "description": "These parents / students have a PowerSchool family_code but no link in Schooney yet · click 'Link' to open the dialog pre-filled",
+        "description": "These parents / students have a ISB family_code but no link in Schooney yet · click 'Link' to open the dialog pre-filled",
         "parentsHeader": "Parents with no children linked ({{count}})",
         "studentsHeader": "Students with no parent ({{count}})",
         "linkSuggestion": "Link ({{count}} match)",
@@ -1288,11 +1288,11 @@
     },
     "cards": {
       "title": "Card Management (UID Mapping)",
-      "description": "All cards bound to staff / parents / students / visitors — synced from PowerSchool",
+      "description": "All cards bound to staff / parents / students / visitors — synced from API Data Sync",
       "info": {
         "intro": {
           "title": "What is UID mapping?",
-          "body": "UID is the RFID card number read at the POS · PowerSchool sync maps UID → user automatically · To edit/unbind, click the view icon and edit from the owner's profile page."
+          "body": "UID is the RFID card number read at the POS · API Data sync maps UID → user automatically · To edit/unbind, click the view icon and edit from the owner's profile page."
         }
       },
       "kpiTotal": "Total cards",
@@ -1366,7 +1366,7 @@
       "basicSaved": "Basic info saved",
       "basicSaveError": "Save failed",
       "allergyTitle": "Allergy / Dietary info",
-      "allergiesLabel": "Allergies (PowerSchool synced)",
+      "allergiesLabel": "Allergies (API Data Sync synced)",
       "dietaryNotes": "Dietary notes",
       "overrideNote": "Admin Override Note (highlighted at POS)",
       "overrideBadge": "Admin Override",
@@ -1453,9 +1453,9 @@
       "unlinkParent": "Unlink parent"
     },
     "users": {
-      "extIdReasonPlaceholder": "e.g. PowerSchool renumbered during annual rollover",
+      "extIdReasonPlaceholder": "e.g. API Data Sync renumbered during annual rollover",
       "title": "User Management",
-      "description": "Manage all users system-wide (synced with PowerSchool middleware)",
+      "description": "Manage all users system-wide (synced with API Data Sync middleware)",
       "tabUsers": "Users",
       "tabSyncDashboard": "Sync Dashboard",
       "tabSyncLog": "Sync Log",
@@ -1479,7 +1479,7 @@
       "status": "Status",
       "statsTotal": "Total users",
       "statsActive": "Active",
-      "statsSynced": "Synced from PS",
+      "statsSynced": "Synced from API Data Sync",
       "statsMissing": "Missing external_id",
       "emptyTab": {
         "all": "No users found",
@@ -1497,12 +1497,12 @@
       "fullName": "Full name",
       "email": "Email",
       "role": "Role",
-      "externalId": "External ID (PowerSchool)",
+      "externalId": "External ID (API Data Sync)",
       "familyCode": "Family code",
       "shopAssignment": "Shop assignment",
       "noShop": "Not linked to a shop",
       "healthProfile": "Health profile",
-      "allergiesSynced": "Allergies (synced)",
+      "allergiesSynced": "Allergies (synced from API Data Sync)",
       "familyGroup": "Family group",
       "familyGroupLabel": "Family group: ",
       "notificationEmails": "Notification emails",
@@ -1554,7 +1554,7 @@
       "noShopAny": "— All —",
       "shopHint": "Manager/Cashier can only see and transact items from their assigned shop",
       "extIdChangeWarning": "External ID will change — reason required",
-      "noAllergies": "No data from PowerSchool",
+      "noAllergies": "No data from API Data Sync",
       "allergyOverrideHint": "For detailed allergy overrides per student, use the student profile page",
       "noNotifEmails": "— None yet —",
       "noLinkedStudents": "No linked students yet — click \"Link student\" to add one",
@@ -2130,7 +2130,7 @@
     "colActions": "Actions",
     "colEmail": "Email",
     "colCurrentlyAt": "Currently at",
-    "originPowerschool": "PowerSchool",
+    "originPowerschool": "API Data Sync",
     "originManual": "Manual",
     "statusActive": "Active",
     "statusInactive": "Inactive",
@@ -2140,14 +2140,14 @@
     "actionAssign": "Assign",
     "actionReassign": "Reassign",
     "directorySearchTitle": "Find a user to assign",
-    "directorySearchHint": "Search across all users (including PowerSchool-synced accounts), then assign them to {{shopName}}.",
+    "directorySearchHint": "Search across all users (including API Data Sync-synced accounts), then assign them to {{shopName}}.",
     "directorySearchPlaceholder": "Search by name, username, or email...",
     "directorySearchEmpty": "Type at least 2 characters to search.",
     "directorySearchNoResults": "No users found.",
     "directorySearchFailed": "Search failed",
     "directoryUnassigned": "Unassigned",
     "createSubhead": "Create a manual cashier or manager account for {{shopName}}.",
-    "createHint": "Manual accounts are not linked to PowerSchool — change their password or details here.",
+    "createHint": "Manual accounts are not linked to API Data Sync — change their password or details here.",
     "fieldUsername": "Username *",
     "fieldUsernameMin": "Must be at least 3 characters.",
     "fieldUsernamePlaceholder": "e.g. cashier_coop2",
@@ -2707,7 +2707,7 @@
     "admin": {
       "step1": {
         "title": "Manage Users",
-        "desc": "Go to Admin Ops → Users. Create or sync staff, parent, and student accounts. Assign roles and shops. Use the Directory tab to search and assign existing PowerSchool accounts."
+        "desc": "Go to Admin Ops → Users. Create or sync staff, parent, and student accounts. Assign roles and shops. Use the Directory tab to search and assign existing API Data Sync accounts."
       },
       "step2": {
         "title": "Manage Cards",

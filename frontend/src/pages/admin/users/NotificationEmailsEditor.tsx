@@ -78,7 +78,7 @@ export function NotificationEmailsEditor({ familyCode, syncedEmails, adminEmails
         <div className="flex items-center gap-2 text-sm font-medium">
           <Mail className="h-4 w-4 text-muted-foreground" />
           {t("admin.users.notificationEmails")}
-          <span className="text-xs text-muted-foreground">(PowerSchool family-level contacts)</span>
+          <span className="text-xs text-muted-foreground">(From API Data Sync)</span>
         </div>
         <div className="flex flex-wrap gap-1.5 mt-1.5">
           {syncedEmails.length === 0 && (

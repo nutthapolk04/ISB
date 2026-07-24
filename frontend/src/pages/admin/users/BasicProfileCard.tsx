@@ -186,7 +186,7 @@ export function BasicProfileCard({
             <Textarea
               value={extIdReason}
               onChange={(e) => onExtIdReasonChange(e.target.value)}
-              placeholder={t("admin.users.extIdReasonPlaceholder", "e.g. PowerSchool renumbered during annual rollover")}
+              placeholder={t("admin.users.extIdReasonPlaceholder", "e.g. API Data Sync renumbered during annual rollover")}
               rows={2}
             />
           </div>
