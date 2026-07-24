@@ -707,6 +707,15 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
         if (cardUid) updates.cardUid = cardUid;
         await db.update(customers).set(updates).where(eq(customers.id, existing!.id));
         custRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof customers.$inferSelect;
+
+        // Existing customer rows predating wallet auto-creation (or created
+        // through some other path) must still end up with a wallet on the
+        // next sync touch — the `created` branch above only covers brand-new
+        // rows, so this update branch needs its own check-then-insert too.
+        const walletExists = (await db.select({ id: wallets.id }).from(wallets).where(eq(wallets.customerId, existing!.id)).limit(1))[0];
+        if (!walletExists) {
+            await db.insert(wallets).values({ customerId: existing!.id, balance: "0", isActive: true });
+        }
     }
 
     const after = snapshot(custRow as unknown as Record<string, unknown>, CUSTOMER_AUDIT_FIELDS);

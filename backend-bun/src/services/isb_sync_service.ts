@@ -13,7 +13,7 @@
 
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { customers, departments, familyProfiles, parentChildLinks, syncLogs, userLoginEmails, users } from "@/db/schema";
+import { customers, departments, familyProfiles, parentChildLinks, syncLogs, userLoginEmails, users, wallets } from "@/db/schema";
 import { logger } from "@/logger";
 import { buildProfilePhotoUrl } from "@/services/isb_profile_photo_service";
 import {
@@ -353,10 +353,22 @@ export async function processFamilyBatch(families: IsbFamily[], triggeredById: n
         const familyCode = String(fam.familyCode);
 
         try {
-            // Family profile
+            // Family profile. When ISB reports no notification_emails for this
+            // family_code at all — the common case for a staff-only "family"
+            // (self-referential family_code, no real household) — fall back to
+            // that staff member's own SSO login email(s) rather than leaving
+            // notification_emails empty; it's the one real address already on
+            // file for them. Non-staff families with genuinely no notification
+            // emails on record still end up with an empty list, same as before.
+            const staffLogins = [fam.mainParent, fam.secondaryParent]
+                .filter((p): p is IsbParent => !!p && p.customerType === "Staff")
+                .flatMap((p) => p.login);
+            const effectiveNotificationEmails = fam.notificationEmails.length > 0
+                ? fam.notificationEmails
+                : staffLogins;
             await upsertFamilyProfile(
                 familyCode,
-                fam.notificationEmails,
+                effectiveNotificationEmails,
                 [...fam.mainParent.login, ...(fam.secondaryParent?.login ?? [])],
                 ctx,
             );
@@ -484,7 +496,9 @@ export async function processDepartmentBatch(depts: IsbDepartment[], triggeredBy
                 .where(eq(departments.departmentCode, code))
                 .limit(1);
 
+            let deptId: number;
             if (existing[0]) {
+                deptId = existing[0].id;
                 await db.update(departments).set({
                     departmentName: d.departmentDescription,
                     updatedAt: new Date().toISOString(),
@@ -495,14 +509,24 @@ export async function processDepartmentBatch(depts: IsbDepartment[], triggeredBy
                     isActive: true,
                 }).where(eq(departments.departmentCode, code));
             } else {
-                await db.insert(departments).values({
+                const [inserted] = await db.insert(departments).values({
                     departmentCode: code,
                     departmentName: d.departmentDescription,
                     annualBudget: "0",
                     currentYear,
                     isActive: true,
                     lastSyncedAt: new Date().toISOString(),
-                });
+                }).returning({ id: departments.id });
+                deptId = inserted.id;
+            }
+            // Unlike the admin-created path (department_service.ts::createDepartment,
+            // which creates the wallet inside the same transaction), a
+            // PowerSchool-synced department never got a wallet at all — check-
+            // then-insert here so both a brand-new and a pre-existing
+            // (predating this fix) department end up with one.
+            const walletExists = (await db.select({ id: wallets.id }).from(wallets).where(eq(wallets.departmentId, deptId)).limit(1))[0];
+            if (!walletExists) {
+                await db.insert(wallets).values({ departmentId: deptId, balance: "0", isActive: true });
             }
             success++;
         } catch (e) {

@@ -485,6 +485,7 @@
     "status": "Status",
     "statusActive": "Active",
     "statusVoided": "Voided",
+    "statusSale": "Sale",
     "totalSales": "Total Sales",
     "receiptCount": "Receipt Count",
     "todaySales": "Today's Sales",

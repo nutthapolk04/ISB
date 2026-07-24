@@ -485,6 +485,7 @@
     "status": "สถานะ",
     "statusActive": "ใช้งาน",
     "statusVoided": "ยกเลิกแล้ว",
+    "statusSale": "ขาย",
     "totalSales": "ยอดขายทั้งหมด",
     "receiptCount": "จำนวนใบเสร็จ",
     "todaySales": "ยอดขายวันนี้",

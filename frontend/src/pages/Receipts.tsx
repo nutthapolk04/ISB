@@ -220,6 +220,21 @@ const Receipts = () => {
     const safePage = Math.min(currentPage, totalPages);
     const pagedReceipts = filteredReceipts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+    // A voided receipt must show as its own two lines — the original sale
+    // AND its void reversal — instead of the single mutated-status row this
+    // page used to render (which made a receipt look like it was simply
+    // "voided" from the start, with the actual sale amount invisible).
+    // Mirrors report_service.ts::buildLegRow's sale/void leg convention
+    // (Daily Sales Report), just built client-side since /pos/receipt still
+    // returns one row per receipt — pagination stays receipt-count-based
+    // (PAGE_SIZE per page), only the final render expands voided ones to 2 rows.
+    type ReceiptLeg = { receipt: ReceiptApi; leg: "sale" | "void" };
+    const displayRows: ReceiptLeg[] = pagedReceipts.flatMap((receipt) =>
+        receipt.status === "voided"
+            ? [{ receipt, leg: "sale" as const }, { receipt, leg: "void" as const }]
+            : [{ receipt, leg: "sale" as const }],
+    );
+
     const todayStr = new Date().toISOString().slice(0, 10);
     const todaySales = receipts
         .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
@@ -370,10 +385,10 @@ const Receipts = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {pagedReceipts.map((receipt) => (
-                                    <TableRow key={receipt.id}>
+                                {displayRows.map(({ receipt, leg }) => (
+                                    <TableRow key={`${receipt.id}-${leg}`} className={leg === "void" ? "bg-destructive/5" : undefined}>
                                         <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
-                                        <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
+                                        <TableCell>{fmtDate(leg === "sale" ? receipt.transaction_date : (receipt.voided_at ?? receipt.transaction_date))}</TableCell>
                                         {!user?.shopId && (
                                             <TableCell className="text-sm">{receipt.shop_name ?? receipt.shop_id ?? "—"}</TableCell>
                                         )}
@@ -384,40 +399,50 @@ const Receipts = () => {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-sm">{receipt.payer_label ?? "—"}</TableCell>
-                                        <TableCell className="text-right font-semibold data-number">
-                                            ฿{receipt.total.toLocaleString()}
+                                        <TableCell className={cn("text-right font-semibold data-number", leg === "void" && "text-destructive")}>
+                                            {leg === "void" ? "-" : ""}฿{receipt.total.toLocaleString()}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant={receipt.status === "active" ? "success" : "destructive"}>
-                                                {receipt.status === "active"
-                                                    ? t("receipts.statusActive")
-                                                    : t("receipts.statusVoided")}
-                                            </Badge>
+                                            {leg === "sale" ? (
+                                                <Badge variant={receipt.status === "active" ? "success" : "secondary"}>
+                                                    {t("receipts.statusSale", "Sale")}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="destructive">
+                                                    {t("receipts.statusVoided")}
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <div className="flex gap-2 justify-center">
-                                                <IconButton
-                                                    tooltip={t("receipts.tooltip.view")}
-                                                    onClick={() => handleViewReceipt(receipt)}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </IconButton>
-                                                <IconButton
-                                                    tooltip={t("receipts.tooltip.download")}
-                                                    onClick={() => downloadReceiptHtml(receipt as unknown as LibReceiptApi, schoolInfo, receipt.shop_name ?? user?.shopName, "en")}
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                </IconButton>
-                                                {canVoid && receipt.status === "active" && (
+                                            {leg === "sale" ? (
+                                                <div className="flex gap-2 justify-center">
                                                     <IconButton
-                                                        tooltip={t("receipts.void", "Void")}
-                                                        onClick={() => setVoidTarget(receipt)}
-                                                        className="text-destructive hover:text-destructive"
+                                                        tooltip={t("receipts.tooltip.view")}
+                                                        onClick={() => handleViewReceipt(receipt)}
                                                     >
-                                                        <Ban className="h-4 w-4" />
+                                                        <Eye className="h-4 w-4" />
                                                     </IconButton>
-                                                )}
-                                            </div>
+                                                    <IconButton
+                                                        tooltip={t("receipts.tooltip.download")}
+                                                        onClick={() => downloadReceiptHtml(receipt as unknown as LibReceiptApi, schoolInfo, receipt.shop_name ?? user?.shopName, "en")}
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                    </IconButton>
+                                                    {canVoid && receipt.status === "active" && (
+                                                        <IconButton
+                                                            tooltip={t("receipts.void", "Void")}
+                                                            onClick={() => setVoidTarget(receipt)}
+                                                            className="text-destructive hover:text-destructive"
+                                                        >
+                                                            <Ban className="h-4 w-4" />
+                                                        </IconButton>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground italic">
+                                                    {receipt.voided_reason ?? "—"}
+                                                </span>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
