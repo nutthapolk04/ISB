@@ -64,6 +64,7 @@ export const updateFamilyProfile = {
     params: t.Object({ family_code: t.String() }),
     body: t.Object({
         notification_emails: t.Optional(t.Nullable(t.Array(t.String()))),
+        admin_notification_emails: t.Optional(t.Nullable(t.Array(t.String()))),
         login_ids: t.Optional(t.Nullable(t.Array(t.String()))),
     }),
     detail: { tags: ["Admin"], summary: "Update family notification profile" },

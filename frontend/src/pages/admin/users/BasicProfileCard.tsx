@@ -72,7 +72,10 @@ export function BasicProfileCard({
             ) : (
               <div className="space-y-0.5">
                 <p className="text-sm">{user.email || <span className="text-muted-foreground italic">—</span>}</p>
-                {(user.family_profile?.notification_emails ?? []).map((e) => (
+                {[
+                  ...(user.family_profile?.notification_emails ?? []),
+                  ...(user.family_profile?.admin_notification_emails ?? []),
+                ].map((e) => (
                   <p key={e} className="text-sm text-muted-foreground">{e}</p>
                 ))}
               </div>

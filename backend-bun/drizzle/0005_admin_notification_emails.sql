@@ -1,0 +1,1 @@
+ALTER TABLE "family_profiles" ADD COLUMN "admin_notification_emails" jsonb DEFAULT '[]'::jsonb NOT NULL;

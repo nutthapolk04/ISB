@@ -46,6 +46,7 @@ public class MainActivity extends BridgeActivity {
         controller.hide(
                 WindowInsetsCompat.Type.statusBars()
                         | WindowInsetsCompat.Type.navigationBars()
+                            | WindowInsetsCompat.Type.systemBars()
         );
 
         controller.setSystemBarsBehavior(
@@ -63,6 +64,7 @@ public class MainActivity extends BridgeActivity {
         controller.hide(
                 WindowInsetsCompat.Type.statusBars()
                         | WindowInsetsCompat.Type.navigationBars()
+                            | WindowInsetsCompat.Type.systemBars()
         );
     }
 
@@ -77,6 +79,7 @@ public class MainActivity extends BridgeActivity {
             controller.hide(
                     WindowInsetsCompat.Type.statusBars()
                             | WindowInsetsCompat.Type.navigationBars()
+                                | WindowInsetsCompat.Type.systemBars()
             );
         }
     }

@@ -1262,6 +1262,12 @@ export const roles = pgTable("roles", {
 export const familyProfiles = pgTable("family_profiles", {
 	familyCode: varchar("family_code", { length: 20 }).primaryKey().notNull(),
 	notificationEmails: jsonb("notification_emails").default([]).notNull(),
+	// Admin-added contacts, kept separate from notificationEmails on purpose —
+	// that column is blanket-overwritten every sync round by
+	// upsertFamilyProfile() (powerschool_sync.ts) with whatever PowerSchool
+	// reports, which has no concept of these at all. Never referenced from
+	// sync code, so it survives every sync round untouched.
+	adminNotificationEmails: jsonb("admin_notification_emails").default([]).notNull(),
 	loginIds: jsonb("login_ids").default([]).notNull(),
 	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),

@@ -68,7 +68,8 @@ export function FamilyGroupCard({ familyCode, members, familyProfile, onProfileU
 
         <NotificationEmailsEditor
           familyCode={familyCode}
-          emails={familyProfile?.notification_emails || []}
+          syncedEmails={familyProfile?.notification_emails || []}
+          adminEmails={familyProfile?.admin_notification_emails || []}
           loginIds={familyProfile?.login_ids || []}
           onUpdated={onProfileUpdated}
         />

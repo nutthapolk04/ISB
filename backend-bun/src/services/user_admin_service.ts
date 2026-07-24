@@ -245,6 +245,7 @@ export interface FamilyMemberDTO {
 export interface FamilyProfileDTO {
     family_code: string;
     notification_emails: string[];
+    admin_notification_emails: string[];
     login_ids: string[];
     last_synced_at: string | null;
 }
@@ -418,6 +419,7 @@ async function getFamilyProfile(family_code: string | null): Promise<FamilyProfi
     return {
         family_code: fp.familyCode,
         notification_emails: Array.isArray(fp.notificationEmails) ? (fp.notificationEmails as string[]) : [],
+        admin_notification_emails: Array.isArray(fp.adminNotificationEmails) ? (fp.adminNotificationEmails as string[]) : [],
         login_ids: Array.isArray(fp.loginIds) ? (fp.loginIds as string[]) : [],
         last_synced_at: pgToIso(fp.lastSyncedAt),
     };
@@ -723,6 +725,7 @@ export async function getUserFamily(callerRoles: string[], userId: number): Prom
 
 export interface FamilyProfileUpdateDTO {
     notification_emails?: string[] | null;
+    admin_notification_emails?: string[] | null;
     login_ids?: string[] | null;
 }
 
@@ -744,6 +747,9 @@ export async function updateFamilyProfile(
         const updates: Partial<typeof familyProfiles.$inferInsert> = {};
         if (Object.prototype.hasOwnProperty.call(payload, "notification_emails")) {
             updates.notificationEmails = (payload.notification_emails ?? []) as unknown as never;
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, "admin_notification_emails")) {
+            updates.adminNotificationEmails = (payload.admin_notification_emails ?? []) as unknown as never;
         }
         if (Object.prototype.hasOwnProperty.call(payload, "login_ids")) {
             updates.loginIds = (payload.login_ids ?? []) as unknown as never;
@@ -767,6 +773,7 @@ export async function updateFamilyProfile(
             .values({
                 familyCode,
                 notificationEmails: (payload.notification_emails ?? []) as unknown as never,
+                adminNotificationEmails: (payload.admin_notification_emails ?? []) as unknown as never,
                 loginIds: (payload.login_ids ?? []) as unknown as never,
                 // lastSyncedAt: sql`NOW()` as unknown as string,
             })
@@ -777,6 +784,7 @@ export async function updateFamilyProfile(
     return {
         family_code: row.familyCode,
         notification_emails: Array.isArray(row.notificationEmails) ? (row.notificationEmails as string[]) : [],
+        admin_notification_emails: Array.isArray(row.adminNotificationEmails) ? (row.adminNotificationEmails as string[]) : [],
         login_ids: Array.isArray(row.loginIds) ? (row.loginIds as string[]) : [],
         last_synced_at: pgToIso(row.lastSyncedAt),
     };

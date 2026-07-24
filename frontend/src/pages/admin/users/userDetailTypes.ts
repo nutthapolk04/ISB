@@ -27,6 +27,7 @@ export interface IdentityHistoryItem {
 export interface FamilyProfileData {
   family_code: string;
   notification_emails: string[];
+  admin_notification_emails: string[];
   login_ids: string[];
   last_synced_at: string | null;
 }

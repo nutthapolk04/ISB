@@ -423,6 +423,7 @@ export default function CardholderList() {
                 <TableHead className="w-24">{t("cardholders.colKind", "Type")}</TableHead>
                 <TableHead className="w-44">{t("cardholders.colIdentifier", "ID Number")}</TableHead>
                 <TableHead className="w-28">{t("cardholders.colFamily", "Family Code")}</TableHead>
+                <TableHead className="w-28">{t("cardholders.colIsbId", "ISB ID")}</TableHead>
                 <TableHead className="w-28">{t("cardholders.colCard", "Card UID")}</TableHead>
                 <TableHead className="w-28 text-right">{t("cardholders.colBalance", "Wallet Balance")}</TableHead>
                 <TableHead className="w-20">{t("cardholders.colStatus", "Status")}</TableHead>
@@ -433,7 +434,7 @@ export default function CardholderList() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
                     {t("common.loading", "Loading…")}
                   </TableCell>
@@ -441,7 +442,7 @@ export default function CardholderList() {
               )}
               {!loading && items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-6 text-muted-foreground">
                     {t("cardholders.noResults")}
                   </TableCell>
                 </TableRow>
@@ -500,6 +501,10 @@ export default function CardholderList() {
                     {/* Family Code */}
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {c.family_code ?? "—"}
+                    </TableCell>
+                    {/* ISB ID */}
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {c.external_id ?? "—"}
                     </TableCell>
                     {/* Card UID */}
                     <TableCell className="font-mono text-xs">
@@ -563,7 +568,7 @@ export default function CardholderList() {
 
                 const expandRow = (
                   <TableRow key={`${c.key}-exp`} className="bg-muted/20 hover:bg-muted/20">
-                    <TableCell colSpan={10} className="px-6 pb-4 pt-2">
+                    <TableCell colSpan={11} className="px-6 pb-4 pt-2">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
