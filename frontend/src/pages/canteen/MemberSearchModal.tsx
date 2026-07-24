@@ -274,11 +274,11 @@ export function MemberSearchModal({
           // Selected member detail view
           <div className="space-y-4">
             {/* Member card */}
-            <div className="flex gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="h-40 w-40 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300">
+            <div className="flex flex-col sm:flex-row gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+              <div className="h-24 w-24 sm:h-40 sm:w-40 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300 mx-auto sm:mx-0">
                 {selectedMember.customer_kind === "department" ? (
                   <div className="flex h-full w-full items-center justify-center text-rose-500">
-                    <Building2 className="h-20 w-20" />
+                    <Building2 className="h-12 w-12 sm:h-20 sm:w-20" />
                   </div>
                 ) : (
                   <img
@@ -289,18 +289,18 @@ export function MemberSearchModal({
                   />
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xl font-bold truncate">
+              <div className="min-w-0 flex-1 text-center sm:text-left">
+                <div className="text-lg sm:text-xl font-bold break-words">
                   {selectedMember.name}
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground break-words">
                   {selectedMember.customer_kind === "department"
                     ? selectedMember.customer_code
                     : idLineFor(selectedMember)}
                   {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
                 </div>
                 {selectedMember.customer_kind !== "department" && selectedMember.family_code && (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground break-words">
                     Family: {selectedMember.family_code}
                   </div>
                 )}
