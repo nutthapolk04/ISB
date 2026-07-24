@@ -1279,6 +1279,12 @@
     "walletTransfer": {
       "title": "โอนเงินระหว่างกระเป๋า",
       "description": "โอนเงินระหว่างกระเป๋าคู่ไหนก็ได้ — ค้นหาผู้ใช้งาน หรือโอนภายในครอบครัวของเขา",
+      "reportOnlyDescription": "รายงานประวัติการโอนเงินระหว่างกระเป๋าทั้งหมด (ดูอย่างเดียว)",
+      "filterSearch": "ค้นหา (ชื่อ / รหัส / ผู้ทำรายการ)",
+      "filterSearchPlaceholder": "เช่น สมชาย หรือ 202266",
+      "filterAmountMin": "ยอดขั้นต่ำ",
+      "filterAmountMax": "ยอดสูงสุด",
+      "filterAmountMaxPlaceholder": "ไม่จำกัด",
       "searchTitle": "ค้นหาผู้ใช้งาน",
       "searchPlaceholder": "กรอกรหัสผู้ใช้งาน / รหัสพนักงาน / รหัสผู้ปกครอง / รหัสนักเรียน",
       "search": "ค้นหา",

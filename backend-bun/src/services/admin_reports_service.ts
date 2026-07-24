@@ -2,7 +2,7 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
     walletTransactions,
@@ -207,29 +207,12 @@ export interface TransferReportResponseDTO {
     pages: number;
 }
 
-async function resolveWalletNameCode(walletId: number | null): Promise<{ name: string; code: string }> {
-    if (!walletId) return { name: "—", code: "—" };
-    const wRows = await db.select().from(wallets).where(eq(wallets.id, walletId)).limit(1);
-    const w = wRows[0];
-    if (!w) return { name: "—", code: "—" };
-    if (w.customerId !== null) {
-        const cr = await db.select().from(customers).where(eq(customers.id, w.customerId)).limit(1);
-        if (cr[0]) return { name: cr[0].name, code: cr[0].studentCode ?? cr[0].customerCode };
-    }
-    if (w.userId !== null) {
-        const ur = await db.select().from(users).where(eq(users.id, w.userId)).limit(1);
-        if (ur[0]) return { name: ur[0].fullName || ur[0].username, code: ur[0].username };
-    }
-    if (w.departmentId !== null) {
-        const dr = await db.select().from(departments).where(eq(departments.id, w.departmentId)).limit(1);
-        if (dr[0]) return { name: dr[0].departmentName, code: dr[0].departmentCode };
-    }
-    return { name: "—", code: "—" };
-}
-
 export async function transferReport(args: {
     dateFrom?: string | null;
     dateTo?: string | null;
+    q?: string | null;
+    amountMin?: number | null;
+    amountMax?: number | null;
     sortOrder?: string | null;
     page: number;
     pageSize: number;
@@ -251,9 +234,8 @@ export async function transferReport(args: {
         end.setUTCDate(end.getUTCDate() + 1);
         conds.push(lt(walletTransactions.createdAt, end.toISOString()));
     }
-    // total
-    const totalRows = await db.select({ id: walletTransactions.id }).from(walletTransactions).where(and(...conds));
-    const total = totalRows.length;
+    if (args.amountMin != null) conds.push(gte(walletTransactions.amount, String(args.amountMin)));
+    if (args.amountMax != null) conds.push(lte(walletTransactions.amount, String(args.amountMax)));
 
     const rows = await db
         .select()
@@ -262,24 +244,67 @@ export async function transferReport(args: {
         .orderBy(
             sortOrder === "asc" ? asc(walletTransactions.createdAt) : desc(walletTransactions.createdAt),
             sortOrder === "asc" ? asc(walletTransactions.id) : desc(walletTransactions.id),
-        )
-        .offset((args.page - 1) * args.pageSize)
-        .limit(args.pageSize);
+        );
 
+    // Batch-prefetch every wallet + owner (customer/user/department) this
+    // result set could need, same reasoning as adjustmentReport above — one
+    // SELECT per row per side (from + to + creator) would be 3N+ queries.
+    const walletIds = [...new Set(rows.flatMap((r) => [r.walletId, r.referenceId]).filter((id): id is number => id !== null))];
+    const walletRows = walletIds.length > 0 ? await db.select().from(wallets).where(inArray(wallets.id, walletIds)) : [];
+    const walletById = new Map(walletRows.map((w) => [w.id, w] as const));
+
+    const customerIds = [...new Set(walletRows.filter((w) => w.customerId !== null).map((w) => w.customerId!))];
+    const walletUserIds = [...new Set(walletRows.filter((w) => w.userId !== null).map((w) => w.userId!))];
+    const departmentIds = [...new Set(walletRows.filter((w) => w.departmentId !== null).map((w) => w.departmentId!))];
+    const creatorIds = [...new Set(rows.map((r) => r.createdBy))];
+    const allUserIds = [...new Set([...walletUserIds, ...creatorIds])];
+
+    const [customerRows, userRows, departmentRows] = await Promise.all([
+        customerIds.length > 0 ? db.select().from(customers).where(inArray(customers.id, customerIds)) : Promise.resolve([]),
+        allUserIds.length > 0 ? db.select().from(users).where(inArray(users.id, allUserIds)) : Promise.resolve([]),
+        departmentIds.length > 0 ? db.select().from(departments).where(inArray(departments.id, departmentIds)) : Promise.resolve([]),
+    ]);
+    const customerById = new Map(customerRows.map((c) => [c.id, c] as const));
+    const userById = new Map(userRows.map((u) => [u.id, u] as const));
+    const departmentById = new Map(departmentRows.map((d) => [d.id, d] as const));
+
+    function resolveWalletNameCode(walletId: number | null): { name: string; code: string } {
+        if (walletId === null) return { name: "—", code: "—" };
+        const w = walletById.get(walletId);
+        if (!w) return { name: "—", code: "—" };
+        if (w.customerId !== null) {
+            const c = customerById.get(w.customerId);
+            if (c) return { name: c.name, code: c.studentCode ?? c.customerCode };
+        }
+        if (w.userId !== null) {
+            const u = userById.get(w.userId);
+            if (u) return { name: u.fullName || u.username, code: u.username };
+        }
+        if (w.departmentId !== null) {
+            const d = departmentById.get(w.departmentId);
+            if (d) return { name: d.departmentName, code: d.departmentCode };
+        }
+        return { name: "—", code: "—" };
+    }
+
+    const q = args.q?.trim().toLowerCase() || null;
     const items: TransferReportRow[] = [];
     for (const tx of rows) {
-        const from = await resolveWalletNameCode(tx.walletId);
-        const to = await resolveWalletNameCode(tx.referenceId);
+        const from = resolveWalletNameCode(tx.walletId);
+        const to = resolveWalletNameCode(tx.referenceId);
         let note: string | null = null;
         if (tx.description && tx.description.includes(" — ")) {
             const parts = tx.description.split(" — ");
             note = parts[1]?.trim() || null;
         }
-        let by = "—";
-        if (tx.createdBy) {
-            const ur = await db.select({ fullName: users.fullName, username: users.username }).from(users).where(eq(users.id, tx.createdBy)).limit(1);
-            if (ur[0]) by = ur[0].fullName || ur[0].username;
+        const creator = tx.createdBy ? userById.get(tx.createdBy) : undefined;
+        const by = creator ? (creator.fullName || creator.username) : "—";
+
+        if (q) {
+            const haystack = [from.name, from.code, to.name, to.code, by, note ?? ""].join(" ").toLowerCase();
+            if (!haystack.includes(q)) continue;
         }
+
         items.push({
             id: tx.id,
             created_at: pgToIso(tx.createdAt)!,
@@ -293,8 +318,12 @@ export async function transferReport(args: {
         });
     }
 
+    const total = items.length;
+    const offset = (args.page - 1) * args.pageSize;
+    const pageItems = items.slice(offset, offset + args.pageSize);
+
     return {
-        items,
+        items: pageItems,
         total,
         page: args.page,
         pages: Math.max(1, Math.ceil(total / args.pageSize)),

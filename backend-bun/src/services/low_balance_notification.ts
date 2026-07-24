@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { parentChildLinks, users, customers, emailAlertsLog } from "@/db/schema";
 import { eq, and, gte, inArray } from "drizzle-orm";
-import { sendEmail } from "./email_service";
+import { emailDeliveryStatusFromError, sendEmail } from "./email_service";
 import { getRaw } from "./settings_service";
 
 /** Called immediately after POS checkout — queues a pending alert if needed. */
@@ -105,8 +105,9 @@ export async function sendPendingLowBalanceAlerts(): Promise<void> {
         try {
             await sendEmail(row.recipientEmail, row.subject, html);
         } catch (err) {
-            status = "failed";
-            errorMessage = err instanceof Error ? err.message : String(err);
+            const mapped = emailDeliveryStatusFromError(err);
+            status = mapped.status;
+            errorMessage = mapped.errorMessage;
         }
 
         await db

@@ -21,6 +21,9 @@ export const adminTransferReport = {
     query: t.Object({
         date_from: t.Optional(t.Nullable(t.String())),
         date_to: t.Optional(t.Nullable(t.String())),
+        q: t.Optional(t.Nullable(t.String())),
+        amount_min: t.Optional(t.Nullable(t.String())),
+        amount_max: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
         ...sortOrderQuery,

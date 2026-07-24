@@ -1279,6 +1279,12 @@
     "walletTransfer": {
       "title": "Wallet Transfer",
       "description": "Transfer balance between any two wallets — search for a user, or transfer within their family",
+      "reportOnlyDescription": "Read-only history of every wallet-to-wallet transfer.",
+      "filterSearch": "Search (name / code / by)",
+      "filterSearchPlaceholder": "e.g. Somchai or 202266",
+      "filterAmountMin": "Min amount",
+      "filterAmountMax": "Max amount",
+      "filterAmountMaxPlaceholder": "No limit",
       "searchTitle": "Look up user",
       "searchPlaceholder": "Enter username / staff code / parent code / student code",
       "search": "Search",

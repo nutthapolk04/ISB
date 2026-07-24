@@ -51,6 +51,9 @@ export const AdminReportsController = {
             const result = await transferReport({
                 dateFrom: query.date_from ?? null,
                 dateTo: query.date_to ?? null,
+                q: query.q ?? null,
+                amountMin: query.amount_min ? Number(query.amount_min) : null,
+                amountMax: query.amount_max ? Number(query.amount_max) : null,
                 sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,

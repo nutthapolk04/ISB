@@ -16,7 +16,7 @@
 import { and, desc, eq, inArray, isNotNull, lt, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, kioskCustodians, emailAlertsLog } from "@/db/schema";
-import { sendEmail } from "./email_service";
+import { emailDeliveryStatusFromError, sendEmail } from "./email_service";
 import { requireKiosk } from "./kiosk_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -66,8 +66,9 @@ async function logAndSendAlert(args: {
     try {
         await sendEmail(args.recipientEmail, args.subject, args.html);
     } catch (err) {
-        status = "failed";
-        errorMessage = err instanceof Error ? err.message : String(err);
+        const mapped = emailDeliveryStatusFromError(err);
+        status = mapped.status;
+        errorMessage = mapped.errorMessage;
     }
     await db.insert(emailAlertsLog).values({
         alertType: args.alertType,

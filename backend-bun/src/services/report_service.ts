@@ -197,65 +197,104 @@ export async function salesByPaymentReport(args: {
     const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
     const { start, end } = dateRange(args.dateFrom, args.dateTo);
 
-    // No status filter — voided receipts show as their own rows (tagged via
-    // `status`) but are excluded from grand/retail/dept totals below.
-    const conds = [
-        gte(receipts.transactionDate, start),
-        lte(receipts.transactionDate, end),
-    ];
+    // "Sale leg + void leg" — same convention as salesSummaryReport's
+    // buildLegRow (Daily Sales Report), which the ACTIVE/VOIDED grouping this
+    // used to do here got wrong. `receipts.status` is a single field that
+    // flips ACTIVE→VOIDED in place, so grouping raw receipts by their CURRENT
+    // status double-removes a voided receipt's amount: once by omission (it
+    // no longer groups into "ACTIVE" since its status isn't ACTIVE anymore),
+    // and again via the explicit negative VOIDED row meant to reverse it.
+    // The sale leg below counts every receipt's ORIGINAL amount regardless of
+    // current status (so a later void never shrinks it), and the void leg is
+    // a separate, additional reversal — exactly mirroring how the sale
+    // actually happened, so the two legs net to the correct total together.
+    const scopeConds: SQL[] = [];
     if (effectiveShopId) {
-        conds.push(eq(receipts.shopId, effectiveShopId));
+        scopeConds.push(eq(receipts.shopId, effectiveShopId));
     } else if (effMod) {
         const ids = await moduleShopIds(effMod);
-        if (ids.length > 0) conds.push(inArray(receipts.shopId, ids));
+        if (ids.length > 0) scopeConds.push(inArray(receipts.shopId, ids));
     }
 
-    const agg = await db
+    const aggregateBy = (dateConds: SQL[], extraConds: SQL[]) => db
         .select({
             payment_method: receipts.paymentMethod,
             receipt_count: sql<string>`COUNT(${receipts.id})`,
             total: sql<string>`SUM(${receipts.total})`,
             shop_id: receipts.shopId,
             shop_name: shops.name,
-            status: receipts.status,
         })
         .from(receipts)
         .innerJoin(shops, eq(shops.id, receipts.shopId))
-        .where(and(...conds))
-        .groupBy(receipts.shopId, shops.name, receipts.paymentMethod, receipts.status)
+        .where(and(...scopeConds, ...dateConds, ...extraConds))
+        .groupBy(receipts.shopId, shops.name, receipts.paymentMethod)
         .orderBy(sql`MAX(${receipts.transactionDate}) DESC`, asc(shops.name), sql`SUM(${receipts.total}) DESC`);
+
+    // Sale leg: every receipt sold in range, regardless of whether it was
+    // later voided — this is the "as it originally happened" amount, dated
+    // by when the sale itself happened.
+    const saleAgg = await aggregateBy(
+        [gte(receipts.transactionDate, start), lte(receipts.transactionDate, end)],
+        [],
+    );
+    // Void leg: only the ones that were in fact voided — the reversal, dated
+    // by when the VOID happened (not the original sale). A void from a
+    // different day than its sale must land on ITS OWN day's report, same
+    // as salesSummaryReport's voidedAtInRange/voidOnlyRows split — otherwise
+    // a same-day report for the sale would already show the pair netting to
+    // zero while the void's own day shows nothing at all.
+    const voidAgg = await aggregateBy(
+        [gte(receipts.voidedAt, start), lte(receipts.voidedAt, end)],
+        [eq(receipts.status, "VOIDED")],
+    );
 
     let grand = 0;
     let totalRec = 0;
     let retail = 0;
     let dept = 0;
     let deptRec = 0;
-    const rows: SalesByPaymentRow[] = agg.map((r) => {
+
+    const addTotals = (paymentMethod: string, count: number, signedTotal: number) => {
+        grand += signedTotal;
+        totalRec += count;
+        if (paymentMethod === "DEPARTMENT") {
+            dept += signedTotal;
+            deptRec += count;
+        } else {
+            retail += signedTotal;
+        }
+    };
+
+    const rows: SalesByPaymentRow[] = [];
+    for (const r of saleAgg) {
         const total = pgNumber(r.total) ?? 0;
         const count = Number(r.receipt_count) || 0;
-        if (r.status === "ACTIVE") {
-            grand += total;
-            totalRec += count;
-            if (r.payment_method === "DEPARTMENT") {
-                dept += total;
-                deptRec += count;
-            } else {
-                retail += total;
-            }
-        }
-        return {
+        addTotals(r.payment_method, count, total);
+        rows.push({
             payment_method: r.payment_method,
             receipt_count: count,
-            // VOIDED rows show as a negative amount (a reversal of the sale) so a
-            // per-method subtotal that sums every row nets to the correct total —
-            // receipts.total itself is always stored positive regardless of
-            // status, so the sign has to be applied here.
-            total: r.status === "VOIDED" ? -total : total,
+            total,
             shop_id: r.shop_id ?? "",
             shop_name: r.shop_name,
-            status: r.status,
-        };
-    });
+            status: "ACTIVE",
+        });
+    }
+    for (const r of voidAgg) {
+        const total = pgNumber(r.total) ?? 0;
+        const count = Number(r.receipt_count) || 0;
+        // Reversal — negative, and counted toward totals a second time (on
+        // top of the sale leg's already-counted original amount) so the two
+        // legs net together, same as a real void does to the actual balance.
+        addTotals(r.payment_method, 0, -total);
+        rows.push({
+            payment_method: r.payment_method,
+            receipt_count: count,
+            total: -total,
+            shop_id: r.shop_id ?? "",
+            shop_name: r.shop_name,
+            status: "VOIDED",
+        });
+    }
 
     return {
         date_from: args.dateFrom,

@@ -10,7 +10,7 @@ import {
     setSchoolSettings,
     setValue,
 } from "@/services/settings_service";
-import { sendEmail } from "@/services/email_service";
+import { EmailNotConfiguredError, sendEmail } from "@/services/email_service";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -119,6 +119,10 @@ export const AdminSettingsController = {
             logger.info(`[${reqContext.requestId} (AS-05)] AdminSettingsController.testEmail() completed.`);
             return successResponse(reqContext, { sent: true, to }, ResponseStatus.OK);
         } catch (e) {
+            if (e instanceof EmailNotConfiguredError) {
+                logger.warn(`[${reqContext.requestId} (AS-05)] AdminSettingsController.testEmail() SMTP not configured.`);
+                return errorResponse(reqContext, e.message, ResponseStatus.SERVICE_UNAVAILABLE);
+            }
             logger.error(`[${reqContext.requestId} (AS-05)] AdminSettingsController.testEmail() error:`, e);
             return errorResponse(
                 reqContext,
