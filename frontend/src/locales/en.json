@@ -1795,7 +1795,7 @@
     },
     "memberSearch": {
       "title": "Search Member",
-      "placeholder": "Name / Student code / Username / Card / Family code...",
+      "placeholder": "Name / Card ID / External ID / Family code...",
       "minChars": "Type at least 2 characters to search",
       "noResults": "No results found",
       "error": "An error occurred",
@@ -2231,6 +2231,7 @@
     "colName": "Name",
     "colKind": "Type",
     "colIdentifier": "ID Number",
+    "colExternalId": "External ID",
     "colFamily": "Family Code",
     "colIsbId": "ISB ID",
     "colCard": "Card UID",

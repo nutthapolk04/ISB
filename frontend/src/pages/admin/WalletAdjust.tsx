@@ -467,7 +467,11 @@ export default function WalletAdjust() {
             </Card>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent>
+                <DialogContent
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                    onInteractOutside={(e) => e.preventDefault()}
+                    onEscapeKeyDown={(e) => e.preventDefault()}
+                >
                     <DialogHeader>
                         <DialogTitle>{t("admin.walletAdjust.dialogTitle", { name: selected?.name ?? "" })}</DialogTitle>
                         <DialogDescription>

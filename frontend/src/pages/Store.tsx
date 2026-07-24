@@ -699,18 +699,7 @@ const Store = () => {
                         options: [],
                     })),
                 })}
-                onPaid={(info) => {
-                    checkout.setQrOpen(false);
-                    checkout.setLastReceipt({
-                        receiptNumber: info.receiptNumber ?? "",
-                        amount: checkout.total,
-                        remainingBalance: undefined,
-                        studentName: null,
-                        studentPhotoUrl: null,
-                        studentGrade: null,
-                    });
-                    checkout.setSuccessOpen(true);
-                }}
+                onPaid={checkout.handleQrConfirmed}
                 onIntentReady={(info) => {
                     if (info) {
                         display.qr({

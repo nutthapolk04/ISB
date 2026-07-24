@@ -142,8 +142,27 @@ const METHOD_META: Record<string, { label: string; icon: React.ReactNode; color:
     },
 };
 
+// Raw receipts.payment_method enum values collapse into these six visual
+// buckets — mirrors report_service.ts's RECEIVE_TYPE_GROUPS server-side
+// grouping so this breakdown matches the Sales by Payment Method report
+// instead of showing e.g. BANK_TRANSFER and QR_PROMPTPAY as separate,
+// unstyled "Bank_transfer" / "Qr_promptpay" rows.
+const METHOD_BUCKET: Record<string, string> = {
+    cash: "cash",
+    wallet: "wallet",
+    card_tap: "wallet",
+    credit_card: "edc",
+    debit_card: "edc",
+    edc: "edc",
+    bank_transfer: "qr",
+    qr_promptpay: "qr",
+    qr: "qr",
+    department: "department",
+    other: "other",
+};
+
 function getMethodMeta(method: PaymentMethodKey) {
-    const key = method.toLowerCase();
+    const key = METHOD_BUCKET[method.toLowerCase()] ?? method.toLowerCase();
     return METHOD_META[key] ?? {
         label: method.charAt(0).toUpperCase() + method.slice(1),
         icon: <CreditCard className="h-4 w-4" />,
@@ -152,6 +171,24 @@ function getMethodMeta(method: PaymentMethodKey) {
         border: "border-gray-200",
         bar: "bg-gray-400",
     };
+}
+
+/** Sum same-bucket rows (e.g. BANK_TRANSFER + QR_PROMPTPAY) into one row so
+ * the breakdown shows a single "QR Code" bar/line instead of a fragmented
+ * one per raw enum value. */
+function bucketRows(rows: SalesByPaymentRow[]): SalesByPaymentRow[] {
+    const byBucket = new Map<string, SalesByPaymentRow>();
+    for (const row of rows) {
+        const key = METHOD_BUCKET[row.payment_method.toLowerCase()] ?? row.payment_method.toLowerCase();
+        const existing = byBucket.get(key);
+        if (existing) {
+            existing.receipt_count += row.receipt_count;
+            existing.total += row.total;
+        } else {
+            byBucket.set(key, { ...row, payment_method: key });
+        }
+    }
+    return Array.from(byBucket.values());
 }
 
 // ---------------------------------------------------------------------------
@@ -359,8 +396,8 @@ export default function ShopDashboard() {
                         // (voiding a receipt never negates its stored total), so splitting
                         // on `total > 0` put both in the "positive" bucket and rendered as
                         // two duplicate bars for the same channel (e.g. two "Cash" rows).
-                        const positiveRows = [...allRows.filter((r) => r.status === "ACTIVE" && r.total > 0)].sort((a, b) => b.total - a.total);
-                        const negativeRows = [...allRows.filter((r) => r.status !== "ACTIVE" || r.total <= 0)].sort((a, b) => a.total - b.total);
+                        const positiveRows = bucketRows(allRows.filter((r) => r.status === "ACTIVE" && r.total > 0)).sort((a, b) => b.total - a.total);
+                        const negativeRows = bucketRows(allRows.filter((r) => r.status !== "ACTIVE" || r.total <= 0)).sort((a, b) => a.total - b.total);
                         // Use sum of positive channel totals as denominator so bars are meaningful even when returns exist
                         const positiveTotal = positiveRows.reduce((s, r) => s + r.total, 0);
                         return (

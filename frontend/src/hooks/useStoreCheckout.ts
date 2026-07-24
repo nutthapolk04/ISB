@@ -605,8 +605,79 @@ export function useStoreCheckout({
     const handleConfirmWallet = (payer: WalletPayer) => doCheckout("wallet", { payer });
     const handleConfirmCash = (cashReceived: number) =>
         doCheckout("cash", { cashReceived });
-    // QR PromptPay now lives entirely inside QrPaymentModal (BAY intent +
-    // polling + auto-receipt via webhook). handleConfirmQr no longer needed.
+    // QR PromptPay lives entirely inside QrPaymentModal (BAY intent + polling
+    // + auto-receipt via webhook) — the receipt is already created server-side
+    // by the time this fires, so this only runs the same "success tail"
+    // doCheckout() runs after its own /pos/checkout call: fetch the full
+    // receipt for printing, auto-print, sync local stock, reset the cart, and
+    // notify the customer display. Without this, none of that ran — the cart
+    // stayed populated and auto-print never fired after a QR payment.
+    const handleQrConfirmed = async (info: { refCode: string; receiptId: number | null; receiptNumber: string | null }) => {
+        setQrOpen(false);
+        const displayMethod = paymentMethodForDisplay("qr");
+
+        let full: ReceiptApi | null = null;
+        if (info.receiptId != null) {
+            try {
+                full = await api.get<ReceiptApi>(`/pos/receipt/${info.receiptId}`);
+            } catch {
+                // BAY already confirmed the payment and the backend created the
+                // receipt — this lookup is only needed for printing/local stock
+                // sync, so a failure here shouldn't block the success screen.
+            }
+        }
+        const amount = full?.total ?? total;
+        const receiptNumber = info.receiptNumber ?? full?.receipt_number ?? "";
+
+        setLastReceipt({
+            receiptNumber,
+            amount,
+            remainingBalance: undefined,
+            studentName: null,
+            studentPhotoUrl: null,
+            studentGrade: null,
+        });
+
+        if (autoPrint && full) {
+            try {
+                printReceipt(full, schoolInfo, shopName, "en", shopReceipt ?? undefined);
+            } catch (printErr) {
+                console.warn("Auto-print failed:", printErr);
+            }
+        }
+
+        // Refresh stock locally (skip bundles — they use a sentinel stock value)
+        setAllProducts((prev) =>
+            prev.map((p) => {
+                if (p.isBundle) return p;
+                const inCart = cart.find((c) => c.id === p.id);
+                return inCart ? { ...p, stock: p.stock - inCart.quantity } : p;
+            }),
+        );
+
+        // Reset cart + close all payment modals + open success — same tail as doCheckout.
+        setCart([]);
+        setLastAddedId(null);
+        setRequesterUserId(null);
+        setBillDiscountValue("");
+        setBillDiscountMode("amount");
+        setReceiptNote("");
+        setPreSelectedMember(null);
+        setMethodPickerOpen(false);
+        setWalletOpen(false);
+        setCashOpen(false);
+        setDeptOpen(false);
+        setEdcOpen(false);
+        setSuccessOpen(true);
+        setChipRefreshKey((k) => k + 1);
+
+        display.success({
+            total: amount,
+            payer: null,
+            method: displayMethod,
+            receiptNumber,
+        });
+    };
     const handleConfirmDept = (deptId: number, empCode: string | null) =>
         doCheckout("department", { deptId, empCode });
     const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) =>
@@ -676,6 +747,7 @@ export function useStoreCheckout({
         handleBackToPicker,
         handleConfirmWallet,
         handleConfirmCash,
+        handleQrConfirmed,
         handleConfirmDept,
         handleConfirmEdc,
         availableMethods,

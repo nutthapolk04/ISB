@@ -36,6 +36,7 @@ export const CustomerController = {
 			const result = await searchCustomers({
 				q: query.q,
 				limit: query.limit ? Number(query.limit) : undefined,
+				narrow: query.narrow === "1" || query.narrow === "true",
 			});
 			logger.info(`[${reqContext.requestId} (CU-01)] CustomerController.search() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

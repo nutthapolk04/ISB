@@ -4,6 +4,9 @@ export const searchCustomers = {
     query: t.Object({
         q: t.String({ minLength: 1 }),
         limit: t.Optional(t.Nullable(t.String())),
+        // "1"/"true" — restrict matching to name + family_code + external_id
+        // + card_uid only (used by the POS member-search box; see searchCustomers()).
+        narrow: t.Optional(t.Nullable(t.String())),
     }),
     detail: {
         tags: ["Customers"],

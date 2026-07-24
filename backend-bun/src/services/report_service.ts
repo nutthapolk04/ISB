@@ -903,7 +903,9 @@ const RECEIVE_TYPE_GROUPS = {
     cash: ["CASH"],
     wallet: ["WALLET", "CARD_TAP"],
     credit: ["CREDIT_CARD", "DEBIT_CARD", "EDC"],
-    qr: ["BANK_TRANSFER"],
+    // BANK_TRANSFER = manually-entered bank transfer; QR_PROMPTPAY = the BAY
+    // QR intent flow (pos_qr_service.ts) — both settle as "QR Code" here.
+    qr: ["BANK_TRANSFER", "QR_PROMPTPAY"],
     department: ["DEPARTMENT"],
     other: ["OTHER"],
 } as const satisfies Record<string, readonly (typeof receipts.$inferSelect.paymentMethod)[]>;
@@ -914,7 +916,7 @@ function amountColumnFor(method: string): string {
     if (method === "CASH") return "amt_cash";
     if (method === "WALLET" || method === "CARD_TAP") return "amt_campus_card";
     if (method === "CREDIT_CARD" || method === "DEBIT_CARD" || method === "EDC") return "amt_credit_card";
-    if (method === "BANK_TRANSFER") return "amt_qr_code";
+    if (method === "BANK_TRANSFER" || method === "QR_PROMPTPAY") return "amt_qr_code";
     if (method === "DEPARTMENT") return "amt_department";
     return "amt_other";
 }
@@ -927,6 +929,7 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
     DEBIT_CARD: "Credit Card",
     EDC: "Credit Card",
     BANK_TRANSFER: "QR Code",
+    QR_PROMPTPAY: "QR Code",
     DEPARTMENT: "Department",
     OTHER: "Other",
 };
