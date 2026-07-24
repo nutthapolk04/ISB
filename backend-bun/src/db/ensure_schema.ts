@@ -258,6 +258,48 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `ALTER TABLE shop_movements ADD COLUMN IF NOT EXISTS sale_amount NUMERIC(10,2)`,
         label: "shop_movements.sale_amount",
     },
+    // ── Admin-added notification emails (kept separate from sync-sourced ones) ──
+    {
+        sql: `ALTER TABLE family_profiles ADD COLUMN IF NOT EXISTS admin_notification_emails JSONB DEFAULT '[]'::jsonb NOT NULL`,
+        label: "family_profiles.admin_notification_emails",
+    },
+    // ── Graduation refund idempotency ────────────────────────────────────────
+    {
+        sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_wallet_tx_grad_refund_idempotency
+          ON wallet_transactions (reference_ticket)
+          WHERE reference_ticket LIKE 'grad-refund:%'`,
+        label: "wallet_transactions grad-refund idempotency index",
+    },
+    // ── Kiosk online/offline monitoring ──────────────────────────────────────
+    {
+        sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS kiosk_last_heartbeat_at TIMESTAMPTZ`,
+        label: "users.kiosk_last_heartbeat_at",
+    },
+    {
+        sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS kiosk_status VARCHAR(20)`,
+        label: "users.kiosk_status",
+    },
+    {
+        sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS kiosk_offline_since TIMESTAMPTZ`,
+        label: "users.kiosk_offline_since",
+    },
+    {
+        sql: `CREATE TABLE IF NOT EXISTS kiosk_custodians (
+            id SERIAL PRIMARY KEY,
+            kiosk_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            custodian_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )`,
+        label: "CREATE kiosk_custodians",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_kiosk_custodians_kiosk_user_id ON kiosk_custodians(kiosk_user_id)`,
+        label: "idx kiosk_custodians.kiosk_user_id",
+    },
+    {
+        sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_kiosk_custodians_pair ON kiosk_custodians(kiosk_user_id, custodian_user_id)`,
+        label: "idx kiosk_custodians pair unique",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {
