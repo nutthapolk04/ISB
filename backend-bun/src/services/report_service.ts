@@ -16,6 +16,7 @@ import {
     bundleItems,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
 import { nextCostState } from "@/services/balance_file_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -59,7 +60,7 @@ export function dateRange(dateFrom: string, dateTo: string): { start: string; en
     };
 }
 
-async function moduleShopIds(module: string): Promise<string[]> {
+export async function moduleShopIds(module: string): Promise<string[]> {
     const rows = await db
         .select({ id: shops.id })
         .from(shops)
@@ -547,7 +548,9 @@ export async function voidReport(args: {
     dateTo: string;
     shopId?: string;
     module?: string;
+    sortOrder?: string | null;
 }): Promise<VoidReport> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
     const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
     const { start, end } = dateRange(args.dateFrom, args.dateTo);
@@ -577,7 +580,10 @@ export async function voidReport(args: {
                 shopFilter,
             ),
         )
-        .orderBy(desc(receipts.voidedAt));
+        .orderBy(
+            sortOrder === "asc" ? asc(receipts.voidedAt) : desc(receipts.voidedAt),
+            sortOrder === "asc" ? asc(receipts.id) : desc(receipts.id),
+        );
 
     let totalVoided = 0;
     const mapped: VoidRow[] = rows.map((r) => {
@@ -607,10 +613,10 @@ export async function voidReport(args: {
     });
 
     const daily: VoidReportDaily[] = Array.from(dailyMap.entries())
-        .sort(([dateA], [dateB]) => dateB.localeCompare(dateA)) // Newest first
+        .sort(([dateA], [dateB]) => (sortOrder === "asc" ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA)))
         .map(([date, dayRows]) => ({
             date,
-            rows: dayRows,
+            rows: [...dayRows].sort((a, b) => compareDateTime(a.voided_at, b.voided_at, sortOrder, a.id, b.id)),
             daily_total: dayRows.reduce((sum, row) => sum + row.total, 0),
         }));
 
@@ -1085,7 +1091,9 @@ export async function salesSummaryReport(args: {
     cashierId?: string;
     shopId?: string;
     module?: string;
+    sortOrder?: string | null;
 }): Promise<SalesSummaryReport> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
     const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
     // Separate alias from `users` (already joined as the wallet `payer` below)
@@ -1230,12 +1238,10 @@ export async function salesSummaryReport(args: {
     // right after its sale, but a reversal from a different day sorts on its
     // own — matches the "show it as it truly happened" ordering.
     legs.sort((a, b) => {
-        const shopCmp = (a.entry.shop?.name ?? "").localeCompare(b.entry.shop?.name ?? "");
-        if (shopCmp !== 0) return shopCmp;
-        const dateA = new Date(pgToIso(a.leg === "sale" ? a.entry.receipt.transactionDate : a.entry.receipt.voidedAt!)!).getTime();
-        const dateB = new Date(pgToIso(b.leg === "sale" ? b.entry.receipt.transactionDate : b.entry.receipt.voidedAt!)!).getTime();
-        if (dateB !== dateA) return dateB - dateA;
-        return b.entry.receipt.id - a.entry.receipt.id;
+        const dateA = pgToIso(a.leg === "sale" ? a.entry.receipt.transactionDate : a.entry.receipt.voidedAt!)!;
+        const dateB = pgToIso(b.leg === "sale" ? b.entry.receipt.transactionDate : b.entry.receipt.voidedAt!)!;
+        const cmp = compareDateTime(dateA, dateB, sortOrder, a.entry.receipt.id, b.entry.receipt.id);
+        return cmp;
     });
 
     const rows: SalesSummaryRow[] = legs.map(({ entry, leg }, idx) => buildLegRow(entry, bundleNamesByReceiptId, leg, idx + 1));
@@ -1315,7 +1321,9 @@ export async function salesByItemReport(args: {
     receiveType?: string;
     shopId?: string;
     module?: string;
+    sortOrder?: string | null;
 }): Promise<SalesByItemReport> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
     const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
@@ -1412,6 +1420,9 @@ export async function salesByItemReport(args: {
             totals.sales_amt += amt;
         }
     });
+
+    rows.sort((a, b) => compareDateTime(a.transaction_date, b.transaction_date, sortOrder, a.seq, b.seq));
+    rows.forEach((r, idx) => { r.seq = idx + 1; });
 
     return {
         date_from: args.dateFrom ?? null,

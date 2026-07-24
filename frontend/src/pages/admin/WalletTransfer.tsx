@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
+import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 import {
   Table,
   TableBody,
@@ -170,11 +172,12 @@ export default function WalletTransfer() {
   const [txLoading, setTxLoading] = useState(false);
   const [txDateFrom, setTxDateFrom] = useState("");
   const [txDateTo, setTxDateTo] = useState("");
+  const [txDateTimeSort, setTxDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
-  const loadHistory = async (page = 1) => {
+  const loadHistory = async (page = 1, sort = txDateTimeSort) => {
     setTxLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: "20" });
+      const params = new URLSearchParams({ page: String(page), page_size: "20", sort_order: sort });
       if (txDateFrom) params.set("date_from", txDateFrom);
       if (txDateTo) params.set("date_to", txDateTo);
       const data = await api.get<TransferHistoryResponse>(
@@ -989,7 +992,18 @@ export default function WalletTransfer() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="whitespace-nowrap">Date / Time</TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <SortableDateTimeHeader
+                          label="Date / Time"
+                          sortDir={txDateTimeSort}
+                          inline
+                          onToggle={async () => {
+                            const next = toggleDateTimeSort(txDateTimeSort);
+                            setTxDateTimeSort(next);
+                            await loadHistory(txPage, next);
+                          }}
+                        />
+                      </TableHead>
                       <TableHead>From</TableHead>
                       <TableHead>To</TableHead>
                       <TableHead className="text-right">Amount</TableHead>

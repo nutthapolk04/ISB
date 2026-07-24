@@ -27,6 +27,8 @@ import {
     type ReportPayload,
 } from "@/lib/reportExport";
 import { PaginationBar } from "@/components/PaginationBar";
+import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
+import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 import type { CanteenShop } from "./reportHelpers";
 
 const SI_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -145,6 +147,7 @@ export function SalesByItemReport({
     const [siGroupByItem, setSiGroupByItem] = useState(false);
     const [siPage, setSiPage] = useState(1);
     const [siPageSize, setSiPageSize] = useState(25);
+    const [siDateTimeSort, setSiDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
     const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows) : null;
     const siRowCount = siGroupedRows ? siGroupedRows.length : (siData?.rows.length ?? 0);
@@ -158,7 +161,7 @@ export function SalesByItemReport({
         setSiPage(1);
     }, [siData, siGroupByItem, siPageSize]);
 
-    const buildSalesByItemQuery = (): string => {
+    const buildSalesByItemQuery = (sort = siDateTimeSort): string => {
         const params = new URLSearchParams();
         if (siDateFrom) params.set("date_from", siDateFrom);
         if (siDateTo) params.set("date_to", siDateTo);
@@ -166,6 +169,7 @@ export function SalesByItemReport({
         if (siCategoryCode.trim()) params.set("category_code", siCategoryCode.trim());
         if (siItemNoFrom.trim()) params.set("item_no_from", siItemNoFrom.trim());
         if (siItemNoTo.trim()) params.set("item_no_to", siItemNoTo.trim());
+        if (!rankByBestSelling) params.set("sort_order", sort);
         if (needsShopSelector) {
             if (selectedStall === "all") params.set("module", isCanteenReportsPage ? "canteen" : "store");
             else params.set("shop_id", selectedStall);
@@ -175,10 +179,10 @@ export function SalesByItemReport({
         return params.toString();
     };
 
-    const handleLoadSalesByItem = async () => {
+    const handleLoadSalesByItem = async (sort = siDateTimeSort) => {
         setSiLoading(true);
         try {
-            const qs = buildSalesByItemQuery();
+            const qs = buildSalesByItemQuery(sort);
             const data = await api.get<SalesByItemReportData>(
                 `/reports/sales-by-item${qs ? `?${qs}` : ""}`,
             );
@@ -206,9 +210,6 @@ export function SalesByItemReport({
                     data.rows.forEach((r, i) => { r.seq = i + 1; });
                 }
             } else if (data.rows.length > 0) {
-                // "Sales Report" — plain chronological log, oldest first so the
-                // latest transaction lands at the bottom of the table.
-                data.rows.sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
                 data.rows.forEach((r, i) => { r.seq = i + 1; });
             }
 
@@ -392,7 +393,7 @@ export function SalesByItemReport({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button onClick={handleLoadSalesByItem} disabled={siLoading}>
+                        <Button onClick={() => handleLoadSalesByItem()} disabled={siLoading}>
                             {siLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                             Search
                         </Button>
@@ -483,7 +484,19 @@ export function SalesByItemReport({
                                         <thead className="bg-muted/50 whitespace-nowrap">
                                             <tr>
                                                 <th className="px-2 py-2 text-right">Seq.</th>
-                                                <th className="px-2 py-2 text-left">Date/Time</th>
+                                                {!rankByBestSelling ? (
+                                                    <SortableDateTimeHeader
+                                                        label="Date/Time"
+                                                        sortDir={siDateTimeSort}
+                                                        onToggle={async () => {
+                                                            const next = toggleDateTimeSort(siDateTimeSort);
+                                                            setSiDateTimeSort(next);
+                                                            if (siData) await handleLoadSalesByItem(next);
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <th className="px-2 py-2 text-left">Date/Time</th>
+                                                )}
                                                 <th className="px-2 py-2 text-left">Item NO.</th>
                                                 <th className="px-2 py-2 text-left">Item Name</th>
                                                 <th className="px-2 py-2 text-left">Receipt NO.</th>

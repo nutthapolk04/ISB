@@ -27,6 +27,8 @@ import {
 } from "@/lib/reportExport";
 import { buildVendorSections, isMultiVendor, type CanteenShop } from "./reportHelpers";
 import { PaginationBar } from "@/components/PaginationBar";
+import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
+import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 
 const SS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -134,14 +136,10 @@ export function SalesSummaryReport({
   const [ssData, setSsData] = useState<SalesSummaryReportData | null>(null);
   const [ssPage, setSsPage] = useState(1);
   const [ssPageSize, setSsPageSize] = useState(25);
+  const [ssDateTimeSort, setSsDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
-  // On-screen table reads oldest-first (latest at the bottom) — the API
-  // itself returns newest-first, so sort a display copy and renumber Seq.
-  // to match, same convention the PDF/Excel export already used.
   const ssDisplayRows = ssData
-    ? [...ssData.rows]
-        .sort((a, b) => a.transaction_date.localeCompare(b.transaction_date))
-        .map((r, idx) => ({ ...r, seq: idx + 1 }))
+    ? ssData.rows.map((r, idx) => ({ ...r, seq: idx + 1 }))
     : [];
   const ssTotalPages = Math.max(1, Math.ceil(ssDisplayRows.length / ssPageSize));
 
@@ -156,7 +154,7 @@ export function SalesSummaryReport({
    * Build the /reports/sales-summary querystring. Skip empty filters so the
    * backend receives "no filter" rather than "filter == empty string".
    */
-  const buildSalesSummaryQuery = (): string => {
+  const buildSalesSummaryQuery = (sort = ssDateTimeSort): string => {
     const params = new URLSearchParams();
     if (ssDateFrom) params.set("date_from", ssDateFrom);
     if (ssDateTo) params.set("date_to", ssDateTo);
@@ -167,6 +165,7 @@ export function SalesSummaryReport({
     if (ssReceiptNoTo.trim()) params.set("receipt_no_to", ssReceiptNoTo.trim());
     if (ssReceiveType && ssReceiveType !== "all") params.set("receive_type", ssReceiveType);
     if (ssCashierId.trim()) params.set("cashier_id", ssCashierId.trim());
+    params.set("sort_order", sort);
 
     // Admin + canteen-area-manager pick a shop from the dropdown; other shop
     // users are locked to their own shop scope (handled server-side).
@@ -179,10 +178,10 @@ export function SalesSummaryReport({
     return params.toString();
   };
 
-  const handleLoadSalesSummary = async () => {
+  const handleLoadSalesSummary = async (sort = ssDateTimeSort) => {
     setSsLoading(true);
     try {
-      const qs = buildSalesSummaryQuery();
+      const qs = buildSalesSummaryQuery(sort);
       const data = await api.get<SalesSummaryReportData>(
         `/reports/sales-summary${qs ? `?${qs}` : ""}`,
       );
@@ -256,13 +255,7 @@ export function SalesSummaryReport({
       { header: "Status",           key: "status",           width: 55  },
     ];
 
-    // Same oldest-first / Seq.-renumbered ordering as the on-screen table
-    // (see ssDisplayRows) — kept as its own copy here since this payload
-    // builder also needs to inject vendor-subtotal rows for the multi-shop
-    // case, which the on-screen table doesn't do.
-    const exportRows = [...ssData.rows]
-      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime())
-      .map((r, idx) => ({ ...r, seq: idx + 1 }));
+    const exportRows = ssData.rows.map((r, idx) => ({ ...r, seq: idx + 1 }));
 
     const multi = isMultiVendor(exportRows);
     const filterLines = buildSalesSummaryFilterLines();
@@ -465,7 +458,7 @@ export function SalesSummaryReport({
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleLoadSalesSummary} disabled={ssLoading}>
+            <Button onClick={() => handleLoadSalesSummary()} disabled={ssLoading}>
               {ssLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Search
             </Button>
@@ -498,7 +491,15 @@ export function SalesSummaryReport({
                   <thead className="bg-muted/50 whitespace-nowrap">
                     <tr>
                       <th className="px-2 py-2 text-right">Seq.</th>
-                      <th className="px-2 py-2 text-left">Date/Time</th>
+                      <SortableDateTimeHeader
+                        label="Date/Time"
+                        sortDir={ssDateTimeSort}
+                        onToggle={async () => {
+                          const next = toggleDateTimeSort(ssDateTimeSort);
+                          setSsDateTimeSort(next);
+                          if (ssData) await handleLoadSalesSummary(next);
+                        }}
+                      />
                       <th className="px-2 py-2 text-left">Receipt NO.</th>
                       <th className="px-2 py-2 text-left">ID.</th>
                       <th className="px-2 py-2 text-left">Name</th>

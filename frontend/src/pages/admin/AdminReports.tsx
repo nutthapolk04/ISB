@@ -11,6 +11,7 @@ import {
     EMPHASIS_KEY,
     type ReportPayload,
 } from "@/lib/reportExport";
+import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -33,6 +34,8 @@ import CardholderPicker, { type CardholderPickerValue } from "@/components/Cardh
 import DepartmentPicker, { type DepartmentPickerValue } from "@/components/DepartmentPicker";
 import { PaginationBar } from "@/components/PaginationBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
+import { InternalUsedTable, type InternalUsedReportData } from "@/components/reports/InternalUsedTable";
 
 type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
@@ -119,10 +122,14 @@ function TransactionTable({
     data,
     page,
     onPageChange,
+    dateTimeSort,
+    onToggleDateTimeSort,
 }: {
     data: TransactionReportData;
     page: number;
     onPageChange: (p: number) => void;
+    dateTimeSort: DateTimeSortDir;
+    onToggleDateTimeSort: () => void;
 }) {
     const { t } = useTranslation();
     return (
@@ -138,7 +145,11 @@ function TransactionTable({
                 <table className="w-full text-xs">
                     <thead className="bg-muted/50 whitespace-nowrap">
                         <tr>
-                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                            <SortableDateTimeHeader
+                                label={t("admin.adminReports.colDateTime")}
+                                sortDir={dateTimeSort}
+                                onToggle={onToggleDateTimeSort}
+                            />
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colType", "Type")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerId")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colPayerName")}</th>
@@ -218,30 +229,6 @@ interface KioskLogReportData {
     pages: number;
 }
 
-interface InternalUsedRow {
-    id: number;
-    created_at: string;
-    receipt_number: string;
-    amount: number;
-    staff_id: string;
-    staff_name: string;
-    remarks: string | null;
-    status: string;
-}
-
-interface InternalUsedDepartmentGroup {
-    department_id: number;
-    department_code: string;
-    department_name: string;
-    rows: InternalUsedRow[];
-    subtotal: number;
-}
-
-interface InternalUsedReportData {
-    groups: InternalUsedDepartmentGroup[];
-    grand_total: number;
-}
-
 const KIOSK_LEVEL_COLORS: Record<string, string> = {
     info: "bg-blue-100 text-blue-800",
     warn: "bg-amber-100 text-amber-800",
@@ -274,10 +261,14 @@ function KioskEventTable({
     data,
     page,
     onPageChange,
+    dateTimeSort,
+    onToggleDateTimeSort,
 }: {
     data: KioskLogReportData;
     page: number;
     onPageChange: (p: number) => void;
+    dateTimeSort: DateTimeSortDir;
+    onToggleDateTimeSort: () => void;
 }) {
     const { t } = useTranslation();
     return (
@@ -289,7 +280,11 @@ function KioskEventTable({
                 <table className="w-full text-xs">
                     <thead className="bg-muted/50 whitespace-nowrap">
                         <tr>
-                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                            <SortableDateTimeHeader
+                                label={t("admin.adminReports.colDateTime")}
+                                sortDir={dateTimeSort}
+                                onToggle={onToggleDateTimeSort}
+                            />
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colKiosk", "Kiosk")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colLevel", "Level")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colCategory", "Category")}</th>
@@ -330,78 +325,6 @@ function KioskEventTable({
     );
 }
 
-/** Grouped by department server-side — each group renders as its own
- * mini-table with a subtotal row, then an overall grand total at the end.
- * Mirrors the SECTION_KEY/EMPHASIS_KEY structure buildPayload() uses for the
- * Excel/PDF export, so what's on screen matches what gets exported. */
-function InternalUsedTable({ data }: { data: InternalUsedReportData }) {
-    const { t } = useTranslation();
-    if (data.groups.length === 0) {
-        return (
-            <div className="rounded-md border px-3 py-6 text-center text-sm text-muted-foreground">
-                No internal-use receipts match these filters.
-            </div>
-        );
-    }
-    return (
-        <div className="space-y-6">
-            {data.groups.map((g) => (
-                <div key={g.department_id} className="space-y-2">
-                    <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-semibold">
-                        Department code : {g.department_code}   {g.department_name}
-                    </div>
-                    <div className="overflow-x-auto rounded-md border">
-                        <table className="w-full text-xs">
-                            <thead className="bg-muted/50 whitespace-nowrap">
-                                <tr>
-                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
-                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colReceiptNo")}</th>
-                                    <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmountReceived")}</th>
-                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffId")}</th>
-                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffName")}</th>
-                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colRemarks")}</th>
-                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colStatus")}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {g.rows.map((r) => (
-                                    <tr key={r.id} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
-                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
-                                        <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
-                                        <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
-                                        <td className="px-2 py-1.5 font-mono">{r.staff_id}</td>
-                                        <td className="px-2 py-1.5">{r.staff_name}</td>
-                                        <td className="px-2 py-1.5 text-muted-foreground">{r.remarks ?? ""}</td>
-                                        <td className="px-2 py-1.5">
-                                            {r.status === "ACTIVE" ? (
-                                                <span className="text-muted-foreground">Active</span>
-                                            ) : (
-                                                <span className="font-semibold text-destructive">Voided</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
-                                <tr className="border-t">
-                                    <td className="px-2 py-2 text-left">{t("admin.adminReports.totalByDepartment", "Total by Department")}</td>
-                                    <td />
-                                    <td className="px-2 py-2 text-right font-mono">{g.subtotal.toFixed(2)}</td>
-                                    <td colSpan={4} />
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            ))}
-            <div className="flex items-center justify-end gap-2 rounded-md border bg-muted px-3 py-2 text-sm font-bold">
-                {t("admin.adminReports.grandTotal", "Grand Total")}
-                <span className="font-mono">{data.grand_total.toFixed(2)}</span>
-            </div>
-        </div>
-    );
-}
-
 export default function AdminReports() {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -414,6 +337,7 @@ export default function AdminReports() {
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [dateTimeSort, setDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
     const [topupData, setTopupData] = useState<TopupReportData | null>(null);
     const [txnData, setTxnData] = useState<TransactionReportData | null>(null);
@@ -447,6 +371,8 @@ export default function AdminReports() {
     // Internal Used Report filters
     const [internalUsedDept, setInternalUsedDept] = useState<DepartmentPickerValue | null>(null);
     const [internalUsedStaff, setInternalUsedStaff] = useState<StaffPickerUser | null>(null);
+    const [internalUsedShopId, setInternalUsedShopId] = useState<string | null>(null);
+    const [internalUsedShopName, setInternalUsedShopName] = useState<string | null>(null);
 
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
@@ -472,6 +398,9 @@ export default function AdminReports() {
         setKioskTxnPage(1);
         setInternalUsedDept(null);
         setInternalUsedStaff(null);
+        setInternalUsedShopId(null);
+        setInternalUsedShopName(null);
+        setDateTimeSort(DEFAULT_DATE_TIME_SORT);
         setSearched(false);
         setTopupData(null);
         setTxnData(null);
@@ -483,7 +412,7 @@ export default function AdminReports() {
     /** Shared filter params for Transaction Report — page is separate since
      * the Search button and the pagination bar both need to build these but
      * start from a different page. */
-    const buildTxnParams = (page: number, pageSize: number) => {
+    const buildTxnParams = (page: number, pageSize: number, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -493,12 +422,13 @@ export default function AdminReports() {
         if (txnPaymentMethod !== "all") params.set("payment_method", txnPaymentMethod);
         if (txnShopId) params.set("shop_id", txnShopId);
         if (txnType !== "all") params.set("type", txnType);
+        params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
         return params;
     };
 
-    const loadTransactionPage = async (page: number) => {
+    const loadTransactionPage = async (page: number, sort = dateTimeSort) => {
         setLoading(true);
         try {
             const params = buildTxnParams(page, TXN_PAGE_SIZE);
@@ -516,11 +446,12 @@ export default function AdminReports() {
 
     /** Kiosk Report — "Event log" view params. Reuses date range; kioskDevice
      * null means "all kiosks" (the endpoint just omits kiosk_user_id). */
-    const buildKioskEventParams = (page: number, pageSize: number) => {
+    const buildKioskEventParams = (page: number, pageSize: number, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
         if (kioskDevice) params.set("kiosk_user_id", String(kioskDevice.id));
+        params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
         return params;
@@ -530,25 +461,26 @@ export default function AdminReports() {
      * cashier_id (exact match, same as the main Transaction Report); "All
      * kiosks" uses cashier_role=kiosk instead (backend-side subquery over
      * every kiosk-role user, see admin_reports_service.ts::transactionReport). */
-    const buildKioskTxnParams = (page: number, pageSize: number) => {
+    const buildKioskTxnParams = (page: number, pageSize: number, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
         if (kioskDevice) params.set("cashier_id", String(kioskDevice.id));
         else params.set("cashier_role", "kiosk");
+        params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
         return params;
     };
 
-    const fetchKioskEvent = async (page: number) => {
+    const fetchKioskEvent = async (page: number, sort = dateTimeSort) => {
         const params = buildKioskEventParams(page, TXN_PAGE_SIZE);
         const data = await api.get<KioskLogReportData>(`/admin/kiosk-logs?${params.toString()}`);
         setKioskEventData(data);
         setKioskEventPage(data.page);
     };
 
-    const fetchKioskTxn = async (page: number) => {
+    const fetchKioskTxn = async (page: number, sort = dateTimeSort) => {
         const params = buildKioskTxnParams(page, TXN_PAGE_SIZE);
         const data = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
         setKioskTxnData(data);
@@ -597,7 +529,7 @@ export default function AdminReports() {
     /** Shared filter params for Top-up Report — same page/pageSize split as
      * Transaction Report's buildTxnParams (Search resets to page 1; the
      * pagination bar keeps every other filter and just changes page). */
-    const buildTopupParams = (page: number, pageSize: number) => {
+    const buildTopupParams = (page: number, pageSize: number, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -608,12 +540,13 @@ export default function AdminReports() {
         if (recipientValue) {
             params.set(recipientValue.entity_type === "user" ? "recipient_user_id" : "recipient_customer_id", String(recipientValue.entity_id));
         }
+        params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
         return params;
     };
 
-    const loadTopupPage = async (page: number) => {
+    const loadTopupPage = async (page: number, sort = dateTimeSort) => {
         setLoading(true);
         try {
             const params = buildTopupParams(page, TXN_PAGE_SIZE);
@@ -633,16 +566,18 @@ export default function AdminReports() {
      * internalUsedReport() on the backend), so unlike every other report
      * here there's no page/pageSize: paginating flat rows would risk
      * splitting a department's rows across pages and breaking its subtotal. */
-    const buildInternalUsedParams = () => {
+    const buildInternalUsedParams = (sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
         if (internalUsedDept) params.set("department_id", String(internalUsedDept.id));
         if (internalUsedStaff) params.set("requester_user_id", String(internalUsedStaff.id));
+        if (internalUsedShopId) params.set("shop_id", internalUsedShopId);
+        params.set("sort_order", sort);
         return params;
     };
 
-    const loadInternalUsedReport = async () => {
+    const loadInternalUsedReport = async (sort = dateTimeSort) => {
         setLoading(true);
         try {
             const params = buildInternalUsedParams();
@@ -680,6 +615,20 @@ export default function AdminReports() {
         }
     };
 
+    const handleToggleDateTimeSort = async () => {
+        const next = toggleDateTimeSort(dateTimeSort);
+        setDateTimeSort(next);
+        if (!searched) return;
+        if (selected === "topup") await loadTopupPage(topupPage, next);
+        else if (selected === "transaction") await loadTransactionPage(txnPage, next);
+        else if (selected === "kiosk") {
+            const tasks: Promise<void>[] = [];
+            if (kioskLogType === "all" || kioskLogType === "event") tasks.push(fetchKioskEvent(kioskEventPage, next));
+            if (kioskLogType === "all" || kioskLogType === "transaction") tasks.push(fetchKioskTxn(kioskTxnPage, next));
+            await Promise.all(tasks);
+        } else if (selected === "internal_used") await loadInternalUsedReport(next);
+    };
+
     const buildFilterLines = (): string[] => {
         const lines: string[] = [];
         const dateLine = buildDateFilterLine("Date", dateFrom, dateTo);
@@ -704,6 +653,7 @@ export default function AdminReports() {
         if (selected === "internal_used") {
             if (internalUsedDept) lines.push(`Department: ${internalUsedDept.department_name} (${internalUsedDept.department_code})`);
             if (internalUsedStaff) lines.push(`Staff: ${internalUsedStaff.full_name || internalUsedStaff.username}`);
+            if (internalUsedShopName) lines.push(`Shop: ${internalUsedShopName}`);
         }
         return lines;
     };
@@ -1146,6 +1096,17 @@ export default function AdminReports() {
                             {selected === "internal_used" && (
                                 <>
                                     <div className="space-y-2">
+                                        <Label>{t("admin.adminReports.shopFilter", "Shop")}</Label>
+                                        <ShopPicker
+                                            value={internalUsedShopId}
+                                            onChange={(id, shop) => {
+                                                setInternalUsedShopId(id);
+                                                setInternalUsedShopName(shop?.name ?? null);
+                                            }}
+                                            placeholder={t("admin.adminReports.allShops", "All shops")}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
                                         <Label>{t("admin.adminReports.departmentFilter", "Department")}</Label>
                                         <DepartmentPicker
                                             value={internalUsedDept}
@@ -1197,7 +1158,11 @@ export default function AdminReports() {
                                     <table className="w-full text-xs">
                                         <thead className="bg-muted/50 whitespace-nowrap">
                                             <tr>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colDateTime")}</th>
+                                                <SortableDateTimeHeader
+                                                    label={t("admin.adminReports.colDateTime")}
+                                                    sortDir={dateTimeSort}
+                                                    onToggle={handleToggleDateTimeSort}
+                                                />
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient")}</th>
@@ -1247,18 +1212,44 @@ export default function AdminReports() {
                         )}
 
                         {searched && selected === "transaction" && txnData && (
-                            <TransactionTable data={txnData} page={txnPage} onPageChange={(p) => loadTransactionPage(p)} />
+                            <TransactionTable
+                                data={txnData}
+                                page={txnPage}
+                                onPageChange={(p) => loadTransactionPage(p)}
+                                dateTimeSort={dateTimeSort}
+                                onToggleDateTimeSort={handleToggleDateTimeSort}
+                            />
                         )}
 
                         {searched && selected === "kiosk" && (kioskEventData || kioskTxnData) && (
                             <div className="space-y-6">
-                                {kioskEventData && <KioskEventTable data={kioskEventData} page={kioskEventPage} onPageChange={onKioskEventPageChange} />}
-                                {kioskTxnData && <TransactionTable data={kioskTxnData} page={kioskTxnPage} onPageChange={onKioskTxnPageChange} />}
+                                {kioskEventData && (
+                                    <KioskEventTable
+                                        data={kioskEventData}
+                                        page={kioskEventPage}
+                                        onPageChange={onKioskEventPageChange}
+                                        dateTimeSort={dateTimeSort}
+                                        onToggleDateTimeSort={handleToggleDateTimeSort}
+                                    />
+                                )}
+                                {kioskTxnData && (
+                                    <TransactionTable
+                                        data={kioskTxnData}
+                                        page={kioskTxnPage}
+                                        onPageChange={onKioskTxnPageChange}
+                                        dateTimeSort={dateTimeSort}
+                                        onToggleDateTimeSort={handleToggleDateTimeSort}
+                                    />
+                                )}
                             </div>
                         )}
 
                         {searched && selected === "internal_used" && internalUsedData && (
-                            <InternalUsedTable data={internalUsedData} />
+                            <InternalUsedTable
+                                data={internalUsedData}
+                                dateTimeSort={dateTimeSort}
+                                onToggleDateTimeSort={handleToggleDateTimeSort}
+                            />
                         )}
                     </CardContent>
                 </Card>

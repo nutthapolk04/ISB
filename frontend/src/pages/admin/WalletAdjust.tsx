@@ -39,6 +39,8 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { PaginationBar } from "@/components/PaginationBar";
+import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
+import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 import { Minus, Plus, Search, Wallet as WalletIcon, FileSpreadsheet, FileText, ClipboardList } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -166,13 +168,15 @@ export default function WalletAdjust() {
     const [rptCreditTotal, setRptCreditTotal] = useState(0);
     const [rptDebitTotal, setRptDebitTotal] = useState(0);
     const [rptExporting, setRptExporting] = useState(false);
+    const [rptDateTimeSort, setRptDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
-    const rptQueryParams = (page: number, pageSize: number) => {
+    const rptQueryParams = (page: number, pageSize: number, sort = rptDateTimeSort) => {
         const params = new URLSearchParams();
         if (rptDateFrom) params.set("date_from", rptDateFrom);
         if (rptDateTo) params.set("date_to", rptDateTo);
         if (rptDirection !== "all") params.set("direction", rptDirection);
         if (rptType !== "all") params.set("type", rptType);
+        params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
         return params;
@@ -192,11 +196,11 @@ export default function WalletAdjust() {
     // a fresh "Search" click, or an explicit page number for the pagination
     // bar. Summary badges (net/credit/debit) come from the backend's
     // aggregate over the FULL filtered set, not just this page.
-    const loadReport = async (page = 1) => {
+    const loadReport = async (page = 1, sort = rptDateTimeSort) => {
         setRptLoading(true);
         try {
             const data = await api.get<AdjustmentReportResponse>(
-                `/wallets/admin/adjustment-report?${rptQueryParams(page, RPT_PAGE_SIZE).toString()}`,
+                `/wallets/admin/adjustment-report?${rptQueryParams(page, RPT_PAGE_SIZE, sort).toString()}`,
             );
             setRptRows(data.items);
             setRptTotal(data.total);
@@ -660,7 +664,18 @@ export default function WalletAdjust() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-12 text-right">{t("common.colNo", "No.")}</TableHead>
-                                            <TableHead className="whitespace-nowrap">Date / Time</TableHead>
+                                            <TableHead className="whitespace-nowrap">
+                                                <SortableDateTimeHeader
+                                                    label="Date / Time"
+                                                    sortDir={rptDateTimeSort}
+                                                    inline
+                                                    onToggle={async () => {
+                                                        const next = toggleDateTimeSort(rptDateTimeSort);
+                                                        setRptDateTimeSort(next);
+                                                        if (rptSearched) await loadReport(rptPage, next);
+                                                    }}
+                                                />
+                                            </TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead>Name</TableHead>
                                             <TableHead>Code</TableHead>

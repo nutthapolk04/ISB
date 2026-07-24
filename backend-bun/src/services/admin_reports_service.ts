@@ -16,7 +16,9 @@ import {
     kioskLogs,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
 import { classifyWalletTxKind, classifyTopupChannel, type TopupChannel } from "@/services/wallet_tx_classify";
+import { moduleShopIds } from "@/services/report_service";
 
 export interface AdjustmentReportRow {
     id: number;
@@ -58,9 +60,11 @@ export async function adjustmentReport(args: {
     dateTo?: string | null;
     direction?: string | null;
     typeFilter?: string | null;
+    sortOrder?: string | null;
     page: number;
     pageSize: number;
 }): Promise<AdjustmentReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const conds = [eq(walletTransactions.transactionType, "ADJUSTMENT"), isNull(wallets.departmentId)];
     if (args.dateFrom) {
         try { conds.push(gte(walletTransactions.createdAt, args.dateFrom)); }
@@ -164,6 +168,8 @@ export async function adjustmentReport(args: {
     // reflect everything matching the filters, same reasoning as
     // cardholder_service.ts's counts/studentStats being independent of
     // whichever page happens to be showing.
+    filtered.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
+
     const total = filtered.length;
     const creditTotal = filtered.filter((r) => r.direction === "credit").reduce((s, r) => s + r.amount, 0);
     const debitTotal = filtered.filter((r) => r.direction === "debit").reduce((s, r) => s + r.amount, 0);
@@ -224,9 +230,11 @@ async function resolveWalletNameCode(walletId: number | null): Promise<{ name: s
 export async function transferReport(args: {
     dateFrom?: string | null;
     dateTo?: string | null;
+    sortOrder?: string | null;
     page: number;
     pageSize: number;
 }): Promise<TransferReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     // transferWithinFamily() writes two legs per transfer (DEDUCTION on the
     // source wallet, TOPUP on the destination) sharing referenceType
     // 'family_transfer'. Filtering to just the DEDUCTION leg gives exactly
@@ -251,7 +259,10 @@ export async function transferReport(args: {
         .select()
         .from(walletTransactions)
         .where(and(...conds))
-        .orderBy(desc(walletTransactions.createdAt))
+        .orderBy(
+            sortOrder === "asc" ? asc(walletTransactions.createdAt) : desc(walletTransactions.createdAt),
+            sortOrder === "asc" ? asc(walletTransactions.id) : desc(walletTransactions.id),
+        )
         .offset((args.page - 1) * args.pageSize)
         .limit(args.pageSize);
 
@@ -340,9 +351,11 @@ export async function topupReport(args: {
     // Who received the money — the topped-up wallet's owner.
     recipientUserId?: number | null;
     recipientCustomerId?: number | null;
+    sortOrder?: string | null;
     page: number;
     pageSize: number;
 }): Promise<TopupReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const dateFrom = args.dateFrom?.trim() || null;
     let dateToExclusive: string | null = null;
     if (args.dateTo) {
@@ -437,8 +450,6 @@ export async function topupReport(args: {
             paymentMethod: r.pi.paymentMethod ?? null,
         })),
     ];
-    combined.sort((a, b) => String(b.tx.createdAt).localeCompare(String(a.tx.createdAt)));
-
     // Includes both wallet-recipient customer ids AND acting_customer_id
     // values (a student scanning their own card) so both lookups share one
     // batch fetch / customerById map below.
@@ -555,6 +566,8 @@ export async function topupReport(args: {
         });
     }
 
+    items.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
+
     // amount_total is computed over the FULL filtered set, before pagination
     // slicing — same reasoning as every other paginated report in this file.
     const amountTotal = items.reduce((s, r) => s + r.amount, 0);
@@ -626,9 +639,11 @@ export async function transactionReport(args: {
     /** all | sale | adjustment | topup | transfer — omitted/"all" shows
      * everything. */
     type?: string | null;
+    sortOrder?: string | null;
     page: number;
     pageSize: number;
 }): Promise<TransactionReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
 
@@ -867,7 +882,7 @@ export async function transactionReport(args: {
         const cashier = r._createdBy != null ? cashierById.get(r._createdBy) : undefined;
         r.cashier_name = cashier ? (cashier.fullName || cashier.username) : "—";
     });
-    merged.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    merged.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
 
     const total = merged.length;
     const offset = (args.page - 1) * args.pageSize;
@@ -913,9 +928,11 @@ export async function kioskLogReport(args: {
     dateTo?: string | null;
     level?: string | null;
     category?: string | null;
+    sortOrder?: string | null;
     page: number;
     pageSize: number;
 }): Promise<KioskLogReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
 
@@ -946,7 +963,10 @@ export async function kioskLogReport(args: {
         .from(kioskLogs)
         .leftJoin(users, eq(users.id, kioskLogs.kioskUserId))
         .where(where)
-        .orderBy(desc(kioskLogs.ts))
+        .orderBy(
+            sortOrder === "asc" ? asc(kioskLogs.ts) : desc(kioskLogs.ts),
+            sortOrder === "asc" ? asc(kioskLogs.id) : desc(kioskLogs.id),
+        )
         .offset((args.page - 1) * args.pageSize)
         .limit(args.pageSize);
 
@@ -1010,7 +1030,11 @@ export async function internalUsedReport(args: {
     dateTo?: string | null;
     departmentId?: number | null;
     requesterUserId?: number | null;
+    shopId?: string | null;
+    module?: string | null;
+    sortOrder?: string | null;
 }): Promise<InternalUsedReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
 
@@ -1019,6 +1043,13 @@ export async function internalUsedReport(args: {
     if (dateTo) conds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
     if (args.departmentId != null) conds.push(eq(receipts.payerDepartmentId, args.departmentId));
     if (args.requesterUserId != null) conds.push(eq(receipts.requesterUserId, args.requesterUserId));
+    if (args.shopId) {
+        conds.push(eq(receipts.shopId, args.shopId));
+    } else if (args.module) {
+        const ids = await moduleShopIds(args.module);
+        if (ids.length > 0) conds.push(inArray(receipts.shopId, ids));
+        else conds.push(sql`false`);
+    }
 
     const rows = await db
         .select({
@@ -1040,7 +1071,11 @@ export async function internalUsedReport(args: {
         .innerJoin(departments, eq(departments.id, receipts.payerDepartmentId))
         .leftJoin(users, eq(users.id, receipts.requesterUserId))
         .where(and(...conds))
-        .orderBy(asc(departments.departmentCode), desc(receipts.transactionDate));
+        .orderBy(
+            asc(departments.departmentCode),
+            sortOrder === "asc" ? asc(receipts.transactionDate) : desc(receipts.transactionDate),
+            sortOrder === "asc" ? asc(receipts.id) : desc(receipts.id),
+        );
 
     const groupMap = new Map<number, InternalUsedDepartmentGroup>();
     let grandTotal = 0;
@@ -1073,8 +1108,13 @@ export async function internalUsedReport(args: {
         grandTotal += amount;
     }
 
+    const groups = [...groupMap.values()];
+    for (const g of groups) {
+        g.rows.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
+    }
+
     return {
-        groups: [...groupMap.values()],
+        groups,
         grand_total: grandTotal,
     };
 }

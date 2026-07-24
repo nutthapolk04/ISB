@@ -5,6 +5,7 @@ const dateRangeQuery = {
     date_to: t.String(),
     shop_id: t.Optional(t.Nullable(t.String())),
     module: t.Optional(t.Nullable(t.String())),
+    sort_order: t.Optional(t.Nullable(t.String())),
 };
 
 const salesFilterQuery = {
@@ -19,6 +20,7 @@ const salesFilterQuery = {
     cashier_id: t.Optional(t.Nullable(t.String())),
     shop_id: t.Optional(t.Nullable(t.String())),
     module: t.Optional(t.Nullable(t.String())),
+    sort_order: t.Optional(t.Nullable(t.String())),
 };
 
 export const salesReport = {
@@ -87,5 +89,21 @@ export const bundleReport = {
     detail: {
         tags: ["Reports"],
         summary: "Bundles with component breakdown and current sellable quantity",
+    },
+};
+
+export const internalUsedReport = {
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        department_id: t.Optional(t.Nullable(t.String())),
+        requester_user_id: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        module: t.Optional(t.Nullable(t.String())),
+        sort_order: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: {
+        tags: ["Reports"],
+        summary: "Internal Used Report — staff requisitions charged against department budget",
     },
 };

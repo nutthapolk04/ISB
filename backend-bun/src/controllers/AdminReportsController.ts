@@ -24,6 +24,7 @@ export const AdminReportsController = {
                 dateTo: query.date_to ?? null,
                 direction: query.direction ?? null,
                 typeFilter: query.type ?? null,
+                sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,
             });
@@ -50,6 +51,7 @@ export const AdminReportsController = {
             const result = await transferReport({
                 dateFrom: query.date_from ?? null,
                 dateTo: query.date_to ?? null,
+                sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,
             });
@@ -80,6 +82,7 @@ export const AdminReportsController = {
                 toppedByCustomerId: query.topped_by_customer_id ? Number(query.topped_by_customer_id) : null,
                 recipientUserId: query.recipient_user_id ? Number(query.recipient_user_id) : null,
                 recipientCustomerId: query.recipient_customer_id ? Number(query.recipient_customer_id) : null,
+                sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,
             });
@@ -112,6 +115,7 @@ export const AdminReportsController = {
                 shopId: query.shop_id ?? null,
                 type: query.type ?? null,
                 cashierRole: query.cashier_role ?? null,
+                sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,
             });
@@ -137,6 +141,9 @@ export const AdminReportsController = {
                 dateTo: query.date_to ?? null,
                 departmentId: query.department_id ? Number(query.department_id) : null,
                 requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : null,
+                shopId: query.shop_id ?? null,
+                module: query.module ?? null,
+                sortOrder: query.sort_order ?? null,
             });
             logger.info(`[${reqContext.requestId} (AR-06)] AdminReportsController.internalUsedReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
@@ -163,6 +170,7 @@ export const AdminReportsController = {
                 dateTo: query.date_to ?? null,
                 level: query.level ?? null,
                 category: query.category ?? null,
+                sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,
             });

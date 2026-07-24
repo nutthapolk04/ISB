@@ -1,5 +1,9 @@
 import { t } from "elysia";
 
+const sortOrderQuery = {
+    sort_order: t.Optional(t.Nullable(t.String())),
+};
+
 export const adminAdjustmentReport = {
     query: t.Object({
         date_from: t.Optional(t.Nullable(t.String())),
@@ -8,6 +12,7 @@ export const adminAdjustmentReport = {
         type: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
     }),
     detail: { tags: ["Reports"], summary: "Wallet adjustment report" },
 };
@@ -18,6 +23,7 @@ export const adminTransferReport = {
         date_to: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
     }),
     detail: { tags: ["Reports"], summary: "Wallet transfer report" },
 };
@@ -34,6 +40,7 @@ export const adminTopupReport = {
         recipient_customer_id: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
     }),
     detail: { tags: ["Reports"], summary: "Wallet top-up report (kiosk / online / cashier)" },
 };
@@ -56,6 +63,7 @@ export const adminTransactionReport = {
         cashier_role: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
     }),
     detail: { tags: ["Reports"], summary: "Transaction report — every wallet-affecting event (sale, adjustment, top-up, transfer)" },
 };
@@ -66,6 +74,9 @@ export const adminInternalUsedReport = {
         date_to: t.Optional(t.Nullable(t.String())),
         department_id: t.Optional(t.Nullable(t.String())),
         requester_user_id: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        module: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
     }),
     detail: { tags: ["Reports"], summary: "Internal Used Report — staff requisitions charged against a department's budget" },
 };
@@ -79,6 +90,7 @@ export const adminKioskLogReport = {
         category: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
     }),
     detail: { tags: ["Reports"], summary: "Kiosk device event-log report" },
 };

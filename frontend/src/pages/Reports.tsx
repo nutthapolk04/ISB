@@ -16,7 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet } from "lucide-react";
+import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet, Building2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { InfoCallout } from "@/components/InfoCallout";
@@ -40,6 +40,7 @@ import { StockCardReport } from "./reports/StockCardReport";
 import { SalesSummaryReport } from "./reports/SalesSummaryReport";
 import { SalesByItemReport } from "./reports/SalesByItemReport";
 import { BundleReport } from "./reports/BundleReport";
+import { InternalUsedReportPanel } from "./reports/InternalUsedReport";
 
 interface SalesRow {
     product_name: string;
@@ -88,6 +89,7 @@ const COMMON_REPORTS = [
     { type: "salesSummaryReport", icon: FileText, needsRange: false },
     { type: "salesByItemReport", icon: Package, needsRange: false },
     { type: "returnReport", icon: ArrowLeftRight, needsRange: true },
+    { type: "internalUsedReport", icon: Building2, needsRange: true },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
 // Store-only reports — these don't make sense in a canteen context. Canteen
@@ -132,6 +134,7 @@ const Reports = () => {
             salesSummaryReport: "N004",
             salesByItemReport: "N005",
             returnReport: "N006",
+            internalUsedReport: "N007",
         }
         : {
             salesReport: "S006",
@@ -143,6 +146,7 @@ const Reports = () => {
             returnReport: "S012",
             stockCardReport: "S013",
             bundleReport: "S014",
+            internalUsedReport: "S015",
         };
     const visibleReports = useMemo(
         () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
@@ -174,7 +178,8 @@ const Reports = () => {
             reportType === "salesReport" ||
             reportType === "salesSummaryReport" ||
             reportType === "salesByItemReport" ||
-            reportType === "bundleReport"
+            reportType === "bundleReport" ||
+            reportType === "internalUsedReport"
         ) {
             setSelectedReportType(reportType);
             setReportOpenNonce((n) => n + 1);
@@ -587,6 +592,17 @@ const Reports = () => {
                 <BundleReport
                     key={reportOpenNonce}
                     reportId={REPORT_ID_MAP["bundleReport"]}
+                />
+            )}
+
+            {selectedReportType === "internalUsedReport" && (
+                <InternalUsedReportPanel
+                    key={reportOpenNonce}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                    needsShopSelector={needsShopSelector}
+                    selectedStall={selectedStall}
+                    canteenStalls={canteenStalls}
+                    reportId={REPORT_ID_MAP["internalUsedReport"]}
                 />
             )}
 

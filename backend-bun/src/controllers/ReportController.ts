@@ -11,7 +11,10 @@ import {
 	salesSummaryReport,
 	salesByItemReport,
 	bundleReport,
+	effectiveModule,
+	scopeShop,
 } from "@/services/report_service";
+import { internalUsedReport } from "@/services/admin_reports_service";
 import { errorFromService, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -110,6 +113,7 @@ export const ReportController = {
 				dateTo: query.date_to,
 				shopId: query.shop_id ?? undefined,
 				module: query.module ?? undefined,
+				sortOrder: query.sort_order ?? null,
 			});
 			logger.info(`[${reqContext.requestId} (RP-06)] ReportController.voidReceipts() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
@@ -162,6 +166,7 @@ export const ReportController = {
 				cashierId: query.cashier_id ?? undefined,
 				shopId: query.shop_id ?? undefined,
 				module: query.module ?? undefined,
+				sortOrder: query.sort_order ?? null,
 			});
 			logger.info(`[${reqContext.requestId} (RP-06)] ReportController.salesSummary() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
@@ -189,6 +194,7 @@ export const ReportController = {
 				receiveType: query.receive_type ?? undefined,
 				shopId: query.shop_id ?? undefined,
 				module: query.module ?? undefined,
+				sortOrder: query.sort_order ?? null,
 			});
 			logger.info(`[${reqContext.requestId} (RP-07)] ReportController.salesByItem() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
@@ -213,6 +219,30 @@ export const ReportController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (RP-08)] ReportController.bundle() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	internalUsed: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (RP-09)] ReportController.internalUsed() called.`);
+		try {
+			const effectiveShopId = scopeShop(user, query.shop_id ?? null);
+			const effMod = effectiveShopId ? null : effectiveModule(user, query.module ?? null);
+			const result = await internalUsedReport({
+				dateFrom: query.date_from ?? null,
+				dateTo: query.date_to ?? null,
+				departmentId: query.department_id ? Number(query.department_id) : null,
+				requesterUserId: query.requester_user_id ? Number(query.requester_user_id) : null,
+				shopId: effectiveShopId,
+				module: effMod,
+				sortOrder: query.sort_order ?? null,
+			});
+			logger.info(`[${reqContext.requestId} (RP-09)] ReportController.internalUsed() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (RP-09)] ReportController.internalUsed() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

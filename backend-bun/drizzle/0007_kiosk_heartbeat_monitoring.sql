@@ -3,7 +3,7 @@ CREATE TABLE "kiosk_custodians" (
 	"kiosk_user_id" integer NOT NULL,
 	"custodian_user_id" integer NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
+);ก
 --> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "kiosk_last_heartbeat_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "kiosk_status" varchar(20);--> statement-breakpoint
