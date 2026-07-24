@@ -168,7 +168,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
       const body: Record<string, any> = { kind };
       if (kind === "student") {
         const sid = externalId.trim();
-        const autoCode = sid ? `PS-${sid}` : `PS-${Date.now()}`;
+        const autoCode = sid ? `ISB-ID-${sid}` : `ISB-ID-${Date.now()}`;
         Object.assign(body, {
           name,
           customer_code: autoCode,

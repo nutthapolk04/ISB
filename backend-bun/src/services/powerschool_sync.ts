@@ -655,7 +655,7 @@ export async function upsertStudent(payload: StudentPayload, familyCode: string,
     let custRow: typeof customers.$inferSelect;
     if (created) {
         const insertValues: Record<string, unknown> = {
-            customerCode: `PS-${extId}`,
+            customerCode: `ISB-ID-${extId}`,
             studentCode: extId,
             name: fullName,
             customerTypeId: internalTypeId,
