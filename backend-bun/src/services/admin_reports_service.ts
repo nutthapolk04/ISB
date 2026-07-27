@@ -1241,3 +1241,246 @@ export async function internalUsedReport(args: {
     };
 }
 
+// ── Balance Report ────────────────────────────────────────────────────────
+
+export interface BalanceReportRow {
+    id: number;
+    created_at: string;
+    shop_name: string | null;
+    type: "purchase" | "void_refund" | "refund" | "topup" | "adjustment" | "transfer" | "other";
+    in_amount: number;
+    out_amount: number;
+    balance_before: number;
+    balance_after: number;
+    owner_role: string;
+    owner_name: string;
+    owner_external_id: string | null;
+    owner_family_code: string | null;
+}
+
+export interface BalanceReportResponseDTO {
+    items: BalanceReportRow[];
+    total: number;
+    in_total: number;
+    out_total: number;
+    page: number;
+    pages: number;
+}
+
+export async function balanceReport(args: {
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    type?: string | null;
+    role?: string | null;
+    externalId?: string | null;
+    familyCode?: string | null;
+    sortOrder?: string | null;
+    page: number;
+    pageSize: number;
+}): Promise<BalanceReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
+    const conds = [];
+    if (args.dateFrom) {
+        try { conds.push(gte(walletTransactions.createdAt, args.dateFrom)); }
+        catch { /* ignore */ }
+    }
+    if (args.dateTo) {
+        try {
+            const end = new Date(`${args.dateTo}T00:00:00Z`);
+            end.setUTCDate(end.getUTCDate() + 1);
+            conds.push(lt(walletTransactions.createdAt, end.toISOString()));
+        } catch { /* ignore */ }
+    }
+
+    const rows = await db
+        .select({
+            tx: walletTransactions,
+            w: wallets,
+        })
+        .from(walletTransactions)
+        .innerJoin(wallets, eq(walletTransactions.walletId, wallets.id))
+        .where(conds.length > 0 ? and(...conds) : undefined)
+        .orderBy(desc(walletTransactions.createdAt));
+
+    // Batch-prefetch wallet owners and receipt/shop data for shop name resolution
+    const customerIds = [...new Set(rows.filter((r) => r.w.customerId !== null).map((r) => r.w.customerId!))];
+    const userIds = [...new Set(rows.filter((r) => r.w.userId !== null).map((r) => r.w.userId!))];
+    const departmentIds = [...new Set(rows.filter((r) => r.w.departmentId !== null).map((r) => r.w.departmentId!))];
+    const creatorIds = [...new Set(rows.map((r) => r.tx.createdBy))];
+    const allUserIds = [...new Set([...userIds, ...creatorIds])];
+
+    // For receipt/receipt_void rows, prefetch receipts → shops
+    const receiptIds = rows
+        .filter((r) => (r.tx.referenceType === "receipt" || r.tx.referenceType === "receipt_void") && r.tx.referenceId !== null)
+        .map((r) => r.tx.referenceId!) as number[];
+
+    const [customerRows, userRows, departmentRows, receiptRows] = await Promise.all([
+        customerIds.length > 0 ? db.select().from(customers).where(inArray(customers.id, customerIds)) : Promise.resolve([]),
+        allUserIds.length > 0 ? db.select().from(users).where(inArray(users.id, allUserIds)) : Promise.resolve([]),
+        departmentIds.length > 0 ? db.select().from(departments).where(inArray(departments.id, departmentIds)) : Promise.resolve([]),
+        receiptIds.length > 0
+            ? db
+                .select({ rid: receipts.id, shopId: receipts.shopId, shopName: shops.name })
+                .from(receipts)
+                .leftJoin(shops, eq(shops.id, receipts.shopId))
+                .where(inArray(receipts.id, receiptIds))
+            : Promise.resolve([]),
+    ]);
+
+    const customerById = new Map(customerRows.map((c) => [c.id, c] as const));
+    const userById = new Map(userRows.map((u) => [u.id, u] as const));
+    const departmentById = new Map(departmentRows.map((d) => [d.id, d] as const));
+    const receiptShopMap = new Map<number, { shopId: string | null; shopName: string | null }>(
+        receiptRows.map((r) => [r.rid, { shopId: r.shopId, shopName: r.shopName }] as const),
+    );
+
+    // For non-receipt transactions: resolve creator user's shop
+    const creatorShopMap = new Map<number, string | null>();
+    const nonReceiptCreatorIds = [
+        ...new Set(
+            rows
+                .filter((r) => r.tx.referenceType !== "receipt" && r.tx.referenceType !== "receipt_void")
+                .map((r) => r.tx.createdBy),
+        ),
+    ];
+    if (nonReceiptCreatorIds.length > 0) {
+        const userShopRows = await db
+            .select({ userId: users.id, shopId: users.shopId })
+            .from(users)
+            .where(inArray(users.id, nonReceiptCreatorIds));
+        const creatorShopIds = [...new Set(userShopRows.map((u) => u.shopId).filter((s): s is string => !!s))];
+        const shopNameMap = new Map<string, string>();
+        if (creatorShopIds.length > 0) {
+            const shopRows = await db
+                .select({ id: shops.id, name: shops.name })
+                .from(shops)
+                .where(inArray(shops.id, creatorShopIds));
+            shopRows.forEach((s) => shopNameMap.set(s.id, s.name ?? ""));
+        }
+        userShopRows.forEach((u) => {
+            creatorShopMap.set(u.userId, u.shopId ? (shopNameMap.get(u.shopId) ?? null) : null);
+        });
+    }
+
+    const filtered: BalanceReportRow[] = [];
+    for (const r of rows) {
+        const tx = r.tx;
+        const w = r.w;
+        const before = pgNumber(tx.balanceBefore) ?? 0;
+        const after = pgNumber(tx.balanceAfter) ?? 0;
+        const delta = after - before;
+        const inAmount = delta > 0 ? Math.abs(delta) : 0;
+        const outAmount = delta < 0 ? Math.abs(delta) : 0;
+
+        // Classify transaction type
+        let txType: "purchase" | "void_refund" | "refund" | "topup" | "adjustment" | "transfer" | "other" = "other";
+        if (tx.referenceType === "receipt") {
+            txType = "purchase";
+        } else if (tx.referenceType === "receipt_void") {
+            txType = "void_refund";
+        } else if (tx.transactionType === "REFUND") {
+            txType = "refund";
+        } else {
+            const kind = classifyWalletTxKind({
+                transactionType: tx.transactionType,
+                referenceType: tx.referenceType ?? null,
+                reason: tx.reason ?? null,
+            });
+            if (kind === "topup") txType = "topup";
+            else if (kind === "adjustment") txType = "adjustment";
+            else if (kind === "transfer") txType = "transfer";
+            else txType = "other";
+        }
+
+        // Resolve owner and owner metadata
+        let ownerRole = "unknown",
+            ownerName = "—",
+            ownerExternalId: string | null = null,
+            ownerFamilyCode: string | null = null;
+
+        if (w.customerId !== null) {
+            const c = customerById.get(w.customerId);
+            if (c) {
+                ownerRole = "student";
+                ownerName = c.name;
+                ownerExternalId = c.externalId ?? null;
+                ownerFamilyCode = c.familyCode ?? null;
+            }
+        } else if (w.userId !== null) {
+            const u = userById.get(w.userId);
+            if (u) {
+                ownerRole = u.role ?? "staff";
+                ownerName = u.fullName || u.username;
+                ownerExternalId = u.externalId ?? null;
+                ownerFamilyCode = u.familyCode ?? null;
+            }
+        } else if (w.departmentId !== null) {
+            const d = departmentById.get(w.departmentId);
+            if (d) {
+                ownerRole = "department";
+                ownerName = d.departmentName ?? "—";
+                ownerExternalId = null;
+                ownerFamilyCode = null;
+            }
+        }
+
+        // Apply filters
+        if (args.role && args.role !== "all") {
+            if (args.role !== ownerRole) continue;
+        }
+        if (args.externalId && args.externalId.trim()) {
+            if (ownerExternalId !== args.externalId) continue;
+        }
+        if (args.familyCode && args.familyCode.trim()) {
+            if (ownerFamilyCode !== args.familyCode) continue;
+        }
+        if (args.type && args.type !== "all") {
+            if (args.type !== txType) continue;
+        }
+
+        // Resolve shop name
+        let shopName: string | null = null;
+        if (tx.referenceType === "receipt" || tx.referenceType === "receipt_void") {
+            if (tx.referenceId !== null) {
+                const receiptShop = receiptShopMap.get(tx.referenceId);
+                shopName = receiptShop?.shopName ?? null;
+            }
+        } else {
+            shopName = creatorShopMap.get(tx.createdBy) ?? null;
+        }
+
+        filtered.push({
+            id: tx.id,
+            created_at: pgToIso(tx.createdAt)!,
+            shop_name: shopName,
+            type: txType,
+            in_amount: inAmount,
+            out_amount: outAmount,
+            balance_before: before,
+            balance_after: after,
+            owner_role: ownerRole,
+            owner_name: ownerName,
+            owner_external_id: ownerExternalId,
+            owner_family_code: ownerFamilyCode,
+        });
+    }
+
+    // Sort and paginate
+    filtered.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
+
+    const total = filtered.length;
+    const inTotal = filtered.reduce((s, r) => s + r.in_amount, 0);
+    const outTotal = filtered.reduce((s, r) => s + r.out_amount, 0);
+    const offset = (args.page - 1) * args.pageSize;
+    const items = filtered.slice(offset, offset + args.pageSize);
+
+    return {
+        items,
+        total,
+        in_total: inTotal,
+        out_total: outTotal,
+        page: args.page,
+        pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
+}
+
