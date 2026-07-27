@@ -6,9 +6,19 @@
       "departmentDescription": "ELEMENTARY SCHOOL OFFICE - 001"
     },
     {
+      "departmentId": "001C",
+      "customerType": "Department",
+      "departmentDescription": "ELEMENTARY SCHOOL OFFICE - 001 - COUPON"
+    },
+    {
       "departmentId": "002",
       "customerType": "Department",
       "departmentDescription": "ART - 002"
+    },
+    {
+      "departmentId": "002C",
+      "customerType": "Department",
+      "departmentDescription": "ART - 002 - COUPON"
     },
     {
       "departmentId": "003",
@@ -16,9 +26,19 @@
       "departmentDescription": "EAL/LSS-LEARNING SUPPORT - 003"
     },
     {
+      "departmentId": "003C",
+      "customerType": "Department",
+      "departmentDescription": "EAL/LSS-LEARNING SUPPORT - 003 - COUPON"
+    },
+    {
       "departmentId": "004",
       "customerType": "Department",
       "departmentDescription": "LIBRARY (ES) - 004"
+    },
+    {
+      "departmentId": "004C",
+      "customerType": "Department",
+      "departmentDescription": "LIBRARY (ES) - 004 - COUPON"
     },
     {
       "departmentId": "005",
@@ -26,9 +46,19 @@
       "departmentDescription": "ENGLISH AS ADDITIONAL LANGUAGE - 005"
     },
     {
+      "departmentId": "005C",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH AS ADDITIONAL LANGUAGE - 005 - COUPON"
+    },
+    {
       "departmentId": "006",
       "customerType": "Department",
       "departmentDescription": "THAI/ WORLD LANGUAGE - 006"
+    },
+    {
+      "departmentId": "006C",
+      "customerType": "Department",
+      "departmentDescription": "THAI/ WORLD LANGUAGE - 006 - COUPON"
     },
     {
       "departmentId": "007",
@@ -36,9 +66,19 @@
       "departmentDescription": "MUSIC STUDIES - 007"
     },
     {
+      "departmentId": "007C",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC STUDIES - 007 - COUPON"
+    },
+    {
       "departmentId": "008",
       "customerType": "Department",
       "departmentDescription": "MANDARIN - 008"
+    },
+    {
+      "departmentId": "008C",
+      "customerType": "Department",
+      "departmentDescription": "MANDARIN - 008 - COUPON"
     },
     {
       "departmentId": "009",
@@ -46,9 +86,19 @@
       "departmentDescription": "SPEECH - 009"
     },
     {
+      "departmentId": "009C",
+      "customerType": "Department",
+      "departmentDescription": "SPEECH - 009 - COUPON"
+    },
+    {
       "departmentId": "010",
       "customerType": "Department",
       "departmentDescription": "KINDERGARDEN(00) - 010"
+    },
+    {
+      "departmentId": "010C",
+      "customerType": "Department",
+      "departmentDescription": "KINDERGARDEN(00) - 010 - COUPON"
     },
     {
       "departmentId": "011",
@@ -56,9 +106,19 @@
       "departmentDescription": "GRADE1 - 011"
     },
     {
+      "departmentId": "011C",
+      "customerType": "Department",
+      "departmentDescription": "GRADE1 - 011 - COUPON"
+    },
+    {
       "departmentId": "012",
       "customerType": "Department",
       "departmentDescription": "GRADE2 - 012"
+    },
+    {
+      "departmentId": "012C",
+      "customerType": "Department",
+      "departmentDescription": "GRADE2 - 012 - COUPON"
     },
     {
       "departmentId": "013",
@@ -66,9 +126,19 @@
       "departmentDescription": "GRADE3 - 013"
     },
     {
+      "departmentId": "013C",
+      "customerType": "Department",
+      "departmentDescription": "GRADE3 - 013 - COUPON"
+    },
+    {
       "departmentId": "014",
       "customerType": "Department",
       "departmentDescription": "GRADE4 - 014"
+    },
+    {
+      "departmentId": "014C",
+      "customerType": "Department",
+      "departmentDescription": "GRADE4 - 014 - COUPON"
     },
     {
       "departmentId": "015",
@@ -76,9 +146,19 @@
       "departmentDescription": "GRADE5 - 015"
     },
     {
+      "departmentId": "015C",
+      "customerType": "Department",
+      "departmentDescription": "GRADE5 - 015 - COUPON"
+    },
+    {
       "departmentId": "016",
       "customerType": "Department",
       "departmentDescription": "PRE-KINDERGARTEN(K1) - 016"
+    },
+    {
+      "departmentId": "016C",
+      "customerType": "Department",
+      "departmentDescription": "PRE-KINDERGARTEN(K1) - 016 - COUPON"
     },
     {
       "departmentId": "017",
@@ -86,9 +166,19 @@
       "departmentDescription": "PRE-KINDERGARTEN1 (KO) - 017"
     },
     {
+      "departmentId": "017C",
+      "customerType": "Department",
+      "departmentDescription": "PRE-KINDERGARTEN1 (KO) - 017 - COUPON"
+    },
+    {
       "departmentId": "018",
       "customerType": "Department",
       "departmentDescription": "PHYSICAL EDUCATION - 018"
+    },
+    {
+      "departmentId": "018C",
+      "customerType": "Department",
+      "departmentDescription": "PHYSICAL EDUCATION - 018 - COUPON"
     },
     {
       "departmentId": "019",
@@ -96,9 +186,19 @@
       "departmentDescription": "SCIENCE - 019"
     },
     {
+      "departmentId": "019C",
+      "customerType": "Department",
+      "departmentDescription": "SCIENCE - 019 - COUPON"
+    },
+    {
       "departmentId": "020",
       "customerType": "Department",
       "departmentDescription": "ES Explore (ES ASA) - 020"
+    },
+    {
+      "departmentId": "020C",
+      "customerType": "Department",
+      "departmentDescription": "ES Explore (ES ASA) - 020 - COUPON"
     },
     {
       "departmentId": "021",
@@ -106,9 +206,19 @@
       "departmentDescription": "COUNSELING CENTER - 021"
     },
     {
+      "departmentId": "021C",
+      "customerType": "Department",
+      "departmentDescription": "COUNSELING CENTER - 021 - COUPON"
+    },
+    {
       "departmentId": "022",
       "customerType": "Department",
       "departmentDescription": "ES YEARBOOK - 022"
+    },
+    {
+      "departmentId": "022C",
+      "customerType": "Department",
+      "departmentDescription": "ES YEARBOOK - 022 - COUPON"
     },
     {
       "departmentId": "023",
@@ -116,9 +226,19 @@
       "departmentDescription": "SPANISH LANGUAGE - 023"
     },
     {
+      "departmentId": "023C",
+      "customerType": "Department",
+      "departmentDescription": "SPANISH LANGUAGE - 023 - COUPON"
+    },
+    {
       "departmentId": "024",
       "customerType": "Department",
       "departmentDescription": "ES MATH - 024"
+    },
+    {
+      "departmentId": "024C",
+      "customerType": "Department",
+      "departmentDescription": "ES MATH - 024 - COUPON"
     },
     {
       "departmentId": "025",
@@ -126,9 +246,19 @@
       "departmentDescription": "ES BOOKIES / ENGLISH - 025"
     },
     {
+      "departmentId": "025C",
+      "customerType": "Department",
+      "departmentDescription": "ES BOOKIES / ENGLISH - 025 - COUPON"
+    },
+    {
       "departmentId": "026",
       "customerType": "Department",
       "departmentDescription": "ES MAKER SPACE - 026"
+    },
+    {
+      "departmentId": "026C",
+      "customerType": "Department",
+      "departmentDescription": "ES MAKER SPACE - 026 - COUPON"
     },
     {
       "departmentId": "027",
@@ -136,9 +266,19 @@
       "departmentDescription": "ES ATELIERISTA - 027"
     },
     {
+      "departmentId": "027C",
+      "customerType": "Department",
+      "departmentDescription": "ES ATELIERISTA - 027 - COUPON"
+    },
+    {
       "departmentId": "028",
       "customerType": "Department",
       "departmentDescription": "ES Drama Performance - 028"
+    },
+    {
+      "departmentId": "028C",
+      "customerType": "Department",
+      "departmentDescription": "ES Drama Performance - 028 - COUPON"
     },
     {
       "departmentId": "045",
@@ -146,9 +286,19 @@
       "departmentDescription": "ES Outdoor Eductation - 045"
     },
     {
+      "departmentId": "045C",
+      "customerType": "Department",
+      "departmentDescription": "ES Outdoor Eductation - 045 - COUPON"
+    },
+    {
       "departmentId": "099",
       "customerType": "Department",
       "departmentDescription": "ES SALARIES & BENEFITS - 099"
+    },
+    {
+      "departmentId": "099C",
+      "customerType": "Department",
+      "departmentDescription": "ES SALARIES & BENEFITS - 099 - COUPON"
     },
     {
       "departmentId": "100",
@@ -156,9 +306,19 @@
       "departmentDescription": "MIDDLE SCHOOL OFFICE - 100"
     },
     {
+      "departmentId": "100C",
+      "customerType": "Department",
+      "departmentDescription": "MIDDLE SCHOOL OFFICE - 100 - COUPON"
+    },
+    {
       "departmentId": "101",
       "customerType": "Department",
       "departmentDescription": "SPECIAL PROGRAMS - 101"
+    },
+    {
+      "departmentId": "101C",
+      "customerType": "Department",
+      "departmentDescription": "SPECIAL PROGRAMS - 101 - COUPON"
     },
     {
       "departmentId": "102",
@@ -166,9 +326,19 @@
       "departmentDescription": "COUNSELING CENTER - 102"
     },
     {
+      "departmentId": "102C",
+      "customerType": "Department",
+      "departmentDescription": "COUNSELING CENTER - 102 - COUPON"
+    },
+    {
       "departmentId": "103",
       "customerType": "Department",
       "departmentDescription": "K-12 SCHOOL PSYCHOLOGIST - 103"
+    },
+    {
+      "departmentId": "103C",
+      "customerType": "Department",
+      "departmentDescription": "K-12 SCHOOL PSYCHOLOGIST - 103 - COUPON"
     },
     {
       "departmentId": "104",
@@ -176,9 +346,19 @@
       "departmentDescription": "LIBRARY (MS) - 104"
     },
     {
+      "departmentId": "104C",
+      "customerType": "Department",
+      "departmentDescription": "LIBRARY (MS) - 104 - COUPON"
+    },
+    {
       "departmentId": "110",
       "customerType": "Department",
       "departmentDescription": "ENGLISH - 110"
+    },
+    {
+      "departmentId": "110C",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH - 110 - COUPON"
     },
     {
       "departmentId": "112",
@@ -186,9 +366,19 @@
       "departmentDescription": "MATHEMATICS - 112"
     },
     {
+      "departmentId": "112C",
+      "customerType": "Department",
+      "departmentDescription": "MATHEMATICS - 112 - COUPON"
+    },
+    {
       "departmentId": "114",
       "customerType": "Department",
       "departmentDescription": "SOCIAL STUDIES - 114"
+    },
+    {
+      "departmentId": "114C",
+      "customerType": "Department",
+      "departmentDescription": "SOCIAL STUDIES - 114 - COUPON"
     },
     {
       "departmentId": "116",
@@ -196,9 +386,19 @@
       "departmentDescription": "SCIENCE - 116"
     },
     {
+      "departmentId": "116C",
+      "customerType": "Department",
+      "departmentDescription": "SCIENCE - 116 - COUPON"
+    },
+    {
       "departmentId": "117",
       "customerType": "Department",
       "departmentDescription": "WELLNESS/HEALTH - 117"
+    },
+    {
+      "departmentId": "117C",
+      "customerType": "Department",
+      "departmentDescription": "WELLNESS/HEALTH - 117 - COUPON"
     },
     {
       "departmentId": "118",
@@ -206,9 +406,19 @@
       "departmentDescription": "PE/HEALTH - 118"
     },
     {
+      "departmentId": "118C",
+      "customerType": "Department",
+      "departmentDescription": "PE/HEALTH - 118 - COUPON"
+    },
+    {
       "departmentId": "120",
       "customerType": "Department",
       "departmentDescription": "TEAM6 - 120"
+    },
+    {
+      "departmentId": "120C",
+      "customerType": "Department",
+      "departmentDescription": "TEAM6 - 120 - COUPON"
     },
     {
       "departmentId": "122",
@@ -216,9 +426,19 @@
       "departmentDescription": "TEAM7 - 122"
     },
     {
+      "departmentId": "122C",
+      "customerType": "Department",
+      "departmentDescription": "TEAM7 - 122 - COUPON"
+    },
+    {
       "departmentId": "126",
       "customerType": "Department",
       "departmentDescription": "TEAM8 - 126"
+    },
+    {
+      "departmentId": "126C",
+      "customerType": "Department",
+      "departmentDescription": "TEAM8 - 126 - COUPON"
     },
     {
       "departmentId": "129",
@@ -226,9 +446,19 @@
       "departmentDescription": "EAL - 129"
     },
     {
+      "departmentId": "129C",
+      "customerType": "Department",
+      "departmentDescription": "EAL - 129 - COUPON"
+    },
+    {
       "departmentId": "130",
       "customerType": "Department",
       "departmentDescription": "LSS - 130"
+    },
+    {
+      "departmentId": "130C",
+      "customerType": "Department",
+      "departmentDescription": "LSS - 130 - COUPON"
     },
     {
       "departmentId": "131",
@@ -236,9 +466,19 @@
       "departmentDescription": "Design Technology - 131"
     },
     {
+      "departmentId": "131C",
+      "customerType": "Department",
+      "departmentDescription": "Design Technology - 131 - COUPON"
+    },
+    {
       "departmentId": "132",
       "customerType": "Department",
       "departmentDescription": "LEARNING SUPPORT - 132"
+    },
+    {
+      "departmentId": "132C",
+      "customerType": "Department",
+      "departmentDescription": "LEARNING SUPPORT - 132 - COUPON"
     },
     {
       "departmentId": "134",
@@ -246,9 +486,19 @@
       "departmentDescription": "FOREIGN/WORLD LANGUAGE - 134"
     },
     {
+      "departmentId": "134C",
+      "customerType": "Department",
+      "departmentDescription": "FOREIGN/WORLD LANGUAGE - 134 - COUPON"
+    },
+    {
       "departmentId": "135",
       "customerType": "Department",
       "departmentDescription": "COMPUTER - 135"
+    },
+    {
+      "departmentId": "135C",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER - 135 - COUPON"
     },
     {
       "departmentId": "136",
@@ -256,9 +506,19 @@
       "departmentDescription": "DRAMA - 136"
     },
     {
+      "departmentId": "136C",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA - 136 - COUPON"
+    },
+    {
       "departmentId": "137",
       "customerType": "Department",
       "departmentDescription": "MUSIC (CHORUS/SINGING) - 137"
+    },
+    {
+      "departmentId": "137C",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC (CHORUS/SINGING) - 137 - COUPON"
     },
     {
       "departmentId": "138",
@@ -266,9 +526,19 @@
       "departmentDescription": "INDUSTRIAL ARTS - 138"
     },
     {
+      "departmentId": "138C",
+      "customerType": "Department",
+      "departmentDescription": "INDUSTRIAL ARTS - 138 - COUPON"
+    },
+    {
       "departmentId": "139",
       "customerType": "Department",
       "departmentDescription": "ART - 139"
+    },
+    {
+      "departmentId": "139C",
+      "customerType": "Department",
+      "departmentDescription": "ART - 139 - COUPON"
     },
     {
       "departmentId": "140",
@@ -276,9 +546,19 @@
       "departmentDescription": "PHOTOGRAPHY - 140"
     },
     {
+      "departmentId": "140C",
+      "customerType": "Department",
+      "departmentDescription": "PHOTOGRAPHY - 140 - COUPON"
+    },
+    {
       "departmentId": "141",
       "customerType": "Department",
       "departmentDescription": "HOME ECONOMICS - 141"
+    },
+    {
+      "departmentId": "141C",
+      "customerType": "Department",
+      "departmentDescription": "HOME ECONOMICS - 141 - COUPON"
     },
     {
       "departmentId": "142",
@@ -286,9 +566,19 @@
       "departmentDescription": "DRAMA PERFORMANCE - 142"
     },
     {
+      "departmentId": "142C",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA PERFORMANCE - 142 - COUPON"
+    },
+    {
       "departmentId": "143",
       "customerType": "Department",
       "departmentDescription": "MUSIC (INSTRUMENTAL/BAND) - 143"
+    },
+    {
+      "departmentId": "143C",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC (INSTRUMENTAL/BAND) - 143 - COUPON"
     },
     {
       "departmentId": "144",
@@ -296,9 +586,19 @@
       "departmentDescription": "MS Music (Strings) - 144"
     },
     {
+      "departmentId": "144C",
+      "customerType": "Department",
+      "departmentDescription": "MS Music (Strings) - 144 - COUPON"
+    },
+    {
       "departmentId": "145",
       "customerType": "Department",
       "departmentDescription": "MS Outdoor Education - 145"
+    },
+    {
+      "departmentId": "145C",
+      "customerType": "Department",
+      "departmentDescription": "MS Outdoor Education - 145 - COUPON"
     },
     {
       "departmentId": "148",
@@ -306,9 +606,19 @@
       "departmentDescription": "ELECTIVE - 148"
     },
     {
+      "departmentId": "148C",
+      "customerType": "Department",
+      "departmentDescription": "ELECTIVE - 148 - COUPON"
+    },
+    {
       "departmentId": "149",
       "customerType": "Department",
       "departmentDescription": "MIDDLE SCHOOL PUBLICATIONS - 149"
+    },
+    {
+      "departmentId": "149C",
+      "customerType": "Department",
+      "departmentDescription": "MIDDLE SCHOOL PUBLICATIONS - 149 - COUPON"
     },
     {
       "departmentId": "150",
@@ -316,9 +626,19 @@
       "departmentDescription": "MS ACTIVITIES - 150"
     },
     {
+      "departmentId": "150C",
+      "customerType": "Department",
+      "departmentDescription": "MS ACTIVITIES - 150 - COUPON"
+    },
+    {
       "departmentId": "151",
       "customerType": "Department",
       "departmentDescription": "ENVIRONMENTAL ACTIVITIES - 151"
+    },
+    {
+      "departmentId": "151C",
+      "customerType": "Department",
+      "departmentDescription": "ENVIRONMENTAL ACTIVITIES - 151 - COUPON"
     },
     {
       "departmentId": "152",
@@ -326,9 +646,19 @@
       "departmentDescription": "MS ROBOTICS - 152"
     },
     {
+      "departmentId": "152C",
+      "customerType": "Department",
+      "departmentDescription": "MS ROBOTICS - 152 - COUPON"
+    },
+    {
       "departmentId": "153",
       "customerType": "Department",
       "departmentDescription": "MS ADVISORY - 153"
+    },
+    {
+      "departmentId": "153C",
+      "customerType": "Department",
+      "departmentDescription": "MS ADVISORY - 153 - COUPON"
     },
     {
       "departmentId": "199",
@@ -336,9 +666,19 @@
       "departmentDescription": "MS SALARIES & BENEFITS - 199"
     },
     {
+      "departmentId": "199C",
+      "customerType": "Department",
+      "departmentDescription": "MS SALARIES & BENEFITS - 199 - COUPON"
+    },
+    {
       "departmentId": "300",
       "customerType": "Department",
       "departmentDescription": "HIGH SCHOOL OFFICE - 300"
+    },
+    {
+      "departmentId": "300C",
+      "customerType": "Department",
+      "departmentDescription": "HIGH SCHOOL OFFICE - 300 - COUPON"
     },
     {
       "departmentId": "301",
@@ -346,9 +686,19 @@
       "departmentDescription": "LIBRARY (HS) - 301"
     },
     {
+      "departmentId": "301C",
+      "customerType": "Department",
+      "departmentDescription": "LIBRARY (HS) - 301 - COUPON"
+    },
+    {
       "departmentId": "302",
       "customerType": "Department",
       "departmentDescription": "COUNSELING CENTER - 302"
+    },
+    {
+      "departmentId": "302C",
+      "customerType": "Department",
+      "departmentDescription": "COUNSELING CENTER - 302 - COUPON"
     },
     {
       "departmentId": "303",
@@ -356,9 +706,19 @@
       "departmentDescription": "I.B. PROGRAM - 303"
     },
     {
+      "departmentId": "303C",
+      "customerType": "Department",
+      "departmentDescription": "I.B. PROGRAM - 303 - COUPON"
+    },
+    {
       "departmentId": "304",
       "customerType": "Department",
       "departmentDescription": "ENGLISH AS ADDITIONAL LANGUAGE - 304"
+    },
+    {
+      "departmentId": "304C",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH AS ADDITIONAL LANGUAGE - 304 - COUPON"
     },
     {
       "departmentId": "305",
@@ -366,9 +726,19 @@
       "departmentDescription": "ENGLISH - 305"
     },
     {
+      "departmentId": "305C",
+      "customerType": "Department",
+      "departmentDescription": "ENGLISH - 305 - COUPON"
+    },
+    {
       "departmentId": "306",
       "customerType": "Department",
       "departmentDescription": "SOCIAL STUDIES - 306"
+    },
+    {
+      "departmentId": "306C",
+      "customerType": "Department",
+      "departmentDescription": "SOCIAL STUDIES - 306 - COUPON"
     },
     {
       "departmentId": "307",
@@ -376,9 +746,19 @@
       "departmentDescription": "MATHEMATICS - 307"
     },
     {
+      "departmentId": "307C",
+      "customerType": "Department",
+      "departmentDescription": "MATHEMATICS - 307 - COUPON"
+    },
+    {
       "departmentId": "308",
       "customerType": "Department",
       "departmentDescription": "SCIENCES - 308"
+    },
+    {
+      "departmentId": "308C",
+      "customerType": "Department",
+      "departmentDescription": "SCIENCES - 308 - COUPON"
     },
     {
       "departmentId": "309",
@@ -386,9 +766,19 @@
       "departmentDescription": "WORLD LANGUAGES - 309"
     },
     {
+      "departmentId": "309C",
+      "customerType": "Department",
+      "departmentDescription": "WORLD LANGUAGES - 309 - COUPON"
+    },
+    {
       "departmentId": "310",
       "customerType": "Department",
       "departmentDescription": "LEARNING SUPPORT LSS/EAL - 310"
+    },
+    {
+      "departmentId": "310C",
+      "customerType": "Department",
+      "departmentDescription": "LEARNING SUPPORT LSS/EAL - 310 - COUPON"
     },
     {
       "departmentId": "311",
@@ -396,9 +786,19 @@
       "departmentDescription": "PHYSICAL EDUCATON - 311"
     },
     {
+      "departmentId": "311C",
+      "customerType": "Department",
+      "departmentDescription": "PHYSICAL EDUCATON - 311 - COUPON"
+    },
+    {
       "departmentId": "312",
       "customerType": "Department",
       "departmentDescription": "DRAMA - 312"
+    },
+    {
+      "departmentId": "312C",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA - 312 - COUPON"
     },
     {
       "departmentId": "313",
@@ -406,9 +806,19 @@
       "departmentDescription": "BUSINESS - 313"
     },
     {
+      "departmentId": "313C",
+      "customerType": "Department",
+      "departmentDescription": "BUSINESS - 313 - COUPON"
+    },
+    {
       "departmentId": "314",
       "customerType": "Department",
       "departmentDescription": "ART - 314"
+    },
+    {
+      "departmentId": "314C",
+      "customerType": "Department",
+      "departmentDescription": "ART - 314 - COUPON"
     },
     {
       "departmentId": "315",
@@ -416,9 +826,19 @@
       "departmentDescription": "MUSIC - 315"
     },
     {
+      "departmentId": "315C",
+      "customerType": "Department",
+      "departmentDescription": "MUSIC - 315 - COUPON"
+    },
+    {
       "departmentId": "316",
       "customerType": "Department",
       "departmentDescription": "INDUSTIRAL ARTS - 316"
+    },
+    {
+      "departmentId": "316C",
+      "customerType": "Department",
+      "departmentDescription": "INDUSTIRAL ARTS - 316 - COUPON"
     },
     {
       "departmentId": "317",
@@ -426,9 +846,19 @@
       "departmentDescription": "COMMUNITY SERVICE - 317"
     },
     {
+      "departmentId": "317C",
+      "customerType": "Department",
+      "departmentDescription": "COMMUNITY SERVICE - 317 - COUPON"
+    },
+    {
       "departmentId": "318",
       "customerType": "Department",
       "departmentDescription": "PHOTOGRAPHY - 318"
+    },
+    {
+      "departmentId": "318C",
+      "customerType": "Department",
+      "departmentDescription": "PHOTOGRAPHY - 318 - COUPON"
     },
     {
       "departmentId": "319",
@@ -436,9 +866,19 @@
       "departmentDescription": "FINE ARTS - 319"
     },
     {
+      "departmentId": "319C",
+      "customerType": "Department",
+      "departmentDescription": "FINE ARTS - 319 - COUPON"
+    },
+    {
       "departmentId": "320",
       "customerType": "Department",
       "departmentDescription": "COMPUTER - 320"
+    },
+    {
+      "departmentId": "320C",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER - 320 - COUPON"
     },
     {
       "departmentId": "321",
@@ -446,9 +886,19 @@
       "departmentDescription": "COMPUTER RESOURCES - 321"
     },
     {
+      "departmentId": "321C",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER RESOURCES - 321 - COUPON"
+    },
+    {
       "departmentId": "322",
       "customerType": "Department",
       "departmentDescription": "INTERNSHIP/PARTNERSHIP - 322"
+    },
+    {
+      "departmentId": "322C",
+      "customerType": "Department",
+      "departmentDescription": "INTERNSHIP/PARTNERSHIP - 322 - COUPON"
     },
     {
       "departmentId": "323",
@@ -456,9 +906,19 @@
       "departmentDescription": "DRAMA-PERFORMANCE - 323"
     },
     {
+      "departmentId": "323C",
+      "customerType": "Department",
+      "departmentDescription": "DRAMA-PERFORMANCE - 323 - COUPON"
+    },
+    {
       "departmentId": "324",
       "customerType": "Department",
       "departmentDescription": "ERAWAN - 324"
+    },
+    {
+      "departmentId": "324C",
+      "customerType": "Department",
+      "departmentDescription": "ERAWAN - 324 - COUPON"
     },
     {
       "departmentId": "325",
@@ -466,9 +926,19 @@
       "departmentDescription": "HS/MS DANCE - 325"
     },
     {
+      "departmentId": "325C",
+      "customerType": "Department",
+      "departmentDescription": "HS/MS DANCE - 325 - COUPON"
+    },
+    {
       "departmentId": "326",
       "customerType": "Department",
       "departmentDescription": "HS MEDIA STUDIES - 326"
+    },
+    {
+      "departmentId": "326C",
+      "customerType": "Department",
+      "departmentDescription": "HS MEDIA STUDIES - 326 - COUPON"
     },
     {
       "departmentId": "327",
@@ -476,9 +946,19 @@
       "departmentDescription": "HS SPEECH - 327"
     },
     {
+      "departmentId": "327C",
+      "customerType": "Department",
+      "departmentDescription": "HS SPEECH - 327 - COUPON"
+    },
+    {
       "departmentId": "328",
       "customerType": "Department",
       "departmentDescription": "HS PSYCHOLOGIST - 328"
+    },
+    {
+      "departmentId": "328C",
+      "customerType": "Department",
+      "departmentDescription": "HS PSYCHOLOGIST - 328 - COUPON"
     },
     {
       "departmentId": "329",
@@ -486,9 +966,19 @@
       "departmentDescription": "HS ROBOTICS - 329"
     },
     {
+      "departmentId": "329C",
+      "customerType": "Department",
+      "departmentDescription": "HS ROBOTICS - 329 - COUPON"
+    },
+    {
       "departmentId": "330",
       "customerType": "Department",
       "departmentDescription": "DESIGN TECHNOLOGY - 330"
+    },
+    {
+      "departmentId": "330C",
+      "customerType": "Department",
+      "departmentDescription": "DESIGN TECHNOLOGY - 330 - COUPON"
     },
     {
       "departmentId": "331",
@@ -496,9 +986,19 @@
       "departmentDescription": "COLLEGE COUNSELLING - 331"
     },
     {
+      "departmentId": "331C",
+      "customerType": "Department",
+      "departmentDescription": "COLLEGE COUNSELLING - 331 - COUPON"
+    },
+    {
       "departmentId": "332",
       "customerType": "Department",
       "departmentDescription": "AP  Program - 332"
+    },
+    {
+      "departmentId": "332C",
+      "customerType": "Department",
+      "departmentDescription": "AP  Program - 332 - COUPON"
     },
     {
       "departmentId": "333",
@@ -506,9 +1006,19 @@
       "departmentDescription": "Music (Strings) - 333"
     },
     {
+      "departmentId": "333C",
+      "customerType": "Department",
+      "departmentDescription": "Music (Strings) - 333 - COUPON"
+    },
+    {
       "departmentId": "334",
       "customerType": "Department",
       "departmentDescription": "Music (Chorus/IB) - 334"
+    },
+    {
+      "departmentId": "334C",
+      "customerType": "Department",
+      "departmentDescription": "Music (Chorus/IB) - 334 - COUPON"
     },
     {
       "departmentId": "335",
@@ -516,9 +1026,19 @@
       "departmentDescription": "Music (IB) - 335"
     },
     {
+      "departmentId": "335C",
+      "customerType": "Department",
+      "departmentDescription": "Music (IB) - 335 - COUPON"
+    },
+    {
       "departmentId": "336",
       "customerType": "Department",
       "departmentDescription": "Sound Production - 336"
+    },
+    {
+      "departmentId": "336C",
+      "customerType": "Department",
+      "departmentDescription": "Sound Production - 336 - COUPON"
     },
     {
       "departmentId": "345",
@@ -526,9 +1046,19 @@
       "departmentDescription": "HS Outdoor Education - 345"
     },
     {
+      "departmentId": "345C",
+      "customerType": "Department",
+      "departmentDescription": "HS Outdoor Education - 345 - COUPON"
+    },
+    {
       "departmentId": "350",
       "customerType": "Department",
       "departmentDescription": "ACTIVITIES & COMMUNITY SERVICE - 350"
+    },
+    {
+      "departmentId": "350C",
+      "customerType": "Department",
+      "departmentDescription": "ACTIVITIES & COMMUNITY SERVICE - 350 - COUPON"
     },
     {
       "departmentId": "351",
@@ -536,9 +1066,19 @@
       "departmentDescription": "THEATRE - 351"
     },
     {
+      "departmentId": "351C",
+      "customerType": "Department",
+      "departmentDescription": "THEATRE - 351 - COUPON"
+    },
+    {
       "departmentId": "352",
       "customerType": "Department",
       "departmentDescription": "COMMUNITY ACTIVITIES OFFICE - 352"
+    },
+    {
+      "departmentId": "352C",
+      "customerType": "Department",
+      "departmentDescription": "COMMUNITY ACTIVITIES OFFICE - 352 - COUPON"
     },
     {
       "departmentId": "360",
@@ -546,9 +1086,19 @@
       "departmentDescription": "ATHLETICS OFFICE - 360"
     },
     {
+      "departmentId": "360C",
+      "customerType": "Department",
+      "departmentDescription": "ATHLETICS OFFICE - 360 - COUPON"
+    },
+    {
       "departmentId": "361",
       "customerType": "Department",
       "departmentDescription": "AQUATICS OFFICE - 361"
+    },
+    {
+      "departmentId": "361C",
+      "customerType": "Department",
+      "departmentDescription": "AQUATICS OFFICE - 361 - COUPON"
     },
     {
       "departmentId": "362",
@@ -556,9 +1106,19 @@
       "departmentDescription": "SPORT COMPLEX - 362"
     },
     {
+      "departmentId": "362C",
+      "customerType": "Department",
+      "departmentDescription": "SPORT COMPLEX - 362 - COUPON"
+    },
+    {
       "departmentId": "363",
       "customerType": "Department",
       "departmentDescription": "PHETCHABURI OUTDOOR CAMP - 363"
+    },
+    {
+      "departmentId": "363C",
+      "customerType": "Department",
+      "departmentDescription": "PHETCHABURI OUTDOOR CAMP - 363 - COUPON"
     },
     {
       "departmentId": "399",
@@ -566,9 +1126,19 @@
       "departmentDescription": "HS SALARIES & BENEFITS - 399"
     },
     {
+      "departmentId": "399C",
+      "customerType": "Department",
+      "departmentDescription": "HS SALARIES & BENEFITS - 399 - COUPON"
+    },
+    {
       "departmentId": "400",
       "customerType": "Department",
       "departmentDescription": "HEAD OF SCHOOL - 400"
+    },
+    {
+      "departmentId": "400C",
+      "customerType": "Department",
+      "departmentDescription": "HEAD OF SCHOOL - 400 - COUPON"
     },
     {
       "departmentId": "410",
@@ -576,9 +1146,19 @@
       "departmentDescription": "HEAD OF SCHOOL OFFICE - 410"
     },
     {
+      "departmentId": "410C",
+      "customerType": "Department",
+      "departmentDescription": "HEAD OF SCHOOL OFFICE - 410 - COUPON"
+    },
+    {
       "departmentId": "411",
       "customerType": "Department",
       "departmentDescription": "HEAD OF SCHOOL'S HOUSE - 411"
+    },
+    {
+      "departmentId": "411C",
+      "customerType": "Department",
+      "departmentDescription": "HEAD OF SCHOOL'S HOUSE - 411 - COUPON"
     },
     {
       "departmentId": "420",
@@ -586,9 +1166,19 @@
       "departmentDescription": "HEADMISTRESS OFFICE - 420"
     },
     {
+      "departmentId": "420C",
+      "customerType": "Department",
+      "departmentDescription": "HEADMISTRESS OFFICE - 420 - COUPON"
+    },
+    {
       "departmentId": "421",
       "customerType": "Department",
       "departmentDescription": "GOVERNMENT LIAISON OFFICE - 421"
+    },
+    {
+      "departmentId": "421C",
+      "customerType": "Department",
+      "departmentDescription": "GOVERNMENT LIAISON OFFICE - 421 - COUPON"
     },
     {
       "departmentId": "450",
@@ -596,9 +1186,19 @@
       "departmentDescription": "DEPUTY HEAD OF SCHOOL OFFICE - 450"
     },
     {
+      "departmentId": "450C",
+      "customerType": "Department",
+      "departmentDescription": "DEPUTY HEAD OF SCHOOL OFFICE - 450 - COUPON"
+    },
+    {
       "departmentId": "451",
       "customerType": "Department",
       "departmentDescription": "LDC/CURRICULUM OFFICE - 451"
+    },
+    {
+      "departmentId": "451C",
+      "customerType": "Department",
+      "departmentDescription": "LDC/CURRICULUM OFFICE - 451 - COUPON"
     },
     {
       "departmentId": "452",
@@ -606,9 +1206,19 @@
       "departmentDescription": "MARKETING & COMMUNICATION - 452"
     },
     {
+      "departmentId": "452C",
+      "customerType": "Department",
+      "departmentDescription": "MARKETING & COMMUNICATION - 452 - COUPON"
+    },
+    {
       "departmentId": "453",
       "customerType": "Department",
       "departmentDescription": "ADMISSION OFFICE - 453"
+    },
+    {
+      "departmentId": "453C",
+      "customerType": "Department",
+      "departmentDescription": "ADMISSION OFFICE - 453 - COUPON"
     },
     {
       "departmentId": "454",
@@ -616,9 +1226,19 @@
       "departmentDescription": "HUMAN RESOURCES DEPARTMENT - 454"
     },
     {
+      "departmentId": "454C",
+      "customerType": "Department",
+      "departmentDescription": "HUMAN RESOURCES DEPARTMENT - 454 - COUPON"
+    },
+    {
       "departmentId": "455",
       "customerType": "Department",
       "departmentDescription": "GIFTED AND TALENTED PROGRAM - 455"
+    },
+    {
+      "departmentId": "455C",
+      "customerType": "Department",
+      "departmentDescription": "GIFTED AND TALENTED PROGRAM - 455 - COUPON"
     },
     {
       "departmentId": "456",
@@ -626,9 +1246,19 @@
       "departmentDescription": "OUTDOOR EDU. PETCHABURI CAMPUS - 456"
     },
     {
+      "departmentId": "456C",
+      "customerType": "Department",
+      "departmentDescription": "OUTDOOR EDU. PETCHABURI CAMPUS - 456 - COUPON"
+    },
+    {
       "departmentId": "457",
       "customerType": "Department",
       "departmentDescription": "INTENSIVE NEEDS PROGRAM - 457"
+    },
+    {
+      "departmentId": "457C",
+      "customerType": "Department",
+      "departmentDescription": "INTENSIVE NEEDS PROGRAM - 457 - COUPON"
     },
     {
       "departmentId": "458",
@@ -636,9 +1266,19 @@
       "departmentDescription": "STUDENT SERVICES OFFICE - 458"
     },
     {
+      "departmentId": "458C",
+      "customerType": "Department",
+      "departmentDescription": "STUDENT SERVICES OFFICE - 458 - COUPON"
+    },
+    {
       "departmentId": "459",
       "customerType": "Department",
       "departmentDescription": "MOTHER TONGUE PROGRAM - 459"
+    },
+    {
+      "departmentId": "459C",
+      "customerType": "Department",
+      "departmentDescription": "MOTHER TONGUE PROGRAM - 459 - COUPON"
     },
     {
       "departmentId": "499",
@@ -646,9 +1286,19 @@
       "departmentDescription": "SUPT. SALARIES & BENEFITS - 499"
     },
     {
+      "departmentId": "499C",
+      "customerType": "Department",
+      "departmentDescription": "SUPT. SALARIES & BENEFITS - 499 - COUPON"
+    },
+    {
       "departmentId": "510",
       "customerType": "Department",
       "departmentDescription": "DEPUTY HEAD OF SCHOOL/CFO - 510"
+    },
+    {
+      "departmentId": "510C",
+      "customerType": "Department",
+      "departmentDescription": "DEPUTY HEAD OF SCHOOL/CFO - 510 - COUPON"
     },
     {
       "departmentId": "520",
@@ -656,9 +1306,19 @@
       "departmentDescription": "ED-TECH CENTER - 520"
     },
     {
+      "departmentId": "520C",
+      "customerType": "Department",
+      "departmentDescription": "ED-TECH CENTER - 520 - COUPON"
+    },
+    {
       "departmentId": "530",
       "customerType": "Department",
       "departmentDescription": "FACILITIES OFFICE - 530"
+    },
+    {
+      "departmentId": "530C",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFFICE - 530 - COUPON"
     },
     {
       "departmentId": "531",
@@ -666,9 +1326,19 @@
       "departmentDescription": "FACILITIES OFF. - HOUSEKEEPING - 531"
     },
     {
+      "departmentId": "531C",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF. - HOUSEKEEPING - 531 - COUPON"
+    },
+    {
       "departmentId": "532",
       "customerType": "Department",
       "departmentDescription": "FACILITIES OFF.-MECHANIC.MAINT - 532"
+    },
+    {
+      "departmentId": "532C",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF.-MECHANIC.MAINT - 532 - COUPON"
     },
     {
       "departmentId": "533",
@@ -676,9 +1346,19 @@
       "departmentDescription": "FACILITIES OFF.-GROUND - 533"
     },
     {
+      "departmentId": "533C",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF.-GROUND - 533 - COUPON"
+    },
+    {
       "departmentId": "534",
       "customerType": "Department",
       "departmentDescription": "FACILITIES OFF.-TEACHER HOUSE - 534"
+    },
+    {
+      "departmentId": "534C",
+      "customerType": "Department",
+      "departmentDescription": "FACILITIES OFF.-TEACHER HOUSE - 534 - COUPON"
     },
     {
       "departmentId": "545",
@@ -686,9 +1366,19 @@
       "departmentDescription": "EWC-EnvironmentWildernessCamp - 545"
     },
     {
+      "departmentId": "545C",
+      "customerType": "Department",
+      "departmentDescription": "EWC-EnvironmentWildernessCamp - 545 - COUPON"
+    },
+    {
       "departmentId": "546",
       "customerType": "Department",
       "departmentDescription": "GOLF CENTER - 546"
+    },
+    {
+      "departmentId": "546C",
+      "customerType": "Department",
+      "departmentDescription": "GOLF CENTER - 546 - COUPON"
     },
     {
       "departmentId": "550",
@@ -696,9 +1386,19 @@
       "departmentDescription": "BUSINESS OFFICE - 550"
     },
     {
+      "departmentId": "550C",
+      "customerType": "Department",
+      "departmentDescription": "BUSINESS OFFICE - 550 - COUPON"
+    },
+    {
       "departmentId": "551",
       "customerType": "Department",
       "departmentDescription": "GENERAL SCHOOLWIDE - 551"
+    },
+    {
+      "departmentId": "551C",
+      "customerType": "Department",
+      "departmentDescription": "GENERAL SCHOOLWIDE - 551 - COUPON"
     },
     {
       "departmentId": "552",
@@ -706,9 +1406,19 @@
       "departmentDescription": "ACCOUNTING AND INVOICE - 552"
     },
     {
+      "departmentId": "552C",
+      "customerType": "Department",
+      "departmentDescription": "ACCOUNTING AND INVOICE - 552 - COUPON"
+    },
+    {
       "departmentId": "553",
       "customerType": "Department",
       "departmentDescription": "COMPUTER - MIS - 553"
+    },
+    {
+      "departmentId": "553C",
+      "customerType": "Department",
+      "departmentDescription": "COMPUTER - MIS - 553 - COUPON"
     },
     {
       "departmentId": "554",
@@ -716,9 +1426,19 @@
       "departmentDescription": "PURCHASING OFFICE - 554"
     },
     {
+      "departmentId": "554C",
+      "customerType": "Department",
+      "departmentDescription": "PURCHASING OFFICE - 554 - COUPON"
+    },
+    {
       "departmentId": "555",
       "customerType": "Department",
       "departmentDescription": "RECEIVING OFFICE - 555"
+    },
+    {
+      "departmentId": "555C",
+      "customerType": "Department",
+      "departmentDescription": "RECEIVING OFFICE - 555 - COUPON"
     },
     {
       "departmentId": "560",
@@ -726,9 +1446,19 @@
       "departmentDescription": "PRINTING OFFICE - 560"
     },
     {
+      "departmentId": "560C",
+      "customerType": "Department",
+      "departmentDescription": "PRINTING OFFICE - 560 - COUPON"
+    },
+    {
       "departmentId": "570",
       "customerType": "Department",
       "departmentDescription": "TELEPHONE/ FAX / MAIL - 570"
+    },
+    {
+      "departmentId": "570C",
+      "customerType": "Department",
+      "departmentDescription": "TELEPHONE/ FAX / MAIL - 570 - COUPON"
     },
     {
       "departmentId": "580",
@@ -736,9 +1466,19 @@
       "departmentDescription": "SECURITY - 580"
     },
     {
+      "departmentId": "580C",
+      "customerType": "Department",
+      "departmentDescription": "SECURITY - 580 - COUPON"
+    },
+    {
       "departmentId": "590",
       "customerType": "Department",
       "departmentDescription": "TRANSPORTATION OFFICE - 590"
+    },
+    {
+      "departmentId": "590C",
+      "customerType": "Department",
+      "departmentDescription": "TRANSPORTATION OFFICE - 590 - COUPON"
     },
     {
       "departmentId": "600",
@@ -746,9 +1486,19 @@
       "departmentDescription": "BOOKSTORE - 600"
     },
     {
+      "departmentId": "600C",
+      "customerType": "Department",
+      "departmentDescription": "BOOKSTORE - 600 - COUPON"
+    },
+    {
       "departmentId": "610",
       "customerType": "Department",
       "departmentDescription": "NURSE OFFICE - 610"
+    },
+    {
+      "departmentId": "610C",
+      "customerType": "Department",
+      "departmentDescription": "NURSE OFFICE - 610 - COUPON"
     },
     {
       "departmentId": "620",
@@ -756,9 +1506,19 @@
       "departmentDescription": "FOOD SERVICES - 620"
     },
     {
+      "departmentId": "620C",
+      "customerType": "Department",
+      "departmentDescription": "FOOD SERVICES - 620 - COUPON"
+    },
+    {
       "departmentId": "699",
       "customerType": "Department",
       "departmentDescription": "CFO SALARIES & BENEFITS - 699"
+    },
+    {
+      "departmentId": "699C",
+      "customerType": "Department",
+      "departmentDescription": "CFO SALARIES & BENEFITS - 699 - COUPON"
     },
     {
       "departmentId": "700",
@@ -766,9 +1526,19 @@
       "departmentDescription": "IB FILM - 700"
     },
     {
+      "departmentId": "700C",
+      "customerType": "Department",
+      "departmentDescription": "IB FILM - 700 - COUPON"
+    },
+    {
       "departmentId": "701",
       "customerType": "Department",
       "departmentDescription": "MS/HS DANCE - 701"
+    },
+    {
+      "departmentId": "701C",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS DANCE - 701 - COUPON"
     },
     {
       "departmentId": "702",
@@ -776,9 +1546,19 @@
       "departmentDescription": "HS BAND / IB MUSIC - 702"
     },
     {
+      "departmentId": "702C",
+      "customerType": "Department",
+      "departmentDescription": "HS BAND / IB MUSIC - 702 - COUPON"
+    },
+    {
       "departmentId": "703",
       "customerType": "Department",
       "departmentDescription": "MS BAND - 703"
+    },
+    {
+      "departmentId": "703C",
+      "customerType": "Department",
+      "departmentDescription": "MS BAND - 703 - COUPON"
     },
     {
       "departmentId": "704",
@@ -786,9 +1566,19 @@
       "departmentDescription": "MS/HS CHOIR - 704"
     },
     {
+      "departmentId": "704C",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS CHOIR - 704 - COUPON"
+    },
+    {
       "departmentId": "705",
       "customerType": "Department",
       "departmentDescription": "K-12 STRING - 705"
+    },
+    {
+      "departmentId": "705C",
+      "customerType": "Department",
+      "departmentDescription": "K-12 STRING - 705 - COUPON"
     },
     {
       "departmentId": "706",
@@ -796,9 +1586,19 @@
       "departmentDescription": "ES MUSIC - 706"
     },
     {
+      "departmentId": "706C",
+      "customerType": "Department",
+      "departmentDescription": "ES MUSIC - 706 - COUPON"
+    },
+    {
       "departmentId": "707",
       "customerType": "Department",
       "departmentDescription": "MS/HS THEATRE (incl. 709/710) - 707"
+    },
+    {
+      "departmentId": "707C",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS THEATRE (incl. 709/710) - 707 - COUPON"
     },
     {
       "departmentId": "708",
@@ -806,9 +1606,19 @@
       "departmentDescription": "MS/HS PRODUCTION (incl. 720) - 708"
     },
     {
+      "departmentId": "708C",
+      "customerType": "Department",
+      "departmentDescription": "MS/HS PRODUCTION (incl. 720) - 708 - COUPON"
+    },
+    {
       "departmentId": "709",
       "customerType": "Department",
       "departmentDescription": "IB TAPS TRIP - 709"
+    },
+    {
+      "departmentId": "709C",
+      "customerType": "Department",
+      "departmentDescription": "IB TAPS TRIP - 709 - COUPON"
     },
     {
       "departmentId": "710",
@@ -816,9 +1626,19 @@
       "departmentDescription": "MS THEATRE - 710"
     },
     {
+      "departmentId": "710C",
+      "customerType": "Department",
+      "departmentDescription": "MS THEATRE - 710 - COUPON"
+    },
+    {
       "departmentId": "711",
       "customerType": "Department",
       "departmentDescription": "ES MUSICAL - 711"
+    },
+    {
+      "departmentId": "711C",
+      "customerType": "Department",
+      "departmentDescription": "ES MUSICAL - 711 - COUPON"
     },
     {
       "departmentId": "712",
@@ -826,9 +1646,19 @@
       "departmentDescription": "HS ARTS - 712"
     },
     {
+      "departmentId": "712C",
+      "customerType": "Department",
+      "departmentDescription": "HS ARTS - 712 - COUPON"
+    },
+    {
       "departmentId": "713",
       "customerType": "Department",
       "departmentDescription": "HS PHOTOGRAPHY - 713"
+    },
+    {
+      "departmentId": "713C",
+      "customerType": "Department",
+      "departmentDescription": "HS PHOTOGRAPHY - 713 - COUPON"
     },
     {
       "departmentId": "714",
@@ -836,9 +1666,19 @@
       "departmentDescription": "HS JEWELRY - 714"
     },
     {
+      "departmentId": "714C",
+      "customerType": "Department",
+      "departmentDescription": "HS JEWELRY - 714 - COUPON"
+    },
+    {
       "departmentId": "715",
       "customerType": "Department",
       "departmentDescription": "MS ART - 715"
+    },
+    {
+      "departmentId": "715C",
+      "customerType": "Department",
+      "departmentDescription": "MS ART - 715 - COUPON"
     },
     {
       "departmentId": "716",
@@ -846,9 +1686,19 @@
       "departmentDescription": "ES ART - 716"
     },
     {
+      "departmentId": "716C",
+      "customerType": "Department",
+      "departmentDescription": "ES ART - 716 - COUPON"
+    },
+    {
       "departmentId": "717",
       "customerType": "Department",
       "departmentDescription": "K-12 ARTS AND ACTIVITIES - 717"
+    },
+    {
+      "departmentId": "717C",
+      "customerType": "Department",
+      "departmentDescription": "K-12 ARTS AND ACTIVITIES - 717 - COUPON"
     },
     {
       "departmentId": "718",
@@ -856,9 +1706,19 @@
       "departmentDescription": "THEATRE - 718"
     },
     {
+      "departmentId": "718C",
+      "customerType": "Department",
+      "departmentDescription": "THEATRE - 718 - COUPON"
+    },
+    {
       "departmentId": "719",
       "customerType": "Department",
       "departmentDescription": "INVENTION CENTER - 719"
+    },
+    {
+      "departmentId": "719C",
+      "customerType": "Department",
+      "departmentDescription": "INVENTION CENTER - 719 - COUPON"
     },
     {
       "departmentId": "720",
@@ -866,9 +1726,19 @@
       "departmentDescription": "MS PRODUCTION - 720"
     },
     {
+      "departmentId": "720C",
+      "customerType": "Department",
+      "departmentDescription": "MS PRODUCTION - 720 - COUPON"
+    },
+    {
       "departmentId": "802",
       "customerType": "Department",
       "departmentDescription": "Soccer - 802"
+    },
+    {
+      "departmentId": "802C",
+      "customerType": "Department",
+      "departmentDescription": "Soccer - 802 - COUPON"
     },
     {
       "departmentId": "804",
@@ -876,9 +1746,19 @@
       "departmentDescription": "Badminton - 804"
     },
     {
+      "departmentId": "804C",
+      "customerType": "Department",
+      "departmentDescription": "Badminton - 804 - COUPON"
+    },
+    {
       "departmentId": "806",
       "customerType": "Department",
       "departmentDescription": "Basketball - 806"
+    },
+    {
+      "departmentId": "806C",
+      "customerType": "Department",
+      "departmentDescription": "Basketball - 806 - COUPON"
     },
     {
       "departmentId": "808",
@@ -886,9 +1766,19 @@
       "departmentDescription": "Volleyball - 808"
     },
     {
+      "departmentId": "808C",
+      "customerType": "Department",
+      "departmentDescription": "Volleyball - 808 - COUPON"
+    },
+    {
       "departmentId": "810",
       "customerType": "Department",
       "departmentDescription": "Baseball - 810"
+    },
+    {
+      "departmentId": "810C",
+      "customerType": "Department",
+      "departmentDescription": "Baseball - 810 - COUPON"
     },
     {
       "departmentId": "812",
@@ -896,9 +1786,19 @@
       "departmentDescription": "Softball - 812"
     },
     {
+      "departmentId": "812C",
+      "customerType": "Department",
+      "departmentDescription": "Softball - 812 - COUPON"
+    },
+    {
       "departmentId": "814",
       "customerType": "Department",
       "departmentDescription": "Rugby/Touch - 814"
+    },
+    {
+      "departmentId": "814C",
+      "customerType": "Department",
+      "departmentDescription": "Rugby/Touch - 814 - COUPON"
     },
     {
       "departmentId": "816",
@@ -906,9 +1806,19 @@
       "departmentDescription": "Tennis - 816"
     },
     {
+      "departmentId": "816C",
+      "customerType": "Department",
+      "departmentDescription": "Tennis - 816 - COUPON"
+    },
+    {
       "departmentId": "818",
       "customerType": "Department",
       "departmentDescription": "Swimming - 818"
+    },
+    {
+      "departmentId": "818C",
+      "customerType": "Department",
+      "departmentDescription": "Swimming - 818 - COUPON"
     },
     {
       "departmentId": "820",
@@ -916,9 +1826,19 @@
       "departmentDescription": "Golf - 820"
     },
     {
+      "departmentId": "820C",
+      "customerType": "Department",
+      "departmentDescription": "Golf - 820 - COUPON"
+    },
+    {
       "departmentId": "822",
       "customerType": "Department",
       "departmentDescription": "Gymnastics - 822"
+    },
+    {
+      "departmentId": "822C",
+      "customerType": "Department",
+      "departmentDescription": "Gymnastics - 822 - COUPON"
     },
     {
       "departmentId": "832",
@@ -926,9 +1846,19 @@
       "departmentDescription": "Arts - 832"
     },
     {
+      "departmentId": "832C",
+      "customerType": "Department",
+      "departmentDescription": "Arts - 832 - COUPON"
+    },
+    {
       "departmentId": "834",
       "customerType": "Department",
       "departmentDescription": "Dance - 834"
+    },
+    {
+      "departmentId": "834C",
+      "customerType": "Department",
+      "departmentDescription": "Dance - 834 - COUPON"
     },
     {
       "departmentId": "836",
@@ -936,9 +1866,19 @@
       "departmentDescription": "Explore - 836"
     },
     {
+      "departmentId": "836C",
+      "customerType": "Department",
+      "departmentDescription": "Explore - 836 - COUPON"
+    },
+    {
       "departmentId": "838",
       "customerType": "Department",
       "departmentDescription": "Extreme - 838"
+    },
+    {
+      "departmentId": "838C",
+      "customerType": "Department",
+      "departmentDescription": "Extreme - 838 - COUPON"
     },
     {
       "departmentId": "840",
@@ -946,9 +1886,19 @@
       "departmentDescription": "Film - 840"
     },
     {
+      "departmentId": "840C",
+      "customerType": "Department",
+      "departmentDescription": "Film - 840 - COUPON"
+    },
+    {
       "departmentId": "842",
       "customerType": "Department",
       "departmentDescription": "Music - 842"
+    },
+    {
+      "departmentId": "842C",
+      "customerType": "Department",
+      "departmentDescription": "Music - 842 - COUPON"
     },
     {
       "departmentId": "844",
@@ -956,9 +1906,19 @@
       "departmentDescription": "Sound Studio - 844"
     },
     {
+      "departmentId": "844C",
+      "customerType": "Department",
+      "departmentDescription": "Sound Studio - 844 - COUPON"
+    },
+    {
       "departmentId": "862",
       "customerType": "Department",
       "departmentDescription": "Language Academy - 862"
+    },
+    {
+      "departmentId": "862C",
+      "customerType": "Department",
+      "departmentDescription": "Language Academy - 862 - COUPON"
     },
     {
       "departmentId": "900",
@@ -966,9 +1926,19 @@
       "departmentDescription": "SUMMER SCHOOL - 900"
     },
     {
+      "departmentId": "900C",
+      "customerType": "Department",
+      "departmentDescription": "SUMMER SCHOOL - 900 - COUPON"
+    },
+    {
       "departmentId": "901",
       "customerType": "Department",
       "departmentDescription": "Housing Project - 901"
+    },
+    {
+      "departmentId": "901C",
+      "customerType": "Department",
+      "departmentDescription": "Housing Project - 901 - COUPON"
     },
     {
       "departmentId": "999",
@@ -976,9 +1946,19 @@
       "departmentDescription": "BALANCE SHEET BUSINESS UNIT - 999"
     },
     {
+      "departmentId": "999C",
+      "customerType": "Department",
+      "departmentDescription": "BALANCE SHEET BUSINESS UNIT - 999 - COUPON"
+    },
+    {
       "departmentId": "MD",
       "customerType": "Department",
       "departmentDescription": "MODEL BUSINESS UNIT - MD"
+    },
+    {
+      "departmentId": "MDC",
+      "customerType": "Department",
+      "departmentDescription": "MODEL BUSINESS UNIT - MD - COUPON"
     }
   ]
 }

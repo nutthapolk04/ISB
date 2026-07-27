@@ -881,7 +881,7 @@
       "hasChildren": false,
       "profileImage": "201200_SF.jpg",
       "smartCard": {
-        "cardNumber": "45D4B43A"
+        "cardNumber": "063661AF"
       },
       "login": ["naiyanar@isb.ac.th"]
     },
@@ -2441,7 +2441,7 @@
       "hasChildren": false,
       "profileImage": "201809_SF.jpg",
       "smartCard": {
-        "cardNumber": "56A25540"
+        "cardNumber": "06927CAF"
       },
       "login": ["chaiyak@isb.ac.th"]
     },
@@ -2891,7 +2891,7 @@
       "hasChildren": false,
       "profileImage": "201945_SF.jpg",
       "smartCard": {
-        "cardNumber": "A76F6454"
+        "cardNumber": "16125CAF"
       },
       "login": ["theerawt@isb.ac.th"]
     },
@@ -3506,7 +3506,7 @@
       "hasChildren": false,
       "profileImage": "202055_SF.jpg",
       "smartCard": {
-        "cardNumber": "65CB4A96"
+        "cardNumber": "65AEB9DA"
       },
       "login": ["hmalbrt@isb.ac.th"]
     },
@@ -3746,7 +3746,7 @@
       "hasChildren": false,
       "profileImage": "202088_SF.jpg",
       "smartCard": {
-        "cardNumber": "652EBD96"
+        "cardNumber": "0620FEAF"
       },
       "login": ["watcharp@isb.ac.th"]
     },
@@ -3919,7 +3919,7 @@
       "customerId": 202108,
       "customerType": "Staff",
       "staffType": "Certified Staff",
-      "department": "HIGH SCHOOL OFFICE",
+      "department": "MIDDLE SCHOOL OFFICE",
       "familyCode": 202108,
       "firstName": "Charlie Jonathon",
       "lastName": "DURBIN",
@@ -4354,7 +4354,7 @@
       "customerId": 202195,
       "customerType": "Staff",
       "staffType": "Classified Staff",
-      "department": "ELEMENTARY SCHOOL OFFICE",
+      "department": "MIDDLE SCHOOL OFFICE",
       "familyCode": 202195,
       "firstName": "Kamonwan",
       "lastName": "THANG-THONG",
@@ -4541,7 +4541,7 @@
       "hasChildren": false,
       "profileImage": "202227_SF.jpg",
       "smartCard": {
-        "cardNumber": "AC5AB5D3"
+        "cardNumber": "06FB5FAF"
       },
       "login": ["panchary@isb.ac.th"]
     },
@@ -5375,7 +5375,7 @@
       "customerType": "Staff",
       "staffType": "Certified Staff",
       "department": "ELEMENTARY SCHOOL OFFICE",
-      "familyCode": 72869,
+      "familyCode": 202878,
       "firstName": "Ruth Inryango",
       "lastName": "OLAGUNJU",
       "hasChildren": true,
@@ -6754,7 +6754,7 @@
       "customerId": 202513,
       "customerType": "Staff",
       "staffType": "Classified Staff",
-      "department": "ELEMENTARY SCHOOL OFFICE",
+      "department": "HIGH SCHOOL OFFICE",
       "familyCode": 202513,
       "firstName": "Chutiphong",
       "lastName": "PEAJIER",
@@ -7481,7 +7481,7 @@
       "hasChildren": false,
       "profileImage": "202637_SF.jpg",
       "smartCard": {
-        "cardNumber": "65161996"
+        "cardNumber": "16AF8FAF"
       },
       "login": ["kanvisoc@isb.ac.th"]
     },
