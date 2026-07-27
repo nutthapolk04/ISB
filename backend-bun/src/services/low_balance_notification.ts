@@ -33,43 +33,57 @@ export async function checkAndSendLowBalanceAlerts(
         .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
         .where(eq(parentChildLinks.childCustomerId, customerId));
 
-    // Admin-added notification emails on the student's family profile — kept
-    // separate from PowerSchool-synced notification_emails and never touched
-    // by sync, but previously never actually consulted by this alert (the
-    // reported bug: admins add an email here expecting it to get alerts, and
-    // it silently never did).
+    // The family profile's notification emails (PowerSchool-synced) and
+    // admin-added extras are the REAL addresses parents actually read — a
+    // parent's users.email is often a synthetic login id (e.g.
+    // "85001@parents.isb.ac.th"), not an inbox anyone checks. Mirror the same
+    // "family profile first, login email only as a last resort" rule already
+    // used on the admin User Detail page (see notificationEmailFallbackHint).
     const [customerRow] = await db
         .select({ familyCode: customers.familyCode })
         .from(customers)
         .where(eq(customers.id, customerId))
         .limit(1);
 
-    let adminEmails: string[] = [];
+    let familyEmails: string[] = [];
     if (customerRow?.familyCode) {
         const [profile] = await db
-            .select({ adminEmails: familyProfiles.adminNotificationEmails })
+            .select({
+                notificationEmails: familyProfiles.notificationEmails,
+                adminEmails: familyProfiles.adminNotificationEmails,
+            })
             .from(familyProfiles)
             .where(eq(familyProfiles.familyCode, customerRow.familyCode))
             .limit(1);
-        if (Array.isArray(profile?.adminEmails)) {
-            adminEmails = profile.adminEmails.filter((e): e is string => typeof e === "string" && e.trim() !== "");
-        }
+        const isValidEmail = (e: unknown): e is string => typeof e === "string" && e.trim() !== "";
+        familyEmails = [
+            ...(Array.isArray(profile?.notificationEmails) ? profile.notificationEmails.filter(isValidEmail) : []),
+            ...(Array.isArray(profile?.adminEmails) ? profile.adminEmails.filter(isValidEmail) : []),
+        ];
     }
 
     const seen = new Set<string>();
     const recipients: { parentUserId: number | null; email: string }[] = [];
-    for (const parent of parents) {
-        if (!parent.email) continue;
-        const key = parent.email.trim().toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        recipients.push({ parentUserId: parent.parentUserId, email: parent.email });
-    }
-    for (const email of adminEmails) {
-        const key = email.trim().toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        recipients.push({ parentUserId: null, email });
+    if (familyEmails.length > 0) {
+        const parentUserIdByEmail = new Map(
+            parents.filter((p) => p.email).map((p) => [p.email!.trim().toLowerCase(), p.parentUserId]),
+        );
+        for (const email of familyEmails) {
+            const key = email.trim().toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            recipients.push({ parentUserId: parentUserIdByEmail.get(key) ?? null, email });
+        }
+    } else {
+        // No family profile / no notification emails on file — fall back to
+        // each linked parent's login email so alerts still go out.
+        for (const parent of parents) {
+            if (!parent.email) continue;
+            const key = parent.email.trim().toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            recipients.push({ parentUserId: parent.parentUserId, email: parent.email });
+        }
     }
 
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
