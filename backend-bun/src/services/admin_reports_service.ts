@@ -1094,7 +1094,7 @@ export async function lowBalanceAlertReport(args: {
         sent_at: pgToIso(r.sentAt)!,
         student_name: r.studentName ?? "—",
         student_code: r.studentCode ?? null,
-        parent_name: r.parentFullName || r.parentUsername || "—",
+        parent_name: r.parentFullName || r.parentUsername || "Family notification email",
         parent_username: r.parentUsername ?? "—",
         recipient_email: r.recipientEmail,
         balance_at_alert: pgNumber(r.balanceAtAlert) ?? 0,

@@ -2508,6 +2508,11 @@
     "passwordChangeFailed": "Could not change password",
     "signOut": "Sign out"
   },
+  "sessionTimeout": {
+    "title": "Session timeout",
+    "description": "You were signed out due to inactivity. Please sign in again to continue.",
+    "goToLogin": "Go to login"
+  },
   "parent": {
     "common": {
       "loading": "Loading…",
