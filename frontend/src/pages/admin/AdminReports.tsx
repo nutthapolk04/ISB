@@ -1017,6 +1017,41 @@ export default function AdminReports() {
             }];
         }
 
+        if (selected === "balance" && balanceData) {
+            const params = buildBalanceParams(1, BALANCE_EXPORT_PAGE_SIZE);
+            const full = await api.get<BalanceReportData>(`/wallets/admin/balance-report?${params.toString()}`);
+            return [{
+                payload: {
+                    meta: {
+                        title: t("admin.adminReports.balanceReport", "Balance Report"),
+                        schoolName: school.name,
+                        schoolLogoUrl: school.logoUrl || undefined,
+                        reportId: "ISB-ADM-BALANCE",
+                        filters,
+                        runByName: user?.fullName ?? user?.username,
+                    },
+                    columns: [
+                        { header: t("admin.adminReports.colId", "ID"), key: "id", width: 10 },
+                        { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+                        { header: t("admin.adminReports.colShop"), key: "shop_name", width: 20 },
+                        { header: t("admin.adminReports.colType", "Type"), key: "type", width: 14 },
+                        { header: t("admin.adminReports.colIn", "In"), key: "in_amount", format: "currency", align: "right", width: 12 },
+                        { header: t("admin.adminReports.colOut", "Out"), key: "out_amount", format: "currency", align: "right", width: 12 },
+                        { header: t("admin.adminReports.colBD", "BD"), key: "balance_before", format: "currency", align: "right", width: 12 },
+                        { header: t("admin.adminReports.colBalance", "Balance"), key: "balance_after", format: "currency", align: "right", width: 12 },
+                        { header: t("admin.adminReports.colOwnerRole", "Owner Type"), key: "owner_role", width: 14 },
+                        { header: t("admin.adminReports.colOwnerName", "Owner Name"), key: "owner_name", width: 24 },
+                    ],
+                    rows: full.items.map((r) => ({
+                        ...r,
+                        type: BALANCE_TYPE_LABEL[r.type as BalanceType] ?? r.type,
+                    })) as unknown as Record<string, unknown>[],
+                    totals: { in_amount: full.in_total, out_amount: full.out_total },
+                },
+                baseFilename: `BalanceReport${dateLabel}`,
+            }];
+        }
+
         return null;
     };
 
