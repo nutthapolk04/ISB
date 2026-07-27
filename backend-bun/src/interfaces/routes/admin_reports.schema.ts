@@ -114,3 +114,17 @@ export const adminSendLowBalanceAlertNow = {
     params: t.Object({ id: t.String() }),
     detail: { tags: ["Reports"], summary: "Manually (re)send a specific low-balance alert email now" },
 };
+export const adminBalanceReport = {
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        type: t.Optional(t.Nullable(t.String())),
+        role: t.Optional(t.Nullable(t.String())),
+        external_id: t.Optional(t.Nullable(t.String())),
+        family_code: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
+    }),
+    detail: { tags: ["Reports"], summary: "Balance Report — unified view of wallet transactions with opening/closing balance" },
+};

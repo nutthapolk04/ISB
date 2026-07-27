@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2, TrendingUp } from "lucide-react";
 import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
 import ShopPicker from "@/components/ShopPicker";
 import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
@@ -37,8 +37,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { InternalUsedTable, type InternalUsedReportData } from "@/components/reports/InternalUsedTable";
 
-type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used";
+type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used" | "balance";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
+type BalanceType = "all" | "purchase" | "void_refund" | "refund" | "topup" | "adjustment" | "transfer" | "other";
+type BalanceRole = "all" | "student" | "department" | "parent" | "staff" | "cashier" | "manager" | "kitchen" | "admin" | "kiosk";
 
 interface TopupRow {
     id: number;
@@ -84,6 +86,26 @@ const TXN_KIND_COLORS: Record<TransactionKind, string> = {
     other: "bg-gray-100 text-gray-700",
 };
 
+const BALANCE_TYPE_LABEL: Record<string, string> = {
+    purchase: "Purchase",
+    void_refund: "Void Refund",
+    refund: "Refund",
+    topup: "Top-up",
+    adjustment: "Adjustment",
+    transfer: "Transfer",
+    other: "Other",
+};
+
+const BALANCE_TYPE_COLORS: Record<string, string> = {
+    purchase: "bg-blue-100 text-blue-800",
+    void_refund: "bg-red-100 text-red-800",
+    refund: "bg-orange-100 text-orange-800",
+    topup: "bg-green-100 text-green-800",
+    adjustment: "bg-amber-100 text-amber-800",
+    transfer: "bg-purple-100 text-purple-800",
+    other: "bg-gray-100 text-gray-700",
+};
+
 interface TopupReportData {
     items: TopupRow[];
     total: number;
@@ -100,7 +122,33 @@ interface TransactionReportData {
     pages: number;
 }
 
+interface BalanceRow {
+    id: number;
+    created_at: string;
+    shop_name: string | null;
+    type: "purchase" | "void_refund" | "refund" | "topup" | "adjustment" | "transfer" | "other";
+    in_amount: number;
+    out_amount: number;
+    balance_before: number;
+    balance_after: number;
+    owner_role: string;
+    owner_name: string;
+    owner_external_id: string | null;
+    owner_family_code: string | null;
+}
+
+interface BalanceReportData {
+    items: BalanceRow[];
+    total: number;
+    in_total: number;
+    out_total: number;
+    page: number;
+    pages: number;
+}
+
 const TXN_PAGE_SIZE = 50;
+const BALANCE_PAGE_SIZE = 50;
+const BALANCE_EXPORT_PAGE_SIZE = 5000;
 /** Cap for the Export re-fetch — mirrors adjustmentReport/transferReport's
  * own page_size ceiling (backend-bun/src/controllers/AdminReportsController.ts). */
 const TXN_EXPORT_PAGE_SIZE = 5000;
@@ -114,6 +162,96 @@ const CHANNEL_LABEL: Record<string, string> = {
 interface AdminReportExport {
     payload: ReportPayload<Record<string, unknown>>;
     baseFilename: string;
+}
+
+function BalanceTable({
+    data,
+    page,
+    onPageChange,
+    dateTimeSort,
+    onToggleDateTimeSort,
+}: {
+    data: BalanceReportData;
+    page: number;
+    onPageChange: (p: number) => void;
+    dateTimeSort: DateTimeSortDir;
+    onToggleDateTimeSort: () => void;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+                Found <span className="font-semibold text-foreground">{data.total}</span> transactions
+                {" · "}In{" "}
+                <span className="font-semibold text-foreground">
+                    ฿{data.in_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </span>
+                {" · "}Out{" "}
+                <span className="font-semibold text-foreground">
+                    ฿{data.out_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </span>
+            </div>
+            <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-xs">
+                    <thead className="bg-muted/50 whitespace-nowrap">
+                        <tr>
+                            <th className="px-2 py-2 text-left">ID</th>
+                            <SortableDateTimeHeader
+                                label={t("admin.adminReports.colDateTime")}
+                                sortDir={dateTimeSort}
+                                onToggle={onToggleDateTimeSort}
+                            />
+                            <th className="px-2 py-2 text-left">Shop</th>
+                            <th className="px-2 py-2 text-left">Type</th>
+                            <th className="px-2 py-2 text-right">In</th>
+                            <th className="px-2 py-2 text-right">Out</th>
+                            <th className="px-2 py-2 text-right">BD</th>
+                            <th className="px-2 py-2 text-right">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.length === 0 ? (
+                            <tr>
+                                <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
+                                    No transactions match these filters.
+                                </td>
+                            </tr>
+                        ) : (
+                            data.items.map((r) => (
+                                <tr key={r.id} className="border-t">
+                                    <td className="px-2 py-1.5 font-mono text-[10px]">{r.id}</td>
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                    <td className="px-2 py-1.5 text-muted-foreground">{r.shop_name || "—"}</td>
+                                    <td className="px-2 py-1.5">
+                                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", BALANCE_TYPE_COLORS[r.type])}>
+                                            {BALANCE_TYPE_LABEL[r.type]}
+                                        </span>
+                                    </td>
+                                    <td className="px-2 py-1.5 text-right font-mono text-green-700">{r.in_amount.toFixed(2)}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono text-red-700">{r.out_amount.toFixed(2)}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono">{r.balance_before.toFixed(2)}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono font-semibold">{r.balance_after.toFixed(2)}</td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    {data.items.length > 0 && (
+                        <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                            <tr className="border-t">
+                                <td colSpan={4} className="px-2 py-2 text-left">TOTALS</td>
+                                <td className="px-2 py-2 text-right font-mono text-green-700">{data.in_total.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-red-700">{data.out_total.toFixed(2)}</td>
+                                <td colSpan={2} />
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+            <div className="flex justify-center">
+                <PaginationBar currentPage={page} totalPages={data.pages} onPageChange={onPageChange} />
+            </div>
+        </div>
+    );
 }
 
 /** Shared by the Transaction Report section and the Kiosk Report's
@@ -344,6 +482,7 @@ export default function AdminReports() {
     const [kioskEventData, setKioskEventData] = useState<KioskLogReportData | null>(null);
     const [kioskTxnData, setKioskTxnData] = useState<TransactionReportData | null>(null);
     const [internalUsedData, setInternalUsedData] = useState<InternalUsedReportData | null>(null);
+    const [balanceData, setBalanceData] = useState<BalanceReportData | null>(null);
 
     // Top-up Report filters
     const [toppedByValue, setToppedByValue] = useState<CardholderPickerValue | null>(null);
@@ -374,6 +513,13 @@ export default function AdminReports() {
     const [internalUsedShopId, setInternalUsedShopId] = useState<string | null>(null);
     const [internalUsedShopName, setInternalUsedShopName] = useState<string | null>(null);
 
+    // Balance Report filters
+    const [balanceType, setBalanceType] = useState<BalanceType>("all");
+    const [balanceRole, setBalanceRole] = useState<BalanceRole>("all");
+    const [balanceExternalId, setBalanceExternalId] = useState("");
+    const [balanceFamilyCode, setBalanceFamilyCode] = useState("");
+    const [balancePage, setBalancePage] = useState(1);
+
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
         setDateFrom("");
@@ -400,6 +546,11 @@ export default function AdminReports() {
         setInternalUsedStaff(null);
         setInternalUsedShopId(null);
         setInternalUsedShopName(null);
+        setBalanceType("all");
+        setBalanceRole("all");
+        setBalanceExternalId("");
+        setBalanceFamilyCode("");
+        setBalancePage(1);
         setDateTimeSort(DEFAULT_DATE_TIME_SORT);
         setSearched(false);
         setTopupData(null);
@@ -407,6 +558,7 @@ export default function AdminReports() {
         setKioskEventData(null);
         setKioskTxnData(null);
         setInternalUsedData(null);
+        setBalanceData(null);
     };
 
     /** Shared filter params for Transaction Report — page is separate since
@@ -605,6 +757,10 @@ export default function AdminReports() {
             await loadTransactionPage(1);
             return;
         }
+        if (selected === "balance") {
+            await loadBalancePage(1);
+            return;
+        }
         if (selected === "kiosk") {
             await loadKioskReport();
             return;
@@ -621,6 +777,7 @@ export default function AdminReports() {
         if (!searched) return;
         if (selected === "topup") await loadTopupPage(topupPage, next);
         else if (selected === "transaction") await loadTransactionPage(txnPage, next);
+        else if (selected === "balance") await loadBalancePage(balancePage, next);
         else if (selected === "kiosk") {
             const tasks: Promise<void>[] = [];
             if (kioskLogType === "all" || kioskLogType === "event") tasks.push(fetchKioskEvent(kioskEventPage, next));
@@ -656,6 +813,36 @@ export default function AdminReports() {
             if (internalUsedShopName) lines.push(`Shop: ${internalUsedShopName}`);
         }
         return lines;
+    };
+
+    const buildBalanceParams = (page: number, pageSize: number, sort = dateTimeSort) => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        if (balanceType !== "all") params.set("type", balanceType);
+        if (balanceRole !== "all") params.set("role", balanceRole);
+        if (balanceExternalId.trim()) params.set("external_id", balanceExternalId.trim());
+        if (balanceFamilyCode.trim()) params.set("family_code", balanceFamilyCode.trim());
+        params.set("sort_order", sort);
+        params.set("page", String(page));
+        params.set("page_size", String(pageSize));
+        return params;
+    };
+
+    const loadBalancePage = async (page: number, sort = dateTimeSort) => {
+        setLoading(true);
+        try {
+            const params = buildBalanceParams(page, BALANCE_PAGE_SIZE, sort);
+            const data = await api.get<BalanceReportData>(`/wallets/admin/balance-report?${params.toString()}`);
+            setBalanceData(data);
+            setBalancePage(data.page);
+            setSearched(true);
+            if (data.items.length === 0) toast.message("No transactions match these filters.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : t("shopUsers.errorGeneric"));
+        } finally {
+            setLoading(false);
+        }
     };
 
     /** Builds the export payload(s) — an array since the Kiosk Report can
@@ -879,6 +1066,12 @@ export default function AdminReports() {
             desc: t("admin.adminReports.transactionReportDesc"),
         },
         {
+            kind: "balance" as const,
+            icon: TrendingUp,
+            title: "Balance Report",
+            desc: "Unified view of every wallet transaction with opening/closing balances",
+        },
+        {
             kind: "kiosk" as const,
             icon: Monitor,
             title: t("admin.adminReports.kioskReport", "Kiosk Report"),
@@ -894,9 +1087,10 @@ export default function AdminReports() {
 
     const hasData = selected === "topup" ? !!topupData
         : selected === "transaction" ? !!txnData
-            : selected === "kiosk" ? !!(kioskEventData || kioskTxnData)
-                : selected === "internal_used" ? !!internalUsedData
-                    : false;
+            : selected === "balance" ? !!balanceData
+                : selected === "kiosk" ? !!(kioskEventData || kioskTxnData)
+                    : selected === "internal_used" ? !!internalUsedData
+                        : false;
 
     return (
         <div className="page-shell">
@@ -939,12 +1133,14 @@ export default function AdminReports() {
                         <CardTitle className="flex items-center gap-2">
                             {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" />
                                 : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" />
-                                    : selected === "internal_used" ? <Building2 className="h-5 w-5 text-primary" />
-                                        : <Monitor className="h-5 w-5 text-primary" />}
+                                    : selected === "balance" ? <TrendingUp className="h-5 w-5 text-primary" />
+                                        : selected === "internal_used" ? <Building2 className="h-5 w-5 text-primary" />
+                                            : <Monitor className="h-5 w-5 text-primary" />}
                             {selected === "topup" ? t("admin.adminReports.topupReport")
                                 : selected === "transaction" ? t("admin.adminReports.transactionReport")
-                                    : selected === "internal_used" ? t("admin.adminReports.internalUsedReport")
-                                        : t("admin.adminReports.kioskReport", "Kiosk Report")}
+                                    : selected === "balance" ? "Balance Report"
+                                        : selected === "internal_used" ? t("admin.adminReports.internalUsedReport")
+                                            : t("admin.adminReports.kioskReport", "Kiosk Report")}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
                     </CardHeader>
@@ -1124,6 +1320,60 @@ export default function AdminReports() {
                                     </div>
                                 </>
                             )}
+                            {selected === "balance" && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>Type</Label>
+                                        <Select value={balanceType} onValueChange={(v) => setBalanceType(v as BalanceType)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="purchase">Purchase</SelectItem>
+                                                <SelectItem value="void_refund">Void Refund</SelectItem>
+                                                <SelectItem value="refund">Refund</SelectItem>
+                                                <SelectItem value="topup">Top-up</SelectItem>
+                                                <SelectItem value="adjustment">Adjustment</SelectItem>
+                                                <SelectItem value="transfer">Transfer</SelectItem>
+                                                <SelectItem value="other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Owner Type (Role)</Label>
+                                        <Select value={balanceRole} onValueChange={(v) => setBalanceRole(v as BalanceRole)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="student">Student</SelectItem>
+                                                <SelectItem value="parent">Parent</SelectItem>
+                                                <SelectItem value="staff">Staff</SelectItem>
+                                                <SelectItem value="cashier">Cashier</SelectItem>
+                                                <SelectItem value="manager">Manager</SelectItem>
+                                                <SelectItem value="kitchen">Kitchen</SelectItem>
+                                                <SelectItem value="admin">Admin</SelectItem>
+                                                <SelectItem value="kiosk">Kiosk</SelectItem>
+                                                <SelectItem value="department">Department</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>External ID</Label>
+                                        <Input
+                                            value={balanceExternalId}
+                                            onChange={(e) => setBalanceExternalId(e.target.value)}
+                                            placeholder="Exact match…"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Family Code</Label>
+                                        <Input
+                                            value={balanceFamilyCode}
+                                            onChange={(e) => setBalanceFamilyCode(e.target.value)}
+                                            placeholder="Exact match…"
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -1216,6 +1466,16 @@ export default function AdminReports() {
                                 data={txnData}
                                 page={txnPage}
                                 onPageChange={(p) => loadTransactionPage(p)}
+                                dateTimeSort={dateTimeSort}
+                                onToggleDateTimeSort={handleToggleDateTimeSort}
+                            />
+                        )}
+
+                        {searched && selected === "balance" && balanceData && (
+                            <BalanceTable
+                                data={balanceData}
+                                page={balancePage}
+                                onPageChange={(p) => loadBalancePage(p)}
                                 dateTimeSort={dateTimeSort}
                                 onToggleDateTimeSort={handleToggleDateTimeSort}
                             />
