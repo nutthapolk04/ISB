@@ -281,6 +281,11 @@ async function loadImageDataUrl(
 }
 
 // ─── PDF export ──────────────────────────────────────────────────────────
+//
+// B&W / thermal printers render light gray text nearly invisible — keep all
+// PDF text and grid lines pure black so every report export prints legibly.
+const PDF_TEXT_COLOR = 0;
+const PDF_LINE_COLOR: [number, number, number] = [0, 0, 0];
 
 export async function exportToPDF<TRow extends Record<string, unknown>>(
   payload: ReportPayload<TRow>,
@@ -306,13 +311,13 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   // ─── Top meta bar: Report ID (left) + Printed (right) ───────────────
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(7.5);
-  doc.setTextColor(0);
+  doc.setTextColor(PDF_TEXT_COLOR);
   const reportIdLine = meta.runByName
     ? `Report ID: ${reportId} · By: ${meta.runByName}`
     : `Report ID: ${reportId}`;
   doc.text(reportIdLine, marginX, 20, { align: "left" });
   doc.text(`Printed: ${printDateTime}`, pageWidth - marginX, 20, { align: "right" });
-  doc.setTextColor(0);
+  doc.setTextColor(PDF_TEXT_COLOR);
 
   // ─── Header: logo (left) + school name & title (left, next to logo) ──
   const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
@@ -345,12 +350,12 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
   // ─── Filters summary ──────────────────────────────────────────────────
   if (meta.filters && meta.filters.length > 0) {
     doc.setFontSize(8);
-    doc.setTextColor(0);
+    doc.setTextColor(PDF_TEXT_COLOR);
     for (const line of meta.filters) {
       doc.text(line, pageWidth - marginX, cursorY, { align: "right" });
       cursorY += 10;
     }
-    doc.setTextColor(0);
+    doc.setTextColor(PDF_TEXT_COLOR);
     cursorY += 6;
   } else {
     cursorY += 4;
@@ -384,8 +389,8 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
           colSpan: columns.length,
           styles: {
             fontStyle: "bold",
-            fillColor: [226, 232, 240],
-            textColor: 15,
+            fillColor: [255, 255, 255],
+            textColor: PDF_TEXT_COLOR,
             halign: "left",
           },
         },
@@ -398,12 +403,13 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     const emphasis = rowEmphasis(row);
     if (emphasis !== null) {
       const fill: [number, number, number] =
-        emphasis === "total" ? [203, 213, 225] : [241, 245, 249];
+        emphasis === "total" ? [240, 240, 240] : [255, 255, 255];
       return columns.map((c) => ({
         content: formatCell(row[c.key], c.format),
         styles: {
           fontStyle: "bold",
           fillColor: fill,
+          textColor: PDF_TEXT_COLOR,
         },
       }));
     }
@@ -475,27 +481,28 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
       fontSize: tableFontSize,
       cellPadding: tableCellPadding,
       overflow: "linebreak",
-      lineColor: [150, 150, 150],
+      textColor: PDF_TEXT_COLOR,
+      lineColor: PDF_LINE_COLOR,
       lineWidth: 0.4,
     },
     headStyles: {
       font: fontFamily,
-      fillColor: [241, 245, 249],
-      textColor: 0,
+      fillColor: [255, 255, 255],
+      textColor: PDF_TEXT_COLOR,
       fontStyle: "bold",
       // Headers stay readable even at 6.5pt — give them an extra
       // half-point so the columns don't all collapse into 1-char width.
       fontSize: tableFontSize + 0.5,
       cellPadding: tableCellPadding,
-      lineColor: [150, 150, 150],
+      lineColor: PDF_LINE_COLOR,
       lineWidth: 0.4,
     },
     footStyles: {
       font: fontFamily,
-      fillColor: [241, 245, 249],
-      textColor: 30,
+      fillColor: [240, 240, 240],
+      textColor: PDF_TEXT_COLOR,
       fontStyle: "bold",
-      lineColor: [150, 150, 150],
+      lineColor: PDF_LINE_COLOR,
       lineWidth: 0.4,
     },
     columnStyles: Object.fromEntries(
@@ -518,6 +525,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     doc.setPage(p);
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(7.5);
+    doc.setTextColor(PDF_TEXT_COLOR);
     doc.text(`Page ${p} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
   }
 

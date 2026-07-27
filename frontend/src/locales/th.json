@@ -2246,7 +2246,7 @@
     "kindDesc": {
       "student": "นักเรียน — Customer + wallet + บัตร",
       "parent": "ผู้ปกครอง — User + personal wallet",
-      "staff": "พนักงาน — User + personal wallet (cashier/manager/kitchen)",
+      "staff": "พนักงาน — User + personal wallet (cashier/manager/kitchen/finance)",
       "department": "แผนก — Department + wallet (เครดิตติดลบได้)",
       "other": "Visitor / etc. — Customer (wallet optional)"
     },
@@ -2257,6 +2257,7 @@
     "kindStudent": "นักเรียน",
     "kindParent": "ผู้ปกครอง",
     "kindStaff": "พนักงาน",
+    "kindFinance": "การเงิน",
     "kindDepartment": "แผนก",
     "kindOther": "อื่น ๆ",
     "loadFailed": "โหลดข้อมูลไม่สำเร็จ",

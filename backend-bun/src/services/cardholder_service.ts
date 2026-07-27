@@ -19,7 +19,7 @@ function cardUidExpansionCond(column: PgColumn, pattern: string | null): SQL | u
     return or(...candidates.map((c) => ilike(column, c)));
 }
 
-export type CardholderKind = "student" | "parent" | "staff" | "department" | "other";
+export type CardholderKind = "student" | "parent" | "staff" | "finance" | "department" | "other";
 
 export interface CardholderDTO {
     key: string;
@@ -95,11 +95,13 @@ function blank(): Omit<CardholderDTO, "key" | "kind" | "entity_type" | "entity_i
 // never requires fetching (or even counting-in-memory) the full table — this
 // matters once a school's combined cardholder count runs into the thousands.
 
-type UserKind = "staff" | "parent";
+type UserKind = "staff" | "parent" | "finance";
 type CustomerKind = "student" | "other";
 
 function userRoleSetFor(kind: UserKind): string[] {
-    return kind === "parent" ? ["parent"] : [...STAFF_ROLES, "admin"];
+    if (kind === "parent") return ["parent"];
+    if (kind === "finance") return ["finance"];
+    return [...STAFF_ROLES, "admin"];
 }
 
 function userSearchCond(pattern: string | null) {
@@ -141,7 +143,7 @@ async function toUserDTOs(uRows: Array<typeof users.$inferSelect>): Promise<Card
     return uRows.map((u) => {
         const w = walletByUser.get(u.id) ?? null;
         const role = u.role ?? "";
-        const kind: CardholderKind = role === "parent" ? "parent" : "staff";
+        const kind: CardholderKind = role === "parent" ? "parent" : role === "finance" ? "finance" : "staff";
         return {
             ...blank(),
             key: `u-${u.id}`,
@@ -308,14 +310,15 @@ async function fetchDepartmentsPage(pattern: string | null, offset: number, limi
  * which tab is active), and NOT the student-only school/grade sub-filters
  * (those never affected the other kinds' badges even before this rewrite). */
 async function getCounts(pattern: string | null, hasWallet?: boolean): Promise<Record<CardholderKind, number>> {
-    const [staffN, parentN, studentN, otherN, deptN] = await Promise.all([
+    const [staffN, parentN, financeN, studentN, otherN, deptN] = await Promise.all([
         countUsers("staff", pattern, undefined, hasWallet),
         countUsers("parent", pattern, undefined, hasWallet),
+        countUsers("finance", pattern, undefined, hasWallet),
         countCustomers("student", pattern, undefined, undefined, hasWallet),
         countCustomers("other", pattern, undefined, undefined, hasWallet),
         countDepartments(pattern),
     ]);
-    return { staff: staffN, parent: parentN, student: studentN, other: otherN, department: deptN };
+    return { staff: staffN, parent: parentN, finance: financeN, student: studentN, other: otherN, department: deptN };
 }
 
 /** Full-roster KPIs for the student tab — never scoped to search/kind/page,
@@ -341,7 +344,7 @@ async function getGrades(): Promise<string[]> {
     return rows.map((r) => r.grade).filter((g): g is string => !!g).sort();
 }
 
-const KIND_ORDER: CardholderKind[] = ["department", "other", "parent", "staff", "student"];
+const KIND_ORDER: CardholderKind[] = ["department", "finance", "other", "parent", "staff", "student"];
 
 export async function listCardholders(args: {
     kind?: string | null;
@@ -383,7 +386,7 @@ export async function listCardholders(args: {
         // for students), which is why it's fetched separately from `counts`.
         let items: CardholderDTO[];
         let total: number;
-        if (kindFilter === "staff" || kindFilter === "parent") {
+        if (kindFilter === "staff" || kindFilter === "parent" || kindFilter === "finance") {
             [items, total] = await Promise.all([
                 fetchUsersPage(kindFilter, pattern, offset, args.pageSize, args.shopId, hasWallet),
                 countUsers(kindFilter, pattern, args.shopId, hasWallet),
@@ -422,7 +425,7 @@ export async function listCardholders(args: {
         if (overlapStart >= overlapEnd) continue;
         const localOffset = overlapStart - kStart;
         const localLimit = overlapEnd - overlapStart;
-        if (k === "staff" || k === "parent") {
+        if (k === "staff" || k === "parent" || k === "finance") {
             items.push(...await fetchUsersPage(k, pattern, localOffset, localLimit, args.shopId, hasWallet));
         } else if (k === "department") {
             items.push(...await fetchDepartmentsPage(pattern, localOffset, localLimit));

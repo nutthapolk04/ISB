@@ -100,6 +100,15 @@ const RPT_COLUMNS = [
 const signedAmount = (r: AdjustmentRow): string =>
     `${r.direction === "credit" ? "+" : "-"}${Math.abs(r.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/** Net total for export TOTAL row — same signed comma format as row amounts. */
+const signedNetTotal = (creditTotal: number, debitTotal: number): string => {
+    const net = creditTotal - debitTotal;
+    return signedAmount({
+        direction: net >= 0 ? "credit" : "debit",
+        amount: Math.abs(net),
+    } as AdjustmentRow);
+};
+
 interface Cardholder {
     key: string;
     entity_type: "user" | "customer" | "department";
@@ -241,7 +250,7 @@ export default function WalletAdjust() {
         try {
             const rows = await fetchAllReportRows();
             const exportRows = rows.map((r) => ({ ...r, amount: signedAmount(r), reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
-            const totals = { entity_name: `${rptTotal} records`, amount: rptCreditTotal - rptDebitTotal };
+            const totals = { entity_name: `${rptTotal} records`, amount: signedNetTotal(rptCreditTotal, rptDebitTotal) };
             exportToExcel(
                 { meta: { title: "Wallet Adjustment Report", schoolName: schoolInfo?.name ?? "ISB", filters: [rptFilterLabel] }, columns: RPT_COLUMNS, rows: exportRows, totals },
                 `WalletAdjustments_${rptDateFrom}_${rptDateTo}`,
@@ -262,7 +271,7 @@ export default function WalletAdjust() {
         try {
             const rows = await fetchAllReportRows();
             const exportRows = rows.map((r) => ({ ...r, amount: signedAmount(r), reason: r.reason ?? "", reference_ticket: r.reference_ticket ?? "" }));
-            const totals = { entity_name: `${rptTotal} records`, amount: rptCreditTotal - rptDebitTotal };
+            const totals = { entity_name: `${rptTotal} records`, amount: signedNetTotal(rptCreditTotal, rptDebitTotal) };
             await exportToPDF(
                 { meta: { title: "Wallet Adjustment Report", schoolName: schoolInfo?.name ?? "ISB", schoolLogoUrl: schoolInfo?.logoUrl || undefined, filters: [rptFilterLabel] }, columns: RPT_COLUMNS, rows: exportRows, totals },
                 `WalletAdjustments_${rptDateFrom}_${rptDateTo}.pdf`,

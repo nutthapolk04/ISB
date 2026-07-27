@@ -41,6 +41,7 @@ import {
   GraduationCap,
   Users as UsersIcon,
   UtensilsCrossed,
+  Landmark,
   Building2,
   UserCircle2,
   Loader2,
@@ -69,6 +70,7 @@ const KIND_FILTERS: { kind: Cardholder["kind"] | "all"; labelKey: string; icon: 
   { kind: "student",    labelKey: "cardholders.kindStudent",    icon: GraduationCap },
   { kind: "parent",     labelKey: "cardholders.kindParent",     icon: UsersIcon },
   { kind: "staff",      labelKey: "cardholders.kindStaff",      icon: UtensilsCrossed },
+  { kind: "finance",    labelKey: "cardholders.kindFinance",    icon: Landmark },
   { kind: "department", labelKey: "cardholders.kindDepartment", icon: Building2 },
   { kind: "other",      labelKey: "cardholders.kindOther",      icon: UserCircle2 },
 ];
@@ -77,6 +79,7 @@ const KIND_BADGE: Record<Cardholder["kind"], string> = {
   student:    "bg-blue-100 text-blue-900",
   parent:     "bg-green-100 text-green-900",
   staff:      "bg-amber-100 text-amber-900",
+  finance:    "bg-teal-100 text-teal-900",
   department: "bg-purple-100 text-purple-900",
   other:      "bg-gray-100 text-gray-700",
 };
@@ -85,6 +88,7 @@ const KIND_BADGE_KEY: Record<Cardholder["kind"], string> = {
   student:    "cardholders.kindStudent",
   parent:     "cardholders.kindParent",
   staff:      "cardholders.kindStaff",
+  finance:    "cardholders.kindFinance",
   department: "cardholders.kindDepartment",
   other:      "cardholders.kindOther",
 };
@@ -267,7 +271,7 @@ export default function CardholderList() {
   // query is not a substitute, since that only reflects whichever tab is
   // currently selected.
   const stats = cardholdersQuery.data?.counts ?? {
-    student: 0, parent: 0, staff: 0, department: 0, other: 0,
+    student: 0, parent: 0, staff: 0, finance: 0, department: 0, other: 0,
   };
   const totalAll = Object.values(stats).reduce((sum, n) => sum + n, 0);
 
@@ -449,7 +453,7 @@ export default function CardholderList() {
               )}
               {pagedItems.flatMap((c, idx) => {
                 const rowNo = (currentPage - 1) * PAGE_SIZE + idx + 1;
-                const isExpandable = (c.kind === "parent" || c.kind === "staff") && c.entity_type === "user";
+                const isExpandable = (c.kind === "parent" || c.kind === "staff" || c.kind === "finance") && c.entity_type === "user";
                 const isExpanded = expandedRows.has(c.key);
                 // FamilyLink already carries child_name/child_student_code denormalized,
                 // so this never needs to cross-reference the (now paginated, not-full)

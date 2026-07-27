@@ -2248,7 +2248,7 @@
     "kindDesc": {
       "student": "Student — Customer + wallet + card",
       "parent": "Parent — User + personal wallet",
-      "staff": "Staff — User + personal wallet (cashier/manager/kitchen)",
+      "staff": "Staff — User + personal wallet (cashier/manager/kitchen/finance)",
       "department": "Department — Department + wallet (overdraft allowed)",
       "other": "Visitor / etc. — Customer (wallet optional)"
     },
@@ -2259,6 +2259,7 @@
     "kindStudent": "Student",
     "kindParent": "Parent",
     "kindStaff": "Staff",
+    "kindFinance": "Finance",
     "kindDepartment": "Department",
     "kindOther": "Other",
     "loadFailed": "Could not load list",

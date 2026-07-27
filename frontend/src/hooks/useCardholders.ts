@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 
 export interface Cardholder {
   key: string;
-  kind: "student" | "parent" | "staff" | "department" | "other";
+  kind: "student" | "parent" | "staff" | "finance" | "department" | "other";
   entity_type: "user" | "customer" | "department";
   entity_id: number;
   name: string;

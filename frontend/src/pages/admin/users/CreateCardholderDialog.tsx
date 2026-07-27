@@ -53,7 +53,7 @@ interface Props {
 const KINDS: { kind: Kind; label: string; icon: any; descKey: string; descFallback: string }[] = [
   { kind: "student",    label: "Student",    icon: GraduationCap,    descKey: "cardholders.kindDesc.student",    descFallback: "Student — Customer + wallet + card" },
   { kind: "parent",     label: "Parent",     icon: UsersIcon,        descKey: "cardholders.kindDesc.parent",     descFallback: "Parent — User + personal wallet" },
-  { kind: "staff",      label: "Staff",      icon: UtensilsCrossed,  descKey: "cardholders.kindDesc.staff",      descFallback: "Staff — User + personal wallet (cashier/manager/kitchen)" },
+  { kind: "staff",      label: "Staff",      icon: UtensilsCrossed,  descKey: "cardholders.kindDesc.staff",      descFallback: "Staff — User + personal wallet (cashier/manager/kitchen/finance)" },
   { kind: "department", label: "Department", icon: Building2,        descKey: "cardholders.kindDesc.department", descFallback: "Department — Department + wallet (overdraft allowed)" },
   { kind: "other",      label: "Other",      icon: UserCircle2,      descKey: "cardholders.kindDesc.other",      descFallback: "Visitor / etc. — Customer (wallet optional)" },
 ];
