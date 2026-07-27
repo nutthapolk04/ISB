@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { api, ApiError } from "@/lib/api";
 import {
     Dialog,
     DialogContent,
@@ -27,7 +28,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Printer, Plus, Minus, X } from "lucide-react";
+import { Search, Printer, Plus, Minus, X, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import JsBarcode from "jsbarcode";
 
@@ -60,6 +61,7 @@ interface PrintBarcodeDialogProps {
     onOpenChange: (open: boolean) => void;
     products: Product[];
     selectedProduct?: Product | null;
+    shopId?: string | null;
 }
 
 type LabelSize = "small" | "medium" | "large" | "sticker_a10";
@@ -89,6 +91,7 @@ export function PrintBarcodeDialog({
     onOpenChange,
     products,
     selectedProduct,
+    shopId,
 }: PrintBarcodeDialogProps) {
     const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
@@ -97,6 +100,7 @@ export function PrintBarcodeDialog({
     const [labelSize, setLabelSize] = useState<LabelSize>("sticker_a10");
     const [showPrice, setShowPrice] = useState(true);
     const [showProductCode, setShowProductCode] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Initialize with selected product if provided
     useEffect(() => {
@@ -196,11 +200,48 @@ export function PrintBarcodeDialog({
         setPrintItems(printItems.filter((i) => i.key !== key));
     };
 
-    const handlePrint = useCallback(() => {
+    const saveBarcodes = async () => {
+        if (!shopId) {
+            toast.error("Shop ID not available");
+            return false;
+        }
+
+        setIsSaving(true);
+        try {
+            // Save each barcode to database
+            for (const item of printItems) {
+                try {
+                    await api.post(`/shops/${shopId}/products/${item.product.id}/barcodes`, {
+                        barcode: item.barcodeValue,
+                        label: item.barcodeLabel !== "Primary" ? item.barcodeLabel : null,
+                    });
+                } catch (e) {
+                    if (e instanceof ApiError && e.status === 409) {
+                        // Barcode already exists - skip
+                        continue;
+                    }
+                    throw e;
+                }
+            }
+            toast.success("Barcodes saved successfully");
+            return true;
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : "Failed to save barcodes");
+            return false;
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handlePrint = useCallback(async () => {
         if (printItems.length === 0) {
             toast.error(t("barcode.noItems") || "No items to print");
             return;
         }
+
+        // Save barcodes first
+        const saved = await saveBarcodes();
+        if (!saved) return;
 
         const printWindow = window.open("", "_blank");
         if (!printWindow) {
@@ -520,10 +561,10 @@ export function PrintBarcodeDialog({
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel") || "Cancel"}</Button>
-                    <Button onClick={handlePrint} disabled={printItems.length === 0}>
-                        <Printer className="h-4 w-4 mr-2" />
-                        {t("barcode.print") || "Print"} ({totalLabels})
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>{t("common.cancel") || "Cancel"}</Button>
+                    <Button onClick={handlePrint} disabled={printItems.length === 0 || isSaving}>
+                        {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
+                        {isSaving ? "Saving..." : (t("barcode.print") || "Print")} ({totalLabels})
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -1293,6 +1293,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                 onOpenChange={setIsPrintBarcodeOpen}
                 products={shopFilteredProducts}
                 selectedProduct={selectedProductForBarcode}
+                shopId={lockedShopId}
             />
 
             {/* Manage Barcodes Dialog */}
