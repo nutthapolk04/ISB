@@ -253,7 +253,6 @@ export const AdminReportsController = {
                 type: query.type ?? null,
                 role: query.role ?? null,
                 externalId: query.external_id ?? null,
-                familyCode: query.family_code ?? null,
                 sortOrder: query.sort_order ?? null,
                 page,
                 pageSize,
