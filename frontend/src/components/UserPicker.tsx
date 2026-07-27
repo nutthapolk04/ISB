@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
@@ -33,16 +33,31 @@ interface Props {
    * behavior for existing callers like StoreRequisition/RequisitionDialog,
    * which always need a specific staff member picked). */
   allowNone?: boolean;
+  /** Pass pre-selected user data (e.g., from RFID scan) to display even if not in dropdown list */
+  selectedUser?: StaffPickerUser | null;
+}
+
+export interface UserPickerHandle {
+  close: () => void;
 }
 
 const NONE_SENTINEL = "__none__";
 
-export default function UserPicker({ value, onChange, roles, placeholder, disabled, className, allowNone = false }: Props) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [users, setUsers] = useState<StaffPickerUser[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const UserPicker = forwardRef<UserPickerHandle, Props>(
+  ({ value, onChange, roles, placeholder, disabled, className, allowNone = false, selectedUser }, ref) => {
+    const { t } = useTranslation();
+    const [open, setOpen] = useState(false);
+    const [users, setUsers] = useState<StaffPickerUser[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Expose popover control to parent (for RFID scan auto-close)
+    useImperativeHandle(ref, () => ({
+      close: () => {
+        console.log("[UserPicker] Closing via ref");
+        setOpen(false);
+      },
+    }));
 
   useEffect(() => {
     let cancelled = false;
@@ -50,13 +65,30 @@ export default function UserPicker({ value, onChange, roles, placeholder, disabl
     setError(null);
     const params = new URLSearchParams();
     if (roles && roles.length) params.set("roles", roles.join(","));
+    const url = `/users-admin/staff-picker${params.toString() ? `?${params}` : ""}`;
+    console.log("[UserPicker] Fetching staff from:", url, { roles });
     api
-      .get<StaffPickerUser[]>(`/users-admin/staff-picker${params.toString() ? `?${params}` : ""}`)
+      .get<StaffPickerUser[]>(url)
       .then((rows) => {
-        if (!cancelled) setUsers(rows);
+        if (!cancelled) {
+          console.log("[UserPicker] Loaded staff:", {
+            total: rows.length,
+            roles: rows.map(r => r.role).filter((v, i, a) => a.indexOf(v) === i).sort(),
+            sample: rows.slice(0, 3),
+            all: rows.map(r => ({ id: r.id, name: r.full_name || r.username, role: r.role, external_id: r.external_id, active: true })),
+          });
+          setUsers(rows);
+        }
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof ApiError ? err.detail : "Failed to load staff");
+        if (!cancelled) {
+          console.error("[UserPicker] Error loading staff:", {
+            error: err,
+            message: err instanceof ApiError ? err.detail : String(err),
+            status: err instanceof ApiError ? err.status : "unknown",
+          });
+          setError(err instanceof ApiError ? err.detail : "Failed to load staff");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -66,7 +98,14 @@ export default function UserPicker({ value, onChange, roles, placeholder, disabl
     };
   }, [roles?.join(",")]);
 
-  const selected = useMemo(() => users.find((u) => u.id === value) ?? null, [users, value]);
+  const selected = useMemo(() => {
+    // Try to find in users list first
+    const found = users.find((u) => u.id === value);
+    if (found) return found;
+    // If not in list but selectedUser prop provided (e.g., from RFID scan), use it
+    if (selectedUser && selectedUser.id === value) return selectedUser;
+    return null;
+  }, [users, value, selectedUser]);
 
   const noneLabel = t("userPicker.allStaff", "— All —");
   const buttonLabel = selected
@@ -162,4 +201,7 @@ export default function UserPicker({ value, onChange, roles, placeholder, disabl
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
-}
+});
+
+UserPicker.displayName = "UserPicker";
+export default UserPicker;

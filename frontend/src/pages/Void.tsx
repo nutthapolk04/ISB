@@ -61,7 +61,7 @@ const Void = () => {
     const fetchTransactions = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await api.get<any[]>("/pos/receipt");
+            const data = await api.get<any[]>("/pos/receipt?page=1&page_size=100");
             setTransactions(
                 data.map((r: any): Transaction => ({
                     id: r.id,

@@ -166,12 +166,12 @@ export async function listStaffForPicker(args: {
         );
     }
 
+    // Note: Removed hard-coded .limit(200) to return all staff members (was limiting to 200)
     const rows = await db
         .select()
         .from(users)
         .where(and(...conds))
-        .orderBy(asc(users.fullName))
-        .limit(200);
+        .orderBy(asc(users.fullName));
 
     return rows.map((u) => ({
         id: u.id,

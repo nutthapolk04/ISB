@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, ApiError } from "@/lib/api";
@@ -23,9 +23,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "@/components/ui/sonner";
-import { Plus, Minus, Trash2, ShoppingCart, HandHelping, ScanBarcode } from "lucide-react";
-import UserPicker from "@/components/UserPicker";
+import { Plus, Minus, Trash2, ShoppingCart, HandHelping, ScanBarcode, Check, ChevronsUpDown } from "lucide-react";
+import UserPicker, { type UserPickerHandle } from "@/components/UserPicker";
 import type { DepartmentOption } from "./DepartmentPaymentModal";
 import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
 import { useRfidListener } from "@/hooks/useRfidListener";
@@ -67,6 +79,7 @@ const REQUESTER_ROLES = ["staff", "manager", "cashier", "kitchen", "admin"];
 export default function StoreRequisition() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const requesterPickerRef = useRef<UserPickerHandle>(null);
 
   const [shops, setShops] = useState<Shop[]>([]);
   const [activeShopId, setActiveShopId] = useState<string | null>(null);
@@ -76,6 +89,7 @@ export default function StoreRequisition() {
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [requesterId, setRequesterId] = useState<number | null>(null);
+  const [selectedRequester, setSelectedRequester] = useState<any>(null);
   // Defaults to "department" — most requisitions are charged to a
   // department, so this saves the extra pick on every checkout. Shops that
   // don't allow department charge already disable that option below, so the
@@ -137,10 +151,20 @@ export default function StoreRequisition() {
 
   useEffect(() => {
     if (!checkoutOpen) return;
+    console.log("[Requisition] Loading departments...");
     api
       .get<DepartmentOption[]>("/departments/")
-      .then(setDepartments)
-      .catch(() => setDepartments([]));
+      .then((depts) => {
+        console.log("[Requisition] Departments loaded:", {
+          total: depts.length,
+          sample: depts.slice(0, 3),
+        });
+        setDepartments(depts);
+      })
+      .catch((err) => {
+        console.error("[Requisition] Error loading departments:", err);
+        setDepartments([]);
+      });
   }, [checkoutOpen]);
 
   const filteredProducts = useMemo(() => {
@@ -185,24 +209,46 @@ export default function StoreRequisition() {
   useRfidListener({
     onCapture: async (uid) => {
       if (!checkoutOpen) return;
+      console.log("[Requisition] Card tapped, UID:", uid);
       try {
         const byCard = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(uid)}`);
+        console.log("[Requisition] Card lookup result:", byCard);
         if (!byCard.external_id) {
+          console.warn("[Requisition] No external_id on card");
           toast.error(t("requisition.requesterNoExternalId", "This card's staff record has no external_id on file"));
           return;
         }
         const u = await api.get<UserPayerLookup>(`/users/by-external-id/${encodeURIComponent(byCard.external_id)}`);
+        console.log("[Requisition] External ID lookup result:", u);
         // Requester picker only lists staff/manager/cashier/kitchen/admin
         // (same role filter as /users-admin/staff-picker) — setting the id
         // for any other role (e.g. parent) would silently fail to display,
         // since UserPicker can't find a matching entry in its own list.
         if (!REQUESTER_ROLES.includes(u.role)) {
+          console.warn("[Requisition] User role not in REQUESTER_ROLES:", { role: u.role, allowed: REQUESTER_ROLES });
           toast.error(t("requisition.requesterNotStaff", "This card belongs to {{name}} ({{role}}), not a staff account", { name: u.full_name || u.username, role: u.role }));
           return;
         }
+        console.log("[Requisition] Setting requester:", { userId: u.user_id, name: u.full_name || u.username });
+        // Convert UserPayerLookup to StaffPickerUser format for display
+        const staffPickerUser = {
+          id: u.user_id,
+          username: u.username || "",
+          full_name: u.full_name || null,
+          role: u.role || "",
+          external_id: u.external_id || null,
+          photo_url: null,
+        };
         setRequesterId(u.user_id);
+        setSelectedRequester(staffPickerUser);
+        // Close the UserPicker popover after selection
+        if (requesterPickerRef.current) {
+          requesterPickerRef.current.close();
+          console.log("[Requisition] UserPicker popover closed");
+        }
         toast.success(t("requisition.requesterCardMatched", "Requester: {{name}}", { name: u.full_name || u.username }));
-      } catch {
+      } catch (err) {
+        console.error("[Requisition] Card capture error:", err);
         toast.error(t("requisition.requesterCardNotFound", "Card not linked to any staff account"));
       }
     },
@@ -236,6 +282,7 @@ export default function StoreRequisition() {
       return;
     }
     setRequesterId(null);
+    setSelectedRequester(null);
     setPayMode("department");
     setDeptId(null);
     setNotes("");
@@ -411,7 +458,18 @@ export default function StoreRequisition() {
           <div className="space-y-4">
             <div>
               <Label>{t("requisition.requester", "Requester")} *</Label>
-              <UserPicker value={requesterId} onChange={(id) => setRequesterId(id)} />
+              <UserPicker
+                ref={requesterPickerRef}
+                value={requesterId}
+                onChange={(id) => {
+                  setRequesterId(id);
+                  // Clear selectedRequester when manually picking from dropdown
+                  if (id !== requesterId) {
+                    setSelectedRequester(null);
+                  }
+                }}
+                selectedUser={selectedRequester}
+              />
               <p className="text-xs text-muted-foreground mt-1">
                 {t("requisition.requesterTapHint", "or tap a staff card to fill this in automatically")}
               </p>
@@ -434,18 +492,53 @@ export default function StoreRequisition() {
             {payMode === "department" && (
               <div>
                 <Label>{t("requisition.dept", "Department")} *</Label>
-                <Select value={deptId ? String(deptId) : ""} onValueChange={(v) => setDeptId(parseInt(v, 10))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("requisition.selectDept", "Select department")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={String(d.id)}>
-                        {d.department_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between font-normal"
+                    >
+                      <span className={cn("truncate", !deptId && "text-muted-foreground")}>
+                        {deptId
+                          ? departments.find((d) => d.id === deptId)?.department_name
+                          : t("requisition.selectDept", "Select department")}
+                      </span>
+                      <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command
+                      filter={(haystack, search) => {
+                        const dept = departments.find((d) => String(d.id) === haystack);
+                        if (!dept) return 0;
+                        return dept.department_name.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                      }}
+                    >
+                      <CommandInput placeholder={t("requisition.searchDeptPlaceholder", "Search department…")} />
+                      <CommandList>
+                        <CommandEmpty>{t("requisition.noDeptFound", "No department found")}</CommandEmpty>
+                        {departments.map((d) => (
+                          <CommandItem
+                            key={d.id}
+                            value={String(d.id)}
+                            onSelect={() => {
+                              console.log("[Requisition] Department selected:", { id: d.id, name: d.department_name });
+                              setDeptId(d.id);
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Check
+                              className={cn("h-4 w-4 shrink-0", deptId === d.id ? "opacity-100" : "opacity-0")}
+                            />
+                            <span className="truncate text-sm">{d.department_name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
             <div>
