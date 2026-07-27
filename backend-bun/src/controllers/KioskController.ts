@@ -2,7 +2,7 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { getKioskProfile, updateKioskLocation, ingestKioskLogs } from "@/services/kiosk_service";
-import { recordHeartbeat } from "@/services/kiosk_monitoring_service";
+import { recordHeartbeat, notifyTechnicianPasswordChanged } from "@/services/kiosk_monitoring_service";
 import { errorFromService, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -43,6 +43,20 @@ export const KioskController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (KC-04)] KioskController.heartbeat() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    technicianPasswordChanged: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        logger.info(`[${reqContext.requestId} (KC-05)] KioskController.technicianPasswordChanged() called.`);
+        try {
+            const result = await notifyTechnicianPasswordChanged(
+                user as Parameters<typeof notifyTechnicianPasswordChanged>[0],
+            );
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (KC-05)] KioskController.technicianPasswordChanged() error:`, e);
             return errorFromService(reqContext, e);
         }
     },

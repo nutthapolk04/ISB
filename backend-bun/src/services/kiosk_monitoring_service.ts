@@ -56,7 +56,7 @@ async function getCustodians(kioskUserId: number): Promise<KioskCustodianDTO[]> 
 }
 
 async function logAndSendAlert(args: {
-    alertType: "kiosk_offline" | "kiosk_online";
+    alertType: "kiosk_offline" | "kiosk_online" | "kiosk_password_changed";
     recipientEmail: string;
     subject: string;
     html: string;
@@ -147,6 +147,49 @@ export async function recordHeartbeat(caller: AccessTokenPayload): Promise<{ sta
         await notifyRecovered(kiosk, kiosk.kioskOfflineSince);
     }
     return { status: "online" };
+}
+
+/** Called by the kiosk app after a successful technician-console password change. */
+export async function notifyTechnicianPasswordChanged(caller: AccessTokenPayload): Promise<{ notified: number }> {
+    requireKiosk(caller);
+    const userId = Number(caller.sub);
+    const rows = await db
+        .select({ id: users.id, username: users.username, fullName: users.fullName })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+    const kiosk = rows[0];
+    if (!kiosk) {
+        const err = new Error("User not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+
+    const custodians = (await getCustodians(kiosk.id)).filter((c) => c.email?.trim());
+    if (custodians.length === 0) {
+        return { notified: 0 };
+    }
+
+    const changedAt = fmtBKK(new Date().toISOString());
+    const subject = `Kiosk technician password changed — ${kiosk.fullName} (${kiosk.username})`;
+    const html = `
+    <p>The technician console password was changed on kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username}).</p>
+    <p>Changed at: <strong>${changedAt}</strong> (Bangkok time)</p>
+    <p>If you did not authorize this change, please inspect the device and contact
+       <a href="mailto:help@isb.ac.th">help@isb.ac.th</a>.</p>
+    <p style="color:#888;font-size:12px">This is an auto generated email. Please do not respond to this email.<br/>
+       — ISB Schooney</p>
+  `;
+
+    for (const c of custodians) {
+        await logAndSendAlert({
+            alertType: "kiosk_password_changed",
+            recipientEmail: c.email,
+            subject,
+            html,
+        });
+    }
+    return { notified: custodians.length };
 }
 
 /** Called by kiosk_health_scheduler.ts every tick — flags kiosks that have

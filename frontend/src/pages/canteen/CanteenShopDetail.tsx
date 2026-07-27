@@ -127,13 +127,16 @@ export default function CanteenShopDetail() {
 
     const html = `
       <html><head><title>Close Day Slip — ${summary.date}</title>
-      <style>body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px}
-      h2{text-align:center;font-size:1rem;margin-bottom:4px}
-      p{text-align:center;color:#666;font-size:.8rem;margin:0 0 12px}
-      table{width:100%;border-collapse:collapse}
-      td{font-size:.85rem}
-      hr{border:none;border-top:1px dashed #999;margin:8px 0}
-      .total{font-weight:bold}</style></head>
+      <style>
+      body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px;color:#000}
+      h2{text-align:center;font-size:1rem;margin-bottom:4px;color:#000}
+      p{text-align:center;color:#000;font-size:.8rem;margin:0 0 12px}
+      table{width:100%;border-collapse:collapse;color:#000}
+      td{font-size:.85rem;color:#000}
+      hr{border:none;border-top:1px dashed #000;margin:8px 0}
+      .total{font-weight:bold;color:#000}
+      @media print { body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style></head>
       <body>
         <h2>${shop?.name ?? summary.shop_id}</h2>
         <p>${t("canteen.closeDayConfirm", { date: summary.date })}</p>

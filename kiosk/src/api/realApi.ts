@@ -9,6 +9,7 @@
 
 import type { User, Wallet, Transaction } from './mockApi';
 import { getKioskDeviceId, getKioskDeviceName, logKioskEvent } from '../lib/kioskLog';
+import { verifyTechnicianPassword as verifyTechnicianPasswordLib } from '../lib/technicianPassword';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -404,8 +405,12 @@ export const realApi = {
     },
 
     verifyTechnicianPassword(password: string): boolean {
-        const expected = import.meta.env.VITE_KIOSK_PASSWORD as string | undefined;
-        return !!expected && password === expected;
+        return verifyTechnicianPasswordLib(password);
+    },
+
+    /** Notifies kiosk custodians (if any) that the technician password changed. */
+    async notifyTechnicianPasswordChanged(): Promise<{ notified: number }> {
+        return requestPost<{ notified: number }>('/kiosk/technician-password-changed', {});
     },
 
     /** Uploads a batch of on-device event-log entries — see kioskLogUploader.ts,

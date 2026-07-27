@@ -18,9 +18,15 @@ import {
     Info,
     Search,
     Bug,
+    KeyRound,
 } from 'lucide-vue-next';
 import { useKioskStore } from '../stores/kioskStore';
 import { realApi } from '../api/realApi';
+import {
+    changeTechnicianPassword,
+    TECHNICIAN_PASSWORD_MIN_LENGTH,
+    type ChangePasswordError,
+} from '../lib/technicianPassword';
 import {
     exportKioskLogsText,
     getKioskLogStorageStats,
@@ -50,6 +56,12 @@ const searchQuery = ref('');
 const billPollLoading = ref(false);
 const billPollResult = ref<PollStatusResult | null>(null);
 const billPollError = ref('');
+
+const currentPasswordInput = ref('');
+const newPasswordInput = ref('');
+const confirmPasswordInput = ref('');
+const passwordChangeMessage = ref('');
+const passwordChangeError = ref('');
 
 const selectedDay = ref('');
 const categoryFilter = ref<KioskLogCategory | 'all'>('all');
@@ -130,6 +142,19 @@ const t = computed(() => ({
         billPollError: 'Error',
         billPollTimeout: 'No response',
         billPollFailed: 'Poll failed',
+        changePassword: 'Change device password',
+        changePasswordHint: 'Stored on this device only. The build default applies until you set a new password here.',
+        currentPassword: 'Current password',
+        newPassword: 'New password',
+        confirmPassword: 'Confirm new password',
+        changePasswordBtn: 'Update password',
+        changingPassword: 'Updating…',
+        passwordChanged: 'Device password updated',
+        passwordWrongCurrent: 'Current password is incorrect',
+        passwordTooShort: `New password must be at least ${TECHNICIAN_PASSWORD_MIN_LENGTH} characters`,
+        passwordMismatch: 'New passwords do not match',
+        passwordSameAsCurrent: 'New password must differ from the current one',
+        passwordStorageFailed: 'Could not save password on this device',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -177,6 +202,19 @@ const t = computed(() => ({
         billPollError: 'ข้อผิดพลาด',
         billPollTimeout: 'ไม่มีตอบกลับ',
         billPollFailed: 'Poll ล้มเหลว',
+        changePassword: 'เปลี่ยนรหัสผ่านเครื่อง',
+        changePasswordHint: 'เก็บในเครื่องนี้เท่านั้น จนกว่าจะตั้งรหัสใหม่ ระบบใช้ค่าเริ่มต้นจาก build',
+        currentPassword: 'รหัสผ่านปัจจุบัน',
+        newPassword: 'รหัสผ่านใหม่',
+        confirmPassword: 'ยืนยันรหัสผ่านใหม่',
+        changePasswordBtn: 'บันทึกรหัสใหม่',
+        changingPassword: 'กำลังบันทึก…',
+        passwordChanged: 'เปลี่ยนรหัสผ่านแล้ว',
+        passwordWrongCurrent: 'รหัสผ่านปัจจุบันไม่ถูกต้อง',
+        passwordTooShort: `รหัสผ่านใหม่ต้องมีอย่างน้อย ${TECHNICIAN_PASSWORD_MIN_LENGTH} ตัวอักษร`,
+        passwordMismatch: 'รหัสผ่านใหม่ไม่ตรงกัน',
+        passwordSameAsCurrent: 'รหัสใหม่ต้องไม่ซ้ำกับรหัสปัจจุบัน',
+        passwordStorageFailed: 'บันทึกรหัสผ่านบนเครื่องไม่สำเร็จ',
     },
 }[store.language]));
 
@@ -284,6 +322,53 @@ function toggleDebugMode() {
     logKioskEvent('system', 'info', next ? 'Debug mode enabled' : 'Debug mode disabled', {
         minTopup: next ? 1 : 100,
     });
+}
+
+function passwordChangeErrorText(code: ChangePasswordError): string {
+    const map: Record<ChangePasswordError, string> = {
+        wrong_current: t.value.passwordWrongCurrent,
+        too_short: t.value.passwordTooShort,
+        mismatch: t.value.passwordMismatch,
+        same_as_current: t.value.passwordSameAsCurrent,
+        storage_failed: t.value.passwordStorageFailed,
+    };
+    return map[code];
+}
+
+function submitPasswordChange() {
+    passwordChangeMessage.value = '';
+    passwordChangeError.value = '';
+
+    const result = changeTechnicianPassword(
+        currentPasswordInput.value,
+        newPasswordInput.value,
+        confirmPasswordInput.value,
+    );
+
+    if (!result.ok) {
+        passwordChangeError.value = passwordChangeErrorText(result.error);
+        logKioskEvent('system', 'warn', 'Technician password change failed', { reason: result.error });
+        return;
+    }
+
+    currentPasswordInput.value = '';
+    newPasswordInput.value = '';
+    confirmPasswordInput.value = '';
+    passwordChangeMessage.value = t.value.passwordChanged;
+    logKioskEvent('system', 'info', 'Technician device password changed');
+    setTimeout(() => { passwordChangeMessage.value = ''; }, 2500);
+
+    void realApi.notifyTechnicianPasswordChanged()
+        .then((res) => {
+            if (res.notified > 0) {
+                logKioskEvent('system', 'info', 'Custodian password-change alert sent', { notified: res.notified });
+            }
+        })
+        .catch((e) => {
+            logKioskEvent('system', 'warn', 'Custodian password-change alert failed', {
+                error: e instanceof Error ? e.message : String(e),
+            });
+        });
 }
 
 const billPollStatusLabel = computed(() => {
@@ -447,6 +532,43 @@ async function runBillPoll() {
                         <p v-if="saveMessage" class="success-line">
                             <CheckCircle2 :size="14" />
                             {{ saveMessage }}
+                        </p>
+                    </div>
+
+                    <div class="location-block password-block">
+                        <div class="field-label with-icon">
+                            <KeyRound :size="14" />
+                            {{ t.changePassword }}
+                        </div>
+                        <p class="debug-hint password-hint">{{ t.changePasswordHint }}</p>
+                        <div class="password-fields">
+                            <div>
+                                <label class="field-label">{{ t.currentPassword }}</label>
+                                <input v-model="currentPasswordInput" type="password" class="tech-input"
+                                    autocomplete="off" />
+                            </div>
+                            <div>
+                                <label class="field-label">{{ t.newPassword }}</label>
+                                <input v-model="newPasswordInput" type="password" class="tech-input"
+                                    autocomplete="new-password" />
+                            </div>
+                            <div>
+                                <label class="field-label">{{ t.confirmPassword }}</label>
+                                <input v-model="confirmPasswordInput" type="password" class="tech-input"
+                                    autocomplete="new-password" @keyup.enter="submitPasswordChange" />
+                            </div>
+                        </div>
+                        <button class="btn-primary password-submit" type="button" @click="submitPasswordChange">
+                            <KeyRound :size="16" />
+                            {{ t.changePasswordBtn }}
+                        </button>
+                        <p v-if="passwordChangeMessage" class="success-line">
+                            <CheckCircle2 :size="14" />
+                            {{ passwordChangeMessage }}
+                        </p>
+                        <p v-if="passwordChangeError" class="error-line password-error">
+                            <XCircle :size="14" />
+                            {{ passwordChangeError }}
                         </p>
                     </div>
 
@@ -996,6 +1118,34 @@ async function runBillPoll() {
 
 .location-block {
     margin-top: 1.25rem;
+}
+
+.password-block {
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.password-hint {
+    margin-top: 0.25rem;
+}
+
+.password-fields {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.password-fields .field-label {
+    margin-top: 0;
+}
+
+.password-submit {
+    margin-top: 0.75rem;
+}
+
+.password-error {
+    justify-content: flex-start;
+    margin-top: 0.5rem;
 }
 
 .location-row {

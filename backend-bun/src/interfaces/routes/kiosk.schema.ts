@@ -15,6 +15,10 @@ export const kioskHeartbeat = {
     detail: { tags: ["Kiosk"], summary: "Kiosk liveness ping — call every ~1 min while the app is running" },
 };
 
+export const kioskTechnicianPasswordChanged = {
+    detail: { tags: ["Kiosk"], summary: "Notify assigned custodians that the technician console password was changed" },
+};
+
 export const kioskUploadLogs = {
     body: t.Object({
         entries: t.Array(t.Object({

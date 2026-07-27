@@ -78,15 +78,15 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
       ? `<img src="${schoolInfo.logoUrl}" width="56" height="56" style="object-fit:contain;display:block;margin:0 auto 4px" />`
       : "";
     const schoolName = schoolInfo?.name ?? "International School Bangkok";
-    const schoolAddr = schoolInfo?.address ? `<p style="margin:0;font-size:.75rem;color:#555">${schoolInfo.address}</p>` : "";
-    const schoolTax  = schoolInfo?.taxId   ? `<p style="margin:0;font-size:.75rem;color:#555">Tax ID: ${schoolInfo.taxId}</p>` : "";
-    const schoolTel  = schoolInfo?.phone   ? `<p style="margin:0;font-size:.75rem;color:#555">Tel: ${schoolInfo.phone}</p>` : "";
+    const schoolAddr = schoolInfo?.address ? `<p style="margin:0;font-size:.75rem;color:#000">${schoolInfo.address}</p>` : "";
+    const schoolTax  = schoolInfo?.taxId   ? `<p style="margin:0;font-size:.75rem;color:#000">Tax ID: ${schoolInfo.taxId}</p>` : "";
+    const schoolTel  = schoolInfo?.phone   ? `<p style="margin:0;font-size:.75rem;color:#000">Tel: ${schoolInfo.phone}</p>` : "";
 
     // Shop name on the slip — auditors asked for an explicit "which shop
     // closed?" line so a stack of slips can be sorted without guessing.
     const shopLine = shopName
-      ? `<p style="margin:2px 0 0;font-size:.85rem;color:#111;font-weight:600">${shopName}</p>`
-      : `<p style="margin:2px 0 0;font-size:.75rem;color:#555">Shop: ${s.shop_id}</p>`;
+      ? `<p style="margin:2px 0 0;font-size:.85rem;color:#000;font-weight:600">${shopName}</p>`
+      : `<p style="margin:2px 0 0;font-size:.75rem;color:#000">Shop: ${s.shop_id}</p>`;
 
     // Set the window title to "Up-to-date Sale — DATE" (not "Close Day
     // Slip"), and zero out @page margins so Chrome stops printing the
@@ -95,13 +95,15 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
       <html><head><title>${t("canteen.upToDateSale", "Up-to-date Sale")} — ${s.date}</title>
       <style>
       @page { margin: 0; size: auto; }
-      body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px}
-      h2{text-align:center;font-size:1rem;margin-bottom:2px}
-      p{text-align:center;color:#666;font-size:.8rem;margin:0 0 4px}
-      table{width:100%;border-collapse:collapse}
-      td{font-size:.85rem}
-      hr{border:none;border-top:1px dashed #999;margin:8px 0}
-      .total{font-weight:bold}</style></head>
+      body{font-family:monospace;max-width:320px;margin:0 auto;padding:16px;color:#000}
+      h2{text-align:center;font-size:1rem;margin-bottom:2px;color:#000}
+      p{text-align:center;color:#000;font-size:.8rem;margin:0 0 4px}
+      table{width:100%;border-collapse:collapse;color:#000}
+      td{font-size:.85rem;color:#000}
+      hr{border:none;border-top:1px dashed #000;margin:8px 0}
+      .total{font-weight:bold;color:#000}
+      @media print { body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style></head>
       <body>
         ${logoHtml}
         <h2>${schoolName}</h2>

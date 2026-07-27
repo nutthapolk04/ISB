@@ -351,29 +351,30 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
 <style>
   @page { size: A4 landscape; margin: 12mm 10mm; }
   * { box-sizing: border-box; }
-  body { font-family: "Sarabun", "Noto Sans Thai", Arial, sans-serif; font-size: 8pt; color: #111; }
-  .report-meta-bar { display:flex; justify-content:space-between; font-size:7pt; color:#888; margin-bottom:6px; }
-  .report-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #d1d5db; padding-bottom:8px; }
+  body { font-family: "Sarabun", "Noto Sans Thai", Arial, sans-serif; font-size: 8pt; color: #000; }
+  .report-meta-bar { display:flex; justify-content:space-between; font-size:7pt; color:#000; margin-bottom:6px; }
+  .report-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:8px; }
   .report-header-left { display:flex; align-items:center; }
-  .report-header-text { display:flex; flex-direction:column; }
-  .report-header-text h1 { font-size:13pt; margin:0 0 2px; font-weight:700; }
-  .report-header-text h2 { font-size:10pt; margin:0 0 2px; font-weight:normal; }
-  .report-header-meta { font-size:8pt; color:#555; text-align:right; }
-  .block { margin-bottom: 14px; page-break-inside: avoid; }
-  .block-heading { font-size: 9pt; font-weight: bold; margin-bottom: 3px; }
-  table { width: 100%; border-collapse: collapse; font-size: 7.5pt; table-layout: fixed; }
-  th, td { border: 1px solid #ccc; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  th { background: #f3f4f6; font-weight: 600; text-align: center; }
-  .group-in  { background: #dcfce7 !important; }
-  .group-out { background: #ffedd5 !important; }
-  .group-bal { background: #dbeafe !important; }
-  .num { text-align: right; }
-  .mono { font-family: monospace; font-size: 7pt; }
-  tr.opening { background: #fefce8; font-weight: 600; }
-  tr.summary { background: #f4f4f5; font-weight: 700; border-top: 2px solid #888; }
-  .footer { text-align: right; font-size: 7pt; color: #888; margin-top: 6px; }
+  .report-header-text { display:flex; flex-direction:column; color:#000; }
+  .report-header-text h1 { font-size:13pt; margin:0 0 2px; font-weight:700; color:#000; }
+  .report-header-text h2 { font-size:10pt; margin:0 0 2px; font-weight:normal; color:#000; }
+  .report-header-meta { font-size:8pt; color:#000; text-align:right; }
+  .block { margin-bottom: 14px; page-break-inside: avoid; color:#000; }
+  .block-heading { font-size: 9pt; font-weight: bold; margin-bottom: 3px; color:#000; }
+  table { width: 100%; border-collapse: collapse; font-size: 7.5pt; table-layout: fixed; color:#000; }
+  th, td { border: 1px solid #000; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color:#000; }
+  th { background: #f3f4f6; font-weight: 600; text-align: center; color:#000; }
+  .group-in  { background: #dcfce7 !important; color:#000 !important; }
+  .group-out { background: #ffedd5 !important; color:#000 !important; }
+  .group-bal { background: #dbeafe !important; color:#000 !important; }
+  .num { text-align: right; color:#000; }
+  .mono { font-family: monospace; font-size: 7pt; color:#000; }
+  tr.opening { background: #fefce8; font-weight: 600; color:#000; }
+  tr.summary { background: #f4f4f5; font-weight: 700; border-top: 2px solid #000; color:#000; }
+  .footer { text-align: right; font-size: 7pt; color: #000; margin-top: 6px; }
   @media print {
     .no-print { display: none; }
+    body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>

@@ -262,14 +262,14 @@ export function PrintBarcodeDialog({
         // Sticker mode uses a slightly wider barcode (cell is 50x25mm landscape)
         // and skips the dashed border / free-flow margin used by the loose-label modes.
         const labelInner = (item: PrintItem, canvas: HTMLCanvasElement) => `
-      <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+      <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000;">
         ${item.product.name}
       </div>
-      ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #666; text-align: center;">${item.barcodeLabel}</div>` : ""}
+      ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #000; text-align: center;">${item.barcodeLabel}</div>` : ""}
       <img src="${canvas.toDataURL("image/png")}" style="max-width: 90%; height: auto;" />
-      <div style="font-size: ${fontSize.code}; font-family: monospace;">${item.barcodeValue}</div>
-      ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
-      ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #666;">${item.product.productCode}</div>` : ""}
+      <div style="font-size: ${fontSize.code}; font-family: monospace; color: #000;">${item.barcodeValue}</div>
+      ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold; color: #000;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
+      ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #000;">${item.product.productCode}</div>` : ""}
     `;
 
         const cells: string[] = [];
@@ -365,8 +365,9 @@ export function PrintBarcodeDialog({
       <head>
         <title>Print Barcodes</title>
         <style>
-          body { font-family: Arial, sans-serif; }
+          body { font-family: Arial, sans-serif; color: #000; }
           ${pageStyle}
+          @media print { body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
         </style>
       </head>
       <body>

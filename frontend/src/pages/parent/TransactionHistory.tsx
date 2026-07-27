@@ -245,7 +245,7 @@ export default function TransactionHistory() {
           <td>${rowLabel(tx)}</td>
           <td>${tx.shop_name ?? ""}</td>
           <td>${tx.description ?? ""}</td>
-          <td style="text-align:right;font-weight:600;color:${isCredit ? "#16a34a" : "#dc2626"}">${isCredit ? "+" : "-"}${formatTHB(Math.abs(tx.amount))}</td>
+          <td style="text-align:right;font-weight:600;color:#000">${isCredit ? "+" : "-"}${formatTHB(Math.abs(tx.amount))}</td>
           <td style="text-align:right">${formatTHB(tx.balance_after)}</td>
         </tr>`;
         }).join("");
@@ -256,20 +256,23 @@ export default function TransactionHistory() {
   <meta charset="utf-8" />
   <title>${title}</title>
   <style>
-    body { font-family: sans-serif; font-size: 12px; color: #1e293b; margin: 24px; }
+    body { font-family: sans-serif; font-size: 12px; color: #000; margin: 24px; }
     .meta-bar { display: flex; justify-content: space-between; font-size: 9px; color: #000; margin-bottom: 10px; }
-    .report-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .report-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color: #000; }
     .report-header img { object-fit: contain; }
-    .report-header .school-name { font-size: 16px; font-weight: bold; line-height: 1.2; }
-    .report-header .report-title { font-size: 13px; margin-top: 2px; }
+    .report-header .school-name { font-size: 16px; font-weight: bold; line-height: 1.2; color: #000; }
+    .report-header .report-title { font-size: 13px; margin-top: 2px; color: #000; }
     .filters { text-align: right; font-size: 9px; color: #000; margin-bottom: 14px; }
     .filters div { margin-top: 1px; }
-    p.sub { font-size: 11px; color: #64748b; margin: 0 0 16px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #fff7ed; color: #c2410c; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 2px solid #fed7aa; }
-    td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-    tr:nth-child(even) td { background: #fafaf9; }
-    @media print { body { margin: 0; } }
+    p.sub { font-size: 11px; color: #000; margin: 0 0 16px; }
+    table { width: 100%; border-collapse: collapse; color: #000; }
+    th { background: #fff; color: #000; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 2px solid #000; }
+    td { padding: 5px 8px; border-bottom: 1px solid #000; vertical-align: top; color: #000; }
+    tr:nth-child(even) td { background: #fff; }
+    @media print {
+      body { margin: 0; }
+      body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>
