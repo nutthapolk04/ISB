@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
-import { parentChildLinks, users, customers, emailAlertsLog } from "@/db/schema";
-import { eq, and, gte, inArray } from "drizzle-orm";
+import { parentChildLinks, users, customers, familyProfiles, emailAlertsLog } from "@/db/schema";
+import { eq, and, gte, inArray, isNull, ilike } from "drizzle-orm";
 import { emailDeliveryStatusFromError, sendEmail } from "./email_service";
 import { getRaw } from "./settings_service";
 
@@ -33,20 +33,63 @@ export async function checkAndSendLowBalanceAlerts(
         .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
         .where(eq(parentChildLinks.childCustomerId, customerId));
 
+    // Admin-added notification emails on the student's family profile — kept
+    // separate from PowerSchool-synced notification_emails and never touched
+    // by sync, but previously never actually consulted by this alert (the
+    // reported bug: admins add an email here expecting it to get alerts, and
+    // it silently never did).
+    const [customerRow] = await db
+        .select({ familyCode: customers.familyCode })
+        .from(customers)
+        .where(eq(customers.id, customerId))
+        .limit(1);
+
+    let adminEmails: string[] = [];
+    if (customerRow?.familyCode) {
+        const [profile] = await db
+            .select({ adminEmails: familyProfiles.adminNotificationEmails })
+            .from(familyProfiles)
+            .where(eq(familyProfiles.familyCode, customerRow.familyCode))
+            .limit(1);
+        if (Array.isArray(profile?.adminEmails)) {
+            adminEmails = profile.adminEmails.filter((e): e is string => typeof e === "string" && e.trim() !== "");
+        }
+    }
+
+    const seen = new Set<string>();
+    const recipients: { parentUserId: number | null; email: string }[] = [];
+    for (const parent of parents) {
+        if (!parent.email) continue;
+        const key = parent.email.trim().toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipients.push({ parentUserId: parent.parentUserId, email: parent.email });
+    }
+    for (const email of adminEmails) {
+        const key = email.trim().toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipients.push({ parentUserId: null, email });
+    }
+
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const subject = `แจ้งเตือน: ยอดเงินบัตรของ ${student.name} ต่ำกว่า ${threshold} บาท`;
 
-    for (const parent of parents) {
-        if (!parent.email) continue;
+    for (const recipient of recipients) {
+        // Skip if already sent or pending within 24 h for this recipient–child pair.
+        // Admin-added emails have no parentUserId, so they're deduped by
+        // recipientEmail instead.
+        const recentCond = recipient.parentUserId !== null
+            ? eq(emailAlertsLog.parentUserId, recipient.parentUserId)
+            : and(isNull(emailAlertsLog.parentUserId), ilike(emailAlertsLog.recipientEmail, recipient.email));
 
-        // Skip if already sent or pending within 24 h for this parent–child pair
         const recent = await db
             .select({ id: emailAlertsLog.id })
             .from(emailAlertsLog)
             .where(
                 and(
                     eq(emailAlertsLog.alertType, "low_balance"),
-                    eq(emailAlertsLog.parentUserId, parent.parentUserId),
+                    recentCond,
                     eq(emailAlertsLog.childCustomerId, customerId),
                     inArray(emailAlertsLog.status, ["sent", "pending"]),
                     gte(emailAlertsLog.sentAt, cutoff),
@@ -57,8 +100,8 @@ export async function checkAndSendLowBalanceAlerts(
 
         await db.insert(emailAlertsLog).values({
             alertType: "low_balance",
-            recipientEmail: parent.email,
-            parentUserId: parent.parentUserId,
+            recipientEmail: recipient.email,
+            parentUserId: recipient.parentUserId,
             childCustomerId: customerId,
             subject,
             thresholdAmount: String(threshold),
