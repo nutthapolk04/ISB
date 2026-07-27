@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, UserIcon, KeyRound, RefreshCcw, Wallet, Monitor } from 'lucide-react';
 import { useState } from 'react';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
+import { IdleSessionGuard } from '@/components/IdleSessionGuard';
 import { useTranslation } from 'react-i18next';
 import Store from './pages/Store';
 import Canteen from './pages/Canteen';
@@ -187,6 +188,7 @@ function AppShell() {
           </div>
         </main>
       </div>
+      <IdleSessionGuard />
     </SidebarProvider>
   );
 }

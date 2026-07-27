@@ -18,7 +18,7 @@ import { PaginationBar } from "@/components/PaginationBar";
 import { toast } from "@/hooks/use-toast";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
-import { Bell, ClipboardList, Search } from "lucide-react";
+import { Bell, ClipboardList, Search, Send } from "lucide-react";
 
 interface SettingsResponse {
   low_balance_alert_enabled?: boolean;
@@ -75,6 +75,7 @@ export default function LowBalanceAlert() {
   const [logDateFrom, setLogDateFrom] = useState("");
   const [logDateTo, setLogDateTo] = useState("");
   const [logStatus, setLogStatus] = useState<"all" | "pending" | "sent" | "failed">("all");
+  const [sendingId, setSendingId] = useState<number | null>(null);
 
   const loadLog = async (page = 1) => {
     setLogLoading(true);
@@ -102,6 +103,23 @@ export default function LowBalanceAlert() {
   };
 
   useEffect(() => { loadLog(1); }, []);
+
+  const sendNow = async (row: LowBalanceAlertRow) => {
+    setSendingId(row.id);
+    try {
+      await api.post(`/admin/low-balance-alert-report/${row.id}/send`, {});
+      toast({ title: t("admin.lowBalanceAlert.sendNowSuccess", "Alert sent") });
+      await loadLog(logPage);
+    } catch (e) {
+      toast({
+        title: t("admin.lowBalanceAlert.sendNowError", "Failed to send alert"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingId(null);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -292,18 +310,19 @@ export default function LowBalanceAlert() {
                     <TableHead className="text-right">{t("admin.lowBalanceAlert.colBalance", "Balance at alert")}</TableHead>
                     <TableHead className="text-right">{t("admin.lowBalanceAlert.colThreshold", "Threshold")}</TableHead>
                     <TableHead className="text-center">{t("admin.lowBalanceAlert.colStatus2", "Status")}</TableHead>
+                    <TableHead className="text-center">{t("admin.lowBalanceAlert.colActions", "Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {logLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         {t("admin.lowBalanceAlert.loading", "Loading…")}
                       </TableCell>
                     </TableRow>
                   ) : logRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         {t("admin.lowBalanceAlert.logNoResults", "No students have crossed the threshold yet.")}
                       </TableCell>
                     </TableRow>
@@ -330,6 +349,20 @@ export default function LowBalanceAlert() {
                             <p className="text-[10px] text-destructive mt-0.5 max-w-[160px] truncate" title={r.error_message}>
                               {r.error_message}
                             </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {r.status !== "sent" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={sendingId === r.id}
+                              title={t("admin.lowBalanceAlert.sendNow", "Send now")}
+                              onClick={() => sendNow(r)}
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>

@@ -109,3 +109,8 @@ export const adminLowBalanceAlertReport = {
     }),
     detail: { tags: ["Reports"], summary: "Low-balance alert queue/history report" },
 };
+
+export const adminSendLowBalanceAlertNow = {
+    params: t.Object({ id: t.String() }),
+    detail: { tags: ["Reports"], summary: "Manually (re)send a specific low-balance alert email now" },
+};

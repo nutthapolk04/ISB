@@ -3,7 +3,9 @@ import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
 import { adjustmentReport, transferReport, topupReport, transactionReport, kioskLogReport, internalUsedReport, lowBalanceAlertReport } from "@/services/admin_reports_service";
+import { sendSingleLowBalanceAlert } from "@/services/low_balance_notification";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
+import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { logger } from "@/logger";
 
 export const AdminReportsController = {
@@ -208,6 +210,29 @@ export const AdminReportsController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-06)] AdminReportsController.lowBalanceAlertReport() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    sendLowBalanceAlertNow: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { params } = reqContext;
+        logger.info(`[${reqContext.requestId} (AR-07)] AdminReportsController.sendLowBalanceAlertNow() called.`);
+        if (!hasRole(user.roles, "admin", "finance")) {
+            logger.warn(`[${reqContext.requestId} (AR-07)] AdminReportsController.sendLowBalanceAlertNow() forbidden.`);
+            return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+        }
+        const id = parseIntParam(params.id, "alert id", reqContext.set);
+        if (id === null) {
+            logger.warn(`[${reqContext.requestId} (AR-07)] AdminReportsController.sendLowBalanceAlertNow() invalid alert id.`);
+            return errorResponse(reqContext, "Invalid alert id", ResponseStatus.UNPROCESSABLE);
+        }
+        try {
+            await sendSingleLowBalanceAlert(id);
+            logger.info(`[${reqContext.requestId} (AR-07)] AdminReportsController.sendLowBalanceAlertNow() completed.`);
+            return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AR-07)] AdminReportsController.sendLowBalanceAlertNow() error:`, e);
             return errorFromService(reqContext, e);
         }
     },
