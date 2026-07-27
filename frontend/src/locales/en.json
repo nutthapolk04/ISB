@@ -1547,6 +1547,7 @@
       "familyGroup": "Family group",
       "familyGroupLabel": "Family group: ",
       "notificationEmails": "Notification emails",
+      "notificationEmailFallbackHint": "Using login email — this account has no family/notification profile",
       "adminNotificationEmails": "Added manually",
       "adminNotificationEmailsDesc": "kept separate — never overwritten by sync",
       "linkedStudents": "Linked students",

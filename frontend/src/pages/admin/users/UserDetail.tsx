@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { AdminChangePasswordDialog } from "@/components/AdminChangePasswordDialog";
 import type { UserDetailData } from "./userDetailTypes";
 import { UserProfileHero } from "./UserProfileHero";
@@ -183,14 +183,31 @@ export default function UserDetail() {
 
         <UserRoleManager userId={userId!} primaryRole={user.role} />
 
-        {user.family_code && (
+        {user.family_code ? (
           <FamilyGroupCard
             familyCode={user.family_code}
             members={user.family_members}
             familyProfile={user.family_profile}
             onProfileUpdated={(profile) => setUser({ ...user, family_profile: profile })}
           />
-        )}
+        ) : user.role !== "parent" && user.role !== "student" ? (
+          // Non-parent staff (no family_code — nowhere to store a
+          // notification_emails/admin_notification_emails row) still need an
+          // effective notification address shown somewhere. Display-only
+          // fallback to their own login email — nothing is written to the
+          // database here, so there's no risk of this getting stuck after a
+          // future sync round or admin edit gives them a real family profile.
+          <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              {t("admin.users.notificationEmails")}
+            </div>
+            <p className="text-sm">{user.email || <span className="text-muted-foreground italic">—</span>}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("admin.users.notificationEmailFallbackHint", "Using login email — this account has no family/notification profile")}
+            </p>
+          </div>
+        ) : null}
 
         {(user.role === "parent" || (user.role === "staff" && user.has_children)) && (
           <LinkedStudentsTable

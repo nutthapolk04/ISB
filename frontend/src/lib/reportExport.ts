@@ -13,7 +13,7 @@
  *   ├──────────────────────────────────────────────────────────┤
  *   │ table headers …                                          │
  *   │ rows …                                                   │
- *   │ TOTAL row (bold, if provided)                            │
+ *   │ TOTAL row (bold, last page only, if provided)            │
  *   └──────────────────────────────────────────────────────────┘
  *
  * Excel layout
@@ -465,6 +465,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     head,
     body,
     foot,
+    showFoot: "lastPage",
     startY: cursorY,
     margin: { left: marginX, right: marginX },
     tableWidth: usableWidth,
