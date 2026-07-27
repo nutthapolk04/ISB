@@ -133,7 +133,9 @@ interface LowBalanceAlertLogRow {
 
 async function sendOneAlertRow(row: LowBalanceAlertLogRow): Promise<void> {
     const studentName = row.studentName ?? "your child";
-    const studentLabel = row.studentGrade ? `${studentName} - Grade ${row.studentGrade}` : studentName;
+    const studentLabel = row.studentGrade
+        ? `${studentName} - Grade ${row.studentGrade}`
+        : studentName;
     const balance = Number(row.balanceAtAlert ?? 0).toFixed(2);
 
     // Greeting addresses every guardian currently linked to the student, not
@@ -153,14 +155,13 @@ async function sendOneAlertRow(row: LowBalanceAlertLogRow): Promise<void> {
 
     const html = `
       <p>Dear ${greeting},</p>
-      <p>The balance of your child's ISB Campus Card account (<strong>${studentLabel}</strong>) has fallen below your specified limit.</p>
-      <p><strong>${studentLabel}</strong>'s current Campus account balance is <strong>${balance}</strong>.</p>
+      <p>The balance of your child's ISB Campus Card account (${studentLabel}) has fallen below your specified limit.</p>
+      <p>${studentLabel}'s current Campus account balance is ${balance}.</p>
       <p>To avoid inconvenience to the account holder, please recharge your child's Campus account as soon as possible.</p>
-      <p>To recharge your account online please login to your Campus Online portal
-         <a href="https://campuscard.isb.ac.th/">https://campuscard.isb.ac.th/</a></p>
-      <p>Alternatively your Campus Card can be topped with cash at the Bookstore or Campus Kiosk (near the ATM's).</p>
-      <p style="color:#888;font-size:12px">This is an auto generated email. Please do not respond to this email.
-         Please contact <a href="mailto:help@isb.ac.th">help@isb.ac.th</a> in case you have any account queries.</p>
+      <p>To recharge your account online please login to your<br/>
+      Campus Online portal <a href="https://campuscard.isb.ac.th/">https://campuscard.isb.ac.th/</a></p>
+      <p>Alternatively your Campus Card can be topped with cash at the Bookstore or Campus Kiosk (near the ATM's)</p>
+      <p>This is an auto generated email. Please do not respond to this email. Please contact <a href="mailto:help@isb.ac.th">help@isb.ac.th</a> in case you have any account queries.</p>
     `;
 
     let status = "sent";
