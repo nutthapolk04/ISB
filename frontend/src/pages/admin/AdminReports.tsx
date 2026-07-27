@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { InfoCallout } from "@/components/InfoCallout";
 import {
     Select,
@@ -134,7 +135,6 @@ interface BalanceRow {
     owner_role: string;
     owner_name: string;
     owner_external_id: string | null;
-    owner_family_code: string | null;
 }
 
 interface BalanceReportData {
@@ -195,36 +195,38 @@ function BalanceTable({
                 <table className="w-full text-xs">
                     <thead className="bg-muted/50 whitespace-nowrap">
                         <tr>
-                            <th className="px-2 py-2 text-left">ID</th>
                             <SortableDateTimeHeader
                                 label={t("admin.adminReports.colDateTime")}
                                 sortDir={dateTimeSort}
                                 onToggle={onToggleDateTimeSort}
                             />
-                            <th className="px-2 py-2 text-left">Shop</th>
+                            <th className="px-2 py-2 text-left">ISB_ID</th>
+                            <th className="px-2 py-2 text-left">Owner Name</th>
+                            <th className="px-2 py-2 text-left">Transaction</th>
                             <th className="px-2 py-2 text-left">Type</th>
                             <th className="px-2 py-2 text-right">In</th>
                             <th className="px-2 py-2 text-right">Out</th>
-                            <th className="px-2 py-2 text-right">BD</th>
+                            <th className="px-2 py-2 text-right">Previous Balance</th>
                             <th className="px-2 py-2 text-right">Balance</th>
                         </tr>
                     </thead>
                     <tbody>
                         {data.items.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
+                                <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">
                                     No transactions match these filters.
                                 </td>
                             </tr>
                         ) : (
                             data.items.map((r) => (
                                 <tr key={r.id} className="border-t">
-                                    <td className="px-2 py-1.5 font-mono text-[10px]">{r.id}</td>
                                     <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
-                                    <td className="px-2 py-1.5 text-muted-foreground">{r.shop_name || "—"}</td>
+                                    <td className="px-2 py-1.5 font-mono text-[10px]">{r.owner_external_id || "—"}</td>
+                                    <td className="px-2 py-1.5">{r.owner_name}</td>
+                                    <td className="px-2 py-1.5 text-muted-foreground text-[11px]">{r.shop_name || "—"}</td>
                                     <td className="px-2 py-1.5">
                                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", BALANCE_TYPE_COLORS[r.type])}>
-                                            {BALANCE_TYPE_LABEL[r.type]}
+                                            {BALANCE_TYPE_LABEL[r.type]} {r.type === "purchase" && r.in_amount > 0 && "(adj)"}
                                         </span>
                                     </td>
                                     <td className="px-2 py-1.5 text-right font-mono text-green-700">{r.in_amount.toFixed(2)}</td>
@@ -238,7 +240,7 @@ function BalanceTable({
                     {data.items.length > 0 && (
                         <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                             <tr className="border-t">
-                                <td colSpan={4} className="px-2 py-2 text-left">TOTALS</td>
+                                <td colSpan={5} className="px-2 py-2 text-left">TOTALS</td>
                                 <td className="px-2 py-2 text-right font-mono text-green-700">{data.in_total.toFixed(2)}</td>
                                 <td className="px-2 py-2 text-right font-mono text-red-700">{data.out_total.toFixed(2)}</td>
                                 <td colSpan={2} />
@@ -515,9 +517,8 @@ export default function AdminReports() {
 
     // Balance Report filters
     const [balanceType, setBalanceType] = useState<BalanceType>("all");
-    const [balanceRole, setBalanceRole] = useState<BalanceRole>("all");
-    const [balanceExternalId, setBalanceExternalId] = useState("");
-    const [balanceFamilyCode, setBalanceFamilyCode] = useState("");
+    const [balanceRoles, setBalanceRoles] = useState<string[]>([]);
+    const [balanceIsbId, setBalanceIsbId] = useState("");
     const [balancePage, setBalancePage] = useState(1);
 
     const openReport = (kind: ReportKind) => {
@@ -547,9 +548,8 @@ export default function AdminReports() {
         setInternalUsedShopId(null);
         setInternalUsedShopName(null);
         setBalanceType("all");
-        setBalanceRole("all");
-        setBalanceExternalId("");
-        setBalanceFamilyCode("");
+        setBalanceRoles([]);
+        setBalanceIsbId("");
         setBalancePage(1);
         setDateTimeSort(DEFAULT_DATE_TIME_SORT);
         setSearched(false);
@@ -820,9 +820,8 @@ export default function AdminReports() {
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
         if (balanceType !== "all") params.set("type", balanceType);
-        if (balanceRole !== "all") params.set("role", balanceRole);
-        if (balanceExternalId.trim()) params.set("external_id", balanceExternalId.trim());
-        if (balanceFamilyCode.trim()) params.set("family_code", balanceFamilyCode.trim());
+        if (balanceRoles.length > 0) params.set("role", balanceRoles.join(","));
+        if (balanceIsbId.trim()) params.set("external_id", balanceIsbId.trim());
         params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
@@ -1031,20 +1030,19 @@ export default function AdminReports() {
                         runByName: user?.fullName ?? user?.username,
                     },
                     columns: [
-                        { header: t("admin.adminReports.colId", "ID"), key: "id", width: 10 },
                         { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
-                        { header: t("admin.adminReports.colShop"), key: "shop_name", width: 20 },
+                        { header: "ISB_ID", key: "owner_external_id", width: 14 },
+                        { header: t("admin.adminReports.colOwnerName", "Owner Name"), key: "owner_name", width: 24 },
+                        { header: "Transaction", key: "shop_name", width: 20 },
                         { header: t("admin.adminReports.colType", "Type"), key: "type", width: 14 },
                         { header: t("admin.adminReports.colIn", "In"), key: "in_amount", format: "currency", align: "right", width: 12 },
                         { header: t("admin.adminReports.colOut", "Out"), key: "out_amount", format: "currency", align: "right", width: 12 },
-                        { header: t("admin.adminReports.colBD", "BD"), key: "balance_before", format: "currency", align: "right", width: 12 },
+                        { header: "Previous Balance", key: "balance_before", format: "currency", align: "right", width: 12 },
                         { header: t("admin.adminReports.colBalance", "Balance"), key: "balance_after", format: "currency", align: "right", width: 12 },
-                        { header: t("admin.adminReports.colOwnerRole", "Owner Type"), key: "owner_role", width: 14 },
-                        { header: t("admin.adminReports.colOwnerName", "Owner Name"), key: "owner_name", width: 24 },
                     ],
                     rows: full.items.map((r) => ({
                         ...r,
-                        type: BALANCE_TYPE_LABEL[r.type as BalanceType] ?? r.type,
+                        type: `${BALANCE_TYPE_LABEL[r.type as BalanceType] ?? r.type}${r.type === "purchase" && r.in_amount > 0 ? " (adj)" : ""}`,
                     })) as unknown as Record<string, unknown>[],
                     totals: { in_amount: full.in_total, out_amount: full.out_total },
                 },
@@ -1374,36 +1372,56 @@ export default function AdminReports() {
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Owner Type (Role)</Label>
-                                        <Select value={balanceRole} onValueChange={(v) => setBalanceRole(v as BalanceRole)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All</SelectItem>
-                                                <SelectItem value="student">Student</SelectItem>
-                                                <SelectItem value="parent">Parent</SelectItem>
-                                                <SelectItem value="staff">Staff</SelectItem>
-                                                <SelectItem value="cashier">Cashier</SelectItem>
-                                                <SelectItem value="manager">Manager</SelectItem>
-                                                <SelectItem value="kitchen">Kitchen</SelectItem>
-                                                <SelectItem value="admin">Admin</SelectItem>
-                                                <SelectItem value="kiosk">Kiosk</SelectItem>
-                                                <SelectItem value="department">Department</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <Label>Owner Type</Label>
+                                        <div className="relative">
+                                            <button
+                                                className="w-full px-3 py-2 border rounded-md bg-white text-left text-sm hover:bg-gray-50 flex items-center justify-between"
+                                                onClick={() => {
+                                                    const dropdown = document.getElementById("balance-roles-dropdown");
+                                                    if (dropdown) {
+                                                        dropdown.classList.toggle("hidden");
+                                                    }
+                                                }}
+                                            >
+                                                <span>
+                                                    {balanceRoles.length === 0
+                                                        ? "Select roles…"
+                                                        : balanceRoles.length === 1
+                                                            ? balanceRoles[0]
+                                                            : `${balanceRoles.length} selected`}
+                                                </span>
+                                                <ChevronDown className="h-4 w-4" />
+                                            </button>
+                                            <div
+                                                id="balance-roles-dropdown"
+                                                className="hidden absolute top-full left-0 right-0 mt-1 border rounded-md bg-white shadow-lg z-50 p-2 space-y-2"
+                                            >
+                                                {["student", "parent", "staff", "department"].map((role) => (
+                                                    <div key={role} className="flex items-center gap-2 px-2 py-1">
+                                                        <Checkbox
+                                                            checked={balanceRoles.includes(role)}
+                                                            onCheckedChange={(checked) => {
+                                                                if (checked) {
+                                                                    setBalanceRoles([...balanceRoles, role]);
+                                                                } else {
+                                                                    setBalanceRoles(balanceRoles.filter((r) => r !== role));
+                                                                }
+                                                            }}
+                                                            id={`balance-role-${role}`}
+                                                        />
+                                                        <Label htmlFor={`balance-role-${role}`} className="capitalize cursor-pointer text-sm">
+                                                            {role}
+                                                        </Label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>External ID</Label>
+                                        <Label>ISB_ID</Label>
                                         <Input
-                                            value={balanceExternalId}
-                                            onChange={(e) => setBalanceExternalId(e.target.value)}
-                                            placeholder="Exact match…"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Family Code</Label>
-                                        <Input
-                                            value={balanceFamilyCode}
-                                            onChange={(e) => setBalanceFamilyCode(e.target.value)}
+                                            value={balanceIsbId}
+                                            onChange={(e) => setBalanceIsbId(e.target.value)}
                                             placeholder="Exact match…"
                                         />
                                     </div>

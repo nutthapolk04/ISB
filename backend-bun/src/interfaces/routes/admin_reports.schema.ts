@@ -121,7 +121,6 @@ export const adminBalanceReport = {
         type: t.Optional(t.Nullable(t.String())),
         role: t.Optional(t.Nullable(t.String())),
         external_id: t.Optional(t.Nullable(t.String())),
-        family_code: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
         ...sortOrderQuery,

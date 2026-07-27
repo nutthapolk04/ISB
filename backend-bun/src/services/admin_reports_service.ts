@@ -1255,7 +1255,6 @@ export interface BalanceReportRow {
     owner_role: string;
     owner_name: string;
     owner_external_id: string | null;
-    owner_family_code: string | null;
 }
 
 export interface BalanceReportResponseDTO {
@@ -1273,7 +1272,6 @@ export async function balanceReport(args: {
     type?: string | null;
     role?: string | null;
     externalId?: string | null;
-    familyCode?: string | null;
     sortOrder?: string | null;
     page: number;
     pageSize: number;
@@ -1395,8 +1393,7 @@ export async function balanceReport(args: {
         // Resolve owner and owner metadata
         let ownerRole = "unknown",
             ownerName = "—",
-            ownerExternalId: string | null = null,
-            ownerFamilyCode: string | null = null;
+            ownerExternalId: string | null = null;
 
         if (w.customerId !== null) {
             const c = customerById.get(w.customerId);
@@ -1404,7 +1401,6 @@ export async function balanceReport(args: {
                 ownerRole = "student";
                 ownerName = c.name;
                 ownerExternalId = c.externalId ?? null;
-                ownerFamilyCode = c.familyCode ?? null;
             }
         } else if (w.userId !== null) {
             const u = userById.get(w.userId);
@@ -1412,7 +1408,6 @@ export async function balanceReport(args: {
                 ownerRole = u.role ?? "staff";
                 ownerName = u.fullName || u.username;
                 ownerExternalId = u.externalId ?? null;
-                ownerFamilyCode = u.familyCode ?? null;
             }
         } else if (w.departmentId !== null) {
             const d = departmentById.get(w.departmentId);
@@ -1420,19 +1415,16 @@ export async function balanceReport(args: {
                 ownerRole = "department";
                 ownerName = d.departmentName ?? "—";
                 ownerExternalId = null;
-                ownerFamilyCode = null;
             }
         }
 
         // Apply filters
-        if (args.role && args.role !== "all") {
-            if (args.role !== ownerRole) continue;
+        if (args.role && args.role.trim()) {
+            const allowedRoles = args.role.split(",").map((r) => r.trim());
+            if (!allowedRoles.includes(ownerRole)) continue;
         }
         if (args.externalId && args.externalId.trim()) {
             if (ownerExternalId !== args.externalId) continue;
-        }
-        if (args.familyCode && args.familyCode.trim()) {
-            if (ownerFamilyCode !== args.familyCode) continue;
         }
         if (args.type && args.type !== "all") {
             if (args.type !== txType) continue;
@@ -1461,7 +1453,6 @@ export async function balanceReport(args: {
             owner_role: ownerRole,
             owner_name: ownerName,
             owner_external_id: ownerExternalId,
-            owner_family_code: ownerFamilyCode,
         });
     }
 
