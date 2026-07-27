@@ -6,8 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { PaginationBar } from "@/components/PaginationBar";
 import { toast } from "@/hooks/use-toast";
-import { Bell } from "lucide-react";
+import { fmtDateTime } from "@/lib/dateFormat";
+import { formatCurrency as formatTHB } from "@/lib/format";
+import { Bell, ClipboardList, Search } from "lucide-react";
 
 interface SettingsResponse {
   low_balance_alert_enabled?: boolean;
@@ -16,6 +27,37 @@ interface SettingsResponse {
   [key: string]: unknown;
 }
 
+// ── Alert queue/history table ────────────────────────────────────────────
+
+interface LowBalanceAlertRow {
+  id: number;
+  sent_at: string;
+  student_name: string;
+  student_code: string | null;
+  parent_name: string;
+  parent_username: string;
+  recipient_email: string;
+  balance_at_alert: number;
+  threshold_amount: number;
+  status: "pending" | "sent" | "failed";
+  error_message: string | null;
+}
+
+interface LowBalanceAlertReportResponse {
+  items: LowBalanceAlertRow[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+const ALERT_PAGE_SIZE = 10;
+
+const STATUS_BADGE: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+  sent: "bg-green-100 text-green-700 hover:bg-green-100",
+  failed: "bg-red-100 text-red-700 hover:bg-red-100",
+};
+
 export default function LowBalanceAlert() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -23,6 +65,43 @@ export default function LowBalanceAlert() {
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [alertThreshold, setAlertThreshold] = useState("100");
   const [sendTime, setSendTime] = useState("19:00");
+
+  // ── Alert queue/history table state ─────────────────────────────────────
+  const [logRows, setLogRows] = useState<LowBalanceAlertRow[]>([]);
+  const [logTotal, setLogTotal] = useState(0);
+  const [logPage, setLogPage] = useState(1);
+  const [logPages, setLogPages] = useState(1);
+  const [logLoading, setLogLoading] = useState(false);
+  const [logDateFrom, setLogDateFrom] = useState("");
+  const [logDateTo, setLogDateTo] = useState("");
+  const [logStatus, setLogStatus] = useState<"all" | "pending" | "sent" | "failed">("all");
+
+  const loadLog = async (page = 1) => {
+    setLogLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), page_size: String(ALERT_PAGE_SIZE) });
+      if (logDateFrom) params.set("date_from", logDateFrom);
+      if (logDateTo) params.set("date_to", logDateTo);
+      if (logStatus !== "all") params.set("status", logStatus);
+      const data = await api.get<LowBalanceAlertReportResponse>(
+        `/admin/low-balance-alert-report?${params.toString()}`,
+      );
+      setLogRows(data.items);
+      setLogTotal(data.total);
+      setLogPage(data.page);
+      setLogPages(data.pages);
+    } catch (e) {
+      toast({
+        title: t("admin.lowBalanceAlert.logLoadError", "Failed to load alert history"),
+        description: e instanceof ApiError ? e.detail : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLogLoading(false);
+    }
+  };
+
+  useEffect(() => { loadLog(1); }, []);
 
   useEffect(() => {
     (async () => {
@@ -159,6 +238,115 @@ export default function LowBalanceAlert() {
             <Button onClick={save} disabled={loading || saving}>
               {saving ? t("admin.settings.saving", "Saving…") : t("common.save", "Save")}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              {t("admin.lowBalanceAlert.logTitle", "Alert Queue & History")}
+              {logTotal > 0 && <span className="text-sm text-muted-foreground font-normal">({logTotal} {t("admin.lowBalanceAlert.logTotalSuffix", "total")})</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {t("admin.lowBalanceAlert.logSubtitle", "Every student who has crossed the threshold, which parent email it will go to, and whether it's been sent yet.")}
+            </p>
+
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <Label className="text-sm">{t("adjustmentReport.dateFrom", "From")}</Label>
+                <DatePicker value={logDateFrom} onChange={setLogDateFrom} className="w-36 h-9 text-sm" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-sm">{t("adjustmentReport.dateTo", "To")}</Label>
+                <DatePicker value={logDateTo} onChange={setLogDateTo} className="w-36 h-9 text-sm" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-sm">{t("admin.lowBalanceAlert.logStatus", "Status")}</Label>
+                <Select value={logStatus} onValueChange={(v) => setLogStatus(v as typeof logStatus)}>
+                  <SelectTrigger className="w-32 h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("admin.lowBalanceAlert.logStatusAll", "All")}</SelectItem>
+                    <SelectItem value="pending">{t("admin.lowBalanceAlert.logStatusPending", "Pending")}</SelectItem>
+                    <SelectItem value="sent">{t("admin.lowBalanceAlert.logStatusSent", "Sent")}</SelectItem>
+                    <SelectItem value="failed">{t("admin.lowBalanceAlert.logStatusFailed", "Failed")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button size="sm" onClick={() => loadLog(1)} disabled={logLoading} className="gap-1.5 h-9">
+                <Search className="h-3.5 w-3.5" />
+                {logLoading ? "…" : t("adjustmentReport.search", "Search")}
+              </Button>
+            </div>
+
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">{t("admin.lowBalanceAlert.colQueuedAt", "Queued / Sent At")}</TableHead>
+                    <TableHead>{t("admin.lowBalanceAlert.colStudent", "Student")}</TableHead>
+                    <TableHead>{t("admin.lowBalanceAlert.colParent", "Parent")}</TableHead>
+                    <TableHead>{t("admin.lowBalanceAlert.colEmail", "Sent to email")}</TableHead>
+                    <TableHead className="text-right">{t("admin.lowBalanceAlert.colBalance", "Balance at alert")}</TableHead>
+                    <TableHead className="text-right">{t("admin.lowBalanceAlert.colThreshold", "Threshold")}</TableHead>
+                    <TableHead className="text-center">{t("admin.lowBalanceAlert.colStatus2", "Status")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        {t("admin.lowBalanceAlert.loading", "Loading…")}
+                      </TableCell>
+                    </TableRow>
+                  ) : logRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        {t("admin.lowBalanceAlert.logNoResults", "No students have crossed the threshold yet.")}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    logRows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="whitespace-nowrap text-xs font-mono">{fmtDateTime(r.sent_at)}</TableCell>
+                        <TableCell>
+                          <p className="font-medium text-sm">{r.student_name}</p>
+                          {r.student_code && <p className="text-xs font-mono text-muted-foreground">{r.student_code}</p>}
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm">{r.parent_name}</p>
+                          <p className="text-xs font-mono text-muted-foreground">@{r.parent_username}</p>
+                        </TableCell>
+                        <TableCell className="text-sm">{r.recipient_email}</TableCell>
+                        <TableCell className="text-right font-mono text-destructive">{formatTHB(r.balance_at_alert)}</TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">{formatTHB(r.threshold_amount)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`border-0 capitalize ${STATUS_BADGE[r.status] ?? ""}`}>
+                            {t(`admin.lowBalanceAlert.logStatus${r.status.charAt(0).toUpperCase()}${r.status.slice(1)}`, r.status)}
+                          </Badge>
+                          {r.status === "failed" && r.error_message && (
+                            <p className="text-[10px] text-destructive mt-0.5 max-w-[160px] truncate" title={r.error_message}>
+                              {r.error_message}
+                            </p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {logPages > 1 && (
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-sm text-muted-foreground">
+                  {t("common.pageOf", { page: logPage, pages: logPages, defaultValue: `Page ${logPage} of ${logPages}` })}
+                </p>
+                <PaginationBar currentPage={logPage} totalPages={logPages} onPageChange={loadLog} />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

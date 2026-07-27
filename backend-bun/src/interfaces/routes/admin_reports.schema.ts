@@ -97,3 +97,15 @@ export const adminKioskLogReport = {
     }),
     detail: { tags: ["Reports"], summary: "Kiosk device event-log report" },
 };
+
+export const adminLowBalanceAlertReport = {
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        status: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
+        ...sortOrderQuery,
+    }),
+    detail: { tags: ["Reports"], summary: "Low-balance alert queue/history report" },
+};

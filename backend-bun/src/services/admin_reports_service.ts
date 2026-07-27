@@ -14,6 +14,7 @@ import {
     receipts,
     shops,
     kioskLogs,
+    emailAlertsLog,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
@@ -1008,6 +1009,98 @@ export async function kioskLogReport(args: {
         category: r.category,
         message: r.message,
         data: r.data,
+    }));
+
+    return {
+        items,
+        total,
+        page: args.page,
+        pages: Math.max(1, Math.ceil(total / args.pageSize)),
+    };
+}
+
+// ── Low-balance alert report ─────────────────────────────────────────────
+// Reads email_alerts_log (alert_type='low_balance') — every row queued by
+// low_balance_notification.ts::checkAndSendLowBalanceAlerts, whether it's
+// still pending (queued today, not yet flushed by the scheduler), already
+// sent, or failed to send. True SQL-level pagination — every filter here is
+// a plain column, no cross-referenced name search needed.
+
+export interface LowBalanceAlertRow {
+    id: number;
+    sent_at: string;
+    student_name: string;
+    student_code: string | null;
+    parent_name: string;
+    parent_username: string;
+    recipient_email: string;
+    balance_at_alert: number;
+    threshold_amount: number;
+    status: string;
+    error_message: string | null;
+}
+
+export interface LowBalanceAlertReportResponseDTO {
+    items: LowBalanceAlertRow[];
+    total: number;
+    page: number;
+    pages: number;
+}
+
+export async function lowBalanceAlertReport(args: {
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    status?: string | null;
+    sortOrder?: string | null;
+    page: number;
+    pageSize: number;
+}): Promise<LowBalanceAlertReportResponseDTO> {
+    const sortOrder = parseSortOrder(args.sortOrder);
+    const conds = [eq(emailAlertsLog.alertType, "low_balance")];
+    if (args.dateFrom) conds.push(sql`${emailAlertsLog.sentAt} >= ${args.dateFrom}::date`);
+    if (args.dateTo) conds.push(sql`${emailAlertsLog.sentAt} < (${args.dateTo}::date + interval '1 day')`);
+    if (args.status && args.status !== "all") conds.push(eq(emailAlertsLog.status, args.status));
+
+    const totalRows = await db.select({ id: emailAlertsLog.id }).from(emailAlertsLog).where(and(...conds));
+    const total = totalRows.length;
+
+    const rows = await db
+        .select({
+            id: emailAlertsLog.id,
+            sentAt: emailAlertsLog.sentAt,
+            recipientEmail: emailAlertsLog.recipientEmail,
+            balanceAtAlert: emailAlertsLog.balanceAtAlert,
+            thresholdAmount: emailAlertsLog.thresholdAmount,
+            status: emailAlertsLog.status,
+            errorMessage: emailAlertsLog.errorMessage,
+            studentName: customers.name,
+            studentCode: customers.studentCode,
+            parentFullName: users.fullName,
+            parentUsername: users.username,
+        })
+        .from(emailAlertsLog)
+        .leftJoin(customers, eq(customers.id, emailAlertsLog.childCustomerId))
+        .leftJoin(users, eq(users.id, emailAlertsLog.parentUserId))
+        .where(and(...conds))
+        .orderBy(
+            sortOrder === "asc" ? asc(emailAlertsLog.sentAt) : desc(emailAlertsLog.sentAt),
+            sortOrder === "asc" ? asc(emailAlertsLog.id) : desc(emailAlertsLog.id),
+        )
+        .offset((args.page - 1) * args.pageSize)
+        .limit(args.pageSize);
+
+    const items: LowBalanceAlertRow[] = rows.map((r) => ({
+        id: r.id,
+        sent_at: pgToIso(r.sentAt)!,
+        student_name: r.studentName ?? "—",
+        student_code: r.studentCode ?? null,
+        parent_name: r.parentFullName || r.parentUsername || "—",
+        parent_username: r.parentUsername ?? "—",
+        recipient_email: r.recipientEmail,
+        balance_at_alert: pgNumber(r.balanceAtAlert) ?? 0,
+        threshold_amount: pgNumber(r.thresholdAmount) ?? 0,
+        status: r.status,
+        error_message: r.errorMessage,
     }));
 
     return {

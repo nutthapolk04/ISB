@@ -382,7 +382,7 @@ export default function UserList() {
                     {u.shop_id}
                   </span>
                 )}
-                {u.customer_type && (
+                {/* {u.customer_type && (
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     PS: {u.customer_type}
                     {u.has_children && (
@@ -391,7 +391,7 @@ export default function UserList() {
                       </span>
                     )}
                   </span>
-                )}
+                )} */}
                 {u.staff_type && (
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
                     u.staff_type === "Classified Staff"

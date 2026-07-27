@@ -2,7 +2,7 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
-import { adjustmentReport, transferReport, topupReport, transactionReport, kioskLogReport, internalUsedReport } from "@/services/admin_reports_service";
+import { adjustmentReport, transferReport, topupReport, transactionReport, kioskLogReport, internalUsedReport, lowBalanceAlertReport } from "@/services/admin_reports_service";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -181,6 +181,33 @@ export const AdminReportsController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    lowBalanceAlertReport: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { query } = reqContext;
+        logger.info(`[${reqContext.requestId} (AR-06)] AdminReportsController.lowBalanceAlertReport() called.`);
+        if (!hasRole(user.roles, "admin", "finance")) {
+            logger.warn(`[${reqContext.requestId} (AR-06)] AdminReportsController.lowBalanceAlertReport() forbidden.`);
+            return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+        }
+        const page = query.page ? Math.max(Number(query.page), 1) : 1;
+        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 200) : 10;
+        try {
+            const result = await lowBalanceAlertReport({
+                dateFrom: query.date_from ?? null,
+                dateTo: query.date_to ?? null,
+                status: query.status ?? null,
+                sortOrder: query.sort_order ?? null,
+                page,
+                pageSize,
+            });
+            logger.info(`[${reqContext.requestId} (AR-06)] AdminReportsController.lowBalanceAlertReport() completed.`);
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (AR-06)] AdminReportsController.lowBalanceAlertReport() error:`, e);
             return errorFromService(reqContext, e);
         }
     },

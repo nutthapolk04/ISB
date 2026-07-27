@@ -388,6 +388,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     .get("/wallets/admin/transaction-report", AdminReportsController.transactionReport, AdminReportsSchema.adminTransactionReport)
     .get("/wallets/admin/internal-used-report", AdminReportsController.internalUsedReport, AdminReportsSchema.adminInternalUsedReport)
     .get("/admin/kiosk-logs", AdminReportsController.kioskLogReport, AdminReportsSchema.adminKioskLogReport)
+    .get("/admin/low-balance-alert-report", AdminReportsController.lowBalanceAlertReport, AdminReportsSchema.adminLowBalanceAlertReport)
     // ── Admin: kiosk online/offline monitoring ─────────────────────────────
     .group("/admin/kiosk-monitoring", (app) =>
         app

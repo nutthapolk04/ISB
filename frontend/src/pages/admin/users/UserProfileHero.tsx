@@ -35,11 +35,11 @@ export function UserProfileHero({ user, onBindCard, onChangePassword }: UserProf
                 <Badge className={`border-0 ${user.is_active ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-600 hover:bg-red-100"}`}>
                   {user.is_active ? "Active" : "Inactive"}
                 </Badge>
-                {user.customer_type && (
+                {/* {user.customer_type && (
                   <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100 gap-1">
                     <UserCircle2 className="h-3 w-3" /> PS: {user.customer_type}
                   </Badge>
-                )}
+                )} */}
                 {user.staff_type && (
                   <Badge className={`border ${user.staff_type === "Classified Staff" ? "bg-blue-100 text-blue-700 border-blue-300" : "bg-violet-100 text-violet-700 border-violet-300"}`}>
                     {user.staff_type === "Classified Staff" ? "Classified" : "Certified"}
