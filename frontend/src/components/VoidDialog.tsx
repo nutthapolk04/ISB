@@ -216,7 +216,7 @@ export function VoidDialog({
             <td style="text-align:right;padding:2px 0">฿${(item.unitPrice * item.quantity).toLocaleString()}</td>
           </tr>
           <tr>
-            <td colspan="3" style="font-size:10px;color:#555;padding-bottom:4px">${item.barcode} · ฿${item.unitPrice.toLocaleString()} / ${lbl.piece}</td>
+            <td colspan="3" style="font-size:10px;color:#000;padding-bottom:4px">${item.barcode} · ฿${item.unitPrice.toLocaleString()} / ${lbl.piece}</td>
           </tr>`
       )
       .join("");
@@ -253,6 +253,7 @@ export function VoidDialog({
     .total-row td { font-weight: bold; padding-top: 4px; border-top: 1px solid #000; }
     @media print {
       @page { size: 80mm auto; margin: 0; }
+      body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
@@ -260,9 +261,9 @@ export function VoidDialog({
   <div class="title-block center">
     ${schoolInfo.logoUrl ? `<img src="${schoolInfo.logoUrl}" width="48" height="48" style="object-fit:contain;display:block;margin:0 auto 4px"/>` : ""}
     <div class="bold" style="font-size:13px">${schoolInfo.name || "ISB School Store"}</div>
-    ${schoolInfo.address ? `<div style="font-size:9px;color:#555">${schoolInfo.address}</div>` : ""}
-    ${schoolInfo.taxId ? `<div style="font-size:9px;color:#555">Tax ID: ${schoolInfo.taxId}</div>` : ""}
-    ${schoolInfo.phone ? `<div style="font-size:9px;color:#555">Tel: ${schoolInfo.phone}</div>` : ""}
+    ${schoolInfo.address ? `<div style="font-size:9px;color:#000">${schoolInfo.address}</div>` : ""}
+    ${schoolInfo.taxId ? `<div style="font-size:9px;color:#000">Tax ID: ${schoolInfo.taxId}</div>` : ""}
+    ${schoolInfo.phone ? `<div style="font-size:9px;color:#000">Tel: ${schoolInfo.phone}</div>` : ""}
     <div class="void-badge">VOID RECEIPT</div>
     <div style="font-size:11px">${lbl.subtitle}</div>
   </div>
@@ -296,7 +297,7 @@ export function VoidDialog({
   </table>
 
   <div class="divider"></div>
-  <div class="center" style="font-size:10px;color:#555;margin-top:4px">
+  <div class="center" style="font-size:10px;color:#000;margin-top:4px">
     ${lbl.printedAt}: ${fmtDateTime(new Date())}<br/>
     ${lbl.internalOnly}
   </div>

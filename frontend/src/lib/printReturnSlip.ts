@@ -63,7 +63,7 @@ export function printReturnSlip(result: ReturnResult, { i18nLanguage, schoolInfo
         .map(
             (item) => `
         <tr>
-          <td style="padding:2px 0;">${item.productName}<br><span style="font-size:9px;color:#555">${item.productCode}</span></td>
+          <td style="padding:2px 0;">${item.productName}<br><span style="font-size:9px;color:#000">${item.productCode}</span></td>
           <td style="text-align:center;padding:2px 4px;">${item.returnQty}</td>
           <td style="text-align:right;padding:2px 0;">฿${item.unitPrice.toLocaleString()}</td>
           <td style="text-align:right;padding:2px 0;">฿${(item.returnQty * item.unitPrice).toLocaleString()}</td>
@@ -90,17 +90,20 @@ export function printReturnSlip(result: ReturnResult, { i18nLanguage, schoolInfo
     table { width: 100%; border-collapse: collapse; }
     th { font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 2px; }
     .total-row td { font-weight: bold; font-size: 13px; padding-top: 4px; }
-    .meta { font-size: 9px; color: #333; }
-    .footer { text-align: center; font-size: 9px; margin-top: 8px; }
+    .meta { font-size: 9px; color: #000; }
+    .footer { text-align: center; font-size: 9px; margin-top: 8px; color: #000; }
+    @media print {
+      body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>
   <div class="center">
     ${logoHtml}
     <div style="font-size:12px;font-weight:bold">${schoolInfo.name || ""}</div>
-    ${schoolInfo.address ? `<div style="font-size:9px;color:#555">${schoolInfo.address}</div>` : ""}
-    ${schoolInfo.taxId ? `<div style="font-size:9px;color:#555">Tax ID: ${schoolInfo.taxId}</div>` : ""}
-    ${schoolInfo.phone ? `<div style="font-size:9px;color:#555">Tel: ${schoolInfo.phone}</div>` : ""}
+    ${schoolInfo.address ? `<div style="font-size:9px;color:#000">${schoolInfo.address}</div>` : ""}
+    ${schoolInfo.taxId ? `<div style="font-size:9px;color:#000">Tax ID: ${schoolInfo.taxId}</div>` : ""}
+    ${schoolInfo.phone ? `<div style="font-size:9px;color:#000">Tel: ${schoolInfo.phone}</div>` : ""}
   </div>
   <h1>${lbl.title}</h1>
   <h2>${lbl.subtitle}</h2>

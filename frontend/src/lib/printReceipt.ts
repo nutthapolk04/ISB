@@ -291,29 +291,32 @@ export function buildReceiptHtml(
   .logo-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
   h1 { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 2px; line-height: 1.3; }
   .center { text-align: center; }
-  .sub { font-size: 12px; color: #555; text-align: center; margin-bottom: 2px; }
+  .sub { font-size: 12px; color: #000; text-align: center; margin-bottom: 2px; }
   .shop-name { font-size: 16px; font-weight: 900; color: #000; text-align: center; margin-bottom: 2px; letter-spacing: 0.3px; }
-  .doc-type { font-size: 11px; color: #777; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
-  hr { border: none; border-top: 1.5px dashed #444; margin: 7px 0; }
-  .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; }
+  .doc-type { font-size: 11px; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
+  hr { border: none; border-top: 1.5px dashed #000; margin: 7px 0; }
+  .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; color: #000; }
   .row span:first-child { font-weight: 600; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; flex: 0 0 auto; }
-  .opt { padding-left: 14px; font-size: 14px; color: #333; }
-  .item-sub { padding-left: 14px; font-size: 13px; color: #555; margin-top: -2px; margin-bottom: 3px; }
+  .opt { padding-left: 14px; font-size: 14px; color: #000; }
+  .item-sub { padding-left: 14px; font-size: 13px; color: #000; margin-top: -2px; margin-bottom: 3px; }
   .disc { color: #000; font-size: 15px; font-weight: 600; }
-  .small { font-size: 14px; color: #222; }
+  .small { font-size: 14px; color: #000; }
   .small span:last-child { font-weight: 700; }
-  .total { font-size: 22px; font-weight: 800; margin-top: 5px; }
+  .total { font-size: 22px; font-weight: 800; margin-top: 5px; color: #000; }
   .total span { font-weight: 800; }
   .balance-after { font-size: 14px; font-weight: 800; color: #000; margin-top: 4px; }
-  .balance-before { font-size: 14px; color: #222; }
+  .balance-before { font-size: 14px; color: #000; }
   .balance-before span:last-child { font-weight: 700; }
   .voided { text-align: center; color: #000; font-weight: 800;
              font-size: 16px; margin: 7px 0; border: 2px solid #000; padding: 5px; }
   .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
-  .notes-label { font-size: 13px; font-weight: 700; color: #333; }
+  .notes-label { font-size: 13px; font-weight: 700; color: #000; }
   .notes-text { font-size: 14px; color: #000; word-break: break-word; }
-  @media print { @page { margin: 0; size: 80mm auto; } }
+  @media print {
+    @page { margin: 0; size: 80mm auto; }
+    body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>

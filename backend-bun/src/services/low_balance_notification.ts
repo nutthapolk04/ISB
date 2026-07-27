@@ -18,7 +18,7 @@ export async function checkAndSendLowBalanceAlerts(
     if (newBalance >= threshold) return;
 
     const [student] = await db
-        .select({ name: customers.name })
+        .select({ name: customers.name, familyCode: customers.familyCode })
         .from(customers)
         .where(eq(customers.id, customerId))
         .limit(1);
@@ -39,21 +39,15 @@ export async function checkAndSendLowBalanceAlerts(
     // "85001@parents.isb.ac.th"), not an inbox anyone checks. Mirror the same
     // "family profile first, login email only as a last resort" rule already
     // used on the admin User Detail page (see notificationEmailFallbackHint).
-    const [customerRow] = await db
-        .select({ familyCode: customers.familyCode })
-        .from(customers)
-        .where(eq(customers.id, customerId))
-        .limit(1);
-
     let familyEmails: string[] = [];
-    if (customerRow?.familyCode) {
+    if (student.familyCode) {
         const [profile] = await db
             .select({
                 notificationEmails: familyProfiles.notificationEmails,
                 adminEmails: familyProfiles.adminNotificationEmails,
             })
             .from(familyProfiles)
-            .where(eq(familyProfiles.familyCode, customerRow.familyCode))
+            .where(eq(familyProfiles.familyCode, student.familyCode))
             .limit(1);
         const isValidEmail = (e: unknown): e is string => typeof e === "string" && e.trim() !== "";
         familyEmails = [
@@ -87,7 +81,7 @@ export async function checkAndSendLowBalanceAlerts(
     }
 
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const subject = `แจ้งเตือน: ยอดเงินบัตรของ ${student.name} ต่ำกว่า ${threshold} บาท`;
+    const subject = "Low Balance Reminder";
 
     for (const recipient of recipients) {
         // Skip if already sent or pending within 24 h for this recipient–child pair.
@@ -133,17 +127,40 @@ interface LowBalanceAlertLogRow {
     balanceAtAlert: string | null;
     thresholdAmount: string | null;
     studentName: string | null;
+    studentGrade: string | null;
+    childCustomerId: number | null;
 }
 
 async function sendOneAlertRow(row: LowBalanceAlertLogRow): Promise<void> {
-    const name = row.studentName ?? "นักเรียน";
+    const studentName = row.studentName ?? "your child";
+    const studentLabel = row.studentGrade ? `${studentName} - Grade ${row.studentGrade}` : studentName;
+    const balance = Number(row.balanceAtAlert ?? 0).toFixed(2);
+
+    // Greeting addresses every guardian currently linked to the student, not
+    // just whoever this particular row's recipientEmail happens to belong to
+    // (an admin-added family email has no parentUserId at all) — resolved
+    // fresh at send time so it always reflects current parent-child links.
+    let parentNames: string[] = [];
+    if (row.childCustomerId) {
+        const parentRows = await db
+            .select({ fullName: users.fullName, username: users.username })
+            .from(parentChildLinks)
+            .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
+            .where(eq(parentChildLinks.childCustomerId, row.childCustomerId));
+        parentNames = parentRows.map((p) => p.fullName || p.username).filter((n): n is string => !!n);
+    }
+    const greeting = parentNames.length > 0 ? parentNames.join(" / ") : "Parent/Guardian";
+
     const html = `
-      <p>เรียน ผู้ปกครองของ <strong>${name}</strong></p>
-      <p>ยอดเงินคงเหลือในบัตรนักเรียนของ <strong>${name}</strong> อยู่ที่
-         <strong>฿${Number(row.balanceAtAlert ?? 0).toFixed(2)}</strong>
-         ซึ่งต่ำกว่า ฿${row.thresholdAmount}</p>
-      <p>กรุณาเติมเงินเพื่อให้นักเรียนสามารถใช้จ่ายได้ตามปกติ</p>
-      <p style="color:#888;font-size:12px">— ระบบสหกรณ์โรงเรียน ISB</p>
+      <p>Dear ${greeting},</p>
+      <p>The balance of your child's ISB Campus Card account (<strong>${studentLabel}</strong>) has fallen below your specified limit.</p>
+      <p><strong>${studentLabel}</strong>'s current Campus account balance is <strong>${balance}</strong>.</p>
+      <p>To avoid inconvenience to the account holder, please recharge your child's Campus account as soon as possible.</p>
+      <p>To recharge your account online please login to your Campus Online portal
+         <a href="https://campuscard.isb.ac.th/">https://campuscard.isb.ac.th/</a></p>
+      <p>Alternatively your Campus Card can be topped with cash at the Bookstore or Campus Kiosk (near the ATM's).</p>
+      <p style="color:#888;font-size:12px">This is an auto generated email. Please do not respond to this email.
+         Please contact <a href="mailto:help@isb.ac.th">help@isb.ac.th</a> in case you have any account queries.</p>
     `;
 
     let status = "sent";
@@ -172,6 +189,8 @@ export async function sendPendingLowBalanceAlerts(): Promise<void> {
             balanceAtAlert: emailAlertsLog.balanceAtAlert,
             thresholdAmount: emailAlertsLog.thresholdAmount,
             studentName: customers.name,
+            studentGrade: customers.grade,
+            childCustomerId: emailAlertsLog.childCustomerId,
         })
         .from(emailAlertsLog)
         .leftJoin(customers, eq(customers.id, emailAlertsLog.childCustomerId))
@@ -198,6 +217,8 @@ export async function sendSingleLowBalanceAlert(id: number): Promise<void> {
             balanceAtAlert: emailAlertsLog.balanceAtAlert,
             thresholdAmount: emailAlertsLog.thresholdAmount,
             studentName: customers.name,
+            studentGrade: customers.grade,
+            childCustomerId: emailAlertsLog.childCustomerId,
         })
         .from(emailAlertsLog)
         .leftJoin(customers, eq(customers.id, emailAlertsLog.childCustomerId))
