@@ -7,8 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-// const IDLE_LIMIT_MS = 60 * 60 * 1000; // 1 hour
-const IDLE_LIMIT_MS = 1 * 60 * 1000; // 1 minute
+const IDLE_LIMIT_MS = 60 * 60 * 1000; // 1 hour
 const CHECK_INTERVAL_MS = 15_000;
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"] as const;
 
