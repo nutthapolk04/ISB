@@ -35,6 +35,7 @@
     "balance:redistribute:report": "bun scripts/redistribute-family-balance.ts docs/CustomerBalanceReport-31-3-2026.xlsx",
     "spendlimit:set": "bun scripts/set-spend-limits-from-report.ts",
     "spendlimit:set:report": "bun scripts/set-spend-limits-from-report.ts docs/spend-limit.xlsx",
+    "spending-groups:seed": "bun scripts/seed-spending-groups-from-json.ts docs/spending-groups.json",
     "isb:sync:files": "bun scripts/isb-sync-from-files.ts",
     "prod:init": "bun scripts/prod-init.ts"
   },

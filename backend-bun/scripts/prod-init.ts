@@ -7,6 +7,7 @@
  *   3. ISB sync: departments + families + staffs batch JSON
  *   4. wallet balances from CustomerBalanceReport summary xlsx
  *   5. student spend limits from spend-limit xlsx
+ *   6. spending groups from spending-groups.json (+ link canteen/store shops)
  *
  * Requires DATABASE_URL in env (backend-bun/.env or shell).
  *
@@ -16,6 +17,7 @@
  *   bun run prod:init -- --skip-sync        # skip ISB JSON sync
  *   bun run prod:init -- --skip-balance     # skip wallet balance import
  *   bun run prod:init -- --skip-spendlimit  # skip spend-limit import
+ *   bun run prod:init -- --skip-spending-groups
  *
  * From repo root:
  *   bun run prod:init
@@ -26,6 +28,7 @@ import { users } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
 import { buildAdminSpec, seedAdminUser } from "./seed-admin-user";
 import { runIsbSyncFromFiles } from "./isb-sync-from-files";
+import { seedSpendingGroupsFromJson } from "./seed-spending-groups-from-json";
 
 const BACKEND_ROOT = path.join(import.meta.dir, "..");
 
@@ -40,6 +43,7 @@ const DEFAULT_SYNC_FILES = [
 
 const DEFAULT_BALANCE_XLSX = "docs/CustomerBalanceReportAsof16Jul2026-summary.xlsx";
 const DEFAULT_SPENDLIMIT_XLSX = "docs/spend-limit.xlsx";
+const DEFAULT_SPENDING_GROUPS_JSON = "docs/spending-groups.json";
 
 function hasFlag(name: string): boolean {
     return process.argv.includes(name);
@@ -85,19 +89,21 @@ async function main(): Promise<void> {
     const skipSync = hasFlag("--skip-sync");
     const skipBalance = hasFlag("--skip-balance");
     const skipSpendlimit = hasFlag("--skip-spendlimit");
+    const skipSpendingGroups = hasFlag("--skip-spending-groups");
 
     console.log("ISB production init");
     console.log(`  dry-run (balance/spendlimit): ${dryRun}`);
     console.log(`  skip-sync: ${skipSync}`);
     console.log(`  skip-balance: ${skipBalance}`);
     console.log(`  skip-spendlimit: ${skipSpendlimit}`);
+    console.log(`  skip-spending-groups: ${skipSpendingGroups}`);
 
     // 1. Migrations
-    await spawnStep("1/5 — db:migrate", ["run", "db:migrate"]);
+    await spawnStep("1/6 — db:migrate", ["run", "db:migrate"]);
 
     // 2. Admin + kiosk seeds (in-process — reuse DB pool for admin id lookup)
     console.log(`\n${"═".repeat(60)}`);
-    console.log("▶ 2/5 — seed admin + kiosk");
+    console.log("▶ 2/6 — seed admin + kiosk");
     console.log(`${"═".repeat(60)}`);
     console.log("\n[admin]");
     await seedAdminUser();
@@ -108,7 +114,7 @@ async function main(): Promise<void> {
     // 3. ISB sync
     if (!skipSync) {
         console.log(`\n${"═".repeat(60)}`);
-        console.log("▶ 3/5 — ISB sync (departments + families + staffs)");
+        console.log("▶ 3/6 — ISB sync (departments + families + staffs)");
         console.log(`${"═".repeat(60)}`);
         await runIsbSyncFromFiles([...DEFAULT_SYNC_FILES], adminId);
     } else {
@@ -124,7 +130,7 @@ async function main(): Promise<void> {
         if (!dryRun) {
             balanceArgs.push("--execute", `--admin-user-id=${adminId}`, "--ticket=prod-init-balance");
         }
-        await spawnStep(`4/5 — wallet balances${dryRun ? " (dry run)" : ""}`, balanceArgs);
+        await spawnStep(`4/6 — wallet balances${dryRun ? " (dry run)" : ""}`, balanceArgs);
     } else {
         console.log("\n⏭  Skipped balance import (--skip-balance)");
     }
@@ -138,9 +144,19 @@ async function main(): Promise<void> {
         if (!dryRun) {
             spendArgs.push("--execute");
         }
-        await spawnStep(`5/5 — spend limits${dryRun ? " (dry run)" : ""}`, spendArgs);
+        await spawnStep(`5/6 — spend limits${dryRun ? " (dry run)" : ""}`, spendArgs);
     } else {
         console.log("\n⏭  Skipped spend-limit import (--skip-spendlimit)");
+    }
+
+    // 6. Spending groups
+    if (!skipSpendingGroups) {
+        console.log(`\n${"═".repeat(60)}`);
+        console.log("▶ 6/6 — spending groups");
+        console.log(`${"═".repeat(60)}`);
+        await seedSpendingGroupsFromJson(DEFAULT_SPENDING_GROUPS_JSON);
+    } else {
+        console.log("\n⏭  Skipped spending groups (--skip-spending-groups)");
     }
 
     console.log(`\n${"═".repeat(60)}`);

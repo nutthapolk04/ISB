@@ -494,7 +494,7 @@ export interface SyncAuditEntryDTO {
 
 // ── Create cardholder (polymorphic by kind) ────────────────────────────────
 
-const WALLET_USER_ROLES = new Set(["parent", "cashier", "manager", "kitchen", "admin", "staff"]);
+const WALLET_USER_ROLES = new Set(["parent", "cashier", "manager", "kitchen", "admin", "staff", "finance"]);
 
 export interface CreateCardholderInput {
     kind: CardholderKind;

@@ -88,7 +88,7 @@ export function BasicProfileCard({
               <Select value={form.role || ""} onValueChange={(v) => onFormChange({ role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["admin", "manager", "cashier", "staff", "teacher", "parent"].map((r) => (
+                  {["admin", "manager", "cashier", "staff", "teacher", "parent", "finance"].map((r) => (
                     <SelectItem key={r} value={r}>{r}</SelectItem>
                   ))}
                 </SelectContent>

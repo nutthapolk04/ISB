@@ -1,0 +1,84 @@
+[
+  {
+    "id": 1,
+    "code": "cantenn_k0_g5",
+    "name_en": "cantenn_k0_g5",
+    "name_th": "โรงอาหาร",
+    "daily_limit": 0.1,
+    "grades": [
+      "00",
+      "K1",
+      "K0",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05"
+    ],
+    "is_active": true,
+    "created_at": "2026-07-27T03:45:20.860134+00:00",
+    "updated_at": "2026-07-27T03:45:20.860134+00:00",
+    "linked_shop_count": 4
+  },
+  {
+    "id": 2,
+    "code": "canteen_g6_g12",
+    "name_en": "canteen_g6_g12",
+    "name_th": "โรงอาหาร_g6_g12",
+    "daily_limit": 500,
+    "grades": [
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ],
+    "is_active": true,
+    "created_at": "2026-07-27T03:46:13.741442+00:00",
+    "updated_at": "2026-07-27T03:46:13.741442+00:00",
+    "linked_shop_count": 4
+  },
+  {
+    "id": 3,
+    "code": "shop_k0_g5",
+    "name_en": "shop_k0_g5",
+    "name_th": "ร้านค้า_k0_g5",
+    "daily_limit": 0.1,
+    "grades": [
+      "00",
+      "K1",
+      "K0",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05"
+    ],
+    "is_active": true,
+    "created_at": "2026-07-27T03:50:06.531099+00:00",
+    "updated_at": "2026-07-27T03:50:06.531099+00:00",
+    "linked_shop_count": 3
+  },
+  {
+    "id": 4,
+    "code": "shop_g6_g12",
+    "name_en": "shop_g6_g12",
+    "name_th": "ร้านค้า_g6_g12",
+    "daily_limit": 25000,
+    "grades": [
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12"
+    ],
+    "is_active": true,
+    "created_at": "2026-07-27T03:50:41.033068+00:00",
+    "updated_at": "2026-07-27T03:50:41.033068+00:00",
+    "linked_shop_count": 3
+  }
+]

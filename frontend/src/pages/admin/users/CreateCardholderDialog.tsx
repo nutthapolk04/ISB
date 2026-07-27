@@ -355,6 +355,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="cashier">Cashier</SelectItem>
                           <SelectItem value="staff">Staff (general)</SelectItem>
+                          <SelectItem value="finance">Finance</SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>
