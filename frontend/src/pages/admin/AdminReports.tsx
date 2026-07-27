@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { InfoCallout } from "@/components/InfoCallout";
 import {
     Select,
@@ -225,7 +226,7 @@ function BalanceTable({
                                     <td className="px-2 py-1.5 text-muted-foreground text-[11px]">{r.shop_name || "—"}</td>
                                     <td className="px-2 py-1.5">
                                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", BALANCE_TYPE_COLORS[r.type])}>
-                                            {BALANCE_TYPE_LABEL[r.type]} {r.type === "purchase" && "(adj)"}
+                                            {BALANCE_TYPE_LABEL[r.type]} {r.type === "purchase" && r.in_amount > 0 && "(adj)"}
                                         </span>
                                     </td>
                                     <td className="px-2 py-1.5 text-right font-mono text-green-700">{r.in_amount.toFixed(2)}</td>
@@ -1041,7 +1042,7 @@ export default function AdminReports() {
                     ],
                     rows: full.items.map((r) => ({
                         ...r,
-                        type: BALANCE_TYPE_LABEL[r.type as BalanceType] ?? r.type,
+                        type: `${BALANCE_TYPE_LABEL[r.type as BalanceType] ?? r.type}${r.type === "purchase" && r.in_amount > 0 ? " (adj)" : ""}`,
                     })) as unknown as Record<string, unknown>[],
                     totals: { in_amount: full.in_total, out_amount: full.out_total },
                 },
@@ -1372,25 +1373,48 @@ export default function AdminReports() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Owner Type</Label>
-                                        <div className="space-y-2 border rounded p-3">
-                                            {["student", "parent", "staff", "department"].map((role) => (
-                                                <div key={role} className="flex items-center gap-2">
-                                                    <Checkbox
-                                                        checked={balanceRoles.includes(role)}
-                                                        onCheckedChange={(checked) => {
-                                                            if (checked) {
-                                                                setBalanceRoles([...balanceRoles, role]);
-                                                            } else {
-                                                                setBalanceRoles(balanceRoles.filter((r) => r !== role));
-                                                            }
-                                                        }}
-                                                        id={`balance-role-${role}`}
-                                                    />
-                                                    <Label htmlFor={`balance-role-${role}`} className="capitalize cursor-pointer">
-                                                        {role}
-                                                    </Label>
-                                                </div>
-                                            ))}
+                                        <div className="relative">
+                                            <button
+                                                className="w-full px-3 py-2 border rounded-md bg-white text-left text-sm hover:bg-gray-50 flex items-center justify-between"
+                                                onClick={() => {
+                                                    const dropdown = document.getElementById("balance-roles-dropdown");
+                                                    if (dropdown) {
+                                                        dropdown.classList.toggle("hidden");
+                                                    }
+                                                }}
+                                            >
+                                                <span>
+                                                    {balanceRoles.length === 0
+                                                        ? "Select roles…"
+                                                        : balanceRoles.length === 1
+                                                            ? balanceRoles[0]
+                                                            : `${balanceRoles.length} selected`}
+                                                </span>
+                                                <ChevronDown className="h-4 w-4" />
+                                            </button>
+                                            <div
+                                                id="balance-roles-dropdown"
+                                                className="hidden absolute top-full left-0 right-0 mt-1 border rounded-md bg-white shadow-lg z-50 p-2 space-y-2"
+                                            >
+                                                {["student", "parent", "staff", "department"].map((role) => (
+                                                    <div key={role} className="flex items-center gap-2 px-2 py-1">
+                                                        <Checkbox
+                                                            checked={balanceRoles.includes(role)}
+                                                            onCheckedChange={(checked) => {
+                                                                if (checked) {
+                                                                    setBalanceRoles([...balanceRoles, role]);
+                                                                } else {
+                                                                    setBalanceRoles(balanceRoles.filter((r) => r !== role));
+                                                                }
+                                                            }}
+                                                            id={`balance-role-${role}`}
+                                                        />
+                                                        <Label htmlFor={`balance-role-${role}`} className="capitalize cursor-pointer text-sm">
+                                                            {role}
+                                                        </Label>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="space-y-2">
