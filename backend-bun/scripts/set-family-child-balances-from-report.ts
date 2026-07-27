@@ -498,7 +498,7 @@ async function main() {
                     walletId,
                     amount: delta,
                     adminUserId: args.adminUserId,
-                    reason: "Set main parent wallet to family balance (MyCampusCard sync, no eligible students)",
+                    reason: "Family balance sync",
                     referenceTicket: args.ticket,
                 });
                 alreadyDone.add(walletId);
@@ -551,7 +551,7 @@ async function main() {
                     walletId: dbChild.walletId,
                     amount: delta,
                     adminUserId: args.adminUserId,
-                    reason: "Set student wallet to family balance share (MyCampusCard sync)",
+                    reason: "Family balance sync",
                     referenceTicket: args.ticket,
                 });
                 alreadyDone.add(dbChild.walletId);

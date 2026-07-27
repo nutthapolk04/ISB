@@ -457,7 +457,7 @@ export async function adjustBalance(args: {
         }
         const direction = amount > 0 ? "credit" : "debit";
         const refTag = referenceTicket ? ` [ref:${referenceTicket}]` : "";
-        const description = `Admin ${direction} adjustment${refTag} — ${reason}`;
+        const description = `Balance Initialization ${refTag} — ${reason}`;
 
         await sqlTx`
       UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${walletId}
