@@ -15,12 +15,19 @@ import { Wallet, Loader2, Store as StoreIcon } from "lucide-react";
 interface TopupRow {
   id: number;
   created_at: string;
+  channel: "kiosk" | "online" | "cashier";
   topped_by: string;
   recipient_name: string;
   recipient_code: string;
   amount: number;
   cashier_name: string | null;
 }
+
+const CHANNEL_LABEL: Record<string, string> = {
+  kiosk: "Kiosk",
+  online: "Online (Parent)",
+  cashier: "Cashier (Store)",
+};
 
 interface TopupReportData {
   items: TopupRow[];
@@ -153,15 +160,17 @@ export default function StoreTopupReport() {
                         sortDir={dateTimeSort}
                         onToggle={handleToggleSort}
                       />
+                      <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel", "Type")}</th>
                       <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy", "Topped By")}</th>
                       <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient", "Recipient")}</th>
                       <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount", "Amount")}</th>
+                      <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier", "Cashier / Source")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.items.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">
+                        <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
                           {t("store.topupReport.noResults", "No top-ups match these filters.")}
                         </td>
                       </tr>
@@ -169,11 +178,13 @@ export default function StoreTopupReport() {
                       data.items.map((r) => (
                         <tr key={r.id} className="border-t">
                           <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                          <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
                           <td className="px-2 py-1.5">{r.topped_by}</td>
                           <td className="px-2 py-1.5">
                             {r.recipient_name} <span className="text-muted-foreground font-mono">({r.recipient_code})</span>
                           </td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
                         </tr>
                       ))
                     )}
@@ -181,10 +192,11 @@ export default function StoreTopupReport() {
                   {data.items.length > 0 && (
                     <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                       <tr className="border-t">
-                        <td colSpan={3} className="px-2 py-2 text-left">
+                        <td colSpan={4} className="px-2 py-2 text-left">
                           {t("store.topupReport.totalRow", "TOTAL")}
                         </td>
                         <td className="px-2 py-2 text-right font-mono">{data.amount_total.toFixed(2)}</td>
+                        <td />
                       </tr>
                     </tfoot>
                   )}
