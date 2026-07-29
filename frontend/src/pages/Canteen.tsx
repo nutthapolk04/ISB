@@ -135,6 +135,7 @@ export default function Canteen() {
     }, []);
     // Cashier/manager → their shop; admin viewer → fallback to "canteen"
     const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
+    const canManagePosLayout = hasRole("manager", "admin");
     const { recentColors, addRecentColor } = useRecentColors(CANTEEN_SHOP_ID);
 
     // ── Per-shop receipt overrides ──────────────────────────────────────────
@@ -958,7 +959,7 @@ export default function Canteen() {
                             disabled={reorderMode}
                         />
                     </div>
-                    {reorderMode ? (
+                    {canManagePosLayout && (reorderMode ? (
                         <div className="flex items-center gap-1 shrink-0">
                             <Button
                                 variant="outline"
@@ -988,7 +989,7 @@ export default function Canteen() {
                             <ArrowUpDown className="h-3 w-3 mr-1" />
                             {t("canteen.reorder.enter")}
                         </Button>
-                    )}
+                    ))}
                     <div className="flex items-center gap-2 shrink-0">
                         {usesDualPricing && (
                             <div
@@ -1139,9 +1140,9 @@ export default function Canteen() {
                             shortNames={activePanelId != null ? panelShortNames[activePanelId] : undefined}
                             colorEditId={colorEditId}
                             colorSaving={colorSaving}
-                            onOpenColorEdit={hasRole("manager", "admin") ? (id) => setColorEditId(id) : undefined}
+                            onOpenColorEdit={canManagePosLayout ? (id) => setColorEditId(id) : undefined}
                             onCloseColorEdit={() => setColorEditId(null)}
-                            onSaveColor={hasRole("manager", "admin") ? saveProductColor : undefined}
+                            onSaveColor={canManagePosLayout ? saveProductColor : undefined}
                             recentColors={recentColors}
                             onAddRecentColor={addRecentColor}
                         />
