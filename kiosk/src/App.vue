@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useKioskStore } from './stores/kioskStore';
 import { Hardware } from 'capacitor-hardware';
 import { retryPendingCashTopup } from './hooks/useBillAcceptor';
 import { connectPrinter } from './hooks/usePrinter';
+import BootSplashVideo from './components/BootSplashVideo.vue';
 
 const router = useRouter();
 const route = useRoute();
 const store = useKioskStore();
 const buildInfo = `V${__APP_VERSION__} ${__BUILD_TIME__}`;
+const splashVideoDone = ref(false);
 
 // Global idle logout for authenticated pages (balance, history, top-up amount/methods).
 // QR and cash-confirm steps suppress this — TopUpView owns those timers.
@@ -80,7 +82,9 @@ watch(
 
 <template>
     <div class="kiosk-app-wrapper" @contextmenu.prevent>
-        <div v-if="store.bootStatus === 'loading'" class="kiosk-boot-screen">
+        <BootSplashVideo v-if="!splashVideoDone" @finished="splashVideoDone = true" />
+
+        <div v-else-if="store.bootStatus === 'loading'" class="kiosk-boot-screen">
             <div class="kiosk-spinner" />
             <p class="kiosk-overlay-msg" style="color: var(--text-color)">Connecting to server…</p>
         </div>
@@ -99,7 +103,7 @@ watch(
             </router-view>
         </template>
 
-        <div class="build-badge">build {{ buildInfo }}</div>
+        <div v-if="splashVideoDone" class="build-badge">build {{ buildInfo }}</div>
     </div>
 </template>
 
