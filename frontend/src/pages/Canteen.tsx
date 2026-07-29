@@ -135,7 +135,11 @@ export default function Canteen() {
     }, []);
     // Cashier/manager → their shop; admin viewer → fallback to "canteen"
     const CANTEEN_SHOP_ID = user?.shopId ?? DEFAULT_CANTEEN_SHOP_ID;
-    const canManagePosLayout = hasRole("manager", "admin");
+    // POS layout edits (reorder / tile color) follow the role the user is
+    // operating as — not every role in allRoles (a cashier who also has
+    // manager in RBAC must not see these while activeRole is cashier).
+    const posRole = user?.activeRole ?? user?.role;
+    const canManagePosLayout = posRole === "manager" || posRole === "admin";
     const { recentColors, addRecentColor } = useRecentColors(CANTEEN_SHOP_ID);
 
     // ── Per-shop receipt overrides ──────────────────────────────────────────

@@ -381,6 +381,12 @@ export async function topupReport(args: {
     // Who received the money — the topped-up wallet's owner.
     recipientUserId?: number | null;
     recipientCustomerId?: number | null;
+    // Restricts to top-ups performed by a cashier/manager assigned to this
+    // shop (matched against the creator's own users.shop_id) — used by the
+    // Store-side "my shop's top-ups" report so it never leaks other shops'
+    // rows. Naturally excludes kiosk/online rows too, since those creators
+    // have no shop_id (see topup_service.ts's shop gating comment).
+    shopId?: string | null;
     sortOrder?: string | null;
     page: number;
     pageSize: number;
@@ -410,6 +416,7 @@ export async function topupReport(args: {
             eq(walletTransactions.createdBy, args.toppedByUserId),
         )!);
     }
+    if (args.shopId) cashConds.push(eq(users.shopId, args.shopId));
 
     const cashRows = await db
         .select({
@@ -441,6 +448,7 @@ export async function topupReport(args: {
             eq(paymentIntents.createdBy, args.toppedByUserId),
         )!);
     }
+    if (args.shopId) gatewayConds.push(eq(users.shopId, args.shopId));
 
     const gatewayRows = await db
         .select({

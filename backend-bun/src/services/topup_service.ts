@@ -101,6 +101,13 @@ export async function userCanAccessWallet(
         if (meRows[0]?.familyCode && ownerRows[0]?.familyCode && meRows[0].familyCode === ownerRows[0].familyCode) {
             return true;
         }
+        // POS terminal (cashier/manager) can facilitate top-up for any staff/
+        // parent wallet too — mirrors the customerId branch below so QR
+        // top-up behaves the same as the cash top-up path, which has no
+        // ownership check at all.
+        if (caller.roles.includes("cashier") || caller.roles.includes("manager")) {
+            return true;
+        }
     }
 
     if (w.customerId !== null) {

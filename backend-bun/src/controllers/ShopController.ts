@@ -16,6 +16,7 @@ import {
 	listLowStock as listLowStockService,
 	updateVoidShortcuts as updateVoidShortcutsService,
 } from "@/services/shop_service";
+import { topupReport as topupReportService } from "@/services/admin_reports_service";
 import {
 	listGroupsForShop,
 	setGroupsForShop,
@@ -213,6 +214,47 @@ export const ShopController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (SH-07)] ShopController.updateVoidShortcuts() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	/** Store-side "my shop's top-ups" report — a manager/cashier only ever
+	 *  sees their OWN shop's rows (locked server-side to user.shop_id, never
+	 *  a client-supplied one); admin may view any shop by id. */
+	topupReport: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, query } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-28)] ShopController.topupReport() called.`);
+		const isAdmin = user.is_superuser || hasRole(user.roles, "admin");
+		const isStaffOfShop =
+			hasRole(user.roles, "manager", "cashier") && user.shop_id === params.shopId;
+		if (!isAdmin && !isStaffOfShop) {
+			logger.warn(`[${reqContext.requestId} (SH-28)] ShopController.topupReport() forbidden.`);
+			return errorResponse(
+				reqContext,
+				"Only this shop's manager/cashier (or admin) can view its top-up report",
+				ResponseStatus.FORBIDDEN,
+			);
+		}
+		const page = query.page ? Math.max(Number(query.page), 1) : 1;
+		const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
+		try {
+			logger.info(`[${reqContext.requestId} (SH-28)] ShopController.topupReport() calling topupReport().`);
+			const result = await topupReportService({
+				dateFrom: query.date_from ?? null,
+				dateTo: query.date_to ?? null,
+				channel: "cashier",
+				shopId: params.shopId,
+				recipientUserId: query.recipient_user_id ? Number(query.recipient_user_id) : null,
+				recipientCustomerId: query.recipient_customer_id ? Number(query.recipient_customer_id) : null,
+				sortOrder: query.sort_order ?? null,
+				page,
+				pageSize,
+			});
+			logger.info(`[${reqContext.requestId} (SH-28)] ShopController.topupReport() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-28)] ShopController.topupReport() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

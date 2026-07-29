@@ -237,6 +237,9 @@ async function userCanAccessWallet(
         const owner = await db.select({ familyCode: users.familyCode }).from(users).where(eq(users.id, wallet.userId)).limit(1);
         if (owner[0]?.familyCode && owner[0].familyCode === caller.family_code) return true;
     }
+    if (wallet.userId !== null && (caller.roles.includes("cashier") || caller.roles.includes("manager"))) {
+        return true;
+    }
     if (wallet.customerId !== null) {
         if (caller.roles.includes("student")) {
             const c = await db

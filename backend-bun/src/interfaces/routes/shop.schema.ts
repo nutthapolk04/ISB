@@ -88,6 +88,20 @@ export const updateVoidShortcuts = {
     detail: { ...shopsTag, summary: "Set per-shop void receipt reason shortcuts (manager/admin)" },
 };
 
+export const shopTopupReport = {
+    params: shopIdParams,
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        recipient_user_id: t.Optional(t.Nullable(t.String())),
+        recipient_customer_id: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
+        sort_order: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: { ...shopsTag, summary: "This shop's own wallet top-up report (manager/cashier/admin)" },
+};
+
 export const shopStats = {
     params: shopIdParams,
     detail: { ...shopsTag, summary: "Shop KPI stats" },

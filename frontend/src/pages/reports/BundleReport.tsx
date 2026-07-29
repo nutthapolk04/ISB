@@ -55,7 +55,8 @@ interface BundleReportProps {
 
 export function BundleReport({ reportId }: BundleReportProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const canPickShop = hasRole("admin", "finance");
   const school = useSchoolInfo();
 
   const [bundleShopId, setBundleShopId] = useState<string>("");
@@ -64,19 +65,19 @@ export function BundleReport({ reportId }: BundleReportProps) {
   const [bundleShops, setBundleShops] = useState<ShopOption[]>([]);
 
   useEffect(() => {
-    if (!user || user.role !== "admin") return;
+    if (!user || !canPickShop) return;
     api
       .get<ShopOption[]>("/shops?active_only=true&module=store")
       .then(setBundleShops)
       .catch((e) => console.error("[Reports] shop fetch failed:", e));
-  }, [user]);
+  }, [user, canPickShop]);
 
   useEffect(() => {
     setBundleData(null);
   }, [bundleShopId]);
 
   const handleLoadBundle = async () => {
-    const effectiveShopId = user?.role === "admin" ? bundleShopId : (user?.shopId ?? "");
+    const effectiveShopId = canPickShop ? bundleShopId : (user?.shopId ?? "");
     if (!effectiveShopId) {
       toast.error(t("reports.stockCard.fillAll"));
       return;
@@ -183,7 +184,7 @@ export function BundleReport({ reportId }: BundleReportProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {user?.role === "admin" && (
+          {canPickShop && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="bdlShop">{t("reports.colShop")}</Label>

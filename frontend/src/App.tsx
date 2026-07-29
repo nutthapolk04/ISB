@@ -64,6 +64,7 @@ import CustomerDisplay from './pages/CustomerDisplay';
 import { openCustomerDisplayWindow } from '@/lib/customerDisplayWindow';
 import GuidePage from './pages/GuidePage';
 import ShopDashboard from './pages/ShopDashboard';
+import StoreTopupReport from './pages/store/StoreTopupReport';
 import SpendingGroups from './pages/admin/SpendingGroups';
 
 const queryClient = new QueryClient();
@@ -308,6 +309,10 @@ const App = () => {
                           {/* Store reports — admin + manager + cashier + finance (finance is read-only, school-wide) */}
                           <Route element={<RequireRole roles={['admin', 'manager', 'cashier', 'finance']} />}>
                             <Route path="/store/reports" element={<Reports />} />
+                          </Route>
+                          {/* Store top-up report — manager/cashier only, scoped to their own shop */}
+                          <Route element={<RequireRole roles={['manager', 'cashier']} />}>
+                            <Route path="/store/topup-report" element={<StoreTopupReport />} />
                           </Route>
                           <Route element={<RequireRole roles={['admin']} />}>
                             <Route path="/store/balance-file" element={<BalanceFileReport />} />

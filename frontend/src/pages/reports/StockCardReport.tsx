@@ -65,7 +65,8 @@ interface StockCardReportProps {
 
 export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardReportProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const canPickShop = hasRole("admin", "finance");
   const school = useSchoolInfo();
 
   // Stock Card state. Multi-product mode requires shop_id; admins pick the
@@ -81,21 +82,21 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
   const [stockCardShops, setStockCardShops] = useState<ShopOption[]>([]);
   const [stockCardCategories, setStockCardCategories] = useState<string[]>([]);
 
-  // Admin needs a shop dropdown — fetch on mount (this panel only mounts
+  // Admin/finance need a shop dropdown — fetch on mount (this panel only mounts
   // while the Stock Card tile is selected).
   useEffect(() => {
-    if (!user) return;
+    if (!user || !canPickShop) return;
     const module = isCanteenReportsPage ? "canteen" : "store";
     api.get<ShopOption[]>(`/shops?active_only=true&module=${module}`)
       .then(setStockCardShops)
       .catch((e) => console.error("[Reports] shop fetch failed:", e));
-  }, [user, isCanteenReportsPage]);
+  }, [user, canPickShop, isCanteenReportsPage]);
 
   // Fetch distinct category names for the current shop so the dropdown shows
   // only categories that actually have products. Resets when the shop
   // changes; admins switch shops, manager/cashier are pinned to theirs.
   useEffect(() => {
-    const shopForCats = user?.role === "admin" ? stockCardShopId : user?.shopId ?? "";
+    const shopForCats = canPickShop ? stockCardShopId : user?.shopId ?? "";
     if (!shopForCats) {
       setStockCardCategories([]);
       setStockCardCategory("all");
@@ -112,7 +113,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
       })
       .catch(() => setStockCardCategories([]));
     setStockCardCategory("all");
-  }, [stockCardShopId, user?.role, user?.shopId]);
+  }, [stockCardShopId, canPickShop, user?.shopId]);
 
   useEffect(() => {
     setStockCardData(null);
@@ -121,7 +122,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
   const handleLoadStockCard = async () => {
     // Resolve the effective shop_id: admins choose, others are locked to their
     // own shop. Backend will 400 if it ends up empty.
-    const effectiveShopId = user?.role === "admin" ? stockCardShopId : (user?.shopId ?? "");
+    const effectiveShopId = canPickShop ? stockCardShopId : (user?.shopId ?? "");
     if (!effectiveShopId || !stockCardFrom || !stockCardTo) {
       toast.error(t("reports.stockCard.fillAll"));
       return;
@@ -287,7 +288,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {user?.role === "admin" && (
+            {canPickShop && (
               <div className="space-y-2">
                 <Label htmlFor="scShop">{t("reports.colShop")}</Label>
                 <Select value={stockCardShopId} onValueChange={setStockCardShopId}>
@@ -302,7 +303,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                 </Select>
               </div>
             )}
-            <div className={`space-y-2 ${user?.role === "admin" ? "md:col-span-2" : "md:col-span-3"}`}>
+            <div className={`space-y-2 ${canPickShop ? "md:col-span-2" : "md:col-span-3"}`}>
               <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
               <DateRangePicker
                 id="scDateRange"

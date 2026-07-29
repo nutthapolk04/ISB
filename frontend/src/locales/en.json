@@ -36,6 +36,7 @@
     "storeManagement": "Store Management",
     "storeUsers": "Store Users",
     "storeReports": "Store Reports",
+    "storeTopupReport": "Top-up Report",
     "storeBalanceFile": "Balance File",
     "adminDashboard": "Dashboard",
     "users": "Users",
@@ -88,6 +89,16 @@
   },
   "store": {
     "title": "Store",
+    "topupReport": {
+      "title": "Top-up Report",
+      "subtitle": "Wallet top-ups performed at this shop's POS",
+      "noShop": "No shop assigned to your account.",
+      "noResults": "No top-ups match these filters.",
+      "found": "Found",
+      "topups": "top-ups",
+      "total": "Total",
+      "totalRow": "TOTAL"
+    },
     "searchPlaceholder": "Search products or scan product code...",
     "searchPrompt": "Please search for products by typing code or product name",
     "cart": {

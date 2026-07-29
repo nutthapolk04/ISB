@@ -105,7 +105,7 @@ const REPORT_DEFS = [...COMMON_REPORTS, ...STORE_ONLY_REPORTS];
 
 const Reports = () => {
     const { t } = useTranslation();
-    const { user } = useAuth();
+    const { user, hasRole } = useAuth();
     const school = useSchoolInfo();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [selectedReportType, setSelectedReportType] = useState<string>("");
@@ -154,12 +154,13 @@ const Reports = () => {
     );
 
     // Shop selector visibility:
-    //  - admin: pick any shop in the current module (canteen vs store)
+    //  - admin / finance: pick any shop in the current module (canteen vs store)
     //  - canteen area manager (no shopId, shopModule=canteen): pick a canteen stall
     //  - other shop users: locked to their own shop (no selector)
-    const isAdmin = user?.role === "admin";
-    const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && !isAdmin;
-    const needsShopSelector = isAdmin || isCanteenAreaMgr;
+    const isAdmin = hasRole("admin");
+    const isFinance = hasRole("finance");
+    const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && !isAdmin && !isFinance;
+    const needsShopSelector = isAdmin || isFinance || isCanteenAreaMgr;
     const [canteenStalls, setCanteenStalls] = useState<CanteenShop[]>([]);
     const [selectedStall, setSelectedStall] = useState<string>("all");
 

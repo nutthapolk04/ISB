@@ -36,6 +36,7 @@
     "storeManagement": "Store Management",
     "storeUsers": "ผู้ใช้ร้านค้า",
     "storeReports": "รายงานสหกรณ์",
+    "storeTopupReport": "รายงานเติมเงิน",
     "storeBalanceFile": "Balance File",
     "adminDashboard": "แดชบอร์ด",
     "users": "ผู้ใช้งาน",
@@ -88,6 +89,16 @@
   },
   "store": {
     "title": "หน้าร้าน",
+    "topupReport": {
+      "title": "รายงานเติมเงิน",
+      "subtitle": "ยอดเติมเงินที่ทำผ่าน POS ของร้านนี้",
+      "noShop": "บัญชีนี้ไม่ได้ผูกกับร้านค้าใดเลย",
+      "noResults": "ไม่พบรายการเติมเงินตามเงื่อนไขนี้",
+      "found": "พบ",
+      "topups": "รายการเติมเงิน",
+      "total": "ยอดรวม",
+      "totalRow": "รวมทั้งหมด"
+    },
     "searchPlaceholder": "ค้นหาสินค้า หรือสแกนรหัสสินค้า...",
     "searchPrompt": "กรุณาค้นหาสินค้าโดยพิมพ์รหัสหรือชื่อสินค้า",
     "cart": {
