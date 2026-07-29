@@ -3,7 +3,7 @@
  *
  * Steps (in order):
  *   1. drizzle migrate
- *   2. seed admin (admin / admin1234) + kiosk service accounts
+ *   2. seed admin (admin / admin1234) + admin2 + kiosk service accounts
  *   3. ISB sync: departments + families + staffs batch JSON
  *   4. wallet balances from CustomerBalanceReport summary xlsx
  *   5. student spend limits from spend-limit xlsx
@@ -26,7 +26,7 @@ import * as path from "node:path";
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
 import { db, pgClient } from "../src/db/client";
-import { buildAdminSpec, seedAdminUser } from "./seed-admin-user";
+import { buildAdminSpec, buildAdmin2Spec, seedAdminUser } from "./seed-admin-user";
 import { runIsbSyncFromFiles } from "./isb-sync-from-files";
 import { seedSpendingGroupsFromJson } from "./seed-spending-groups-from-json";
 
@@ -107,6 +107,8 @@ async function main(): Promise<void> {
     console.log(`${"═".repeat(60)}`);
     console.log("\n[admin]");
     await seedAdminUser();
+    console.log("\n[admin2]");
+    await seedAdminUser(buildAdmin2Spec());
     const adminId = await lookupAdminId();
     console.log(`\n[admin id for audits: ${adminId}]`);
     await spawnStep("kiosk accounts", ["scripts/seed-kiosk-user.ts"]);
@@ -166,7 +168,9 @@ async function main(): Promise<void> {
         console.log("Note: balance and spend-limit were dry-run only. Re-run without --dry-run to apply.");
     }
     const spec = buildAdminSpec();
+    const spec2 = buildAdmin2Spec();
     console.log(`Admin login: ${spec.username} / ${spec.password}`);
+    console.log(`Admin login: ${spec2.username} / ${spec2.password}`);
 }
 
 main()

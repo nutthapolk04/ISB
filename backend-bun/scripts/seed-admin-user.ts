@@ -1,5 +1,5 @@
 /**
- * Seed the production admin account (default: admin / admin1234).
+ * Seed production admin accounts (default: admin + admin2, both admin1234).
  *
  * Usage (from backend-bun/):
  *   bun scripts/seed-admin-user.ts
@@ -7,6 +7,7 @@
  *
  * Env overrides:
  *   ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, ADMIN_FULL_NAME
+ *   ADMIN2_USERNAME, ADMIN2_PASSWORD, ADMIN2_EMAIL, ADMIN2_FULL_NAME
  */
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
@@ -31,15 +32,23 @@ export function buildAdminSpec(): AdminSeedSpec {
     };
 }
 
+export function buildAdmin2Spec(): AdminSeedSpec {
+    return {
+        username: process.env.ADMIN2_USERNAME ?? "admin2",
+        password: process.env.ADMIN2_PASSWORD ?? "admin1234",
+        email: process.env.ADMIN2_EMAIL ?? "admin2@isb-coop.local",
+        fullName: process.env.ADMIN2_FULL_NAME ?? "System Admin 2",
+    };
+}
+
 /** Idempotent upsert — returns the admin user id. */
-export async function seedAdminUser(): Promise<number> {
+export async function seedAdminUser(spec: AdminSeedSpec = buildAdminSpec()): Promise<number> {
     if (!process.env.DATABASE_URL) {
         throw new Error("DATABASE_URL is required");
     }
 
-    const spec = buildAdminSpec();
     if (spec.password.length < 6) {
-        throw new Error("Admin password must be at least 6 characters");
+        throw new Error(`Admin password for '${spec.username}' must be at least 6 characters`);
     }
 
     const existing = await db
@@ -102,9 +111,12 @@ export async function seedAdminUser(): Promise<number> {
 }
 
 async function main(): Promise<void> {
-    console.log("Seeding admin user...");
+    console.log("Seeding admin users...");
     const id = await seedAdminUser();
-    console.log(`Done. admin user id=${id}`);
+    console.log(`  primary admin id=${id}`);
+    const id2 = await seedAdminUser(buildAdmin2Spec());
+    console.log(`  secondary admin id=${id2}`);
+    console.log("Done.");
 }
 
 if (import.meta.main) {

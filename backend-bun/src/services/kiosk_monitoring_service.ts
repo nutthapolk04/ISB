@@ -79,21 +79,24 @@ async function logAndSendAlert(args: {
     });
 }
 
-function fmtBKK(iso: string | null): string {
+function fmtBangkok(iso: string | null): string {
     if (!iso) return "-";
-    return new Date(iso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
+    return new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
 }
+
+const EMAIL_FOOTER = `<p style="color:#888;font-size:12px">This is an auto generated email. Please do not respond to this email.<br/>
+       — ISB Schooney</p>`;
 
 async function notifyOffline(kiosk: { id: number; username: string; fullName: string }, lastHeartbeatAt: string | null): Promise<void> {
     const custodians = await getCustodians(kiosk.id);
     if (custodians.length === 0) return;
-    const subject = `แจ้งเตือน: เครื่อง Kiosk "${kiosk.fullName}" (${kiosk.username}) ออฟไลน์`;
+    const subject = `Alert: Kiosk "${kiosk.fullName}" (${kiosk.username}) is offline`;
     const html = `
-    <p>เครื่อง Kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username})
-       ไม่ได้ส่งสัญญาณเข้ามาเกิน ${OFFLINE_THRESHOLD_MINUTES} นาที</p>
-    <p>เห็นครั้งล่าสุดเมื่อ: <strong>${fmtBKK(lastHeartbeatAt)}</strong></p>
-    <p>อาจเกิดจากเครื่องดับ, เน็ตหลุด, หรือแอปค้าง — กรุณาตรวจสอบเครื่อง</p>
-    <p style="color:#888;font-size:12px">— ระบบสหกรณ์โรงเรียน ISB</p>
+    <p>Kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username})
+       has not sent a heartbeat for more than ${OFFLINE_THRESHOLD_MINUTES} minutes.</p>
+    <p>Last seen at: <strong>${fmtBangkok(lastHeartbeatAt)}</strong> (Bangkok time)</p>
+    <p>This may be due to a power loss, network outage, or frozen app — please check the device.</p>
+    ${EMAIL_FOOTER}
   `;
     for (const c of custodians) {
         await logAndSendAlert({ alertType: "kiosk_offline", recipientEmail: c.email, subject, html });
@@ -104,12 +107,12 @@ async function notifyRecovered(kiosk: { id: number; username: string; fullName: 
     const custodians = await getCustodians(kiosk.id);
     if (custodians.length === 0) return;
     const downtimeMin = offlineSince ? Math.round((Date.now() - new Date(offlineSince).getTime()) / 60_000) : null;
-    const subject = `เครื่อง Kiosk "${kiosk.fullName}" กลับมาออนไลน์แล้ว`;
+    const subject = `Kiosk "${kiosk.fullName}" is back online`;
     const html = `
-    <p>เครื่อง Kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username})
-       กลับมาออนไลน์แล้ว</p>
-    ${downtimeMin !== null ? `<p>ระยะเวลาที่ออฟไลน์: ประมาณ <strong>${downtimeMin} นาที</strong></p>` : ""}
-    <p style="color:#888;font-size:12px">— ระบบสหกรณ์โรงเรียน ISB</p>
+    <p>Kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username})
+       is back online.</p>
+    ${downtimeMin !== null ? `<p>Offline for approximately <strong>${downtimeMin} minute${downtimeMin === 1 ? "" : "s"}</strong>.</p>` : ""}
+    ${EMAIL_FOOTER}
   `;
     for (const c of custodians) {
         await logAndSendAlert({ alertType: "kiosk_online", recipientEmail: c.email, subject, html });
@@ -170,15 +173,14 @@ export async function notifyTechnicianPasswordChanged(caller: AccessTokenPayload
         return { notified: 0 };
     }
 
-    const changedAt = fmtBKK(new Date().toISOString());
+    const changedAt = fmtBangkok(new Date().toISOString());
     const subject = `Kiosk technician password changed — ${kiosk.fullName} (${kiosk.username})`;
     const html = `
     <p>The technician console password was changed on kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username}).</p>
     <p>Changed at: <strong>${changedAt}</strong> (Bangkok time)</p>
     <p>If you did not authorize this change, please inspect the device and contact
        <a href="mailto:help@isb.ac.th">help@isb.ac.th</a>.</p>
-    <p style="color:#888;font-size:12px">This is an auto generated email. Please do not respond to this email.<br/>
-       — ISB Schooney</p>
+    ${EMAIL_FOOTER}
   `;
 
     for (const c of custodians) {
