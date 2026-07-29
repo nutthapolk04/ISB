@@ -19,6 +19,7 @@ import {
 	listDepartmentTransactions,
 } from "@/services/wallet_service";
 import { deleteDepartment, updateDepartment } from "@/services/department_service";
+import { assertShopAllowsTopup } from "@/services/shop_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
@@ -180,6 +181,11 @@ export const TopupController = {
 			return errorResponse(reqContext, "Invalid wallet id", ResponseStatus.UNPROCESSABLE);
 		}
 		try {
+			// Gate the POS-page cashier-topup button per shop — kiosk devices
+			// (shop_id is always null for them) and admin sessions bypass this.
+			if (!hasRole(user.roles, "kiosk", "admin") && user.shop_id) {
+				await assertShopAllowsTopup(user.shop_id);
+			}
 			logger.info(`[${reqContext.requestId} (TP-05)] TopupController.cashierTopup() calling cashierTopup().`);
 			const result = await cashierTopup({
 				walletId: id,
@@ -211,6 +217,9 @@ export const TopupController = {
 			return errorResponse(reqContext, "Invalid customer id", ResponseStatus.UNPROCESSABLE);
 		}
 		try {
+			if (!hasRole(user.roles, "kiosk", "admin") && user.shop_id) {
+				await assertShopAllowsTopup(user.shop_id);
+			}
 			const result = await cashierTopupByCustomer({
 				customerId,
 				amount: body.amount,
@@ -238,6 +247,9 @@ export const TopupController = {
 			return errorResponse(reqContext, "Invalid user id", ResponseStatus.UNPROCESSABLE);
 		}
 		try {
+			if (!hasRole(user.roles, "kiosk", "admin") && user.shop_id) {
+				await assertShopAllowsTopup(user.shop_id);
+			}
 			const result = await cashierTopupByUser({
 				userId,
 				amount: body.amount,

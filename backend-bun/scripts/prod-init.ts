@@ -10,6 +10,7 @@
  *   6. spending groups from spending-groups.json (+ link canteen/store shops)
  *
  * Requires DATABASE_URL in env (backend-bun/.env or shell).
+ * See .env.init.example for all init-related variables.
  *
  * Usage (from backend-bun/):
  *   bun run prod:init

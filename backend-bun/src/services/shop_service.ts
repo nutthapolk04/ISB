@@ -20,6 +20,7 @@ export interface ShopRow {
     receipt_footer: string | null;
     void_shortcuts: string[];
     shop_number: number | null;
+    allow_topup: boolean;
 }
 
 export interface ListShopsFilters {
@@ -55,6 +56,27 @@ export async function listShops(filters: ListShopsFilters = {}): Promise<ShopRow
 export async function getShop(shopId: string): Promise<ShopRow | null> {
     const rows = await db.select().from(shops).where(eq(shops.id, shopId)).limit(1);
     return rows[0] ? toShopResponse(rows[0]) : null;
+}
+
+/**
+ * Gate for the cashier-topup button on a POS page: Canteen shops can never
+ * top up, Store shops can only if the admin has enabled it. Kiosk devices
+ * aren't tied to a shop (shop_id is null on their session) so they never hit
+ * this — callers should only invoke it when the caller has a shop_id.
+ */
+export async function assertShopAllowsTopup(shopId: string): Promise<void> {
+    const shop = await getShop(shopId);
+    if (!shop) return;
+    if (shop.module === "canteen") {
+        const err = new Error("Top-up is not available at Canteen shops");
+        (err as { status?: number }).status = 403;
+        throw err;
+    }
+    if (!shop.allow_topup) {
+        const err = new Error("Top-up is disabled for this shop");
+        (err as { status?: number }).status = 403;
+        throw err;
+    }
 }
 
 // ── Create / Update / Delete ─────────────────────────────────────────────────
@@ -104,6 +126,7 @@ export interface UpdateShopInput {
     receipt_header?: string | null;
     receipt_footer?: string | null;
     shop_number?: number | null;
+    allow_topup?: boolean | null;
 }
 
 export async function updateShop(shopId: string, input: UpdateShopInput): Promise<ShopRow> {
@@ -117,6 +140,7 @@ export async function updateShop(shopId: string, input: UpdateShopInput): Promis
     if (input.receipt_header !== undefined) updates.receiptHeader = input.receipt_header;
     if (input.receipt_footer !== undefined) updates.receiptFooter = input.receipt_footer;
     if (input.shop_number !== undefined) updates.shopNumber = input.shop_number;
+    if (input.allow_topup !== undefined && input.allow_topup !== null) updates.allowTopup = input.allow_topup;
 
     if (Object.keys(updates).length > 0) {
         const updated = await db
@@ -277,6 +301,7 @@ function toShopResponse(row: typeof shops.$inferSelect): ShopRow {
         receipt_footer: row.receiptFooter ?? null,
         void_shortcuts: Array.isArray(row.voidShortcuts) ? row.voidShortcuts : [],
         shop_number: row.shopNumber ?? null,
+        allow_topup: row.allowTopup,
     };
 }
 

@@ -1090,6 +1090,7 @@ export const shops = pgTable("shops", {
 	receiptFooter: varchar("receipt_footer", { length: 500 }),
 	voidShortcuts: jsonb("void_shortcuts").$type<string[]>().default([]).notNull(),
 	shopNumber: integer("shop_number"),
+	allowTopup: boolean("allow_topup").default(true).notNull(),
 });
 
 export const pricePanels = pgTable("price_panels", {

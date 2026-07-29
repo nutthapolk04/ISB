@@ -896,6 +896,8 @@
     "shopDescription": "รายละเอียด",
     "statusActive": "เปิดใช้งาน",
     "statusInactive": "ปิดใช้งาน",
+    "allowTopup": "เปิดให้เติมเงินที่ร้านนี้",
+    "allowTopupHint": "ควบคุมปุ่มเติมเงินในหน้า POS ของร้านนี้",
     "tabInfo": "ข้อมูลร้านค้า",
     "tabBundles": "ชุดสินค้า",
     "tabEmployees": "จัดการพนักงาน",

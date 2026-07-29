@@ -57,6 +57,13 @@
       "when": 1784874743403,
       "tag": "0007_kiosk_heartbeat_monitoring",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785311705961,
+      "tag": "0008_shop_allow_topup",
+      "breakpoints": true
     }
   ]
 }

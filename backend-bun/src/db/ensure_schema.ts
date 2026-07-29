@@ -300,6 +300,11 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `CREATE UNIQUE INDEX IF NOT EXISTS ix_kiosk_custodians_pair ON kiosk_custodians(kiosk_user_id, custodian_user_id)`,
         label: "idx kiosk_custodians pair unique",
     },
+    // ── Per-shop top-up gating (Canteen never allowed; Store admin-managed) ────
+    {
+        sql: `ALTER TABLE shops ADD COLUMN IF NOT EXISTS allow_topup BOOLEAN NOT NULL DEFAULT true`,
+        label: "shops.allow_topup",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

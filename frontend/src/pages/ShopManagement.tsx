@@ -33,8 +33,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Building2, Plus, Edit, Trash2, Package, Loader2, Store as StoreIcon, ChevronRight, BarChart3 } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, Package, Loader2, Store as StoreIcon, ChevronRight, BarChart3, Wallet } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
 
@@ -58,6 +59,7 @@ interface ShopApiResponse {
     created_at: string;
     module: ShopModule;
     shop_number: number | null;
+    allow_topup: boolean;
 }
 
 interface AssignableGroup {
@@ -84,6 +86,7 @@ interface Shop {
     shopType: "avg_cost" | "fifo";
     module: ShopModule;
     shopNumber: number | null;
+    allowTopup: boolean;
 }
 
 const emptyShopForm = {
@@ -94,6 +97,7 @@ const emptyShopForm = {
     shopType: "fifo" as "avg_cost" | "fifo",
     module: "store" as ShopModule,
     shopNumber: "" as string,
+    allowTopup: true,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -156,6 +160,7 @@ const ShopManagement = () => {
                         shopType: s.shop_type,
                         module: s.module ?? "store",
                         shopNumber: s.shop_number ?? null,
+                        allowTopup: s.allow_topup,
                     };
                 }),
             );
@@ -223,6 +228,7 @@ const ShopManagement = () => {
             shopType: shop.shopType,
             module: shop.module,
             shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
+            allowTopup: shop.allowTopup,
         });
         setEditGroupIds(new Set());
         setInitialEditGroupIds(new Set());
@@ -252,6 +258,7 @@ const ShopManagement = () => {
                 description: editForm.description.trim() || null,
                 is_active: editForm.isActive === "active",
                 shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
+                allow_topup: editForm.allowTopup,
             });
             if (groupsChanged) {
                 await api.patch(`/shops/${editTarget.id}/spending-groups`, {
@@ -617,6 +624,21 @@ const ShopManagement = () => {
                                     <SelectItem value="inactive">{t("management.statusInactive")}</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+                            <div className="space-y-0.5">
+                                <Label className="flex items-center gap-1.5">
+                                    <Wallet className="h-3.5 w-3.5" />
+                                    {t("management.allowTopup", "Allow top-up at this shop")}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("management.allowTopupHint", "Controls the top-up button on this shop's POS page")}
+                                </p>
+                            </div>
+                            <Switch
+                                checked={editForm.allowTopup}
+                                onCheckedChange={(v) => setEditForm({ ...editForm, allowTopup: v })}
+                            />
                         </div>
                         <div>
                             <Label>{t("spendingGroup.title")}</Label>

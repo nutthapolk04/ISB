@@ -85,11 +85,19 @@ const Store = () => {
         receiptHeader: string | null;
         receiptFooter: string | null;
     } | null>(null);
+    // Admin-managed per-shop top-up permission — Canteen shops never allow it
+    // (enforced server-side too), Store shops default to allowed until an
+    // admin disables it via Shop Management. Default true here so the button
+    // doesn't flash-hide before this loads.
+    const [shopAllowsTopup, setShopAllowsTopup] = useState(true);
 
     useEffect(() => {
         if (!user?.shopId) return;
-        api.get<{ receipt_header: string | null; receipt_footer: string | null }>(`/shops/${user.shopId}`)
-            .then((s) => setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer }))
+        api.get<{ receipt_header: string | null; receipt_footer: string | null; allow_topup: boolean }>(`/shops/${user.shopId}`)
+            .then((s) => {
+                setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer });
+                setShopAllowsTopup(s.allow_topup);
+            })
             .catch(() => { });
     }, [user?.shopId]);
 
@@ -407,15 +415,17 @@ const Store = () => {
                 {/* Header */}
                 <div className="page-header flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => checkout.setTopupOpen(true)}
-                            className="gap-1.5"
-                        >
-                            <Wallet className="h-4 w-4" />
-                            <span className="hidden sm:inline">{t("store.topup", "เติมเงิน")}</span>
-                        </Button>
+                        {shopAllowsTopup && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => checkout.setTopupOpen(true)}
+                                className="gap-1.5"
+                            >
+                                <Wallet className="h-4 w-4" />
+                                <span className="hidden sm:inline">{t("store.topup", "เติมเงิน")}</span>
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"

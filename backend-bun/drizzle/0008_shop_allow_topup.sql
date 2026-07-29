@@ -1,0 +1,1 @@
+ALTER TABLE "shops" ADD COLUMN "allow_topup" boolean DEFAULT true NOT NULL;

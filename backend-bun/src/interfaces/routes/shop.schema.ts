@@ -70,6 +70,7 @@ export const updateShop = {
         receipt_header: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         receipt_footer: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),
+        allow_topup: t.Optional(t.Nullable(t.Boolean())),
     }),
     detail: { ...shopsTag, summary: "Update a shop (admin)" },
 };

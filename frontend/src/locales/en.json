@@ -896,6 +896,8 @@
     "shopDescription": "Description",
     "statusActive": "Active",
     "statusInactive": "Inactive",
+    "allowTopup": "Allow top-up at this shop",
+    "allowTopupHint": "Controls the top-up button on this shop's POS page",
     "tabInfo": "Shop Info",
     "tabBundles": "Bundles",
     "tabEmployees": "Employees",
