@@ -66,6 +66,7 @@ interface SalesByPaymentRow {
     payment_method: string;
     receipt_count: number;
     total: number;
+    edc_card_fee: number;
     shop_id: string;
     shop_name: string | null;
     status: string;
@@ -301,13 +302,14 @@ const Reports = () => {
             // "Total <Bucket>" subtotal row. Reused for both single-vendor and
             // multi-vendor admin layouts.
             const renderMethodGroups = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
-                const byLabel = new Map<string, Map<string, { receipt_count: number; total: number }>>();
+                const byLabel = new Map<string, Map<string, { receipt_count: number; total: number; edc_card_fee: number }>>();
                 for (const r of shopRows) {
                     const label = METHOD_LABEL_FOR(r.payment_method);
-                    const byStatus = byLabel.get(label) ?? new Map<string, { receipt_count: number; total: number }>();
-                    const cur = byStatus.get(r.status) ?? { receipt_count: 0, total: 0 };
+                    const byStatus = byLabel.get(label) ?? new Map<string, { receipt_count: number; total: number; edc_card_fee: number }>();
+                    const cur = byStatus.get(r.status) ?? { receipt_count: 0, total: 0, edc_card_fee: 0 };
                     cur.receipt_count += r.receipt_count;
                     cur.total += r.total;
+                    cur.edc_card_fee += r.edc_card_fee;
                     byStatus.set(r.status, cur);
                     byLabel.set(label, byStatus);
                 }
@@ -319,15 +321,18 @@ const Reports = () => {
                     block.push({ [SECTION_KEY]: label });
                     const statuses = [...byStatus.keys()].sort((a, b) => (a === "ACTIVE" ? -1 : b === "ACTIVE" ? 1 : 0));
                     let subtotal = 0;
+                    let subtotalFee = 0;
                     for (const status of statuses) {
                         const v = byStatus.get(status)!;
-                        block.push({ payment_method: label, receipt_count: v.receipt_count, total: v.total, status });
+                        block.push({ payment_method: label, receipt_count: v.receipt_count, total: v.total, edc_card_fee: v.edc_card_fee, status });
                         subtotal += v.total;
+                        subtotalFee += v.edc_card_fee;
                     }
                     block.push({
                         [EMPHASIS_KEY]: "subtotal" as const,
                         receipt_count: `Total ${label}`,
                         total: subtotal,
+                        edc_card_fee: subtotalFee,
                     });
                 }
                 return block;
@@ -354,6 +359,7 @@ const Reports = () => {
                         payment_method: "Subtotal",
                         receipt_count: activeShopRows.reduce((s, r) => s + r.receipt_count, 0),
                         total: activeShopRows.reduce((s, r) => s + r.total, 0),
+                        edc_card_fee: activeShopRows.reduce((s, r) => s + r.edc_card_fee, 0),
                     });
                 }
             } else {
@@ -377,10 +383,14 @@ const Reports = () => {
                         { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
                         { header: t("reports.colReceiptCount") || "Receipt Count", key: "receipt_count", format: "number", align: "right", width: 15 },
                         { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
+                        { header: "Card Fee (3%)", key: "edc_card_fee", format: "currency", align: "right", width: 12 },
                         { header: "Status", key: "status", width: 15 },
                     ],
                     rows: bodyRows,
-                    totals: { total: data.grand_total },
+                    totals: {
+                        total: data.grand_total,
+                        edc_card_fee: data.rows.filter((r) => r.status === "ACTIVE").reduce((sum, r) => sum + r.edc_card_fee, 0),
+                    },
                 },
                 baseFilename: `SalesByPaymentReport${dateLabel}`,
             };

@@ -899,3 +899,72 @@ export async function confirmTopup(args: {
     });
     return result!;
 }
+
+export async function edcTopup(args: {
+    walletId: number;
+    amount: number;
+    userId: number;
+    approvalCode: string;
+    terminalRef: string | null;
+    maskedCard: string | null;
+    mode: "qr" | "card";
+    notes: string | null;
+}): Promise<TopupConfirmDTO> {
+    let result: TopupConfirmDTO | null = null;
+    await pgClient.begin(async (sqlTx) => {
+        const wRows = await sqlTx<Array<{ id: number; balance: string }>>`
+      SELECT id, balance FROM wallets WHERE id = ${args.walletId} FOR UPDATE
+    `;
+        const wallet = wRows[0];
+        if (!wallet) {
+            const err = new Error("Wallet not found");
+            (err as { status?: number }).status = 404;
+            throw err;
+        }
+
+        const minAmount = 1;
+        if (args.amount < minAmount || args.amount > 50000) {
+            const err = new Error(`Top-up amount must be between ฿${minAmount} and ฿50,000`);
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+
+        const balanceBefore = pgNumber(wallet.balance) ?? 0;
+        if (balanceBefore + args.amount > MAX_WALLET_BALANCE) {
+            const available = Math.max(0, MAX_WALLET_BALANCE - balanceBefore);
+            const err = new Error(
+                `Wallet balance cannot exceed ฿${MAX_WALLET_BALANCE.toLocaleString()}. ` +
+                `Current balance: ฿${balanceBefore.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. ` +
+                `You can top up at most ฿${available.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+            );
+            (err as { status?: number }).status = 400;
+            throw err;
+        }
+
+        const balanceAfter = balanceBefore + args.amount;
+        await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${wallet.id}`;
+
+        const label = "Top-up via EDC";
+        const description = `${label} (${args.approvalCode})`;
+        const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
+      INSERT INTO wallet_transactions
+        (wallet_id, transaction_type, amount, balance_before, balance_after, description, created_by)
+      VALUES (${wallet.id}, 'TOPUP', ${args.amount}, ${balanceBefore}, ${balanceAfter}, ${description}, ${args.userId})
+      RETURNING id, created_at
+    `;
+
+        result = {
+            id: txRows[0].id,
+            wallet_id: wallet.id,
+            transaction_type: "TOPUP",
+            amount: args.amount,
+            balance_before: balanceBefore,
+            balance_after: balanceAfter,
+            reference_type: "edc",
+            reference_id: null,
+            description,
+            created_at: pgToIso(txRows[0].created_at)!,
+        };
+    });
+    return result!;
+}

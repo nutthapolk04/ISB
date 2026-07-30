@@ -169,6 +169,7 @@ export interface SalesByPaymentRow {
     payment_method: string;
     receipt_count: number;
     total: number;
+    edc_card_fee: number;
     shop_id: string;
     shop_name: string | null;
     status: string;
@@ -221,6 +222,7 @@ export async function salesByPaymentReport(args: {
             payment_method: receipts.paymentMethod,
             receipt_count: sql<string>`COUNT(${receipts.id})`,
             total: sql<string>`SUM(${receipts.total})`,
+            edc_card_fee: sql<string>`SUM(COALESCE(${receipts.edcCardFee}, 0))`,
             shop_id: receipts.shopId,
             shop_name: shops.name,
         })
@@ -269,11 +271,13 @@ export async function salesByPaymentReport(args: {
     for (const r of saleAgg) {
         const total = pgNumber(r.total) ?? 0;
         const count = Number(r.receipt_count) || 0;
+        const edcFee = pgNumber(r.edc_card_fee) ?? 0;
         addTotals(r.payment_method, count, total);
         rows.push({
             payment_method: r.payment_method,
             receipt_count: count,
             total,
+            edc_card_fee: edcFee,
             shop_id: r.shop_id ?? "",
             shop_name: r.shop_name,
             status: "ACTIVE",
@@ -282,6 +286,7 @@ export async function salesByPaymentReport(args: {
     for (const r of voidAgg) {
         const total = pgNumber(r.total) ?? 0;
         const count = Number(r.receipt_count) || 0;
+        const edcFee = pgNumber(r.edc_card_fee) ?? 0;
         // Reversal — negative, and counted toward totals a second time (on
         // top of the sale leg's already-counted original amount) so the two
         // legs net together, same as a real void does to the actual balance.
@@ -290,6 +295,7 @@ export async function salesByPaymentReport(args: {
             payment_method: r.payment_method,
             receipt_count: count,
             total: -total,
+            edc_card_fee: -edcFee,
             shop_id: r.shop_id ?? "",
             shop_name: r.shop_name,
             status: "VOIDED",

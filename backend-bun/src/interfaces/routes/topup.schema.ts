@@ -17,6 +17,11 @@ export const topupCreateIntent = {
         // Same idea but for a student scanning their own card (self top-up)
         // — at most one of acting_user_id / acting_customer_id is ever sent.
         acting_customer_id: t.Optional(t.Number()),
+        // EDC payment fields
+        edc_approval_code: t.Optional(t.Nullable(t.String())),
+        edc_terminal_ref: t.Optional(t.Nullable(t.String())),
+        edc_masked_card: t.Optional(t.Nullable(t.String())),
+        edc_mode: t.Optional(t.Nullable(t.Union([t.Literal("qr"), t.Literal("card")]))),
     }),
     detail: { tags: ["Wallets"], summary: "Create wallet top-up intent" },
 };
