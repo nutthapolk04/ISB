@@ -534,11 +534,16 @@ export async function topupReport(args: {
             ? (r.creator.fullName || r.creator.username)
             : String(r.tx.createdBy);
         const creatorRole = r.creator?.role ?? null;
+        // A staff/manager/cashier topping up their OWN wallet (e.g. via "My
+        // Wallet") is self-service online, not a POS/cashier event, even
+        // though their role would otherwise land in the cashier bucket.
+        const isSelfTopup = r.w.userId != null && r.creator != null && r.creator.id === r.w.userId;
         const channel = classifyTopupChannel({
             transactionType: r.tx.transactionType,
             reason: r.tx.reason,
             description: r.tx.description,
             creatorRole,
+            isSelfTopup,
         });
         if (channelFilter !== "all" && channel !== channelFilter) continue;
 

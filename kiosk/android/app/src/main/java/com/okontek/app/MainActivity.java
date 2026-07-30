@@ -10,6 +10,9 @@ import android.app.ActivityManager;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -57,6 +60,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        configureWebViewMediaAutoplay();
 
         WindowInsetsControllerCompat controller =
                 new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
@@ -82,5 +86,13 @@ public class MainActivity extends BridgeActivity {
                                 | WindowInsetsCompat.Type.systemBars()
             );
         }
+    }
+
+    private void configureWebViewMediaAutoplay() {
+        if (getBridge() == null) return;
+        WebView webView = getBridge().getWebView();
+        if (webView == null) return;
+        WebSettings settings = webView.getSettings();
+        settings.setMediaPlaybackRequiresUserGesture(false);
     }
 }

@@ -1,0 +1,284 @@
+/* ISB animated boot splash — ported from kiosk/ref (CSS + SVG, no video). */
+
+@keyframes bs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bs-spinner-exit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.7);
+    pointer-events: none;
+  }
+}
+
+@keyframes bs-logo-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bs-gold-rise {
+  0% {
+    transform: translateX(-50%) translateY(0);
+  }
+  60% {
+    transform: translateX(-50%) translateY(-6px);
+  }
+  80% {
+    transform: translateX(-50%) translateY(3px);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes bs-red-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.1) translateY(20px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.1) translateY(-4px);
+  }
+  75% {
+    transform: scale(0.95) translateY(2px);
+  }
+  90% {
+    transform: scale(1.03) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes bs-letter-in {
+  0% {
+    opacity: 0;
+    transform: translateY(52px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+  70% {
+    transform: translateY(5px);
+  }
+  85% {
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bs-top-shrink {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0.82);
+  }
+}
+
+@keyframes bs-subtitle-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bs-flare {
+  0% {
+    left: -150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+@keyframes bs-final-spinner-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  background: #fffdf7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.boot-splash__spinner-wrap {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bs-spinner-exit 0.6s cubic-bezier(0.4, 0, 1, 1) 0.85s both;
+}
+
+.boot-splash__spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid rgba(228, 29, 28, 0.18);
+  border-top-color: #e41d1c;
+  animation: bs-spin 0.75s linear infinite;
+}
+
+.boot-splash__final-spinner-wrap {
+  margin-top: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  animation: bs-final-spinner-in 0.6s ease 3.95s forwards;
+}
+
+.boot-splash__stage {
+  position: relative;
+  z-index: 2;
+  width: min(540px, 86vw);
+  aspect-ratio: 1728 / 663.184;
+  animation: bs-logo-fade 0.25s ease 0.9s both;
+}
+
+.boot-splash__gold-fixed {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.boot-splash__gold-content {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.boot-splash__gold-content svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.boot-splash__logo-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.boot-splash__flare {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.boot-splash__flare::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  pointer-events: none;
+  animation: bs-flare 0.9s ease-in-out 4s forwards;
+}
+
+.boot-splash__logo-wrap svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.boot-splash .boot-splash__gold-fixed.anim-gold {
+  animation: bs-gold-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 1.2s both;
+}
+
+.boot-splash .anim-red {
+  animation: bs-red-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.8s both;
+}
+
+.boot-splash .anim-letter-I {
+  animation: bs-letter-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 2.8s both;
+}
+
+.boot-splash .anim-letter-S {
+  animation: bs-letter-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 3s both;
+}
+
+.boot-splash .anim-letter-B {
+  animation: bs-letter-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 3.2s both;
+}
+
+.boot-splash .anim-top-shrink {
+  animation: bs-top-shrink 0.5s cubic-bezier(0.4, 0, 0.2, 1) 4s both;
+}
+
+.boot-splash .anim-subtitle {
+  animation: bs-subtitle-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 4s both;
+}
+
+.boot-splash .anim-red,
+.boot-splash .anim-letter-I,
+.boot-splash .anim-letter-S,
+.boot-splash .anim-letter-B,
+.boot-splash .anim-top-shrink {
+  transform-box: fill-box;
+}
+
+.boot-splash .boot-splash__gold-content.anim-top-shrink {
+  transform-box: border-box;
+}
+
+.boot-splash .anim-red {
+  transform-origin: center bottom;
+}
+
+.boot-splash .anim-letter-I,
+.boot-splash .anim-letter-S,
+.boot-splash .anim-letter-B,
+.boot-splash .anim-top-shrink {
+  transform-origin: center center;
+}

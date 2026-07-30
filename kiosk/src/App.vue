@@ -5,13 +5,24 @@ import { useKioskStore } from './stores/kioskStore';
 import { Hardware } from 'capacitor-hardware';
 import { retryPendingCashTopup } from './hooks/useBillAcceptor';
 import { connectPrinter } from './hooks/usePrinter';
-import BootSplashVideo from './components/BootSplashVideo.vue';
+import BootSplashScreen from './components/BootSplashScreen.vue';
 
 const router = useRouter();
 const route = useRoute();
 const store = useKioskStore();
 const buildInfo = `V${__APP_VERSION__} ${__BUILD_TIME__}`;
-const splashVideoDone = ref(false);
+const showSplash = ref(true);
+const contentVisible = ref(false);
+const splashDone = ref(false);
+
+function onSplashFinished() {
+    contentVisible.value = true;
+    showSplash.value = false;
+}
+
+function onSplashAfterLeave() {
+    splashDone.value = true;
+}
 
 // Global idle logout for authenticated pages (balance, history, top-up amount/methods).
 // QR and cash-confirm steps suppress this — TopUpView owns those timers.
@@ -82,28 +93,30 @@ watch(
 
 <template>
     <div class="kiosk-app-wrapper" @contextmenu.prevent>
-        <BootSplashVideo v-if="!splashVideoDone" @finished="splashVideoDone = true" />
+        <div class="kiosk-back-layer" :class="{ 'kiosk-back-layer--visible': contentVisible }">
+            <div v-if="store.bootStatus === 'loading'" class="kiosk-boot-screen">
+                <div class="kiosk-spinner" />
+                <p class="kiosk-overlay-msg" style="color: var(--text-color)">Connecting to server…</p>
+            </div>
 
-        <div v-else-if="store.bootStatus === 'loading'" class="kiosk-boot-screen">
-            <div class="kiosk-spinner" />
-            <p class="kiosk-overlay-msg" style="color: var(--text-color)">Connecting to server…</p>
-        </div>
+            <div v-else-if="store.bootStatus === 'error'" class="kiosk-boot-screen">
+                <p class="kiosk-boot-error">Cannot connect to server</p>
+                <p v-if="store.bootError" class="text-muted text-center">{{ store.bootError }}</p>
+                <button class="kiosk-btn btn-primary" style="max-width: 280px" @click="store.bootstrap()">Retry</button>
+            </div>
 
-        <div v-else-if="store.bootStatus === 'error'" class="kiosk-boot-screen">
-            <p class="kiosk-boot-error">Cannot connect to server</p>
-            <p v-if="store.bootError" class="text-muted text-center">{{ store.bootError }}</p>
-            <button class="kiosk-btn btn-primary" style="max-width: 280px" @click="store.bootstrap()">Retry</button>
-        </div>
-
-        <template v-else>
-            <router-view v-slot="{ Component }">
+            <router-view v-else v-slot="{ Component }">
                 <transition name="fade" mode="out-in">
                     <component :is="Component" />
                 </transition>
             </router-view>
-        </template>
+        </div>
 
-        <div v-if="splashVideoDone" class="build-badge">build {{ buildInfo }}</div>
+        <Transition name="splash-fade" @after-leave="onSplashAfterLeave">
+            <BootSplashScreen v-if="showSplash" @finished="onSplashFinished" />
+        </Transition>
+
+        <div v-if="splashDone" class="build-badge">build {{ buildInfo }}</div>
     </div>
 </template>
 
@@ -116,6 +129,30 @@ watch(
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+.splash-fade-leave-active {
+    transition: opacity 0.65s ease;
+}
+
+.splash-fade-leave-from {
+    opacity: 1;
+}
+
+.splash-fade-leave-to {
+    opacity: 0;
+}
+
+.kiosk-back-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.65s ease;
+    z-index: 1;
+}
+
+.kiosk-back-layer--visible {
+    opacity: 1;
 }
 
 .kiosk-app-wrapper {

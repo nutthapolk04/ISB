@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap');
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════
+   SPLASH — keyframes
+   ═══════════════════════════════════════════════ */
+
+/* spinner rotate */
+@keyframes sp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* spinner exit: fade + shrink */
+@keyframes sp-spinner-exit {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.7); pointer-events: none; }
+}
+
+/* logo wrapper fade-in */
+@keyframes sp-logo-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* gold triangle: rise from below */
+@keyframes sp-gold-in {
+  0%   { opacity: 0; transform: translateY(56px); }
+  60%  { opacity: 1; transform: translateY(-6px); }
+  80%  { transform: translateY(3px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* red triangle: scale from 0 with spring */
+@keyframes sp-red-in {
+  0%   { opacity: 0; transform: scale(0.1) translateY(20px); }
+  55%  { opacity: 1; transform: scale(1.1) translateY(-4px); }
+  75%  { transform: scale(0.95) translateY(2px); }
+  90%  { transform: scale(1.03) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ISB letters: bounce from below */
+@keyframes sp-letter-in {
+  0%   { opacity: 0; transform: translateY(52px); }
+  50%  { opacity: 1; transform: translateY(-10px); }
+  70%  { transform: translateY(5px); }
+  85%  { transform: translateY(-3px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* top group scale down (after all letters land) */
+@keyframes sp-top-shrink {
+  0%   { transform: scale(1); }
+  100% { transform: scale(0.82); }
+}
+
+/* subtitle reveal */
+@keyframes sp-subtitle-in {
+  0%   { opacity: 0; transform: translateY(18px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* flash: white burst then clear */
+@keyframes sp-flash {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════
+   SPLASH — element classes
+   ═══════════════════════════════════════════════ */
+
+/* Spinner wrapper – exits at 0.8s */
+.splash-spinner-wrap {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sp-spinner-exit 0.35s cubic-bezier(0.4, 0, 1, 1) 0.85s both;
+}
+
+/* The ring itself */
+.splash-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid rgba(228, 29, 28, 0.18);
+  border-top-color: #E41D1C;
+  animation: sp-spin 0.75s linear infinite;
+}
+
+/* Logo wrapper – invisible until spinner exits */
+.splash-logo-wrap {
+  animation: sp-logo-fade 0.25s ease 0.9s both;
+}
+
+/* Gold triangle – rises at 1.05s */
+.anim-gold {
+  animation: sp-gold-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) 1.05s both;
+}
+
+/* Red triangle – springs in at 1.65s */
+.anim-red {
+  animation: sp-red-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.65s both;
+}
+
+/* "I" – bounces at 2.1s */
+.anim-letter-I {
+  animation: sp-letter-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 2.1s both;
+}
+
+/* "S" – bounces at 2.4s */
+.anim-letter-S {
+  animation: sp-letter-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 2.4s both;
+}
+
+/* "B" – bounces at 2.7s */
+.anim-letter-B {
+  animation: sp-letter-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 2.7s both;
+}
+
+/* Top group scales down at 3.05s (right after B lands) */
+.anim-top-shrink {
+  animation: sp-top-shrink 0.5s cubic-bezier(0.4, 0, 0.2, 1) 3.05s both;
+}
+
+/* Subtitle fades in at 3.05s – same moment as shrink */
+.anim-subtitle {
+  animation: sp-subtitle-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 3.05s both;
+}
+
+/* Flash overlay */
+.splash-flash {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.splash-flash--active {
+  animation: sp-flash 0.7s ease-out forwards;
+}

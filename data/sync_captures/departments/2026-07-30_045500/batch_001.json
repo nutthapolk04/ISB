@@ -1,0 +1,12 @@
+{
+  "departments": [
+    {
+      "departmentId": "999001",
+      "customerType": "Department",
+      "departmentDescription": "TEST",
+      "smartCard": {
+        "cardNumber": "ABC"
+      }
+    }
+  ]
+}

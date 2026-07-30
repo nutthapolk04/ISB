@@ -37,14 +37,22 @@ export function classifyTopupChannel(opts: {
     reason: string | null;
     description: string | null;
     creatorRole: string | null;
+    /** True when the wallet owner IS the transaction's creator — a staff/
+     *  manager/cashier topping up their OWN wallet via the online gateway
+     *  (e.g. "My Wallet") is a self-service event, not a POS/cashier one,
+     *  even though their role would otherwise fall in the cashier bucket
+     *  below. Only meaningful for gateway (TOPUP) rows — cash top-ups always
+     *  require a physical POS register regardless of who owns the wallet. */
+    isSelfTopup?: boolean;
 }): TopupChannel {
     const text = `${opts.reason ?? ""} ${opts.description ?? ""}`;
     const role = (opts.creatorRole ?? "").toLowerCase();
     if (role === "kiosk" || /kiosk\s*top-?up/i.test(text)) return "kiosk";
-    if (role === "parent") return "online";
     if (opts.transactionType === "ADJUSTMENT" && CASH_TOPUP_REASON_RE.test(opts.reason ?? "")) {
         return "cashier";
     }
+    if (opts.isSelfTopup) return "online";
+    if (role === "parent") return "online";
     if (["cashier", "manager", "admin", "staff", "kitchen"].includes(role)) return "cashier";
     // Gateway TOPUP without a parent role — treat as online (parent portal / card).
     if (opts.transactionType === "TOPUP") return "online";
