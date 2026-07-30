@@ -434,20 +434,24 @@ export function PrintBarcodeDialog({
                                     return (
                                         <div key={p.id} className="border-b last:border-b-0">
                                             {/* Product header — click adds ALL barcodes */}
-                                            <div
-                                                className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
-                                                onClick={() => addProduct(p)}
-                                            >
-                                                <div>
+                                            <div className="flex items-center justify-between p-2 hover:bg-muted">
+                                                <div
+                                                    className="flex-1 cursor-pointer"
+                                                    onClick={() => addProduct(p)}
+                                                >
                                                     <div className="font-medium text-sm">{p.name}</div>
                                                     <div className="text-xs text-muted-foreground">{p.productCode}</div>
                                                 </div>
-                                                <div className="flex items-center gap-1">
+                                                <button
+                                                    className="flex items-center gap-1 px-2 py-1 rounded hover:bg-primary/10 ml-2 shrink-0"
+                                                    onClick={(e) => { e.stopPropagation(); addProduct(p); }}
+                                                    title={`Add all ${opts.length} barcode(s)`}
+                                                >
                                                     {opts.length > 1 && (
-                                                        <span className="text-xs text-muted-foreground">{opts.length} barcodes</span>
+                                                        <span className="text-xs font-medium text-primary">{opts.length} barcodes</span>
                                                     )}
                                                     <Plus className="h-4 w-4 text-primary" />
-                                                </div>
+                                                </button>
                                             </div>
                                             {/* Individual barcode rows when product has extras */}
                                             {opts.length > 1 && opts.map((opt) => (
