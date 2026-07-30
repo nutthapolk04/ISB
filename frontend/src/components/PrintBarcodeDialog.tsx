@@ -159,20 +159,20 @@ export function PrintBarcodeDialog({
             toast.error(t("barcode.noBarcode") || "Product has no barcode");
             return;
         }
-        let addedCount = 0;
+        const additions: PrintItem[] = [];
         for (let i = 0; i < opts.length; i++) {
-            // Check if this barcode is already in the list (by product + barcode value)
-            const alreadyExists = printItems.some(
-                (item) => item.product.id === product.id && item.barcodeValue === opts[i].value
-            );
+            const key = `${product.id}-${i}`;
+            const alreadyExists = printItems.some((item) => item.key === key);
             if (!alreadyExists) {
-                addBarcode(product, opts[i].value, opts[i].label, i);
-                addedCount++;
+                additions.push({ key, product, barcodeValue: opts[i].value, barcodeLabel: opts[i].label, quantity: 1 });
             }
         }
-        if (addedCount === 0) {
+        if (additions.length === 0) {
             toast.info(t("barcode.allAlreadyAdded") || "All barcodes already added");
+            return;
         }
+        setPrintItems([...printItems, ...additions]);
+        setSearchTerm("");
     };
 
     /** Add every product in `pool` (and every barcode they own) to the print list.
