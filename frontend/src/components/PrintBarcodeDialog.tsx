@@ -239,13 +239,17 @@ export function PrintBarcodeDialog({
             return;
         }
 
-        // Save barcodes first
-        const saved = await saveBarcodes();
-        if (!saved) return;
-
+        // Open window BEFORE async to avoid popup blocking
         const printWindow = window.open("", "_blank");
         if (!printWindow) {
             toast.error(t("barcode.popupBlocked") || "Popup blocked. Please allow popups.");
+            return;
+        }
+
+        // Save barcodes after window is open
+        const saved = await saveBarcodes();
+        if (!saved) {
+            printWindow.close();
             return;
         }
 
