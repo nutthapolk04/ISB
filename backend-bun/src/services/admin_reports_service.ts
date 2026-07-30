@@ -338,8 +338,10 @@ export interface TopupReportRow {
     created_at: string;
     channel: TopupChannel;
     topped_by: string;
+    topped_by_external_id: string | null;
     recipient_name: string;
     recipient_code: string;
+    recipient_external_id: string | null;
     amount: number;
     // Cashier's name for a Store top-up (with the shop name in parens);
     // the kiosk device's own label for a Kiosk top-up; null for Online.
@@ -549,17 +551,20 @@ export async function topupReport(args: {
 
         let recipientName = "—";
         let recipientCode = "—";
+        let recipientExternalId: string | null = null;
         if (r.w.customerId != null) {
             const c = customerById.get(r.w.customerId);
             if (c) {
                 recipientName = c.name;
                 recipientCode = c.studentCode ?? c.customerCode;
+                recipientExternalId = c.externalId ?? null;
             }
         } else if (r.w.userId != null) {
             const u = ownerById.get(r.w.userId);
             if (u) {
                 recipientName = u.fullName || u.username;
                 recipientCode = u.username;
+                recipientExternalId = u.externalId ?? null;
             }
         }
 
@@ -569,17 +574,22 @@ export async function topupReport(args: {
         // fall back to the kiosk device's own label, or the wallet owner's
         // name for a parent topping up their own wallet.
         let toppedBy = creatorName;
+        let toppedByExternalId: string | null = r.creator?.externalId ?? null;
         if (channel === "kiosk") {
             const actingUser = r.tx.actingUserId != null ? actingUserById.get(r.tx.actingUserId) : null;
             const actingCustomer = r.tx.actingCustomerId != null ? customerById.get(r.tx.actingCustomerId) : null;
             if (actingUser) {
                 toppedBy = actingUser.fullName || actingUser.username;
+                toppedByExternalId = actingUser.externalId ?? null;
             } else if (actingCustomer) {
                 toppedBy = actingCustomer.name;
+                toppedByExternalId = actingCustomer.externalId ?? null;
             } else {
                 toppedBy = kioskDisplayName(r.tx.reason, creatorName);
+                toppedByExternalId = null;
                 if (r.w.userId != null && recipientName !== "—") {
                     toppedBy = recipientName;
+                    toppedByExternalId = recipientExternalId;
                 }
             }
         }
@@ -601,8 +611,10 @@ export async function topupReport(args: {
             created_at: pgToIso(r.tx.createdAt)!,
             channel,
             topped_by: toppedBy,
+            topped_by_external_id: toppedByExternalId,
             recipient_name: recipientName,
             recipient_code: recipientCode,
+            recipient_external_id: recipientExternalId,
             amount: pgNumber(r.tx.amount) ?? 0,
             cashier_name: sourceName,
             payment_method: r.paymentMethod,

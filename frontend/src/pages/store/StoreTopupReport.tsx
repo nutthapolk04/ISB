@@ -10,6 +10,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import { formatTopupRecipient, formatTopupToppedBy } from "@/lib/topupReportDisplay";
 import {
   exportToPDF,
   exportToExcel,
@@ -24,8 +25,10 @@ interface TopupRow {
   created_at: string;
   channel: "kiosk" | "online" | "cashier";
   topped_by: string;
+  topped_by_external_id?: string | null;
   recipient_name: string;
   recipient_code: string;
+  recipient_external_id?: string | null;
   amount: number;
   cashier_name: string | null;
 }
@@ -136,6 +139,8 @@ export default function StoreTopupReport() {
         rows: full.items.map((r) => ({
           ...r,
           channel_label: CHANNEL_LABEL[r.channel] ?? r.channel,
+          topped_by: formatTopupToppedBy(r),
+          recipient_name: formatTopupRecipient(r),
           cashier_name: r.cashier_name ?? "",
         })) as unknown as Record<string, unknown>[],
         totals: { amount: full.amount_total },
@@ -277,10 +282,8 @@ export default function StoreTopupReport() {
                         <tr key={r.id} className="border-t">
                           <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
                           <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
-                          <td className="px-2 py-1.5">{r.topped_by}</td>
-                          <td className="px-2 py-1.5">
-                            {r.recipient_name} <span className="text-muted-foreground font-mono">({r.recipient_code})</span>
-                          </td>
+                          <td className="px-2 py-1.5">{formatTopupToppedBy(r)}</td>
+                          <td className="px-2 py-1.5">{formatTopupRecipient(r)}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
                         </tr>
