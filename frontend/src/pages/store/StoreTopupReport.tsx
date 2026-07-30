@@ -18,6 +18,7 @@ import {
   type ReportPayload,
 } from "@/lib/reportExport";
 import { toast } from "@/components/ui/sonner";
+import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
 import { Wallet, Loader2, Store as StoreIcon, FileText, FileSpreadsheet } from "lucide-react";
 
 interface TopupRow {
@@ -68,11 +69,19 @@ export default function StoreTopupReport() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [toppedByValue, setToppedByValue] = useState<CardholderPickerValue | null>(null);
+  const [toppedByLabel, setToppedByLabel] = useState<string | null>(null);
 
   const buildParams = (p: number, sort = dateTimeSort) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
+    if (toppedByValue) {
+      params.set(
+        toppedByValue.entity_type === "user" ? "topped_by_user_id" : "topped_by_customer_id",
+        String(toppedByValue.entity_id),
+      );
+    }
     params.set("sort_order", sort);
     params.set("page", String(p));
     params.set("page_size", String(PAGE_SIZE));
@@ -107,6 +116,7 @@ export default function StoreTopupReport() {
   const buildPayload = async (): Promise<{ payload: ReportPayload<Record<string, unknown>>; baseFilename: string } | null> => {
     if (!shopId || !data) return null;
     const filters: string[] = [`Shop: ${shopName}`];
+    if (toppedByLabel) filters.push(`Topped by: ${toppedByLabel}`);
     const dateLine = buildDateFilterLine("Date", dateFrom, dateTo);
     if (dateLine) filters.push(dateLine);
     const dateLabel = `_${dateFrom}_${dateTo}`;
@@ -219,9 +229,13 @@ export default function StoreTopupReport() {
             </div>
             <div className="space-y-2">
               <Label>{t("admin.adminReports.toppedByFilter", "Topped by")}</Label>
-              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground">
-                {shopName}
-              </div>
+              <CardholderPicker
+                value={toppedByValue}
+                onChange={(v, item) => {
+                  setToppedByValue(v);
+                  setToppedByLabel(item ? `${item.name} (${item.identifier})` : null);
+                }}
+              />
             </div>
           </div>
 

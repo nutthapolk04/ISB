@@ -245,6 +245,8 @@ export const ShopController = {
 				dateTo: query.date_to ?? null,
 				channel: "cashier",
 				shopId: params.shopId,
+				toppedByUserId: query.topped_by_user_id ? Number(query.topped_by_user_id) : null,
+				toppedByCustomerId: query.topped_by_customer_id ? Number(query.topped_by_customer_id) : null,
 				recipientUserId: query.recipient_user_id ? Number(query.recipient_user_id) : null,
 				recipientCustomerId: query.recipient_customer_id ? Number(query.recipient_customer_id) : null,
 				sortOrder: query.sort_order ?? null,

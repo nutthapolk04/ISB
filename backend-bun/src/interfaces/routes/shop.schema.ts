@@ -93,6 +93,8 @@ export const shopTopupReport = {
     query: t.Object({
         date_from: t.Optional(t.Nullable(t.String())),
         date_to: t.Optional(t.Nullable(t.String())),
+        topped_by_user_id: t.Optional(t.Nullable(t.String())),
+        topped_by_customer_id: t.Optional(t.Nullable(t.String())),
         recipient_user_id: t.Optional(t.Nullable(t.String())),
         recipient_customer_id: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
