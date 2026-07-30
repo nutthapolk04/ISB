@@ -159,8 +159,19 @@ export function PrintBarcodeDialog({
             toast.error(t("barcode.noBarcode") || "Product has no barcode");
             return;
         }
+        let addedCount = 0;
         for (let i = 0; i < opts.length; i++) {
-            addBarcode(product, opts[i].value, opts[i].label, i);
+            // Check if this barcode is already in the list (by product + barcode value)
+            const alreadyExists = printItems.some(
+                (item) => item.product.id === product.id && item.barcodeValue === opts[i].value
+            );
+            if (!alreadyExists) {
+                addBarcode(product, opts[i].value, opts[i].label, i);
+                addedCount++;
+            }
+        }
+        if (addedCount === 0) {
+            toast.info(t("barcode.allAlreadyAdded") || "All barcodes already added");
         }
     };
 
