@@ -140,8 +140,9 @@ export function PrintBarcodeDialog({
         return opts;
     };
 
-    const addBarcode = (product: Product, barcodeValue: string, barcodeLabel: string) => {
-        const key = `${product.id}-${barcodeValue}`;
+    const addBarcode = (product: Product, barcodeValue: string, barcodeLabel: string, index?: number) => {
+        // Include index to handle duplicate barcode values within same product
+        const key = index !== undefined ? `${product.id}-${index}` : `${product.id}-${barcodeValue}`;
         const existing = printItems.find((i) => i.key === key);
         if (existing) {
             setPrintItems(printItems.map((i) => i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
@@ -158,7 +159,9 @@ export function PrintBarcodeDialog({
             toast.error(t("barcode.noBarcode") || "Product has no barcode");
             return;
         }
-        for (const opt of opts) addBarcode(product, opt.value, opt.label);
+        for (let i = 0; i < opts.length; i++) {
+            addBarcode(product, opts[i].value, opts[i].label, i);
+        }
     };
 
     /** Add every product in `pool` (and every barcode they own) to the print list.
@@ -454,11 +457,11 @@ export function PrintBarcodeDialog({
                                                 </button>
                                             </div>
                                             {/* Individual barcode rows when product has extras */}
-                                            {opts.length > 1 && opts.map((opt) => (
+                                            {opts.length > 1 && opts.map((opt, idx) => (
                                                 <div
-                                                    key={`${p.id}-${opt.value}`}
+                                                    key={`${p.id}-${idx}`}
                                                     className="flex items-center justify-between px-4 py-1 hover:bg-muted/60 cursor-pointer text-xs"
-                                                    onClick={(e) => { e.stopPropagation(); addBarcode(p, opt.value, opt.label); }}
+                                                    onClick={(e) => { e.stopPropagation(); addBarcode(p, opt.value, opt.label, idx); }}
                                                 >
                                                     <span className="font-mono text-muted-foreground">{opt.value}</span>
                                                     <span className="text-muted-foreground">{opt.label}</span>
