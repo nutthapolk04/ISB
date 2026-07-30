@@ -74,11 +74,10 @@ const LABEL_SIZES: { value: LabelSize; label: string; width: string; height: str
 ];
 
 // A10 sticker sheet: A4 page, 4 columns x 11 rows, 1"x2" (25.4x50.8mm) per sticker,
-// 44 stickers per sheet. Margins: 12mm top, 13mm bottom, 10.4mm sides
-// (210 - 4*25.4) / 2 = 10.4mm) — no gaps between cells.
+// 44 stickers per sheet. Margins: 12mm top, 13mm bottom, 15mm (1.5cm) sides.
 const STICKER_A10 = {
     page: { width: "210mm", height: "297mm" },
-    margin: { top: "12mm", bottom: "13mm", left: "10.4mm", right: "10.4mm" },
+    margin: { top: "12mm", bottom: "13mm", left: "15mm", right: "15mm" },
     cell: { width: "50.8mm", height: "25.4mm" },
     columns: 4,
     rows: 11,
