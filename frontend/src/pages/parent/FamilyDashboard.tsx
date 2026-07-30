@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { fmtDate, fmtTime } from "@/lib/dateFormat";
+import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import {
@@ -662,7 +662,7 @@ export default function FamilyDashboard() {
                                             : t("parent.transactions.txDeduction", "Purchase");
                                     const shopName = tx.shop_name;
                                     const desc = tx.description;
-                                    const time = fmtTime(tx.created_at);
+                                    const time = fmtDateTime(tx.created_at);
                                     return (
                                         <div
                                             key={tx.id}

@@ -440,10 +440,7 @@ export default function TransactionHistory() {
                                     {dayTxs.map((tx) => {
                                         const isCredit = (tx.balance_after ?? 0) >= (tx.balance_before ?? 0);
                                         const typeLabel = rowLabel(tx);
-                                        const time = new Date(tx.created_at).toLocaleTimeString(
-                                            i18n.language === "th" ? "th-TH" : "en-US",
-                                            { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" },
-                                        );
+                                        const time = fmtDateTime(tx.created_at);
                                         const hasReceipt = (tx.reference_type === "receipt" || tx.reference_type === "receipt_void") && tx.reference_id;
                                         // Only the original purchase row gets the "Voided" badge —
                                         // the void_refund row already names itself via rowLabel().
