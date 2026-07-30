@@ -35,6 +35,7 @@ export interface ReceiptItemApi {
 export interface PayerDetail {
   name: string;
   code: string | null;
+  external_id?: string | null;
   grade: string | null;       // grade for students, dept name for staff
   photo_url: string | null;
   role: string;

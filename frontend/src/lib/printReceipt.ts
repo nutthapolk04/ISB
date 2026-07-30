@@ -50,6 +50,7 @@ export interface ReceiptItemApi {
 export interface PayerDetail {
   name: string;
   code: string | null;
+  external_id?: string | null;
   grade: string | null;
   photo_url: string | null;
   role: string;
@@ -125,6 +126,7 @@ const RECEIPT_LABELS = {
     date: "วันที่ / เวลา",
     cashier: "แคชเชียร์",
     payer: "ผู้ชำระ",
+    payerIsbId: "รหัส ISB ผู้ชำระ",
     payment: "ประเภทการชำระ",
     itemDiscount: "ส่วนลด",
     billDiscount: "ส่วนลดท้ายบิล",
@@ -146,6 +148,7 @@ const RECEIPT_LABELS = {
     date: "Date / Time",
     cashier: "Cashier",
     payer: "Payer",
+    payerIsbId: "Payer ISB ID",
     payment: "Payment Type",
     itemDiscount: "Discount",
     billDiscount: "Bill Discount",
@@ -232,6 +235,12 @@ export function buildReceiptHtml(
   const payerSection = r.payer_label
     ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
     : "";
+  const pm = (r.payment_method ?? "").toLowerCase();
+  const isMemberCardPayment = pm === "wallet" || pm === "card_tap";
+  const payerIsbId = isMemberCardPayment ? (r.payer_detail?.external_id?.trim() || null) : null;
+  const payerIsbIdSection = payerIsbId
+    ? `<div class="row small"><span>${lbl.payerIsbId}</span><span>${payerIsbId}</span></div>`
+    : "";
   const cashierSection = r.created_by_name
     ? `<div class="row small"><span>${lbl.cashier}</span><span>${r.created_by_name}</span></div>`
     : "";
@@ -247,7 +256,7 @@ export function buildReceiptHtml(
     : "";
 
   const walletBalanceAfter = r.payer_detail?.wallet_balance ?? null;
-  const isWalletPayment = r.payment_method.toLowerCase() === "wallet";
+  const isWalletPayment = pm === "wallet" || pm === "card_tap";
   const balanceBeforeSection =
     isWalletPayment && walletBalanceAfter !== null
       ? `<div class="row balance-before"><span>${lbl.balanceBefore}</span><span>฿${(walletBalanceAfter + r.total).toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>`
@@ -338,6 +347,7 @@ export function buildReceiptHtml(
 
   <!-- Block 2: Payer / Payment Type -->
   <hr/>
+  ${payerIsbIdSection}
   ${payerSection}
   <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
 

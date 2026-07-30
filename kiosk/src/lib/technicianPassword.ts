@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'kiosk-technician-password';
+export const TECHNICIAN_SESSION_KEY = 'kiosk-technician-unlocked';
 const MIN_LENGTH = 4;
 
 function envDefaultPassword(): string {

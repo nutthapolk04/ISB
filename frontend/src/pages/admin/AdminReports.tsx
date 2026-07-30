@@ -156,8 +156,8 @@ const TXN_EXPORT_PAGE_SIZE = 5000;
 
 const CHANNEL_LABEL: Record<string, string> = {
     kiosk: "Kiosk",
-    online: "Online (Parent)",
-    cashier: "Cashier (Store)",
+    online: "Online",
+    cashier: "Cashier",
 };
 
 interface AdminReportExport {

@@ -39,12 +39,12 @@ Also ensure on server:
 - `backend-bun/deploy.sh`
 - `backend-bun/Dockerfile.server`
 - `backend-bun/.env.prod` or `.env.uat`
-  - `ISB_PHOTO_DIR=/sftp/sftp-client/upload` (must exist on the host)
+  - `ISB_PHOTO_DIR=/sftp/sftp-client/upload` (must exist on the host — profile photos + kiosk APKs)
   - `BACKEND_BASE_URL=https://<public-api-host>` (used in `photo_url` stored after sync)
   - Do **not** put the filesystem path in `ISB_PHOTO_BASE_URL` — that var is for http(s) CDN URLs only.
 
 `deploy.sh` bind-mounts `ISB_PHOTO_DIR` into the container read-only so
-`GET /api/v1/profile-photos/:filename` can read SFTP uploads.
+`GET /api/v1/profile-photos/:filename` and `GET /api/v1/kiosk/releases/:filename` can read SFTP uploads.
 
 ### 3. Deploy on server
 

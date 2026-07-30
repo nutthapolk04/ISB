@@ -63,7 +63,7 @@ if [ -n "$PHOTO_DIR" ]; then
   PHOTO_MOUNT=(-v "${PHOTO_DIR}:${PHOTO_DIR}:ro")
   # Override env-file value so stray quotes in .env.uat don't break path.resolve().
   PHOTO_ENV=(-e "ISB_PHOTO_DIR=${PHOTO_DIR}")
-  echo "==> Mounting ISB photos: ${PHOTO_DIR} (read-only)"
+  echo "==> Mounting ISB uploads: ${PHOTO_DIR} (read-only — photos + kiosk APKs)"
 fi
 
 echo "==> Building image from pre-built dist/ ($DOCKERFILE)"

@@ -32,8 +32,8 @@ interface TopupRow {
 
 const CHANNEL_LABEL: Record<string, string> = {
   kiosk: "Kiosk",
-  online: "Online (Parent)",
-  cashier: "Cashier (Store)",
+  online: "Online",
+  cashier: "Cashier",
 };
 
 interface TopupReportData {

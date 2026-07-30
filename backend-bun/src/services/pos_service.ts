@@ -38,6 +38,7 @@ export interface ReceiptItemDTO {
 export interface PayerDetailDTO {
     name: string;
     code: string | null;
+    external_id: string | null;
     grade: string | null;
     photo_url: string | null;
     role: string;
@@ -193,6 +194,7 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
         payer_detail = {
             name: customer[0].name,
             code: customer[0].studentCode ?? customer[0].customerCode,
+            external_id: customer[0].externalId ?? null,
             grade: customer[0].grade ?? null,
             photo_url: customer[0].photoUrl ?? null,
             role: "student",
@@ -208,6 +210,7 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
         payer_detail = {
             name: payerUser[0].fullName,
             code: payerUser[0].externalId ?? payerUser[0].username,
+            external_id: payerUser[0].externalId ?? null,
             grade: null,
             photo_url: payerUser[0].photoUrl ?? null,
             role: payerUser[0].role ?? "user",
@@ -223,6 +226,7 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
         payer_detail = {
             name: payerDept[0].departmentName,
             code: payerDept[0].departmentCode,
+            external_id: null,
             grade: null,
             photo_url: null,
             role: "department",
