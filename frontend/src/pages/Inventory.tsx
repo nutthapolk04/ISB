@@ -1304,7 +1304,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                     shopId={manageBarcodeProduct.subMerchantId}
                     productId={manageBarcodeProduct.id}
                     productName={manageBarcodeProduct.name}
-                    primaryBarcode={manageBarcodeProduct.barcode}
+                    primaryBarcode={manageBarcodeProduct.barcode || manageBarcodeProduct.productCode}
                 />
             )}
         </div>

@@ -140,8 +140,9 @@ export function PrintBarcodeDialog({
         return opts;
     };
 
-    const addBarcode = (product: Product, barcodeValue: string, barcodeLabel: string) => {
-        const key = `${product.id}-${barcodeValue}`;
+    const addBarcode = (product: Product, barcodeValue: string, barcodeLabel: string, index?: number) => {
+        // Include index to handle duplicate barcode values within same product
+        const key = index !== undefined ? `${product.id}-${index}` : `${product.id}-${barcodeValue}`;
         const existing = printItems.find((i) => i.key === key);
         if (existing) {
             setPrintItems(printItems.map((i) => i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
@@ -158,7 +159,20 @@ export function PrintBarcodeDialog({
             toast.error(t("barcode.noBarcode") || "Product has no barcode");
             return;
         }
-        for (const opt of opts) addBarcode(product, opt.value, opt.label);
+        const additions: PrintItem[] = [];
+        for (let i = 0; i < opts.length; i++) {
+            const key = `${product.id}-${i}`;
+            const alreadyExists = printItems.some((item) => item.key === key);
+            if (!alreadyExists) {
+                additions.push({ key, product, barcodeValue: opts[i].value, barcodeLabel: opts[i].label, quantity: 1 });
+            }
+        }
+        if (additions.length === 0) {
+            toast.info(t("barcode.allAlreadyAdded") || "All barcodes already added");
+            return;
+        }
+        setPrintItems([...printItems, ...additions]);
+        setSearchTerm("");
     };
 
     /** Add every product in `pool` (and every barcode they own) to the print list.
@@ -434,27 +448,31 @@ export function PrintBarcodeDialog({
                                     return (
                                         <div key={p.id} className="border-b last:border-b-0">
                                             {/* Product header — click adds ALL barcodes */}
-                                            <div
-                                                className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
-                                                onClick={() => addProduct(p)}
-                                            >
-                                                <div>
+                                            <div className="flex items-center justify-between p-2 hover:bg-muted">
+                                                <div
+                                                    className="flex-1 cursor-pointer"
+                                                    onClick={() => addProduct(p)}
+                                                >
                                                     <div className="font-medium text-sm">{p.name}</div>
                                                     <div className="text-xs text-muted-foreground">{p.productCode}</div>
                                                 </div>
-                                                <div className="flex items-center gap-1">
+                                                <button
+                                                    className="flex items-center gap-1 px-2 py-1 rounded hover:bg-primary/10 ml-2 shrink-0"
+                                                    onClick={(e) => { e.stopPropagation(); addProduct(p); }}
+                                                    title={`Add all ${opts.length} barcode(s)`}
+                                                >
                                                     {opts.length > 1 && (
-                                                        <span className="text-xs text-muted-foreground">{opts.length} barcodes</span>
+                                                        <span className="text-xs font-medium text-primary">{opts.length} barcodes</span>
                                                     )}
                                                     <Plus className="h-4 w-4 text-primary" />
-                                                </div>
+                                                </button>
                                             </div>
                                             {/* Individual barcode rows when product has extras */}
-                                            {opts.length > 1 && opts.map((opt) => (
+                                            {opts.length > 1 && opts.map((opt, idx) => (
                                                 <div
-                                                    key={opt.value}
+                                                    key={`${p.id}-${idx}`}
                                                     className="flex items-center justify-between px-4 py-1 hover:bg-muted/60 cursor-pointer text-xs"
-                                                    onClick={(e) => { e.stopPropagation(); addBarcode(p, opt.value, opt.label); }}
+                                                    onClick={(e) => { e.stopPropagation(); addBarcode(p, opt.value, opt.label, idx); }}
                                                 >
                                                     <span className="font-mono text-muted-foreground">{opt.value}</span>
                                                     <span className="text-muted-foreground">{opt.label}</span>
