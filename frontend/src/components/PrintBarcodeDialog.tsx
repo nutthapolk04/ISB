@@ -73,13 +73,11 @@ const LABEL_SIZES: { value: LabelSize; label: string; width: string; height: str
     { value: "sticker_a10", label: "Sticker Sheet A10 (25x50mm, 4x11, A4)", width: "50mm", height: "25mm" },
 ];
 
-// A10 sticker sheet: A4 page, 4 columns x 11 rows, 25mm x 50mm per sticker,
-// 44 stickers per sheet. Grid fits exactly inside A4 (210x297mm) with
-// 5mm side margins and 11mm top/bottom margins — no gaps between cells,
-// matching pre-cut commercial A10 label sheets.
+// A10 sticker sheet: A4 page, 4 columns x 11 rows, 5cm x 2.5cm (50x25mm) per sticker,
+// 44 stickers per sheet. Margins: 1.5mm left/right, 0mm top/bottom (flush edges).
 const STICKER_A10 = {
     page: { width: "210mm", height: "297mm" },
-    margin: { x: "5mm", y: "11mm" },
+    margin: { top: "13mm", bottom: "12mm", left: "1.8mm", right: "10mm" },
     cell: { width: "50mm", height: "25mm" },
     columns: 4,
     rows: 11,
@@ -239,13 +237,17 @@ export function PrintBarcodeDialog({
             return;
         }
 
-        // Save barcodes first
-        const saved = await saveBarcodes();
-        if (!saved) return;
-
+        // Open window BEFORE async to avoid popup blocking
         const printWindow = window.open("", "_blank");
         if (!printWindow) {
             toast.error(t("barcode.popupBlocked") || "Popup blocked. Please allow popups.");
+            return;
+        }
+
+        // Save barcodes after window is open
+        const saved = await saveBarcodes();
+        if (!saved) {
+            printWindow.close();
             return;
         }
 
@@ -259,14 +261,14 @@ export function PrintBarcodeDialog({
         }[labelSize];
 
         // Content shared by every layout mode — barcode canvas + text stack.
-        // Sticker mode uses a slightly wider barcode (cell is 50x25mm landscape)
+        // Sticker mode uses 1"x2" (50.8x25.4mm) cells in landscape
         // and skips the dashed border / free-flow margin used by the loose-label modes.
         const labelInner = (item: PrintItem, canvas: HTMLCanvasElement) => `
       <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000;">
         ${item.product.name}
       </div>
       ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #000; text-align: center;">${item.barcodeLabel}</div>` : ""}
-      <img src="${canvas.toDataURL("image/png")}" style="max-width: 95%; height: auto; margin: 1mm 0;" />
+      <img src="${canvas.toDataURL("image/png")}" style="max-width: 99%; height: auto; margin: 0;" />
       <div style="font-size: ${fontSize.code}; font-family: monospace; color: #000;">${item.barcodeValue}</div>
       ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold; color: #000;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
       ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #000;">${item.product.productCode}</div>` : ""}
@@ -307,7 +309,7 @@ export function PrintBarcodeDialog({
         <div class="sheet" style="
           width: ${STICKER_A10.page.width};
           height: ${STICKER_A10.page.height};
-          padding: ${STICKER_A10.margin.y} ${STICKER_A10.margin.x};
+          padding: ${STICKER_A10.margin.top} ${STICKER_A10.margin.right} ${STICKER_A10.margin.bottom} ${STICKER_A10.margin.left};
           box-sizing: border-box;
           display: grid;
           grid-template-columns: repeat(${STICKER_A10.columns}, ${STICKER_A10.cell.width});
@@ -320,14 +322,14 @@ export function PrintBarcodeDialog({
             <div class="cell" style="
               width: ${STICKER_A10.cell.width};
               height: ${STICKER_A10.cell.height};
-              padding: 1mm 1.5mm;
+              padding: 0.3mm;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
               overflow: hidden;
-              gap: 0.5mm;
+              gap: 0;
             ">${inner}</div>
           `,
                             )

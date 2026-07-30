@@ -1029,6 +1029,43 @@ type ReceiptJoinRow = {
     seller: typeof users.$inferSelect | null;
 };
 
+export interface SalesSummaryRow {
+    seq: number;
+    transaction_date: string;
+    receipt_number: string;
+    customer_id: string | null;
+    customer_name: string | null;
+    amt_receive: number;
+    amt_change: number;
+    amt_billing: number;
+    amt_cash: number;
+    amt_campus_card: number;
+    amt_credit_card: number;
+    amt_qr_code: number;
+    amt_department: number;
+    amt_other: number;
+    edc_card_fee: number;
+    remark: string | null;
+    shop_id: string;
+    shop_name: string | null;
+    bundle_names: string | null;
+    status: string;
+    cashier_id: string | null;
+}
+
+export interface SalesSummaryTotals {
+    amt_receive: number;
+    amt_change: number;
+    amt_billing: number;
+    amt_cash: number;
+    amt_campus_card: number;
+    amt_credit_card: number;
+    amt_qr_code: number;
+    amt_department: number;
+    amt_other: number;
+    edc_card_fee: number;
+}
+
 /** Per-receipt amount breakdown shared by both the "sale" and "void
  * reversal" legs below — only the sign and displayed date differ. */
 function computeReceiptAmounts(r: typeof receipts.$inferSelect) {
@@ -1083,6 +1120,7 @@ function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, 
 
     const bundleNames = bundleNamesByReceiptId.get(r.id);
     const dateSource = leg === "sale" ? r.transactionDate : r.voidedAt!;
+    const edcFee = pgNumber(r.edcCardFee) ?? 0;
 
     return {
         seq,
@@ -1099,6 +1137,7 @@ function buildLegRow(entry: ReceiptJoinRow, bundleNamesByReceiptId: Map<number, 
         amt_qr_code: buckets.amt_qr_code * sign,
         amt_department: buckets.amt_department * sign,
         amt_other: buckets.amt_other * sign,
+        edc_card_fee: edcFee * sign,
         // The void leg has its own remark (the admin-entered void reason) —
         // reusing r.notes (the ORIGINAL sale's checkout note) here would make
         // the void row show the sale's remark instead of its own.
@@ -1284,7 +1323,7 @@ export async function salesSummaryReport(args: {
     // any more (unlike the old single-row-per-receipt model).
     const totals: SalesSummaryTotals = {
         amt_receive: 0, amt_change: 0, amt_billing: 0, amt_cash: 0,
-        amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_department: 0, amt_other: 0,
+        amt_campus_card: 0, amt_credit_card: 0, amt_qr_code: 0, amt_department: 0, amt_other: 0, edc_card_fee: 0,
     };
     for (const row of rows) {
         totals.amt_receive += row.amt_receive;
@@ -1296,6 +1335,7 @@ export async function salesSummaryReport(args: {
         totals.amt_qr_code += row.amt_qr_code;
         totals.amt_department += row.amt_department;
         totals.amt_other += row.amt_other;
+        totals.edc_card_fee += row.edc_card_fee;
     }
 
     // Count distinct receipts, not rows — a voided receipt showing both legs
