@@ -456,7 +456,7 @@ export function PrintBarcodeDialog({
                                             {/* Individual barcode rows when product has extras */}
                                             {opts.length > 1 && opts.map((opt) => (
                                                 <div
-                                                    key={opt.value}
+                                                    key={`${p.id}-${opt.value}`}
                                                     className="flex items-center justify-between px-4 py-1 hover:bg-muted/60 cursor-pointer text-xs"
                                                     onClick={(e) => { e.stopPropagation(); addBarcode(p, opt.value, opt.label); }}
                                                 >
