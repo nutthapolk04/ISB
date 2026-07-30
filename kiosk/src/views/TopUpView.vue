@@ -325,11 +325,15 @@ const clearQrTimer = () => {
 };
 
 // --- Cash idle timeout (kiosk only — no touch/bill activity) ---
-const CASH_IDLE_SEC = 15;
-const cashTimeLeft = ref(CASH_IDLE_SEC);
+const CASH_IDLE_DISPLAY_SEC = 15;
+const CASH_IDLE_TOTAL_SEC = 20;
+const CASH_IDLE_GRACE_SEC = CASH_IDLE_TOTAL_SEC - CASH_IDLE_DISPLAY_SEC;
+const cashTimeLeft = ref(CASH_IDLE_TOTAL_SEC);
 let cashIdleInterval: number | null = null;
 
-const cashProgress = computed(() => cashTimeLeft.value / CASH_IDLE_SEC);
+/** Visible countdown — stays at 0 during the grace window for in-flight bill processing. */
+const cashDisplayTime = computed(() => Math.max(0, cashTimeLeft.value - CASH_IDLE_GRACE_SEC));
+const cashProgress = computed(() => cashDisplayTime.value / CASH_IDLE_DISPLAY_SEC);
 
 const clearCashIdleTimer = () => {
     if (cashIdleInterval != null) {
@@ -348,7 +352,7 @@ const handleCashIdleExpired = () => {
 const resetCashIdleTimer = () => {
     clearCashIdleTimer();
     if (currentStep.value !== 'cash-confirm') return;
-    cashTimeLeft.value = CASH_IDLE_SEC;
+    cashTimeLeft.value = CASH_IDLE_TOTAL_SEC;
     cashIdleInterval = window.setInterval(() => {
         cashTimeLeft.value--;
         if (cashTimeLeft.value <= 0) {
@@ -870,14 +874,14 @@ const overpayExceedsCap = computed(() => {
                 </div>
 
                 <div class="qr-timer cash-timer"
-                    :class="{ 'timer-warning': cashTimeLeft <= 10, 'timer-danger': cashTimeLeft <= 5 }">
+                    :class="{ 'timer-warning': cashDisplayTime <= 10, 'timer-danger': cashDisplayTime <= 5 }">
                     <Timer :size="18" />
                     <span>{{ currT.timeRemaining }}: </span>
-                    <span class="timer-value">0:{{ cashTimeLeft.toString().padStart(2, '0') }}</span>
+                    <span class="timer-value">0:{{ cashDisplayTime.toString().padStart(2, '0') }}</span>
                 </div>
                 <div class="timer-bar cash-timer-bar">
                     <div class="timer-bar-fill" :style="{ width: (cashProgress * 100) + '%' }"
-                        :class="{ 'bar-warning': cashTimeLeft <= 10, 'bar-danger': cashTimeLeft <= 5 }"></div>
+                        :class="{ 'bar-warning': cashDisplayTime <= 10, 'bar-danger': cashDisplayTime <= 5 }"></div>
                 </div>
 
                 <p class="cash-note">{{ currT.cashConfirmDesc }}<br />{{ currT.cashConfirmNote }}</p>

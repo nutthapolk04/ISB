@@ -86,10 +86,10 @@ const RPT_COLUMNS = [
     { header: "Code", key: "entity_code", format: "text" as const, width: 16 },
     // Sign carries the direction instead of a separate column — see
     // signedAmount() below.
-    { header: "Amount (฿)", key: "amount", format: "text" as const, width: 14, align: "right" as const },
+    { header: "Amount (฿)", key: "amount", format: "text" as const, width: 22, align: "right" as const },
     { header: "Balance Before", key: "balance_before", format: "currency" as const, width: 14, align: "right" as const },
     { header: "Balance After", key: "balance_after", format: "currency" as const, width: 14, align: "right" as const },
-    { header: "Reason", key: "reason", format: "text" as const, width: 30 },
+    { header: "Reason", key: "reason", format: "text" as const, width: 22 },
     { header: "Ref / Ticket", key: "reference_ticket", format: "text" as const, width: 16 },
     { header: "Adjusted By", key: "adjusted_by", format: "text" as const, width: 20 },
 ];
@@ -689,10 +689,10 @@ export default function WalletAdjust() {
                                             <TableHead>Name</TableHead>
                                             <TableHead>Code</TableHead>
                                             <TableHead>Direction</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
+                                            <TableHead className="text-right min-w-[8.5rem] whitespace-nowrap">Amount</TableHead>
                                             <TableHead className="text-right">Balance Before</TableHead>
                                             <TableHead className="text-right">Balance After</TableHead>
-                                            <TableHead>Reason</TableHead>
+                                            <TableHead className="max-w-[9rem]">Reason</TableHead>
                                             <TableHead>Ref / Ticket</TableHead>
                                             <TableHead>Adjusted By</TableHead>
                                         </TableRow>
@@ -721,10 +721,10 @@ export default function WalletAdjust() {
                                                             {r.direction === "credit" ? "+" : "−"}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-right font-mono font-semibold">{formatTHB(r.amount)}</TableCell>
+                                                    <TableCell className="text-right font-mono font-semibold whitespace-nowrap tabular-nums">{formatTHB(r.amount)}</TableCell>
                                                     <TableCell className="text-right font-mono text-muted-foreground text-sm">{formatTHB(r.balance_before)}</TableCell>
                                                     <TableCell className={`text-right font-mono font-semibold ${r.balance_after < 0 ? "text-destructive" : ""}`}>{formatTHB(r.balance_after)}</TableCell>
-                                                    <TableCell className="max-w-[220px] text-sm"><span title={r.reason ?? ""} className="line-clamp-2">{r.reason || <span className="text-muted-foreground italic">—</span>}</span></TableCell>
+                                                    <TableCell className="max-w-[9rem] text-sm"><span title={r.reason ?? ""} className="line-clamp-2">{r.reason || <span className="text-muted-foreground italic">—</span>}</span></TableCell>
                                                     <TableCell className="text-sm font-mono">{r.reference_ticket || <span className="text-muted-foreground">—</span>}</TableCell>
                                                     <TableCell className="text-sm">{r.adjusted_by}</TableCell>
                                                 </TableRow>

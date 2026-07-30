@@ -477,14 +477,20 @@ export default function FamilyDashboard() {
                         <div
                             ref={scrollRef}
                             onScroll={handleScroll}
-                            className="flex gap-3 overflow-x-auto"
+                            className={cn(
+                                "flex gap-3 overflow-x-auto",
+                                cards.length === 1 && "justify-center overflow-x-hidden",
+                            )}
                             style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
                         >
                             {cards.map((card, idx) => (
                                 <div
                                     key={idx}
-                                    className="shrink-0 min-w-[calc(100%-3rem)] rounded-2xl p-4 shadow-lg relative overflow-hidden"
-                                    style={{ scrollSnapAlign: "start", ...getRoleStyle(card.userRole) }}
+                                    className={cn(
+                                        "shrink-0 rounded-2xl p-4 shadow-lg relative overflow-hidden",
+                                        cards.length === 1 ? "w-full" : "min-w-[calc(100%-3rem)]",
+                                    )}
+                                    style={{ scrollSnapAlign: cards.length === 1 ? "center" : "start", ...getRoleStyle(card.userRole) }}
                                 >
                                     <span className="absolute top-3 right-3 z-20 bg-white/25 border border-white/40 text-white text-[0.6rem] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5">
                                         {card.kind === "child" ? t("parent.dashboard.typeChild", "Child's") : t("parent.dashboard.typePersonal", "Personal")}
