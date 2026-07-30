@@ -99,7 +99,7 @@ export const WalletController = {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
 		logger.info(`[${reqContext.requestId} (WL-05)] WalletController.adjust() called.`);
-		if (!hasRole(user.roles, "admin")) {
+		if (!hasRole(user.roles, "admin", "finance")) {
 			logger.warn(`[${reqContext.requestId} (WL-05)] WalletController.adjust() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
@@ -136,7 +136,7 @@ export const WalletController = {
 				toWalletId: body.to_wallet_id,
 				amount: body.amount,
 				initiatorUserId: Number(user.sub),
-				initiatorIsAdmin: hasRole(user.roles, "admin") || user.is_superuser,
+				initiatorIsAdmin: hasRole(user.roles, "admin", "finance") || user.is_superuser,
 				initiatorRoles: user.roles,
 				note: body.note,
 				actingUserId: hasRole(user.roles, "kiosk") && body.acting_user_id != null ? Number(body.acting_user_id) : undefined,

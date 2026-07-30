@@ -83,7 +83,7 @@ describe("Login — Google SSO multi-step flow", () => {
         renderLogin();
         expect(screen.queryByPlaceholderText(/your@isb.ac.th/i)).not.toBeInTheDocument();
         expect(screen.queryByTestId("otp-input")).not.toBeInTheDocument();
-        expect(screen.queryByText(/Privacy Policy/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Cashless System & e-Wallet Privacy Notice/i)).not.toBeInTheDocument();
     });
 
     // ── Step 1: Email ──────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ describe("Login — Google SSO multi-step flow", () => {
     it("correct OTP (247831) moves to PDPA step", async () => {
         renderLogin();
         await advanceToPdpaStep();
-        expect(screen.getByText(/Privacy Policy/i)).toBeInTheDocument();
+        expect(screen.getByText(/Cashless System & e-Wallet Privacy Notice/i)).toBeInTheDocument();
     });
 
     it("back arrow on OTP step goes back to email step", async () => {
@@ -188,7 +188,7 @@ describe("Login — Google SSO multi-step flow", () => {
         renderLogin();
         await advanceToPdpaStep();
         await userEvent.click(screen.getByRole("button", { name: /Decline/i }));
-        expect(screen.queryByText(/Privacy Policy/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Cashless System & e-Wallet Privacy Notice/i)).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
     });
 
@@ -216,7 +216,7 @@ describe("Login — Google SSO multi-step flow", () => {
             "SSO server error",
             expect.objectContaining({ duration: 6000 })
         ));
-        expect(screen.queryByText(/Privacy Policy/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Cashless System & e-Wallet Privacy Notice/i)).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
     });
 

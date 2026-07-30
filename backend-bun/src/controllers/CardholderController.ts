@@ -11,7 +11,7 @@ export const CardholderController = {
 		const { reqContext, user } = authedCtx(ctx);
 		const { query } = reqContext;
 		logger.info(`[${reqContext.requestId} (CH-01)] CardholderController.list() called.`);
-		if (!hasRole(user.roles, "admin", "manager")) {
+		if (!hasRole(user.roles, "admin", "manager", "finance")) {
 			logger.warn(`[${reqContext.requestId} (CH-01)] CardholderController.list() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}

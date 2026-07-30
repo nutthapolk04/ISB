@@ -92,10 +92,10 @@ const menuGroups: MenuGroup[] = [
         labelKey: "nav.groupWalletOps",
         module: null,
         items: [
-            { titleKey: "nav.adminWalletAdjust", url: "/admin/wallet-adjust", icon: SlidersHorizontal, roles: ["admin"] },
-            { titleKey: "nav.adminWalletTransfer", url: "/admin/wallet-transfer", icon: ArrowLeftRight, roles: ["admin"] },
-            { titleKey: "nav.adminDeptAdjust", url: "/admin/department-adjust", icon: Building2, roles: ["admin"] },
-            { titleKey: "nav.refund", url: "/refund", icon: HandCoins, roles: ["admin"] },
+            { titleKey: "nav.adminWalletAdjust", url: "/admin/wallet-adjust", icon: SlidersHorizontal, roles: ["admin", "finance"] },
+            { titleKey: "nav.adminWalletTransfer", url: "/admin/wallet-transfer", icon: ArrowLeftRight, roles: ["admin", "finance"] },
+            { titleKey: "nav.adminDeptAdjust", url: "/admin/department-adjust", icon: Building2, roles: ["admin", "finance"] },
+            { titleKey: "nav.refund", url: "/refund", icon: HandCoins, roles: ["admin", "refund_officer", "finance"] },
         ],
     },
     {

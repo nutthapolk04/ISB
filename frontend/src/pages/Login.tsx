@@ -451,27 +451,57 @@ const Login = () => {
                             {ssoStep === "pdpa" && (
                                 <div className="rounded-lg border border-green-200 bg-green-50/50 p-4 space-y-3">
                                     <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
-                                        <ShieldCheck className="h-4 w-4" /> Privacy Policy (PDPA)
+                                        <ShieldCheck className="h-4 w-4" /> Cashless System &amp; e-Wallet Privacy Notice (PDPA)
                                     </div>
-                                    <div className="rounded-md bg-white border border-green-100 p-3 max-h-48 overflow-y-auto text-xs text-foreground/80 space-y-2 leading-relaxed">
+                                    <div className="rounded-md bg-white border border-green-100 p-3 max-h-64 overflow-y-auto text-xs text-foreground/80 space-y-2 leading-relaxed">
                                         <p className="font-semibold text-foreground">Collection and Use of Personal Data</p>
-                                        <p>International School Bangkok (ISB) collects your personal data for the following purposes:</p>
+                                        <p>
+                                            In compliance with Thailand&apos;s Personal Data Protection Act (PDPA B.E. 2562),
+                                            International School Bangkok (ISB) collects and processes your personal data for the following purposes:
+                                        </p>
                                         <ul className="list-disc pl-4 space-y-1">
-                                            <li>Administration of the payment and e-wallet system (Schooney)</li>
-                                            <li>Tracking and managing student spending at canteens and the cooperative store</li>
-                                            <li>Notifying and reporting spending activity to parents</li>
-                                            <li>Complying with legal requirements and school regulations</li>
+                                            <li>Administration of the payment, e-wallet system, and financial transactions.</li>
+                                            <li>Tracking and managing user spending at ISB canteens and cooperative stores.</li>
+                                            <li>Notifying and reporting spending activities to parents (for students).</li>
+                                            <li>Complying with accounting standards, legal requirements, and school regulations.</li>
                                         </ul>
                                         <p className="font-semibold text-foreground">Data Collected</p>
-                                        <p>Full name, email, photo, student ID, transaction history, and device information.</p>
-                                        <p className="font-semibold text-foreground">Data Disclosure</p>
-                                        <p>ISB will not disclose your personal data to third parties except as required by law.</p>
+                                        <p>
+                                            We collect personal data including your full name, email, photo, student/staff/visitor ID,
+                                            transaction history, device information, and payment processing details.
+                                        </p>
+                                        <p className="font-semibold text-foreground">Data Disclosure &amp; Third Parties</p>
+                                        <p>
+                                            ISB is committed to protecting your data. We will not disclose your personal data to third parties, except:
+                                        </p>
+                                        <ul className="list-disc pl-4 space-y-1">
+                                            <li>
+                                                To authorized third-party payment processors, banking partners, or IT service providers
+                                                strictly for the purpose of facilitating your transactions and maintaining the cashless system.
+                                            </li>
+                                            <li>As required by law or regulatory authorities.</li>
+                                        </ul>
+                                        <p className="font-semibold text-foreground">Data Retention</p>
+                                        <p>
+                                            Your data will be securely stored for the duration of your active relationship with ISB.
+                                            Transaction histories and financial records may be retained for a longer period as required by Thai
+                                            accounting and tax laws, after which they will be safely deleted.
+                                        </p>
                                         <p className="font-semibold text-foreground">Data Subject Rights</p>
-                                        <p>You have the right to access, rectify, erase, and object to the processing of your personal data under the Personal Data Protection Act B.E. 2562 (PDPA).</p>
-                                        <p>Contact DPO: <span className="font-mono">privacy@isb.ac.th</span></p>
+                                        <p>
+                                            Under the PDPA, you have the right to access, rectify, request erasure, and object to the processing of your personal data.
+                                        </p>
+                                        <p className="font-semibold text-foreground">Acknowledgment</p>
+                                        <p>
+                                            By registering for or using the ISB cashless system, you acknowledge that you have read and understood this Privacy Notice.
+                                        </p>
+                                        <p>
+                                            If you have any questions or wish to exercise your rights, please contact our Data Protection Officer at:{" "}
+                                            <span className="font-mono">DPO@ISB.ac.th</span>
+                                        </p>
                                     </div>
                                     <p className="text-[11px] text-muted-foreground">
-                                        By clicking "Accept", you acknowledge that you have read and consent to ISB collecting and using your personal data under the policy above.
+                                        By clicking &quot;Accept&quot;, you acknowledge that you have read and understood this Privacy Notice.
                                     </p>
                                     <div className="flex gap-2">
                                         <Button type="button" variant="outline" size="sm" className="flex-1" onClick={resetSso} disabled={ssoLoading}>

@@ -1,4 +1,4 @@
-/** Graduation refunds — candidates, family search/roster, create (auth: admin | refund_officer) */
+/** Graduation refunds — candidates, family search/roster, create (auth: admin | refund_officer | finance) */
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { hasRole } from "@/middleware/AuthMiddleware";
@@ -8,7 +8,7 @@ import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
-const REFUND_ROLES = ["admin", "refund_officer"] as const;
+const REFUND_ROLES = ["admin", "refund_officer", "finance"] as const;
 
 export const RefundController = {
 	candidates: async (ctx: any) => {

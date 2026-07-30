@@ -325,21 +325,25 @@ const App = () => {
                           <Route path="/users/:userId" element={<UserDetail />} />
                         </Route>
 
-                        {/* Graduation Refund — admin + refund_officer only */}
-                        <Route element={<RequireRole roles={['admin', 'refund_officer']} />}>
+                        {/* Graduation Refund — admin + refund_officer + finance */}
+                        <Route element={<RequireRole roles={['admin', 'refund_officer', 'finance']} />}>
                           <Route path="/refund" element={<RefundList />} />
                         </Route>
                         {/* Legacy redirects */}
                         <Route path="/admin/users" element={<Navigate to="/users" replace />} />
                         <Route path="/admin/users/:userId" element={<LegacyUserDetailRedirect />} />
 
+                        {/* Wallet Ops — admin + finance (full access: adjust, transfer, department adjust) */}
+                        <Route element={<RequireRole roles={['admin', 'finance']} />}>
+                          <Route path="/admin/wallet-adjust" element={<WalletAdjust />} />
+                          <Route path="/admin/wallet-transfer" element={<WalletTransfer />} />
+                          <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
+                        </Route>
+
                         {/* Admin Ops */}
                         <Route element={<RequireRole roles={['admin']} />}>
                           <Route path="/admin" element={<AdminDashboard />} />
                           <Route path="/admin/families" element={<Navigate to="/users?tab=families" replace />} />
-                          <Route path="/admin/wallet-adjust" element={<WalletAdjust />} />
-                          <Route path="/admin/wallet-transfer" element={<WalletTransfer />} />
-                          <Route path="/admin/department-adjust" element={<DepartmentAdjust />} />
                           <Route path="/admin/audit-logs" element={<AuditLogList />} />
                           <Route path="/admin/kiosk-monitoring" element={<KioskMonitoring />} />
                           <Route path="/admin/settings" element={<SystemSettings />} />
@@ -352,7 +356,7 @@ const App = () => {
                           <Route path="/admin/department/:departmentId" element={<DepartmentDetail />} />
                         </Route>
 
-                        {/* Wallet reports — admin + finance (finance is read-only reporting, no wallet-adjust/transfer access) */}
+                        {/* Wallet reports — admin + finance */}
                         <Route element={<RequireRole roles={['admin', 'finance']} />}>
                           <Route path="/admin/reports" element={<AdminReports />} />
                         </Route>

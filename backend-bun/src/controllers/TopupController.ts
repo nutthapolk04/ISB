@@ -287,7 +287,7 @@ export const TopupController = {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
 		logger.info(`[${reqContext.requestId} (TP-06)] TopupController.adjustDepartment() called.`);
-		if (!hasRole(user.roles, "admin")) {
+		if (!hasRole(user.roles, "admin", "finance")) {
 			logger.warn(`[${reqContext.requestId} (TP-06)] TopupController.adjustDepartment() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
@@ -317,7 +317,7 @@ export const TopupController = {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, query } = reqContext;
 		logger.info(`[${reqContext.requestId} (TP-07)] TopupController.departmentTransactions() called.`);
-		if (!hasRole(user.roles, "admin")) {
+		if (!hasRole(user.roles, "admin", "finance")) {
 			logger.warn(`[${reqContext.requestId} (TP-07)] TopupController.departmentTransactions() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
@@ -346,7 +346,7 @@ export const TopupController = {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
 		logger.info(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() called.`);
-		if (!hasRole(user.roles, "admin")) {
+		if (!hasRole(user.roles, "admin", "finance")) {
 			logger.warn(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
@@ -405,7 +405,7 @@ export const TopupController = {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
 		logger.info(`[${reqContext.requestId} (TP-08)] TopupController.deleteDepartment() called.`);
-		if (!hasRole(user.roles, "admin")) {
+		if (!hasRole(user.roles, "admin", "finance")) {
 			logger.warn(`[${reqContext.requestId} (TP-08)] TopupController.deleteDepartment() forbidden.`);
 			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
 		}
