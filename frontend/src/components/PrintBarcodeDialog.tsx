@@ -266,7 +266,7 @@ export function PrintBarcodeDialog({
         ${item.product.name}
       </div>
       ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #000; text-align: center;">${item.barcodeLabel}</div>` : ""}
-      <img src="${canvas.toDataURL("image/png")}" style="max-width: 90%; height: auto;" />
+      <img src="${canvas.toDataURL("image/png")}" style="max-width: 95%; height: auto; margin: 1mm 0;" />
       <div style="font-size: ${fontSize.code}; font-family: monospace; color: #000;">${item.barcodeValue}</div>
       ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold; color: #000;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
       ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #000;">${item.product.productCode}</div>` : ""}
@@ -320,13 +320,14 @@ export function PrintBarcodeDialog({
             <div class="cell" style="
               width: ${STICKER_A10.cell.width};
               height: ${STICKER_A10.cell.height};
-              padding: 1mm 2mm;
+              padding: 1mm 1.5mm;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
               overflow: hidden;
+              gap: 0.5mm;
             ">${inner}</div>
           `,
                             )
@@ -343,7 +344,7 @@ export function PrintBarcodeDialog({
         <div class="label" style="
           width: ${sizeConfig.width};
           height: ${sizeConfig.height};
-          padding: 2mm;
+          padding: 1.5mm 1mm;
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
@@ -352,6 +353,7 @@ export function PrintBarcodeDialog({
           page-break-inside: avoid;
           border: 1px dashed #ccc;
           margin: 1mm;
+          gap: 1mm;
         ">${inner}</div>
       `,
                 )

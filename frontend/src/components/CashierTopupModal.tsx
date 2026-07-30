@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
   Check,
   Banknote,
   QrCode,
+  CreditCard,
   AlertCircle,
   Printer,
 } from "lucide-react";
@@ -30,6 +32,7 @@ import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { QrCountdownBar, QR_TOPUP_TIMEOUT_SEC } from "@/components/QrCountdownBar";
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printTopupReceipt, type TopupReceiptData } from "@/lib/printReceipt";
+import { EdcPaymentModal, type EdcMode } from "@/pages/store/EdcPaymentModal";
 
 interface CustomerResult {
   id: number;
@@ -74,7 +77,7 @@ interface WalletBalance {
   balance: number;
 }
 
-type PaymentMethod = "cash" | "bay_qr";
+type PaymentMethod = "cash" | "bay_qr" | "edc";
 type QrStatus = "waiting" | "confirmed" | "cancelled" | "timeout";
 
 interface CashierTopupPrintConfig {
@@ -129,14 +132,24 @@ export function CashierTopupModal({
   const [error, setError] = useState<string | null>(null);
 
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerResult | null>(null);
+
+  // RFID listener for card tap — auto-lookup customer when card is scanned
+  const rfid = useRfidListener({
+    onCapture: async (code: string) => {
+      if (open && step === "search") {
+        setQuery(code);
+        await lookupCustomerByCode(code);
+      }
+    },
+  });
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [submitting, setSubmitting] = useState(false);
 
-  // QR top-up has no backend minimum floor beyond ฿1 (see topup_service.ts);
+  // QR & EDC top-up have no backend minimum floor beyond ฿1 (see topup_service.ts);
   // cash keeps the ฿100 floor since that's a separate, unaffected backend path.
-  const minTopupAmount = paymentMethod === "bay_qr" ? 1 : 100;
+  const minTopupAmount = paymentMethod === "cash" ? 100 : 1;
 
   const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
   const [lastPaymentMethod, setLastPaymentMethod] = useState<PaymentMethod>("cash");
@@ -146,6 +159,8 @@ export function CashierTopupModal({
   const [intent, setIntent] = useState<TopupIntent | null>(null);
   const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
   const [confirming, setConfirming] = useState(false);
+  const [edcOpen, setEdcOpen] = useState(false);
+  const [edcAmount, setEdcAmount] = useState(0);
   const cashAttemptRef = useRef<CashTopupAttempt | null>(null);
 
   const clearCashAttempt = useCallback(() => {
@@ -173,6 +188,54 @@ export function CashierTopupModal({
       clearCashAttempt();
     }
   }, [open, clearCashAttempt]);
+
+  // Direct lookup by card/code (for RFID scanning)
+  const lookupCustomerByCode = useCallback(async (code: string) => {
+    const q = code.trim();
+    if (!q) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      let customer: CustomerResult | null = null;
+
+      // 1. Try by card UID
+      try {
+        const result = await api.get<CustomerResult>(
+          `/customers/by-card/${encodeURIComponent(q)}`
+        );
+        customer = result;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+
+      // 2. Try by customer code
+      if (!customer) {
+        try {
+          const result = await api.get<CustomerResult>(
+            `/customers/by-code/${encodeURIComponent(q)}`
+          );
+          customer = result;
+        } catch (e) {
+          if (!(e instanceof ApiError && e.status === 404)) throw e;
+        }
+      }
+
+      if (customer) {
+        clearCashAttempt();
+        setSelectedCustomer(customer);
+        setStep("topup");
+      } else {
+        setError(t("topup.notFound", "Customer not found"));
+        setResults([]);
+      }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : t("topup.searchError", "Search failed"));
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [t, clearCashAttempt]);
 
   // Debounced search
   const searchCustomers = useCallback(async (searchQuery: string) => {
@@ -301,21 +364,28 @@ export function CashierTopupModal({
     if (!selectedCustomer) return;
 
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum < 100 || amountNum > 50000) {
-      toast.error(t("topup.invalidAmount", "Amount must be between ฿100 and ฿50,000"));
+    const minAmount = paymentMethod === "cash" ? 100 : 1;
+    if (isNaN(amountNum) || amountNum < minAmount || amountNum > 50000) {
+      toast.error(t("topup.invalidAmount", { min: minAmount, max: 50000, defaultValue: `Amount must be between ฿${minAmount} and ฿50,000` }));
       return;
     }
 
-    // bay_qr requires an existing wallet — use cash if no wallet yet (QR intent needs wallet_id)
+    // bay_qr & edc require an existing wallet — use cash if no wallet yet (intent needs wallet_id)
     const hasWallet = !!selectedCustomer.wallet_id;
-    const effectiveMethod: PaymentMethod = (!hasWallet && paymentMethod === "bay_qr") ? "cash" : paymentMethod;
-    if (!hasWallet && paymentMethod === "bay_qr") {
-      toast.warning(t("topup.noWalletQrFallback", "QR not available — wallet will be created and topped up as cash"));
+    const effectiveMethod: PaymentMethod = (!hasWallet && (paymentMethod === "bay_qr" || paymentMethod === "edc")) ? "cash" : paymentMethod;
+    if (!hasWallet && (paymentMethod === "bay_qr" || paymentMethod === "edc")) {
+      toast.warning(t("topup.noWalletFallback", "Payment method not available — wallet will be created and topped up as cash"));
     }
 
     setSubmitting(true);
     try {
-      if (effectiveMethod === "bay_qr" && hasWallet) {
+      if (effectiveMethod === "edc" && hasWallet) {
+        // EDC payment — open EDC modal instead of creating intent
+        setEdcAmount(amountNum);
+        setLastNotes(notes);
+        setEdcOpen(true);
+        setSubmitting(false);
+      } else if (effectiveMethod === "bay_qr" && hasWallet) {
         const resp = await api.post<TopupIntent>(
           `/wallets/${selectedCustomer.wallet_id}/topup`,
           {
@@ -359,7 +429,13 @@ export function CashierTopupModal({
       }
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed");
-      toast.error(effectiveMethod === "bay_qr" ? t("topup.qrCreateFailed", "Failed to create QR") : msg);
+      if (effectiveMethod === "bay_qr") {
+        toast.error(t("topup.qrCreateFailed", "Failed to create QR"));
+      } else if (effectiveMethod === "edc") {
+        toast.error(t("topup.edcCreateFailed", "Failed to initiate EDC payment"));
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -449,6 +525,7 @@ export function CashierTopupModal({
   const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -613,7 +690,7 @@ export function CashierTopupModal({
             {/* Payment method picker */}
             <div className="space-y-2">
               <Label>{t("topup.methodLabel", "Payment Method")}</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("cash")}
@@ -639,6 +716,19 @@ export function CashierTopupModal({
                 >
                   <QrCode className="h-4 w-4" />
                   {t("topup.methodBayQr", "QR Code")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("edc")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                    paymentMethod === "edc"
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
+                  )}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {t("topup.methodEdc", "EDC")}
                 </button>
               </div>
             </div>
@@ -894,5 +984,72 @@ export function CashierTopupModal({
         )}
       </DialogContent>
     </Dialog>
+
+    <EdcPaymentModal
+      open={edcOpen}
+      onOpenChange={setEdcOpen}
+      total={edcAmount}
+      onBack={() => {
+        setEdcOpen(false);
+        setStep("topup");
+      }}
+      onConfirm={async (refs) => {
+        if (!selectedCustomer) return;
+        try {
+          setConfirming(true);
+          await api.post(`/wallets/${selectedCustomer.wallet_id}/topup`, {
+            amount: edcAmount,
+            payment_method: "edc",
+            edc_approval_code: refs.approval_code,
+            edc_terminal_ref: refs.terminal_ref,
+            edc_masked_card: refs.masked_card,
+            edc_mode: refs.mode,
+            notes: lastNotes.trim() || null,
+          });
+
+          // Fetch updated wallet to show success
+          try {
+            const wallet = await api.get<WalletBalance>(`/wallets/${selectedCustomer.wallet_id}`);
+            const balanceAfter = wallet.balance;
+            const balanceBefore = balanceAfter - edcAmount;
+            const successResult: TopupSuccessResult = {
+              wallet_id: selectedCustomer.wallet_id,
+              customer_name: selectedCustomer.name,
+              amount: edcAmount,
+              balance_before: balanceBefore,
+              balance_after: balanceAfter,
+              transaction_id: 0,
+            };
+            setTopupResult(successResult);
+            setStep("success");
+            onSuccess?.(successResult);
+          } catch {
+            const successResult: TopupSuccessResult = {
+              wallet_id: selectedCustomer.wallet_id,
+              customer_name: selectedCustomer.name,
+              amount: edcAmount,
+              balance_before: selectedCustomer.wallet_balance ?? 0,
+              balance_after: (selectedCustomer.wallet_balance ?? 0) + edcAmount,
+              transaction_id: 0,
+            };
+            setTopupResult(successResult);
+            setStep("success");
+            onSuccess?.(successResult);
+          }
+          toast.success(t("topup.success", "Top-up successful"));
+          setEdcOpen(false);
+        } catch (error) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : t("topup.edcFailed", "EDC payment failed")
+          );
+        } finally {
+          setConfirming(false);
+        }
+      }}
+      confirming={confirming}
+    />
+    </>
   );
 }

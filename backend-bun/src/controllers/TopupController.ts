@@ -10,6 +10,7 @@ import {
 	userCanAccessWallet,
 	inquireTopupFromGateway,
 	reconcilePendingTopups,
+	edcTopup,
 } from "@/services/topup_service";
 import {
 	cashierTopup,
@@ -46,6 +47,24 @@ export const TopupController = {
 				logger.warn(`[${reqContext.requestId} (TP-01)] TopupController.createIntent() not authorized.`);
 				return errorResponse(reqContext, "Not authorized", ResponseStatus.FORBIDDEN);
 			}
+
+			// If EDC refs are provided, process directly instead of creating intent
+			if (body.edc_approval_code) {
+				logger.info(`[${reqContext.requestId} (TP-01)] TopupController.createIntent() processing EDC payment directly.`);
+				const result = await edcTopup({
+					walletId: id,
+					amount: body.amount,
+					userId: Number(user.sub),
+					approvalCode: body.edc_approval_code,
+					terminalRef: body.edc_terminal_ref ?? null,
+					maskedCard: body.edc_masked_card ?? null,
+					mode: body.edc_mode ?? "card",
+					notes: body.notes ?? null,
+				});
+				logger.info(`[${reqContext.requestId} (TP-01)] TopupController.createIntent() EDC topup completed.`);
+				return successResponse(reqContext, result, ResponseStatus.OK);
+			}
+
 			logger.info(`[${reqContext.requestId} (TP-01)] TopupController.createIntent() calling createTopupIntent().`);
 			const result = await createTopupIntent({
 				walletId: id,
