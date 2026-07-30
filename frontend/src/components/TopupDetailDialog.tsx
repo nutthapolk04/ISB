@@ -40,6 +40,37 @@ interface TopupDetailDialogProps {
   onClose: () => void;
 }
 
+/**
+ * Strip internal bookkeeping text from wallet transaction descriptions.
+ * e.g. "Balance Initialization [ref:cashier-idem:…] — Cash top-up at POS"
+ *   → "Cash top-up at POS"
+ */
+export function sanitizeTopupDescription(description: string | null | undefined): string | null {
+  if (!description?.trim()) return null;
+  let text = description.trim();
+  text = text.replace(/^Balance\s+Initialization\s*/i, "");
+  text = text.replace(/\s*\[ref:[^\]]+\]\s*/gi, " ");
+  text = text.replace(/^[\s—\-]+/, "").trim();
+  return text || null;
+}
+
+/** User-facing notes only — hide standard POS boilerplate when Method/Channel already convey it. */
+export function displayTopupNotes(
+  description: string | null | undefined,
+  paymentMethod: string,
+): string | null {
+  const sanitized = sanitizeTopupDescription(description);
+  if (!sanitized) return null;
+
+  const cashPosPrefix = /^Cash top-up at POS(?:\s*[-—]\s*)?/i;
+  if (cashPosPrefix.test(sanitized)) {
+    const userNote = sanitized.replace(cashPosPrefix, "").trim();
+    return userNote || null;
+  }
+
+  if (sanitized.toLowerCase() === paymentMethod.toLowerCase()) return null;
+  return sanitized;
+}
 
 /**
  * Parse a reference code from descriptions like:
@@ -139,6 +170,7 @@ export function TopupDetailDialog({ transaction, onClose }: TopupDetailDialogPro
     return null;
   }
   const channel = resolveChannel();
+  const displayNotes = displayTopupNotes(transaction.description, paymentMethod);
 
   return (
     <Dialog open={transaction !== null} onOpenChange={(open) => !open && onClose()}>
@@ -192,12 +224,12 @@ export function TopupDetailDialog({ transaction, onClose }: TopupDetailDialogPro
               </div>
             )}
 
-            {/* Notes — show only when description adds unique info beyond method/ref */}
-            {transaction.description && !refCode && (
+            {/* Notes — cashier/user remark only (no internal ref tags) */}
+            {displayNotes && (
               <div className="flex justify-between items-start gap-4">
                 <span className="text-muted-foreground shrink-0">{t("topup.detail.notes", "Notes")}</span>
                 <span className="text-right text-xs text-slate-600 break-words max-w-[60%]">
-                  {transaction.description}
+                  {displayNotes}
                 </span>
               </div>
             )}
