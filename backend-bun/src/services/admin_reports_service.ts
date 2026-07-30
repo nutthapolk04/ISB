@@ -656,14 +656,18 @@ export interface TransactionReportRow {
     cashier_name: string;
     receipt_number: string | null;
     status: string;
+    /** Populated for top-up rows (kiosk transaction report). */
+    topped_by?: string | null;
+    topped_by_external_id?: string | null;
+    topped_up_to?: string | null;
+    topped_up_to_external_id?: string | null;
 }
 
 export interface TransactionReportResponseDTO {
     items: TransactionReportRow[];
     total: number;
-    /** Sum of ACTIVE POS-sale amounts only (not a sum across every kind —
-     * mixing sale/topup/adjustment/transfer inflows and outflows into one
-     * number would have no coherent business meaning). */
+    /** Sum of Amount column across all filtered rows (top-ups, sales, etc.).
+     * When type=sale, only ACTIVE POS-sale receipts are summed. */
     amount_total: number;
     page: number;
     pages: number;
@@ -764,10 +768,8 @@ export async function transactionReport(args: {
         .where(and(...saleConds))
         .orderBy(desc(receipts.transactionDate), desc(receipts.id)) : [];
 
-    // Sale amount_total keeps its original, narrow meaning (ACTIVE sales
-    // only) regardless of the `type`/other filters below — it's computed
-    // from this same saleRows fetch, before any pagination slicing.
-    const amountTotal = saleRows
+    // Sale amount_total (ACTIVE sales only) — used when type=sale filter is set.
+    const saleAmountTotal = saleRows
         .filter((r) => r.status === "ACTIVE")
         .reduce((s, r) => s + (pgNumber(r.total) ?? 0), 0);
 
@@ -838,6 +840,8 @@ export async function transactionReport(args: {
                 balanceBefore: walletTransactions.balanceBefore,
                 balanceAfter: walletTransactions.balanceAfter,
                 createdBy: walletTransactions.createdBy,
+                actingUserId: walletTransactions.actingUserId,
+                actingCustomerId: walletTransactions.actingCustomerId,
                 referenceId: walletTransactions.referenceId,
                 walletCustomerId: wallets.customerId,
                 walletUserId: wallets.userId,
@@ -845,8 +849,10 @@ export async function transactionReport(args: {
                 customerName: customers.name,
                 studentCode: customers.studentCode,
                 customerCode: customers.customerCode,
+                customerExternalId: customers.externalId,
                 payerFullName: users.fullName,
                 payerUsername: users.username,
+                walletUserExternalId: users.externalId,
                 departmentName: departments.departmentName,
                 departmentCode: departments.departmentCode,
             })
@@ -862,9 +868,30 @@ export async function transactionReport(args: {
         // own shop, same technique topupReport() uses for its Cashier channel.
         const creatorIds = [...new Set(otherRows.map((r) => r.createdBy))];
         const creatorRows = creatorIds.length
-            ? await db.select({ id: users.id, shopId: users.shopId }).from(users).where(inArray(users.id, creatorIds))
+            ? await db.select({
+                id: users.id,
+                shopId: users.shopId,
+                fullName: users.fullName,
+                username: users.username,
+                externalId: users.externalId,
+                role: users.role,
+            }).from(users).where(inArray(users.id, creatorIds))
             : [];
+        const creatorById = new Map(creatorRows.map((u) => [u.id, u] as const));
         const creatorShopIdByUser = new Map(creatorRows.map((u) => [u.id, u.shopId] as const));
+
+        const actingUserIds = [...new Set(otherRows.filter((r) => r.actingUserId != null).map((r) => r.actingUserId!))];
+        const actingCustomerIds = [...new Set(otherRows.filter((r) => r.actingCustomerId != null).map((r) => r.actingCustomerId!))];
+        const [actingUserRows, actingCustomerRows] = await Promise.all([
+            actingUserIds.length
+                ? db.select().from(users).where(inArray(users.id, actingUserIds))
+                : Promise.resolve([] as Array<typeof users.$inferSelect>),
+            actingCustomerIds.length
+                ? db.select().from(customers).where(inArray(customers.id, actingCustomerIds))
+                : Promise.resolve([] as Array<typeof customers.$inferSelect>),
+        ]);
+        const actingUserById = new Map(actingUserRows.map((u) => [u.id, u] as const));
+        const actingCustomerById = new Map(actingCustomerRows.map((c) => [c.id, c] as const));
         const shopIds = [...new Set(creatorRows.map((u) => u.shopId).filter((s): s is string => !!s))];
         const shopRows = shopIds.length
             ? await db.select({ id: shops.id, name: shops.name }).from(shops).where(inArray(shops.id, shopIds))
@@ -885,6 +912,9 @@ export async function transactionReport(args: {
             const kind = classifyWalletTxKind({ transactionType: r.transactionType, referenceType: r.referenceType, reason: r.reason });
             const payerName = r.customerName ?? r.payerFullName ?? r.payerUsername ?? r.departmentName ?? "—";
             const payerId = r.studentCode ?? r.customerCode ?? r.payerUsername ?? r.departmentCode ?? "—";
+            const toppedUpToExternalId = r.customerExternalId ?? r.walletUserExternalId ?? null;
+            const creator = creatorById.get(r.createdBy);
+            const creatorName = creator ? (creator.fullName || creator.username) : String(r.createdBy);
             const creatorShopId = creatorShopIdByUser.get(r.createdBy) ?? null;
             const shopName = kind === "topup" && r.referenceType !== "payment_intent"
                 ? (creatorShopId ? shopNameById.get(creatorShopId) ?? "—" : "—")
@@ -893,6 +923,27 @@ export async function transactionReport(args: {
                 ? (r.referenceType === "payment_intent" ? (intentMethodById.get(r.referenceId ?? -1) ?? "") : "CASH")
                 : "";
             const amount = Math.abs((pgNumber(r.balanceAfter) ?? 0) - (pgNumber(r.balanceBefore) ?? 0));
+
+            let toppedBy: string | null = null;
+            let toppedByExternalId: string | null = null;
+            if (kind === "topup") {
+                const actingUser = r.actingUserId != null ? actingUserById.get(r.actingUserId) : null;
+                const actingCustomer = r.actingCustomerId != null ? actingCustomerById.get(r.actingCustomerId) : null;
+                if (actingUser) {
+                    toppedBy = actingUser.fullName || actingUser.username;
+                    toppedByExternalId = actingUser.externalId ?? null;
+                } else if (actingCustomer) {
+                    toppedBy = actingCustomer.name;
+                    toppedByExternalId = actingCustomer.externalId ?? null;
+                } else if (creator?.role === "kiosk") {
+                    toppedBy = payerName !== "—" ? payerName : kioskDisplayName(r.reason, creatorName);
+                    toppedByExternalId = toppedUpToExternalId;
+                } else {
+                    toppedBy = creatorName;
+                    toppedByExternalId = creator?.externalId ?? null;
+                }
+            }
+
             return {
                 id: r.id,
                 kind,
@@ -905,6 +956,10 @@ export async function transactionReport(args: {
                 cashier_name: "—",
                 receipt_number: null,
                 status: "ACTIVE",
+                topped_by: toppedBy,
+                topped_by_external_id: toppedByExternalId,
+                topped_up_to: kind === "topup" ? payerName : null,
+                topped_up_to_external_id: kind === "topup" ? toppedUpToExternalId : null,
                 _createdBy: r.createdBy,
             };
         });
@@ -940,6 +995,12 @@ export async function transactionReport(args: {
     merged.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
 
     const total = merged.length;
+    // When viewing all kinds (kiosk top-ups, adjustments, …) sum the Amount
+    // column across every filtered row. Sale-only view keeps the legacy
+    // ACTIVE-sales total so voided receipts don't skew POS spending reports.
+    const amountTotal = typeFilter === "sale"
+        ? saleAmountTotal
+        : merged.reduce((s, r) => s + r.amount, 0);
     const offset = (args.page - 1) * args.pageSize;
     const items: TransactionReportRow[] = merged
         .slice(offset, offset + args.pageSize)

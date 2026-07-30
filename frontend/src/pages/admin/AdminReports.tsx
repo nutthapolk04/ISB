@@ -13,7 +13,11 @@ import {
 } from "@/lib/reportExport";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 import { fmtDateTime } from "@/lib/dateFormat";
-import { formatTopupRecipient, formatTopupToppedBy } from "@/lib/topupReportDisplay";
+import {
+    displayIsbId,
+    displayTopupRecipientExternalId,
+    formatKioskTxnPaymentMethod,
+} from "@/lib/topupReportDisplay";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -73,6 +77,10 @@ interface TransactionRow {
     cashier_name: string;
     receipt_number: string | null;
     status: string;
+    topped_by?: string | null;
+    topped_by_external_id?: string | null;
+    topped_up_to?: string | null;
+    topped_up_to_external_id?: string | null;
 }
 
 const TXN_KIND_LABEL: Record<TransactionKind, string> = {
@@ -340,9 +348,97 @@ function TransactionTable({
                     {data.items.length > 0 && (
                         <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                             <tr className="border-t">
-                                <td colSpan={6} className="px-2 py-2 text-left">TOTAL (sales only)</td>
+                                <td colSpan={6} className="px-2 py-2 text-left">TOTAL</td>
                                 <td className="px-2 py-2 text-right font-mono">{data.amount_total.toFixed(2)}</td>
                                 <td colSpan={2} />
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+            <div className="flex justify-center">
+                <PaginationBar currentPage={page} totalPages={data.pages} onPageChange={onPageChange} />
+            </div>
+        </div>
+    );
+}
+
+/** Kiosk report — transaction view (top-ups at kiosk terminals). */
+function KioskTransactionTable({
+    data,
+    page,
+    onPageChange,
+    dateTimeSort,
+    onToggleDateTimeSort,
+}: {
+    data: TransactionReportData;
+    page: number;
+    onPageChange: (p: number) => void;
+    dateTimeSort: DateTimeSortDir;
+    onToggleDateTimeSort: () => void;
+}) {
+    const { t } = useTranslation();
+    return (
+        <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+                Found <span className="font-semibold text-foreground">{data.total}</span> transactions
+                {" · "}Total{" "}
+                <span className="font-semibold text-foreground">
+                    ฿{data.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </span>
+            </div>
+            <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-xs">
+                    <thead className="bg-muted/50 whitespace-nowrap">
+                        <tr>
+                            <SortableDateTimeHeader
+                                label={t("admin.adminReports.colDateTime")}
+                                sortDir={dateTimeSort}
+                                onToggle={onToggleDateTimeSort}
+                            />
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colType", "Type")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedUpTo")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colPaymentMethod")}</th>
+                            <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
+                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.length === 0 ? (
+                            <tr>
+                                <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">
+                                    No transactions match these filters.
+                                </td>
+                            </tr>
+                        ) : (
+                            data.items.map((r) => (
+                                <tr key={`${r.kind}-${r.id}`} className="border-t">
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
+                                    <td className="px-2 py-1.5">
+                                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", TXN_KIND_COLORS[r.kind])}>
+                                            {TXN_KIND_LABEL[r.kind]}
+                                        </span>
+                                    </td>
+                                    <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_by_external_id)}</td>
+                                    <td className="px-2 py-1.5">{r.topped_by ?? r.payer_name}</td>
+                                    <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_up_to_external_id)}</td>
+                                    <td className="px-2 py-1.5">{r.topped_up_to ?? r.payer_name}</td>
+                                    <td className="px-2 py-1.5">{formatKioskTxnPaymentMethod(r.payment_method)}</td>
+                                    <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                                    <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    {data.items.length > 0 && (
+                        <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                            <tr className="border-t">
+                                <td colSpan={7} className="px-2 py-2 text-left">TOTAL</td>
+                                <td className="px-2 py-2 text-right font-mono">{data.amount_total.toFixed(2)}</td>
+                                <td />
                             </tr>
                         </tfoot>
                     )}
@@ -891,7 +987,9 @@ export default function AdminReports() {
                     columns: [
                         { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
                         { header: t("admin.adminReports.colChannel"), key: "channel_label", width: 16 },
+                        { header: t("admin.adminReports.colIsbId"), key: "topped_by_external_id", width: 14 },
                         { header: t("admin.adminReports.colToppedBy"), key: "topped_by", width: 24 },
+                        { header: t("admin.adminReports.colIsbId"), key: "recipient_external_id", width: 14 },
                         { header: t("admin.adminReports.colRecipient"), key: "recipient_name", width: 24 },
                         { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency", align: "right", width: 14 },
                         { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
@@ -899,8 +997,8 @@ export default function AdminReports() {
                     rows: full.items.map((r) => ({
                         ...r,
                         channel_label: CHANNEL_LABEL[r.channel] ?? r.channel,
-                        topped_by: formatTopupToppedBy(r),
-                        recipient_name: formatTopupRecipient(r),
+                        topped_by_external_id: displayIsbId(r.topped_by_external_id),
+                        recipient_external_id: displayTopupRecipientExternalId(r),
                         cashier_name: r.cashier_name ?? "",
                     })) as unknown as Record<string, unknown>[],
                     totals: { amount: full.amount_total },
@@ -964,6 +1062,17 @@ export default function AdminReports() {
             if (kioskTxnData) {
                 const params = buildKioskTxnParams(1, TXN_EXPORT_PAGE_SIZE);
                 const full = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
+                const kioskTxnColumns = [
+                    { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime" as const, width: 20 },
+                    { header: t("admin.adminReports.colType", "Type"), key: "kind_label", width: 12 },
+                    { header: t("admin.adminReports.colIsbId"), key: "topped_by_external_id", width: 14 },
+                    { header: t("admin.adminReports.colToppedBy"), key: "topped_by_display", width: 24 },
+                    { header: t("admin.adminReports.colIsbId"), key: "topped_up_to_external_id", width: 14 },
+                    { header: t("admin.adminReports.colToppedUpTo"), key: "topped_up_to_display", width: 24 },
+                    { header: t("admin.adminReports.colPaymentMethod"), key: "payment_method_label", width: 14 },
+                    { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency" as const, align: "right" as const, width: 14 },
+                    { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
+                ];
                 exports.push({
                     payload: {
                         meta: {
@@ -974,8 +1083,16 @@ export default function AdminReports() {
                             filters,
                             runByName: user?.fullName ?? user?.username,
                         },
-                        columns: transactionColumns,
-                        rows: full.items.map((r) => ({ ...r, kind_label: TXN_KIND_LABEL[r.kind] })) as unknown as Record<string, unknown>[],
+                        columns: kioskTxnColumns,
+                        rows: full.items.map((r) => ({
+                            ...r,
+                            kind_label: TXN_KIND_LABEL[r.kind],
+                            topped_by_external_id: displayIsbId(r.topped_by_external_id),
+                            topped_by_display: r.topped_by ?? r.payer_name,
+                            topped_up_to_external_id: displayIsbId(r.topped_up_to_external_id),
+                            topped_up_to_display: r.topped_up_to ?? r.payer_name,
+                            payment_method_label: formatKioskTxnPaymentMethod(r.payment_method),
+                        })) as unknown as Record<string, unknown>[],
                         totals: { amount: full.amount_total },
                     },
                     baseFilename: `KioskTransactions_${kioskLabel}${dateLabel}`,
@@ -1473,7 +1590,9 @@ export default function AdminReports() {
                                                     onToggle={handleToggleDateTimeSort}
                                                 />
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel")}</th>
+                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
+                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient")}</th>
                                                 <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
                                                 <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
@@ -1482,7 +1601,7 @@ export default function AdminReports() {
                                         <tbody>
                                             {topupData.items.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
+                                                    <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
                                                         No top-ups match these filters.
                                                     </td>
                                                 </tr>
@@ -1491,8 +1610,10 @@ export default function AdminReports() {
                                                     <tr key={r.id} className="border-t">
                                                         <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
                                                         <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
-                                                        <td className="px-2 py-1.5">{formatTopupToppedBy(r)}</td>
-                                                        <td className="px-2 py-1.5">{formatTopupRecipient(r)}</td>
+                                                        <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_by_external_id)}</td>
+                                                        <td className="px-2 py-1.5">{r.topped_by}</td>
+                                                        <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayTopupRecipientExternalId(r)}</td>
+                                                        <td className="px-2 py-1.5">{r.recipient_name}</td>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                                                         <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
                                                     </tr>
@@ -1502,7 +1623,7 @@ export default function AdminReports() {
                                         {topupData.items.length > 0 && (
                                             <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                                                 <tr className="border-t">
-                                                    <td colSpan={4} className="px-2 py-2 text-left">TOTAL</td>
+                                                    <td colSpan={6} className="px-2 py-2 text-left">TOTAL</td>
                                                     <td className="px-2 py-2 text-right font-mono">{topupData.amount_total.toFixed(2)}</td>
                                                     <td />
                                                 </tr>
@@ -1552,7 +1673,7 @@ export default function AdminReports() {
                                     />
                                 )}
                                 {kioskTxnData && (
-                                    <TransactionTable
+                                    <KioskTransactionTable
                                         data={kioskTxnData}
                                         page={kioskTxnPage}
                                         onPageChange={onKioskTxnPageChange}

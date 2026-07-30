@@ -10,7 +10,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
-import { formatTopupRecipient, formatTopupToppedBy } from "@/lib/topupReportDisplay";
+import { displayIsbId, displayTopupRecipientExternalId } from "@/lib/topupReportDisplay";
 import {
   exportToPDF,
   exportToExcel,
@@ -131,7 +131,9 @@ export default function StoreTopupReport() {
         columns: [
           { header: t("admin.adminReports.colDateTime", "Date/Time"), key: "created_at", format: "datetime", width: 20 },
           { header: t("admin.adminReports.colChannel", "Type"), key: "channel_label", width: 16 },
+          { header: t("admin.adminReports.colIsbId", "ISB ID"), key: "topped_by_external_id", width: 14 },
           { header: t("admin.adminReports.colToppedBy", "Topped By"), key: "topped_by", width: 24 },
+          { header: t("admin.adminReports.colIsbId", "ISB ID"), key: "recipient_external_id", width: 14 },
           { header: t("admin.adminReports.colRecipient", "Recipient"), key: "recipient_name", width: 24 },
           { header: t("admin.adminReports.colAmount", "Amount"), key: "amount", format: "currency", align: "right", width: 14 },
           { header: t("admin.adminReports.colCashier", "Cashier / Source"), key: "cashier_name", width: 20 },
@@ -139,8 +141,8 @@ export default function StoreTopupReport() {
         rows: full.items.map((r) => ({
           ...r,
           channel_label: CHANNEL_LABEL[r.channel] ?? r.channel,
-          topped_by: formatTopupToppedBy(r),
-          recipient_name: formatTopupRecipient(r),
+          topped_by_external_id: displayIsbId(r.topped_by_external_id),
+          recipient_external_id: displayTopupRecipientExternalId(r),
           cashier_name: r.cashier_name ?? "",
         })) as unknown as Record<string, unknown>[],
         totals: { amount: full.amount_total },
@@ -264,7 +266,9 @@ export default function StoreTopupReport() {
                         onToggle={handleToggleSort}
                       />
                       <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel", "Type")}</th>
+                      <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId", "ISB ID")}</th>
                       <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy", "Topped By")}</th>
+                      <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId", "ISB ID")}</th>
                       <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient", "Recipient")}</th>
                       <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount", "Amount")}</th>
                       <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier", "Cashier / Source")}</th>
@@ -273,7 +277,7 @@ export default function StoreTopupReport() {
                   <tbody>
                     {data.items.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">
+                        <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
                           {t("store.topupReport.noResults", "No top-ups match these filters.")}
                         </td>
                       </tr>
@@ -282,8 +286,10 @@ export default function StoreTopupReport() {
                         <tr key={r.id} className="border-t">
                           <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
                           <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
-                          <td className="px-2 py-1.5">{formatTopupToppedBy(r)}</td>
-                          <td className="px-2 py-1.5">{formatTopupRecipient(r)}</td>
+                          <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_by_external_id)}</td>
+                          <td className="px-2 py-1.5">{r.topped_by}</td>
+                          <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayTopupRecipientExternalId(r)}</td>
+                          <td className="px-2 py-1.5">{r.recipient_name}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
                         </tr>
@@ -293,7 +299,7 @@ export default function StoreTopupReport() {
                   {data.items.length > 0 && (
                     <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                       <tr className="border-t">
-                        <td colSpan={4} className="px-2 py-2 text-left">
+                        <td colSpan={6} className="px-2 py-2 text-left">
                           {t("store.topupReport.totalRow", "TOTAL")}
                         </td>
                         <td className="px-2 py-2 text-right font-mono">{data.amount_total.toFixed(2)}</td>

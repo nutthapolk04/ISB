@@ -1184,6 +1184,7 @@
       "colChannel": "Type",
       "colToppedBy": "Topped up by",
       "colRecipient": "Recipient",
+      "colToppedUpTo": "Topped up to",
       "colAmount": "Amount",
       "colCashier": "Cashier / Source",
       "colPayerId": "ID",

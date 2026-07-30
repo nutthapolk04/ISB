@@ -1184,6 +1184,7 @@
       "colChannel": "ประเภท",
       "colToppedBy": "ผู้เติมเงิน",
       "colRecipient": "ผู้รับเงิน",
+      "colToppedUpTo": "ผู้รับเติมเงิน",
       "colAmount": "ยอด",
       "colCashier": "แคชเชียร์ / แหล่งที่มา",
       "colPayerId": "รหัส",
