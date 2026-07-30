@@ -73,14 +73,13 @@ const LABEL_SIZES: { value: LabelSize; label: string; width: string; height: str
     { value: "sticker_a10", label: "Sticker Sheet A10 (25x50mm, 4x11, A4)", width: "50mm", height: "25mm" },
 ];
 
-// A10 sticker sheet: A4 page, 4 columns x 11 rows, 25mm x 50mm per sticker,
-// 44 stickers per sheet. Grid fits exactly inside A4 (210x297mm) with
-// 5mm side margins and 11mm top/bottom margins — no gaps between cells,
-// matching pre-cut commercial A10 label sheets.
+// A10 sticker sheet: A4 page, 4 columns x 11 rows, 1"x2" (25.4x50.8mm) per sticker,
+// 44 stickers per sheet. Margins: 12mm top, 13mm bottom, 10.4mm sides
+// (210 - 4*25.4) / 2 = 10.4mm) — no gaps between cells.
 const STICKER_A10 = {
     page: { width: "210mm", height: "297mm" },
-    margin: { x: "5mm", y: "11mm" },
-    cell: { width: "50mm", height: "25mm" },
+    margin: { top: "12mm", bottom: "13mm", left: "10.4mm", right: "10.4mm" },
+    cell: { width: "50.8mm", height: "25.4mm" },
     columns: 4,
     rows: 11,
     perSheet: 44,
@@ -263,14 +262,14 @@ export function PrintBarcodeDialog({
         }[labelSize];
 
         // Content shared by every layout mode — barcode canvas + text stack.
-        // Sticker mode uses a slightly wider barcode (cell is 50x25mm landscape)
+        // Sticker mode uses 1"x2" (50.8x25.4mm) cells in landscape
         // and skips the dashed border / free-flow margin used by the loose-label modes.
         const labelInner = (item: PrintItem, canvas: HTMLCanvasElement) => `
       <div style="font-size: ${fontSize.name}; font-weight: bold; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000;">
         ${item.product.name}
       </div>
       ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #000; text-align: center;">${item.barcodeLabel}</div>` : ""}
-      <img src="${canvas.toDataURL("image/png")}" style="max-width: 95%; height: auto; margin: 1mm 0;" />
+      <img src="${canvas.toDataURL("image/png")}" style="max-width: 98%; height: auto; margin: 0.2mm 0;" />
       <div style="font-size: ${fontSize.code}; font-family: monospace; color: #000;">${item.barcodeValue}</div>
       ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold; color: #000;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
       ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #000;">${item.product.productCode}</div>` : ""}
@@ -311,7 +310,7 @@ export function PrintBarcodeDialog({
         <div class="sheet" style="
           width: ${STICKER_A10.page.width};
           height: ${STICKER_A10.page.height};
-          padding: ${STICKER_A10.margin.y} ${STICKER_A10.margin.x};
+          padding: ${STICKER_A10.margin.top} ${STICKER_A10.margin.right} ${STICKER_A10.margin.bottom} ${STICKER_A10.margin.left};
           box-sizing: border-box;
           display: grid;
           grid-template-columns: repeat(${STICKER_A10.columns}, ${STICKER_A10.cell.width});
@@ -324,14 +323,14 @@ export function PrintBarcodeDialog({
             <div class="cell" style="
               width: ${STICKER_A10.cell.width};
               height: ${STICKER_A10.cell.height};
-              padding: 1mm 1.5mm;
+              padding: 0.5mm;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
               overflow: hidden;
-              gap: 0.5mm;
+              gap: 0.2mm;
             ">${inner}</div>
           `,
                             )
