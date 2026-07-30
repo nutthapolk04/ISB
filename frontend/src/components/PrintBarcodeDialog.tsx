@@ -73,12 +73,12 @@ const LABEL_SIZES: { value: LabelSize; label: string; width: string; height: str
     { value: "sticker_a10", label: "Sticker Sheet A10 (25x50mm, 4x11, A4)", width: "50mm", height: "25mm" },
 ];
 
-// A10 sticker sheet: A4 page, 4 columns x 11 rows, 1"x2" (25.4x50.8mm) per sticker,
-// 44 stickers per sheet. Margins: 12mm top, 13mm bottom, 15mm (1.5cm) sides.
+// A10 sticker sheet: A4 page, 4 columns x 11 rows, 5cm x 2.5cm (50x25mm) per sticker,
+// 44 stickers per sheet. Margins: 1.5mm left/right, 0mm top/bottom (flush edges).
 const STICKER_A10 = {
     page: { width: "210mm", height: "297mm" },
-    margin: { top: "12mm", bottom: "13mm", left: "15mm", right: "15mm" },
-    cell: { width: "50.8mm", height: "25.4mm" },
+    margin: { top: "13mm", bottom: "12mm", left: "1.8mm", right: "10mm" },
+    cell: { width: "50mm", height: "25mm" },
     columns: 4,
     rows: 11,
     perSheet: 44,
@@ -268,7 +268,7 @@ export function PrintBarcodeDialog({
         ${item.product.name}
       </div>
       ${item.barcodeLabel !== "Primary" ? `<div style="font-size: ${fontSize.code}; color: #000; text-align: center;">${item.barcodeLabel}</div>` : ""}
-      <img src="${canvas.toDataURL("image/png")}" style="max-width: 98%; height: auto; margin: 0.2mm 0;" />
+      <img src="${canvas.toDataURL("image/png")}" style="max-width: 99%; height: auto; margin: 0;" />
       <div style="font-size: ${fontSize.code}; font-family: monospace; color: #000;">${item.barcodeValue}</div>
       ${showPrice ? `<div style="font-size: ${fontSize.price}; font-weight: bold; color: #000;">฿${item.product.externalPrice.toLocaleString()}</div>` : ""}
       ${showProductCode ? `<div style="font-size: ${fontSize.code}; color: #000;">${item.product.productCode}</div>` : ""}
@@ -322,14 +322,14 @@ export function PrintBarcodeDialog({
             <div class="cell" style="
               width: ${STICKER_A10.cell.width};
               height: ${STICKER_A10.cell.height};
-              padding: 0.5mm;
+              padding: 0.3mm;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
               overflow: hidden;
-              gap: 0.2mm;
+              gap: 0;
             ">${inner}</div>
           `,
                             )
