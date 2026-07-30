@@ -51,6 +51,7 @@ interface SalesSummaryRow {
   amt_qr_code: number;
   amt_department: number;
   amt_other: number;
+  edc_card_fee: number;
   remark: string | null;
   shop_id: string;
   shop_name: string | null;
@@ -69,6 +70,7 @@ interface SalesSummaryTotals {
   amt_qr_code: number;
   amt_department: number;
   amt_other: number;
+  edc_card_fee: number;
 }
 
 interface SalesSummaryReportData {
@@ -248,6 +250,7 @@ export function SalesSummaryReport({
       { header: "Amt. Cash",        key: "amt_cash",         format: "currency", width: 50 },
       { header: "Amt. Campus card", key: "amt_campus_card",  format: "currency", width: 58 },
       { header: "Amt. Credit card", key: "amt_credit_card",  format: "currency", width: 58 },
+      { header: "Card Fee (3%)",    key: "edc_card_fee",     format: "currency", width: 50 },
       { header: "Amt. QR Code",     key: "amt_qr_code",      format: "currency", width: 52 },
       { header: "Amt. Department",  key: "amt_department",  format: "currency", width: 48 },
       { header: "Remark",           key: "remark",           width: 75  },
@@ -273,6 +276,7 @@ export function SalesSummaryReport({
         amt_cash:         shopRows.reduce((s, r) => s + r.amt_cash,        0),
         amt_campus_card:  shopRows.reduce((s, r) => s + r.amt_campus_card, 0),
         amt_credit_card:  shopRows.reduce((s, r) => s + r.amt_credit_card, 0),
+        edc_card_fee:     shopRows.reduce((s, r) => s + r.edc_card_fee,    0),
         amt_qr_code:      shopRows.reduce((s, r) => s + r.amt_qr_code,     0),
         amt_department:   shopRows.reduce((s, r) => s + r.amt_department,  0),
         amt_other:        shopRows.reduce((s, r) => s + r.amt_other,       0),
@@ -307,6 +311,7 @@ export function SalesSummaryReport({
         amt_cash: ssData.totals.amt_cash,
         amt_campus_card: ssData.totals.amt_campus_card,
         amt_credit_card: ssData.totals.amt_credit_card,
+        edc_card_fee: ssData.totals.edc_card_fee,
         amt_qr_code: ssData.totals.amt_qr_code,
         amt_department: ssData.totals.amt_department,
         amt_other: ssData.totals.amt_other,
@@ -539,6 +544,7 @@ export function SalesSummaryReport({
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_cash !== 0 ? r.amt_cash.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_campus_card !== 0 ? r.amt_campus_card.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_credit_card !== 0 ? r.amt_credit_card.toFixed(2) : ""}</td>
+                          <td className="px-2 py-1.5 text-right font-mono">{r.edc_card_fee !== 0 ? r.edc_card_fee.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code !== 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{r.amt_department !== 0 ? r.amt_department.toFixed(2) : ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
@@ -564,6 +570,7 @@ export function SalesSummaryReport({
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_cash.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_campus_card.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_credit_card.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right font-mono">{ssData.totals.edc_card_fee.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                         <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_department.toFixed(2)}</td>
                         <td />
