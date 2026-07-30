@@ -651,6 +651,8 @@ export interface TransactionReportRow {
     payer_id: string;
     payer_name: string;
     payment_method: string;
+    edc_card_fee?: number | null;
+    edc_masked_card?: string | null;
     shop_name: string;
     amount: number;
     cashier_name: string;
@@ -747,6 +749,8 @@ export async function transactionReport(args: {
             id: receipts.id,
             transactionDate: receipts.transactionDate,
             paymentMethod: receipts.paymentMethod,
+            edcCardFee: receipts.edcCardFee,
+            edcMaskedCard: receipts.edcMaskedCard,
             total: receipts.total,
             receiptNumber: receipts.receiptNumber,
             status: receipts.status,
@@ -791,6 +795,8 @@ export async function transactionReport(args: {
             payer_id: payerId,
             payer_name: payerName,
             payment_method: String(r.paymentMethod ?? ""),
+            edc_card_fee: pgNumber(r.edcCardFee) ?? 0,
+            edc_masked_card: r.edcMaskedCard ?? null,
             shop_name: r.shopName ?? "—",
             // A voided sale shows as a negative amount — same convention as
             // salesSummaryReport()/salesByPaymentReport()'s void leg.

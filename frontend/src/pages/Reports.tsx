@@ -23,6 +23,7 @@ import { InfoCallout } from "@/components/InfoCallout";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
+import { formatAggregatedPaymentMethodLabelPlain } from "@/lib/paymentMethodLabels";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -282,19 +283,19 @@ const Reports = () => {
             // CARD_TAP are both "Campus Card") — this is display-only and doesn't
             // go through i18n (this report's labels are English-only by design,
             // matching the Sales Summary / Daily Sales Report convention).
-            const METHOD_LABEL_FOR = (method: string): string => {
-                const m = (method ?? "").toUpperCase();
-                if (m === "CASH") return "Cash";
-                if (m === "WALLET" || m === "CARD_TAP") return "Campus Card";
-                if (m === "CREDIT_CARD" || m === "DEBIT_CARD" || m === "EDC") return "Credit Card";
-                if (m === "BANK_TRANSFER" || m === "QR_PROMPTPAY") return "QR Code";
-                if (m === "DEPARTMENT") return "Department Use";
-                return "Other";
-            };
-            // Fixed display order for method sections — only sections that
-            // actually have rows get emitted (no empty "Credit Card" header
-            // when nothing was paid that way).
-            const METHOD_LABEL_ORDER = ["Cash", "Campus Card", "Credit Card", "QR Code", "Department Use", "Other"];
+            const METHOD_LABEL_FOR = (row: SalesByPaymentRow): string =>
+                formatAggregatedPaymentMethodLabelPlain(row.payment_method, row.edc_card_fee);
+            const METHOD_LABEL_ORDER = [
+                "Cash",
+                "Campus Card",
+                "Thai QR",
+                "EDC QR",
+                "EDC Credit Card",
+                "Credit Card",
+                "Debit Card",
+                "Budget Deduction",
+                "Other",
+            ];
 
             // Helper: render one shop's rows grouped by payment-method bucket —
             // a section header per bucket ("Cash", "Campus Card", ...), one row
@@ -304,7 +305,7 @@ const Reports = () => {
             const renderMethodGroups = (shopRows: SalesByPaymentRow[]): Record<string, unknown>[] => {
                 const byLabel = new Map<string, Map<string, { receipt_count: number; total: number; edc_card_fee: number }>>();
                 for (const r of shopRows) {
-                    const label = METHOD_LABEL_FOR(r.payment_method);
+                    const label = METHOD_LABEL_FOR(r);
                     const byStatus = byLabel.get(label) ?? new Map<string, { receipt_count: number; total: number; edc_card_fee: number }>();
                     const cur = byStatus.get(r.status) ?? { receipt_count: 0, total: 0, edc_card_fee: 0 };
                     cur.receipt_count += r.receipt_count;

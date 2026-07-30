@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Receipt, Download, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { printReceipt as printReceiptShared, downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import type { ReceiptApi } from "./receiptTypes";
@@ -89,7 +90,9 @@ export function ReceiptDetailDialog({ receipt, open, onOpenChange }: ReceiptDeta
                   </div>
                 )}
                 {!receipt.payer_detail && receipt.payer_label && row(t("receipts.payer", "Payer"), receipt.payer_label, true)}
-                {row(t("receipts.paymentMethod"), t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method), true)}
+                {row(t("receipts.paymentMethod"), formatPaymentMethodLabel(t, receipt.payment_method, {
+                  edcCardFee: receipt.edc_card_fee,
+                }), true)}
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">{t("receipts.status", "Status")}</span>
                   <Badge variant={receipt.status === "active" ? "success" : "destructive"}>

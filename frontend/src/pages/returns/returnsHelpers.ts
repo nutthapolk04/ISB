@@ -1,4 +1,9 @@
 import type { TFunction } from "i18next";
+import {
+    formatAggregatedPaymentMethodLabel,
+    formatPaymentMethodLabel,
+    type PaymentMethodContext,
+} from "@/lib/paymentMethodLabels";
 import type { Receipt, SelectedItemsMap, ExchangeItemsMap } from "./returnsTypes";
 
 // Compose the per-line key used by selectedItems / returnedQtyMap. Stays
@@ -7,19 +12,30 @@ import type { Receipt, SelectedItemsMap, ExchangeItemsMap } from "./returnsTypes
 export const itemKey = (item: { productCode: string; bundleId?: number | null }) =>
     `${item.productCode}::${item.bundleId ?? 0}`;
 
-export const getPaymentMethodLabel = (t: TFunction, method: string | null | undefined) => {
+export const getPaymentMethodLabel = (
+    t: TFunction,
+    method: string | null | undefined,
+    ctx?: PaymentMethodContext,
+) => {
     if (!method) return "—";
-    // Backend may send uppercase ("WALLET", "EDC") or lowercase ("qr_promptpay").
-    // Normalize, then fall back to legacy Returns-specific labels for backward compatibility.
     const m = method.toLowerCase();
     const legacy: Record<string, string> = {
         student: t('returns.studentCard'),
-        qr: t('returns.qrPromptpay'),
-        cash: t('returns.cash'),
+        qr: t('common.paymentMethods.thai_qr', 'Thai QR'),
+        cash: t('common.paymentMethods.cash', 'Cash'),
         department: t('returns.departmentCard'),
     };
     if (legacy[m]) return legacy[m];
-    return t(`common.paymentMethods.${m}`, method);
+    return formatPaymentMethodLabel(t, method, ctx);
+};
+
+export const getAggregatedPaymentMethodLabel = (
+    t: TFunction,
+    method: string | null | undefined,
+    aggregateEdcCardFee?: number | string | null,
+) => {
+    if (!method) return "—";
+    return formatAggregatedPaymentMethodLabel(t, method, aggregateEdcCardFee);
 };
 
 /**

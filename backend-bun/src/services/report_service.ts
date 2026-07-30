@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
+import { formatAggregatedPaymentMethodLabel, formatPaymentMethodLabel } from "@/lib/payment_method_labels";
 import { nextCostState } from "@/services/balance_file_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -972,19 +973,6 @@ function amountColumnFor(method: string): string {
     return "amt_other";
 }
 
-const PAYMENT_METHOD_LABEL: Record<string, string> = {
-    CASH: "Cash",
-    WALLET: "Campus Card",
-    CARD_TAP: "Campus Card",
-    CREDIT_CARD: "Credit Card",
-    DEBIT_CARD: "Credit Card",
-    EDC: "Credit Card",
-    BANK_TRANSFER: "QR Code",
-    QR_PROMPTPAY: "QR Code",
-    DEPARTMENT: "Department",
-    OTHER: "Other",
-};
-
 export interface SalesSummaryRow {
     seq: number;
     transaction_date: string;
@@ -1456,7 +1444,10 @@ export async function salesByItemReport(args: {
             customer_name: custName,
             sales_qty: qty * sign,
             sales_amt: amt * sign,
-            receive_type: PAYMENT_METHOD_LABEL[r.paymentMethod] ?? "Other",
+            receive_type: formatPaymentMethodLabel(String(r.paymentMethod), {
+                edcCardFee: r.edcCardFee,
+                edcMaskedCard: r.edcMaskedCard,
+            }),
             remark: r.notes ?? null,
             status: r.status,
         });

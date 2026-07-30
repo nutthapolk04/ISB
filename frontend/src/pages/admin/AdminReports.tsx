@@ -16,8 +16,8 @@ import { fmtDateTime } from "@/lib/dateFormat";
 import {
     displayIsbId,
     displayTopupRecipientExternalId,
-    formatKioskTxnPaymentMethod,
 } from "@/lib/topupReportDisplay";
+import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -72,6 +72,8 @@ interface TransactionRow {
     payer_id: string;
     payer_name: string;
     payment_method: string;
+    edc_card_fee?: number | null;
+    edc_masked_card?: string | null;
     shop_name: string;
     amount: number;
     cashier_name: string;
@@ -330,7 +332,12 @@ function TransactionTable({
                                     </td>
                                     <td className="px-2 py-1.5 font-mono">{r.payer_id}</td>
                                     <td className="px-2 py-1.5">{r.payer_name}</td>
-                                    <td className="px-2 py-1.5">{r.payment_method || "—"}</td>
+                                    <td className="px-2 py-1.5">
+                                        {formatPaymentMethodLabel(t, r.payment_method, {
+                                            edcCardFee: r.edc_card_fee,
+                                            edcMaskedCard: r.edc_masked_card,
+                                        })}
+                                    </td>
                                     <td className="px-2 py-1.5">{r.shop_name}</td>
                                     <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                                     <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
@@ -426,7 +433,7 @@ function KioskTransactionTable({
                                     <td className="px-2 py-1.5">{r.topped_by ?? r.payer_name}</td>
                                     <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_up_to_external_id)}</td>
                                     <td className="px-2 py-1.5">{r.topped_up_to ?? r.payer_name}</td>
-                                    <td className="px-2 py-1.5">{formatKioskTxnPaymentMethod(r.payment_method)}</td>
+                                    <td className="px-2 py-1.5">{formatPaymentMethodLabel(t, r.payment_method)}</td>
                                     <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                                     <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
                                 </tr>
@@ -1021,7 +1028,14 @@ export default function AdminReports() {
                         runByName: user?.fullName ?? user?.username,
                     },
                     columns: transactionColumns,
-                    rows: full.items.map((r) => ({ ...r, kind_label: TXN_KIND_LABEL[r.kind] })) as unknown as Record<string, unknown>[],
+                    rows: full.items.map((r) => ({
+                        ...r,
+                        kind_label: TXN_KIND_LABEL[r.kind],
+                        payment_method: formatPaymentMethodLabel(t, r.payment_method, {
+                            edcCardFee: r.edc_card_fee,
+                            edcMaskedCard: r.edc_masked_card,
+                        }),
+                    })) as unknown as Record<string, unknown>[],
                     totals: { amount: full.amount_total },
                 },
                 baseFilename: `TransactionReport${dateLabel}`,
@@ -1091,7 +1105,7 @@ export default function AdminReports() {
                             topped_by_display: r.topped_by ?? r.payer_name,
                             topped_up_to_external_id: displayIsbId(r.topped_up_to_external_id),
                             topped_up_to_display: r.topped_up_to ?? r.payer_name,
-                            payment_method_label: formatKioskTxnPaymentMethod(r.payment_method),
+                            payment_method_label: formatPaymentMethodLabel(t, r.payment_method),
                         })) as unknown as Record<string, unknown>[],
                         totals: { amount: full.amount_total },
                     },
@@ -1405,16 +1419,16 @@ export default function AdminReports() {
                                             <SelectTrigger><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="all">{t("admin.adminReports.paymentMethodAll", "All")}</SelectItem>
-                                                <SelectItem value="CASH">Cash</SelectItem>
-                                                <SelectItem value="WALLET">Wallet</SelectItem>
-                                                <SelectItem value="CARD_TAP">Card Tap</SelectItem>
-                                                <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
-                                                <SelectItem value="DEBIT_CARD">Debit Card</SelectItem>
-                                                <SelectItem value="QR_PROMPTPAY">QR PromptPay</SelectItem>
-                                                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                                                <SelectItem value="EDC">EDC</SelectItem>
-                                                <SelectItem value="DEPARTMENT">Department</SelectItem>
-                                                <SelectItem value="OTHER">Other</SelectItem>
+                                                <SelectItem value="CASH">{t("common.paymentMethods.cash", "Cash")}</SelectItem>
+                                                <SelectItem value="WALLET">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
+                                                <SelectItem value="CARD_TAP">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
+                                                <SelectItem value="CREDIT_CARD">{t("common.paymentMethods.credit_card", "Credit Card")}</SelectItem>
+                                                <SelectItem value="DEBIT_CARD">{t("common.paymentMethods.debit_card", "Debit Card")}</SelectItem>
+                                                <SelectItem value="QR_PROMPTPAY">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
+                                                <SelectItem value="BANK_TRANSFER">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
+                                                <SelectItem value="EDC">{t("common.paymentMethods.edc", "EDC QR")}</SelectItem>
+                                                <SelectItem value="DEPARTMENT">{t("common.paymentMethods.department", "Budget Deduction")}</SelectItem>
+                                                <SelectItem value="OTHER">{t("common.paymentMethods.other", "Other")}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

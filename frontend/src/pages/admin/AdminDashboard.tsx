@@ -28,6 +28,7 @@ import {
 
 import { api } from "@/lib/api";
 import { fmtDate } from "@/lib/dateFormat";
+import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReceiptDetailDialog } from "@/components/ReceiptDetailDialog";
@@ -767,7 +768,7 @@ export default function AdminDashboard() {
                                                 : null);
                                     const badge = shopBadgeVariant(sid, t, shopMap);
                                     const pmLabel = r.payment_method
-                                        ? t(`common.paymentMethods.${r.payment_method.toLowerCase()}`, r.payment_method)
+                                        ? formatPaymentMethodLabel(t, r.payment_method)
                                         : "—";
                                     const isVoided = r.status === "voided";
                                     return (

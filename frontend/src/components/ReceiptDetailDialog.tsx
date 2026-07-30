@@ -25,6 +25,7 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { printReceipt, downloadReceiptHtml } from "@/lib/printReceipt";
 import type { ReceiptApi } from "@/lib/printReceipt";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -216,7 +217,9 @@ export function ReceiptDetailDialog({ receiptId, onClose }: ReceiptDetailDialogP
                 )}
                 {!receipt.payer_detail && receipt.payer_label && row(t("receipts.payer", "Payer"), receipt.payer_label, true)}
                 {row(t("receipts.paymentMethod", "Payment Type"),
-                  t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method),
+                  formatPaymentMethodLabel(t, receipt.payment_method, {
+                    edcCardFee: receipt.edc_card_fee,
+                  }),
                   true,
                 )}
                 <div className="flex justify-between items-center text-sm">

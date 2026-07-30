@@ -93,7 +93,7 @@ type PaymentMethodKey = "wallet" | "cash" | "qr" | "edc" | "department" | string
 
 const METHOD_META: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; border: string; bar: string }> = {
     wallet: {
-        label: "Wallet",
+        label: "Campus Card",
         icon: <Wallet className="h-3.5 w-3.5" />,
         color: "text-amber-700",
         bg: "bg-amber-50",
@@ -109,7 +109,7 @@ const METHOD_META: Record<string, { label: string; icon: React.ReactNode; color:
         bar: "bg-green-400",
     },
     qr: {
-        label: "QR Code",
+        label: "Thai QR",
         icon: <QrCode className="h-3.5 w-3.5" />,
         color: "text-blue-700",
         bg: "bg-blue-50",

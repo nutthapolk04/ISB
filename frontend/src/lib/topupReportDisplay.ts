@@ -26,18 +26,10 @@ export function displayTopupRecipientExternalId(
   return displayIsbId(row.recipient_external_id ?? row.recipient_code);
 }
 
-export const KIOSK_TXN_PAYMENT_LABELS: Record<string, string> = {
-  bay_qr: "QR",
-  qr_promptpay: "QR",
-  qr: "QR",
-  cash: "Cash",
-  CASH: "Cash",
-  wallet: "Wallet",
-  card_tap: "Member Card",
-};
+import { formatPaymentMethodLabelPlain } from "@/lib/paymentMethodLabels";
 
 export function formatKioskTxnPaymentMethod(method: string): string {
   const key = method.trim();
   if (!key) return "—";
-  return KIOSK_TXN_PAYMENT_LABELS[key] ?? KIOSK_TXN_PAYMENT_LABELS[key.toLowerCase()] ?? method;
+  return formatPaymentMethodLabelPlain(key);
 }

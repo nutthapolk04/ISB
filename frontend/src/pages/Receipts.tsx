@@ -20,6 +20,7 @@ import { getPaginationRange } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 import type { ReceiptApi, ModuleScope } from "./receipts/receiptTypes";
 import { ReceiptStatsPanel } from "./receipts/ReceiptStatsPanel";
@@ -395,7 +396,9 @@ const Receipts = () => {
                                         <TableCell className="text-sm">{receipt.created_by_name ?? "—"}</TableCell>
                                         <TableCell>
                                             <Badge variant="secondary">
-                                                {t(`common.paymentMethods.${(receipt.payment_method ?? "").toLowerCase()}`, receipt.payment_method)}
+                                                {formatPaymentMethodLabel(t, receipt.payment_method, {
+                                                    edcCardFee: receipt.edc_card_fee,
+                                                })}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-sm">{receipt.payer_label ?? "—"}</TableCell>

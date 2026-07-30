@@ -3,6 +3,7 @@
 
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { formatPaymentMethodLabelPlain } from "@/lib/paymentMethodLabels";
 
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
@@ -88,37 +89,6 @@ export interface ReceiptApi {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-export const PAYMENT_LABELS: Record<string, string> = {
-  cash: "เงินสด",
-  credit_card: "บัตรเครดิต",
-  debit_card: "บัตรเดบิต",
-  wallet: "Wallet",
-  bank_transfer: "โอนเงิน",
-  qr: "QR Code",
-  qr_promptpay: "QR Code",
-  bay_qr: "QR Code",
-  bay_easypay: "บัตรเครดิต / เดบิต",
-  edc: "EDC",
-  department: "ตัดงบหน่วยงาน",
-  other: "อื่นๆ",
-};
-
-const PAYMENT_LABELS_EN: Record<string, string> = {
-  cash: "Cash",
-  wallet: "Wallet",
-  card_tap: "Tap Card",
-  credit_card: "Credit Card",
-  debit_card: "Debit Card",
-  edc: "EDC",
-  bank_transfer: "Bank Transfer",
-  qr: "QR Code",
-  qr_promptpay: "QR Code",
-  bay_qr: "QR Code",
-  bay_easypay: "Credit / Debit Card",
-  department: "Budget Deduction",
-  other: "Other",
-};
-
 const RECEIPT_LABELS = {
   th: {
     subtitle: "ใบเสร็จรับเงิน / Receipt",
@@ -185,9 +155,11 @@ export function buildReceiptHtml(
 ): string {
   const isEn = !lang.startsWith("th");
   const lbl = isEn ? RECEIPT_LABELS.en : RECEIPT_LABELS.th;
-  const paymentLabel = isEn
-    ? (PAYMENT_LABELS_EN[(r.payment_method ?? "").toLowerCase()] ?? r.payment_method)
-    : (PAYMENT_LABELS[(r.payment_method ?? "").toLowerCase()] ?? r.payment_method);
+  const paymentLabel = formatPaymentMethodLabelPlain(
+    r.payment_method ?? "",
+    { edcCardFee: r.edc_card_fee },
+    isEn ? "en" : "th",
+  );
   const dateStr = fmtDateTime(r.transaction_date);
 
   const itemRows = r.items.map((item) => {
@@ -441,9 +413,11 @@ export function buildTopupReceiptHtml(
 ): string {
   const isEn = !lang.startsWith("th");
   const lbl = isEn ? TOPUP_RECEIPT_LABELS.en : TOPUP_RECEIPT_LABELS.th;
-  const paymentLabel = isEn
-    ? (PAYMENT_LABELS_EN[(data.payment_method ?? "").toLowerCase()] ?? data.payment_method)
-    : (PAYMENT_LABELS[(data.payment_method ?? "").toLowerCase()] ?? data.payment_method);
+  const paymentLabel = formatPaymentMethodLabelPlain(
+    data.payment_method ?? "",
+    undefined,
+    isEn ? "en" : "th",
+  );
   const dateStr = fmtDateTime(data.transaction_date);
   const receiptNo = data.transaction_id && data.transaction_id > 0
     ? String(data.transaction_id)
