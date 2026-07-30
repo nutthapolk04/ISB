@@ -142,6 +142,11 @@ export default function UserDetail() {
   if (loading) return <div className="page-shell"><p className="text-muted-foreground">{t("admin.users.loading")}</p></div>;
   if (!user) return <div className="page-shell"><p className="text-destructive">{t("admin.users.notFound")}</p></div>;
 
+  const isStaffAccount = user.role === "staff";
+  const hasSyncedNotificationEmails = (user.family_profile?.notification_emails?.length ?? 0) > 0;
+  const staffNotificationFallback =
+    isStaffAccount && !hasSyncedNotificationEmails ? (user.email?.trim() || null) : null;
+
   return (
     <div className="page-shell">
       <div className="space-y-4 sm:space-y-6">
@@ -189,8 +194,9 @@ export default function UserDetail() {
             members={user.family_members}
             familyProfile={user.family_profile}
             onProfileUpdated={(profile) => setUser({ ...user, family_profile: profile })}
+            fallbackLoginEmail={staffNotificationFallback}
           />
-        ) : user.role !== "parent" && user.role !== "student" ? (
+        ) : isStaffAccount && !hasSyncedNotificationEmails ? (
           // Non-parent staff (no family_code — nowhere to store a
           // notification_emails/admin_notification_emails row) still need an
           // effective notification address shown somewhere. Display-only
@@ -204,7 +210,7 @@ export default function UserDetail() {
             </div>
             <p className="text-sm">{user.email || <span className="text-muted-foreground italic">—</span>}</p>
             <p className="text-xs text-muted-foreground">
-              {t("admin.users.notificationEmailFallbackHint", "Using login email — this account has no family/notification profile")}
+              {t("admin.users.notificationEmailLoginFallback", "Using login email — no notification email from sync")}
             </p>
           </div>
         ) : null}

@@ -11,9 +11,11 @@ interface FamilyGroupCardProps {
   members: FamilyMember[];
   familyProfile: FamilyProfileData | null;
   onProfileUpdated: (updated: FamilyProfileData) => void;
+  /** When synced notification emails are empty, show this login email instead (staff accounts). */
+  fallbackLoginEmail?: string | null;
 }
 
-export function FamilyGroupCard({ familyCode, members, familyProfile, onProfileUpdated }: FamilyGroupCardProps) {
+export function FamilyGroupCard({ familyCode, members, familyProfile, onProfileUpdated, fallbackLoginEmail }: FamilyGroupCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -71,6 +73,7 @@ export function FamilyGroupCard({ familyCode, members, familyProfile, onProfileU
           syncedEmails={familyProfile?.notification_emails || []}
           adminEmails={familyProfile?.admin_notification_emails || []}
           loginIds={familyProfile?.login_ids || []}
+          fallbackLoginEmail={fallbackLoginEmail}
           onUpdated={onProfileUpdated}
         />
       </CardContent>

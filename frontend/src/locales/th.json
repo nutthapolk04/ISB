@@ -1563,6 +1563,7 @@
       "familyGroupLabel": "กลุ่มครอบครัว: ",
       "notificationEmails": "อีเมลแจ้งเตือน",
       "notificationEmailFallbackHint": "ใช้อีเมลสำหรับล็อกอิน — บัญชีนี้ไม่มีข้อมูลครอบครัว/โปรไฟล์แจ้งเตือน",
+      "notificationEmailLoginFallback": "ใช้อีเมลสำหรับล็อกอิน — ไม่มีอีเมลแจ้งเตือนจากการซิงค์",
       "adminNotificationEmails": "เพิ่มด้วยตนเอง",
       "adminNotificationEmailsDesc": "แยกเก็บต่างหาก — sync ไม่มีทับ",
       "linkedStudents": "นักเรียนที่ผูก",

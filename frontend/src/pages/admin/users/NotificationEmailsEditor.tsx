@@ -22,14 +22,31 @@ interface NotificationEmailsEditorProps {
    * stored in a separate column PowerSchool sync never touches, so these
    * survive every sync round. This is the only list this editor can add to. */
   adminEmails: string[];
+  /** Shown in the synced list when notification_emails is empty (staff login email). */
+  fallbackLoginEmail?: string | null;
   loginIds: string[];
   onUpdated: (updated: FamilyProfileData) => void;
 }
 
-export function NotificationEmailsEditor({ familyCode, syncedEmails, adminEmails, loginIds, onUpdated }: NotificationEmailsEditorProps) {
+export function NotificationEmailsEditor({
+  familyCode,
+  syncedEmails,
+  adminEmails,
+  fallbackLoginEmail,
+  loginIds,
+  onUpdated,
+}: NotificationEmailsEditorProps) {
   const { t } = useTranslation();
   const [notifDraft, setNotifDraft] = useState("");
   const [savingNotif, setSavingNotif] = useState(false);
+
+  const displayedSyncedEmails =
+    syncedEmails.length > 0
+      ? syncedEmails
+      : fallbackLoginEmail?.trim()
+        ? [fallbackLoginEmail.trim()]
+        : [];
+  const usingLoginFallback = syncedEmails.length === 0 && !!fallbackLoginEmail?.trim();
 
   const addNotifEmail = async () => {
     const raw = notifDraft.trim().toLowerCase();
@@ -89,15 +106,20 @@ export function NotificationEmailsEditor({ familyCode, syncedEmails, adminEmails
           <span className="text-xs text-muted-foreground">(From API Data Sync)</span>
         </div>
         <div className="flex flex-wrap gap-1.5 mt-1.5">
-          {syncedEmails.length === 0 && (
+          {displayedSyncedEmails.length === 0 && (
             <span className="text-xs text-muted-foreground">{t("admin.users.noNotifEmails")}</span>
           )}
-          {syncedEmails.map((email) => (
+          {displayedSyncedEmails.map((email) => (
             <Badge key={email} variant="secondary" className="pl-2 pr-2 py-1 font-normal">
               {email}
             </Badge>
           ))}
         </div>
+        {usingLoginFallback && (
+          <p className="text-xs text-muted-foreground mt-1.5">
+            {t("admin.users.notificationEmailLoginFallback", "Using login email — no notification email from sync")}
+          </p>
+        )}
       </div>
 
       <div className="pt-2 border-t">
