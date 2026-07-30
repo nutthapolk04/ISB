@@ -107,11 +107,11 @@ export function InternalUsedReportPanel({
     const full = await api.get<InternalUsedReportData>(`/reports/internal-used${qs ? `?${qs}` : ""}`);
     const columns: ReportColumn[] = [
       { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
-      { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 16 },
+      { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 28 },
       { header: t("admin.adminReports.colAmountReceived"), key: "amount", format: "currency", align: "right", width: 14 },
-      { header: t("admin.adminReports.colStaffId"), key: "staff_id", width: 16 },
-      { header: t("admin.adminReports.colStaffName"), key: "staff_name", width: 24 },
-      { header: t("admin.adminReports.colRemarks"), key: "remarks", width: 24 },
+      { header: t("admin.adminReports.colIsbId", "ISB ID"), key: "isb_id", width: 14 },
+      { header: t("admin.adminReports.colStaffName"), key: "staff_name", width: 22 },
+      { header: t("admin.adminReports.colRemarks"), key: "remarks", width: 16 },
       { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
     ];
     const bodyRows: Record<string, unknown>[] = [];

@@ -779,6 +779,13 @@ const Store = () => {
             <CashierTopupModal
                 open={checkout.topupOpen}
                 onOpenChange={checkout.setTopupOpen}
+                printConfig={{
+                    enabled: autoPrint,
+                    school: schoolInfo,
+                    shopName: user?.shopName,
+                    shopReceipt: shopReceipt ?? undefined,
+                    cashierName: user?.fullName ?? user?.username ?? null,
+                }}
             />
 
             {/* Special item — cashier enters price before adding to cart */}

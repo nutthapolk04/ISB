@@ -366,6 +366,214 @@ export function buildReceiptHtml(
 </html>`;
 }
 
+// ── Top-up receipt (cashier POS) ─────────────────────────────────────────────
+
+export interface TopupReceiptData {
+  transaction_id?: number;
+  ref_code?: string | null;
+  transaction_date: string;
+  cashier_name?: string | null;
+  customer_name: string;
+  customer_code?: string | null;
+  grade?: string | null;
+  payment_method: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  notes?: string | null;
+}
+
+const TOPUP_RECEIPT_LABELS = {
+  th: {
+    subtitle: "ใบเสร็จรับเงินเติมเงิน / Top-up Receipt",
+    transactionNo: "เลขที่รายการ",
+    refCode: "อ้างอิง",
+    date: "วันที่ / เวลา",
+    cashier: "แคชเชียร์",
+    customer: "ลูกค้า",
+    customerCode: "รหัส",
+    payment: "ประเภทการชำระ",
+    amount: "ยอดเติมเงิน",
+    balanceBefore: "ยอดก่อนเติม",
+    balanceAfter: "ยอดหลังเติม",
+    notes: "หมายเหตุ",
+    thanks: "ขอบคุณที่ใช้บริการ / Thank you",
+    taxId: "เลขภาษี",
+    tel: "โทร",
+    locale: "th-TH",
+  },
+  en: {
+    subtitle: "Top-up Receipt",
+    transactionNo: "Transaction No",
+    refCode: "Reference",
+    date: "Date / Time",
+    cashier: "Cashier",
+    customer: "Customer",
+    customerCode: "Code",
+    payment: "Payment Type",
+    amount: "Top-up Amount",
+    balanceBefore: "Balance Before",
+    balanceAfter: "Balance After",
+    notes: "Note",
+    thanks: "Thank you",
+    taxId: "Tax ID",
+    tel: "Tel",
+    locale: "en-GB",
+  },
+};
+
+export function buildTopupReceiptHtml(
+  data: TopupReceiptData,
+  school: SchoolInfo,
+  shopName?: string | null,
+  lang: string = "en",
+  shopOverrides?: { receiptHeader?: string | null; receiptFooter?: string | null },
+): string {
+  const isEn = !lang.startsWith("th");
+  const lbl = isEn ? TOPUP_RECEIPT_LABELS.en : TOPUP_RECEIPT_LABELS.th;
+  const paymentLabel = isEn
+    ? (PAYMENT_LABELS_EN[(data.payment_method ?? "").toLowerCase()] ?? data.payment_method)
+    : (PAYMENT_LABELS[(data.payment_method ?? "").toLowerCase()] ?? data.payment_method);
+  const dateStr = fmtDateTime(data.transaction_date);
+  const receiptNo = data.transaction_id && data.transaction_id > 0
+    ? String(data.transaction_id)
+    : (data.ref_code ?? "—");
+
+  const shopLine = shopName ? `<p class="shop-name">${shopName}</p>` : "";
+  const shopHeaderLine = shopOverrides?.receiptHeader
+    ? `<p class="sub" style="margin-bottom:4px">${shopOverrides.receiptHeader}</p>`
+    : "";
+  const footerText = shopOverrides?.receiptFooter || school.receiptFooter;
+  const logoHtml = school.logoUrl
+    ? `<img src="${school.logoUrl}" width="64" height="64" style="object-fit:contain;" />`
+    : ISB_LOGO_SVG;
+  const addressLine = school.address ? `<p class="sub">${school.address}</p>` : "";
+  const taxPhoneLine = (school.taxId || school.phone)
+    ? `<p class="sub">${school.taxId ? `${lbl.taxId}: ${school.taxId}` : ""}${school.taxId && school.phone ? " | " : ""}${school.phone ? `${lbl.tel}: ${school.phone}` : ""}</p>`
+    : "";
+  const cashierSection = data.cashier_name
+    ? `<div class="row small"><span>${lbl.cashier}</span><span>${data.cashier_name}</span></div>`
+    : "";
+  const codeLine = data.customer_code
+    ? `<div class="row small"><span>${lbl.customerCode}</span><span>${data.customer_code}${data.grade ? ` · ${data.grade}` : ""}</span></div>`
+    : "";
+  const notesSection = data.notes?.trim()
+    ? `<hr/><div class="notes-block"><span class="notes-label">${lbl.notes}</span><span class="notes-text">${data.notes.trim()}</span></div>`
+    : "";
+  const idLabel = data.transaction_id && data.transaction_id > 0 ? lbl.transactionNo : lbl.refCode;
+
+  return `<!DOCTYPE html>
+<html lang="${isEn ? "en" : "th"}">
+<head>
+<meta charset="UTF-8" />
+<title>${isEn ? "Top-up Receipt" : "ใบเสร็จเติมเงิน"} ${receiptNo}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sarabun', 'Arial', sans-serif; font-size: 16px;
+         font-weight: 500; line-height: 1.4;
+         width: 80mm; margin: 0 auto; padding: 8px 16px 8px 8px; color: #000; }
+  .logo-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
+  h1 { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 2px; line-height: 1.3; }
+  .center { text-align: center; }
+  .sub { font-size: 12px; color: #000; text-align: center; margin-bottom: 2px; }
+  .shop-name { font-size: 16px; font-weight: 900; color: #000; text-align: center; margin-bottom: 2px; letter-spacing: 0.3px; }
+  .doc-type { font-size: 11px; color: #000; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
+  hr { border: none; border-top: 1.5px dashed #000; margin: 7px 0; }
+  .row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 16px; color: #000; }
+  .row span:first-child { font-weight: 600; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row span:last-child { text-align: right; white-space: nowrap; padding-left: 8px; font-weight: 700; flex: 0 0 auto; }
+  .small { font-size: 14px; color: #000; }
+  .small span:last-child { font-weight: 700; }
+  .amount { font-size: 22px; font-weight: 800; margin-top: 5px; color: #000; }
+  .amount span { font-weight: 800; }
+  .balance-after { font-size: 14px; font-weight: 800; color: #000; margin-top: 4px; }
+  .balance-before { font-size: 14px; color: #000; }
+  .balance-before span:last-child { font-weight: 700; }
+  .notes-block { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
+  .notes-label { font-size: 13px; font-weight: 700; color: #000; }
+  .notes-text { font-size: 14px; color: #000; word-break: break-word; }
+  @media print {
+    @page { margin: 0; size: 80mm auto; }
+    body, body * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+  <div class="logo-wrap">${logoHtml}</div>
+  <h1>${school.name}</h1>
+  ${addressLine}
+  ${taxPhoneLine}
+  ${shopLine}
+  ${shopHeaderLine}
+  <p class="doc-type">${lbl.subtitle}</p>
+
+  <hr/>
+  <div class="row"><span>${idLabel}</span><span>${receiptNo}</span></div>
+  <div class="row small"><span>${lbl.date}</span><span>${dateStr}</span></div>
+  ${cashierSection}
+
+  <hr/>
+  <div class="row small"><span>${lbl.customer}</span><span>${data.customer_name}</span></div>
+  ${codeLine}
+  <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
+
+  <hr/>
+  <div class="row balance-before"><span>${lbl.balanceBefore}</span><span>฿${data.balance_before.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>
+  <div class="row amount"><span>${lbl.amount}</span><span>+฿${data.amount.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>
+  <div class="row balance-after"><span>${lbl.balanceAfter}</span><span>฿${data.balance_after.toLocaleString(lbl.locale, { minimumFractionDigits: 2 })}</span></div>
+  ${notesSection}
+
+  <hr/>
+  <p class="center sub">${footerText || lbl.thanks}</p>
+</body>
+</html>`;
+}
+
+export function printTopupReceipt(
+  data: TopupReceiptData,
+  school: SchoolInfo,
+  shopName?: string | null,
+  lang: string = "en",
+  shopOverrides?: { receiptHeader?: string | null; receiptFooter?: string | null },
+): void {
+  const html = buildTopupReceiptHtml(data, school, shopName, lang, shopOverrides);
+
+  document.getElementById(RECEIPT_IFRAME_ID)?.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = RECEIPT_IFRAME_ID;
+  iframe.setAttribute("aria-hidden", "true");
+  Object.assign(iframe.style, {
+    position: "fixed",
+    right: "0",
+    bottom: "0",
+    width: "0",
+    height: "0",
+    border: "0",
+    visibility: "hidden",
+  });
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (err) {
+      console.warn("Top-up receipt print failed:", err);
+    }
+    setTimeout(() => iframe.remove(), 1500);
+  }, 250);
+}
+
 // ── Print trigger ────────────────────────────────────────────────────────────
 
 /**

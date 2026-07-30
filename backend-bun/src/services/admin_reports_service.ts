@@ -768,7 +768,7 @@ export async function transactionReport(args: {
         return {
             id: r.id,
             kind: "sale" as const,
-            created_at: String(r.transactionDate),
+            created_at: pgToIso(r.transactionDate)!,
             payer_id: payerId,
             payer_name: payerName,
             payment_method: String(r.paymentMethod ?? ""),
@@ -879,7 +879,7 @@ export async function transactionReport(args: {
             return {
                 id: r.id,
                 kind,
-                created_at: String(r.createdAt),
+                created_at: pgToIso(r.createdAt)!,
                 payer_id: payerId,
                 payer_name: payerName,
                 payment_method: paymentMethod,
@@ -1126,7 +1126,7 @@ export interface InternalUsedRow {
     created_at: string;
     receipt_number: string;
     amount: number;
-    staff_id: string;
+    isb_id: string;
     staff_name: string;
     remarks: string | null;
     status: string;
@@ -1194,6 +1194,7 @@ export async function internalUsedReport(args: {
             departmentName: departments.departmentName,
             requesterUsername: users.username,
             requesterFullName: users.fullName,
+            requesterExternalId: users.externalId,
         })
         .from(receipts)
         // Inner join — a department-charged requisition always has a real
@@ -1229,7 +1230,7 @@ export async function internalUsedReport(args: {
             created_at: pgToIso(r.transactionDate)!,
             receipt_number: r.receiptNumber,
             amount,
-            staff_id: r.requesterUsername ?? "—",
+            isb_id: r.requesterExternalId ?? "—",
             staff_name: r.requesterFullName || r.requesterUsername || "—",
             remarks: r.notes ?? null,
             status: String(r.status ?? ""),

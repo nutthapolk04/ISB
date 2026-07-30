@@ -1212,6 +1212,7 @@
       "colReceiptNo": "เลขที่ใบเสร็จ",
       "colAmountReceived": "จำนวนเงิน",
       "colStaffId": "รหัสพนักงาน",
+      "colIsbId": "รหัส ISB",
       "colStaffName": "ชื่อ-นามสกุล",
       "colRemarks": "หมายเหตุ",
       "totalByDepartment": "รวมตามแผนก",

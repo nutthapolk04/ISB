@@ -12,6 +12,7 @@ import {
     type ReportPayload,
 } from "@/lib/reportExport";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -220,7 +221,7 @@ function BalanceTable({
                         ) : (
                             data.items.map((r) => (
                                 <tr key={r.id} className="border-t">
-                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
                                     <td className="px-2 py-1.5 font-mono text-[10px]">{r.owner_external_id || "—"}</td>
                                     <td className="px-2 py-1.5">{r.owner_name}</td>
                                     <td className="px-2 py-1.5 text-muted-foreground text-[11px]">{r.shop_name || "—"}</td>
@@ -310,7 +311,7 @@ function TransactionTable({
                         ) : (
                             data.items.map((r) => (
                                 <tr key={`${r.kind}-${r.id}`} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
-                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
                                     <td className="px-2 py-1.5">
                                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", TXN_KIND_COLORS[r.kind])}>
                                             {TXN_KIND_LABEL[r.kind]}
@@ -442,7 +443,7 @@ function KioskEventTable({
                         ) : (
                             data.items.map((r) => (
                                 <tr key={r.id} className="border-t align-top">
-                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.ts.slice(0, 19).replace("T", " ")}</td>
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.ts)}</td>
                                     <td className="px-2 py-1.5">{r.kiosk_name}</td>
                                     <td className="px-2 py-1.5">
                                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase", KIOSK_LEVEL_COLORS[r.level] ?? "bg-gray-100 text-gray-700")}>
@@ -1002,11 +1003,11 @@ export default function AdminReports() {
                     },
                     columns: [
                         { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
-                        { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 20 },
+                        { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 28 },
                         { header: t("admin.adminReports.colAmountReceived"), key: "amount", format: "currency", align: "right", width: 14 },
-                        { header: t("admin.adminReports.colStaffId"), key: "staff_id", width: 14 },
+                        { header: t("admin.adminReports.colIsbId", "ISB ID"), key: "isb_id", width: 14 },
                         { header: t("admin.adminReports.colStaffName"), key: "staff_name", width: 22 },
-                        { header: t("admin.adminReports.colRemarks"), key: "remarks", width: 30 },
+                        { header: t("admin.adminReports.colRemarks"), key: "remarks", width: 16 },
                         { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
                     ],
                     rows: bodyRows,
@@ -1483,7 +1484,7 @@ export default function AdminReports() {
                                             ) : (
                                                 topupData.items.map((r) => (
                                                     <tr key={r.id} className="border-t">
-                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                                                        <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
                                                         <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
                                                         <td className="px-2 py-1.5">{r.topped_by}</td>
                                                         <td className="px-2 py-1.5">{r.recipient_name} <span className="text-muted-foreground font-mono">({r.recipient_code})</span></td>

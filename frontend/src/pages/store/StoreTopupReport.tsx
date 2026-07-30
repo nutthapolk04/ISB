@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,8 +10,14 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import {
+  exportToPDF,
+  exportToExcel,
+  buildDateFilterLine,
+  type ReportPayload,
+} from "@/lib/reportExport";
 import { toast } from "@/components/ui/sonner";
-import { Wallet, Loader2, Store as StoreIcon } from "lucide-react";
+import { Wallet, Loader2, Store as StoreIcon, FileText, FileSpreadsheet } from "lucide-react";
 
 interface TopupRow {
   id: number;
@@ -38,10 +45,15 @@ interface TopupReportData {
 }
 
 const PAGE_SIZE = 50;
+/** Export re-fetches every row matching the current filters (uncapped by the
+ * on-screen page size) — mirrors AdminReports.tsx's TXN_EXPORT_PAGE_SIZE so
+ * exporting never silently covers only whichever page happens to be showing. */
+const EXPORT_PAGE_SIZE = 5000;
 
 export default function StoreTopupReport() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const school = useSchoolInfo();
   const shopId = user?.shopId ?? null;
   const shopName = user?.shopName ?? "—";
 
@@ -52,6 +64,7 @@ export default function StoreTopupReport() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const buildParams = (p: number, sort = dateTimeSort) => {
     const params = new URLSearchParams();
@@ -86,6 +99,77 @@ export default function StoreTopupReport() {
     const next = toggleDateTimeSort(dateTimeSort);
     setDateTimeSort(next);
     if (searched) await loadPage(page, next);
+  };
+
+  const buildPayload = async (): Promise<{ payload: ReportPayload<Record<string, unknown>>; baseFilename: string } | null> => {
+    if (!shopId || !data) return null;
+    const filters: string[] = [`Shop: ${shopName}`];
+    const dateLine = buildDateFilterLine("Date", dateFrom, dateTo);
+    if (dateLine) filters.push(dateLine);
+    const dateLabel = `_${dateFrom}_${dateTo}`;
+
+    // Paginated on screen — export re-fetches every row matching the current
+    // filters (capped at EXPORT_PAGE_SIZE), same reasoning as the Admin
+    // Top-up Report's own export.
+    const params = buildParams(1, dateTimeSort);
+    params.set("page_size", String(EXPORT_PAGE_SIZE));
+    const full = await api.get<TopupReportData>(`/shops/${shopId}/topup-report?${params.toString()}`);
+
+    return {
+      payload: {
+        meta: {
+          title: t("store.topupReport.title", "Top-up Report"),
+          schoolName: school.name,
+          schoolLogoUrl: school.logoUrl || undefined,
+          reportId: "ISB-STORE-TOPUP",
+          filters,
+          runByName: user?.fullName ?? user?.username,
+        },
+        columns: [
+          { header: t("admin.adminReports.colDateTime", "Date/Time"), key: "created_at", format: "datetime", width: 20 },
+          { header: t("admin.adminReports.colChannel", "Type"), key: "channel_label", width: 16 },
+          { header: t("admin.adminReports.colToppedBy", "Topped By"), key: "topped_by", width: 24 },
+          { header: t("admin.adminReports.colRecipient", "Recipient"), key: "recipient_name", width: 24 },
+          { header: t("admin.adminReports.colAmount", "Amount"), key: "amount", format: "currency", align: "right", width: 14 },
+          { header: t("admin.adminReports.colCashier", "Cashier / Source"), key: "cashier_name", width: 20 },
+        ],
+        rows: full.items.map((r) => ({
+          ...r,
+          channel_label: CHANNEL_LABEL[r.channel] ?? r.channel,
+          cashier_name: r.cashier_name ?? "",
+        })) as unknown as Record<string, unknown>[],
+        totals: { amount: full.amount_total },
+      },
+      baseFilename: `StoreTopupReport${dateLabel}`,
+    };
+  };
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const result = await buildPayload();
+      if (!result) return;
+      await exportToPDF(result.payload, `${result.baseFilename}.pdf`);
+      toast.success(t("reports.exportSuccess", "Export successful"));
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail : e instanceof Error ? e.message : t("shopUsers.errorGeneric"));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const result = await buildPayload();
+      if (!result) return;
+      exportToExcel(result.payload, `${result.baseFilename}.xlsx`);
+      toast.success(t("reports.exportSuccess", "Export successful"));
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail : e instanceof Error ? e.message : t("shopUsers.errorGeneric"));
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!shopId) {
@@ -134,10 +218,24 @@ export default function StoreTopupReport() {
             </div>
           </div>
 
-          <Button onClick={handleSearch} disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {t("adjustmentReport.search", "Search")}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSearch} disabled={loading}>
+              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("adjustmentReport.search", "Search")}
+            </Button>
+            {searched && data && (
+              <>
+                <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+                  {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                  {t("reports.exportPdf", "Export PDF")}
+                </Button>
+                <Button variant="outline" onClick={handleExportExcel} disabled={exporting}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {t("reports.exportExcel", "Export Excel")}
+                </Button>
+              </>
+            )}
+          </div>
 
           {searched && data && (
             <div className="space-y-3">

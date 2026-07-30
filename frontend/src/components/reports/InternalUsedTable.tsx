@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import type { DateTimeSortDir } from "@/lib/dateTimeSort";
 
@@ -8,7 +9,7 @@ export interface InternalUsedRow {
   created_at: string;
   receipt_number: string;
   amount: number;
-  staff_id: string;
+  isb_id: string;
   staff_name: string;
   remarks: string | null;
   status: string;
@@ -66,23 +67,23 @@ export function InternalUsedTable({
                     sortDir={dateTimeSort}
                     onToggle={onToggleDateTimeSort}
                   />
-                  <th className="px-2 py-2 text-left">{t("admin.adminReports.colReceiptNo")}</th>
+                  <th className="px-2 py-2 text-left min-w-[9rem]">{t("admin.adminReports.colReceiptNo")}</th>
                   <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmountReceived")}</th>
-                  <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffId")}</th>
+                  <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId", "ISB ID")}</th>
                   <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffName")}</th>
-                  <th className="px-2 py-2 text-left">{t("admin.adminReports.colRemarks")}</th>
+                  <th className="px-2 py-2 text-left max-w-[8rem]">{t("admin.adminReports.colRemarks")}</th>
                   <th className="px-2 py-2 text-left">{t("admin.adminReports.colStatus")}</th>
                 </tr>
               </thead>
               <tbody>
                 {g.rows.map((r) => (
                   <tr key={r.id} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
-                    <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
-                    <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
+                    <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.receipt_number}</td>
                     <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
-                    <td className="px-2 py-1.5 font-mono">{r.staff_id}</td>
+                    <td className="px-2 py-1.5 font-mono text-[10px]">{r.isb_id}</td>
                     <td className="px-2 py-1.5">{r.staff_name}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground">{r.remarks ?? ""}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground max-w-[8rem] truncate" title={r.remarks ?? ""}>{r.remarks ?? ""}</td>
                     <td className="px-2 py-1.5">
                       {r.status === "ACTIVE" ? (
                         <span className="text-muted-foreground">{t("admin.adminReports.statusActive", "Active")}</span>

@@ -1212,6 +1212,7 @@
       "colReceiptNo": "Receipt NO.",
       "colAmountReceived": "Amount Received",
       "colStaffId": "Staff ID.",
+      "colIsbId": "ISB ID",
       "colStaffName": "Name",
       "colRemarks": "Remarks",
       "totalByDepartment": "Total by Department",

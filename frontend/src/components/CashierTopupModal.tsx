@@ -21,12 +21,15 @@ import {
   Banknote,
   QrCode,
   AlertCircle,
+  Printer,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { QrCountdownBar, QR_TOPUP_TIMEOUT_SEC } from "@/components/QrCountdownBar";
+import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
+import { printTopupReceipt, type TopupReceiptData } from "@/lib/printReceipt";
 
 interface CustomerResult {
   id: number;
@@ -74,10 +77,19 @@ interface WalletBalance {
 type PaymentMethod = "cash" | "bay_qr";
 type QrStatus = "waiting" | "confirmed" | "cancelled" | "timeout";
 
+interface CashierTopupPrintConfig {
+  enabled: boolean;
+  school: SchoolInfo;
+  shopName?: string | null;
+  shopReceipt?: { receiptHeader?: string | null; receiptFooter?: string | null };
+  cashierName?: string | null;
+}
+
 interface CashierTopupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (result: TopupSuccessResult) => void;
+  printConfig?: CashierTopupPrintConfig;
 }
 
 type ModalStep = "search" | "topup" | "qr" | "success";
@@ -106,6 +118,7 @@ export function CashierTopupModal({
   open,
   onOpenChange,
   onSuccess,
+  printConfig,
 }: CashierTopupModalProps) {
   const { t } = useTranslation();
 
@@ -126,6 +139,10 @@ export function CashierTopupModal({
   const minTopupAmount = paymentMethod === "bay_qr" ? 1 : 100;
 
   const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
+  const [lastPaymentMethod, setLastPaymentMethod] = useState<PaymentMethod>("cash");
+  const [lastRefCode, setLastRefCode] = useState<string | null>(null);
+  const [lastNotes, setLastNotes] = useState("");
+  const printedForResultRef = useRef<string | null>(null);
   const [intent, setIntent] = useState<TopupIntent | null>(null);
   const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
   const [confirming, setConfirming] = useState(false);
@@ -147,6 +164,10 @@ export function CashierTopupModal({
       setNotes("");
       setPaymentMethod("cash");
       setTopupResult(null);
+      setLastPaymentMethod("cash");
+      setLastRefCode(null);
+      setLastNotes("");
+      printedForResultRef.current = null;
       setIntent(null);
       setQrStatus("waiting");
       clearCashAttempt();
@@ -189,6 +210,64 @@ export function CashierTopupModal({
     }, 300);
     return () => clearTimeout(timer);
   }, [query, searchCustomers, step]);
+
+  const buildTopupReceiptPayload = useCallback((
+    result: TopupSuccessResult,
+    paymentMethod: PaymentMethod,
+    refCode: string | null,
+    noteText: string,
+  ): TopupReceiptData => ({
+    transaction_id: result.transaction_id > 0 ? result.transaction_id : undefined,
+    ref_code: refCode,
+    transaction_date: new Date().toISOString(),
+    cashier_name: printConfig?.cashierName ?? null,
+    customer_name: result.customer_name,
+    customer_code: selectedCustomer?.student_code ?? selectedCustomer?.customer_code ?? null,
+    grade: selectedCustomer?.grade ? `Grade ${selectedCustomer.grade}` : null,
+    payment_method: paymentMethod === "bay_qr" ? "bay_qr" : "cash",
+    amount: result.amount,
+    balance_before: result.balance_before,
+    balance_after: result.balance_after,
+    notes: noteText.trim() || null,
+  }), [printConfig?.cashierName, selectedCustomer]);
+
+  const handlePrintReceipt = useCallback((
+    result: TopupSuccessResult,
+    paymentMethod: PaymentMethod,
+    refCode: string | null,
+    noteText: string,
+  ) => {
+    if (!printConfig) return;
+    try {
+      printTopupReceipt(
+        buildTopupReceiptPayload(result, paymentMethod, refCode, noteText),
+        printConfig.school,
+        printConfig.shopName,
+        "en",
+        printConfig.shopReceipt,
+      );
+    } catch (err) {
+      console.warn("Top-up receipt print failed:", err);
+    }
+  }, [buildTopupReceiptPayload, printConfig]);
+
+  const maybeAutoPrint = useCallback((
+    result: TopupSuccessResult,
+    paymentMethod: PaymentMethod,
+    refCode: string | null,
+    noteText: string,
+  ) => {
+    if (!printConfig?.enabled) return;
+    const key = `${result.wallet_id}:${result.transaction_id}:${result.amount}:${refCode ?? ""}`;
+    if (printedForResultRef.current === key) return;
+    printedForResultRef.current = key;
+    handlePrintReceipt(result, paymentMethod, refCode, noteText);
+  }, [handlePrintReceipt, printConfig?.enabled]);
+
+  useEffect(() => {
+    if (step !== "success" || !topupResult) return;
+    maybeAutoPrint(topupResult, lastPaymentMethod, lastRefCode, lastNotes);
+  }, [step, topupResult, lastPaymentMethod, lastRefCode, lastNotes, maybeAutoPrint]);
 
   const handleSelectCustomer = (customer: CustomerResult) => {
     clearCashAttempt();
@@ -246,6 +325,9 @@ export function CashierTopupModal({
           }
         );
         setIntent(resp);
+        setLastPaymentMethod("bay_qr");
+        setLastRefCode(resp.ref_code);
+        setLastNotes(notes);
         setQrStatus("waiting");
         setStep("qr");
       } else {
@@ -267,6 +349,9 @@ export function CashierTopupModal({
         });
 
         clearCashAttempt();
+        setLastPaymentMethod(effectiveMethod);
+        setLastRefCode(null);
+        setLastNotes(notes);
         setTopupResult(result);
         setStep("success");
         onSuccess?.(result);
@@ -778,20 +863,32 @@ export function CashierTopupModal({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={handleBack}
-              >
-                {t("topup.topupAnother", "Top-up Another")}
-              </Button>
-              <Button
-                className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-                onClick={handleClose}
-              >
-                {t("common.done", "Done")}
-              </Button>
+            <div className="flex flex-col gap-2">
+              {printConfig && topupResult && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handlePrintReceipt(topupResult, lastPaymentMethod, lastRefCode, lastNotes)}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  {t("topup.printReceipt", "Print Receipt")}
+                </Button>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleBack}
+                >
+                  {t("topup.topupAnother", "Top-up Another")}
+                </Button>
+                <Button
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                  onClick={handleClose}
+                >
+                  {t("common.done", "Done")}
+                </Button>
+              </div>
             </div>
           </div>
         )}
