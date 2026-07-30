@@ -680,21 +680,21 @@ export function RfidPaymentModal({
         )}
 
         {stage === "identity" && hasPayer && (
-          <div className="space-y-4">
+          <div className="space-y-2 md:space-y-3">
             {/* Identity card — student, user, or department */}
             <div className={cn(
-              "flex flex-col items-center gap-3 rounded-2xl border p-4 text-center",
+              "flex flex-col items-center gap-1.5 md:gap-2 rounded-2xl border p-2.5 md:p-3 text-center",
               overLimit
                 ? "border-red-300 bg-gradient-to-br from-red-50 to-rose-50"
                 : "border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50",
             )}>
               <div className={cn(
-                "h-40 w-40 shrink-0 overflow-hidden rounded-xl ring-2",
+                "h-24 w-24 md:h-32 md:w-32 shrink-0 overflow-hidden rounded-xl ring-2",
                 overLimit ? "bg-red-100 ring-red-400" : "bg-amber-100 ring-amber-300",
               )}>
                 {payerKind === "department" ? (
                   <div className="flex h-full w-full items-center justify-center text-rose-500">
-                    <Building2 className="h-20 w-20" />
+                    <Building2 className="h-12 w-12 md:h-16 md:w-16" />
                   </div>
                 ) : (
                   (() => {
@@ -715,7 +715,7 @@ export function RfidPaymentModal({
                 )}
               </div>
               <div className="min-w-0 w-full">
-                <div className="truncate text-lg font-bold">
+                <div className="truncate text-sm md:text-base font-bold">
                   {payerKind === "department"
                     ? departmentPayer?.department_name
                     : payerKind === "user" ? userPayer?.full_name : student?.name}
@@ -763,12 +763,12 @@ export function RfidPaymentModal({
             )}
 
             {/* Balance forecast — Sale Total is the hero metric */}
-            <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
+            <div className="rounded-2xl border border-border bg-card p-2.5 md:p-3 space-y-1.5 md:space-y-2 text-xs md:text-sm">
               <div className="flex items-baseline justify-between">
                 <span className="text-xs uppercase tracking-wider text-muted-foreground">
                   {r("balanceOrder")}
                 </span>
-                <span className="text-3xl font-bold tabular-nums text-foreground">
+                <span className="text-xl md:text-2xl font-bold tabular-nums text-foreground">
                   ฿{total.toFixed(2)}
                 </span>
               </div>
@@ -798,11 +798,10 @@ export function RfidPaymentModal({
 
             {/* Daily Spending Limit — compact: Canteen / Store on one line each */}
             {hasAnyDailyLimit && (
-              <div className="rounded-2xl border border-border bg-card p-4 space-y-3 text-sm">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+              <div className="rounded-2xl border border-border bg-card p-2.5 md:p-3 space-y-1.5 md:space-y-2 text-xs md:text-sm">
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                   Daily Spending remaining / limit
                 </div>
-                <div className="border-t border-border" />
                 {canteenDailyLimit != null && (() => {
                   const canteenRemaining = Math.max(0, canteenDailyLimit - canteenSpent);
                   const remainingPct = canteenDailyLimit > 0 ? Math.max(0, (canteenRemaining / canteenDailyLimit) * 100) : 100;
@@ -810,16 +809,16 @@ export function RfidPaymentModal({
                   const warn = remainingPct <= 20 && !over;
                   const color = over ? "text-red-600" : warn ? "text-amber-600" : "text-emerald-700";
                   return (
-                    <div className="space-y-1.5">
+                    <div className="space-y-0.5 md:space-y-1">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-muted-foreground font-medium">Canteen</span>
-                        <span className={cn("text-base font-bold tabular-nums", color)}>
+                        <span className="text-muted-foreground font-medium text-[10px] md:text-xs">Canteen</span>
+                        <span className={cn("text-xs md:text-sm font-bold tabular-nums", color)}>
                           ฿{canteenRemaining.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           <span className="text-muted-foreground font-normal"> / </span>
                           ฿{canteenDailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="w-full h-0.5 md:h-1 rounded-full bg-muted overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{ width: `${remainingPct}%`, backgroundColor: `hsl(${remainingPct * 1.2}, 75%, 45%)` }}
@@ -858,10 +857,10 @@ export function RfidPaymentModal({
 
             {/* Warning banners */}
             {overLimit && (
-              <div className="flex items-center gap-3 rounded-lg border-2 border-red-400 bg-red-50 p-4 text-red-800">
-                <XCircle className="h-10 w-10 shrink-0 text-red-600" strokeWidth={2.5} />
+              <div className="flex items-center gap-1.5 md:gap-2 rounded-lg border-2 border-red-400 bg-red-50 p-2.5 md:p-3 text-red-800 text-xs md:text-sm">
+                <XCircle className="h-6 w-6 md:h-8 md:w-8 shrink-0 text-red-600" strokeWidth={2.5} />
                 <div className="flex-1">
-                  <div className="text-base font-bold text-red-700">
+                  <div className="font-bold text-red-700 text-xs md:text-sm">
                     {payerKind === "user"
                       ? r("insufficientUserTitle")
                       : r("overLimitTitle")}
