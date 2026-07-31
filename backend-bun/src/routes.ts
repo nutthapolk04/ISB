@@ -104,6 +104,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     )
     // ── Departments ─────────────────────────────────────────────────────────
     .get("/departments/", DepartmentController.list, DepartmentSchema.listDepartments)
+    .get("/departments/by-card/:uid", DepartmentController.getByCard)
     // ── Users ───────────────────────────────────────────────────────────────
     .group("/users", (app) =>
         app

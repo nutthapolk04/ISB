@@ -52,6 +52,36 @@ export async function listDepartments(args: {
     }));
 }
 
+export async function getDepartmentByCardUid(cardUid: string): Promise<DepartmentSummaryDTO | null> {
+    const rows = await db
+        .select({
+            id: departments.id,
+            department_code: departments.departmentCode,
+            department_name: departments.departmentName,
+            is_active: departments.isActive,
+            wallet_id: wallets.id,
+            wallet_balance: wallets.balance,
+            card_uid: departments.cardUid,
+        })
+        .from(departments)
+        .leftJoin(wallets, eq(wallets.departmentId, departments.id))
+        .where(eq(departments.cardUid, cardUid))
+        .limit(1);
+
+    if (!rows[0]) return null;
+
+    const r = rows[0];
+    return {
+        id: r.id,
+        department_code: r.department_code,
+        department_name: r.department_name,
+        is_active: r.is_active,
+        wallet_id: r.wallet_id ?? null,
+        wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
+        card_uid: r.card_uid ?? null,
+    };
+}
+
 /**
  * Atomic department create + wallet seed. Used by cardholder create.
  * Mirrors DepartmentService.create_department (FastAPI).

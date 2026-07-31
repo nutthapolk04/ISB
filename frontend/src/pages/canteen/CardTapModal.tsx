@@ -152,6 +152,19 @@ export function CardTapModal({ open, onOpenChange, currentMember, onSelect, scan
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
 
+      // 5. Department by card UID
+      try {
+        const result = await api.get<StudentLookupResult>(
+          `/departments/by-card/${encodeURIComponent(trimmed)}`,
+        );
+        if (result) {
+          setFound(result);
+          return;
+        }
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+
       throw new ApiError(404, t("canteen.cardTap.notFoundInSystem"), undefined);
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : t("canteen.cardTap.notFound");
