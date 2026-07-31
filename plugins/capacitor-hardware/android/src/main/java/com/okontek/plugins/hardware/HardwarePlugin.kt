@@ -163,6 +163,23 @@ class HardwarePlugin : Plugin() {
     }
 
     @PluginMethod
+    fun exitKiosk(call: PluginCall) {
+        val activity = activity
+        if (activity == null) {
+            call.reject("No activity")
+            return
+        }
+        activity.runOnUiThread {
+            try {
+                activity.stopLockTask()
+                call.resolve()
+            } catch (e: Exception) {
+                call.reject("Failed to exit kiosk mode: ${e.message}")
+            }
+        }
+    }
+
+    @PluginMethod
     fun printRaw(call: PluginCall) {
         val data = call.getString("data")
         if (data == null) {

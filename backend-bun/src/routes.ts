@@ -466,6 +466,7 @@ const router = (app: Elysia) =>
         .get("/api/v1/customer-display/images", CustomerDisplayController.listPublic, CustomerDisplaySchema.customerDisplayListPublic)
         .get("/api/v1/customer-display/images/:id/binary", CustomerDisplayController.getBinary, CustomerDisplaySchema.customerDisplayGetBinary)
         .get("/api/v1/profile-photos/:filename", ProfilePhotoController.getBinary, ProfilePhotoSchema.profilePhotoGetBinary)
+        .get("/api/v1/kiosk/releases/manifest", KioskReleaseController.getManifest, KioskReleaseSchema.kioskReleaseGetManifest)
         .get("/api/v1/kiosk/releases/:filename", KioskReleaseController.getBinary, KioskReleaseSchema.kioskReleaseGetBinary)
         // 4. Authenticated API bundle
         .use(apiV1Authed);

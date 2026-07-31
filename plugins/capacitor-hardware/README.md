@@ -37,6 +37,7 @@ npx cap sync
 * [`connectPrinter()`](#connectprinter)
 * [`disconnectPrinter()`](#disconnectprinter)
 * [`printRaw(...)`](#printraw)
+* [`exitKiosk()`](#exitkiosk)
 * [`addListener('billEvent', ...)`](#addlistenerbillevent-)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
@@ -183,6 +184,17 @@ all receipt encoding happens on the JS side.
 | Param         | Type                           |
 | ------------- | ------------------------------ |
 | **`options`** | <code>{ data: string; }</code> |
+
+--------------------
+
+
+### exitKiosk()
+
+```typescript
+exitKiosk() => Promise<void>
+```
+
+Leave Android lock-task (kiosk) mode so the user can exit the app.
 
 --------------------
 

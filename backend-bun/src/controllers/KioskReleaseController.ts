@@ -2,10 +2,23 @@
 import { publicCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { logger } from "@/logger";
-import { readKioskRelease } from "@/services/kiosk_release_service";
+import { readKioskRelease, readKioskReleaseManifest } from "@/services/kiosk_release_service";
 import { errorFromService, errorResponse } from "@/utils/ResponseUtil";
 
 export const KioskReleaseController = {
+    getManifest: async (ctx: any) => {
+        const reqContext = publicCtx(ctx);
+        logger.info(`[${reqContext.requestId} (KR-02)] KioskReleaseController.getManifest() called.`);
+        try {
+            const manifest = await readKioskReleaseManifest();
+            logger.info(`[${reqContext.requestId} (KR-02)] KioskReleaseController.getManifest() completed.`);
+            return manifest;
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (KR-02)] KioskReleaseController.getManifest() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
     getBinary: async (ctx: any) => {
         const reqContext = publicCtx(ctx);
         const { params } = reqContext;

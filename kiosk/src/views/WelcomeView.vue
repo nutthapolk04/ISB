@@ -3,12 +3,33 @@ import { useRouter } from 'vue-router';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import KioskOverlay from '../components/KioskOverlay.vue';
+import KioskExitPinDialog from '../components/KioskExitPinDialog.vue';
 import { Languages, Wrench } from 'lucide-vue-next';
 
 const router = useRouter();
 
 
 const store = useKioskStore();
+
+const EXIT_KIOSK_TAP_COUNT = 5;
+const EXIT_KIOSK_TAP_MAX_GAP_MS = 600;
+
+const showExitPin = ref(false);
+let exitTapCount = 0;
+let exitLastTapAt = 0;
+
+function onCardSecretTap() {
+    const now = Date.now();
+    if (now - exitLastTapAt > EXIT_KIOSK_TAP_MAX_GAP_MS) {
+        exitTapCount = 0;
+    }
+    exitLastTapAt = now;
+    exitTapCount += 1;
+    if (exitTapCount >= EXIT_KIOSK_TAP_COUNT) {
+        exitTapCount = 0;
+        showExitPin.value = true;
+    }
+}
 
 function openTechnician() {
     router.push('/technician');
@@ -126,6 +147,7 @@ const t = {
 <template>
     <div class="kiosk-container welcome-view">
         <KioskOverlay v-if="store.isLoading" :message="currT.searching" />
+        <KioskExitPinDialog :open="showExitPin" @close="showExitPin = false" />
 
         <div class="lang-switch-container">
             <button class="tech-entry-btn" type="button" :disabled="store.isLoading" @click="openTechnician">
@@ -146,7 +168,12 @@ const t = {
 
         <div class="welcome-content">
             <div class="rfid-animation mb-12">
-                <div :class="['card-icon', { 'card-error': rfidError }]">
+                <div
+                    :class="['card-icon', { 'card-error': rfidError }]"
+                    role="button"
+                    tabindex="-1"
+                    @click="onCardSecretTap"
+                >
                     <!-- <CreditCard :size="120" stroke-width="1.5" /> -->
                     <img src="/images/decor-card.png" alt="Card icon" class="object-cover" />
                 </div>
@@ -248,6 +275,8 @@ const t = {
     position: relative;
     overflow: hidden;
     display: inline-block;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 
     transform-origin: left bottom;
     animation: card-icon-animation 3s infinite ease-in-out;

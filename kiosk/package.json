@@ -1,16 +1,23 @@
 {
   "name": "kiosk-balance-app",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "node scripts/sync-android-version.mjs && vue-tsc -b && vite build",
     "preview": "vite preview",
-    "start": "vite preview --port $PORT --host"
+    "start": "vite preview --port $PORT --host",
+    "sync-android-version": "node scripts/sync-android-version.mjs",
+    "release": "node scripts/build-release.mjs",
+    "release:patch": "node scripts/build-release.mjs --bump patch",
+    "release:minor": "node scripts/build-release.mjs --bump minor",
+    "release:major": "node scripts/build-release.mjs --bump major"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.4.1",
     "capacitor-hardware": "../plugins/capacitor-hardware",
     "lucide-vue-next": "^0.469.0",
