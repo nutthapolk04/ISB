@@ -1190,6 +1190,8 @@
       "colPayerId": "รหัส",
       "colPayerName": "ชื่อ-นามสกุล",
       "colPaymentMethod": "ประเภทการชำระ",
+      "colCash": "CASH",
+      "colQr": "QR",
       "colShop": "ร้าน",
       "colStatus": "สถานะ",
       "toppedByFilter": "ผู้เติมเงิน",

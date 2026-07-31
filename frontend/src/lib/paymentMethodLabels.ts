@@ -105,6 +105,25 @@ export function formatPaymentMethodLabelPlain(
   return PAYMENT_METHOD_LABEL_FALLBACKS[key];
 }
 
+/** Kiosk transaction report — cash column check. */
+export function isCashPaymentMethod(method: string | null | undefined): boolean {
+  return resolvePaymentMethodLabelKey(method ?? "") === "cash";
+}
+
+/** Kiosk transaction report — QR column check (Thai QR / bay_qr). */
+export function isQrPaymentMethod(method: string | null | undefined): boolean {
+  return resolvePaymentMethodLabelKey(method ?? "") === "thai_qr";
+}
+
+export function kioskPaymentCheckExportValue(
+  method: string | null | undefined,
+  type: "cash" | "qr",
+): string {
+  if (type === "cash" && isCashPaymentMethod(method)) return "✓";
+  if (type === "qr" && isQrPaymentMethod(method)) return "✓";
+  return "—";
+}
+
 export function formatAggregatedPaymentMethodLabelPlain(
   method: string,
   aggregateEdcCardFee?: number | string | null,

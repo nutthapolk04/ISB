@@ -17,7 +17,12 @@ import {
     displayIsbId,
     displayTopupRecipientExternalId,
 } from "@/lib/topupReportDisplay";
-import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
+import {
+    formatPaymentMethodLabel,
+    isCashPaymentMethod,
+    isQrPaymentMethod,
+    kioskPaymentCheckExportValue,
+} from "@/lib/paymentMethodLabels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -34,7 +39,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2, TrendingUp } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2, TrendingUp, Check } from "lucide-react";
 import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
 import ShopPicker from "@/components/ShopPicker";
 import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
@@ -371,6 +376,19 @@ function TransactionTable({
 }
 
 /** Kiosk report — transaction view (top-ups at kiosk terminals). */
+function KioskPaymentCheckCell({ method, type }: { method: string | null; type: "cash" | "qr" }) {
+    const checked = type === "cash" ? isCashPaymentMethod(method) : isQrPaymentMethod(method);
+    return (
+        <td className="px-2 py-1.5 text-center">
+            {checked ? (
+                <Check className="mx-auto h-4 w-4 text-foreground" aria-hidden />
+            ) : (
+                <span className="text-muted-foreground">—</span>
+            )}
+        </td>
+    );
+}
+
 function KioskTransactionTable({
     data,
     page,
@@ -408,7 +426,8 @@ function KioskTransactionTable({
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedUpTo")}</th>
-                            <th className="px-2 py-2 text-left">{t("admin.adminReports.colPaymentMethod")}</th>
+                            <th className="px-2 py-2 text-center">{t("admin.adminReports.colCash", "CASH")}</th>
+                            <th className="px-2 py-2 text-center">{t("admin.adminReports.colQr", "QR")}</th>
                             <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
                             <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
                         </tr>
@@ -416,7 +435,7 @@ function KioskTransactionTable({
                     <tbody>
                         {data.items.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">
+                                <td colSpan={10} className="px-3 py-4 text-center text-muted-foreground">
                                     No transactions match these filters.
                                 </td>
                             </tr>
@@ -433,7 +452,8 @@ function KioskTransactionTable({
                                     <td className="px-2 py-1.5">{r.topped_by ?? r.payer_name}</td>
                                     <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_up_to_external_id)}</td>
                                     <td className="px-2 py-1.5">{r.topped_up_to ?? r.payer_name}</td>
-                                    <td className="px-2 py-1.5">{formatPaymentMethodLabel(t, r.payment_method)}</td>
+                                    <KioskPaymentCheckCell method={r.payment_method} type="cash" />
+                                    <KioskPaymentCheckCell method={r.payment_method} type="qr" />
                                     <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
                                     <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name}</td>
                                 </tr>
@@ -443,7 +463,7 @@ function KioskTransactionTable({
                     {data.items.length > 0 && (
                         <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                             <tr className="border-t">
-                                <td colSpan={7} className="px-2 py-2 text-left">TOTAL</td>
+                                <td colSpan={8} className="px-2 py-2 text-left">TOTAL</td>
                                 <td className="px-2 py-2 text-right font-mono">{data.amount_total.toFixed(2)}</td>
                                 <td />
                             </tr>
@@ -1083,7 +1103,8 @@ export default function AdminReports() {
                     { header: t("admin.adminReports.colToppedBy"), key: "topped_by_display", width: 24 },
                     { header: t("admin.adminReports.colIsbId"), key: "topped_up_to_external_id", width: 14 },
                     { header: t("admin.adminReports.colToppedUpTo"), key: "topped_up_to_display", width: 24 },
-                    { header: t("admin.adminReports.colPaymentMethod"), key: "payment_method_label", width: 14 },
+                    { header: t("admin.adminReports.colCash", "CASH"), key: "cash_check", width: 8, align: "center" as const },
+                    { header: t("admin.adminReports.colQr", "QR"), key: "qr_check", width: 8, align: "center" as const },
                     { header: t("admin.adminReports.colAmount"), key: "amount", format: "currency" as const, align: "right" as const, width: 14 },
                     { header: t("admin.adminReports.colCashier"), key: "cashier_name", width: 20 },
                 ];
@@ -1105,7 +1126,8 @@ export default function AdminReports() {
                             topped_by_display: r.topped_by ?? r.payer_name,
                             topped_up_to_external_id: displayIsbId(r.topped_up_to_external_id),
                             topped_up_to_display: r.topped_up_to ?? r.payer_name,
-                            payment_method_label: formatPaymentMethodLabel(t, r.payment_method),
+                            cash_check: kioskPaymentCheckExportValue(r.payment_method, "cash"),
+                            qr_check: kioskPaymentCheckExportValue(r.payment_method, "qr"),
                         })) as unknown as Record<string, unknown>[],
                         totals: { amount: full.amount_total },
                     },

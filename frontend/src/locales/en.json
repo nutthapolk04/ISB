@@ -1190,6 +1190,8 @@
       "colPayerId": "ID",
       "colPayerName": "Name",
       "colPaymentMethod": "Payment type",
+      "colCash": "CASH",
+      "colQr": "QR",
       "colShop": "Shop",
       "colStatus": "Status",
       "toppedByFilter": "Topped by",

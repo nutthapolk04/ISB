@@ -6,6 +6,7 @@ import { Hardware } from 'capacitor-hardware';
 import { retryPendingCashTopup } from './hooks/useBillAcceptor';
 import { connectPrinter } from './hooks/usePrinter';
 import BootSplashScreen from './components/BootSplashScreen.vue';
+import ServiceLoginView from './views/ServiceLoginView.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -34,6 +35,7 @@ const resetTimeout = () => {
     store.updateActivity();
 
     if (route.name === 'welcome' || route.name === 'technician') return;
+    if (store.bootStatus !== 'ready') return;
     if (store.suppressGlobalIdleTimeout) return;
 
     timeoutId = window.setTimeout(handleTimeout, TIMEOUT_DEFAULT);
@@ -48,12 +50,15 @@ const handleInteraction = () => {
     resetTimeout();
 };
 
+function onServiceLoggedIn() {
+    void retryPendingCashTopup();
+}
+
 onMounted(async () => {
     window.addEventListener('mousedown', handleInteraction);
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
-    void store.bootstrap().then(() => retryPendingCashTopup());
 
     Hardware.connect({
         port: '/dev/ttyS2',
@@ -94,7 +99,12 @@ watch(
 <template>
     <div class="kiosk-app-wrapper" @contextmenu.prevent>
         <div class="kiosk-back-layer" :class="{ 'kiosk-back-layer--visible': contentVisible }">
-            <div v-if="store.bootStatus === 'loading'" class="kiosk-boot-screen">
+            <ServiceLoginView
+                v-if="splashDone && store.bootStatus === 'awaiting_login'"
+                @logged-in="onServiceLoggedIn"
+            />
+
+            <div v-else-if="store.bootStatus === 'loading'" class="kiosk-boot-screen">
                 <div class="kiosk-spinner" />
                 <p class="kiosk-overlay-msg" style="color: var(--text-color)">Connecting to server…</p>
             </div>
@@ -102,7 +112,7 @@ watch(
             <div v-else-if="store.bootStatus === 'error'" class="kiosk-boot-screen">
                 <p class="kiosk-boot-error">Cannot connect to server</p>
                 <p v-if="store.bootError" class="text-muted text-center">{{ store.bootError }}</p>
-                <button class="kiosk-btn btn-primary" style="max-width: 280px" @click="store.bootstrap()">Retry</button>
+                <button class="kiosk-btn btn-primary" style="max-width: 280px" @click="store.retryBootstrap()">Retry</button>
             </div>
 
             <router-view v-else v-slot="{ Component }">

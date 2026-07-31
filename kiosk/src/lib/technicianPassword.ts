@@ -3,7 +3,8 @@ export const TECHNICIAN_SESSION_KEY = 'kiosk-technician-unlocked';
 const MIN_LENGTH = 4;
 
 function envDefaultPassword(): string {
-    return (import.meta.env.VITE_KIOSK_PASSWORD as string | undefined)?.trim() ?? '';
+    const fromEnv = (import.meta.env.VITE_TECHNICIAN_PASSWORD as string | undefined)?.trim();
+    return fromEnv ?? 'kiosk1234';
 }
 
 function readStoredOverride(): string | null {

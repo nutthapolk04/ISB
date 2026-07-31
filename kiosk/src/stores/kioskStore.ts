@@ -1,23 +1,35 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { realApi, type KioskProfile } from '../api/realApi';
+import {
+    realApi,
+    type KioskProfile,
+    KioskServiceLoginError,
+    hasServiceCredentials,
+    clearServiceCredentials,
+} from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
 import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
+import { getKioskServiceUsername } from '../lib/kioskServiceAccount';
 
-export type BootStatus = 'loading' | 'ready' | 'error';
+export type BootStatus = 'awaiting_login' | 'loading' | 'ready' | 'error';
 export type LoginFailureReason = 'not_found' | 'network' | 'busy';
+export type ServiceAuthFailureReason = 'wrong_password' | 'missing_username' | 'network';
 
 export type LoginResult =
     | { ok: true }
     | { ok: false; reason: LoginFailureReason };
 
+export type ServiceAuthResult =
+    | { ok: true }
+    | { ok: false; reason: ServiceAuthFailureReason };
+
 export const useKioskStore = defineStore('kiosk', () => {
     const currentUser = ref<User | null>(null);
     const transactions = ref<Transaction[]>([]);
     const isLoading = ref(false);
-    const bootStatus = ref<BootStatus>('loading');
+    const bootStatus = ref<BootStatus>('awaiting_login');
     const bootError = ref<string | null>(null);
     const language = ref<'TH' | 'EN'>('EN');
     const lastActivity = ref(Date.now());
@@ -89,24 +101,69 @@ export const useKioskStore = defineStore('kiosk', () => {
         return profile;
     }
 
-    async function bootstrap() {
+    async function completeBootstrap() {
+        await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
+        bootStatus.value = 'ready';
+        logKioskEvent('system', 'info', 'Kiosk bootstrap ready');
+        startKioskLogUploader();
+        startKioskHeartbeat();
+    }
+
+    async function authenticateService(password: string): Promise<ServiceAuthResult> {
         bootStatus.value = 'loading';
         bootError.value = null;
         try {
-            await realApi.init();
-            await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
-            bootStatus.value = 'ready';
-            logKioskEvent('system', 'info', 'Kiosk bootstrap ready');
-            startKioskLogUploader();
-            startKioskHeartbeat();
+            getKioskServiceUsername();
         } catch (e) {
-            bootStatus.value = 'error';
+            bootStatus.value = 'awaiting_login';
+            bootError.value = e instanceof Error ? e.message : 'Missing kiosk username';
+            return { ok: false, reason: 'missing_username' };
+        }
+
+        try {
+            await realApi.loginWithPassword(password);
+            await completeBootstrap();
+            return { ok: true };
+        } catch (e) {
+            clearServiceCredentials();
+            if (e instanceof KioskServiceLoginError && e.reason === 'wrong_password') {
+                bootStatus.value = 'awaiting_login';
+                bootError.value = null;
+                logKioskEvent('system', 'warn', 'Kiosk service login rejected');
+                return { ok: false, reason: 'wrong_password' };
+            }
+            bootStatus.value = 'awaiting_login';
             bootError.value = e instanceof Error ? e.message : 'Could not connect to server';
             logKioskEvent('system', 'error', 'Kiosk bootstrap failed', {
                 error: bootError.value,
             });
-            console.warn('[KioskStore] bootstrap failed:', e);
+            console.warn('[KioskStore] authenticateService failed:', e);
+            return { ok: false, reason: 'network' };
         }
+    }
+
+    async function retryBootstrap(): Promise<void> {
+        if (!hasServiceCredentials()) {
+            bootStatus.value = 'awaiting_login';
+            return;
+        }
+        bootStatus.value = 'loading';
+        bootError.value = null;
+        try {
+            await realApi.ensureAuthenticated();
+            await completeBootstrap();
+        } catch (e) {
+            bootStatus.value = 'error';
+            bootError.value = e instanceof Error ? e.message : 'Could not connect to server';
+            logKioskEvent('system', 'error', 'Kiosk bootstrap retry failed', {
+                error: bootError.value,
+            });
+        }
+    }
+
+    /** @deprecated Use authenticateService — kept for retry after transient errors. */
+    async function bootstrap() {
+        await retryBootstrap();
     }
 
     async function login(identifier: string, source: 'rfid' | 'manual' = 'rfid'): Promise<LoginResult> {
@@ -218,6 +275,8 @@ export const useKioskStore = defineStore('kiosk', () => {
         setActiveWallet,
         updateActivity,
         setSuppressGlobalIdle,
+        authenticateService,
+        retryBootstrap,
         bootstrap,
         login,
         logout,
