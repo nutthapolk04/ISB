@@ -322,6 +322,7 @@ function CurrentTeamTab({
               <TableRow>
                 <TableHead>{t("shopUsers.colName")}</TableHead>
                 <TableHead>{t("shopUsers.colUsername")}</TableHead>
+                <TableHead>{t("shopUsers.colIdNumber", "ID Number")}</TableHead>
                 <TableHead>{t("shopUsers.colRole")}</TableHead>
                 <TableHead>{t("shopUsers.colOrigin")}</TableHead>
                 <TableHead>{t("shopUsers.colStatus")}</TableHead>
@@ -331,7 +332,7 @@ function CurrentTeamTab({
             <TableBody>
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                     {t("shopUsers.emptyTeam")}
                   </TableCell>
                 </TableRow>
@@ -345,6 +346,7 @@ function CurrentTeamTab({
                     )}
                   </TableCell>
                   <TableCell className="font-mono text-xs">@{u.username}</TableCell>
+                  <TableCell className="font-mono text-xs">{u.external_id || "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
                       {roleLabel(u.role, t)}
@@ -683,6 +685,7 @@ function DirectoryTab({ shopId, shopName }: TabProps) {
               <TableRow>
                 <TableHead>{t("shopUsers.colName")}</TableHead>
                 <TableHead>{t("shopUsers.colEmail")}</TableHead>
+                <TableHead>{t("shopUsers.colIdNumber", "ID Number")}</TableHead>
                 <TableHead>{t("shopUsers.colOrigin")}</TableHead>
                 <TableHead>{t("shopUsers.colCurrentlyAt")}</TableHead>
                 <TableHead className="text-right">{t("shopUsers.colActions")}</TableHead>
@@ -691,7 +694,7 @@ function DirectoryTab({ shopId, shopName }: TabProps) {
             <TableBody>
               {available.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     {t("shopUsers.directorySearchNoResults")}
                   </TableCell>
                 </TableRow>
@@ -706,6 +709,7 @@ function DirectoryTab({ shopId, shopName }: TabProps) {
                       <div className="text-xs text-muted-foreground">@{u.username}</div>
                     </TableCell>
                     <TableCell className="text-sm">{u.email ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{u.external_id || "—"}</TableCell>
                     <TableCell>{originBadge(u.external_id, t)}</TableCell>
                     <TableCell>
                       {u.shop_id ? (
