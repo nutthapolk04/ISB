@@ -103,6 +103,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
         .delete("/users/:user_id/roles/:role_name", AuthController.removeRole, AuthSchema.removeRole)
     )
     // ── Departments ─────────────────────────────────────────────────────────
+    .get("/departments/by-card/:uid", DepartmentController.byCard, DepartmentSchema.getDepartmentByCard)
     .get("/departments/", DepartmentController.list, DepartmentSchema.listDepartments)
     // ── Users ───────────────────────────────────────────────────────────────
     .group("/users", (app) =>

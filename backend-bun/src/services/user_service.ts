@@ -1,7 +1,7 @@
 import { and, eq, ilike, isNull, or, sql, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, shops, customers, wallets, departments } from "@/db/schema";
-import { expandCardUidCandidates } from "@/lib/card_uid";
+import { expandCardUidCandidates, cardUidLookupAttempts } from "@/lib/card_uid";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -269,7 +269,7 @@ export async function getUserPayerByUsername(username: string): Promise<UserPaye
 
 export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDTO> {
     console.log("[getUserPayerByCard] START: uid=", uid);
-    const candidates = expandCardUidCandidates(uid);
+    const candidates = cardUidLookupAttempts(uid);
     console.log("[getUserPayerByCard] candidates=", candidates);
     if (candidates.length === 0) {
         const err = new Error("Card not found");

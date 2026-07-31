@@ -2,6 +2,7 @@ import { and, eq, ilike, ne, or, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { departments, wallets, customers, users } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
+import { expandCardUidCandidates, cardUidLookupAttempts } from "@/lib/card_uid";
 
 export interface DepartmentSummaryDTO {
     id: number;
@@ -50,6 +51,39 @@ export async function listDepartments(args: {
         wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
         card_uid: r.card_uid ?? null,
     }));
+}
+
+export async function getDepartmentByCard(uid: string): Promise<DepartmentSummaryDTO | null> {
+    const candidates = cardUidLookupAttempts(uid);
+    if (candidates.length === 0) return null;
+
+    const rows = await db
+        .select({
+            id: departments.id,
+            department_code: departments.departmentCode,
+            department_name: departments.departmentName,
+            is_active: departments.isActive,
+            wallet_id: wallets.id,
+            wallet_balance: wallets.balance,
+            card_uid: departments.cardUid,
+        })
+        .from(departments)
+        .leftJoin(wallets, eq(wallets.departmentId, departments.id))
+        .where(or(...candidates.map((c) => ilike(departments.cardUid, c))))
+        .limit(1);
+
+    const r = rows[0];
+    if (!r) return null;
+
+    return {
+        id: r.id,
+        department_code: r.department_code,
+        department_name: r.department_name,
+        is_active: r.is_active,
+        wallet_id: r.wallet_id ?? null,
+        wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
+        card_uid: r.card_uid ?? null,
+    };
 }
 
 /**

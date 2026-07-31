@@ -83,3 +83,28 @@ export function expandCardUidCandidates(raw: string): string[] {
 
   return [...out];
 }
+
+/** Same ordering as frontend cardUidLookupAttempts — keep in sync. */
+export function cardUidLookupAttempts(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const add = (v: string | null | undefined) => {
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    out.push(v);
+  };
+
+  add(trimmed);
+  for (const c of expandCardUidCandidates(trimmed)) add(c);
+
+  if (/^\d{8,10}$/.test(trimmed)) {
+    const padded = trimmed.padStart(10, "0");
+    add(padded);
+    for (const c of expandCardUidCandidates(padded)) add(c);
+  }
+
+  return out;
+}
