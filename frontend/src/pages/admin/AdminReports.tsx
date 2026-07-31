@@ -1133,18 +1133,6 @@ export default function AdminReports() {
                     qr_amount: kioskPaymentAmountValue(r.payment_method, r.amount, "qr"),
                 })) as unknown as Record<string, unknown>[];
                 const kioskGrandTotal = full.cash_total + full.qr_total;
-                kioskTxnBodyRows.push({
-                    [EMPHASIS_KEY]: "total",
-                    topped_up_to_display: t("admin.adminReports.total", "TOTAL"),
-                    cash_amount: full.cash_total,
-                    qr_amount: full.qr_total,
-                });
-                kioskTxnBodyRows.push({
-                    [EMPHASIS_KEY]: "total",
-                    topped_up_to_display: t("admin.adminReports.grandTotal", "GRAND TOTAL"),
-                    cash_amount: kioskGrandTotal,
-                    qr_amount: "",
-                });
                 exports.push({
                     payload: {
                         meta: {
@@ -1157,6 +1145,19 @@ export default function AdminReports() {
                         },
                         columns: kioskTxnColumns,
                         rows: kioskTxnBodyRows,
+                        footerRows: [
+                            {
+                                label: t("admin.adminReports.total", "TOTAL"),
+                                labelColSpan: 6,
+                                values: { cash_amount: full.cash_total, qr_amount: full.qr_total },
+                            },
+                            {
+                                label: t("admin.adminReports.grandTotal", "GRAND TOTAL"),
+                                labelColSpan: 6,
+                                values: { cash_amount: kioskGrandTotal },
+                                valueMerge: { key: "cash_amount", colSpan: 2 },
+                            },
+                        ],
                     },
                     baseFilename: `KioskTransactions_${kioskLabel}${dateLabel}`,
                 });

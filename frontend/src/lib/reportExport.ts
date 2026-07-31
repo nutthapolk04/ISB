@@ -39,43 +39,43 @@ import * as XLSX from "xlsx";
 // page so subsequent exports skip the network round-trip.
 const FONT_NAME = "Sarabun";
 const FONT_FILES: Record<"normal" | "bold", { vfsName: string; url: string }> = {
-  normal: { vfsName: "Sarabun-Regular.ttf", url: "/fonts/sarabun-regular.ttf" },
-  bold:   { vfsName: "Sarabun-Bold.ttf",    url: "/fonts/sarabun-bold.ttf"    },
+    normal: { vfsName: "Sarabun-Regular.ttf", url: "/fonts/sarabun-regular.ttf" },
+    bold: { vfsName: "Sarabun-Bold.ttf", url: "/fonts/sarabun-bold.ttf" },
 };
 const fontCache: Partial<Record<"normal" | "bold", string>> = {};
 
 async function fetchFontBase64(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`font fetch ${url}: ${res.status}`);
-  const buf = await res.arrayBuffer();
-  // btoa needs a binary string — feed it one byte at a time so we never
-  // hit "Maximum call stack size exceeded" on the 130KB file.
-  let s = "";
-  const u8 = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for (let i = 0; i < u8.length; i += chunk) {
-    s += String.fromCharCode(...u8.subarray(i, i + chunk));
-  }
-  return btoa(s);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`font fetch ${url}: ${res.status}`);
+    const buf = await res.arrayBuffer();
+    // btoa needs a binary string — feed it one byte at a time so we never
+    // hit "Maximum call stack size exceeded" on the 130KB file.
+    let s = "";
+    const u8 = new Uint8Array(buf);
+    const chunk = 0x8000;
+    for (let i = 0; i < u8.length; i += chunk) {
+        s += String.fromCharCode(...u8.subarray(i, i + chunk));
+    }
+    return btoa(s);
 }
 
 async function ensureThaiFont(doc: jsPDF): Promise<void> {
-  for (const weight of ["normal", "bold"] as const) {
-    const f = FONT_FILES[weight];
-    if (!fontCache[weight]) {
-      try {
-        fontCache[weight] = await fetchFontBase64(f.url);
-      } catch (e) {
-        // Network failed — caller falls back to helvetica. Log so we can
-        // diagnose deploy issues without crashing the export.
-        console.warn("Sarabun fetch failed, falling back to Helvetica:", e);
-        return;
-      }
+    for (const weight of ["normal", "bold"] as const) {
+        const f = FONT_FILES[weight];
+        if (!fontCache[weight]) {
+            try {
+                fontCache[weight] = await fetchFontBase64(f.url);
+            } catch (e) {
+                // Network failed — caller falls back to helvetica. Log so we can
+                // diagnose deploy issues without crashing the export.
+                console.warn("Sarabun fetch failed, falling back to Helvetica:", e);
+                return;
+            }
+        }
+        doc.addFileToVFS(f.vfsName, fontCache[weight]!);
+        doc.addFont(f.vfsName, FONT_NAME, weight);
     }
-    doc.addFileToVFS(f.vfsName, fontCache[weight]!);
-    doc.addFont(f.vfsName, FONT_NAME, weight);
-  }
-  doc.setFont(FONT_NAME, "normal");
+    doc.setFont(FONT_NAME, "normal");
 }
 
 // ─── Filename sanitization ──────────────────────────────────────────────
@@ -85,14 +85,14 @@ async function ensureThaiFont(doc: jsPDF): Promise<void> {
  * Removes: ../, \, //, and leading dots.
  */
 export function sanitizeFilename(input: string): string {
-  if (!input) return "export";
+    if (!input) return "export";
 
-  return input
-    .replace(/\.\./g, "")           // Remove ..
-    .replace(/[\/\\]/g, "")         // Remove slashes (forward and back)
-    .replace(/^\.+/, "")            // Remove leading dots
-    .replace(/\s+/g, "_")           // Replace spaces with underscores
-    .slice(0, 200);                 // Cap at 200 chars to prevent filename bombs
+    return input
+        .replace(/\.\./g, "")           // Remove ..
+        .replace(/[\/\\]/g, "")         // Remove slashes (forward and back)
+        .replace(/^\.+/, "")            // Remove leading dots
+        .replace(/\s+/g, "_")           // Replace spaces with underscores
+        .slice(0, 200);                 // Cap at 200 chars to prevent filename bombs
 }
 
 // ─── Public types ────────────────────────────────────────────────────────
@@ -101,56 +101,56 @@ export type ColumnFormat = "text" | "number" | "currency" | "date" | "datetime";
 export type ColumnAlign = "left" | "right" | "center";
 
 export interface ReportColumn {
-  /** Display name shown in the table header (English — school is international). */
-  header: string;
-  /** Property name on each row used to read the value. */
-  key: string;
-  /** Optional width hint. PDF: points. Excel: character width. */
-  width?: number;
-  /** Cell horizontal alignment. Defaults to "right" for numbers/currency, "left" otherwise. */
-  align?: ColumnAlign;
-  /** How to format the raw value. Defaults to "text". */
-  format?: ColumnFormat;
+    /** Display name shown in the table header (English — school is international). */
+    header: string;
+    /** Property name on each row used to read the value. */
+    key: string;
+    /** Optional width hint. PDF: points. Excel: character width. */
+    width?: number;
+    /** Cell horizontal alignment. Defaults to "right" for numbers/currency, "left" otherwise. */
+    align?: ColumnAlign;
+    /** How to format the raw value. Defaults to "text". */
+    format?: ColumnFormat;
 }
 
 export interface ReportMeta {
-  /** Report name shown prominently in the PDF header and Excel row 2. */
-  title: string;
-  /** School branding — name shown top-right of PDF, row 1 of Excel. */
-  schoolName: string;
-  /** Optional school logo. Absolute or relative URL; loaded into the PDF if reachable. */
-  schoolLogoUrl?: string;
-  /** Optional bullet lines summarising the active filters (e.g. "Date: 2026-01-01 → 2026-01-31"). */
-  filters?: string[];
-  /** Override the "Generated at" stamp. Defaults to new Date(). */
-  generatedAt?: Date;
-  /**
-   * Report ID shown in the PDF/Excel footer. Auto-generated as
-   * "RPT-YYYYMMDD-HHmmss-XXXX" when omitted.
-   */
-  reportId?: string;
-  /** Name of the user who ran the report. Rendered as "· By: <name>" next to Report ID. */
-  runByName?: string;
+    /** Report name shown prominently in the PDF header and Excel row 2. */
+    title: string;
+    /** School branding — name shown top-right of PDF, row 1 of Excel. */
+    schoolName: string;
+    /** Optional school logo. Absolute or relative URL; loaded into the PDF if reachable. */
+    schoolLogoUrl?: string;
+    /** Optional bullet lines summarising the active filters (e.g. "Date: 2026-01-01 → 2026-01-31"). */
+    filters?: string[];
+    /** Override the "Generated at" stamp. Defaults to new Date(). */
+    generatedAt?: Date;
+    /**
+     * Report ID shown in the PDF/Excel footer. Auto-generated as
+     * "RPT-YYYYMMDD-HHmmss-XXXX" when omitted.
+     */
+    reportId?: string;
+    /** Name of the user who ran the report. Rendered as "· By: <name>" next to Report ID. */
+    runByName?: string;
 }
 
 /** Generate a sequential Report ID: ISB001, ISB002, … Counter persisted in localStorage. */
 export function generateReportId(prefix = "ISB"): string {
-  const STORAGE_KEY = "isb_report_id_counter";
-  const MAX_COUNTER = 999999;  // 6-digit max to prevent unbounded growth
+    const STORAGE_KEY = "isb_report_id_counter";
+    const MAX_COUNTER = 999999;  // 6-digit max to prevent unbounded growth
 
-  const raw = localStorage.getItem(STORAGE_KEY);
-  let current = parseInt(raw ?? "0", 10);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    let current = parseInt(raw ?? "0", 10);
 
-  // Validate counter: must be a safe integer within bounds
-  if (!Number.isInteger(current) || current < 0 || current > MAX_COUNTER) {
-    // Reset to 0 if invalid or poisoned (e.g., by malicious script)
-    console.warn("Invalid localStorage counter detected, resetting to 0");
-    current = 0;
-  }
+    // Validate counter: must be a safe integer within bounds
+    if (!Number.isInteger(current) || current < 0 || current > MAX_COUNTER) {
+        // Reset to 0 if invalid or poisoned (e.g., by malicious script)
+        console.warn("Invalid localStorage counter detected, resetting to 0");
+        current = 0;
+    }
 
-  const next = current + 1;
-  localStorage.setItem(STORAGE_KEY, String(next));
-  return `${prefix}${String(next).padStart(3, "0")}`;
+    const next = current + 1;
+    localStorage.setItem(STORAGE_KEY, String(next));
+    return `${prefix}${String(next).padStart(3, "0")}`;
 }
 
 /**
@@ -171,50 +171,62 @@ export const SECTION_KEY = "__section" as const;
 export const EMPHASIS_KEY = "__emphasis" as const;
 export type RowEmphasis = "subtotal" | "total";
 
+/** Multi-row PDF/Excel footer with explicit col-spans (cleaner than body emphasis rows). */
+export interface ReportFooterRow {
+    label: string;
+    /** How many leading columns the label merges (from column 0). */
+    labelColSpan: number;
+    values?: Record<string, string | number | null | undefined>;
+    /** Merge one value cell across multiple columns (e.g. grand total across CASH+QR). */
+    valueMerge?: { key: string; colSpan: number };
+}
+
 export interface ReportPayload<TRow extends Record<string, unknown>> {
-  meta: ReportMeta;
-  columns: ReportColumn[];
-  rows: TRow[];
-  /**
-   * Optional totals row rendered in bold at the bottom. Map column.key → display value
-   * (already formatted). The first column without a totals entry shows the label "TOTAL"
-   * automatically unless you provide an explicit value for it.
-   */
-  totals?: Record<string, string | number>;
+    meta: ReportMeta;
+    columns: ReportColumn[];
+    rows: TRow[];
+    /**
+     * Optional totals row rendered in bold at the bottom. Map column.key → display value
+     * (already formatted). The first column without a totals entry shows the label "TOTAL"
+     * automatically unless you provide an explicit value for it.
+     */
+    totals?: Record<string, string | number>;
+    /** Optional multi-row footer — preferred when labels/amounts need col-spans. */
+    footerRows?: ReportFooterRow[];
 }
 
 /** A row carrying a SECTION_KEY value is rendered as a merged-cell header. */
 function sectionLabel(row: Record<string, unknown>): string | null {
-  const v = row[SECTION_KEY];
-  return typeof v === "string" ? v : null;
+    const v = row[SECTION_KEY];
+    return typeof v === "string" ? v : null;
 }
 
 function rowEmphasis(row: Record<string, unknown>): RowEmphasis | null {
-  const v = row[EMPHASIS_KEY];
-  return v === "subtotal" || v === "total" ? v : null;
+    const v = row[EMPHASIS_KEY];
+    return v === "subtotal" || v === "total" ? v : null;
 }
 
 // ─── Value formatting (shared between PDF and Excel) ─────────────────────
 
 const formatCurrency = (n: number) =>
-  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const formatNumber = (n: number) =>
-  n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 const formatDate = (v: unknown): string => {
-  if (!v) return "";
-  const d = new Date(String(v));
-  if (Number.isNaN(d.getTime())) return String(v);
-  return d.toISOString().slice(0, 10);
+    if (!v) return "";
+    const d = new Date(String(v));
+    if (Number.isNaN(d.getTime())) return String(v);
+    return d.toISOString().slice(0, 10);
 };
 
 const formatDateTime = (v: unknown): string => {
-  if (!v) return "";
-  const d = new Date(String(v));
-  if (Number.isNaN(d.getTime())) return String(v);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    if (!v) return "";
+    const d = new Date(String(v));
+    if (Number.isNaN(d.getTime())) return String(v);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
 /**
@@ -223,24 +235,64 @@ const formatDateTime = (v: unknown): string => {
  * arithmetic on the original numeric value.
  */
 export function formatCell(value: unknown, format: ColumnFormat = "text"): string {
-  if (value === null || value === undefined || value === "") return "";
-  switch (format) {
-    case "currency":
-      return typeof value === "number" ? formatCurrency(value) : String(value);
-    case "number":
-      return typeof value === "number" ? formatNumber(value) : String(value);
-    case "date":
-      return formatDate(value);
-    case "datetime":
-      return formatDateTime(value);
-    case "text":
-    default:
-      return String(value);
-  }
+    if (value === null || value === undefined || value === "") return "";
+    switch (format) {
+        case "currency":
+            return typeof value === "number" ? formatCurrency(value) : String(value);
+        case "number":
+            return typeof value === "number" ? formatNumber(value) : String(value);
+        case "date":
+            return formatDate(value);
+        case "datetime":
+            return formatDateTime(value);
+        case "text":
+        default:
+            return String(value);
+    }
 }
 
 const defaultAlign = (col: ReportColumn): ColumnAlign =>
-  col.align ?? (col.format === "currency" || col.format === "number" ? "right" : "left");
+    col.align ?? (col.format === "currency" || col.format === "number" ? "right" : "left");
+
+type AutoTableCell = string | {
+    content: string;
+    colSpan?: number;
+    styles?: Record<string, unknown>;
+};
+
+const PDF_FOOTER_FILL: [number, number, number] = [240, 240, 240];
+
+function buildPdfFooterRowCells(columns: ReportColumn[], row: ReportFooterRow): AutoTableCell[] {
+    const bold = {
+        fontStyle: "bold" as const,
+        fillColor: PDF_FOOTER_FILL,
+        textColor: PDF_TEXT_COLOR,
+    };
+    const cells: AutoTableCell[] = [
+        { content: row.label, colSpan: row.labelColSpan, styles: { ...bold, halign: "right" } },
+    ];
+    let colIdx = row.labelColSpan;
+    while (colIdx < columns.length) {
+        const c = columns[colIdx];
+        if (row.valueMerge?.key === c.key) {
+            const raw = row.values?.[c.key];
+            cells.push({
+                content: raw == null || raw === "" ? "" : (typeof raw === "number" ? formatCell(raw, c.format) : String(raw)),
+                colSpan: row.valueMerge.colSpan,
+                styles: { ...bold, halign: defaultAlign(c) },
+            });
+            colIdx += row.valueMerge.colSpan;
+            continue;
+        }
+        const raw = row.values?.[c.key];
+        cells.push({
+            content: raw == null || raw === "" ? "" : (typeof raw === "number" ? formatCell(raw, c.format) : String(raw)),
+            styles: { ...bold, halign: defaultAlign(c) },
+        });
+        colIdx += 1;
+    }
+    return cells;
+}
 
 // ─── Image loading (PDF logo) ────────────────────────────────────────────
 
@@ -263,49 +315,49 @@ const defaultAlign = (col: ReportColumn): ColumnAlign =>
  * "/uploads/logo.png" works.
  */
 async function loadImageDataUrl(
-  src: string,
+    src: string,
 ): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" } | null> {
-  try {
-    let rawSrc: string;
-    if (src.startsWith("data:")) {
-      // Already a Data URL — embed directly, no need to resolve/fetch it.
-      rawSrc = src;
-    } else {
-      const url = src.startsWith("http") ? src : new URL(src, window.location.origin).toString();
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      rawSrc = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+    try {
+        let rawSrc: string;
+        if (src.startsWith("data:")) {
+            // Already a Data URL — embed directly, no need to resolve/fetch it.
+            rawSrc = src;
+        } else {
+            const url = src.startsWith("http") ? src : new URL(src, window.location.origin).toString();
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            rawSrc = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = rawSrc;
+        });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0);
+
+        return {
+            dataUrl: canvas.toDataURL("image/png"),
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            format: "PNG",
+        };
+    } catch {
+        return null;
     }
-
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = reject;
-      i.src = rawSrc;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
-
-    return {
-      dataUrl: canvas.toDataURL("image/png"),
-      width: img.naturalWidth,
-      height: img.naturalHeight,
-      format: "PNG",
-    };
-  } catch {
-    return null;
-  }
 }
 
 // ─── PDF export ──────────────────────────────────────────────────────────
@@ -316,384 +368,420 @@ const PDF_TEXT_COLOR = 0;
 const PDF_LINE_COLOR: [number, number, number] = [0, 0, 0];
 
 export async function exportToPDF<TRow extends Record<string, unknown>>(
-  payload: ReportPayload<TRow>,
-  filename: string,
+    payload: ReportPayload<TRow>,
+    filename: string,
 ): Promise<void> {
-  const { meta, columns, rows, totals } = payload;
-  const reportId = meta.reportId ?? generateReportId();
-  const generatedAt = meta.generatedAt ?? new Date();
-  const printDateTime = formatDateTime(generatedAt);
+    const { meta, columns, rows, totals, footerRows } = payload;
+    const reportId = meta.reportId ?? generateReportId();
+    const generatedAt = meta.generatedAt ?? new Date();
+    const printDateTime = formatDateTime(generatedAt);
 
-  // Landscape A4 — most reports have many columns. Switch to portrait if a
-  // particular report ever proves it needs that.
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const marginX = 32;
-  let cursorY = 36;
+    // Landscape A4 — most reports have many columns. Switch to portrait if a
+    // particular report ever proves it needs that.
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 32;
+    let cursorY = 36;
 
-  // Register Sarabun before drawing anything so headers / table can render
-  // Thai. Falls back to Helvetica silently if the font fetch fails.
-  await ensureThaiFont(doc);
-  const fontFamily = doc.getFontList()[FONT_NAME] ? FONT_NAME : "helvetica";
+    // Register Sarabun before drawing anything so headers / table can render
+    // Thai. Falls back to Helvetica silently if the font fetch fails.
+    await ensureThaiFont(doc);
+    const fontFamily = doc.getFontList()[FONT_NAME] ? FONT_NAME : "helvetica";
 
-  // ─── Top meta bar: Report ID (left) + Printed (right) ───────────────
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(PDF_TEXT_COLOR);
-  const reportIdLine = meta.runByName
-    ? `Report ID: ${reportId} · By: ${meta.runByName}`
-    : `Report ID: ${reportId}`;
-  doc.text(reportIdLine, marginX, 20, { align: "left" });
-  doc.text(`Printed: ${printDateTime}`, pageWidth - marginX, 20, { align: "right" });
-  doc.setTextColor(PDF_TEXT_COLOR);
-
-  // ─── Header: logo (left) + school name & title (left, next to logo) ──
-  const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
-
-  let textStartX = marginX;
-  if (logo) {
-    try {
-      const targetH = 52;           // bigger logo
-      const targetW = (logo.width / logo.height) * targetH;
-      doc.addImage(logo.dataUrl, logo.format, marginX, cursorY, targetW, targetH);
-      textStartX = marginX + targetW + 10;
-    } catch (e) {
-      // A malformed/corrupt image must not take down the whole export —
-      // fall back to the no-logo layout (textStartX stays at marginX).
-      console.warn("PDF logo embed failed, continuing without it:", e);
-    }
-  }
-
-  // School name + title — left-aligned, right of logo
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(14);
-  doc.text(meta.schoolName, textStartX, cursorY + 16, { align: "left" });
-
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(11);
-  doc.text(meta.title, textStartX, cursorY + 32, { align: "left" });
-
-  cursorY += 58; // past the (taller) logo block
-
-  // ─── Filters summary ──────────────────────────────────────────────────
-  if (meta.filters && meta.filters.length > 0) {
-    doc.setFontSize(8);
-    doc.setTextColor(PDF_TEXT_COLOR);
-    for (const line of meta.filters) {
-      doc.text(line, pageWidth - marginX, cursorY, { align: "right" });
-      cursorY += 10;
-    }
-    doc.setTextColor(PDF_TEXT_COLOR);
-    cursorY += 6;
-  } else {
-    cursorY += 4;
-  }
-
-  // ─── Table ────────────────────────────────────────────────────────────
-  // Header cells are explicit objects so we can center-align them
-  // independently of the body column alignment (which stays right-aligned
-  // for numeric and left-aligned for text). columnStyles.halign normally
-  // wins over headStyles.halign, so we declare the override per-cell.
-  const head = [
-    columns.map((c) => ({
-      content: c.header,
-      styles: { halign: "center" as const },
-    })),
-  ];
-  // Rows are either plain arrays of cell strings OR — for section markers —
-  // a single merged cell that spans every column. autoTable accepts both
-  // shapes inside the same body array.
-  type AutoTableCell = string | {
-    content: string;
-    colSpan?: number;
-    styles?: Record<string, unknown>;
-  };
-  const body: AutoTableCell[][] = rows.map((row) => {
-    const label = sectionLabel(row);
-    if (label !== null) {
-      return [
-        {
-          content: label,
-          colSpan: columns.length,
-          styles: {
-            fontStyle: "bold",
-            fillColor: [255, 255, 255],
-            textColor: PDF_TEXT_COLOR,
-            halign: "left",
-          },
-        },
-      ];
-    }
-
-    // Emphasis styling for subtotal / total rows so they stand out from
-    // the plain movement rows above them. Cell content stays right/left
-    // aligned per columnStyles — we only override fill + font weight.
-    const emphasis = rowEmphasis(row);
-    if (emphasis !== null) {
-      const fill: [number, number, number] =
-        emphasis === "total" ? [240, 240, 240] : [255, 255, 255];
-      return columns.map((c) => ({
-        content: formatCell(row[c.key], c.format),
-        styles: {
-          fontStyle: "bold",
-          fillColor: fill,
-          textColor: PDF_TEXT_COLOR,
-        },
-      }));
-    }
-
-    return columns.map((c) => formatCell(row[c.key], c.format));
-  });
-
-  let foot: AutoTableCell[][] | undefined;
-  if (totals) {
-    // Build the TOTAL row.
-    //
-    // The label "TOTAL" used to live in column 0 (often "Seq", which is
-    // narrow), so it line-broke to "TOTA L". Instead, merge every leading
-    // text column with no total value into one wide right-aligned cell so
-    // the label has room to breathe — then start emitting numeric totals
-    // from the first column that actually has a value.
-    const firstTotalIdx = columns.findIndex((c) => totals[c.key] !== undefined);
-    const labelSpan = firstTotalIdx > 0 ? firstTotalIdx : 1;
-
-    const cells: AutoTableCell[] = [
-      {
-        content: "TOTAL",
-        colSpan: labelSpan,
-        styles: { halign: "right", fontStyle: "bold" },
-      },
-    ];
-    for (let i = labelSpan; i < columns.length; i += 1) {
-      const c = columns[i];
-      const explicit = totals[c.key];
-      const align = defaultAlign(c);
-      if (explicit !== undefined) {
-        cells.push({
-          content: typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit),
-          styles: { halign: align },
-        });
-      } else {
-        cells.push({ content: "", styles: { halign: align } });
-      }
-    }
-    foot = [cells];
-  }
-
-  // Auto-size font when there are many columns so we stop wrapping headers
-  // character-by-character. A4 landscape minus margins ≈ 778pt — once we
-  // get past ~10 columns the default 8pt font with a 4pt cell padding
-  // forces the headers like "Amt.Campus card" to line-break into a
-  // vertical stack. Tighten font + padding for wide reports.
-  const tableFontSize = columns.length >= 12 ? 7.5 : columns.length >= 10 ? 9 : 10;
-  const tableCellPadding = columns.length >= 12 ? 2.5 : columns.length >= 10 ? 3.5 : 4;
-
-  // Stretch the table to fill the page width. Sum the requested column
-  // widths and scale them proportionally so the layout keeps its relative
-  // sizing while consuming all available horizontal space.
-  const usableWidth = pageWidth - 2 * marginX;
-  const totalSpecWidth = columns.reduce((sum, c) => sum + (c.width ?? 0), 0);
-  const widthScale = totalSpecWidth > 0 ? usableWidth / totalSpecWidth : 1;
-
-  autoTable(doc, {
-    head,
-    body,
-    foot,
-    showFoot: "lastPage",
-    startY: cursorY,
-    margin: { left: marginX, right: marginX },
-    tableWidth: usableWidth,
-    theme: "grid",
-    styles: {
-      font: fontFamily,
-      fontSize: tableFontSize,
-      cellPadding: tableCellPadding,
-      overflow: "linebreak",
-      textColor: PDF_TEXT_COLOR,
-      lineColor: PDF_LINE_COLOR,
-      lineWidth: 0.4,
-    },
-    headStyles: {
-      font: fontFamily,
-      fillColor: [255, 255, 255],
-      textColor: PDF_TEXT_COLOR,
-      fontStyle: "bold",
-      // Headers stay readable even at 6.5pt — give them an extra
-      // half-point so the columns don't all collapse into 1-char width.
-      fontSize: tableFontSize + 0.5,
-      cellPadding: tableCellPadding,
-      lineColor: PDF_LINE_COLOR,
-      lineWidth: 0.4,
-    },
-    footStyles: {
-      font: fontFamily,
-      fillColor: [240, 240, 240],
-      textColor: PDF_TEXT_COLOR,
-      fontStyle: "bold",
-      lineColor: PDF_LINE_COLOR,
-      lineWidth: 0.4,
-    },
-    columnStyles: Object.fromEntries(
-      columns.map((c, i) => [
-        i,
-        {
-          halign: defaultAlign(c),
-          ...(c.width ? { cellWidth: c.width * widthScale } : {}),
-        },
-      ]),
-    ),
-  });
-
-  // Draw footer on every page after autoTable has finished laying out all rows.
-  // This is more reliable than didDrawPage because autoTable's total page count
-  // is only known after the call returns.
-  const totalPages = doc.getNumberOfPages();
-  const footerY = doc.internal.pageSize.getHeight() - 16;
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p);
+    // ─── Top meta bar: Report ID (left) + Printed (right) ───────────────
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(PDF_TEXT_COLOR);
-    doc.text(`Page ${p} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
-  }
+    const reportIdLine = meta.runByName
+        ? `Report ID: ${reportId} · By: ${meta.runByName}`
+        : `Report ID: ${reportId}`;
+    doc.text(reportIdLine, marginX, 20, { align: "left" });
+    doc.text(`Printed: ${printDateTime}`, pageWidth - marginX, 20, { align: "right" });
+    doc.setTextColor(PDF_TEXT_COLOR);
 
-  doc.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
+    // ─── Header: logo (left) + school name & title (left, next to logo) ──
+    const logo = meta.schoolLogoUrl ? await loadImageDataUrl(meta.schoolLogoUrl) : null;
+
+    let textStartX = marginX;
+    if (logo) {
+        try {
+            const targetH = 52;           // bigger logo
+            const targetW = (logo.width / logo.height) * targetH;
+            doc.addImage(logo.dataUrl, logo.format, marginX, cursorY, targetW, targetH);
+            textStartX = marginX + targetW + 10;
+        } catch (e) {
+            // A malformed/corrupt image must not take down the whole export —
+            // fall back to the no-logo layout (textStartX stays at marginX).
+            console.warn("PDF logo embed failed, continuing without it:", e);
+        }
+    }
+
+    // School name + title — left-aligned, right of logo
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(14);
+    doc.text(meta.schoolName, textStartX, cursorY + 16, { align: "left" });
+
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(11);
+    doc.text(meta.title, textStartX, cursorY + 32, { align: "left" });
+
+    cursorY += 58; // past the (taller) logo block
+
+    // ─── Filters summary ──────────────────────────────────────────────────
+    if (meta.filters && meta.filters.length > 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(PDF_TEXT_COLOR);
+        for (const line of meta.filters) {
+            doc.text(line, pageWidth - marginX, cursorY, { align: "right" });
+            cursorY += 10;
+        }
+        doc.setTextColor(PDF_TEXT_COLOR);
+        cursorY += 6;
+    } else {
+        cursorY += 4;
+    }
+
+    // ─── Table ────────────────────────────────────────────────────────────
+    // Header cells are explicit objects so we can center-align them
+    // independently of the body column alignment (which stays right-aligned
+    // for numeric and left-aligned for text). columnStyles.halign normally
+    // wins over headStyles.halign, so we declare the override per-cell.
+    const head = [
+        columns.map((c) => ({
+            content: c.header,
+            styles: { halign: "center" as const },
+        })),
+    ];
+    // Rows are either plain arrays of cell strings OR — for section markers —
+    // a single merged cell that spans every column. autoTable accepts both
+    // shapes inside the same body array.
+    const body: AutoTableCell[][] = rows.map((row) => {
+        const label = sectionLabel(row);
+        if (label !== null) {
+            return [
+                {
+                    content: label,
+                    colSpan: columns.length,
+                    styles: {
+                        fontStyle: "bold",
+                        fillColor: [255, 255, 255],
+                        textColor: PDF_TEXT_COLOR,
+                        halign: "left",
+                    },
+                },
+            ];
+        }
+
+        // Emphasis styling for subtotal / total rows so they stand out from
+        // the plain movement rows above them. Cell content stays right/left
+        // aligned per columnStyles — we only override fill + font weight.
+        const emphasis = rowEmphasis(row);
+        if (emphasis !== null) {
+            const fill: [number, number, number] =
+                emphasis === "total" ? [240, 240, 240] : [255, 255, 255];
+            return columns.map((c) => ({
+                content: formatCell(row[c.key], c.format),
+                styles: {
+                    fontStyle: "bold",
+                    fillColor: fill,
+                    textColor: PDF_TEXT_COLOR,
+                },
+            }));
+        }
+
+        return columns.map((c) => formatCell(row[c.key], c.format));
+    });
+
+    let foot: AutoTableCell[][] | undefined;
+    if (footerRows?.length) {
+        foot = footerRows.map((r) => buildPdfFooterRowCells(columns, r));
+    } else if (totals) {
+        // Build the TOTAL row.
+        //
+        // The label "TOTAL" used to live in column 0 (often "Seq", which is
+        // narrow), so it line-broke to "TOTA L". Instead, merge every leading
+        // text column with no total value into one wide right-aligned cell so
+        // the label has room to breathe — then start emitting numeric totals
+        // from the first column that actually has a value.
+        const firstTotalIdx = columns.findIndex((c) => totals[c.key] !== undefined);
+        const labelSpan = firstTotalIdx > 0 ? firstTotalIdx : 1;
+
+        const cells: AutoTableCell[] = [
+            {
+                content: "TOTAL",
+                colSpan: labelSpan,
+                styles: { halign: "right", fontStyle: "bold" },
+            },
+        ];
+        for (let i = labelSpan; i < columns.length; i += 1) {
+            const c = columns[i];
+            const explicit = totals[c.key];
+            const align = defaultAlign(c);
+            if (explicit !== undefined) {
+                cells.push({
+                    content: typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit),
+                    styles: { halign: align },
+                });
+            } else {
+                cells.push({ content: "", styles: { halign: align } });
+            }
+        }
+        foot = [cells];
+    }
+
+    // Auto-size font when there are many columns so we stop wrapping headers
+    // character-by-character. A4 landscape minus margins ≈ 778pt — once we
+    // get past ~10 columns the default 8pt font with a 4pt cell padding
+    // forces the headers like "Amt.Campus card" to line-break into a
+    // vertical stack. Tighten font + padding for wide reports.
+    const tableFontSize = columns.length >= 12 ? 7.5 : columns.length >= 10 ? 9 : 10;
+    const tableCellPadding = columns.length >= 12 ? 2.5 : columns.length >= 10 ? 3.5 : 4;
+
+    // Stretch the table to fill the page width. Sum the requested column
+    // widths and scale them proportionally so the layout keeps its relative
+    // sizing while consuming all available horizontal space.
+    const usableWidth = pageWidth - 2 * marginX;
+    const totalSpecWidth = columns.reduce((sum, c) => sum + (c.width ?? 0), 0);
+    const widthScale = totalSpecWidth > 0 ? usableWidth / totalSpecWidth : 1;
+
+    autoTable(doc, {
+        head,
+        body,
+        foot,
+        showFoot: "lastPage",
+        startY: cursorY,
+        margin: { left: marginX, right: marginX },
+        tableWidth: usableWidth,
+        theme: "grid",
+        styles: {
+            font: fontFamily,
+            fontSize: tableFontSize,
+            cellPadding: tableCellPadding,
+            overflow: "linebreak",
+            textColor: PDF_TEXT_COLOR,
+            lineColor: PDF_LINE_COLOR,
+            lineWidth: 0.4,
+        },
+        headStyles: {
+            font: fontFamily,
+            fillColor: [255, 255, 255],
+            textColor: PDF_TEXT_COLOR,
+            fontStyle: "bold",
+            // Headers stay readable even at 6.5pt — give them an extra
+            // half-point so the columns don't all collapse into 1-char width.
+            fontSize: tableFontSize + 0.5,
+            cellPadding: tableCellPadding,
+            lineColor: PDF_LINE_COLOR,
+            lineWidth: 0.4,
+        },
+        footStyles: {
+            font: fontFamily,
+            fillColor: [240, 240, 240],
+            textColor: PDF_TEXT_COLOR,
+            fontStyle: "bold",
+            lineColor: PDF_LINE_COLOR,
+            lineWidth: 0.4,
+        },
+        columnStyles: Object.fromEntries(
+            columns.map((c, i) => [
+                i,
+                {
+                    halign: defaultAlign(c),
+                    ...(c.width ? { cellWidth: c.width * widthScale } : {}),
+                },
+            ]),
+        ),
+    });
+
+    // Draw footer on every page after autoTable has finished laying out all rows.
+    // This is more reliable than didDrawPage because autoTable's total page count
+    // is only known after the call returns.
+    const totalPages = doc.getNumberOfPages();
+    const footerY = doc.internal.pageSize.getHeight() - 16;
+    for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFont(fontFamily, "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(PDF_TEXT_COLOR);
+        doc.text(`Page ${p} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
+    }
+
+    doc.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
 }
 
 // ─── Excel export ────────────────────────────────────────────────────────
 
 export function exportToExcel<TRow extends Record<string, unknown>>(
-  payload: ReportPayload<TRow>,
-  filename: string,
+    payload: ReportPayload<TRow>,
+    filename: string,
 ): void {
-  const { meta, columns, rows, totals } = payload;
-  const generatedAt = meta.generatedAt ?? new Date();
-  const reportId = meta.reportId ?? generateReportId();
+    const { meta, columns, rows, totals, footerRows } = payload;
+    const generatedAt = meta.generatedAt ?? new Date();
+    const reportId = meta.reportId ?? generateReportId();
 
-  // Build a sheet from an array of arrays — gives us the most control over
-  // the header band above the data table.
-  const aoa: (string | number)[][] = [];
-  aoa.push([meta.schoolName]);
-  aoa.push([meta.title]);
-  aoa.push([
-    meta.runByName ? `Report ID: ${reportId} · By: ${meta.runByName}` : `Report ID: ${reportId}`,
-  ]);
-  aoa.push([`Printed: ${formatDateTime(generatedAt)}`]);
-  if (meta.filters && meta.filters.length > 0) {
-    aoa.push([`Filters: ${meta.filters.join(" · ")}`]);
-  }
-  aoa.push([]); // blank spacer
-  aoa.push(columns.map((c) => c.header));
-
-  // Track row indices that need a merge across all columns (section headers)
-  // so we can apply ws["!merges"] after the sheet exists.
-  const sectionMergeRows: number[] = [];
-
-  for (const row of rows) {
-    const label = sectionLabel(row);
-    if (label !== null) {
-      // Put the label in column 0 and pad the rest with "" so the row aligns
-      // with the column count, then queue a merge for it.
-      const padded: (string | number)[] = [label];
-      for (let i = 1; i < columns.length; i++) padded.push("");
-      sectionMergeRows.push(aoa.length);
-      aoa.push(padded);
-      continue;
+    // Build a sheet from an array of arrays — gives us the most control over
+    // the header band above the data table.
+    const aoa: (string | number)[][] = [];
+    aoa.push([meta.schoolName]);
+    aoa.push([meta.title]);
+    aoa.push([
+        meta.runByName ? `Report ID: ${reportId} · By: ${meta.runByName}` : `Report ID: ${reportId}`,
+    ]);
+    aoa.push([`Printed: ${formatDateTime(generatedAt)}`]);
+    if (meta.filters && meta.filters.length > 0) {
+        aoa.push([`Filters: ${meta.filters.join(" · ")}`]);
     }
-    aoa.push(
-      columns.map((c) => {
-        const raw = row[c.key];
-        // Keep numbers numeric in Excel so users can sum/filter them; format
-        // only dates and text.
-        if (c.format === "currency" || c.format === "number") {
-          return typeof raw === "number" ? raw : raw == null ? "" : Number(raw) || 0;
+    aoa.push([]); // blank spacer
+    aoa.push(columns.map((c) => c.header));
+
+    // Track row indices that need a merge across all columns (section headers)
+    // so we can apply ws["!merges"] after the sheet exists.
+    const sectionMergeRows: number[] = [];
+    const footerMergeRanges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
+
+    for (const row of rows) {
+        const label = sectionLabel(row);
+        if (label !== null) {
+            // Put the label in column 0 and pad the rest with "" so the row aligns
+            // with the column count, then queue a merge for it.
+            const padded: (string | number)[] = [label];
+            for (let i = 1; i < columns.length; i++) padded.push("");
+            sectionMergeRows.push(aoa.length);
+            aoa.push(padded);
+            continue;
         }
-        return formatCell(raw, c.format);
-      }),
-    );
-  }
+        aoa.push(
+            columns.map((c) => {
+                const raw = row[c.key];
+                // Keep numbers numeric in Excel so users can sum/filter them; format
+                // only dates and text.
+                if (c.format === "currency" || c.format === "number") {
+                    return typeof raw === "number" ? raw : raw == null ? "" : Number(raw) || 0;
+                }
+                return formatCell(raw, c.format);
+            }),
+        );
+    }
 
-  if (totals) {
-    aoa.push(
-      columns.map((c, i) => {
-        const explicit = totals[c.key];
-        if (explicit !== undefined) {
-          if (typeof explicit === "number" && (c.format === "currency" || c.format === "number")) {
-            return explicit;
-          }
-          return typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit);
+    if (footerRows?.length) {
+        for (const fr of footerRows) {
+            const rowIdx = aoa.length;
+            const padded: (string | number)[] = new Array(columns.length).fill("");
+            padded[0] = fr.label;
+            footerMergeRanges.push({
+                s: { r: rowIdx, c: 0 },
+                e: { r: rowIdx, c: fr.labelColSpan - 1 },
+            });
+            if (fr.valueMerge) {
+                const mergeIdx = columns.findIndex((c) => c.key === fr.valueMerge!.key);
+                if (mergeIdx >= 0) {
+                    const raw = fr.values?.[fr.valueMerge.key];
+                    if (typeof raw === "number") padded[mergeIdx] = raw;
+                    else if (raw != null && raw !== "") padded[mergeIdx] = String(raw);
+                    footerMergeRanges.push({
+                        s: { r: rowIdx, c: mergeIdx },
+                        e: { r: rowIdx, c: mergeIdx + fr.valueMerge.colSpan - 1 },
+                    });
+                }
+            } else if (fr.values) {
+                for (const c of columns) {
+                    const raw = fr.values[c.key];
+                    if (raw == null || raw === "") continue;
+                    const idx = columns.findIndex((col) => col.key === c.key);
+                    if (idx < 0) continue;
+                    if (typeof raw === "number" && (c.format === "currency" || c.format === "number")) {
+                        padded[idx] = raw;
+                    } else {
+                        padded[idx] = typeof raw === "number" ? formatCell(raw, c.format) : String(raw);
+                    }
+                }
+            }
+            aoa.push(padded);
         }
-        return i === 0 ? "TOTAL" : "";
-      }),
-    );
-  }
+    } else if (totals) {
+        aoa.push(
+            columns.map((c, i) => {
+                const explicit = totals[c.key];
+                if (explicit !== undefined) {
+                    if (typeof explicit === "number" && (c.format === "currency" || c.format === "number")) {
+                        return explicit;
+                    }
+                    return typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit);
+                }
+                return i === 0 ? "TOTAL" : "";
+            }),
+        );
+    }
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-  // Merge section-header rows across every column so the label visually
-  // spans the table the same way it does in the PDF.
-  if (sectionMergeRows.length > 0) {
-    ws["!merges"] = sectionMergeRows.map((r) => ({
-      s: { r, c: 0 },
-      e: { r, c: columns.length - 1 },
+    // Merge section-header rows across every column so the label visually
+    // spans the table the same way it does in the PDF.
+    if (sectionMergeRows.length > 0 || footerMergeRanges.length > 0) {
+        ws["!merges"] = [
+            ...sectionMergeRows.map((r) => ({
+                s: { r, c: 0 },
+                e: { r, c: columns.length - 1 },
+            })),
+            ...footerMergeRanges,
+        ];
+    }
+
+    // Column widths — fall back to a sensible default per format.
+    ws["!cols"] = columns.map((c) => ({
+        wch:
+            c.width ??
+            (c.format === "currency" || c.format === "number"
+                ? 14
+                : c.format === "date"
+                    ? 12
+                    : c.format === "datetime"
+                        ? 18
+                        : 22),
     }));
-  }
 
-  // Column widths — fall back to a sensible default per format.
-  ws["!cols"] = columns.map((c) => ({
-    wch:
-      c.width ??
-      (c.format === "currency" || c.format === "number"
-        ? 14
-        : c.format === "date"
-          ? 12
-          : c.format === "datetime"
-            ? 18
-            : 22),
-  }));
-
-  // Apply number/currency formatting on the data cells so the value reads
-  // "1,234.56" in Excel instead of plain 1234.56.
-  // Locate the column-header row dynamically — it's the first row that has
-  // as many cells as there are columns (i.e. the actual column names row).
-  const headerRowIndex = aoa.findIndex((r) => r.length === columns.length && r[0] === columns[0].header);
-  if (headerRowIndex >= 0) {
-    const firstDataRow = headerRowIndex + 1;
-    const totalRow = totals ? aoa.length - 1 : -1;
-    for (let r = firstDataRow; r < aoa.length; r++) {
-      // Skip the totals row for non-currency cells; still format currency cells.
-      const isTotalRow = r === totalRow;
-      for (let c = 0; c < columns.length; c++) {
-        const col = columns[c];
-        if (col.format === "currency" || col.format === "number") {
-          const addr = XLSX.utils.encode_cell({ r, c });
-          const cell = ws[addr];
-          if (cell && typeof cell.v === "number") {
-            cell.t = "n";
-            cell.z = col.format === "currency" ? "#,##0.00" : "#,##0.##";
-            if (isTotalRow) cell.s = { font: { bold: true } }; // requires styled writer
-          }
+    // Apply number/currency formatting on the data cells so the value reads
+    // "1,234.56" in Excel instead of plain 1234.56.
+    // Locate the column-header row dynamically — it's the first row that has
+    // as many cells as there are columns (i.e. the actual column names row).
+    const headerRowIndex = aoa.findIndex((r) => r.length === columns.length && r[0] === columns[0].header);
+    if (headerRowIndex >= 0) {
+        const firstDataRow = headerRowIndex + 1;
+        const totalRow = totals ? aoa.length - 1 : -1;
+        for (let r = firstDataRow; r < aoa.length; r++) {
+            // Skip the totals row for non-currency cells; still format currency cells.
+            const isTotalRow = r === totalRow;
+            for (let c = 0; c < columns.length; c++) {
+                const col = columns[c];
+                if (col.format === "currency" || col.format === "number") {
+                    const addr = XLSX.utils.encode_cell({ r, c });
+                    const cell = ws[addr];
+                    if (cell && typeof cell.v === "number") {
+                        cell.t = "n";
+                        cell.z = col.format === "currency" ? "#,##0.00" : "#,##0.##";
+                        if (isTotalRow) cell.s = { font: { bold: true } }; // requires styled writer
+                    }
+                }
+            }
         }
-      }
     }
-  }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Report");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
 
-  const fname = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
-  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
-  const blob = new Blob([buf], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fname;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+    const fname = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
+    const blob = new Blob([new Uint8Array(buf)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
 }
 
 // ─── Small convenience used by every report tab ──────────────────────────
@@ -703,8 +791,8 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
  * the line entirely if both A and B are empty.
  */
 export function buildDateFilterLine(label: string, from?: string, to?: string): string | null {
-  if (!from && !to) return null;
-  if (from && to) return `${label}: ${from} → ${to}`;
-  if (from) return `${label}: from ${from}`;
-  return `${label}: until ${to}`;
+    if (!from && !to) return null;
+    if (from && to) return `${label}: ${from} → ${to}`;
+    if (from) return `${label}: from ${from}`;
+    return `${label}: until ${to}`;
 }
