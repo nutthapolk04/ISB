@@ -64,6 +64,13 @@
       "when": 1785311705961,
       "tag": "0008_shop_allow_topup",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785487305932,
+      "tag": "0009_department_card_uid",
+      "breakpoints": true
     }
   ]
 }

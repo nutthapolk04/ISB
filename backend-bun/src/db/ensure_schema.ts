@@ -305,6 +305,15 @@ const PATCHES: ReadonlyArray<{ sql: string; label: string }> = [
         sql: `ALTER TABLE shops ADD COLUMN IF NOT EXISTS allow_topup BOOLEAN NOT NULL DEFAULT true`,
         label: "shops.allow_topup",
     },
+    // ── NFC card binding for departments ────────────────────────────────────
+    {
+        sql: `ALTER TABLE departments ADD COLUMN IF NOT EXISTS card_uid VARCHAR(50)`,
+        label: "departments.card_uid",
+    },
+    {
+        sql: `CREATE INDEX IF NOT EXISTS ix_departments_card_uid ON departments(card_uid)`,
+        label: "idx departments.card_uid",
+    },
 ];
 
 export async function ensureSchema(): Promise<void> {

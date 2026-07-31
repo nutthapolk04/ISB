@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/dateFormat";
+import { toCanonicalCardUid } from "@/lib/cardUid";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +14,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Building2, Pencil, Loader2, History, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, Pencil, Loader2, History, Wallet, CreditCard } from "lucide-react";
 
 interface Department {
   id: number;
@@ -25,6 +27,7 @@ interface Department {
   is_active: boolean;
   wallet_id: number | null;
   wallet_balance: number | null;
+  card_uid: string | null;
 }
 
 interface WalletTransaction {
@@ -55,6 +58,21 @@ export default function DepartmentDetail() {
   const [editName, setEditName] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [editBusy, setEditBusy] = useState(false);
+
+  // Card binding dialog
+  const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [cardUidDraft, setCardUidDraft] = useState("");
+  const [bindingCard, setBindingCard] = useState(false);
+
+  // Tapping a real card while the bind dialog is open fills the field
+  // directly from the reader (PC/SC bridge or keyboard-wedge fallback) —
+  // mirrors CustomerDetail.tsx's binding flow.
+  useRfidListener({
+    onCapture: (uid) => {
+      if (!cardDialogOpen) return;
+      setCardUidDraft(toCanonicalCardUid(uid));
+    },
+  });
 
   async function load() {
     if (!departmentId) return;
@@ -121,6 +139,36 @@ export default function DepartmentDetail() {
     }
   }
 
+  function openCardDialog() {
+    if (!dept) return;
+    setCardUidDraft(dept.card_uid ?? "");
+    setCardDialogOpen(true);
+  }
+
+  async function handleBindCard(uidOverride?: string | null) {
+    if (!dept) return;
+    const raw = uidOverride !== undefined ? uidOverride ?? "" : cardUidDraft;
+    const canonicalUid = raw.trim() ? toCanonicalCardUid(raw.trim()) : null;
+    setBindingCard(true);
+    try {
+      const updated = await api.patch<Department>(
+        `/admin/departments/${dept.id}/card`,
+        { card_uid: canonicalUid },
+      );
+      setDept(updated);
+      toast({ title: canonicalUid ? t("cardholders.cardBound", "Card bound") : t("cardholders.cardUnboundToast", "Card unbound") });
+      setCardDialogOpen(false);
+    } catch (e) {
+      toast({
+        title: t("common.error", "Error"),
+        description: e instanceof ApiError ? e.detail : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setBindingCard(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
@@ -183,6 +231,16 @@ export default function DepartmentDetail() {
             <div>
               <p className="text-muted-foreground text-xs">{t("cardholders.deptName", "Department Name")}</p>
               <p className="mt-0.5">{dept.department_name}</p>
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <div>
+                <p className="text-muted-foreground text-xs">{t("cardholders.cardUid", "Card UID")}</p>
+                <p className="font-mono mt-0.5">{dept.card_uid ?? "—"}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={openCardDialog}>
+                <CreditCard className="h-4 w-4 mr-1" />
+                {dept.card_uid ? t("cardholders.changeCard", "Change card") : t("cardholders.bindCardBtn", "Bind card")}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -279,6 +337,52 @@ export default function DepartmentDetail() {
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel", "Cancel")}</Button>
             <Button onClick={handleEditSave} disabled={editBusy || !editName.trim()}>
               {editBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("common.save", "Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Card bind dialog */}
+      <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("cardholders.bindDialogTitle", "Bind NFC card")}</DialogTitle>
+            <DialogDescription>
+              {t("cardholders.bindDialogDesc", "Enter the card UID, or tap a card at the reader")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t("cardholders.cardUid", "Card UID")}</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={cardUidDraft}
+                  onChange={(e) => setCardUidDraft(e.target.value.toUpperCase())}
+                  onBlur={(e) => setCardUidDraft(toCanonicalCardUid(e.target.value))}
+                  placeholder={t("cardholders.bindPlaceholder", "e.g. 04:A3:28:B2:C1:FF")}
+                  className="font-mono"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("cardholders.cardUidTapHint", "Or tap a card at the reader to auto-fill")}
+              </p>
+            </div>
+            {dept.card_uid && (
+              <div className="rounded-md bg-muted p-2 text-xs">
+                <span className="text-muted-foreground">{t("cardholders.currentUid", "Current UID")}: </span>
+                <span className="font-mono">{dept.card_uid}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            {dept.card_uid && (
+              <Button variant="outline" onClick={() => { setCardUidDraft(""); handleBindCard(null); }} disabled={bindingCard}>
+                {t("cardholders.unbindButton", "Unbind card")}
+              </Button>
+            )}
+            <Button onClick={handleBindCard} disabled={bindingCard}>
+              {bindingCard && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("common.save", "Save")}
             </Button>
           </DialogFooter>

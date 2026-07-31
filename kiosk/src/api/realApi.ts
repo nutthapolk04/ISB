@@ -1,14 +1,12 @@
 /**
  * Real API client — connects kiosk to the ISB backend.
  *
- * Auth: uses a kiosk service account (role=kiosk). Username is baked per
- * device via VITE_KIOSK_USERNAME; password is entered on each boot and kept
- * in memory for token refresh during that session only.
+ * Auth: kiosk service account (role=kiosk). Credentials are baked per device
+ * via VITE_KIOSK_USERNAME / VITE_KIOSK_PASSWORD in .env.
  */
 
 import type { User, Wallet, Transaction } from './mockApi';
 import { getKioskDeviceId, getKioskDeviceName, logKioskEvent } from '../lib/kioskLog';
-import { getKioskServiceUsername } from '../lib/kioskServiceAccount';
 import { verifyTechnicianPassword as verifyTechnicianPasswordLib } from '../lib/technicianPassword';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -96,57 +94,27 @@ export interface KioskProfile {
 // ── Token manager ─────────────────────────────────────────────────────────────
 
 let _token: string | null = null;
-let _servicePassword: string | null = null;
 
-export type KioskServiceLoginFailure = 'wrong_password' | 'network';
+async function fetchToken(): Promise<string> {
+    const username = import.meta.env.VITE_KIOSK_USERNAME as string;
+    const password = import.meta.env.VITE_KIOSK_PASSWORD as string;
 
-export class KioskServiceLoginError extends Error {
-    readonly reason: KioskServiceLoginFailure;
-
-    constructor(reason: KioskServiceLoginFailure, message?: string) {
-        super(message ?? reason);
-        this.name = 'KioskServiceLoginError';
-        this.reason = reason;
-    }
-}
-
-export function hasServiceCredentials(): boolean {
-    return !!_servicePassword;
-}
-
-export function clearServiceCredentials(): void {
-    _token = null;
-    _servicePassword = null;
-}
-
-async function fetchToken(password?: string): Promise<string> {
-    const username = getKioskServiceUsername();
-    const pwd = (password ?? _servicePassword)?.trim();
-    if (!pwd) {
-        throw new KioskServiceLoginError('network', 'Kiosk password required');
+    if (!username || !password) {
+        throw new Error('Kiosk credentials not configured. Set VITE_KIOSK_USERNAME and VITE_KIOSK_PASSWORD in .env');
     }
 
-    let res: Response;
-    try {
-        res = await fetch(`${BASE_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password: pwd }),
-        });
-    } catch {
-        throw new KioskServiceLoginError('network', 'Cannot reach server');
-    }
+    const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+    });
 
     if (!res.ok) {
-        if (res.status === 401 || res.status === 400 || res.status === 403) {
-            throw new KioskServiceLoginError('wrong_password', 'Incorrect password');
-        }
-        throw new KioskServiceLoginError('network', `Kiosk login failed (${res.status})`);
+        throw new Error(`Kiosk login failed (${res.status}): check credentials`);
     }
 
     const data: ISBTokenResponse = await res.json();
     _token = data.access_token;
-    _servicePassword = pwd;
     logKioskEvent('api', 'info', 'Service account authenticated', { username });
     return _token;
 }
@@ -411,20 +379,10 @@ export const realApi = {
     },
 
     /**
-     * Authenticate the kiosk service account. Call once per app boot after the
-     * operator enters the password on the service-login screen.
+     * Pre-warm the auth token so the first user lookup is instant.
      */
-    async loginWithPassword(password: string): Promise<void> {
-        await fetchToken(password);
-    },
-
-    /**
-     * Ensures a valid token exists (requires prior loginWithPassword).
-     */
-    async ensureAuthenticated(): Promise<void> {
-        if (!_token) {
-            await fetchToken();
-        }
+    async init(): Promise<void> {
+        await fetchToken();
     },
 
     async getKioskProfile(): Promise<KioskProfile> {
@@ -446,11 +404,6 @@ export const realApi = {
 
     verifyTechnicianPassword(password: string): boolean {
         return verifyTechnicianPasswordLib(password);
-    },
-
-    /** Notifies kiosk custodians (if any) that the technician password changed. */
-    async notifyTechnicianPasswordChanged(): Promise<{ notified: number }> {
-        return requestPost<{ notified: number }>('/kiosk/technician-password-changed', {});
     },
 
     /** Uploads a batch of on-device event-log entries — see kioskLogUploader.ts,

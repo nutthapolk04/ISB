@@ -291,6 +291,7 @@ async function toDepartmentDTOs(dRows: Array<typeof departments.$inferSelect>): 
             wallet_balance: w ? pgNumber(w.balance) : null,
             is_active: d.isActive,
             department_code: d.departmentCode,
+            card_uid: d.cardUid ?? null,
         };
     });
 }

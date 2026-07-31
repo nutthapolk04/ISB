@@ -126,6 +126,12 @@ export const topupUpdateDepartment = {
     detail: { tags: ["Wallets"], summary: "Update department info" },
 };
 
+export const topupBindDepartmentCard = {
+    params: t.Object({ department_id: t.String() }),
+    body: t.Object({ card_uid: t.Optional(t.Nullable(t.String())) }),
+    detail: { tags: ["Wallets"], summary: "Bind or unbind NFC card to a department (admin)" },
+};
+
 export const topupReconcile = {
     body: t.Optional(t.Object({
         older_than_minutes: t.Optional(t.Number({ minimum: 1 })),

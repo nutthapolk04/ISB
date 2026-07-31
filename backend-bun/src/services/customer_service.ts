@@ -1,6 +1,6 @@
 import { eq, and, or, ilike, asc, inArray, sql, ne, isNotNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops, shopSpendingGroups } from "@/db/schema";
+import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops, shopSpendingGroups, departments } from "@/db/schema";
 import { expandCardUidCandidates } from "@/lib/card_uid";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
@@ -464,6 +464,16 @@ export async function bindCard(customerId: number, cardUid: string | null): Prom
             .limit(1);
         if (dupUser[0]) {
             const err = new Error(`Card already assigned to user ${dupUser[0].fullName || dupUser[0].username}`);
+            (err as { status?: number }).status = 409;
+            throw err;
+        }
+        const dupDept = await db
+            .select({ name: departments.departmentName, code: departments.departmentCode })
+            .from(departments)
+            .where(eq(departments.cardUid, cardUid))
+            .limit(1);
+        if (dupDept[0]) {
+            const err = new Error(`Card already assigned to department ${dupDept[0].name} (${dupDept[0].code})`);
             (err as { status?: number }).status = 409;
             throw err;
         }

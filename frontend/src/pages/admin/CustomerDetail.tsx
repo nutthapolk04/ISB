@@ -259,9 +259,10 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleBindCard = async () => {
+  const handleBindCard = async (uidOverride?: string | null) => {
     if (!profile) return;
-    const canonicalUid = cardUidDraft.trim() ? toCanonicalCardUid(cardUidDraft.trim()) : null;
+    const raw = uidOverride !== undefined ? uidOverride ?? "" : cardUidDraft;
+    const canonicalUid = raw.trim() ? toCanonicalCardUid(raw.trim()) : null;
     setBindingCard(true);
     try {
       await api.patch(`/customers/${profile.id}/card`, { card_uid: canonicalUid });
@@ -921,7 +922,7 @@ export default function CustomerDetail() {
           </div>
           <DialogFooter>
             {profile.card_uid && (
-              <Button variant="outline" onClick={() => { setCardUidDraft(""); handleBindCard(); }} disabled={bindingCard}>
+              <Button variant="outline" onClick={() => { setCardUidDraft(""); handleBindCard(null); }} disabled={bindingCard}>
                 {t("admin.customer.unbindButton")}
               </Button>
             )}

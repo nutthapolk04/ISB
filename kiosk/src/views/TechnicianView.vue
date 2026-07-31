@@ -18,8 +18,6 @@ import {
     Info,
     Search,
     Bug,
-    KeyRound,
-    ChevronRight,
 } from 'lucide-vue-next';
 import { useKioskStore } from '../stores/kioskStore';
 import { realApi } from '../api/realApi';
@@ -135,7 +133,6 @@ const t = computed(() => ({
         billPollError: 'Error',
         billPollTimeout: 'No response',
         billPollFailed: 'Poll failed',
-        changePassword: 'Change device password',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -183,7 +180,6 @@ const t = computed(() => ({
         billPollError: 'ข้อผิดพลาด',
         billPollTimeout: 'ไม่มีตอบกลับ',
         billPollFailed: 'Poll ล้มเหลว',
-        changePassword: 'เปลี่ยนรหัสผ่านเครื่อง',
     },
 }[store.language]));
 
@@ -289,10 +285,6 @@ function goBack() {
         sessionStorage.removeItem(TECHNICIAN_SESSION_KEY);
     } catch { /* ignore */ }
     router.push('/');
-}
-
-function goChangePassword() {
-    router.push('/technician/password');
 }
 
 function toggleDebugMode() {
@@ -465,14 +457,6 @@ async function runBillPoll() {
                             <CheckCircle2 :size="14" />
                             {{ saveMessage }}
                         </p>
-                    </div>
-
-                    <div class="location-block">
-                        <button class="btn-outline password-nav-btn" type="button" @click="goChangePassword">
-                            <KeyRound :size="16" />
-                            {{ t.changePassword }}
-                            <ChevronRight :size="16" class="password-nav-chevron" />
-                        </button>
                     </div>
 
                     <div class="debug-block">

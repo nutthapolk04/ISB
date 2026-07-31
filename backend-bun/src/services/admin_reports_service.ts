@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
+import { resolvePaymentMethodLabelKey } from "@/lib/payment_method_labels";
 import { classifyWalletTxKind, classifyTopupChannel, type TopupChannel } from "@/services/wallet_tx_classify";
 import { moduleShopIds } from "@/services/report_service";
 
@@ -671,6 +672,10 @@ export interface TransactionReportResponseDTO {
     /** Sum of Amount column across all filtered rows (top-ups, sales, etc.).
      * When type=sale, only ACTIVE POS-sale receipts are summed. */
     amount_total: number;
+    /** Sum of amounts where payment method resolves to cash (kiosk report). */
+    cash_total: number;
+    /** Sum of amounts where payment method resolves to Thai QR (kiosk report). */
+    qr_total: number;
     page: number;
     pages: number;
 }
@@ -1007,6 +1012,19 @@ export async function transactionReport(args: {
     const amountTotal = typeFilter === "sale"
         ? saleAmountTotal
         : merged.reduce((s, r) => s + r.amount, 0);
+    const rowsForPaymentTotals = typeFilter === "sale"
+        ? merged.filter((r) => r.status === "ACTIVE")
+        : merged;
+    const sumByPaymentLabel = (label: "cash" | "thai_qr") =>
+        rowsForPaymentTotals.reduce((s, r) => {
+            const key = resolvePaymentMethodLabelKey(r.payment_method, {
+                edcCardFee: r.edc_card_fee,
+                edcMaskedCard: r.edc_masked_card,
+            });
+            return key === label ? s + r.amount : s;
+        }, 0);
+    const cashTotal = sumByPaymentLabel("cash");
+    const qrTotal = sumByPaymentLabel("thai_qr");
     const offset = (args.page - 1) * args.pageSize;
     const items: TransactionReportRow[] = merged
         .slice(offset, offset + args.pageSize)
@@ -1016,6 +1034,8 @@ export async function transactionReport(args: {
         items,
         total,
         amount_total: amountTotal,
+        cash_total: cashTotal,
+        qr_total: qrTotal,
         page: args.page,
         pages: Math.max(1, Math.ceil(total / args.pageSize)),
     };

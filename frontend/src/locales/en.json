@@ -1219,7 +1219,8 @@
       "colStaffName": "Name",
       "colRemarks": "Remarks",
       "totalByDepartment": "Total by Department",
-      "grandTotal": "Grand Total"
+      "total": "TOTAL",
+      "grandTotal": "GRAND TOTAL"
     },
     "kioskMonitoring": {
       "title": "Kiosk Monitoring",

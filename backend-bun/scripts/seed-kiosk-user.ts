@@ -28,7 +28,7 @@ interface KioskSeedSpec {
 }
 
 function buildSpecs(): KioskSeedSpec[] {
-    const p1 = process.env.KIOSK_SERVICE_PASSWORD ?? "kiosk1234";
+    const p1 = process.env.KIOSK_SERVICE_PASSWORD ?? "028510";
     const p2 = process.env.KIOSK_SERVICE_2_PASSWORD ?? p1;
 
     return [

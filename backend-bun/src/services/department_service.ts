@@ -1,6 +1,6 @@
-import { and, eq, ilike, or, asc } from "drizzle-orm";
+import { and, eq, ilike, ne, or, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
-import { departments, wallets } from "@/db/schema";
+import { departments, wallets, customers, users } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
 
 export interface DepartmentSummaryDTO {
@@ -10,6 +10,7 @@ export interface DepartmentSummaryDTO {
     is_active: boolean;
     wallet_id: number | null;
     wallet_balance: number | null;
+    card_uid: string | null;
 }
 
 export async function listDepartments(args: {
@@ -33,6 +34,7 @@ export async function listDepartments(args: {
             is_active: departments.isActive,
             wallet_id: wallets.id,
             wallet_balance: wallets.balance,
+            card_uid: departments.cardUid,
         })
         .from(departments)
         .leftJoin(wallets, eq(wallets.departmentId, departments.id))
@@ -46,6 +48,7 @@ export async function listDepartments(args: {
         is_active: r.is_active,
         wallet_id: r.wallet_id ?? null,
         wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
+        card_uid: r.card_uid ?? null,
     }));
 }
 
@@ -128,6 +131,7 @@ export async function updateDepartment(
       is_active: departments.isActive,
       wallet_id: wallets.id,
       wallet_balance: wallets.balance,
+      card_uid: departments.cardUid,
     })
     .from(departments)
     .leftJoin(wallets, eq(wallets.departmentId, departments.id))
@@ -142,7 +146,59 @@ export async function updateDepartment(
     is_active: r.is_active,
     wallet_id: r.wallet_id,
     wallet_balance: r.wallet_balance !== null ? pgNumber(r.wallet_balance) : null,
+    card_uid: r.card_uid ?? null,
   };
+}
+
+/**
+ * Bind or unbind an NFC card to a department. Mirrors customer_service.ts's
+ * bindCard() — same 409-on-conflict shape — but also checks departments
+ * itself, since a card must be unique across customers, users, AND
+ * departments now that all three can hold one.
+ */
+export async function bindDepartmentCard(deptId: number, cardUid: string | null): Promise<DepartmentSummaryDTO> {
+    const existing = await db.select({ id: departments.id }).from(departments).where(eq(departments.id, deptId)).limit(1);
+    if (!existing[0]) {
+        const err = new Error("Department not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+
+    if (cardUid) {
+        const dupDept = await db
+            .select({ id: departments.id, name: departments.departmentName, code: departments.departmentCode })
+            .from(departments)
+            .where(and(eq(departments.cardUid, cardUid), ne(departments.id, deptId)))
+            .limit(1);
+        if (dupDept[0]) {
+            const err = new Error(`Card already assigned to department ${dupDept[0].name} (${dupDept[0].code})`);
+            (err as { status?: number }).status = 409;
+            throw err;
+        }
+        const dupCust = await db
+            .select({ id: customers.id, name: customers.name, customerCode: customers.customerCode })
+            .from(customers)
+            .where(eq(customers.cardUid, cardUid))
+            .limit(1);
+        if (dupCust[0]) {
+            const err = new Error(`Card already assigned to student ${dupCust[0].name} (${dupCust[0].customerCode})`);
+            (err as { status?: number }).status = 409;
+            throw err;
+        }
+        const dupUser = await db
+            .select({ fullName: users.fullName, username: users.username })
+            .from(users)
+            .where(eq(users.cardUid, cardUid))
+            .limit(1);
+        if (dupUser[0]) {
+            const err = new Error(`Card already assigned to user ${dupUser[0].fullName || dupUser[0].username}`);
+            (err as { status?: number }).status = 409;
+            throw err;
+        }
+    }
+
+    await db.update(departments).set({ cardUid: cardUid || null }).where(eq(departments.id, deptId));
+    return updateDepartment(deptId, {});
 }
 
 export async function deleteDepartment(deptId: number): Promise<void> {

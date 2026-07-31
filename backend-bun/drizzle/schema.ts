@@ -193,9 +193,11 @@ export const departments = pgTable("departments", {
 	// tell "ISB stopped reporting this department" apart from "an admin just
 	// edited its name/active flag by hand".
 	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true, mode: 'string' }),
+	cardUid: varchar("card_uid", { length: 50 }),
 }, (table) => [
 	uniqueIndex("ix_departments_department_code").using("btree", table.departmentCode.asc().nullsLast().op("text_ops")),
 	index("ix_departments_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
+	index("ix_departments_card_uid").using("btree", table.cardUid.asc().nullsLast().op("text_ops")),
 ]);
 
 export const permissions = pgTable("permissions", {

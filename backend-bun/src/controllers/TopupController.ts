@@ -19,7 +19,7 @@ import {
 	adjustDepartmentBalance,
 	listDepartmentTransactions,
 } from "@/services/wallet_service";
-import { deleteDepartment, updateDepartment } from "@/services/department_service";
+import { deleteDepartment, updateDepartment, bindDepartmentCard } from "@/services/department_service";
 import { assertShopAllowsTopup } from "@/services/shop_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
@@ -365,6 +365,30 @@ export const TopupController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (TP-09)] TopupController.updateDepartment() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	bindDepartmentCard: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (TP-11)] TopupController.bindDepartmentCard() called.`);
+		if (!hasRole(user.roles, "admin")) {
+			logger.warn(`[${reqContext.requestId} (TP-11)] TopupController.bindDepartmentCard() forbidden.`);
+			return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
+		}
+		const id = parseIntParam(params.department_id, "department id", reqContext.set);
+		if (id === null) {
+			logger.warn(`[${reqContext.requestId} (TP-11)] TopupController.bindDepartmentCard() invalid department id.`);
+			return errorResponse(reqContext, "Invalid department id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			logger.info(`[${reqContext.requestId} (TP-11)] TopupController.bindDepartmentCard() calling bindDepartmentCard().`);
+			const result = await bindDepartmentCard(id, body.card_uid ?? null);
+			logger.info(`[${reqContext.requestId} (TP-11)] TopupController.bindDepartmentCard() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (TP-11)] TopupController.bindDepartmentCard() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

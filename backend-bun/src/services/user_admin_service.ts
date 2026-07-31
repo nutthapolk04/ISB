@@ -8,6 +8,7 @@ import {
     identityMappings,
     parentChildLinks,
     wallets,
+    departments,
 } from "@/db/schema";
 import { pgToIso } from "@/lib/dates";
 
@@ -588,7 +589,7 @@ export async function updateAdminUser(
         updates.shopId = newShopId;
     }
 
-    // card_uid uniqueness across users + customers
+    // card_uid uniqueness across users + customers + departments
     if (has("card_uid") && payload.card_uid) {
         const newUid = payload.card_uid;
         const dupUser = await db
@@ -607,6 +608,14 @@ export async function updateAdminUser(
             .limit(1);
         if (dupCust[0]) {
             throw statusErr(409, `Card already assigned to student ${dupCust[0].name} (${dupCust[0].code})`);
+        }
+        const dupDept = await db
+            .select({ name: departments.departmentName, code: departments.departmentCode })
+            .from(departments)
+            .where(eq(departments.cardUid, newUid))
+            .limit(1);
+        if (dupDept[0]) {
+            throw statusErr(409, `Card already assigned to department ${dupDept[0].name} (${dupDept[0].code})`);
         }
     }
 

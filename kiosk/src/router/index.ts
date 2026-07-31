@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import WelcomeView from '../views/WelcomeView.vue';
 import TechnicianView from '../views/TechnicianView.vue';
-import TechnicianPasswordView from '../views/TechnicianPasswordView.vue';
 import BalanceView from '../views/BalanceView.vue';
 import TransactionHistoryView from '../views/TransactionHistoryView.vue';
 import TopUpView from '../views/TopUpView.vue';
@@ -26,8 +25,7 @@ const routes = [
     },
     {
         path: '/technician/password',
-        name: 'technician-password',
-        component: TechnicianPasswordView,
+        redirect: '/technician',
     },
     {
         path: '/balance',

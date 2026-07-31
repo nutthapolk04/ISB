@@ -115,13 +115,15 @@ export function isQrPaymentMethod(method: string | null | undefined): boolean {
   return resolvePaymentMethodLabelKey(method ?? "") === "thai_qr";
 }
 
-export function kioskPaymentCheckExportValue(
+/** Kiosk transaction report — amount in CASH or QR column when method matches. */
+export function kioskPaymentAmountValue(
   method: string | null | undefined,
+  amount: number,
   type: "cash" | "qr",
-): string {
-  if (type === "cash" && isCashPaymentMethod(method)) return "✓";
-  if (type === "qr" && isQrPaymentMethod(method)) return "✓";
-  return "—";
+): number | null {
+  if (type === "cash" && isCashPaymentMethod(method)) return amount;
+  if (type === "qr" && isQrPaymentMethod(method)) return amount;
+  return null;
 }
 
 export function formatAggregatedPaymentMethodLabelPlain(
