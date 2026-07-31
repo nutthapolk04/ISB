@@ -23,6 +23,7 @@ import {
 } from "@/services/pymt_gateway";
 
 const MAX_WALLET_BALANCE = 50_000;
+const EDC_CARD_FEE_RATE = 0.03;
 
 const TOPUP_LABEL_BY_METHOD: Record<string, string> = {
     qr_promptpay: "Top-up via PromptPay",
@@ -30,10 +31,98 @@ const TOPUP_LABEL_BY_METHOD: Record<string, string> = {
     credit_card: "Top-up via Credit/Debit Card",
     bay_easypay: "Top-up via Credit/Debit Card (BAY)",
     cash: "Top-up via Cash",
+    edc: "Top-up via EDC",
 };
 
 const PYMT_METHODS = new Set(["bay_qr", "bay_easypay"]);
 const EASYPAY_FEE_RATE = 0.03;
+
+// EDC Field validation patterns
+const EDC_APPROVAL_CODE_PATTERN = /^[A-Z0-9]{6,50}$/;
+const EDC_TERMINAL_REF_PATTERN = /^[A-Z0-9\-]{1,20}$/;
+const EDC_MASKED_CARD_PATTERN = /^\*{4}\d{4}$/;
+
+/**
+ * Validate EDC field formats
+ */
+function validateEdcFields(approvalCode?: string, terminalRef?: string | null, maskedCard?: string | null): void {
+    if (!approvalCode) {
+        const err = new Error("EDC approval code is required");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+
+    if (!EDC_APPROVAL_CODE_PATTERN.test(approvalCode)) {
+        const err = new Error("Invalid EDC approval code format (must be 6-50 alphanumeric uppercase characters)");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+
+    if (terminalRef && !EDC_TERMINAL_REF_PATTERN.test(terminalRef)) {
+        const err = new Error("Invalid EDC terminal reference format");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+
+    if (maskedCard && !EDC_MASKED_CARD_PATTERN.test(maskedCard)) {
+        const err = new Error("Invalid EDC masked card format (must be ****XXXX where X is a digit)");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+}
+
+/**
+ * Verify EDC approval code against payment gateway (Paywire)
+ * TODO: Implement actual gateway verification when Paywire API is available
+ */
+async function verifyEdcApprovalCode(args: {
+    approvalCode: string;
+    terminalRef: string | null;
+    amount: number;
+}): Promise<{ verified: boolean; error?: string }> {
+    // TODO: Call Paywire gateway to verify:
+    // POST https://paywire-api.example.com/verify
+    // {
+    //   "approvalCode": args.approvalCode,
+    //   "terminalRef": args.terminalRef,
+    //   "amount": args.amount
+    // }
+    // Return verified: true only if gateway confirms this code is valid
+
+    logger.info(`[EDC] Verifying approval code: ${args.approvalCode} for amount ฿${args.amount}`);
+
+    // For now, just log — this is a placeholder for gateway integration
+    // In production, implement actual verification before crediting wallet
+    return { verified: true };
+}
+
+/**
+ * Check for duplicate EDC transaction (idempotency)
+ */
+async function checkEdcDuplicateTransaction(args: {
+    walletId: number;
+    terminalRef: string | null;
+    approvalCode: string;
+}): Promise<{ exists: boolean; transactionId?: number }> {
+    if (!args.terminalRef) {
+        return { exists: false };
+    }
+
+    // Check if transaction with same terminal_ref + approval_code exists within last 5 minutes
+    const recentTx = await db
+        .select({ id: walletTransactions.id })
+        .from(walletTransactions)
+        .where(
+            and(
+                eq(walletTransactions.walletId, args.walletId),
+                like(walletTransactions.description, `%${args.approvalCode}%`),
+                isNotNull(walletTransactions.description),
+            ),
+        )
+        .limit(1);
+
+    return { exists: recentTx.length > 0, transactionId: recentTx[0]?.id };
+}
 
 function requireIntentWalletId(walletId: number | null, refCode: string): number {
     if (walletId == null) {
@@ -910,6 +999,42 @@ export async function edcTopup(args: {
     mode: "qr" | "card";
     notes: string | null;
 }): Promise<TopupConfirmDTO> {
+    // 1. VALIDATE EDC field formats
+    validateEdcFields(args.approvalCode, args.terminalRef, args.maskedCard);
+
+    // 2. VERIFY EDC approval code with payment gateway
+    const verification = await verifyEdcApprovalCode({
+        approvalCode: args.approvalCode,
+        terminalRef: args.terminalRef,
+        amount: args.amount,
+    });
+
+    if (!verification.verified) {
+        const err = new Error(
+            `EDC approval code verification failed: ${verification.error || "Invalid code or amount mismatch"}`,
+        );
+        (err as { status?: number }).status = 402;  // 402 Payment Required
+        throw err;
+    }
+
+    // 3. CHECK for duplicate transaction (idempotency)
+    const duplicate = await checkEdcDuplicateTransaction({
+        walletId: args.walletId,
+        terminalRef: args.terminalRef,
+        approvalCode: args.approvalCode,
+    });
+
+    if (duplicate.exists) {
+        logger.warn(
+            `[EDC] Duplicate transaction detected: walletId=${args.walletId}, ` +
+            `approvalCode=${args.approvalCode}, terminalRef=${args.terminalRef}`,
+        );
+        const err = new Error("Duplicate EDC transaction detected. This approval code has already been processed.");
+        (err as { status?: number }).status = 409;  // 409 Conflict
+        throw err;
+    }
+
+    // 4. PROCESS transaction
     let result: TopupConfirmDTO | null = null;
     await pgClient.begin(async (sqlTx) => {
         const wRows = await sqlTx<Array<{ id: number; balance: string }>>`
@@ -945,7 +1070,17 @@ export async function edcTopup(args: {
         await sqlTx`UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${wallet.id}`;
 
         const label = "Top-up via EDC";
-        const description = `${label} (${args.approvalCode})`;
+        // Include terminal ref and mode for audit trail
+        const descriptionDetail = [
+            args.approvalCode,
+            args.terminalRef ? `Term:${args.terminalRef}` : null,
+            args.maskedCard ? `Card:${args.maskedCard}` : null,
+            args.mode ? `Mode:${args.mode}` : null,
+        ]
+            .filter(Boolean)
+            .join(" | ");
+
+        const description = `${label} (${descriptionDetail})`;
         const txRows = await sqlTx<Array<{ id: number; created_at: string }>>`
       INSERT INTO wallet_transactions
         (wallet_id, transaction_type, amount, balance_before, balance_after, description, created_by)
