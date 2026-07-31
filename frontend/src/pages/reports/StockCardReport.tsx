@@ -20,6 +20,7 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
   exportToPDF,
   exportToExcel,
+  sanitizeFilename,
   SECTION_KEY,
   EMPHASIS_KEY,
   type ReportColumn,
@@ -255,7 +256,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
     const payload = buildStockCardPayload();
     if (!payload || !stockCardData) return;
     try {
-      const fname = `StockCard_${stockCardData.shop_id ?? "shop"}_${stockCardData.date_from}_${stockCardData.date_to}.pdf`;
+      const fname = `StockCard_${sanitizeFilename(stockCardData.shop_id ?? "shop")}_${sanitizeFilename(stockCardData.date_from)}_${sanitizeFilename(stockCardData.date_to)}.pdf`;
       await exportToPDF(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -268,7 +269,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
     const payload = buildStockCardPayload();
     if (!payload || !stockCardData) return;
     try {
-      const fname = `StockCard_${stockCardData.shop_id ?? "shop"}_${stockCardData.date_from}_${stockCardData.date_to}.xlsx`;
+      const fname = `StockCard_${sanitizeFilename(stockCardData.shop_id ?? "shop")}_${sanitizeFilename(stockCardData.date_from)}_${sanitizeFilename(stockCardData.date_to)}.xlsx`;
       exportToExcel(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {

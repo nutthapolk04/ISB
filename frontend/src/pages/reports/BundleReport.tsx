@@ -18,6 +18,7 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
   exportToPDF,
   exportToExcel,
+  sanitizeFilename,
   SECTION_KEY,
   EMPHASIS_KEY,
   type ReportColumn,
@@ -152,7 +153,7 @@ export function BundleReport({ reportId }: BundleReportProps) {
     const payload = buildBundlePayload();
     if (!payload || !bundleData) return;
     try {
-      const fname = `BundleReport_${bundleData.shop_id ?? "shop"}.pdf`;
+      const fname = `BundleReport_${sanitizeFilename(bundleData.shop_id ?? "shop")}.pdf`;
       await exportToPDF(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -165,7 +166,7 @@ export function BundleReport({ reportId }: BundleReportProps) {
     const payload = buildBundlePayload();
     if (!payload || !bundleData) return;
     try {
-      const fname = `BundleReport_${bundleData.shop_id ?? "shop"}.xlsx`;
+      const fname = `BundleReport_${sanitizeFilename(bundleData.shop_id ?? "shop")}.xlsx`;
       exportToExcel(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {

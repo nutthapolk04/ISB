@@ -17,6 +17,30 @@ import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { fifoRefundLot } from "@/services/inventory_fifo";
 import { dateRange } from "@/services/report_service";
 
+// ── Mask full name for receipt display ────────────────────────────────────
+// Show: FirstName Lxxxx (first letter of last name + xxxx)
+// Special accounts (Kiosk, Service Account) show full name
+function maskFullNameForReceipt(fullName: string | null | undefined): string | null {
+    if (!fullName) return null;
+
+    // Special accounts - show full name
+    if (fullName.includes("Kiosk") || fullName.includes("Service Account")) {
+        return fullName;
+    }
+
+    const parts = fullName.trim().split(/\s+/);
+
+    if (parts.length < 2) {
+        return fullName; // Only first name, return as-is
+    }
+
+    const firstName = parts[0];
+    const lastName = parts[parts.length - 1];
+    const maskedLastName = lastName[0] + "xxxx";
+
+    return `${firstName} ${maskedLastName}`;
+}
+
 export interface ReceiptItemDTO {
     id: number;
     receipt_id: number;
@@ -185,14 +209,14 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
     let payer_detail: PayerDetailDTO | null = null;
 
     if (payer_kind === "customer" && customer[0]) {
-        payer_label = customer[0].name;
+        payer_label = maskFullNameForReceipt(customer[0].name);
         const w = await db
             .select({ id: wallets.id })
             .from(wallets)
             .where(eq(wallets.customerId, customer[0].id))
             .limit(1);
         payer_detail = {
-            name: customer[0].name,
+            name: maskFullNameForReceipt(customer[0].name),
             code: customer[0].studentCode ?? customer[0].customerCode,
             external_id: customer[0].externalId ?? null,
             grade: customer[0].grade ?? null,
@@ -201,14 +225,14 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
             wallet_balance: w[0] ? await balanceAtReceipt(w[0].id, receipt.id) : null,
         };
     } else if (payer_kind === "user" && payerUser[0]) {
-        payer_label = payerUser[0].fullName;
+        payer_label = maskFullNameForReceipt(payerUser[0].fullName);
         const w = await db
             .select({ id: wallets.id })
             .from(wallets)
             .where(eq(wallets.userId, payerUser[0].id))
             .limit(1);
         payer_detail = {
-            name: payerUser[0].fullName,
+            name: maskFullNameForReceipt(payerUser[0].fullName),
             code: payerUser[0].externalId ?? payerUser[0].username,
             external_id: payerUser[0].externalId ?? null,
             grade: null,
