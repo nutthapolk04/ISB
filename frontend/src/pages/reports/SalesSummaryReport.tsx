@@ -22,6 +22,7 @@ import {
   exportToPDF,
   exportToExcel,
   buildDateFilterLine,
+  sanitizeFilename,
   type ReportColumn,
   type ReportPayload,
 } from "@/lib/reportExport";
@@ -323,7 +324,7 @@ export function SalesSummaryReport({
     const payload = buildSalesSummaryPayload();
     if (!payload || !ssData) return;
     try {
-      const fname = `DailySalesReport_${ssDateFrom || "any"}_${ssDateTo || "any"}.pdf`;
+      const fname = `DailySalesReport_${sanitizeFilename(ssDateFrom || "any")}_${sanitizeFilename(ssDateTo || "any")}.pdf`;
       await exportToPDF(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {
@@ -336,7 +337,7 @@ export function SalesSummaryReport({
     const payload = buildSalesSummaryPayload();
     if (!payload || !ssData) return;
     try {
-      const fname = `DailySalesReport_${ssDateFrom || "any"}_${ssDateTo || "any"}.xlsx`;
+      const fname = `DailySalesReport_${sanitizeFilename(ssDateFrom || "any")}_${sanitizeFilename(ssDateTo || "any")}.xlsx`;
       exportToExcel(payload, fname);
       toast.success(t("reports.exportSuccess"));
     } catch (err) {

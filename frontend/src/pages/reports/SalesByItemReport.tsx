@@ -23,6 +23,7 @@ import {
     exportToPDF,
     exportToExcel,
     buildDateFilterLine,
+    sanitizeFilename,
     type ReportColumn,
     type ReportPayload,
 } from "@/lib/reportExport";
@@ -310,7 +311,7 @@ export function SalesByItemReport({
         const payload = buildSalesByItemPayload();
         if (!payload || !siData) return;
         try {
-            const fname = `${filenamePrefix}_${siDateFrom || "any"}_${siDateTo || "any"}.pdf`;
+            const fname = `${sanitizeFilename(filenamePrefix)}_${sanitizeFilename(siDateFrom || "any")}_${sanitizeFilename(siDateTo || "any")}.pdf`;
             await exportToPDF(payload, fname);
             toast.success(t("reports.exportSuccess"));
         } catch (err) {
@@ -323,7 +324,7 @@ export function SalesByItemReport({
         const payload = buildSalesByItemPayload();
         if (!payload || !siData) return;
         try {
-            const fname = `${filenamePrefix}_${siDateFrom || "any"}_${siDateTo || "any"}.xlsx`;
+            const fname = `${sanitizeFilename(filenamePrefix)}_${sanitizeFilename(siDateFrom || "any")}_${sanitizeFilename(siDateTo || "any")}.xlsx`;
             exportToExcel(payload, fname);
             toast.success(t("reports.exportSuccess"));
         } catch (err) {

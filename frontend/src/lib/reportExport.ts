@@ -78,6 +78,23 @@ async function ensureThaiFont(doc: jsPDF): Promise<void> {
   doc.setFont(FONT_NAME, "normal");
 }
 
+// ─── Filename sanitization ──────────────────────────────────────────────
+
+/**
+ * Remove path traversal characters from filename to prevent directory escape attacks.
+ * Removes: ../, \, //, and leading dots.
+ */
+export function sanitizeFilename(input: string): string {
+  if (!input) return "export";
+
+  return input
+    .replace(/\.\./g, "")           // Remove ..
+    .replace(/[\/\\]/g, "")         // Remove slashes (forward and back)
+    .replace(/^\.+/, "")            // Remove leading dots
+    .replace(/\s+/g, "_")           // Replace spaces with underscores
+    .slice(0, 200);                 // Cap at 200 chars to prevent filename bombs
+}
+
 // ─── Public types ────────────────────────────────────────────────────────
 
 export type ColumnFormat = "text" | "number" | "currency" | "date" | "datetime";
