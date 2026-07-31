@@ -389,7 +389,7 @@ const Receipts = () => {
                                 {displayRows.map(({ receipt, leg }) => (
                                     <TableRow key={`${receipt.id}-${leg}`} className={leg === "void" ? "bg-destructive/5" : undefined}>
                                         <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
-                                        <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
+                                        <TableCell>{fmtDate(leg === "sale" ? receipt.transaction_date : (receipt.voided_at ?? receipt.transaction_date))}</TableCell>
                                         {!user?.shopId && (
                                             <TableCell className="text-sm">{receipt.shop_name ?? receipt.shop_id ?? "—"}</TableCell>
                                         )}
@@ -418,7 +418,11 @@ const Receipts = () => {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {leg === "sale" ? (
-                                                receipt.status !== "active" ? null : (
+                                                receipt.status !== "active" ? (
+                                                    <span className="text-xs text-muted-foreground italic">
+                                                        {receipt.voided_reason ?? "—"}
+                                                    </span>
+                                                ) : (
                                                     <div className="flex gap-2 justify-center">
                                                         <IconButton
                                                             tooltip={t("receipts.tooltip.view")}
