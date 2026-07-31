@@ -60,7 +60,7 @@ export function ReceiptDetailDialog({ receipt, open, onOpenChange }: ReceiptDeta
               {/* Block 1: Receipt No / Date / Cashier */}
               <div className="space-y-1.5">
                 {row(t("receipts.receiptNo", "Receipt No"), <span className="font-mono font-semibold">{receipt.receipt_number}</span>)}
-                {row(t("receipts.dateTime"), fmtDateTimeShared(receipt.transaction_date))}
+                {row(t("receipts.dateTime"), fmtDateTimeShared(receipt.status !== "active" && receipt.voided_at ? receipt.voided_at : receipt.transaction_date))}
                 {receipt.created_by_name && row(t("receipts.cashier", "Cashier"), receipt.created_by_name, true)}
                 {receipt.shop_name && row(t("receipts.shop", "Shop"), receipt.shop_name)}
               </div>

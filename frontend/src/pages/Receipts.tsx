@@ -389,7 +389,7 @@ const Receipts = () => {
                                 {displayRows.map(({ receipt, leg }) => (
                                     <TableRow key={`${receipt.id}-${leg}`} className={leg === "void" ? "bg-destructive/5" : undefined}>
                                         <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
-                                        <TableCell>{fmtDate(leg === "sale" ? receipt.transaction_date : (receipt.voided_at ?? receipt.transaction_date))}</TableCell>
+                                        <TableCell>{fmtDate(receipt.transaction_date)}</TableCell>
                                         {!user?.shopId && (
                                             <TableCell className="text-sm">{receipt.shop_name ?? receipt.shop_id ?? "—"}</TableCell>
                                         )}
@@ -418,6 +418,32 @@ const Receipts = () => {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {leg === "sale" ? (
+                                                receipt.status !== "active" ? null : (
+                                                    <div className="flex gap-2 justify-center">
+                                                        <IconButton
+                                                            tooltip={t("receipts.tooltip.view")}
+                                                            onClick={() => handleViewReceipt(receipt)}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            tooltip={t("receipts.tooltip.download")}
+                                                            onClick={() => downloadReceiptHtml(receipt as unknown as LibReceiptApi, schoolInfo, receipt.shop_name ?? user?.shopName, "en")}
+                                                        >
+                                                            <Download className="h-4 w-4" />
+                                                        </IconButton>
+                                                        {canVoid && (
+                                                            <IconButton
+                                                                tooltip={t("receipts.void", "Void")}
+                                                                onClick={() => setVoidTarget(receipt)}
+                                                                className="text-destructive hover:text-destructive"
+                                                            >
+                                                                <Ban className="h-4 w-4" />
+                                                            </IconButton>
+                                                        )}
+                                                    </div>
+                                                )
+                                            ) : (
                                                 <div className="flex gap-2 justify-center">
                                                     <IconButton
                                                         tooltip={t("receipts.tooltip.view")}
@@ -431,20 +457,7 @@ const Receipts = () => {
                                                     >
                                                         <Download className="h-4 w-4" />
                                                     </IconButton>
-                                                    {canVoid && receipt.status === "active" && (
-                                                        <IconButton
-                                                            tooltip={t("receipts.void", "Void")}
-                                                            onClick={() => setVoidTarget(receipt)}
-                                                            className="text-destructive hover:text-destructive"
-                                                        >
-                                                            <Ban className="h-4 w-4" />
-                                                        </IconButton>
-                                                    )}
                                                 </div>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground italic">
-                                                    {receipt.voided_reason ?? "—"}
-                                                </span>
                                             )}
                                         </TableCell>
                                     </TableRow>
