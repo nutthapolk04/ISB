@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -48,6 +48,7 @@ import { PaginationBar } from "@/components/PaginationBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { InternalUsedTable, type InternalUsedReportData } from "@/components/reports/InternalUsedTable";
+import { scrollToReportSection } from "@/lib/scrollToReportSection";
 
 type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used" | "balance";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
@@ -647,6 +648,12 @@ export default function AdminReports() {
     const [balanceRoles, setBalanceRoles] = useState<string[]>([]);
     const [balanceIsbId, setBalanceIsbId] = useState("");
     const [balancePage, setBalancePage] = useState(1);
+
+    const reportSectionRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (selected) scrollToReportSection(reportSectionRef.current);
+    }, [selected]);
 
     const openReport = (kind: ReportKind) => {
         setSelected(kind);
@@ -1320,7 +1327,8 @@ export default function AdminReports() {
             </div>
 
             {selected && (
-                <Card className="mt-6">
+                <div ref={reportSectionRef} className="mt-6 scroll-mt-6">
+                <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" />
@@ -1729,6 +1737,7 @@ export default function AdminReports() {
                         )}
                     </CardContent>
                 </Card>
+                </div>
             )}
         </div>
     );

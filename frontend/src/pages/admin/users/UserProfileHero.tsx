@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CreditCard, KeyRound, UserCircle2, Users2 } from "lucide-react";
-import { resolveAvatarUrl } from "@/lib/avatarFallback";
+import { resolveAvatarUrl, handleAvatarImageError } from "@/lib/avatarFallback";
 import type { UserDetailData } from "./userDetailTypes";
 
 interface UserProfileHeroProps {
@@ -23,7 +23,11 @@ export function UserProfileHero({ user, onBindCard, onChangePassword }: UserProf
       <CardContent className="pt-6">
         <div className="flex flex-col sm:flex-row gap-4 items-start">
           <Avatar className="h-24 w-24 shrink-0">
-            <AvatarImage src={resolveAvatarUrl(user.photo_url, user.username || user.full_name)} alt={user.full_name} />
+            <AvatarImage
+              src={resolveAvatarUrl(user.photo_url, user.username || user.full_name)}
+              alt={user.full_name}
+              onError={handleAvatarImageError}
+            />
             <AvatarFallback className="text-xl">{initials}</AvatarFallback>
           </Avatar>
 

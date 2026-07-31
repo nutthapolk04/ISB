@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,6 +42,17 @@ import { SalesSummaryReport } from "./reports/SalesSummaryReport";
 import { SalesByItemReport } from "./reports/SalesByItemReport";
 import { BundleReport } from "./reports/BundleReport";
 import { InternalUsedReportPanel } from "./reports/InternalUsedReport";
+import { scrollToReportSection } from "@/lib/scrollToReportSection";
+
+/** Reports that render an inline filter panel (not the date-picker export dialog). */
+const INLINE_REPORT_TYPES = new Set([
+    "stockCardReport",
+    "salesSummaryReport",
+    "salesReport",
+    "salesByItemReport",
+    "bundleReport",
+    "internalUsedReport",
+]);
 
 interface SalesRow {
     product_name: string;
@@ -118,6 +129,13 @@ const Reports = () => {
     // remount (via `key`) and reset their internal state — this preserves the
     // old behavior where re-clicking an already-open report cleared its data.
     const [reportOpenNonce, setReportOpenNonce] = useState(0);
+    const reportSectionRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (selectedReportType && INLINE_REPORT_TYPES.has(selectedReportType)) {
+            scrollToReportSection(reportSectionRef.current);
+        }
+    }, [selectedReportType, reportOpenNonce]);
 
     // Determine which module's Reports page we're rendering. /canteen/reports
     // narrows the visible cards to canteen-relevant ones; /store/reports gets
@@ -544,6 +562,7 @@ const Reports = () => {
                 ))}
             </div>
 
+            <div ref={reportSectionRef} className="scroll-mt-6">
             {selectedReportType === "stockCardReport" && (
                 <StockCardReport
                     key={reportOpenNonce}
@@ -613,6 +632,7 @@ const Reports = () => {
                     reportId={REPORT_ID_MAP["internalUsedReport"]}
                 />
             )}
+            </div>
 
             {/* Date Picker Dialog for Excel Export */}
             <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>

@@ -460,7 +460,7 @@ export async function adjustBalance(args: {
         }
         const direction = amount > 0 ? "credit" : "debit";
         const refTag = referenceTicket ? ` [ref:${referenceTicket}]` : "";
-        const description = `Balance Initialization ${refTag} — ${reason}`;
+        const description = `${reason}`;
 
         await sqlTx`
       UPDATE wallets SET balance = ${balanceAfter}, updated_at = NOW() WHERE id = ${walletId}
@@ -717,34 +717,34 @@ export async function cashierTopup(args: {
 
 /** Cashier top-up by customer ID — auto-creates wallet if customer has none. */
 export async function cashierTopupByCustomer(args: {
-  customerId: number;
-  amount: number;
-  cashierUserId: number;
-  notes?: string;
+    customerId: number;
+    amount: number;
+    cashierUserId: number;
+    notes?: string;
 }): Promise<CashierTopupDTO> {
-  const wallet = await ensureWalletForCustomer(args.customerId);
-  return cashierTopup({
-    walletId: wallet.id,
-    amount: args.amount,
-    cashierUserId: args.cashierUserId,
-    notes: args.notes,
-  });
+    const wallet = await ensureWalletForCustomer(args.customerId);
+    return cashierTopup({
+        walletId: wallet.id,
+        amount: args.amount,
+        cashierUserId: args.cashierUserId,
+        notes: args.notes,
+    });
 }
 
 /** Cashier top-up by user ID (staff/parent) — auto-creates wallet if user has none. */
 export async function cashierTopupByUser(args: {
-  userId: number;
-  amount: number;
-  cashierUserId: number;
-  notes?: string;
+    userId: number;
+    amount: number;
+    cashierUserId: number;
+    notes?: string;
 }): Promise<CashierTopupDTO> {
-  const wallet = await ensureWalletForUser(args.userId);
-  return cashierTopup({
-    walletId: wallet.id,
-    amount: args.amount,
-    cashierUserId: args.cashierUserId,
-    notes: args.notes,
-  });
+    const wallet = await ensureWalletForUser(args.userId);
+    return cashierTopup({
+        walletId: wallet.id,
+        amount: args.amount,
+        cashierUserId: args.cashierUserId,
+        notes: args.notes,
+    });
 }
 
 export interface DepartmentAdjustDTO {

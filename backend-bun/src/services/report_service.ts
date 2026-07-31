@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or, not } from "drizzle-orm";
+import { and, eq, gte, lte, inArray, asc, desc, sql, ilike, or, not, isNotNull } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -964,6 +964,24 @@ const RECEIVE_TYPE_GROUPS = {
 
 type ReceiveTypeKey = keyof typeof RECEIVE_TYPE_GROUPS;
 
+/** Payer identity filters for sales-summary (maps to users.role / customer_kind / department). */
+const SALES_SUMMARY_USER_ROLE_TYPES = new Set(["parent", "staff", "finance"]);
+
+function applySalesSummaryCustomerTypeFilter(customerType: string | undefined, conds: SQL[]): void {
+    if (!customerType || customerType === "all") return;
+    if (customerType === "department") {
+        conds.push(isNotNull(receipts.payerDepartmentId));
+        return;
+    }
+    if (SALES_SUMMARY_USER_ROLE_TYPES.has(customerType)) {
+        conds.push(eq(users.role, customerType));
+        return;
+    }
+    if (customerType === "student") {
+        conds.push(eq(customers.customerKind, "student"));
+    }
+}
+
 function amountColumnFor(method: string): string {
     if (method === "CASH") return "amt_cash";
     if (method === "WALLET" || method === "CARD_TAP") return "amt_campus_card";
@@ -1189,20 +1207,9 @@ export async function salesSummaryReport(args: {
         const methods = RECEIVE_TYPE_GROUPS[args.receiveType as ReceiveTypeKey];
         if (methods) commonConds.push(inArray(receipts.paymentMethod, [...methods]));
     }
-    // "Customer Type" here means who the payer IS (parent/student/staff/
-    // guest) — unrelated to customer_types.type_name, which is a billing
-    // price-level enum (PUBLIC/INTERNAL only) and throws a Postgres enum
-    // cast error for any of these values. Parents/staff pay from their own
-    // user wallet (receipts.payer_user_id → users.role); students/guests
-    // pay from a customer wallet (receipts.customer_id → customers.customer_kind,
-    // where "guest" is stored as customer_kind 'other').
-    if (args.customerType && args.customerType !== "all") {
-        if (args.customerType === "parent" || args.customerType === "staff") {
-            commonConds.push(eq(users.role, args.customerType));
-        } else {
-            commonConds.push(eq(customers.customerKind, args.customerType === "guest" ? "other" : args.customerType));
-        }
-    }
+    // "Customer Type" = payer identity: student (customer wallet), parent/staff/
+    // finance (user wallet), or department (budget deduction).
+    applySalesSummaryCustomerTypeFilter(args.customerType, commonConds);
     if (args.familyCode) commonConds.push(eq(customers.familyCode, args.familyCode));
     if (args.userName) {
         const pat = `%${args.userName}%`;

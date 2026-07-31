@@ -98,11 +98,12 @@ const RECEIVE_TYPE_OPTIONS: { value: string; label: string }[] = [
 
 // Customer type filter — matches CustomerTypeEnum on the backend.
 const CUSTOMER_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "all",     label: "All" },
-  { value: "parent",  label: "Parent" },
-  { value: "student", label: "Student" },
-  { value: "staff",   label: "Staff" },
-  { value: "guest",   label: "Guest" },
+  { value: "all",        label: "All" },
+  { value: "student",    label: "Student" },
+  { value: "parent",     label: "Parents" },
+  { value: "staff",      label: "Staff" },
+  { value: "finance",    label: "Finance" },
+  { value: "department", label: "Department" },
 ];
 
 interface SalesSummaryReportProps {

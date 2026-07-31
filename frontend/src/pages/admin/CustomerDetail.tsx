@@ -21,7 +21,7 @@ import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/hooks/use-toast";
 import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
-import { resolveAvatarUrl } from "@/lib/avatarFallback";
+import { resolveAvatarUrl, handleAvatarImageError } from "@/lib/avatarFallback";
 import { toCanonicalCardUid } from "@/lib/cardUid";
 import { useRfidListener } from "@/hooks/useRfidListener";
 import {
@@ -458,7 +458,11 @@ export default function CustomerDetail() {
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <div className="relative">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={resolveAvatarUrl(profile.photo_url, profile.name || String(profile.id))} alt={profile.name} />
+                <AvatarImage
+                  src={resolveAvatarUrl(profile.photo_url, profile.name || String(profile.id))}
+                  alt={profile.name}
+                  onError={handleAvatarImageError}
+                />
                 <AvatarFallback className="text-xl">{initials}</AvatarFallback>
               </Avatar>
               <button
