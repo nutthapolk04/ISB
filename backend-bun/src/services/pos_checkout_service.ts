@@ -42,7 +42,8 @@ const ALLOWED_PAYMENT_METHODS = new Set([
 // Surcharge passed on to the customer for EDC card-swipe/tap sales (never
 // QR) — the acquirer's interchange fee, recovered at checkout rather than
 // absorbed by the shop.
-const EDC_CARD_FEE_RATE = 0.03;
+// NOTE: ปรับจาก 3% → 0% (ไม่มีค่าธรรมเนียม)
+const EDC_CARD_FEE_RATE = 0;
 
 export interface SelectedOptionInput {
     option_id: number;

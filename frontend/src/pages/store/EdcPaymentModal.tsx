@@ -25,8 +25,9 @@ export type EdcMode = "qr" | "card";
 
 /** Customer-facing card surcharge — must match EDC_CARD_FEE_RATE in
  * backend-bun/src/services/pos_checkout_service.ts; the backend recomputes
- * and is the source of truth, this is only for the on-screen preview. */
-const EDC_CARD_FEE_RATE = 0.03;
+ * and is the source of truth, this is only for the on-screen preview.
+ * NOTE: ปรับจาก 3% → 0% (ไม่มีค่าธรรมเนียม) */
+const EDC_CARD_FEE_RATE = 0;
 
 interface EdcPaymentModalProps {
     open: boolean;
@@ -370,9 +371,6 @@ export function EdcPaymentModal({
                                 <CreditCard className="h-8 w-8" />
                             </div>
                             <div className="font-semibold">{t("storePos.edcModeCard", "CREDIT CARD")}</div>
-                            <div className="text-xs text-muted-foreground">
-                                {t("storePos.edcCardFeeHint", "+3% fee")}
-                            </div>
                         </button>
                     </div>
                 )}
