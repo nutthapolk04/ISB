@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สรุปการอัปเดต ISB - 2 สัปดาห์</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Cormorant', 'Trebuchet MS', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .feature-section {
+            margin-bottom: 40px;
+            border-left: 5px solid #667eea;
+            padding-left: 25px;
+            position: relative;
+        }
+        .feature-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .emoji {
+            font-size: 1.3em;
+        }
+        .commits {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+        }
+        .fixes-list {
+            list-style: none;
+            margin: 15px 0;
+        }
+        .fixes-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #444;
+            line-height: 1.8;
+        }
+        .fixes-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4caf50;
+            font-weight: bold;
+        }
+        .access-link {
+            background: #e8f5e9;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 15px;
+            color: #2e7d32;
+        }
+        .access-link strong {
+            color: #1b5e20;
+        }
+        .access-link a {
+            color: #1565c0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .access-link a:hover {
+            text-decoration: underline;
+        }
+        .stats-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 40px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .stat-label {
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+        .footer {
+            background: #f9f9f9;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 สรุปการอัปเดตระบบ ISB</h1>
+            <p>สรุป 2 สัปดาห์ (17-31 กรกฎาคม 2566)</p>
+        </div>
+
+        <div class="content">
+            <!-- Feature 1: Barcode -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">📦</span>
+                    การจัดการและพิมพ์บาร์โค้ด
+                </div>
+                <div class="commits">Commits: 3743c31, 3b3309a, bdcc858, e815322, 51a4367, fb81473, 30da1db, 1ec6393, f3828b4</div>
+                <ul class="fixes-list">
+                    <li>แก้ไขปัญหาบาร์โค้ดเบี้ยว ที่ความละเอียด 1920x1080</li>
+                    <li>ปรับระยะขอบของแผ่นสติกเกอร์ (ลดเหลือ 10mm ซ้ายขวา, 0mm บนล่าง)</li>
+                    <li>แก้ไขข้อผิดพลาด "popup blocked" ระหว่างการส่งออกบาร์โค้ด</li>
+                    <li>ทำให้ปุ่ม "X บาร์โค้ด +" สามารถคลิกเพื่อเพิ่มทั้งหมด</li>
+                    <li>แก้ไขปัญหา race condition เมื่อเพิ่มหลายบาร์โค้ด (เดิมเพิ่มแค่อันเดียว)</li>
+                    <li>ข้ามบาร์โค้ดที่ซ้ำกันเมื่อคลิก "เพิ่มทั้งหมด"</li>
+                    <li>แก้ไขการเตือนข้อผิดพลาด React key ในรายการบาร์โค้ด</li>
+                    <li>แสดง productCode เป็นทางเลือกเมื่อบาร์โค้ดหลักว่าง</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong> <a href="http://localhost:5173/inventory">สินค้า → ส่งออกบาร์โค้ด</a>
+                </div>
+            </div>
+
+            <!-- Feature 2: Transaction History -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">📅</span>
+                    การแสดงประวัติธุรกรรมที่ปรับปรุง
+                </div>
+                <div class="commits">Commits: 1f03414</div>
+                <ul class="fixes-list">
+                    <li>เปลี่ยนจากการแสดงแค่เวลาเป็น <strong>วว/ดด/ปปปป เวลา:นาที</strong></li>
+                    <li>ใช้กับหน้าแดชบอร์ดและหน้าประวัติธุรกรรม</li>
+                    <li>การแสดงวันที่และเวลาที่สอดคล้องกันทั่วทั้งแอปพลิเคชัน</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong>
+                    <div style="margin-top: 8px;">
+                        <a href="http://localhost:5173/parent/dashboard">แดชบอร์ดผู้ปกครอง - กิจกรรมล่าสุด</a><br>
+                        <a href="http://localhost:5173/parent/transactions/1">ประวัติธุรกรรม</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 3: EDC -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">💳</span>
+                    การชำระเงินผ่าน EDC สำหรับเติมเงิน
+                </div>
+                <div class="commits">Commits: ca925c2, b0355b1, 2e2a4ec, f29294f</div>
+                <ul class="fixes-list">
+                    <li>เพิ่มตัวเลือกการชำระเงินผ่าน EDC ในหน้าต่างเติมเงิน</li>
+                    <li>ตัวเลือก QR Code + บัตรเครดิตสำหรับ EDC</li>
+                    <li>การรวมเข้ากับเครื่อง EDC ผ่าน <span class="highlight">edc_approval_code</span>, <span class="highlight">edc_terminal_ref</span>, <span class="highlight">edc_masked_card</span></li>
+                    <li>คำนวณและรายงานค่าธรรมเนียมการ์ด 3%</li>
+                    <li>จำนวนเติมเงิน: 1-50,000 บาท</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong>
+                    <div style="margin-top: 8px;">
+                        <a href="http://localhost:5173/admin">หน้าต่างเติมเงินแคชเชียร์</a><br>
+                        <a href="http://localhost:5173">เติมเงินเคียสก์</a><br>
+                        <a href="http://localhost:5173/canteen/reports">รายงานสรุปการขาย - คอลัมน์ค่าธรรมเนียมการ์ด</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 4: Top-up Reporting -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">📊</span>
+                    การรายงานและคำอธิบายการเติมเงิน
+                </div>
+                <div class="commits">Commits: 3bfad42, b0355b1, 748561f, ac90b61, 086c204</div>
+                <ul class="fixes-list">
+                    <li>ทำสะอาดและแสดงตรรมชาติของคำอธิบายการเติมเงิน</li>
+                    <li>เพิ่มฟิลด์ ID ภายนอกในการรายงานการเติมเงิน</li>
+                    <li>รายงานการเติมเงินของร้านใหม่พร้อมข้อมูลธุรกรรมโดยละเอียด</li>
+                    <li>ข้อมูลช่องทางการเติมเงิน (เงินสด/EDC/QR)</li>
+                    <li>ฟิลด์ "เติมโดย" ติดตามว่าใครเริ่มการเติมเงิน</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong>
+                    <div style="margin-top: 8px;">
+                        <a href="http://localhost:5173/canteen/reports">รายงานการเติมเงินของร้าน</a><br>
+                        <a href="http://localhost:5173/admin/reports">การรายงานการเติมเงินผู้ดูแลระบบ</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 5: Notifications -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">📧</span>
+                    การจัดการการแจ้งเตือนและอีเมล
+                </div>
+                <div class="commits">Commits: e2e347a, 995818, d8ac527, 8198e4e</div>
+                <ul class="fixes-list">
+                    <li>ปรับปรุงการจัดการการแจ้งเตือนทางอีเมลและการแปลภาษา</li>
+                    <li>ปรับปรุงการแจ้งเตือนสัญญาณเตือนยอดเงินต่ำ</li>
+                    <li>การแจ้งเตือนอีเมลสำหรับการเปลี่ยนรหัสผ่านช่างเทคนิค</li>
+                    <li>ปรับปรุงความอ่านได้ของเนื้อหาอีเมล</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong> <a href="http://localhost:5173/admin/settings">การตั้งค่าผู้ดูแล → การแจ้งเตือน</a>
+                </div>
+            </div>
+
+            <!-- Feature 6: UI/UX -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">🎨</span>
+                    ปรับปรุงส่วนติดต่อผู้ใช้ (UI/UX)
+                </div>
+                <div class="commits">Commits: 5194885, 3532b7a, 079c11f</div>
+                <ul class="fixes-list">
+                    <li>ปรับปรุงเค้าโครงหน้าต่างสำหรับหน้าจอ 1920x1080</li>
+                    <li>ปรับขนาดหน้าต่างแบบอิสระเพื่อลดการเลื่อน</li>
+                    <li>หน้าต่างเติมเงินแคชเชียร์พร้อมการพิมพ์ใบเสร็จ</li>
+                    <li>หน้าจอเศษส่วนเคียสก์พร้อมส่วนประกอบวิดีโอ BootSplash</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong>
+                    <div style="margin-top: 8px;">
+                        <a href="http://localhost:5173">ส่วนติดต่อเคียสก์</a><br>
+                        <a href="http://localhost:5173/admin">ส่วนติดต่อแคชเชียร์</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 7: Reports -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">📈</span>
+                    รายงานและการวิเคราะห์
+                </div>
+                <div class="commits">Commits: 2e2a4ec, b0355b1, 02a180d, 748561f, ca7ce0f</div>
+                <ul class="fixes-list">
+                    <li>รายงานสรุปการขายพร้อมการแจกแจงค่าธรรมเนียมการ์ด 3%</li>
+                    <li>ปรับปรุงรายงานการขายรายวัน</li>
+                    <li>การรายงานธุรกรรมเคียสก์พร้อมฟิลด์เพิ่มเติม</li>
+                    <li>รายงานยอดเงินพร้อม ISB_ID, ชื่อเจ้าของ, ยอดเงินก่อนหน้า</li>
+                    <li>รายงานการเติมเงินของร้านพร้อมข้อมูลช่องทาง</li>
+                </ul>
+                <div class="access-link">
+                    📍 <strong>เข้าถึง:</strong>
+                    <div style="margin-top: 8px;">
+                        <a href="http://localhost:5173/canteen/reports">รายงานห้องอาหาร</a> หรือ
+                        <a href="http://localhost:5173/admin/reports">รายงานผู้ดูแล</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-section">
+                <div class="stat-item">
+                    <div class="stat-number">48</div>
+                    <div class="stat-label">Commits ทั้งหมด</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">15+</div>
+                    <div class="stat-label">ไฟล์ที่แก้ไข</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">7</div>
+                    <div class="stat-label">คุณลักษณะหลัก</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">9+</div>
+                    <div class="stat-label">ข้อบกพร่องที่แก้ไข</div>
+                </div>
+            </div>
+
+            <!-- Technical Notes -->
+            <div class="feature-section">
+                <div class="feature-title">
+                    <span class="emoji">⚙️</span>
+                    รายละเอียดทางเทคนิค
+                </div>
+                <h3 style="color: #667eea; margin-top: 15px; margin-bottom: 10px;">บริการแบ็กเอนด์ที่อัปเดต</h3>
+                <ul class="fixes-list">
+                    <li><span class="highlight">TopupController</span> & <span class="highlight">topup_service.ts</span> — การจัดการการชำระเงิน EDC</li>
+                    <li><span class="highlight">report_service.ts</span> — การคำนวณรายงานพร้อมค่าธรรมเนียม EDC</li>
+                    <li><span class="highlight">NotificationService</span> — ปรับปรุงการจัดการอีเมล</li>
+                </ul>
+                <h3 style="color: #667eea; margin-top: 15px; margin-bottom: 10px;">ส่วนประกอบส่วนติดต่อผู้ใช้ที่อัปเดต</h3>
+                <ul class="fixes-list">
+                    <li><span class="highlight">PrintBarcodeDialog.tsx</span> — การรวมกลุ่มและพิมพ์บาร์โค้ด</li>
+                    <li><span class="highlight">FamilyDashboard.tsx</span> — การแสดงวันที่และเวลา</li>
+                    <li><span class="highlight">TransactionHistory.tsx</span> — การจัดรูปแบบวันที่และเวลา</li>
+                    <li><span class="highlight">CashierTopupModal.tsx</span> — การรวมเข้ากับการชำระเงิน EDC</li>
+                    <li>ส่วนประกอบรายงานต่างๆ</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>อัปเดตครั้งสุดท้าย:</strong> 31 กรกฎาคม 2566</p>
+            <p><strong>สาขา:</strong> charp → development</p>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #999;">การเปลี่ยนแปลงทั้งหมดเป็นไปตามเวอร์ชันก่อนหน้า • ทำการทดสอบที่ความละเอียด 1920x1080</p>
+        </div>
+    </div>
+</body>
+</html>

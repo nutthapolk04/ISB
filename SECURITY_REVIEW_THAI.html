@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงาน Security & Code Quality Review ระบบ ISB</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Cormorant', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.8em;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+            margin-bottom: 10px;
+        }
+        .header .date {
+            font-size: 0.95em;
+            opacity: 0.85;
+        }
+        .content {
+            padding: 50px 40px;
+        }
+        .section {
+            margin-bottom: 50px;
+        }
+        .section-title {
+            font-size: 2em;
+            color: #667eea;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .emoji {
+            font-size: 1.5em;
+        }
+        .issue {
+            background: #f9f9f9;
+            border-left: 6px solid #ff6b6b;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+        }
+        .issue.critical {
+            border-left-color: #ff0000;
+            background: #fff5f5;
+        }
+        .issue.high {
+            border-left-color: #ff6b6b;
+            background: #fff9f9;
+        }
+        .issue.medium {
+            border-left-color: #ffa500;
+            background: #fffaf5;
+        }
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .issue-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+        }
+        .severity-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        .severity-critical {
+            background: #ff0000;
+            color: white;
+        }
+        .severity-high {
+            background: #ff6b6b;
+            color: white;
+        }
+        .severity-medium {
+            background: #ffa500;
+            color: white;
+        }
+        .issue-content {
+            margin-top: 15px;
+        }
+        .issue-section {
+            margin-bottom: 15px;
+        }
+        .issue-section-title {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.05em;
+        }
+        .issue-section-content {
+            color: #555;
+            margin-left: 15px;
+            line-height: 1.7;
+        }
+        .code-block {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            color: #d63384;
+        }
+        .fix-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+        .fix-box strong {
+            color: #2e7d32;
+        }
+        .attack-box {
+            background: #fff3cd;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+        .attack-box strong {
+            color: #ff6f00;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: #f9f9f9;
+        }
+        .priority {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .priority-now {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .priority-soon {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .priority-next {
+            background: #f3e5f5;
+            color: #6a1b9a;
+        }
+        .good-section {
+            background: #e8f5e9;
+            border-left: 6px solid #4caf50;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .good-section h3 {
+            color: #2e7d32;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .good-list {
+            list-style: none;
+        }
+        .good-list li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+            color: #333;
+        }
+        .good-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4caf50;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .timeline-item {
+            background: white;
+            border: 2px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .timeline-item.critical {
+            border-color: #ff0000;
+            background: #fff5f5;
+        }
+        .timeline-item.high {
+            border-color: #ff6b6b;
+            background: #fff9f9;
+        }
+        .timeline-item.medium {
+            border-color: #ffa500;
+            background: #fffaf5;
+        }
+        .timeline-label {
+            font-weight: 700;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .timeline-items {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.6;
+        }
+        .footer {
+            background: #f9f9f9;
+            padding: 30px 40px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+        .footer p {
+            margin: 8px 0;
+        }
+        .print-hint {
+            text-align: right;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        .metric {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .metric-item {
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+        .metric-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .metric-label {
+            font-size: 0.95em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 รายงาน Security & Code Quality Review</h1>
+            <p>ระบบ ISB (Intelligent School Bookkeeping)</p>
+            <p class="date">วันที่ 31 กรกฎาคม 2566 | สาขา: charp</p>
+        </div>
+
+        <div class="content">
+            <!-- Metrics -->
+            <div class="metric">
+                <div class="metric-item">
+                    <div class="metric-number" style="color: #ff0000;">2</div>
+                    <div class="metric-label">ปัญหาวิกฤต (Critical)</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-number" style="color: #ff6b6b;">2</div>
+                    <div class="metric-label">ปัญหาสูง (High)</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-number" style="color: #ffa500;">5</div>
+                    <div class="metric-label">ปัญหากลาง (Medium)</div>
+                </div>
+            </div>
+
+            <!-- Critical Issues -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="emoji">🚨</span>
+                    <span>ปัญหาวิกฤต — ต้องแก้ก่อน Deploy</span>
+                </div>
+
+                <!-- Issue 1 -->
+                <div class="issue critical">
+                    <div class="issue-header">
+                        <div class="issue-title">ปัญหา #1: EDC Approval Code ไม่ Validate</div>
+                        <span class="severity-badge severity-critical">🔴 CRITICAL</span>
+                    </div>
+                    <div class="issue-content">
+                        <div class="issue-section">
+                            <div class="issue-section-title">🎯 ปัญหาคืออะไร:</div>
+                            <div class="issue-section-content">
+                                เมื่อผู้ใช้ขอ top-up โดยใช้ EDC (บัตรเครดิต) ระบบ <strong>ยอมรับ approval code โดยไม่ถามเก็บเงินจริง</strong> จาก payment gateway
+                            </div>
+                        </div>
+
+                        <div class="attack-box">
+                            <strong>📍 สถานการณ์ Attack:</strong><br>
+                            แฮกเกอร์ส่งคำขอ:
+                            <div class="code-block">
+{
+  "amount": 10000,
+  "edc_approval_code": "FAKE-12345",  ← ปลอม
+  "edc_terminal_ref": "arbitrary",
+  "edc_masked_card": "****1234"
+}
+
+ผลลัพธ์: ✅ เพิ่มเงิน 10,000 บาท
+        ❌ ไม่มีการเก็บเงินจริงผ่าน Paywire
+                            </div>
+                        </div>
+
+                        <div class="issue-section">
+                            <div class="issue-section-title">💥 ทำให้เสียหาย:</div>
+                            <div class="issue-section-content">
+                                • 💰 สูญเสียเงินสดแบบกลับไม่ได้<br>
+                                • 📊 ยอดเก็บเงินในรายงานไม่ตรง<br>
+                                • 🔓 ใครก็ได้ top-up เงินได้ฟรี
+                            </div>
+                        </div>
+
+                        <div class="issue-section">
+                            <div class="issue-section-title">📍 ไฟล์ที่เกี่ยวข้อง:</div>
+                            <div class="issue-section-content">
+                                • <code>backend-bun/src/services/topup_service.ts</code> บรรทัด 947-952<br>
+                                • <code>backend-bun/src/controllers/TopupController.ts</code> บรรทัด 52-66
+                            </div>
+                        </div>
+
+                        <div class="fix-box">
+                            <strong>✅ วิธีแก้:</strong><br>
+                            <br>
+                            <strong>1. Verify EDC Code กับ Gateway:</strong>
+                            <div class="code-block">
+const verified = await verifyEdcApprovalCode({
+    approvalCode: args.approvalCode,
+    terminalRef: args.terminalRef,
+    expectedAmount: args.amount,
+});
+
+if (!verified) {
+    throw new Error("EDC code invalid or verification failed");
+}
+                            </div>
+
+                            <strong>2. หลังจาก verify ✅ ถึงเพิ่มเงิน</strong><br>
+                            <strong>3. Implement idempotency</strong> ป้องกัน duplicate submission<br>
+                            <strong>4. ใช้ reference ticket pattern</strong> (เหมือนระบบ payment intent)
+                        </div>
+
+                        <div class="issue-section" style="background: #ffebee; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                            <div class="issue-section-title" style="color: #c62828;">⏰ ลำดับความสำคัญ: FIX NOW!</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issue 2 -->
+                <div class="issue critical">
+                    <div class="issue-header">
+                        <div class="issue-title">ปัญหา #2: EDC Field ไม่มี Format Validation</div>
+                        <span class="severity-badge severity-critical">🔴 HIGH</span>
+                    </div>
+                    <div class="issue-content">
+                        <div class="issue-section">
+                            <div class="issue-section-title">🎯 ปัญหาคืออะไร:</div>
+                            <div class="issue-section-content">
+                                ระบบยอมรับ Approval Code ยาวเท่าไหร่ก็ได้ (ไม่มีขีดจำกัด) และไม่เช็ค format
+                            </div>
+                        </div>
+
+                        <div class="attack-box">
+                            <strong>📍 สถานการณ์ Attack:</strong><br>
+                            แฮกเกอร์ส่ง:
+                            <div class="code-block">
+edc_approval_code = "AAAA...AAAA"  (100,000 ตัวอักษร)
+
+ผลลัพธ์:
+❌ ระบบเก็บลงฐานข้อมูล → ตัดหรือเก็บผิด
+❌ Log file มีขยะ → ทำให้ระบบช้า
+❌ Hardware crash → ถ้า device ที่เชื่อมต่อรับค่า
+                            </div>
+                        </div>
+
+                        <div class="fix-box">
+                            <strong>✅ วิธีแก้: เพิ่ม Format Validation</strong>
+                            <div class="code-block">
+edc_approval_code: String({
+    minLength: 1,
+    maxLength: 50,
+    pattern: '^[A-Z0-9]+$'  ← ตัวใหญ่กับตัวเลขเท่านั้น
+})
+
+edc_terminal_ref: String({
+    maxLength: 20,
+    pattern: '^[A-Z0-9\\-]+$'
+})
+
+edc_masked_card: String({
+    maxLength: 20,
+    pattern: '^\\*{4}\\d{4}$'  ← รูปแบบ ****1234
+})
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- High Priority -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="emoji">🟠</span>
+                    <span>ปัญหาสำคัญ (High/Medium-High Priority)</span>
+                </div>
+
+                <div class="issue high">
+                    <div class="issue-header">
+                        <div class="issue-title">ปัญหา #3: Path Traversal ในชื่อ Report</div>
+                        <span class="severity-badge severity-high">🟠 HIGH</span>
+                    </div>
+                    <div class="issue-content">
+                        <div class="issue-section">
+                            <div class="issue-section-title">🎯 ปัญหาคืออะไร:</div>
+                            <div class="issue-section-content">
+                                เมื่อ export report เป็น PDF ชื่อไฟล์มาจากวันที่ที่ผู้ใช้กรอก (ไม่มีการตรวจสอบ)
+                            </div>
+                        </div>
+                        <div class="attack-box">
+                            <strong>📍 สถานการณ์ Attack:</strong>
+                            <div class="code-block">
+เดือน: "../../"  ← ตัดสินใจเองได้
+→ ชื่อไฟล์: "Report_../../_any.pdf"
+→ Browser อาจบันทึกไปตำแหน่ง ../ ได้
+                            </div>
+                        </div>
+                        <div class="fix-box">
+                            <strong>✅ วิธีแก้:</strong> ลบ `../` และ `/` ออกจากชื่อไฟล์ทั้งหมด
+                        </div>
+                    </div>
+                </div>
+
+                <div class="issue high">
+                    <div class="issue-header">
+                        <div class="issue-title">ปัญหา #4: Barcode ไม่มี Max Length</div>
+                        <span class="severity-badge severity-high">🟠 MEDIUM-HIGH</span>
+                    </div>
+                    <div class="issue-content">
+                        <div class="issue-section">
+                            <div class="issue-section-title">🎯 ปัญหาคืออะไร:</div>
+                            <div class="issue-section-content">
+                                ผู้ใช้ส่ง barcode ยาว 10,000 ตัวอักษร (ไม่มีขีดจำกัด)
+                            </div>
+                        </div>
+                        <div class="attack-box">
+                            <strong>📍 ผลลัพธ์:</strong>
+                            <div class="code-block">
+❌ Print label พัง → ตัดหลายบรรทัด
+❌ Barcode scanner ไม่อ่านได้
+❌ ฐานข้อมูล overflow
+                            </div>
+                        </div>
+                        <div class="fix-box">
+                            <strong>✅ วิธีแก้:</strong> Barcode ไม่เกิน 100 ตัวอักษร (จริงๆ 8-15 ตัว)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medium Issues -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="emoji">🟡</span>
+                    <span>ปัญหากลาง (Medium Priority)</span>
+                </div>
+
+                <div class="issue medium">
+                    <div class="issue-header">
+                        <div class="issue-title">ปัญหา #5 & #6: localStorage + XSRF</div>
+                        <span class="severity-badge severity-medium">🟡 MEDIUM</span>
+                    </div>
+                    <div class="issue-content">
+                        <div class="issue-section">
+                            <div class="issue-section-title">📍 ปัญหา #5: localStorage Counter Poisoning</div>
+                            <div class="issue-section-content">
+                                ใช้ localStorage เก็บเลขที่ report (ISB001, ISB002, ...) แต่ไม่มีการตรวจสอบค่า<br><br>
+                                <strong>Attack:</strong> Tab ที่เป็นอันตรายเขียน localStorage → Report ID ยุ่งเหยิง
+                            </div>
+                        </div>
+
+                        <div class="issue-section" style="margin-top: 20px;">
+                            <div class="issue-section-title">📍 ปัญหา #6: Missing XSRF Token</div>
+                            <div class="issue-section-content">
+                                Top-up & Payment endpoints ไม่มี XSRF token validation
+                            </div>
+                        </div>
+                        <div class="attack-box">
+                            <strong>📍 สถานการณ์ Attack:</strong>
+                            <div class="code-block">
+Attacker: ทำเว็บไซต์เด็ดขาด (evil.com)
+ผู้ใช้: คลิกเข้า evil.com ขณะ logged-in เข้า ISB
+
+evil.com ทำการ:
+→ ส่งคำขอ top-up ด้วยชื่อผู้ใช้
+→ Browser ส่ง cookie โดยอัตโนมัติ
+→ ผู้ใช้เสียเงินโดยไม่รู้ตัว
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="issue medium">
+                    <div class="issue-header">
+                        <div class="issue-title">ปัญหา #7 & #8: N+1 Query (Performance)</div>
+                        <span class="severity-badge severity-medium">🟡 MEDIUM</span>
+                    </div>
+                    <div class="issue-content">
+                        <div class="issue-section">
+                            <div class="issue-section-title">🎯 ปัญหาคืออะไร:</div>
+                            <div class="issue-section-content">
+                                เมื่อแสดง 100 wallet ระบบทำ query 100 ครั้ง (ทีละอัน) แทนที่จะทำ 1 ครั้ง
+                            </div>
+                        </div>
+
+                        <div class="attack-box">
+                            <strong>📍 ตัวอย่าง Bad Code:</strong>
+                            <div class="code-block">
+❌ for (const wallet of wallets) {
+     const user = await db.query('SELECT * FROM users WHERE id = ?', wallet.user_id);
+   }
+   // 100 wallets = 100 queries
+
+✅ const userIds = wallets.map(w => w.user_id);
+const users = await db.query('SELECT * FROM users WHERE id IN (?)', [userIds]);
+// 100 wallets = 1 query
+                            </div>
+                        </div>
+
+                        <div class="issue-section">
+                            <div class="issue-section-title">💥 ผลลัพธ์:</div>
+                            <div class="issue-section-content">
+                                • 👨‍👩‍👧‍👦 Family Dashboard <strong>ช้า 100 เท่า</strong><br>
+                                • 📜 Receipt History <strong>บ้าน/เลื่อนไม่ไหว</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What's Good -->
+            <div class="good-section">
+                <h3>✅ สิ่งที่ดี (ไม่ต้องแก้)</h3>
+                <ul class="good-list">
+                    <li><strong>SQL Injection:</strong> ปลอดภัย (ใช้ Drizzle ORM safe parameterization)</li>
+                    <li><strong>Authorization:</strong> เช็ค permission ถูกต้องก่อนทำ operation</li>
+                    <li><strong>Transaction Lock:</strong> ใช้ SELECT FOR UPDATE ป้องกัน race condition</li>
+                    <li><strong>Data Isolation:</strong> ไม่มีข้อมูล customer จาก shop อื่น (shop scoping ดี)</li>
+                    <li><strong>Balance Protection:</strong> มีขีดจำกัดยอดเงินใน wallet (฿50,000)</li>
+                </ul>
+            </div>
+
+            <!-- Timeline -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="emoji">⏰</span>
+                    <span>ลำดับความสำคัญและระยะเวลา</span>
+                </div>
+
+                <div class="timeline">
+                    <div class="timeline-item critical">
+                        <div class="timeline-label">⚡ FIX NOW!</div>
+                        <div class="timeline-items">
+                            ปัญหา #1: EDC Code Validate<br>
+                            ปัญหา #2: EDC Field Format<br>
+                            <br>
+                            <strong>ก่อน Deploy</strong>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item high">
+                        <div class="timeline-label">🚀 FIX This Week</div>
+                        <div class="timeline-items">
+                            ปัญหา #3: Path Traversal<br>
+                            ปัญหา #4: Barcode Max<br>
+                            ปัญหา #6: XSRF Token<br>
+                            ปัญหา #5: localStorage
+                        </div>
+                    </div>
+
+                    <div class="timeline-item medium">
+                        <div class="timeline-label">📈 Next Week</div>
+                        <div class="timeline-items">
+                            ปัญหา #7: N+1 Wallet<br>
+                            ปัญหา #8: N+1 Receipt<br>
+                            <br>
+                            (Performance)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Table -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="emoji">📋</span>
+                    <span>สรุปทั้งหมด</span>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>ปัญหา</th>
+                            <th>ไฟล์</th>
+                            <th>Severity</th>
+                            <th>ลำดับ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1</strong></td>
+                            <td>EDC Code ไม่ Validate</td>
+                            <td>topup_service.ts</td>
+                            <td>🔴 CRITICAL</td>
+                            <td><span class="priority priority-now">FIX NOW</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>2</strong></td>
+                            <td>EDC Field Format ไม่ Validate</td>
+                            <td>topup.schema.ts</td>
+                            <td>🔴 HIGH</td>
+                            <td><span class="priority priority-now">FIX NOW</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>3</strong></td>
+                            <td>Path Traversal</td>
+                            <td>reportExport.ts</td>
+                            <td>🟠 HIGH</td>
+                            <td><span class="priority priority-soon">FIX SOON</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>4</strong></td>
+                            <td>Barcode Max Length</td>
+                            <td>ManageBarcodesDialog.tsx</td>
+                            <td>🟠 MEDIUM-HIGH</td>
+                            <td><span class="priority priority-soon">FIX SOON</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>5</strong></td>
+                            <td>localStorage Poisoning</td>
+                            <td>reportExport.ts</td>
+                            <td>🟡 MEDIUM</td>
+                            <td><span class="priority priority-soon">FIX SOON</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>6</strong></td>
+                            <td>XSRF Token Missing</td>
+                            <td>CashierTopupModal.tsx</td>
+                            <td>🟡 MEDIUM</td>
+                            <td><span class="priority priority-soon">FIX SOON</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>7</strong></td>
+                            <td>N+1 Query (Wallet)</td>
+                            <td>wallet_service.ts</td>
+                            <td>🟡 MEDIUM</td>
+                            <td><span class="priority priority-next">NEXT WEEK</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>8</strong></td>
+                            <td>N+1 Query (Receipt)</td>
+                            <td>pos_service.ts</td>
+                            <td>🟡 MEDIUM</td>
+                            <td><span class="priority priority-next">NEXT WEEK</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>รายงาน Security & Code Quality Review</strong></p>
+            <p>ระบบ ISB | วันที่ 31 กรกฎาคม 2566</p>
+            <p>สาขา: charp | ทบทวนโดย: Multi-Agent Security Team</p>
+            <p style="margin-top: 20px; color: #999; font-size: 0.9em;">
+                รายงานนี้ประกอบด้วยการวิเคราะห์ Security & Code Quality ของระบบทั้งหมด<br>
+                ความเชื่อมั่นในการค้นหา: &gt;0.80 (High Confidence Findings Only)
+            </p>
+        </div>
+    </div>
+</body>
+</html>
