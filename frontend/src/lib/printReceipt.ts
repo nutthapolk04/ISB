@@ -5,6 +5,21 @@ import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { formatPaymentMethodLabelPlain } from "@/lib/paymentMethodLabels";
 
+// ── Mask full name for print only ──────────────────────────────────────────
+// Show: FirstName Lxxxx (first letter of last name + xxxx)
+// Special accounts (Kiosk, Service Account) show full name
+function maskNameForPrint(fullName: string | null | undefined): string | null {
+  if (!fullName) return null;
+  if (fullName.includes("Kiosk") || fullName.includes("Service Account")) {
+    return fullName;
+  }
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName;
+  const firstName = parts[0];
+  const lastName = parts[parts.length - 1];
+  return `${firstName} ${lastName[0]}xxxx`;
+}
+
 // ── Types (match backend ReceiptResponse) ────────────────────────────────────
 
 export interface ReceiptOptionsSnapshotApi {
@@ -205,7 +220,7 @@ export function buildReceiptHtml(
     ? `<div class="row small"><span>${lbl.cardFee}</span><span>฿${(r.edc_card_fee ?? 0).toLocaleString()}</span></div>`
     : "";
   const payerSection = r.payer_label
-    ? `<div class="row small"><span>${lbl.payer}</span><span>${r.payer_label}</span></div>`
+    ? `<div class="row small"><span>${lbl.payer}</span><span>${maskNameForPrint(r.payer_label)}</span></div>`
     : "";
   const pm = (r.payment_method ?? "").toLowerCase();
   const isMemberCardPayment = pm === "wallet" || pm === "card_tap";
@@ -497,7 +512,7 @@ export function buildTopupReceiptHtml(
   ${cashierSection}
 
   <hr/>
-  <div class="row small"><span>${lbl.customer}</span><span>${data.customer_name}</span></div>
+  <div class="row small"><span>${lbl.customer}</span><span>${maskNameForPrint(data.customer_name)}</span></div>
   ${codeLine}
   <div class="row small"><span>${lbl.payment}</span><span>${paymentLabel}</span></div>
 

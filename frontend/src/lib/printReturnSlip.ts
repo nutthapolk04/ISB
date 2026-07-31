@@ -3,6 +3,19 @@ import { toast } from "@/components/ui/sonner";
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 import type { ReturnResult } from "@/pages/returns/returnsTypes";
 
+// ── Mask full name for print only ──────────────────────────────────────────
+function maskNameForPrint(fullName: string | null | undefined): string | null {
+    if (!fullName) return null;
+    if (fullName.includes("Kiosk") || fullName.includes("Service Account")) {
+        return fullName;
+    }
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length < 2) return fullName;
+    const firstName = parts[0];
+    const lastName = parts[parts.length - 1];
+    return `${firstName} ${lastName[0]}xxxx`;
+}
+
 interface PrintReturnSlipOptions {
     i18nLanguage: string;
     schoolInfo: SchoolInfo;
@@ -111,7 +124,7 @@ export function printReturnSlip(result: ReturnResult, { i18nLanguage, schoolInfo
   <table>
     <tr><td class="meta">${lbl.origReceipt}</td><td style="text-align:right" class="meta">${result.receiptId}</td></tr>
     <tr><td class="meta">${lbl.purchaseDate}</td><td style="text-align:right" class="meta">${result.receiptDate}</td></tr>
-    <tr><td class="meta">${lbl.payer}</td><td style="text-align:right" class="meta">${result.payerLabel || "—"}</td></tr>
+    <tr><td class="meta">${lbl.payer}</td><td style="text-align:right" class="meta">${maskNameForPrint(result.payerLabel) || "—"}</td></tr>
     <tr><td class="meta">${lbl.returnDate}</td><td style="text-align:right" class="meta">${fmtDateTime(result.returnedAt)}</td></tr>
     <tr><td class="meta">${lbl.reason}</td><td style="text-align:right" class="meta">${result.reason || "—"}</td></tr>
   </table>
