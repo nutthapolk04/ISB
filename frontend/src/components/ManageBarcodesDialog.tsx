@@ -68,12 +68,37 @@ export function ManageBarcodesDialog({ open, onOpenChange, shopId, productId, pr
   }, [open, fetchBarcodes]);
 
   const handleAdd = async () => {
-    if (!newBarcode.trim()) return;
+    const trimmedBarcode = newBarcode.trim();
+    const trimmedLabel = newLabel.trim();
+
+    // Validate barcode
+    if (!trimmedBarcode) {
+      toast.error("Barcode cannot be empty");
+      return;
+    }
+
+    if (trimmedBarcode.length > 100) {
+      toast.error("Barcode must not exceed 100 characters");
+      return;
+    }
+
+    // Validate barcode format: alphanumeric, dash, underscore only
+    if (!/^[a-zA-Z0-9\-_]+$/.test(trimmedBarcode)) {
+      toast.error("Barcode can only contain letters, numbers, dashes, and underscores");
+      return;
+    }
+
+    // Validate label if provided
+    if (trimmedLabel && trimmedLabel.length > 50) {
+      toast.error("Label must not exceed 50 characters");
+      return;
+    }
+
     setSaving(true);
     try {
       const b = await api.post<ExtraBarcode>(`/shops/${shopId}/products/${productId}/barcodes`, {
-        barcode: newBarcode.trim(),
-        label: newLabel.trim() || null,
+        barcode: trimmedBarcode,
+        label: trimmedLabel || null,
       });
       setBarcodes((prev) => [...prev, b]);
       setNewBarcode("");
