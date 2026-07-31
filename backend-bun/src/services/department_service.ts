@@ -73,8 +73,8 @@ export async function createDepartment(args: {
     let walletId = 0;
     await pgClient.begin(async (sqlTx) => {
         const ins = await sqlTx<Array<{ id: number }>>`
-      INSERT INTO departments (department_code, department_name, is_active)
-      VALUES (${args.code}, ${args.name}, true) RETURNING id
+      INSERT INTO departments (department_code, department_name, is_active, annual_budget)
+      VALUES (${args.code}, ${args.name}, true, 0) RETURNING id
     `;
         deptId = ins[0].id;
         const wins = await sqlTx<Array<{ id: number }>>`
