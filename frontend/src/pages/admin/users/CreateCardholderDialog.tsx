@@ -273,7 +273,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
               <>
                 <Field label={t("cardholders.fields.fullName", "Full Name *")}><Input value={name} onChange={e => setName(e.target.value)} /></Field>
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Student ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
+                  <Field label={t("cardholders.colIsbId", "ISB ID")}><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. 12345" /></Field>
                   <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -446,11 +446,11 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label={kind === "staff" ? "Employee ID" : "Parent ID"}>
+                  <Field label={t("cardholders.colIsbId", "ISB ID")}>
                     <Input
                       value={externalId}
                       onChange={e => setExternalId(e.target.value)}
-                      placeholder={kind === "staff" ? "e.g. EMP-001" : "e.g. P-001"}
+                      placeholder={kind === "staff" ? "e.g. 201000" : "e.g. P-001"}
                     />
                   </Field>
                   <Field label="Family code"><Input value={familyCode} onChange={e => setFamilyCode(e.target.value)} /></Field>
@@ -493,7 +493,7 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Phone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
-                  <Field label="Other ID"><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
+                  <Field label={t("cardholders.colIsbId", "ISB ID")}><Input value={externalId} onChange={e => setExternalId(e.target.value)} placeholder="e.g. V-001" /></Field>
                 </div>
                 <Field label="Card UID"><Input value={cardUid} onChange={e => setCardUid(e.target.value)} /></Field>
                 <label className="flex items-center gap-2 text-sm">

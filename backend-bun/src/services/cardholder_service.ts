@@ -535,6 +535,25 @@ function conflict(msg: string): never {
     throw err;
 }
 
+async function assertExternalIdAvailable(externalId: string): Promise<void> {
+    const dupUser = await db
+        .select({ fullName: users.fullName, username: users.username })
+        .from(users)
+        .where(eq(users.externalId, externalId))
+        .limit(1);
+    if (dupUser[0]) {
+        conflict(`ISB ID ${externalId} is already assigned to user ${dupUser[0].fullName || dupUser[0].username}`);
+    }
+    const dupCust = await db
+        .select({ name: customers.name, customerCode: customers.customerCode })
+        .from(customers)
+        .where(eq(customers.externalId, externalId))
+        .limit(1);
+    if (dupCust[0]) {
+        conflict(`ISB ID ${externalId} is already assigned to ${dupCust[0].name} (${dupCust[0].customerCode})`);
+    }
+}
+
 async function ensureCustomerTypeId(typeName: "INTERNAL" | "PUBLIC"): Promise<number> {
     // The customer_types.type_name column is the customertypeenum which only
     // accepts UPPERCASE values (PUBLIC, INTERNAL). The earlier "Internal" /
@@ -560,6 +579,8 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
         if (!input.customer_code || !input.name) badRequest("customer_code and name are required for student");
         const dup = await db.select({ id: customers.id }).from(customers).where(eq(customers.customerCode, input.customer_code!)).limit(1);
         if (dup[0]) conflict(`Customer code ${input.customer_code} exists`);
+        const externalId = input.external_id?.trim() || null;
+        if (externalId) await assertExternalIdAvailable(externalId);
         const ctId = await ensureCustomerTypeId("INTERNAL");
         const initBalance = input.initial_balance ?? 0;
 
@@ -575,7 +596,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
         VALUES (${input.customer_code}, ${input.name}, ${input.student_code ?? null},
                 ${input.grade ?? null}, ${input.school_type ?? null}, ${input.family_code ?? null},
                 ${input.card_uid ?? null}, ${ctId}, 'student', 'Student', true, false,
-                ${input.external_id ?? null})
+                ${externalId})
         RETURNING id
       `;
             custId = cins[0].id;
@@ -624,6 +645,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
             wallet_balance: initBalance,
             grade: input.grade ?? null,
             school_type: input.school_type ?? null,
+            external_id: externalId,
         };
     }
 
@@ -637,6 +659,8 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
         if (dup[0]) conflict(`Username ${input.username} exists`);
         const role = kind === "parent" ? "parent" : (input.role || "staff");
         if (!WALLET_USER_ROLES.has(role)) badRequest(`Invalid role ${role}`);
+        const externalId = input.external_id?.trim() || null;
+        if (externalId) await assertExternalIdAvailable(externalId);
         if (input.shop_id) {
             const sr = await db.select({ id: shops.id }).from(shops).where(eq(shops.id, input.shop_id)).limit(1);
             if (!sr[0]) badRequest(`Shop ${input.shop_id} not found`);
@@ -652,7 +676,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
                            card_uid, is_active, is_superuser, status, external_id)
         VALUES (${input.username}, ${input.email || `${input.username}@isb-coop.local`},
                 ${input.name}, ${hash}, ${role}, ${input.shop_id ?? null}, ${input.family_code ?? null},
-                ${input.card_uid ?? null}, true, false, 'active', ${input.external_id ?? null})
+                ${input.card_uid ?? null}, true, false, 'active', ${externalId})
         RETURNING id
       `;
             uid = uins[0].id;
@@ -676,6 +700,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
             wallet_balance: balance,
             role,
             shop_id: input.shop_id ?? null,
+            external_id: externalId,
         };
     }
 
@@ -705,6 +730,8 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
 
     if (kind === "other") {
         if (!input.name) badRequest("name required for other");
+        const externalId = input.external_id?.trim() || null;
+        if (externalId) await assertExternalIdAvailable(externalId);
         const ctId = await ensureCustomerTypeId("PUBLIC");
         const code = input.customer_code || `OTH-${Math.floor(Date.now() / 1000)}`;
         let custId = 0;
@@ -715,7 +742,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
         INSERT INTO customers
           (customer_code, name, email, phone, customer_type_id, customer_kind, customer_type, is_active, card_frozen, external_id)
         VALUES (${code}, ${input.name}, ${input.email ?? null}, ${input.phone ?? null},
-                ${ctId}, 'other', 'Other', true, false, ${input.external_id ?? null})
+                ${ctId}, 'other', 'Other', true, false, ${externalId})
         RETURNING id
       `;
             custId = cins[0].id;
@@ -737,6 +764,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
             identifier: code,
             wallet_id: walletId,
             wallet_balance: balance,
+            external_id: externalId,
         };
     }
 

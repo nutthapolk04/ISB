@@ -39,6 +39,8 @@ export const cardholderCreate = {
         initial_credit: t.Optional(t.Nullable(t.Number())),
         phone: t.Optional(t.Nullable(t.String())),
         with_wallet: t.Optional(t.Nullable(t.Boolean())),
+        external_id: t.Optional(t.Nullable(t.String())),
+        notification_emails: t.Optional(t.Array(t.String())),
     }),
     detail: { tags: ["Admin"], summary: "Create cardholder" },
 };
