@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { expandCardUidCandidates } from "@/lib/card_uid";
+import { expandCardUidCandidates, cardUidLookupAttempts } from "@/lib/card_uid";
 
 describe("expandCardUidCandidates", () => {
   it("expands POS reader1 hex to reversed hex and decimal", () => {
@@ -32,5 +32,11 @@ describe("expandCardUidCandidates", () => {
     const c = expandCardUidCandidates("85002");
     expect(c).toEqual(expect.arrayContaining(["85002"]));
     expect(c.some((v) => v.includes("D183"))).toBe(false);
+  });
+
+  it("pads 8–10 digit decimal for wedge readers that strip leading zeros", () => {
+    const c = cardUidLookupAttempts("30569343");
+    expect(c).toContain("0030569343");
+    expect(c).toContain("7F73D201");
   });
 });

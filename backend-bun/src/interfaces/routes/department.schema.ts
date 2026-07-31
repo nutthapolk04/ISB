@@ -7,3 +7,8 @@ export const listDepartments = {
     }),
     detail: { tags: ["Admin"], summary: "List departments with wallet summary" },
 };
+
+export const getDepartmentByCard = {
+    params: t.Object({ uid: t.String() }),
+    detail: { tags: ["Admin"], summary: "Lookup department by NFC card UID" },
+};

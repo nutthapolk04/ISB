@@ -1,0 +1,14 @@
+[
+  {
+    "slug": "prod-01",
+    "env_file": ".env.prod-01",
+    "apk_filename": "kiosk-prod-01.apk",
+    "kiosk_username": "kiosk_service"
+  },
+  {
+    "slug": "prod-02",
+    "env_file": ".env.prod-02",
+    "apk_filename": "kiosk-prod-02.apk",
+    "kiosk_username": "kiosk_service_2"
+  }
+]

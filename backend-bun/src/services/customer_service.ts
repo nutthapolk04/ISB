@@ -1,7 +1,7 @@
 import { eq, and, or, ilike, asc, inArray, sql, ne, isNotNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { customers, users, wallets, parentChildLinks, customerTypes, receipts, spendingGroups, shops, shopSpendingGroups, departments } from "@/db/schema";
-import { expandCardUidCandidates } from "@/lib/card_uid";
+import { expandCardUidCandidates, cardUidLookupAttempts } from "@/lib/card_uid";
 import { pgNumber } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { transferWithinFamily, ensureWalletForCustomer } from "@/services/wallet_service";
@@ -287,7 +287,7 @@ export async function getCustomerByCode(code: string): Promise<StudentProfileDTO
 }
 
 export async function getCustomerByCard(uid: string): Promise<StudentProfileDTO | null> {
-    const candidates = expandCardUidCandidates(uid);
+    const candidates = cardUidLookupAttempts(uid);
     if (candidates.length === 0) return null;
 
     const rows = await db

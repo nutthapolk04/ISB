@@ -2,6 +2,7 @@ import { and, eq, ilike, ne, or, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { departments, wallets, customers, users } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
+import { expandCardUidCandidates, cardUidLookupAttempts } from "@/lib/card_uid";
 
 export interface DepartmentSummaryDTO {
     id: number;
@@ -52,7 +53,10 @@ export async function listDepartments(args: {
     }));
 }
 
-export async function getDepartmentByCardUid(cardUid: string): Promise<DepartmentSummaryDTO | null> {
+export async function getDepartmentByCard(uid: string): Promise<DepartmentSummaryDTO | null> {
+    const candidates = cardUidLookupAttempts(uid);
+    if (candidates.length === 0) return null;
+
     const rows = await db
         .select({
             id: departments.id,
@@ -65,12 +69,12 @@ export async function getDepartmentByCardUid(cardUid: string): Promise<Departmen
         })
         .from(departments)
         .leftJoin(wallets, eq(wallets.departmentId, departments.id))
-        .where(eq(departments.cardUid, cardUid))
+        .where(or(...candidates.map((c) => ilike(departments.cardUid, c))))
         .limit(1);
 
-    if (!rows[0]) return null;
-
     const r = rows[0];
+    if (!r) return null;
+
     return {
         id: r.id,
         department_code: r.department_code,

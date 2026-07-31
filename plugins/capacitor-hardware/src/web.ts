@@ -45,4 +45,8 @@ export class HardwareWeb extends WebPlugin implements HardwarePlugin {
     async printRaw(): Promise<void> {
         throw this.unimplemented('Not available on web');
     }
+
+    async exitKiosk(): Promise<void> {
+        // No-op on web — lock task is Android-only.
+    }
 }

@@ -87,6 +87,9 @@ export interface HardwarePlugin {
      */
     printRaw(options: { data: string }): Promise<void>;
 
+    /** Leave Android lock-task (kiosk) mode so the user can exit the app. */
+    exitKiosk(): Promise<void>;
+
     addListener(
         eventName: 'billEvent',
         listenerFunc: (event: BillEvent) => void,

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api, ApiError } from "@/lib/api";
+import { lookupPosMemberFull } from "@/lib/posCardLookup";
 import { cn } from "@/lib/utils";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 
@@ -247,12 +248,8 @@ export function RfidPaymentModal({
   }, [open, preSelectedMember]);
 
   /**
-   * Auto-detect who owns this card/code — tries all identity types in order:
-   *   1. Customer by card UID (student RFID)
-   *   2. User by card UID    (staff / parent RFID)
-   *   3. Customer by code    (student code fallback)
-   *   4. User by username    (employee login fallback)
-   * Sets payerKind automatically so no tab pre-selection is needed.
+   * Auto-detect who owns this card/code — card UID chain (with hex/decimal
+   * format fallbacks), then typed code / external_id / department code.
    */
   const lookup = async (query: string) => {
     const q = query.trim();
@@ -260,79 +257,28 @@ export function RfidPaymentModal({
     setLookupLoading(true);
     setLookupError(null);
     try {
-      // 1. Student/customer card UID
-      try {
-        const result = await api.get<StudentLookupResult>(
-          `/customers/by-card/${encodeURIComponent(q)}`,
-        );
-        setStudent(result);
+      const hit = await lookupPosMemberFull(q);
+      if (!hit) {
+        throw new ApiError(404, t("canteen.rfid.notFoundInSystem"), undefined);
+      }
+
+      if (hit.kind === "customer") {
+        setStudent(hit.student);
         setUserPayer(null);
+        setDepartmentPayer(null);
         setPayerKind("customer");
-        setStage("identity");
-        return;
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 404)) throw e;
-      }
-
-      // 2. Staff/parent card UID
-      try {
-        const result = await api.get<UserPayerLookup>(
-          `/users/by-card/${encodeURIComponent(q)}`,
-        );
-        setUserPayer(result);
-        setStudent(null);
-        setPayerKind("user");
-        setStage("identity");
-        return;
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 404)) throw e;
-      }
-
-      // 3. Customer by student code
-      try {
-        const result = await api.get<StudentLookupResult>(
-          `/customers/by-code/${encodeURIComponent(q)}`,
-        );
-        setStudent(result);
-        setUserPayer(null);
-        setPayerKind("customer");
-        setStage("identity");
-        return;
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 404)) throw e;
-      }
-
-      // 4. User by staff code (external_id — e.g. EMP-001)
-      try {
-        const result = await api.get<UserPayerLookup>(
-          `/users/by-external-id/${encodeURIComponent(q)}`,
-        );
-        setUserPayer(result);
+      } else if (hit.kind === "user") {
+        setUserPayer(hit.user);
         setStudent(null);
         setDepartmentPayer(null);
         setPayerKind("user");
-        setStage("identity");
-        return;
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 404)) throw e;
-      }
-
-      // 5. Department by code (exact match — allow inactive so balance lookup works)
-      const depts = await api.get<DepartmentLookupResult[]>(
-        `/departments/?q=${encodeURIComponent(q)}&active_only=false`,
-      );
-      const exactDept = depts.find(
-        (d) => d.department_code.toLowerCase() === q.toLowerCase(),
-      );
-      if (exactDept) {
-        setDepartmentPayer(exactDept);
+      } else {
+        setDepartmentPayer(hit.department);
         setStudent(null);
         setUserPayer(null);
         setPayerKind("department");
-        setStage("identity");
-        return;
       }
-      throw new ApiError(404, t("canteen.rfid.notFoundInSystem"), undefined);
+      setStage("identity");
     } catch (e) {
       const msg = e instanceof ApiError ? e.detail : t("canteen.rfid.notFoundRetry");
       setLookupError(msg);

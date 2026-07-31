@@ -40,6 +40,7 @@ import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { formatBahtAmount } from "@/lib/format";
 import { api, ApiError } from "@/lib/api";
+import { lookupPosMemberPassive } from "@/lib/posCardLookup";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import {
     afterPaymentPayer,
@@ -403,19 +404,6 @@ export default function Canteen() {
     // ── Passive RFID listener (capture phase) ────────────────────────────────
     // See hooks/useRfidListener.ts for the keystroke-pattern detection itself;
     // this callback owns the canteen-specific lookup + notification content.
-    function userToStudent(u: UserPayerLookup): StudentLookupResult {
-        return {
-            id: u.user_id,
-            name: u.full_name,
-            photo_url: u.photo_url ?? null,
-            customer_code: u.username,
-            wallet_balance: u.wallet_balance,
-            wallet_id: u.wallet_id,
-            customer_kind: u.role,
-            user_id: u.user_id,
-        };
-    }
-
     const rfid = useRfidListener({
         onCapture: async (q: string) => {
             const trimmed = q.trim();
@@ -425,31 +413,9 @@ export default function Canteen() {
             // a second scan mid-checkout from silently swapping the payer.
             if (!cardTapOpen && (preSelectedMember || paymentModalOpen)) return;
             try {
-                let result: StudentLookupResult | null = null;
-                try {
-                    result = await api.get<StudentLookupResult>(`/customers/by-card/${encodeURIComponent(trimmed)}`);
-                } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                if (!result) {
-                    try {
-                        const u = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(trimmed)}`);
-                        result = userToStudent(u);
-                    } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                }
-                if (!result) {
-                    try {
-                        result = await api.get<StudentLookupResult>(`/customers/by-code/${encodeURIComponent(trimmed)}`);
-                    } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                }
-                if (!result) {
-                    try {
-                        const u = await api.get<UserPayerLookup>(`/users/by-username/${encodeURIComponent(trimmed)}`);
-                        result = userToStudent(u);
-                    } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-                }
+                const result = await lookupPosMemberPassive(trimmed, { tryUsername: true });
                 if (result) {
                     if (cardTapOpen) {
-                        // Let CardTapModal's own replace-confirmation gate decide
-                        // whether to swap the selected member.
                         setCardTapScan(result);
                     } else {
                         setPreSelectedMember(result);

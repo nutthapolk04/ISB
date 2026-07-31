@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
     ArrowLeft,
@@ -18,7 +18,12 @@ import {
     Info,
     Search,
     Bug,
+    Download,
+    RefreshCw,
 } from 'lucide-vue-next';
+import { App } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import { useKioskStore } from '../stores/kioskStore';
 import { realApi } from '../api/realApi';
 import {
@@ -35,6 +40,7 @@ import {
     type KioskLogLevel,
 } from '../lib/kioskLog';
 import { useKioskDebugMode } from '../lib/debugMode';
+import { checkKioskUpdate, type KioskUpdateCheck } from '../lib/kioskRelease';
 import { Hardware, type PollStatusResult } from 'capacitor-hardware';
 
 const router = useRouter();
@@ -53,6 +59,11 @@ const searchQuery = ref('');
 const billPollLoading = ref(false);
 const billPollResult = ref<PollStatusResult | null>(null);
 const billPollError = ref('');
+
+const updateCheck = ref<KioskUpdateCheck | null>(null);
+const updateLoading = ref(false);
+const updateError = ref('');
+const updateInstallMessage = ref('');
 
 const selectedDay = ref('');
 const categoryFilter = ref<KioskLogCategory | 'all'>('all');
@@ -133,6 +144,16 @@ const t = computed(() => ({
         billPollError: 'Error',
         billPollTimeout: 'No response',
         billPollFailed: 'Poll failed',
+        appUpdate: 'App update',
+        appUpdateHint: 'Compare installed build with the release on the server.',
+        checkingUpdate: 'Checking for updates…',
+        updateAvailable: (latest: string) => `Update available: v${latest}`,
+        upToDate: 'This device is up to date',
+        installLatest: 'Install latest',
+        recheckUpdate: 'Check again',
+        updateCheckFailed: 'Could not check for updates',
+        updateNoDownload: 'No download URL for this device',
+        updateOpened: 'Download started — complete install from the system prompt',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -180,6 +201,16 @@ const t = computed(() => ({
         billPollError: 'ข้อผิดพลาด',
         billPollTimeout: 'ไม่มีตอบกลับ',
         billPollFailed: 'Poll ล้มเหลว',
+        appUpdate: 'อัปเดตแอป',
+        appUpdateHint: 'เทียบเวอร์ชันที่ติดตั้งกับไฟล์บนเซิร์ฟเวอร์',
+        checkingUpdate: 'กำลังตรวจสอบอัปเดต…',
+        updateAvailable: (latest: string) => `มีเวอร์ชันใหม่: v${latest}`,
+        upToDate: 'เครื่องนี้เป็นเวอร์ชันล่าสุดแล้ว',
+        installLatest: 'ติดตั้งเวอร์ชันล่าสุด',
+        recheckUpdate: 'ตรวจสอบอีกครั้ง',
+        updateCheckFailed: 'ตรวจสอบอัปเดตไม่สำเร็จ',
+        updateNoDownload: 'ไม่พบลิงก์ดาวน์โหลดสำหรับเครื่องนี้',
+        updateOpened: 'เริ่มดาวน์โหลดแล้ว — ติดตั้งต่อจากระบบ',
     },
 }[store.language]));
 
@@ -236,6 +267,47 @@ onMounted(() => {
     locationInput.value = store.deviceProfile?.full_name ?? '';
     logKioskEvent('system', 'info', 'Technician screen opened');
 });
+
+watch(unlocked, (isUnlocked) => {
+    if (isUnlocked) void refreshUpdateCheck();
+});
+
+async function refreshUpdateCheck() {
+    if (Capacitor.getPlatform() !== 'android') {
+        updateCheck.value = null;
+        updateError.value = '';
+        return;
+    }
+    updateLoading.value = true;
+    updateError.value = '';
+    updateInstallMessage.value = '';
+    try {
+        updateCheck.value = await checkKioskUpdate(() => App.getInfo());
+    } catch (e) {
+        updateCheck.value = null;
+        updateError.value = e instanceof Error ? e.message : t.value.updateCheckFailed;
+    } finally {
+        updateLoading.value = false;
+    }
+}
+
+async function installLatest() {
+    const url = updateCheck.value?.downloadUrl;
+    if (!url) {
+        updateError.value = t.value.updateNoDownload;
+        return;
+    }
+    updateInstallMessage.value = '';
+    try {
+        await Browser.open({ url });
+        updateInstallMessage.value = t.value.updateOpened;
+        logKioskEvent('system', 'info', 'Kiosk update download opened', {
+            latest: updateCheck.value?.latestVersionName,
+        });
+    } catch (e) {
+        updateError.value = e instanceof Error ? e.message : t.value.updateCheckFailed;
+    }
+}
 
 function tryUnlock() {
     unlockError.value = '';
@@ -440,6 +512,61 @@ async function runBillPoll() {
                             <dd class="field-dd mono">{{ firmwareLabel }}</dd>
                         </div>
                     </dl>
+
+                    <div v-if="Capacitor.getPlatform() === 'android'" class="update-block">
+                        <div class="update-header">
+                            <div>
+                                <div class="field-label with-icon">
+                                    <Download :size="14" />
+                                    {{ t.appUpdate }}
+                                </div>
+                                <p class="update-hint">{{ t.appUpdateHint }}</p>
+                            </div>
+                            <button
+                                class="btn-ghost-sm"
+                                type="button"
+                                :disabled="updateLoading"
+                                @click="refreshUpdateCheck"
+                            >
+                                <RefreshCw :size="14" :class="{ 'spin': updateLoading }" />
+                                {{ t.recheckUpdate }}
+                            </button>
+                        </div>
+
+                        <p v-if="updateLoading" class="update-line muted">{{ t.checkingUpdate }}</p>
+                        <p v-else-if="updateError" class="error-line">
+                            <AlertTriangle :size="14" />
+                            {{ updateError }}
+                        </p>
+                        <template v-else-if="updateCheck">
+                            <p
+                                class="update-line"
+                                :class="updateCheck.updateAvailable ? 'update-pending' : 'update-ok'"
+                            >
+                                <CheckCircle2 v-if="!updateCheck.updateAvailable" :size="14" />
+                                <AlertTriangle v-else :size="14" />
+                                {{
+                                    updateCheck.updateAvailable
+                                        ? t.updateAvailable(updateCheck.latestVersionName)
+                                        : t.upToDate
+                                }}
+                            </p>
+                            <button
+                                v-if="updateCheck.updateAvailable"
+                                class="btn-primary update-install-btn"
+                                type="button"
+                                :disabled="!updateCheck.downloadUrl"
+                                @click="installLatest"
+                            >
+                                <Download :size="16" />
+                                {{ t.installLatest }}
+                            </button>
+                        </template>
+                        <p v-if="updateInstallMessage" class="success-line">
+                            <CheckCircle2 :size="14" />
+                            {{ updateInstallMessage }}
+                        </p>
+                    </div>
 
                     <div class="location-block">
                         <label class="field-label with-icon">
@@ -1075,6 +1202,84 @@ async function runBillPoll() {
     margin-top: 1.25rem;
     padding-top: 1rem;
     border-top: 1px solid #f1f5f9;
+}
+
+.update-block {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.update-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.update-hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #64748b;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+}
+
+.update-line {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.update-line.muted {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.update-pending {
+    color: #b45309;
+}
+
+.update-ok {
+    color: #047857;
+}
+
+.update-install-btn {
+    margin-top: 0.75rem;
+}
+
+.btn-ghost-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-ghost-sm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .debug-row {

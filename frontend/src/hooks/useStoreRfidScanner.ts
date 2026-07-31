@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError } from "@/lib/api";
-import type { StudentLookupResult, UserPayerLookup } from "@/pages/canteen/RfidPaymentModal";
+import { lookupPosMemberPassive } from "@/lib/posCardLookup";
+import type { StudentLookupResult } from "@/pages/canteen/RfidPaymentModal";
 import type { Product } from "@/pages/store/storeTypes";
 
 export interface StoreRfidNotif {
@@ -51,19 +51,6 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
         setNotif(null);
     };
 
-    function userToStudent(u: UserPayerLookup): StudentLookupResult {
-        return {
-            id: u.user_id,
-            name: u.full_name,
-            photo_url: u.photo_url ?? null,
-            customer_code: u.username,
-            wallet_balance: u.wallet_balance,
-            wallet_id: u.wallet_id,
-            customer_kind: u.role,
-            user_id: u.user_id,
-        };
-    }
-
     function showRfidNotif(notif: { type: "success" | "error"; title: string; sub?: string }) {
         if (notifTimer.current) clearTimeout(notifTimer.current);
         notifKey.current += 1;
@@ -75,27 +62,7 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
         const trimmed = q.trim();
         if (!trimmed || trimmed.length < 3) return;
         try {
-            let result: StudentLookupResult | null = null;
-            try {
-                result = await api.get<StudentLookupResult>(`/customers/by-card/${encodeURIComponent(trimmed)}`);
-            } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-            if (!result) {
-                try {
-                    const u = await api.get<UserPayerLookup>(`/users/by-card/${encodeURIComponent(trimmed)}`);
-                    result = userToStudent(u);
-                } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-            }
-            if (!result) {
-                try {
-                    result = await api.get<StudentLookupResult>(`/customers/by-code/${encodeURIComponent(trimmed)}`);
-                } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-            }
-            if (!result) {
-                try {
-                    const u = await api.get<UserPayerLookup>(`/users/by-username/${encodeURIComponent(trimmed)}`);
-                    result = userToStudent(u);
-                } catch (e) { if (!(e instanceof ApiError && e.status === 404)) throw e; }
-            }
+            const result = await lookupPosMemberPassive(trimmed, { tryUsername: true });
             if (result) {
                 onMemberFoundRef.current(result);
                 const bal = result.wallet_balance != null
@@ -103,11 +70,8 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
                     : undefined;
                 showRfidNotif({ type: "success", title: result.name, sub: bal });
             }
-            // No match (product barcode already handled elsewhere, and
-            // none of the 4 member lookups above hit) — stay silent on
-            // this page rather than surfacing a "Card not found" banner.
         } catch {
-            // Same: swallow unexpected errors here too, silently.
+            // Stay silent on unexpected errors during passive scan.
         }
     }
 

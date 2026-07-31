@@ -43,33 +43,15 @@ public class MainActivity extends BridgeActivity {
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
-        WindowInsetsControllerCompat controller =
-                new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-
-        controller.hide(
-                WindowInsetsCompat.Type.statusBars()
-                        | WindowInsetsCompat.Type.navigationBars()
-                            | WindowInsetsCompat.Type.systemBars()
-        );
-
-        controller.setSystemBarsBehavior(
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        );
+        hideSystemUI();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        configureWebViewMediaAutoplay();
 
-        WindowInsetsControllerCompat controller =
-                new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-
-        controller.hide(
-                WindowInsetsCompat.Type.statusBars()
-                        | WindowInsetsCompat.Type.navigationBars()
-                            | WindowInsetsCompat.Type.systemBars()
-        );
+        hideSystemUI();
+        // configureWebViewMediaAutoplay();
     }
 
     @Override
@@ -77,15 +59,24 @@ public class MainActivity extends BridgeActivity {
         super.onWindowFocusChanged(hasFocus);
 
         if (hasFocus) {
-            WindowInsetsControllerCompat controller =
-                    new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+            hideSystemUI();
+            // WindowInsetsControllerCompat controller =
+            //         new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
 
-            controller.hide(
-                    WindowInsetsCompat.Type.statusBars()
-                            | WindowInsetsCompat.Type.navigationBars()
-                                | WindowInsetsCompat.Type.systemBars()
-            );
+            // controller.hide(
+            //         WindowInsetsCompat.Type.statusBars()
+            //                 | WindowInsetsCompat.Type.navigationBars()
+            //                     | WindowInsetsCompat.Type.systemBars()
+            // );
         }
+    }
+
+    private void hideSystemUI() {
+        WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+
+        controller.hide(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars() | WindowInsetsCompat.Type.systemBars());
+
+        controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
 
     private void configureWebViewMediaAutoplay() {

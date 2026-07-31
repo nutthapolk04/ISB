@@ -104,3 +104,31 @@ export function expandCardUidCandidates(raw: string): string[] {
 
   return [...out];
 }
+
+/**
+ * Ordered UID strings to try on by-card POS lookups — raw scan first, then every
+ * hex/decimal/reversed variant, plus zero-padded 10-digit decimal (some wedge
+ * readers strip leading zeros).
+ */
+export function cardUidLookupAttempts(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const add = (v: string | null | undefined) => {
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    out.push(v);
+  };
+
+  add(trimmed);
+  for (const c of expandCardUidCandidates(trimmed)) add(c);
+
+  if (/^\d{8,10}$/.test(trimmed)) {
+    add(trimmed.padStart(10, "0"));
+    for (const c of expandCardUidCandidates(trimmed.padStart(10, "0"))) add(c);
+  }
+
+  return out;
+}

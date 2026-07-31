@@ -2,8 +2,8 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { logger } from "@/logger";
-import { listDepartments, getDepartmentByCardUid } from "@/services/department_service";
-import { errorFromService, successResponse } from "@/utils/ResponseUtil";
+import { listDepartments, getDepartmentByCard } from "@/services/department_service";
+import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 
 export const DepartmentController = {
 	list: async (ctx: any) => {
@@ -24,17 +24,20 @@ export const DepartmentController = {
 		}
 	},
 
-	getByCard: async (ctx: any) => {
+	byCard: async (ctx: any) => {
 		const { reqContext } = authedCtx(ctx);
-		const { uid } = reqContext.params;
-		logger.info(`[${reqContext.requestId} (DP-02)] DepartmentController.getByCard() called with uid=${uid}.`);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (DP-02)] DepartmentController.byCard() called.`);
 		try {
-			logger.info(`[${reqContext.requestId} (DP-02)] DepartmentController.getByCard() calling getDepartmentByCardUid().`);
-			const result = await getDepartmentByCardUid(uid);
-			logger.info(`[${reqContext.requestId} (DP-02)] DepartmentController.getByCard() completed.`);
-			return successResponse(reqContext, result, ResponseStatus.OK);
+			const dept = await getDepartmentByCard(params.uid);
+			if (!dept) {
+				logger.warn(`[${reqContext.requestId} (DP-02)] DepartmentController.byCard() card not bound.`);
+				return errorResponse(reqContext, "Card not bound", ResponseStatus.NOT_FOUND);
+			}
+			logger.info(`[${reqContext.requestId} (DP-02)] DepartmentController.byCard() completed.`);
+			return successResponse(reqContext, dept, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (DP-02)] DepartmentController.getByCard() error:`, e);
+			logger.error(`[${reqContext.requestId} (DP-02)] DepartmentController.byCard() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
