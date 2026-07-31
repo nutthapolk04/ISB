@@ -24,6 +24,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useRfidListener } from "@/hooks/useRfidListener";
+import { toCanonicalCardUid } from "@/lib/cardUid";
 import {
   GraduationCap,
   Users as UsersIcon,
@@ -144,6 +146,13 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
   const shopRequired = kind === "staff" && SHOP_REQUIRED_ROLES.has(staffRole);
   const shopMissing = shopRequired && !shopId;
 
+  useRfidListener({
+    onCapture: (uid) => {
+      if (!open || step !== "form" || kind !== "department") return;
+      setCardUid(toCanonicalCardUid(uid));
+    },
+  });
+
   const submit = async () => {
     if (shopMissing) {
       toast({
@@ -193,9 +202,11 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
         }
         body.external_id = externalId.trim() || null;
       } else if (kind === "department") {
+        const canonicalCardUid = cardUid.trim() ? toCanonicalCardUid(cardUid.trim()) : null;
         Object.assign(body, {
           department_code: deptCode, department_name: deptName,
           initial_credit: parseFloat(initialCredit) || 0,
+          card_uid: canonicalCardUid,
         });
       } else if (kind === "other") {
         Object.assign(body, {
@@ -455,6 +466,18 @@ export default function CreateCardholderDialog({ open, onOpenChange, onCreated }
                   <Field label="Initial credit (THB)"><Input type="number" value={initialCredit} onChange={e => setInitialCredit(e.target.value)} /></Field>
                 </div>
                 <Field label="Department name *"><Input value={deptName} onChange={e => setDeptName(e.target.value)} /></Field>
+                <Field label={t("cardholders.cardUid", "Card UID")}>
+                  <Input
+                    value={cardUid}
+                    onChange={(e) => setCardUid(e.target.value.toUpperCase())}
+                    onBlur={(e) => setCardUid(toCanonicalCardUid(e.target.value))}
+                    placeholder={t("cardholders.bindPlaceholder", "e.g. 04:A3:28:B2:C1:FF")}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("cardholders.cardUidTapHint", "Or tap a card at the reader to auto-fill")}
+                  </p>
+                </Field>
                 <p className="text-xs text-muted-foreground">
                   {t("cardholders.deptHint", 'Department wallet may go negative — admin tops it up monthly via "Department wallet adjust"')}
                 </p>

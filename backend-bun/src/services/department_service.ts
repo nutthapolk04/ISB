@@ -56,12 +56,49 @@ export async function listDepartments(args: {
  * Atomic department create + wallet seed. Used by cardholder create.
  * Mirrors DepartmentService.create_department (FastAPI).
  */
+async function assertCardUidAvailable(cardUid: string, excludeDeptId?: number): Promise<void> {
+    const dupDeptConds = excludeDeptId != null
+        ? and(eq(departments.cardUid, cardUid), ne(departments.id, excludeDeptId))
+        : eq(departments.cardUid, cardUid);
+    const dupDept = await db
+        .select({ id: departments.id, name: departments.departmentName, code: departments.departmentCode })
+        .from(departments)
+        .where(dupDeptConds)
+        .limit(1);
+    if (dupDept[0]) {
+        const err = new Error(`Card already assigned to department ${dupDept[0].name} (${dupDept[0].code})`);
+        (err as { status?: number }).status = 409;
+        throw err;
+    }
+    const dupCust = await db
+        .select({ id: customers.id, name: customers.name, customerCode: customers.customerCode })
+        .from(customers)
+        .where(eq(customers.cardUid, cardUid))
+        .limit(1);
+    if (dupCust[0]) {
+        const err = new Error(`Card already assigned to student ${dupCust[0].name} (${dupCust[0].customerCode})`);
+        (err as { status?: number }).status = 409;
+        throw err;
+    }
+    const dupUser = await db
+        .select({ fullName: users.fullName, username: users.username })
+        .from(users)
+        .where(eq(users.cardUid, cardUid))
+        .limit(1);
+    if (dupUser[0]) {
+        const err = new Error(`Card already assigned to user ${dupUser[0].fullName || dupUser[0].username}`);
+        (err as { status?: number }).status = 409;
+        throw err;
+    }
+}
+
 export async function createDepartment(args: {
     code: string;
     name: string;
     initialCredit?: number;
+    cardUid?: string | null;
     createdByUserId: number;
-}): Promise<{ id: number; code: string; name: string; walletId: number; walletBalance: number }> {
+}): Promise<{ id: number; code: string; name: string; walletId: number; walletBalance: number; cardUid: string | null }> {
     const dup = await db.select({ id: departments.id }).from(departments).where(eq(departments.departmentCode, args.code)).limit(1);
     if (dup[0]) {
         const err = new Error(`Department code ${args.code} already exists`);
@@ -69,12 +106,14 @@ export async function createDepartment(args: {
         throw err;
     }
     const credit = args.initialCredit ?? 0;
+    const cardUid = args.cardUid?.trim() || null;
+    if (cardUid) await assertCardUidAvailable(cardUid);
     let deptId = 0;
     let walletId = 0;
     await pgClient.begin(async (sqlTx) => {
         const ins = await sqlTx<Array<{ id: number }>>`
-      INSERT INTO departments (department_code, department_name, is_active)
-      VALUES (${args.code}, ${args.name}, true) RETURNING id
+      INSERT INTO departments (department_code, department_name, is_active, card_uid)
+      VALUES (${args.code}, ${args.name}, true, ${cardUid}) RETURNING id
     `;
         deptId = ins[0].id;
         const wins = await sqlTx<Array<{ id: number }>>`
@@ -96,7 +135,7 @@ export async function createDepartment(args: {
       `;
         }
     });
-    return { id: deptId, code: args.code, name: args.name, walletId, walletBalance: credit };
+    return { id: deptId, code: args.code, name: args.name, walletId, walletBalance: credit, cardUid };
 }
 
 export async function updateDepartment(
@@ -165,36 +204,7 @@ export async function bindDepartmentCard(deptId: number, cardUid: string | null)
     }
 
     if (cardUid) {
-        const dupDept = await db
-            .select({ id: departments.id, name: departments.departmentName, code: departments.departmentCode })
-            .from(departments)
-            .where(and(eq(departments.cardUid, cardUid), ne(departments.id, deptId)))
-            .limit(1);
-        if (dupDept[0]) {
-            const err = new Error(`Card already assigned to department ${dupDept[0].name} (${dupDept[0].code})`);
-            (err as { status?: number }).status = 409;
-            throw err;
-        }
-        const dupCust = await db
-            .select({ id: customers.id, name: customers.name, customerCode: customers.customerCode })
-            .from(customers)
-            .where(eq(customers.cardUid, cardUid))
-            .limit(1);
-        if (dupCust[0]) {
-            const err = new Error(`Card already assigned to student ${dupCust[0].name} (${dupCust[0].customerCode})`);
-            (err as { status?: number }).status = 409;
-            throw err;
-        }
-        const dupUser = await db
-            .select({ fullName: users.fullName, username: users.username })
-            .from(users)
-            .where(eq(users.cardUid, cardUid))
-            .limit(1);
-        if (dupUser[0]) {
-            const err = new Error(`Card already assigned to user ${dupUser[0].fullName || dupUser[0].username}`);
-            (err as { status?: number }).status = 409;
-            throw err;
-        }
+        await assertCardUidAvailable(cardUid, deptId);
     }
 
     await db.update(departments).set({ cardUid: cardUid || null }).where(eq(departments.id, deptId));

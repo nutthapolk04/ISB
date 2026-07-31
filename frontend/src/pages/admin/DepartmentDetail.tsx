@@ -44,8 +44,7 @@ const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(n);
 
 export default function DepartmentDetail() {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language === "en" ? "en-US" : "th-TH";
+  const { t } = useTranslation();
   const { departmentId } = useParams<{ departmentId: string }>();
   const navigate = useNavigate();
 
@@ -301,7 +300,7 @@ export default function DepartmentDetail() {
                 {transactions.map((tx) => (
                   <TableRow key={tx.id}>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {fmtDateTime(tx.created_at, locale)}
+                      {fmtDateTime(tx.created_at)}
                     </TableCell>
                     <TableCell className="text-xs">{tx.transaction_type}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{tx.description ?? "—"}</TableCell>
@@ -381,7 +380,7 @@ export default function DepartmentDetail() {
                 {t("cardholders.unbindButton", "Unbind card")}
               </Button>
             )}
-            <Button onClick={handleBindCard} disabled={bindingCard}>
+            <Button onClick={() => handleBindCard()} disabled={bindingCard}>
               {bindingCard && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("common.save", "Save")}
             </Button>

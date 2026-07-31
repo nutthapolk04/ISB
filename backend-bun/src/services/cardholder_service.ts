@@ -685,6 +685,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
             code: input.department_code!,
             name: input.department_name!,
             initialCredit: input.initial_credit ?? 0,
+            cardUid: input.card_uid ?? null,
             createdByUserId,
         });
         return {
@@ -698,6 +699,7 @@ export async function createCardholder(input: CreateCardholderInput, createdByUs
             wallet_id: d.walletId,
             wallet_balance: d.walletBalance,
             department_code: d.code,
+            card_uid: d.cardUid,
         };
     }
 

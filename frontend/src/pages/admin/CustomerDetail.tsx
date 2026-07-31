@@ -926,7 +926,7 @@ export default function CustomerDetail() {
                 {t("admin.customer.unbindButton")}
               </Button>
             )}
-            <Button onClick={handleBindCard} disabled={bindingCard}>
+            <Button onClick={() => handleBindCard()} disabled={bindingCard}>
               {bindingCard ? t("admin.customer.saving") : t("admin.customer.save")}
             </Button>
           </DialogFooter>
