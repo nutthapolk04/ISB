@@ -136,7 +136,18 @@ export interface ReportMeta {
 /** Generate a sequential Report ID: ISB001, ISB002, … Counter persisted in localStorage. */
 export function generateReportId(prefix = "ISB"): string {
   const STORAGE_KEY = "isb_report_id_counter";
-  const current = parseInt(localStorage.getItem(STORAGE_KEY) ?? "0", 10);
+  const MAX_COUNTER = 999999;  // 6-digit max to prevent unbounded growth
+
+  const raw = localStorage.getItem(STORAGE_KEY);
+  let current = parseInt(raw ?? "0", 10);
+
+  // Validate counter: must be a safe integer within bounds
+  if (!Number.isInteger(current) || current < 0 || current > MAX_COUNTER) {
+    // Reset to 0 if invalid or poisoned (e.g., by malicious script)
+    console.warn("Invalid localStorage counter detected, resetting to 0");
+    current = 0;
+  }
+
   const next = current + 1;
   localStorage.setItem(STORAGE_KEY, String(next));
   return `${prefix}${String(next).padStart(3, "0")}`;
