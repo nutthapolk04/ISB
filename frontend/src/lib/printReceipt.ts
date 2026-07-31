@@ -175,7 +175,7 @@ export function buildReceiptHtml(
     { edcCardFee: r.edc_card_fee },
     isEn ? "en" : "th",
   );
-  const dateStr = fmtDateTime(r.transaction_date);
+  const dateStr = fmtDateTime(r.status !== "active" && r.voided_at ? r.voided_at : r.transaction_date);
 
   const itemRows = r.items.map((item) => {
     const bundleMeta =
