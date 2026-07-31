@@ -474,7 +474,8 @@ function KioskTransactionTable({
                             </tr>
                             <tr className="border-t">
                                 <td colSpan={6} className="px-2 py-2 text-left">{t("admin.adminReports.grandTotal", "GRAND TOTAL")}</td>
-                                <td colSpan={3} className="px-2 py-2 text-right font-mono">{grandTotal.toFixed(2)}</td>
+                                <td className="px-2 py-2 text-right font-mono">{grandTotal.toFixed(2)}</td>
+                                <td />
                             </tr>
                         </tfoot>
                     )}
@@ -1133,18 +1134,6 @@ export default function AdminReports() {
                     qr_amount: kioskPaymentAmountValue(r.payment_method, r.amount, "qr"),
                 })) as unknown as Record<string, unknown>[];
                 const kioskGrandTotal = full.cash_total + full.qr_total;
-                kioskTxnBodyRows.push({
-                    [EMPHASIS_KEY]: "total",
-                    topped_up_to_display: t("admin.adminReports.total", "TOTAL"),
-                    cash_amount: full.cash_total,
-                    qr_amount: full.qr_total,
-                });
-                kioskTxnBodyRows.push({
-                    [EMPHASIS_KEY]: "total",
-                    topped_up_to_display: t("admin.adminReports.grandTotal", "GRAND TOTAL"),
-                    cash_amount: kioskGrandTotal,
-                    qr_amount: "",
-                });
                 exports.push({
                     payload: {
                         meta: {
@@ -1157,6 +1146,19 @@ export default function AdminReports() {
                         },
                         columns: kioskTxnColumns,
                         rows: kioskTxnBodyRows,
+                        footerRows: [
+                            {
+                                label: t("admin.adminReports.total", "TOTAL"),
+                                labelColSpan: 6,
+                                values: { cash_amount: full.cash_total, qr_amount: full.qr_total },
+                            },
+                            {
+                                label: t("admin.adminReports.grandTotal", "GRAND TOTAL"),
+                                labelColSpan: 6,
+                                values: { cash_amount: kioskGrandTotal },
+                                valueMerge: { key: "cash_amount", colSpan: 2 },
+                            },
+                        ],
                     },
                     baseFilename: `KioskTransactions_${kioskLabel}${dateLabel}`,
                 });
@@ -1348,415 +1350,415 @@ export default function AdminReports() {
 
             {selected && (
                 <div ref={reportSectionRef} className="mt-6 scroll-mt-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" />
-                                : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" />
-                                    : selected === "balance" ? <TrendingUp className="h-5 w-5 text-primary" />
-                                        : selected === "internal_used" ? <Building2 className="h-5 w-5 text-primary" />
-                                            : <Monitor className="h-5 w-5 text-primary" />}
-                            {selected === "topup" ? t("admin.adminReports.topupReport")
-                                : selected === "transaction" ? t("admin.adminReports.transactionReport")
-                                    : selected === "balance" ? "Balance Report"
-                                        : selected === "internal_used" ? t("admin.adminReports.internalUsedReport")
-                                            : t("admin.adminReports.kioskReport", "Kiosk Report")}
-                        </CardTitle>
-                        <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
-                                <DateRangePicker
-                                    startDate={dateFrom}
-                                    endDate={dateTo}
-                                    onStartChange={setDateFrom}
-                                    onEndChange={setDateTo}
-                                />
-                            </div>
-                            {selected === "topup" && (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.channelFilter")}</Label>
-                                        <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
-                                                <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
-                                                <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
-                                                <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.toppedByFilter", "Topped by")}</Label>
-                                        <CardholderPicker
-                                            value={toppedByValue}
-                                            onChange={(v, item) => {
-                                                setToppedByValue(v);
-                                                setToppedByLabel(item ? `${item.name} (${item.identifier})` : null);
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.recipientFilter", "Recipient")}</Label>
-                                        <CardholderPicker
-                                            value={recipientValue}
-                                            onChange={(v, item) => {
-                                                setRecipientValue(v);
-                                                setRecipientLabel(item ? `${item.name} (${item.identifier})` : null);
-                                            }}
-                                        />
-                                    </div>
-                                </>
-                            )}
-                            {selected === "transaction" && (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.searchFilter", "Search (ID / Username / Name)")}</Label>
-                                        <Input
-                                            value={txnSearch}
-                                            onChange={(e) => setTxnSearch(e.target.value)}
-                                            placeholder={t("admin.adminReports.searchPlaceholder", "ID, username, or full name…")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.cashierFilter", "Cashier")}</Label>
-                                        <UserPicker
-                                            value={txnCashier?.id ?? null}
-                                            onChange={(_, u) => setTxnCashier(u)}
-                                            roles={["cashier", "manager", "admin", "staff", "kitchen"]}
-                                            allowNone
-                                            placeholder={t("admin.adminReports.allCashiers", "All cashiers")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.shopFilter", "Shop")}</Label>
-                                        <ShopPicker
-                                            value={txnShopId}
-                                            onChange={(id, shop) => { setTxnShopId(id); setTxnShopName(shop?.name ?? null); }}
-                                            placeholder={t("admin.adminReports.allShops", "All shops")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.typeFilter", "Type")}</Label>
-                                        <Select value={txnType} onValueChange={setTxnType}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t("admin.adminReports.typeAll", "All")}</SelectItem>
-                                                <SelectItem value="sale">{t("admin.adminReports.typeSale", "Sale")}</SelectItem>
-                                                <SelectItem value="adjustment">{t("admin.adminReports.typeAdjustment", "Adjustment")}</SelectItem>
-                                                <SelectItem value="topup">{t("admin.adminReports.typeTopup", "Top-up")}</SelectItem>
-                                                <SelectItem value="transfer">{t("admin.adminReports.typeTransfer", "Transfer")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.statusFilter", "Status")}</Label>
-                                        <Select value={txnStatus} onValueChange={setTxnStatus}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t("admin.adminReports.statusAll", "All")}</SelectItem>
-                                                <SelectItem value="ACTIVE">{t("admin.adminReports.statusActive", "Active")}</SelectItem>
-                                                <SelectItem value="VOIDED">{t("admin.adminReports.statusVoided", "Voided")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.paymentMethodFilter", "Payment Type")}</Label>
-                                        <Select value={txnPaymentMethod} onValueChange={setTxnPaymentMethod}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t("admin.adminReports.paymentMethodAll", "All")}</SelectItem>
-                                                <SelectItem value="CASH">{t("common.paymentMethods.cash", "Cash")}</SelectItem>
-                                                <SelectItem value="WALLET">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
-                                                <SelectItem value="CARD_TAP">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
-                                                <SelectItem value="CREDIT_CARD">{t("common.paymentMethods.credit_card", "Credit Card")}</SelectItem>
-                                                <SelectItem value="DEBIT_CARD">{t("common.paymentMethods.debit_card", "Debit Card")}</SelectItem>
-                                                <SelectItem value="QR_PROMPTPAY">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
-                                                <SelectItem value="BANK_TRANSFER">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
-                                                <SelectItem value="EDC">{t("common.paymentMethods.edc", "EDC QR")}</SelectItem>
-                                                <SelectItem value="DEPARTMENT">{t("common.paymentMethods.department", "Budget Deduction")}</SelectItem>
-                                                <SelectItem value="OTHER">{t("common.paymentMethods.other", "Other")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </>
-                            )}
-                            {selected === "kiosk" && (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.kioskDeviceFilter", "Kiosk device")}</Label>
-                                        <UserPicker
-                                            value={kioskDevice?.id ?? null}
-                                            onChange={(_, u) => setKioskDevice(u)}
-                                            roles={["kiosk"]}
-                                            allowNone
-                                            placeholder={t("admin.adminReports.allKiosks", "All kiosks")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.logTypeFilter", "Log type")}</Label>
-                                        <Select value={kioskLogType} onValueChange={(v) => setKioskLogType(v as typeof kioskLogType)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t("admin.adminReports.logTypeAll", "All")}</SelectItem>
-                                                <SelectItem value="event">{t("admin.adminReports.logTypeEvent", "Event log")}</SelectItem>
-                                                <SelectItem value="transaction">{t("admin.adminReports.logTypeTransaction", "Transaction")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </>
-                            )}
-                            {selected === "internal_used" && (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.shopFilter", "Shop")}</Label>
-                                        <ShopPicker
-                                            value={internalUsedShopId}
-                                            onChange={(id, shop) => {
-                                                setInternalUsedShopId(id);
-                                                setInternalUsedShopName(shop?.name ?? null);
-                                            }}
-                                            placeholder={t("admin.adminReports.allShops", "All shops")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.departmentFilter", "Department")}</Label>
-                                        <DepartmentPicker
-                                            value={internalUsedDept}
-                                            onChange={setInternalUsedDept}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{t("admin.adminReports.staffFilter", "Staff")}</Label>
-                                        <UserPicker
-                                            value={internalUsedStaff?.id ?? null}
-                                            onChange={(_, u) => setInternalUsedStaff(u)}
-                                            allowNone
-                                            placeholder={t("admin.adminReports.allStaff", "All staff")}
-                                        />
-                                    </div>
-                                </>
-                            )}
-                            {selected === "balance" && (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label>Type</Label>
-                                        <Select value={balanceType} onValueChange={(v) => setBalanceType(v as BalanceType)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All</SelectItem>
-                                                <SelectItem value="purchase">Purchase</SelectItem>
-                                                <SelectItem value="void_refund">Void Refund</SelectItem>
-                                                <SelectItem value="refund">Refund</SelectItem>
-                                                <SelectItem value="topup">Top-up</SelectItem>
-                                                <SelectItem value="adjustment">Adjustment</SelectItem>
-                                                <SelectItem value="transfer">Transfer</SelectItem>
-                                                <SelectItem value="other">Other</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Owner Type</Label>
-                                        <div className="relative">
-                                            <button
-                                                className="w-full px-3 py-2 border rounded-md bg-white text-left text-sm hover:bg-gray-50 flex items-center justify-between"
-                                                onClick={() => {
-                                                    const dropdown = document.getElementById("balance-roles-dropdown");
-                                                    if (dropdown) {
-                                                        dropdown.classList.toggle("hidden");
-                                                    }
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                {selected === "topup" ? <Wallet className="h-5 w-5 text-primary" />
+                                    : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" />
+                                        : selected === "balance" ? <TrendingUp className="h-5 w-5 text-primary" />
+                                            : selected === "internal_used" ? <Building2 className="h-5 w-5 text-primary" />
+                                                : <Monitor className="h-5 w-5 text-primary" />}
+                                {selected === "topup" ? t("admin.adminReports.topupReport")
+                                    : selected === "transaction" ? t("admin.adminReports.transactionReport")
+                                        : selected === "balance" ? "Balance Report"
+                                            : selected === "internal_used" ? t("admin.adminReports.internalUsedReport")
+                                                : t("admin.adminReports.kioskReport", "Kiosk Report")}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                                    <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
+                                    <DateRangePicker
+                                        startDate={dateFrom}
+                                        endDate={dateTo}
+                                        onStartChange={setDateFrom}
+                                        onEndChange={setDateTo}
+                                    />
+                                </div>
+                                {selected === "topup" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.channelFilter")}</Label>
+                                            <Select value={channel} onValueChange={(v) => setChannel(v as TopupChannel)}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t("admin.adminReports.channelAll")}</SelectItem>
+                                                    <SelectItem value="kiosk">{t("admin.adminReports.channelKiosk")}</SelectItem>
+                                                    <SelectItem value="online">{t("admin.adminReports.channelOnline")}</SelectItem>
+                                                    <SelectItem value="cashier">{t("admin.adminReports.channelCashier")}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.toppedByFilter", "Topped by")}</Label>
+                                            <CardholderPicker
+                                                value={toppedByValue}
+                                                onChange={(v, item) => {
+                                                    setToppedByValue(v);
+                                                    setToppedByLabel(item ? `${item.name} (${item.identifier})` : null);
                                                 }}
-                                            >
-                                                <span>
-                                                    {balanceRoles.length === 0
-                                                        ? "Select roles…"
-                                                        : balanceRoles.length === 1
-                                                            ? balanceRoles[0]
-                                                            : `${balanceRoles.length} selected`}
-                                                </span>
-                                                <ChevronDown className="h-4 w-4" />
-                                            </button>
-                                            <div
-                                                id="balance-roles-dropdown"
-                                                className="hidden absolute top-full left-0 right-0 mt-1 border rounded-md bg-white shadow-lg z-50 p-2 space-y-2"
-                                            >
-                                                {["student", "parent", "staff", "department"].map((role) => (
-                                                    <div key={role} className="flex items-center gap-2 px-2 py-1">
-                                                        <Checkbox
-                                                            checked={balanceRoles.includes(role)}
-                                                            onCheckedChange={(checked) => {
-                                                                if (checked) {
-                                                                    setBalanceRoles([...balanceRoles, role]);
-                                                                } else {
-                                                                    setBalanceRoles(balanceRoles.filter((r) => r !== role));
-                                                                }
-                                                            }}
-                                                            id={`balance-role-${role}`}
-                                                        />
-                                                        <Label htmlFor={`balance-role-${role}`} className="capitalize cursor-pointer text-sm">
-                                                            {role}
-                                                        </Label>
-                                                    </div>
-                                                ))}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.recipientFilter", "Recipient")}</Label>
+                                            <CardholderPicker
+                                                value={recipientValue}
+                                                onChange={(v, item) => {
+                                                    setRecipientValue(v);
+                                                    setRecipientLabel(item ? `${item.name} (${item.identifier})` : null);
+                                                }}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                {selected === "transaction" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.searchFilter", "Search (ID / Username / Name)")}</Label>
+                                            <Input
+                                                value={txnSearch}
+                                                onChange={(e) => setTxnSearch(e.target.value)}
+                                                placeholder={t("admin.adminReports.searchPlaceholder", "ID, username, or full name…")}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.cashierFilter", "Cashier")}</Label>
+                                            <UserPicker
+                                                value={txnCashier?.id ?? null}
+                                                onChange={(_, u) => setTxnCashier(u)}
+                                                roles={["cashier", "manager", "admin", "staff", "kitchen"]}
+                                                allowNone
+                                                placeholder={t("admin.adminReports.allCashiers", "All cashiers")}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.shopFilter", "Shop")}</Label>
+                                            <ShopPicker
+                                                value={txnShopId}
+                                                onChange={(id, shop) => { setTxnShopId(id); setTxnShopName(shop?.name ?? null); }}
+                                                placeholder={t("admin.adminReports.allShops", "All shops")}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.typeFilter", "Type")}</Label>
+                                            <Select value={txnType} onValueChange={setTxnType}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t("admin.adminReports.typeAll", "All")}</SelectItem>
+                                                    <SelectItem value="sale">{t("admin.adminReports.typeSale", "Sale")}</SelectItem>
+                                                    <SelectItem value="adjustment">{t("admin.adminReports.typeAdjustment", "Adjustment")}</SelectItem>
+                                                    <SelectItem value="topup">{t("admin.adminReports.typeTopup", "Top-up")}</SelectItem>
+                                                    <SelectItem value="transfer">{t("admin.adminReports.typeTransfer", "Transfer")}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.statusFilter", "Status")}</Label>
+                                            <Select value={txnStatus} onValueChange={setTxnStatus}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t("admin.adminReports.statusAll", "All")}</SelectItem>
+                                                    <SelectItem value="ACTIVE">{t("admin.adminReports.statusActive", "Active")}</SelectItem>
+                                                    <SelectItem value="VOIDED">{t("admin.adminReports.statusVoided", "Voided")}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.paymentMethodFilter", "Payment Type")}</Label>
+                                            <Select value={txnPaymentMethod} onValueChange={setTxnPaymentMethod}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t("admin.adminReports.paymentMethodAll", "All")}</SelectItem>
+                                                    <SelectItem value="CASH">{t("common.paymentMethods.cash", "Cash")}</SelectItem>
+                                                    <SelectItem value="WALLET">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
+                                                    <SelectItem value="CARD_TAP">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
+                                                    <SelectItem value="CREDIT_CARD">{t("common.paymentMethods.credit_card", "Credit Card")}</SelectItem>
+                                                    <SelectItem value="DEBIT_CARD">{t("common.paymentMethods.debit_card", "Debit Card")}</SelectItem>
+                                                    <SelectItem value="QR_PROMPTPAY">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
+                                                    <SelectItem value="BANK_TRANSFER">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
+                                                    <SelectItem value="EDC">{t("common.paymentMethods.edc", "EDC QR")}</SelectItem>
+                                                    <SelectItem value="DEPARTMENT">{t("common.paymentMethods.department", "Budget Deduction")}</SelectItem>
+                                                    <SelectItem value="OTHER">{t("common.paymentMethods.other", "Other")}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </>
+                                )}
+                                {selected === "kiosk" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.kioskDeviceFilter", "Kiosk device")}</Label>
+                                            <UserPicker
+                                                value={kioskDevice?.id ?? null}
+                                                onChange={(_, u) => setKioskDevice(u)}
+                                                roles={["kiosk"]}
+                                                allowNone
+                                                placeholder={t("admin.adminReports.allKiosks", "All kiosks")}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.logTypeFilter", "Log type")}</Label>
+                                            <Select value={kioskLogType} onValueChange={(v) => setKioskLogType(v as typeof kioskLogType)}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t("admin.adminReports.logTypeAll", "All")}</SelectItem>
+                                                    <SelectItem value="event">{t("admin.adminReports.logTypeEvent", "Event log")}</SelectItem>
+                                                    <SelectItem value="transaction">{t("admin.adminReports.logTypeTransaction", "Transaction")}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </>
+                                )}
+                                {selected === "internal_used" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.shopFilter", "Shop")}</Label>
+                                            <ShopPicker
+                                                value={internalUsedShopId}
+                                                onChange={(id, shop) => {
+                                                    setInternalUsedShopId(id);
+                                                    setInternalUsedShopName(shop?.name ?? null);
+                                                }}
+                                                placeholder={t("admin.adminReports.allShops", "All shops")}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.departmentFilter", "Department")}</Label>
+                                            <DepartmentPicker
+                                                value={internalUsedDept}
+                                                onChange={setInternalUsedDept}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{t("admin.adminReports.staffFilter", "Staff")}</Label>
+                                            <UserPicker
+                                                value={internalUsedStaff?.id ?? null}
+                                                onChange={(_, u) => setInternalUsedStaff(u)}
+                                                allowNone
+                                                placeholder={t("admin.adminReports.allStaff", "All staff")}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                {selected === "balance" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>Type</Label>
+                                            <Select value={balanceType} onValueChange={(v) => setBalanceType(v as BalanceType)}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All</SelectItem>
+                                                    <SelectItem value="purchase">Purchase</SelectItem>
+                                                    <SelectItem value="void_refund">Void Refund</SelectItem>
+                                                    <SelectItem value="refund">Refund</SelectItem>
+                                                    <SelectItem value="topup">Top-up</SelectItem>
+                                                    <SelectItem value="adjustment">Adjustment</SelectItem>
+                                                    <SelectItem value="transfer">Transfer</SelectItem>
+                                                    <SelectItem value="other">Other</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Owner Type</Label>
+                                            <div className="relative">
+                                                <button
+                                                    className="w-full px-3 py-2 border rounded-md bg-white text-left text-sm hover:bg-gray-50 flex items-center justify-between"
+                                                    onClick={() => {
+                                                        const dropdown = document.getElementById("balance-roles-dropdown");
+                                                        if (dropdown) {
+                                                            dropdown.classList.toggle("hidden");
+                                                        }
+                                                    }}
+                                                >
+                                                    <span>
+                                                        {balanceRoles.length === 0
+                                                            ? "Select roles…"
+                                                            : balanceRoles.length === 1
+                                                                ? balanceRoles[0]
+                                                                : `${balanceRoles.length} selected`}
+                                                    </span>
+                                                    <ChevronDown className="h-4 w-4" />
+                                                </button>
+                                                <div
+                                                    id="balance-roles-dropdown"
+                                                    className="hidden absolute top-full left-0 right-0 mt-1 border rounded-md bg-white shadow-lg z-50 p-2 space-y-2"
+                                                >
+                                                    {["student", "parent", "staff", "department"].map((role) => (
+                                                        <div key={role} className="flex items-center gap-2 px-2 py-1">
+                                                            <Checkbox
+                                                                checked={balanceRoles.includes(role)}
+                                                                onCheckedChange={(checked) => {
+                                                                    if (checked) {
+                                                                        setBalanceRoles([...balanceRoles, role]);
+                                                                    } else {
+                                                                        setBalanceRoles(balanceRoles.filter((r) => r !== role));
+                                                                    }
+                                                                }}
+                                                                id={`balance-role-${role}`}
+                                                            />
+                                                            <Label htmlFor={`balance-role-${role}`} className="capitalize cursor-pointer text-sm">
+                                                                {role}
+                                                            </Label>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="space-y-2">
+                                            <Label>ISB_ID</Label>
+                                            <Input
+                                                value={balanceIsbId}
+                                                onChange={(e) => setBalanceIsbId(e.target.value)}
+                                                placeholder="Exact match…"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={handleSearch} disabled={loading}>
+                                    {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                                    Search
+                                </Button>
+                                {searched && hasData && (
+                                    <>
+                                        <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+                                            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                            {t("reports.exportPdf")}
+                                        </Button>
+                                        <Button variant="outline" onClick={handleExportExcel} disabled={exporting}>
+                                            <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                            {t("reports.exportExcel")}
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+
+                            {searched && selected === "topup" && topupData && (
+                                <div className="space-y-3">
+                                    <div className="text-sm text-muted-foreground">
+                                        Found <span className="font-semibold text-foreground">{topupData.total}</span> top-ups
+                                        {" · "}Total{" "}
+                                        <span className="font-semibold text-foreground">
+                                            ฿{topupData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                        </span>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>ISB_ID</Label>
-                                        <Input
-                                            value={balanceIsbId}
-                                            onChange={(e) => setBalanceIsbId(e.target.value)}
-                                            placeholder="Exact match…"
+                                    <div className="overflow-x-auto rounded-md border">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-muted/50 whitespace-nowrap">
+                                                <tr>
+                                                    <SortableDateTimeHeader
+                                                        label={t("admin.adminReports.colDateTime")}
+                                                        sortDir={dateTimeSort}
+                                                        onToggle={handleToggleDateTimeSort}
+                                                    />
+                                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel")}</th>
+                                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
+                                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
+                                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
+                                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient")}</th>
+                                                    <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
+                                                    <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {topupData.items.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
+                                                            No top-ups match these filters.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    topupData.items.map((r) => (
+                                                        <tr key={r.id} className="border-t">
+                                                            <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
+                                                            <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
+                                                            <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_by_external_id)}</td>
+                                                            <td className="px-2 py-1.5">{r.topped_by}</td>
+                                                            <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayTopupRecipientExternalId(r)}</td>
+                                                            <td className="px-2 py-1.5">{r.recipient_name}</td>
+                                                            <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                                                            <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                            {topupData.items.length > 0 && (
+                                                <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
+                                                    <tr className="border-t">
+                                                        <td colSpan={6} className="px-2 py-2 text-left">TOTAL</td>
+                                                        <td className="px-2 py-2 text-right font-mono">{topupData.amount_total.toFixed(2)}</td>
+                                                        <td />
+                                                    </tr>
+                                                </tfoot>
+                                            )}
+                                        </table>
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <PaginationBar
+                                            currentPage={topupPage}
+                                            totalPages={topupData.pages}
+                                            onPageChange={(p) => loadTopupPage(p)}
                                         />
                                     </div>
-                                </>
+                                </div>
                             )}
-                        </div>
 
-                        <div className="flex flex-wrap gap-2">
-                            <Button onClick={handleSearch} disabled={loading}>
-                                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                Search
-                            </Button>
-                            {searched && hasData && (
-                                <>
-                                    <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
-                                        {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                                        {t("reports.exportPdf")}
-                                    </Button>
-                                    <Button variant="outline" onClick={handleExportExcel} disabled={exporting}>
-                                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                                        {t("reports.exportExcel")}
-                                    </Button>
-                                </>
+                            {searched && selected === "transaction" && txnData && (
+                                <TransactionTable
+                                    data={txnData}
+                                    page={txnPage}
+                                    onPageChange={(p) => loadTransactionPage(p)}
+                                    dateTimeSort={dateTimeSort}
+                                    onToggleDateTimeSort={handleToggleDateTimeSort}
+                                />
                             )}
-                        </div>
 
-                        {searched && selected === "topup" && topupData && (
-                            <div className="space-y-3">
-                                <div className="text-sm text-muted-foreground">
-                                    Found <span className="font-semibold text-foreground">{topupData.total}</span> top-ups
-                                    {" · "}Total{" "}
-                                    <span className="font-semibold text-foreground">
-                                        ฿{topupData.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                                    </span>
+                            {searched && selected === "balance" && balanceData && (
+                                <BalanceTable
+                                    data={balanceData}
+                                    page={balancePage}
+                                    onPageChange={(p) => loadBalancePage(p)}
+                                    dateTimeSort={dateTimeSort}
+                                    onToggleDateTimeSort={handleToggleDateTimeSort}
+                                />
+                            )}
+
+                            {searched && selected === "kiosk" && (kioskEventData || kioskTxnData) && (
+                                <div className="space-y-6">
+                                    {kioskEventData && (
+                                        <KioskEventTable
+                                            data={kioskEventData}
+                                            page={kioskEventPage}
+                                            onPageChange={onKioskEventPageChange}
+                                            dateTimeSort={dateTimeSort}
+                                            onToggleDateTimeSort={handleToggleDateTimeSort}
+                                        />
+                                    )}
+                                    {kioskTxnData && (
+                                        <KioskTransactionTable
+                                            data={kioskTxnData}
+                                            page={kioskTxnPage}
+                                            onPageChange={onKioskTxnPageChange}
+                                            dateTimeSort={dateTimeSort}
+                                            onToggleDateTimeSort={handleToggleDateTimeSort}
+                                        />
+                                    )}
                                 </div>
-                                <div className="overflow-x-auto rounded-md border">
-                                    <table className="w-full text-xs">
-                                        <thead className="bg-muted/50 whitespace-nowrap">
-                                            <tr>
-                                                <SortableDateTimeHeader
-                                                    label={t("admin.adminReports.colDateTime")}
-                                                    sortDir={dateTimeSort}
-                                                    onToggle={handleToggleDateTimeSort}
-                                                />
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colChannel")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colToppedBy")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colRecipient")}</th>
-                                                <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmount")}</th>
-                                                <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashier")}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {topupData.items.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={8} className="px-3 py-4 text-center text-muted-foreground">
-                                                        No top-ups match these filters.
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                topupData.items.map((r) => (
-                                                    <tr key={r.id} className="border-t">
-                                                        <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
-                                                        <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
-                                                        <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_by_external_id)}</td>
-                                                        <td className="px-2 py-1.5">{r.topped_by}</td>
-                                                        <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayTopupRecipientExternalId(r)}</td>
-                                                        <td className="px-2 py-1.5">{r.recipient_name}</td>
-                                                        <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
-                                                        <td className="px-2 py-1.5 text-muted-foreground">{r.cashier_name ?? ""}</td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                        {topupData.items.length > 0 && (
-                                            <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
-                                                <tr className="border-t">
-                                                    <td colSpan={6} className="px-2 py-2 text-left">TOTAL</td>
-                                                    <td className="px-2 py-2 text-right font-mono">{topupData.amount_total.toFixed(2)}</td>
-                                                    <td />
-                                                </tr>
-                                            </tfoot>
-                                        )}
-                                    </table>
-                                </div>
-                                <div className="flex justify-center">
-                                    <PaginationBar
-                                        currentPage={topupPage}
-                                        totalPages={topupData.pages}
-                                        onPageChange={(p) => loadTopupPage(p)}
-                                    />
-                                </div>
-                            </div>
-                        )}
+                            )}
 
-                        {searched && selected === "transaction" && txnData && (
-                            <TransactionTable
-                                data={txnData}
-                                page={txnPage}
-                                onPageChange={(p) => loadTransactionPage(p)}
-                                dateTimeSort={dateTimeSort}
-                                onToggleDateTimeSort={handleToggleDateTimeSort}
-                            />
-                        )}
-
-                        {searched && selected === "balance" && balanceData && (
-                            <BalanceTable
-                                data={balanceData}
-                                page={balancePage}
-                                onPageChange={(p) => loadBalancePage(p)}
-                                dateTimeSort={dateTimeSort}
-                                onToggleDateTimeSort={handleToggleDateTimeSort}
-                            />
-                        )}
-
-                        {searched && selected === "kiosk" && (kioskEventData || kioskTxnData) && (
-                            <div className="space-y-6">
-                                {kioskEventData && (
-                                    <KioskEventTable
-                                        data={kioskEventData}
-                                        page={kioskEventPage}
-                                        onPageChange={onKioskEventPageChange}
-                                        dateTimeSort={dateTimeSort}
-                                        onToggleDateTimeSort={handleToggleDateTimeSort}
-                                    />
-                                )}
-                                {kioskTxnData && (
-                                    <KioskTransactionTable
-                                        data={kioskTxnData}
-                                        page={kioskTxnPage}
-                                        onPageChange={onKioskTxnPageChange}
-                                        dateTimeSort={dateTimeSort}
-                                        onToggleDateTimeSort={handleToggleDateTimeSort}
-                                    />
-                                )}
-                            </div>
-                        )}
-
-                        {searched && selected === "internal_used" && internalUsedData && (
-                            <InternalUsedTable
-                                data={internalUsedData}
-                                dateTimeSort={dateTimeSort}
-                                onToggleDateTimeSort={handleToggleDateTimeSort}
-                            />
-                        )}
-                    </CardContent>
-                </Card>
+                            {searched && selected === "internal_used" && internalUsedData && (
+                                <InternalUsedTable
+                                    data={internalUsedData}
+                                    dateTimeSort={dateTimeSort}
+                                    onToggleDateTimeSort={handleToggleDateTimeSort}
+                                />
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>
