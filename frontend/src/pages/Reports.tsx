@@ -631,6 +631,7 @@ const Reports = () => {
                     isCanteenReportsPage={isCanteenReportsPage}
                     needsShopSelector={needsShopSelector}
                     selectedStall={selectedStall}
+                    onSelectedStallChange={setSelectedStall}
                     canteenStalls={canteenStalls}
                     reportId={REPORT_ID_MAP["internalUsedReport"]}
                 />

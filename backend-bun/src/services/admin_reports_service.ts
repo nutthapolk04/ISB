@@ -1235,7 +1235,7 @@ export interface InternalUsedRow {
     staff_name: string;
     remarks: string | null;
     status: string;
-    /** external_id of the cashier who processed the receipt (receipts.created_by),
+    /** username of the cashier who processed the receipt (receipts.created_by),
      *  distinct from `isb_id` (the requester the department budget was drawn
      *  for) — added for the Store/Canteen Internal Used Report's Cashier ID
      *  column. */
@@ -1311,7 +1311,7 @@ export async function internalUsedReport(args: {
             requesterUsername: users.username,
             requesterFullName: users.fullName,
             requesterExternalId: users.externalId,
-            cashierExternalId: cashiers.externalId,
+            cashierUsername: cashiers.username,
         })
         .from(receipts)
         // Inner join — a department-charged requisition always has a real
@@ -1355,7 +1355,7 @@ export async function internalUsedReport(args: {
             staff_name: r.requesterFullName || r.requesterUsername || "—",
             remarks: r.notes ?? null,
             status: String(r.status ?? ""),
-            cashier_id: r.cashierExternalId ?? "—",
+            cashier_id: r.cashierUsername ?? "—",
         });
         group.subtotal += amount;
         grandTotal += amount;

@@ -12,6 +12,13 @@ import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import DepartmentPicker, { type DepartmentPickerValue } from "@/components/DepartmentPicker";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   exportToPDF,
   exportToExcel,
   buildDateFilterLine,
@@ -27,6 +34,7 @@ interface Props {
   isCanteenReportsPage: boolean;
   needsShopSelector: boolean;
   selectedStall: string;
+  onSelectedStallChange: (v: string) => void;
   canteenStalls: CanteenShop[];
   reportId: string;
 }
@@ -35,6 +43,7 @@ export function InternalUsedReportPanel({
   isCanteenReportsPage,
   needsShopSelector,
   selectedStall,
+  onSelectedStallChange,
   canteenStalls,
   reportId,
 }: Props) {
@@ -123,7 +132,7 @@ export function InternalUsedReportPanel({
       { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 28 },
       { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
       { header: t("admin.adminReports.colCashierId", "Cashier ID"), key: "cashier_id", width: 14 },
-      { header: t("admin.adminReports.colStaffId", "Staff ID"), key: "isb_id", width: 14 },
+      { header: t("admin.adminReports.colIsbId", "ISB ID"), key: "isb_id", width: 14 },
       { header: t("admin.adminReports.colAmtBilling", "Amt. Billing"), key: "amount", format: "currency", align: "right", width: 14 },
       { header: t("admin.adminReports.colRemark", "Remark"), key: "remarks", width: 16 },
     ];
@@ -149,6 +158,7 @@ export function InternalUsedReportPanel({
       columns,
       rows: bodyRows,
       totals: { amount: full.grand_total },
+      totalsLabel: t("admin.adminReports.grandTotalCaps", "Grand TOTAL"),
     };
   };
 
@@ -210,6 +220,38 @@ export function InternalUsedReportPanel({
             </div>
           </div>
         </div>
+        {needsShopSelector ? (
+          <div className="space-y-2">
+            <Label>{t("reports.canteenScope")}</Label>
+            <Select value={selectedStall} onValueChange={onSelectedStallChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{isCanteenReportsPage ? t("reports.canteenScopeAll") : "All shops"}</SelectItem>
+                {canteenStalls.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : user?.shopId ? (
+          // Locked to the caller's own shop — shown as a disabled dropdown
+          // (not just plain text) so the control's shape matches the admin
+          // variant above and it's visually obvious this is a shop filter,
+          // just one the manager/cashier can't change.
+          <div className="space-y-2">
+            <Label>{t("reports.canteenScope")}</Label>
+            <Select value={user.shopId} disabled>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={user.shopId}>{user.shopName ?? user.shopId}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
         <div className="space-y-2">
           <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
           <DateRangePicker

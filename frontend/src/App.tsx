@@ -279,8 +279,12 @@ const App = () => {
                             <Route path="/canteen/management/:shopId" element={<CanteenShopDetail />} />
                             <Route path="/canteen/audit-logs" element={<AuditLogList />} />
                           </Route>
-                          {/* Canteen reports — admin + manager + finance (finance is read-only, school-wide) */}
-                          <Route element={<RequireRole roles={['admin', 'manager', 'finance']} />}>
+                          {/* Canteen reports — admin + manager + cashier + finance (finance is read-only,
+                              school-wide) — mirrors store reports' role list; cashier was previously
+                              missing here even though "cashier" is a valid canteen-module shop role
+                              (see SHOP_ROLES in AuthContext), leaving canteen cashiers unable to reach
+                              any report including this one. */}
+                          <Route element={<RequireRole roles={['admin', 'manager', 'cashier', 'finance']} />}>
                             <Route path="/canteen/reports" element={<Reports />} />
                           </Route>
                         </Route>

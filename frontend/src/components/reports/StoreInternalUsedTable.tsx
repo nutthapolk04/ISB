@@ -55,7 +55,7 @@ export function StoreInternalUsedTable({
                     onToggle={onToggleDateTimeSort}
                   />
                   <th className="px-2 py-2 text-left">{t("admin.adminReports.colCashierId", "Cashier ID")}</th>
-                  <th className="px-2 py-2 text-left">{t("admin.adminReports.colStaffId", "Staff ID")}</th>
+                  <th className="px-2 py-2 text-left">{t("admin.adminReports.colIsbId", "ISB ID")}</th>
                   <th className="px-2 py-2 text-right">{t("admin.adminReports.colAmtBilling", "Amt. Billing")}</th>
                   <th className="px-2 py-2 text-left max-w-[8rem]">{t("admin.adminReports.colRemark", "Remark")}</th>
                 </tr>

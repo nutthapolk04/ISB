@@ -191,6 +191,10 @@ export interface ReportPayload<TRow extends Record<string, unknown>> {
      * automatically unless you provide an explicit value for it.
      */
     totals?: Record<string, string | number>;
+    /** Overrides the literal "TOTAL" label on the `totals` row above — e.g. a
+     *  report that already uses "TOTAL" for a per-section subtotal wants its
+     *  final grand-total row to read something distinct, like "Grand TOTAL". */
+    totalsLabel?: string;
     /** Optional multi-row footer — preferred when labels/amounts need col-spans. */
     footerRows?: ReportFooterRow[];
 }
@@ -371,7 +375,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     payload: ReportPayload<TRow>,
     filename: string,
 ): Promise<void> {
-    const { meta, columns, rows, totals, footerRows } = payload;
+    const { meta, columns, rows, totals, totalsLabel, footerRows } = payload;
     const reportId = meta.reportId ?? generateReportId();
     const generatedAt = meta.generatedAt ?? new Date();
     const printDateTime = formatDateTime(generatedAt);
@@ -508,7 +512,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
 
         const cells: AutoTableCell[] = [
             {
-                content: "TOTAL",
+                content: totalsLabel ?? "TOTAL",
                 colSpan: labelSpan,
                 styles: { halign: "right", fontStyle: "bold" },
             },
@@ -615,7 +619,7 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
     payload: ReportPayload<TRow>,
     filename: string,
 ): void {
-    const { meta, columns, rows, totals, footerRows } = payload;
+    const { meta, columns, rows, totals, totalsLabel, footerRows } = payload;
     const generatedAt = meta.generatedAt ?? new Date();
     const reportId = meta.reportId ?? generateReportId();
 
@@ -708,7 +712,7 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
                     }
                     return typeof explicit === "number" ? formatCell(explicit, c.format) : String(explicit);
                 }
-                return i === 0 ? "TOTAL" : "";
+                return i === 0 ? (totalsLabel ?? "TOTAL") : "";
             }),
         );
     }
