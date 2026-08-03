@@ -548,7 +548,6 @@ export function SalesSummaryReport({
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.amt_cash !== 0 ? r.amt_cash.toFixed(2) : ""}</td>
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.amt_campus_card !== 0 ? r.amt_campus_card.toFixed(2) : ""}</td>
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.amt_credit_card !== 0 ? r.amt_credit_card.toFixed(2) : ""}</td>
-                                                    <td className="px-2 py-1.5 text-right font-mono">{r.edc_card_fee !== 0 ? r.edc_card_fee.toFixed(2) : ""}</td>
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.amt_qr_code !== 0 ? r.amt_qr_code.toFixed(2) : ""}</td>
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.amt_department !== 0 ? r.amt_department.toFixed(2) : ""}</td>
                                                     <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
@@ -574,7 +573,6 @@ export function SalesSummaryReport({
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_cash.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_campus_card.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_credit_card.toFixed(2)}</td>
-                                                <td className="px-2 py-2 text-right font-mono">{ssData.totals.edc_card_fee.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_department.toFixed(2)}</td>
                                                 <td />

@@ -1,5 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db, pgClient } from "@/db/client";
+import { db } from "@/db/client";
 import { pricePanels, pricePanelItems, shopProducts, productBundles } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
@@ -105,21 +105,43 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
         .orderBy(asc(productBundles.sortOrder), asc(productBundles.id));
 
     const panelItems = await db
-        .select()
+        .select({
+            id: pricePanelItems.id,
+            panelId: pricePanelItems.panelId,
+            productId: pricePanelItems.productId,
+            bundleId: pricePanelItems.bundleId,
+            price: pricePanelItems.price,
+            shortName: pricePanelItems.shortName,
+            included: pricePanelItems.included,
+            sortOrder: pricePanelItems.sortOrder,
+        })
         .from(pricePanelItems)
         .where(eq(pricePanelItems.panelId, panelId))
         .orderBy(asc(pricePanelItems.sortOrder), asc(pricePanelItems.id));
 
-    const productMap = new Map<number, typeof pricePanelItems.$inferSelect>();
-    const bundleMap = new Map<number, typeof pricePanelItems.$inferSelect>();
+    type PanelItemRow = { id: number; panelId: number; productId: number | null; bundleId: number | null; price: string | null; shortName: string | null; included: boolean; sortOrder: number };
+    const productMap = new Map<number, PanelItemRow>();
+    const bundleMap = new Map<number, PanelItemRow>();
     for (const it of panelItems) {
         if (it.bundleId !== null) bundleMap.set(it.bundleId, it);
         else if (it.productId !== null) productMap.set(it.productId, it);
     }
 
-    const out: PricePanelItemDTO[] = [];
+    // Fallback ordering when a panel item has never been explicitly reordered
+    // (sort_order === 0): fall back to the global shop_products / product_bundles
+    // sort order. Products come first, then bundles, matching legacy behavior —
+    // this is only the tiebreak/fallback tier, not the primary order.
+    let globalIndexCounter = 0;
+    const productGlobalIndex = new Map<number, number>();
+    for (const p of products) productGlobalIndex.set(p.id, globalIndexCounter++);
+    const bundleGlobalIndex = new Map<number, number>();
+    for (const b of bundles) bundleGlobalIndex.set(b.id, globalIndexCounter++);
+
+    type InternalItem = PricePanelItemDTO & { _sortOrder: number; _globalIndex: number };
+    const out: InternalItem[] = [];
     for (const p of products) {
         const r = productMap.get(p.id);
+        if (!r) continue;
         out.push({
             kind: "product",
             product_id: p.id,
@@ -131,10 +153,13 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
             short_name: r?.shortName ?? null,
             included: r ? r.included : false,
             is_bundle: false,
+            _sortOrder: r.sortOrder,
+            _globalIndex: productGlobalIndex.get(p.id) ?? globalIndexCounter,
         });
     }
     for (const b of bundles) {
         const r = bundleMap.get(b.id);
+        if (!r) continue;
         out.push({
             kind: "bundle",
             product_id: b.id,
@@ -146,9 +171,22 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
             short_name: r?.shortName ?? null,
             included: r ? r.included : false,
             is_bundle: true,
+            _sortOrder: r.sortOrder,
+            _globalIndex: bundleGlobalIndex.get(b.id) ?? globalIndexCounter,
         });
     }
-    return out;
+
+    // Order by the panel's own custom sort_order first (0 = never reordered,
+    // so it falls back to the global product/bundle order instead of being
+    // pinned to the front), then by global order as the tiebreak.
+    out.sort((a, b) => {
+        const aKey = a._sortOrder === 0 ? Number.POSITIVE_INFINITY : a._sortOrder;
+        const bKey = b._sortOrder === 0 ? Number.POSITIVE_INFINITY : b._sortOrder;
+        if (aKey !== bKey) return aKey - bKey;
+        return a._globalIndex - b._globalIndex;
+    });
+
+    return out.map(({ _sortOrder, _globalIndex, ...rest }) => rest);
 }
 
 export interface PanelItemPatchInput {
@@ -302,17 +340,27 @@ export async function reorderPanelItems(
 ): Promise<{ success: true; updated: number }> {
     await getPanelOr404(shopId, panelId);
     let updated = 0;
-    await pgClient.begin(async (sqlTx) => {
-        for (const [idStr, sortOrder] of Object.entries(sortMap)) {
-            const productId = Number(idStr);
-            if (!Number.isInteger(productId)) continue;
-            const res = await sqlTx`
-        UPDATE price_panel_items SET sort_order = ${sortOrder}
-        WHERE panel_id = ${panelId} AND product_id = ${productId}
-        RETURNING id
-      `;
-            if (res.length > 0) updated++;
+    for (const [idStr, sortOrder] of Object.entries(sortMap)) {
+        const productId = Number(idStr);
+        if (!Number.isInteger(productId)) continue;
+        const res = await db
+            .update(pricePanelItems)
+            .set({ sortOrder })
+            .where(and(eq(pricePanelItems.panelId, panelId), eq(pricePanelItems.productId, productId)))
+            .returning({ id: pricePanelItems.id });
+        if (res.length > 0) {
+            updated++;
+            continue;
         }
-    });
+        // Bundle rows have product_id = NULL and use bundle_id instead — retry
+        // treating the id as a bundle_id so dragging a bundle inside a panel
+        // also persists.
+        const bundleRes = await db
+            .update(pricePanelItems)
+            .set({ sortOrder })
+            .where(and(eq(pricePanelItems.panelId, panelId), eq(pricePanelItems.bundleId, productId)))
+            .returning({ id: pricePanelItems.id });
+        if (bundleRes.length > 0) updated++;
+    }
     return { success: true, updated };
 }

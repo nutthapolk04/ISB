@@ -116,6 +116,40 @@ const Store = () => {
     // panelIncluded: panelId -> Set of included product ids
     const [panelIncluded, setPanelIncluded] = useState<Record<number, Set<number>>>({});
 
+    // Fetch one panel's items and shape them into the price/short-name/included
+    // maps this page keeps in state. Shared by the initial load effect and by
+    // refetchPanelProducts below (called after a panel-scoped reorder save so
+    // the included Set's order — which drives display order — stays fresh).
+    const fetchPanelData = async (sid: string, panelId: number) => {
+        const items = await api.get<Array<{ product_id: number; panel_price: number | null; short_name: string | null; included: boolean; is_bundle?: boolean }>>(
+            `/shops/${sid}/price-panels/${panelId}/items`,
+        );
+        const productMap: Record<number, number> = {};
+        const snMap: Record<number, string> = {};
+        const includedSet = new Set<number>();
+        items.forEach((item) => {
+            // Bundles live in a negative id space in `allProducts`
+            // (see id: -(b.id) above) so their panel rows must be
+            // mirrored with the same negation, otherwise the POS
+            // filter and the panel-price lookup both miss them.
+            const key = item.is_bundle ? -item.product_id : item.product_id;
+            if (item.panel_price != null) productMap[key] = item.panel_price;
+            if (item.short_name) snMap[key] = item.short_name;
+            if (item.included !== false) includedSet.add(key);
+        });
+        return { productMap, snMap, includedSet };
+    };
+
+    const refetchPanelProducts = async (panelId: number) => {
+        if (!user?.shopId) return;
+        try {
+            const { productMap, snMap, includedSet } = await fetchPanelData(user.shopId, panelId);
+            setPanelPrices((prev) => ({ ...prev, [panelId]: productMap }));
+            setPanelShortNames((prev) => ({ ...prev, [panelId]: snMap }));
+            setPanelIncluded((prev) => ({ ...prev, [panelId]: includedSet }));
+        } catch { /* tolerate — panel keeps its previous order until next load */ }
+    };
+
     const {
         reorderMode,
         reorderDirty,
@@ -136,6 +170,7 @@ const Store = () => {
         setAllProducts,
         activePanelId,
         panelIncluded,
+        refetchPanelProducts,
     });
 
     useEffect(() => {
@@ -224,22 +259,7 @@ const Store = () => {
                 await Promise.all(
                     panelList.map(async (panel) => {
                         try {
-                            const items = await api.get<Array<{ product_id: number; panel_price: number | null; short_name: string | null; included: boolean; is_bundle?: boolean }>>(
-                                `/shops/${user.shopId}/price-panels/${panel.id}/items`,
-                            );
-                            const productMap: Record<number, number> = {};
-                            const snMap: Record<number, string> = {};
-                            const includedSet = new Set<number>();
-                            items.forEach((item) => {
-                                // Bundles live in a negative id space in `allProducts`
-                                // (see id: -(b.id) above) so their panel rows must be
-                                // mirrored with the same negation, otherwise the POS
-                                // filter and the panel-price lookup both miss them.
-                                const key = item.is_bundle ? -item.product_id : item.product_id;
-                                if (item.panel_price != null) productMap[key] = item.panel_price;
-                                if (item.short_name) snMap[key] = item.short_name;
-                                if (item.included !== false) includedSet.add(key);
-                            });
+                            const { productMap, snMap, includedSet } = await fetchPanelData(user.shopId!, panel.id);
                             priceMap[panel.id] = productMap;
                             snameMap[panel.id] = snMap;
                             includedMap[panel.id] = includedSet;
