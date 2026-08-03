@@ -64,7 +64,7 @@ interface SalesRow {
 }
 interface SalesReportData { rows: SalesRow[]; grand_total: number; receipt_count: number; }
 
-interface StockRow { product_code: string | null; product_name: string; stock_qty: number; shop_id: string; shop_name: string | null; }
+interface StockRow { product_code: string | null; product_name: string; stock_qty: number; shop_id: string; shop_name: string | null; avg_cost: number; selling_price: number; }
 interface StockReportData { rows: StockRow[]; }
 
 interface ReturnRow {
@@ -418,6 +418,7 @@ const Reports = () => {
         if (selectedReportType === "stockReport") {
             const stockShopParam = shopParam.replace(/^&/, "?");
             const data = await api.get<StockReportData>(`/reports/stock${stockShopParam}`);
+            console.log("Stock Balance Report data:", data);
             return {
                 payload: {
                     meta: {
@@ -428,10 +429,12 @@ const Reports = () => {
                         filters: [],
                     },
                     columns: [
-                        { header: t("reports.colShop"), key: "shop_name", width: 25 },
-                        { header: t("reports.colProductCode"), key: "product_code", width: 18 },
-                        { header: t("reports.colProduct"), key: "product_name", width: 45 },
-                        { header: t("reports.colStock"), key: "stock_qty", format: "number", align: "right", width: 12 },
+                        { header: t("reports.colShop"), key: "shop_name", width: 20 },
+                        { header: t("reports.colProductCode"), key: "product_code", width: 15 },
+                        { header: t("reports.colProduct"), key: "product_name", width: 35 },
+                        { header: t("reports.colStock"), key: "stock_qty", format: "number", align: "right", width: 10 },
+                        { header: "Cost Price", key: "avg_cost", format: "currency", align: "right", width: 12 },
+                        { header: "Selling Price", key: "selling_price", format: "currency", align: "right", width: 12 },
                     ],
                     rows: data.rows.map((r) => ({ ...r, shop_name: r.shop_name ?? r.shop_id })) as unknown as Record<string, unknown>[],
                 },

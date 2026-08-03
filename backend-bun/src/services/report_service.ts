@@ -324,6 +324,8 @@ export interface StockRow {
     stock_qty: number;
     shop_id: string;
     shop_name: string | null;
+    avg_cost: number;
+    selling_price: number;
 }
 
 export interface StockReport {
@@ -353,6 +355,8 @@ export async function stockReport(args: {
             stock: shopProducts.stock,
             shop_id: shopProducts.shopId,
             shop_name: shops.name,
+            avg_cost: shopProducts.avgCost,
+            selling_price: shopProducts.externalPrice,
         })
         .from(shopProducts)
         .innerJoin(shops, eq(shops.id, shopProducts.shopId))
@@ -367,6 +371,8 @@ export async function stockReport(args: {
             stock_qty: r.stock,
             shop_id: r.shop_id,
             shop_name: r.shop_name,
+            avg_cost: parseFloat(r.avg_cost),
+            selling_price: parseFloat(r.selling_price),
         })),
     };
 }
