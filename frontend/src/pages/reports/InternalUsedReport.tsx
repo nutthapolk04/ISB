@@ -222,7 +222,7 @@ export function InternalUsedReportPanel({
         </div>
         {needsShopSelector ? (
           <div className="space-y-2">
-            <Label>{t("reports.canteenScope")}</Label>
+            <Label>{t("reports.colShop", "Shop")}</Label>
             <Select value={selectedStall} onValueChange={onSelectedStallChange}>
               <SelectTrigger>
                 <SelectValue />
@@ -241,7 +241,7 @@ export function InternalUsedReportPanel({
           // variant above and it's visually obvious this is a shop filter,
           // just one the manager/cashier can't change.
           <div className="space-y-2">
-            <Label>{t("reports.canteenScope")}</Label>
+            <Label>{t("reports.colShop", "Shop")}</Label>
             <Select value={user.shopId} disabled>
               <SelectTrigger>
                 <SelectValue />

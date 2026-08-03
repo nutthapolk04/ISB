@@ -210,6 +210,109 @@ function rowEmphasis(row: Record<string, unknown>): RowEmphasis | null {
     return v === "subtotal" || v === "total" ? v : null;
 }
 
+function rowHasValue(raw: unknown): boolean {
+    return raw !== null && raw !== undefined && raw !== "";
+}
+
+/** Leftmost column with a currency/number value — used to lay out TOTAL rows. */
+function firstNumericValueColIndex(columns: ReportColumn[], row: Record<string, unknown>): number {
+    return columns.findIndex(
+        (c) => (c.format === "currency" || c.format === "number") && rowHasValue(row[c.key]),
+    );
+}
+
+function emphasisTotalLabel(columns: ReportColumn[], row: Record<string, unknown>, labelSpan: number): string {
+    for (let i = labelSpan - 1; i >= 0; i -= 1) {
+        const raw = row[columns[i].key];
+        if (rowHasValue(raw)) return formatCell(raw, columns[i].format);
+    }
+    return "TOTAL";
+}
+
+function buildPdfEmphasisTotalRow(columns: ReportColumn[], row: Record<string, unknown>): AutoTableCell[] {
+    const fill: [number, number, number] = [240, 240, 240];
+    const bold = { fontStyle: "bold" as const, fillColor: fill, textColor: PDF_TEXT_COLOR };
+
+    const firstNumericIdx = firstNumericValueColIndex(columns, row);
+    if (firstNumericIdx < 0) {
+        return columns.map((c) => ({
+            content: formatCell(row[c.key], c.format),
+            styles: bold,
+        }));
+    }
+
+    const labelSpan = firstNumericIdx > 0 ? firstNumericIdx : 1;
+    const cells: AutoTableCell[] = [
+        {
+            content: emphasisTotalLabel(columns, row, labelSpan),
+            colSpan: labelSpan,
+            styles: { ...bold, halign: "right" },
+        },
+    ];
+
+    for (let i = labelSpan; i < columns.length; i += 1) {
+        const c = columns[i];
+        const raw = row[c.key];
+        cells.push({
+            content: rowHasValue(raw) ? formatCell(raw, c.format) : "",
+            styles: { ...bold, halign: defaultAlign(c) },
+        });
+    }
+    return cells;
+}
+
+function buildExcelEmphasisTotalRow(
+    columns: ReportColumn[],
+    row: Record<string, unknown>,
+    rowIdx: number,
+): {
+    padded: (string | number)[];
+    merges: { s: { r: number; c: number }; e: { r: number; c: number } }[];
+} {
+    const padded: (string | number)[] = new Array(columns.length).fill("");
+    const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
+
+    const firstNumericIdx = firstNumericValueColIndex(columns, row);
+    if (firstNumericIdx < 0) {
+        for (let i = 0; i < columns.length; i += 1) {
+            const c = columns[i];
+            const raw = row[c.key];
+            if (c.format === "currency" || c.format === "number") {
+                padded[i] = typeof raw === "number" ? raw : raw == null ? "" : Number(raw) || 0;
+            } else {
+                padded[i] = formatCell(raw, c.format);
+            }
+        }
+        return { padded, merges };
+    }
+
+    const labelSpan = firstNumericIdx > 0 ? firstNumericIdx : 1;
+    padded[0] = emphasisTotalLabel(columns, row, labelSpan);
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: labelSpan - 1 } });
+
+    let lastNonEmpty = labelSpan - 1;
+    for (let i = labelSpan; i < columns.length; i += 1) {
+        const c = columns[i];
+        const raw = row[c.key];
+        if (!rowHasValue(raw)) continue;
+        lastNonEmpty = i;
+        if (c.format === "currency" || c.format === "number") {
+            padded[i] = typeof raw === "number" ? raw : Number(raw) || 0;
+        } else {
+            padded[i] = formatCell(raw, c.format);
+        }
+    }
+
+    if (lastNonEmpty < columns.length - 1) {
+        merges.push({
+            s: { r: rowIdx, c: lastNonEmpty + 1 },
+            e: { r: rowIdx, c: columns.length - 1 },
+        });
+    }
+
+    return { padded, merges };
+}
+
 // ─── Value formatting (shared between PDF and Excel) ─────────────────────
 
 const formatCurrency = (n: number) =>
@@ -480,9 +583,12 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
         // the plain movement rows above them. Cell content stays right/left
         // aligned per columnStyles — we only override fill + font weight.
         const emphasis = rowEmphasis(row);
+        if (emphasis === "total") {
+            return buildPdfEmphasisTotalRow(columns, row);
+        }
         if (emphasis !== null) {
             const fill: [number, number, number] =
-                emphasis === "total" ? [240, 240, 240] : [255, 255, 255];
+                emphasis === "subtotal" ? [255, 255, 255] : [240, 240, 240];
             return columns.map((c) => ({
                 content: formatCell(row[c.key], c.format),
                 styles: {
@@ -651,6 +757,14 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
             const padded: (string | number)[] = [label];
             for (let i = 1; i < columns.length; i++) padded.push("");
             sectionMergeRows.push(aoa.length);
+            aoa.push(padded);
+            continue;
+        }
+        const emphasis = rowEmphasis(row);
+        if (emphasis === "total") {
+            const rowIdx = aoa.length;
+            const { padded, merges } = buildExcelEmphasisTotalRow(columns, row, rowIdx);
+            footerMergeRanges.push(...merges);
             aoa.push(padded);
             continue;
         }
