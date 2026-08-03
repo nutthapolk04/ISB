@@ -13,6 +13,7 @@ import {
 	listUserRoles as listUserRolesService,
 	assignRoleToUser,
 	removeRoleFromUser,
+	changeOwnPassword,
 } from "@/services/auth_service";
 import { hasRole } from "@/middleware/AuthMiddleware";
 import { logger } from "@/logger";
@@ -202,6 +203,20 @@ export const AuthController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (AU-10)] AuthController.removeRole() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	changePassword: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (AU-12)] AuthController.changePassword() called.`);
+		try {
+			await changeOwnPassword(Number(user.sub), body.current_password, body.new_password);
+			logger.info(`[${reqContext.requestId} (AU-12)] AuthController.changePassword() completed.`);
+			return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (AU-12)] AuthController.changePassword() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

@@ -98,6 +98,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
     .group("/auth", (app) => app
         .get("/me", AuthController.me, AuthSchema.me)
         .post("/logout", AuthController.logout, AuthSchema.logout)
+        .post("/change-password", AuthController.changePassword, AuthSchema.changePassword)
         .get("/users/:user_id/roles", AuthController.listUserRoles, AuthSchema.listUserRoles)
         .post("/users/:user_id/roles", AuthController.assignRole, AuthSchema.assignRole)
         .delete("/users/:user_id/roles/:role_name", AuthController.removeRole, AuthSchema.removeRole)

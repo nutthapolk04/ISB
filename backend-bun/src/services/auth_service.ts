@@ -4,7 +4,7 @@ import { users, roles, userRoles, permissions, rolePermissions, shops, userLogin
 import { config } from "@/lib/config";
 
 const ACCESS_TOKEN_EXPIRE_MINUTES = 30;
-const REFRESH_TOKEN_EXPIRE_DAYS = 7;
+const REFRESH_TOKEN_EXPIRE_DAYS = 3;
 
 export interface TokenResponseDTO {
     access_token: string;
@@ -220,6 +220,28 @@ export async function createTokens(user: typeof users.$inferSelect): Promise<Tok
         refresh_token: encodeJwt(refreshClaims),
         token_type: "bearer",
     };
+}
+
+export async function changeOwnPassword(userId: number, currentPassword: string, newPassword: string): Promise<void> {
+    if (!newPassword || newPassword.length < 8) {
+        const err = new Error("Password must be at least 8 characters");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    const user = await findUserById(userId);
+    if (!user) {
+        const err = new Error("User not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+    const ok = await Bun.password.verify(currentPassword, user.hashedPassword);
+    if (!ok) {
+        const err = new Error("Current password is incorrect");
+        (err as { status?: number }).status = 401;
+        throw err;
+    }
+    const hashed = await Bun.password.hash(newPassword, { algorithm: "bcrypt", cost: 12 });
+    await db.update(users).set({ hashedPassword: hashed }).where(eq(users.id, userId));
 }
 
 export async function refresh(refreshToken: string): Promise<TokenResponseDTO> {

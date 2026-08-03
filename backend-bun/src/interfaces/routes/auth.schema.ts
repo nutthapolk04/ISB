@@ -66,3 +66,11 @@ export const removeRole = {
     params: t.Object({ user_id: t.String(), role_name: t.String() }),
     detail: { tags: ["Auth"], summary: "Remove role from user (admin)" },
 };
+
+export const changePassword = {
+    body: t.Object({
+        current_password: t.String(),
+        new_password: t.String(),
+    }),
+    detail: { tags: ["Auth"], summary: "Change your own password" },
+};

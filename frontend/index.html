@@ -2,15 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <script>
-      // Show maintenance page only on the site root; all other paths load the app normally.
-      (function () {
-        var path = window.location.pathname;
-        if (path === "/" || path === "") {
-          window.location.replace("/underconstruct.html");
-        }
-      })();
-    </script>
     <link rel="icon" type="image/svg+xml" href="/isb-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ISB Campus Card</title>

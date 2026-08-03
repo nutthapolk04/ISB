@@ -112,6 +112,10 @@ export function moduleOf(shopId: ShopId | null | undefined): AppModule | null {
 
 const STORAGE_KEY = "schooney_auth_user";
 const TOKEN_KEY = "access_token";
+/** Read by IdleSessionGuard — persisted (not just an in-memory ref) so a
+ *  closed tab reopened after the idle window has already passed is caught
+ *  immediately on mount instead of silently starting a fresh 1h clock. */
+export const LAST_ACTIVITY_KEY = "last_activity_at";
 
 /**
  * Reads the `sub` claim out of a JWT's payload without verifying its
@@ -210,6 +214,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.addEventListener("storage", handleStorageChange);
         return () => window.removeEventListener("storage", handleStorageChange);
     }, [user]);
+
+    // Stamp a fresh `last_activity_at` the moment a *new* identity is
+    // established (id changes from whatever it was, including null → set).
+    // A plain reload of an already-active session sees the same id on its
+    // very first render as this ref's own initial value, so it's a no-op
+    // there — only an actual login/SSO/account switch resets the idle
+    // clock. This is what lets IdleSessionGuard trust the persisted
+    // timestamp on mount without a fresh login ever misfiring it.
+    const prevUserIdRef = useRef<number | null>(user?.id ?? null);
+    useEffect(() => {
+        if (user && prevUserIdRef.current !== user.id) {
+            localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+        }
+        prevUserIdRef.current = user?.id ?? null;
+    }, [user?.id]);
 
     const login = async (
         username: string,
@@ -500,6 +519,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem("refresh_token");
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
     };
 
     const hasRole = (...roles: UserRole[]): boolean => {
