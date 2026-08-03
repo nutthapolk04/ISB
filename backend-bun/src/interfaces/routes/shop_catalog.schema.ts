@@ -128,6 +128,12 @@ export const setPricePanelBundleItemPrice = {
     detail: { ...shopsTag, summary: "Set bundle price on a price panel" },
 };
 
+export const reorderPricePanelItems = {
+    params: shopPanelParams,
+    body: t.Object({ sort_map: t.Record(t.String(), t.Number()) }),
+    detail: { ...shopsTag, summary: "Reorder items within a price panel" },
+};
+
 export const createShopProduct = {
     params: shopIdParams,
     body: t.Object({

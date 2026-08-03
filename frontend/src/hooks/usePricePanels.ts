@@ -56,8 +56,7 @@ export function usePricePanels(shopId: string) {
     return () => { cancelled = true; };
   }, [shopId]);
 
-  const fetchPanelProducts = async (panelId: number) => {
-    if (panelProductIds[panelId]) return; // already cached
+  const doPanelFetch = async (panelId: number) => {
     try {
       const items = await api.get<PanelItemApi[]>(
         `/shops/${shopId}/price-panels/${panelId}/items`,
@@ -77,6 +76,15 @@ export function usePricePanels(shopId: string) {
     }
   };
 
+  const fetchPanelProducts = async (panelId: number) => {
+    if (panelProductIds[panelId]) return; // already cached
+    await doPanelFetch(panelId);
+  };
+
+  const refetchPanelProducts = async (panelId: number) => {
+    await doPanelFetch(panelId);
+  };
+
   const handlePanelChange = async (panelId: number | null) => {
     setActivePanelId(panelId);
     if (panelId !== null) await fetchPanelProducts(panelId);
@@ -90,5 +98,6 @@ export function usePricePanels(shopId: string) {
     panelPrices,
     panelTabsLoading,
     handlePanelChange,
+    refetchPanelProducts,
   };
 }

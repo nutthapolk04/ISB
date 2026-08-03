@@ -484,10 +484,12 @@ export const pricePanelItems = pgTable("price_panel_items", {
 	shortName: varchar("short_name", { length: 100 }),
 	included: boolean().default(true).notNull(),
 	bundleId: integer("bundle_id"),
+	sortOrder: integer("sort_order").default(0).notNull(),
 }, (table) => [
 	index("ix_price_panel_items_bundle_id").using("btree", table.bundleId.asc().nullsLast().op("int4_ops")),
 	index("ix_price_panel_items_panel_id").using("btree", table.panelId.asc().nullsLast().op("int4_ops")),
 	index("ix_price_panel_items_product_id").using("btree", table.productId.asc().nullsLast().op("int4_ops")),
+	index("ix_price_panel_items_sort").using("btree", table.panelId.asc().nullsLast().op("int4_ops"), table.sortOrder.asc().nullsLast().op("int4_ops")),
 	foreignKey({
 			columns: [table.bundleId],
 			foreignColumns: [productBundles.id],

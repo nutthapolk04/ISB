@@ -1,5 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, pgClient } from "@/db/client";
 import { pricePanels, pricePanelItems, shopProducts, productBundles } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 
@@ -107,7 +107,8 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
     const panelItems = await db
         .select()
         .from(pricePanelItems)
-        .where(eq(pricePanelItems.panelId, panelId));
+        .where(eq(pricePanelItems.panelId, panelId))
+        .orderBy(asc(pricePanelItems.sortOrder), asc(pricePanelItems.id));
 
     const productMap = new Map<number, typeof pricePanelItems.$inferSelect>();
     const bundleMap = new Map<number, typeof pricePanelItems.$inferSelect>();
@@ -292,4 +293,26 @@ export async function setBundleItemPrice(
         included: finalIncluded,
         is_bundle: true,
     };
+}
+
+export async function reorderPanelItems(
+    shopId: string,
+    panelId: number,
+    sortMap: Record<string, number>,
+): Promise<{ success: true; updated: number }> {
+    await getPanelOr404(shopId, panelId);
+    let updated = 0;
+    await pgClient.begin(async (sqlTx) => {
+        for (const [idStr, sortOrder] of Object.entries(sortMap)) {
+            const productId = Number(idStr);
+            if (!Number.isInteger(productId)) continue;
+            const res = await sqlTx`
+        UPDATE price_panel_items SET sort_order = ${sortOrder}
+        WHERE panel_id = ${panelId} AND product_id = ${productId}
+        RETURNING id
+      `;
+            if (res.length > 0) updated++;
+        }
+    });
+    return { success: true, updated };
 }
