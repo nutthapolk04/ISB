@@ -83,11 +83,20 @@ export function ProductReorderGrid({
 
     if (allProducts.length === 0) return null;
 
-    const gridProducts = reorderMode
-        ? reorderItems
-        : activePanelId != null && panelIncluded[activePanelId]
-            ? allProducts.filter((p) => panelIncluded[activePanelId].has(p.id))
-            : allProducts;
+    let gridProducts: Product[];
+    if (reorderMode) {
+        gridProducts = reorderItems;
+    } else if (activePanelId != null && panelIncluded[activePanelId]) {
+        // Use the panel's own order — the Set's insertion order, sourced from
+        // price_panel_items.sort_order — instead of filtering allProducts in
+        // global order, otherwise per-panel reordering never shows here.
+        const byId = new Map(allProducts.map((p) => [p.id, p]));
+        gridProducts = [...panelIncluded[activePanelId]]
+            .map((id) => byId.get(id))
+            .filter((p): p is Product => Boolean(p));
+    } else {
+        gridProducts = allProducts;
+    }
 
     const cardContent = (p: Product, handleProps: React.HTMLAttributes<HTMLElement>) => {
         const displayPrice = priceMode === "internal"

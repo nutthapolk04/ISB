@@ -21,10 +21,16 @@ interface UseProductReorderArgs {
     setAllProducts: React.Dispatch<React.SetStateAction<Product[]>>;
     activePanelId: number | null;
     panelIncluded: Record<number, Set<number>>;
+    /**
+     * Re-fetch a single panel's items (price/short-name/included Set) after a
+     * panel-scoped save, so the Set's insertion order reflects the new
+     * sort_order immediately instead of only after a full page reload.
+     */
+    refetchPanelProducts?: (panelId: number) => Promise<void>;
 }
 
 /** Drag-to-reorder for the POS product grid, scoped per shop + optional price panel. */
-export function useProductReorder({ shopId, role, allProducts, setAllProducts, activePanelId, panelIncluded }: UseProductReorderArgs) {
+export function useProductReorder({ shopId, role, allProducts, setAllProducts, activePanelId, panelIncluded, refetchPanelProducts }: UseProductReorderArgs) {
     const { t } = useTranslation();
     const [reorderMode, setReorderMode] = useState(false);
     const [reorderDirty, setReorderDirty] = useState(false);
@@ -95,18 +101,33 @@ export function useProductReorder({ shopId, role, allProducts, setAllProducts, a
             const bunds = reorderItems.filter((p) => p.isBundle && p.bundleId != null);
 
             if (panelIds && activePanelId !== null) {
-                // Panel-scoped product reorder: new endpoint, no version/conflict handling
-                const productSortMap: Record<string, number> = {};
-                prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
+                // Panel-scoped reorder: send ONE sort_map covering every dragged
+                // item (products AND bundles) in their dragged order, to the
+                // panel endpoint only. Bundles must NOT go through the global
+                // /bundles/reorder endpoint here — that would leak this panel's
+                // drag order onto every other tab, the exact bug we're fixing,
+                // just for bundles instead of products. Sending a single map
+                // also lets products and bundles be interleaved within a panel,
+                // which two separate 1..N / 1..M numberings couldn't express.
+                const sortMap: Record<string, number> = {};
+                reorderItems.forEach((item, idx) => {
+                    // Bundles carry a negative UI id in Store; the backend expects
+                    // the real bundle id and falls back to bundle_id matching when
+                    // product_id misses. NOTE: if a shop ever has a product and a
+                    // bundle sharing the same numeric id both included in one panel,
+                    // this key collides and the backend matches the product first —
+                    // accepted limitation, not solved here.
+                    const key = item.isBundle && item.bundleId != null ? String(item.bundleId) : String(item.id);
+                    sortMap[key] = idx + 1;
+                });
                 await api.post<{ success: true; updated: number }>(
                     `/shops/${sid}/price-panels/${activePanelId}/reorder`,
-                    { sort_map: productSortMap },
+                    { sort_map: sortMap },
                 );
-                // Bundle reorder still uses global endpoint (no panel-scoped version yet)
-                if (bunds.length > 0) {
-                    const bundleSortMap: Record<string, number> = {};
-                    bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
-                    await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
+                // Refresh the panel's included-ids Set so its insertion order
+                // (which drives display order) reflects the new sort_order.
+                if (refetchPanelProducts) {
+                    await refetchPanelProducts(activePanelId);
                 }
             } else {
                 // Global reorder: existing endpoint with version/conflict handling
