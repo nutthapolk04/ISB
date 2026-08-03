@@ -572,7 +572,6 @@ export function SalesSummaryReport({
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_cash.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_campus_card.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_credit_card.toFixed(2)}</td>
-                                                <td className="px-2 py-2 text-right font-mono">{ssData.totals.edc_card_fee.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_qr_code.toFixed(2)}</td>
                                                 <td className="px-2 py-2 text-right font-mono">{ssData.totals.amt_department.toFixed(2)}</td>
                                                 <td />
