@@ -28,6 +28,7 @@
  */
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
 import * as XLSX from "xlsx";
 
 // ─── Thai-capable font loader ────────────────────────────────────────────
@@ -321,21 +322,6 @@ const formatCurrency = (n: number) =>
 const formatNumber = (n: number) =>
     n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-const formatDate = (v: unknown): string => {
-    if (!v) return "";
-    const d = new Date(String(v));
-    if (Number.isNaN(d.getTime())) return String(v);
-    return d.toISOString().slice(0, 10);
-};
-
-const formatDateTime = (v: unknown): string => {
-    if (!v) return "";
-    const d = new Date(String(v));
-    if (Number.isNaN(d.getTime())) return String(v);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
-
 /**
  * Format a single cell for display. Returns the original value when the
  * format doesn't apply (e.g. number formatter on a null) so totals can do
@@ -349,9 +335,9 @@ export function formatCell(value: unknown, format: ColumnFormat = "text"): strin
         case "number":
             return typeof value === "number" ? formatNumber(value) : String(value);
         case "date":
-            return formatDate(value);
+            return fmtDate(value as string | Date | number);
         case "datetime":
-            return formatDateTime(value);
+            return fmtDateTime(value as string | Date | number);
         case "text":
         default:
             return String(value);
@@ -481,7 +467,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     const { meta, columns, rows, totals, totalsLabel, footerRows } = payload;
     const reportId = meta.reportId ?? generateReportId();
     const generatedAt = meta.generatedAt ?? new Date();
-    const printDateTime = formatDateTime(generatedAt);
+    const printDateTime = fmtDateTime(generatedAt);
 
     // Landscape A4 — most reports have many columns. Switch to portrait if a
     // particular report ever proves it needs that.
@@ -737,7 +723,7 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
     aoa.push([
         meta.runByName ? `Report ID: ${reportId} · By: ${meta.runByName}` : `Report ID: ${reportId}`,
     ]);
-    aoa.push([`Printed: ${formatDateTime(generatedAt)}`]);
+    aoa.push([`Printed: ${fmtDateTime(generatedAt)}`]);
     if (meta.filters && meta.filters.length > 0) {
         aoa.push([`Filters: ${meta.filters.join(" · ")}`]);
     }

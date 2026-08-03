@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { BookOpen, ChevronsUpDown, FileDown, FileText, Loader2, PackagePlus } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -259,7 +260,7 @@ export default function BalanceFileReport({ lockedShopId }: Props = {}) {
 
         const periodLabel = formatPeriod(data.month, data.year, lang);
         const shopLabel = data.shop_name ?? shopId;
-        const generatedAt = new Date().toLocaleString(lang === "th" ? "th-TH" : "en-US", { calendar: "gregory" });
+        const generatedAt = fmtDateTime(new Date());
         const reportId = "S015";
         const schoolName = school.name || "International School Bangkok";
         const logoHtml = school.logoUrl

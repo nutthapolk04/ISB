@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { FileSpreadsheet, FileText, Search, ClipboardList } from "lucide-react";
 
 interface AdjustmentRow {
@@ -43,14 +44,6 @@ interface AdjustmentRow {
   adjusted_by: string;
 }
 
-
-const formatDT = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-};
 
 const ENTITY_COLORS: Record<string, string> = {
   student: "bg-blue-100 text-blue-800",
@@ -285,7 +278,7 @@ export default function AdjustmentReport() {
                     rows.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="whitespace-nowrap text-xs font-mono">
-                          {formatDT(r.created_at)}
+                          {fmtDateTime(r.created_at)}
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entity_type] ?? "bg-gray-100 text-gray-700"}`}>

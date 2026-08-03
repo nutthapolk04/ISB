@@ -41,6 +41,7 @@ import {
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { Minus, Plus, Search, Wallet as WalletIcon, FileSpreadsheet, FileText, ClipboardList } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -71,13 +72,7 @@ const ENTITY_COLORS: Record<string, string> = {
     department: "bg-green-100 text-green-800",
 };
 
-const formatDT = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleString("en-GB", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-    });
-};
+// ── Adjustment Report helpers ────────────────────────────────────────────────
 
 const RPT_COLUMNS = [
     { header: "Date / Time", key: "created_at", format: "datetime" as const, width: 18 },
@@ -708,7 +703,7 @@ export default function WalletAdjust() {
                                             rptRows.map((r, idx) => (
                                                 <TableRow key={r.id}>
                                                     <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{(rptPage - 1) * RPT_PAGE_SIZE + idx + 1}</TableCell>
-                                                    <TableCell className="whitespace-nowrap text-xs font-mono">{formatDT(r.created_at)}</TableCell>
+                                                    <TableCell className="whitespace-nowrap text-xs font-mono">{fmtDateTime(r.created_at)}</TableCell>
                                                     <TableCell>
                                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entity_type] ?? "bg-gray-100 text-gray-700"}`}>
                                                             {r.entity_type}

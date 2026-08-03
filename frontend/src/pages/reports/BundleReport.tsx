@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
@@ -134,7 +135,7 @@ export function BundleReport({ reportId }: BundleReportProps) {
 
     const filterLines: string[] = [];
     filterLines.push(`User ID: ${user?.username ?? user?.fullName ?? "-"}`);
-    filterLines.push(`Print Date: ${new Date().toLocaleString("en-GB")}`);
+    filterLines.push(`Print Date: ${fmtDateTime(new Date())}`);
 
     return {
       meta: {
