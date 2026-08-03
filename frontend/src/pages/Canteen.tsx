@@ -565,14 +565,18 @@ export default function Canteen() {
     ) => {
         setConfirming(true);
         try {
+            const isDepartmentPayer = payer?.kind === "department";
+            // Department charges are internal-use (Internal Used report) even at
+            // retail price; internal price mode still issues for other payers.
+            const transactionMode =
+                isDepartmentPayer || cart.priceMode === "internal" ? "internal_issue" : "sale";
             const payload = {
-                transaction_mode:
-                    cart.priceMode === "internal" ? "internal_issue" : "sale",
+                transaction_mode: transactionMode,
                 payment_method: backendPaymentMethod,
                 payer_kind: payer?.kind ?? "customer",
                 customer_id: payer?.kind === "customer" ? payer.customerId : undefined,
                 payer_user_id: payer?.kind === "user" ? payer.userId : undefined,
-                payer_department_id: payer?.kind === "department" ? payer.departmentId : undefined,
+                payer_department_id: isDepartmentPayer ? payer.departmentId : undefined,
                 cash_received:
                     backendPaymentMethod === "cash" && extras?.cashReceived !== undefined
                         ? extras.cashReceived
@@ -585,8 +589,11 @@ export default function Canteen() {
                 items: cart.items.map((i) => ({
                     product_variant_id: i.id,
                     quantity: i.quantity,
+                    // Department budget uses retail price; internal mode uses internal price.
                     unit_price:
-                        cart.priceMode === "internal" ? i.internalPrice : i.price,
+                        !isDepartmentPayer && cart.priceMode === "internal"
+                            ? i.internalPrice
+                            : i.price,
                     // Cashier-entered one-time override (null when untouched). Backend
                     // bills the line at this value; unit_price stays as the catalog price.
                     price_override: i.priceOverride ?? null,
