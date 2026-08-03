@@ -24,3 +24,24 @@ export function pgNumber(v: string | null): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+
+export const BANGKOK_TZ = "Asia/Bangkok";
+
+/** Calendar date in Asia/Bangkok as `YYYY-MM-DD`. */
+export function bangkokTodayIso(at: Date = new Date()): string {
+  return at.toLocaleDateString("sv-SE", { timeZone: BANGKOK_TZ });
+}
+
+/** Calendar date in Asia/Bangkok as `YYYYMMDD` (receipt/ref prefixes). */
+export function bangkokTodayCompact(at: Date = new Date()): string {
+  return bangkokTodayIso(at).replace(/-/g, "");
+}
+
+/** Inclusive ISO bounds for one Bangkok calendar day. */
+export function bangkokDayRange(dateIso?: string): { start: string; end: string } {
+  const d = dateIso ?? bangkokTodayIso();
+  return {
+    start: `${d}T00:00:00+07:00`,
+    end: `${d}T23:59:59.999999+07:00`,
+  };
+}

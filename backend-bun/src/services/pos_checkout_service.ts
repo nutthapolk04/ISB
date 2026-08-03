@@ -17,7 +17,7 @@ import {
     spendingGroups,
     shopSpendingGroups,
 } from "@/db/schema";
-import { pgNumber, pgToIso } from "@/lib/dates";
+import { bangkokDayRange, bangkokTodayCompact, bangkokTodayIso, pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
 import { fifoDeductInTx } from "@/services/inventory_fifo";
@@ -85,7 +85,7 @@ export interface CheckoutInput {
 }
 
 async function generateReceiptNumber(sqlTx: SqlTx, shopId?: string | null): Promise<string> {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const today = bangkokTodayCompact();
     const sid = shopId ?? "unknown";
     const prefix = `R-${sid}-${today}-`;
     const rows = await sqlTx<Array<{ receipt_number: string }>>`
@@ -208,7 +208,7 @@ async function resolveOptions(
 }
 
 async function todayDeductedForWallet(walletId: number): Promise<number> {
-    const today = new Date().toISOString().slice(0, 10);
+    const { start, end } = bangkokDayRange();
     const rows = await db
         .select({
             total: sql<string>`COALESCE(SUM(CASE WHEN ${walletTransactions.transactionType} = 'DEDUCTION' THEN ${walletTransactions.amount} ELSE 0 END), 0)`,
@@ -217,8 +217,8 @@ async function todayDeductedForWallet(walletId: number): Promise<number> {
         .where(
             and(
                 eq(walletTransactions.walletId, walletId),
-                sql`${walletTransactions.createdAt} >= ${today + "T00:00:00+07:00"}`,
-                sql`${walletTransactions.createdAt} <= ${today + "T23:59:59.999999+07:00"}`,
+                sql`${walletTransactions.createdAt} >= ${start}`,
+                sql`${walletTransactions.createdAt} <= ${end}`,
             ),
         );
     return pgNumber(rows[0]?.total ?? "0") ?? 0;
@@ -228,7 +228,7 @@ export const DEFAULT_DAILY_LIMIT_CANTEEN = 500;
 export const DEFAULT_DAILY_LIMIT_STORE = 25_000;
 
 export async function todayDeductedByModule(walletId: number, shopModule: string): Promise<number> {
-    const today = new Date().toISOString().slice(0, 10);
+    const { start, end } = bangkokDayRange();
     const rows = await db.execute(sql`
     SELECT COALESCE(SUM(wt.amount), 0) AS total
     FROM wallet_transactions wt
@@ -236,8 +236,8 @@ export async function todayDeductedByModule(walletId: number, shopModule: string
     JOIN shops s ON s.id = r.shop_id
     WHERE wt.wallet_id = ${walletId}
       AND wt.transaction_type = 'DEDUCTION'
-      AND wt.created_at >= ${today + "T00:00:00+07:00"}
-      AND wt.created_at <= ${today + "T23:59:59.999999+07:00"}
+      AND wt.created_at >= ${start}
+      AND wt.created_at <= ${end}
       AND s.module = ${shopModule}
       AND r.status = 'ACTIVE'
   `);
@@ -364,7 +364,7 @@ export async function checkout(input: CheckoutInput) {
 
         let subtotal = 0;
         const movementType = transactionMode === "INTERNAL_ISSUE" ? "internal_use" : "sale";
-        const today = new Date().toISOString().slice(0, 10);
+        const today = bangkokTodayIso();
 
         // Cache shopType lookups for products whose shop_id differs from
         // effectiveShopId (rare, but bundles + cross-shop checkout could trigger).
