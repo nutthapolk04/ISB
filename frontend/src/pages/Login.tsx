@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useGoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { useTranslation } from "react-i18next";
 import { API_BASE_URL } from "@/lib/constants";
 import { toast } from "@/components/ui/sonner";
@@ -33,14 +33,6 @@ type SsoStep = "pdpa" | null;
 // even though the OAuth provider always mounts (with a placeholder) so that
 // the page never crashes when the env var is missing on a fresh deploy.
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
-
-// Full-page redirect back to this same page — must be registered as an
-// "Authorized redirect URI" for this OAuth client in Google Cloud Console.
-// Auth-code flow (not the old popup+implicit-token flow) so there's never a
-// popup for Cross-Origin-Opener-Policy to sever mid-flow (see auth_service.ts
-// googleSsoCode() for the full story on why the popup flow broke).
-const GOOGLE_REDIRECT_URI = `${window.location.origin}/login`;
-const GOOGLE_OAUTH_STATE_KEY = "google_oauth_state";
 
 const GoogleLogo = () => (
     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
@@ -264,7 +256,7 @@ function CredentialCarousel() {
 // ────────────────────────────────────────────────────────────────────────────
 const Login = () => {
     const { t } = useTranslation();
-    const { login, loginWithGoogleCode, isAuthenticated } = useAuth();
+    const { login, loginWithGoogleCredential, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -272,47 +264,13 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [ssoLoading, setSsoLoading] = useState(false);
     const [ssoStep, setSsoStep] = useState<SsoStep>(null);
-    const [pendingGoogleCode, setPendingGoogleCode] = useState("");
+    const [pendingGoogleCredential, setPendingGoogleCredential] = useState("");
     const [coverBg, setCoverBg] = useState("/login-bg.png");
     const fetchedCover = useRef(false);
-
-    // CSRF token for the *next* Google redirect attempt. Skipped when we're
-    // currently consuming a return from Google (below) so it doesn't
-    // clobber the value we need to validate against.
-    const [googleOAuthState] = useState(() => {
-        if (new URLSearchParams(window.location.search).has("code")) return "";
-        const s = crypto.randomUUID();
-        sessionStorage.setItem(GOOGLE_OAUTH_STATE_KEY, s);
-        return s;
-    });
 
     useEffect(() => {
         if (isAuthenticated) navigate("/", { replace: true });
     }, [isAuthenticated, navigate]);
-
-    // Google redirects back to this same page with ?code=&state= (success) or
-    // ?error= (denied/cancelled) — full-page navigation, so this is the only
-    // place that can pick the flow back up after the round trip.
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        const returnedState = params.get("state");
-        const oauthError = params.get("error");
-        if (!code && !oauthError) return;
-        window.history.replaceState({}, "", window.location.pathname);
-        const expectedState = sessionStorage.getItem(GOOGLE_OAUTH_STATE_KEY);
-        sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY);
-        if (oauthError) {
-            toast.error("Google sign-in was cancelled or failed.");
-            return;
-        }
-        if (!code || !returnedState || returnedState !== expectedState) {
-            toast.error("Google sign-in failed. Please try again.");
-            return;
-        }
-        setPendingGoogleCode(code);
-        setSsoStep("pdpa");
-    }, []);
 
     // Fetch cover image from public settings (no auth needed)
     useEffect(() => {
@@ -345,7 +303,7 @@ const Login = () => {
 
     const handlePdpaAccept = async () => {
         setSsoLoading(true); setError("");
-        const result = await loginWithGoogleCode(pendingGoogleCode, GOOGLE_REDIRECT_URI);
+        const result = await loginWithGoogleCredential(pendingGoogleCredential);
         setSsoLoading(false);
         if (result.success) {
             navigate("/", { replace: true });
@@ -355,19 +313,24 @@ const Login = () => {
                 duration: 6000,
             });
             setSsoStep(null);
-            setPendingGoogleCode("");
+            setPendingGoogleCredential("");
         }
     };
 
-    const resetSso = () => { setSsoStep(null); setPendingGoogleCode(""); };
+    const resetSso = () => { setSsoStep(null); setPendingGoogleCredential(""); };
 
-    const googleLogin = useGoogleLogin({
-        flow: "auth-code",
-        ux_mode: "redirect",
-        redirect_uri: GOOGLE_REDIRECT_URI,
-        state: googleOAuthState,
-        ...({ prompt: '' } as any)
-    });
+    const handleGoogleLoginSuccess = (response: CredentialResponse) => {
+        if (!response.credential) {
+            toast.error("Google sign-in failed. Please try again.");
+            return;
+        }
+        setPendingGoogleCredential(response.credential);
+        setSsoStep("pdpa");
+    };
+
+    const handleGoogleLoginError = () => {
+        toast.error("Google sign-in was cancelled or failed.");
+    };
 
     return (
         <div className="flex min-h-screen">
@@ -435,17 +398,28 @@ const Login = () => {
                                     </div>
                                 </div>
                             )}
-                            {GOOGLE_CLIENT_ID && (
-                                <>
-                                    {ssoStep === null && (
-                                        <Button type="button" variant="outline" className="w-full gap-2"
-                                            onClick={() => googleLogin()}
-                                            disabled={loading || ssoLoading}>
-                                            <GoogleLogo />
-                                            Sign in with Google
-                                        </Button>
-                                    )}
-                                </>
+                            {GOOGLE_CLIENT_ID && ssoStep === null && (
+                                <div className="flex justify-center">
+                                    <Button type="button"
+                                        variant="outline"
+                                        className="w-full relative gap-2"
+                                        disabled=
+                                        {loading || ssoLoading}>
+                                        <GoogleLogo />
+                                        Sign in with Google
+                                        <div className="absolute inset-0 w-full h-full opacity-0 overflow-hidden">
+                                            <GoogleLogin
+                                                onSuccess={handleGoogleLoginSuccess}
+                                                onError={handleGoogleLoginError}
+                                                width={"330px"}
+                                                auto_select
+                                                text="signin_with"
+                                                theme="outline"
+                                                containerProps={{ className: "w-full" }}
+                                            />
+                                        </div>
+                                    </Button>
+                                </div>
                             )}
 
                             {/* PDPA step */}

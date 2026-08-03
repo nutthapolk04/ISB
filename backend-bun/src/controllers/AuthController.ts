@@ -10,6 +10,7 @@ import {
 	mockSso as mockSsoService,
 	googleSso as googleSsoService,
 	googleSsoCode as googleSsoCodeService,
+	googleSsoIdToken as googleSsoIdTokenService,
 	listUserRoles as listUserRolesService,
 	assignRoleToUser,
 	removeRoleFromUser,
@@ -92,6 +93,20 @@ export const AuthController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (AU-11)] AuthController.googleSsoCallback() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	googleSsoIdToken: async (ctx: any) => {
+		const reqContext = publicCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (AU-12)] AuthController.googleSsoIdToken() called.`);
+		try {
+			const result = await googleSsoIdTokenService(body.credential);
+			logger.info(`[${reqContext.requestId} (AU-12)] AuthController.googleSsoIdToken() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (AU-12)] AuthController.googleSsoIdToken() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
