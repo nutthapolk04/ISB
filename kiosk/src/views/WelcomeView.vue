@@ -42,6 +42,7 @@ const toggleLanguage = () => {
 const currT = computed(() => t[store.language as 'EN' | 'TH']);
 
 const rfidError = ref(false);
+const rfidBlocked = ref(false);
 const rfidNetworkError = ref(false);
 
 // ── Passive RFID capture-phase listener ─────────────────────────────────────
@@ -63,6 +64,12 @@ async function handleRfidLogin(code: string) {
     if (result.reason === 'network') {
         rfidNetworkError.value = true;
         setTimeout(() => { rfidNetworkError.value = false; }, 3000);
+        return;
+    }
+
+    if (result.reason === 'blocked') {
+        rfidBlocked.value = true;
+        setTimeout(() => { rfidBlocked.value = false; }, 3000);
         return;
     }
 
@@ -128,6 +135,7 @@ const t = {
         sub: 'Please tap your card',
         lang: 'ภาษาไทย',
         cardNotFound: 'Card not found',
+        cardBlocked: 'This card has been blocked',
         networkError: 'Connection error. Please try again.',
         searching: 'Looking up card…',
         technician: 'Technician',
@@ -137,6 +145,7 @@ const t = {
         sub: 'กรุณาแตะบัตรของคุณ',
         lang: 'English',
         cardNotFound: 'ไม่พบบัตรนี้ในระบบ',
+        cardBlocked: 'บัตรนี้ถูกระงับการใช้งาน',
         networkError: 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่',
         searching: 'กำลังค้นหาบัตร…',
         technician: 'ผู้ดูแลเครื่อง',
@@ -169,7 +178,7 @@ const t = {
         <div class="welcome-content">
             <div class="rfid-animation mb-12">
                 <div
-                    :class="['card-icon', { 'card-error': rfidError }]"
+                    :class="['card-icon', { 'card-error': rfidError || rfidBlocked }]"
                     role="button"
                     tabindex="-1"
                     @click="onCardSecretTap"
@@ -188,7 +197,8 @@ const t = {
             <p class=" text-center mb-12 text-breathe" style="font-size: 1.75rem; font-weight: 300; ">{{ currT.sub
             }}
             </p>
-            <p v-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
+            <p v-if="rfidBlocked" class="rfid-error-msg">{{ currT.cardBlocked }}</p>
+            <p v-else-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
             <p v-if="rfidNetworkError" class="rfid-error-msg">{{ currT.networkError }}</p>
         </div>
     </div>

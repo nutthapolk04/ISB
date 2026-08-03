@@ -101,6 +101,7 @@ export const internalUsedReport = {
         shop_id: t.Optional(t.Nullable(t.String())),
         module: t.Optional(t.Nullable(t.String())),
         sort_order: t.Optional(t.Nullable(t.String())),
+        department_sort_order: t.Optional(t.Nullable(t.String())),
     }),
     detail: {
         tags: ["Reports"],

@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { realApi, type KioskProfile } from '../api/realApi';
+import { realApi, CardBlockedError, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
 import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
 
 export type BootStatus = 'loading' | 'ready' | 'error';
-export type LoginFailureReason = 'not_found' | 'network' | 'busy';
+export type LoginFailureReason = 'not_found' | 'blocked' | 'network' | 'busy';
 
 export type LoginResult =
     | { ok: true }
@@ -146,6 +146,10 @@ export const useKioskStore = defineStore('kiosk', () => {
             logKioskEvent('auth', 'warn', 'Member not found', { identifier: identifier.trim(), source });
             return { ok: false, reason: 'not_found' };
         } catch (e) {
+            if (e instanceof CardBlockedError) {
+                logKioskEvent('auth', 'warn', 'Card blocked', { identifier: identifier.trim(), source });
+                return { ok: false, reason: 'blocked' };
+            }
             logKioskEvent('auth', 'error', 'Member login failed', {
                 identifier: identifier.trim(),
                 error: e instanceof Error ? e.message : String(e),

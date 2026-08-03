@@ -9,6 +9,8 @@ import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
+import DepartmentPicker, { type DepartmentPickerValue } from "@/components/DepartmentPicker";
+import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import {
   exportToPDF,
   exportToExcel,
@@ -18,7 +20,7 @@ import {
   type ReportColumn,
 } from "@/lib/reportExport";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
-import { InternalUsedTable, type InternalUsedReportData } from "@/components/reports/InternalUsedTable";
+import { StoreInternalUsedTable, type StoreInternalUsedReportData } from "@/components/reports/StoreInternalUsedTable";
 import type { CanteenShop } from "./reportHelpers";
 
 interface Props {
@@ -40,19 +42,23 @@ export function InternalUsedReportPanel({
   const { user } = useAuth();
   const school = useSchoolInfo();
 
+  const [department, setDepartment] = useState<DepartmentPickerValue | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [data, setData] = useState<InternalUsedReportData | null>(null);
+  const [data, setData] = useState<StoreInternalUsedReportData | null>(null);
   const [dateTimeSort, setDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
+  const [departmentSort, setDepartmentSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
-  const buildQuery = (sort = dateTimeSort) => {
+  const buildQuery = (sort = dateTimeSort, deptSort = departmentSort) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
+    if (department) params.set("department_id", String(department.id));
     params.set("sort_order", sort);
+    params.set("department_sort_order", deptSort);
     if (needsShopSelector) {
       if (selectedStall === "all") params.set("module", isCanteenReportsPage ? "canteen" : "store");
       else params.set("shop_id", selectedStall);
@@ -62,11 +68,11 @@ export function InternalUsedReportPanel({
     return params.toString();
   };
 
-  const loadReport = async (sort = dateTimeSort) => {
+  const loadReport = async (sort = dateTimeSort, deptSort = departmentSort) => {
     setLoading(true);
     try {
-      const qs = buildQuery(sort);
-      const result = await api.get<InternalUsedReportData>(`/reports/internal-used${qs ? `?${qs}` : ""}`);
+      const qs = buildQuery(sort, deptSort);
+      const result = await api.get<StoreInternalUsedReportData>(`/reports/internal-used${qs ? `?${qs}` : ""}`);
       setData(result);
       setSearched(true);
       if (result.groups.length === 0) {
@@ -82,11 +88,18 @@ export function InternalUsedReportPanel({
   const handleToggleDateTimeSort = async () => {
     const next = toggleDateTimeSort(dateTimeSort);
     setDateTimeSort(next);
-    if (searched) await loadReport(next);
+    if (searched) await loadReport(next, departmentSort);
+  };
+
+  const handleToggleDepartmentSort = async () => {
+    const next = toggleDateTimeSort(departmentSort);
+    setDepartmentSort(next);
+    if (searched) await loadReport(dateTimeSort, next);
   };
 
   const buildFilterLines = (): string[] => {
     const lines: string[] = [];
+    lines.push(`${t("admin.adminReports.departmentFilter", "Department")}: ${department ? `${department.department_name} (${department.department_code})` : t("reports.deptAll", "All")}`);
     const dateLine = buildDateFilterLine("Date", dateFrom, dateTo);
     if (dateLine) lines.push(dateLine);
     if (needsShopSelector) {
@@ -104,23 +117,23 @@ export function InternalUsedReportPanel({
 
   const buildExportPayload = async () => {
     const qs = buildQuery();
-    const full = await api.get<InternalUsedReportData>(`/reports/internal-used${qs ? `?${qs}` : ""}`);
+    const full = await api.get<StoreInternalUsedReportData>(`/reports/internal-used${qs ? `?${qs}` : ""}`);
     const columns: ReportColumn[] = [
-      { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+      { header: t("admin.adminReports.colSeq", "Seq."), key: "seq", width: 6 },
       { header: t("admin.adminReports.colReceiptNo"), key: "receipt_number", width: 28 },
-      { header: t("admin.adminReports.colAmountReceived"), key: "amount", format: "currency", align: "right", width: 14 },
-      { header: t("admin.adminReports.colIsbId", "ISB ID"), key: "isb_id", width: 14 },
-      { header: t("admin.adminReports.colStaffName"), key: "staff_name", width: 22 },
-      { header: t("admin.adminReports.colRemarks"), key: "remarks", width: 16 },
-      { header: t("admin.adminReports.colStatus"), key: "status", width: 10 },
+      { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime", width: 20 },
+      { header: t("admin.adminReports.colCashierId", "Cashier ID"), key: "cashier_id", width: 14 },
+      { header: t("admin.adminReports.colStaffId", "Staff ID"), key: "isb_id", width: 14 },
+      { header: t("admin.adminReports.colAmtBilling", "Amt. Billing"), key: "amount", format: "currency", align: "right", width: 14 },
+      { header: t("admin.adminReports.colRemark", "Remark"), key: "remarks", width: 16 },
     ];
     const bodyRows: Record<string, unknown>[] = [];
     for (const g of full.groups) {
       bodyRows.push({ [SECTION_KEY]: `Department code : ${g.department_code}   ${g.department_name}` });
-      bodyRows.push(...g.rows.map((r) => ({ ...r, remarks: r.remarks ?? "" })));
+      bodyRows.push(...g.rows.map((r, idx) => ({ ...r, seq: idx + 1, remarks: r.remarks ?? "" })));
       bodyRows.push({
         [EMPHASIS_KEY]: "total" as const,
-        receipt_number: t("admin.adminReports.totalByDepartment", "Total by Department"),
+        receipt_number: t("admin.adminReports.total", "TOTAL"),
         amount: g.subtotal,
       });
     }
@@ -176,6 +189,27 @@ export function InternalUsedReportPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>{t("admin.adminReports.departmentFilter", "Department")}</Label>
+            <DepartmentPicker
+              value={department}
+              onChange={setDepartment}
+              placeholder={t("reports.deptAll", "All")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>&nbsp;</Label>
+            <div>
+              <SortableDateTimeHeader
+                label={t("reports.sortByDepartment", "Sort by Department ID")}
+                sortDir={departmentSort}
+                onToggle={handleToggleDepartmentSort}
+                inline
+              />
+            </div>
+          </div>
+        </div>
         <div className="space-y-2">
           <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
           <DateRangePicker
@@ -204,7 +238,7 @@ export function InternalUsedReportPanel({
           )}
         </div>
         {searched && data && (
-          <InternalUsedTable
+          <StoreInternalUsedTable
             data={data}
             dateTimeSort={dateTimeSort}
             onToggleDateTimeSort={handleToggleDateTimeSort}

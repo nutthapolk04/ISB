@@ -3,6 +3,7 @@
  * in FastAPI app/api/v1/wallets.py.
  */
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
     walletTransactions,
@@ -1234,6 +1235,11 @@ export interface InternalUsedRow {
     staff_name: string;
     remarks: string | null;
     status: string;
+    /** external_id of the cashier who processed the receipt (receipts.created_by),
+     *  distinct from `isb_id` (the requester the department budget was drawn
+     *  for) — added for the Store/Canteen Internal Used Report's Cashier ID
+     *  column. */
+    cashier_id: string;
 }
 
 export interface InternalUsedDepartmentGroup {
@@ -1267,8 +1273,13 @@ export async function internalUsedReport(args: {
     shopId?: string | null;
     module?: string | null;
     sortOrder?: string | null;
+    /** Direction for the department-group ordering (defaults to "asc" by
+     *  department_code) — independent of `sortOrder`, which only controls
+     *  the date/time order of rows within each group. */
+    departmentSortOrder?: string | null;
 }): Promise<InternalUsedReportResponseDTO> {
     const sortOrder = parseSortOrder(args.sortOrder);
+    const departmentSortOrder = parseSortOrder(args.departmentSortOrder);
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
 
@@ -1285,6 +1296,7 @@ export async function internalUsedReport(args: {
         else conds.push(sql`false`);
     }
 
+    const cashiers = alias(users, "cashier");
     const rows = await db
         .select({
             id: receipts.id,
@@ -1299,15 +1311,20 @@ export async function internalUsedReport(args: {
             requesterUsername: users.username,
             requesterFullName: users.fullName,
             requesterExternalId: users.externalId,
+            cashierExternalId: cashiers.externalId,
         })
         .from(receipts)
         // Inner join — a department-charged requisition always has a real
         // department row (FK-enforced), so this never drops a valid receipt.
         .innerJoin(departments, eq(departments.id, receipts.payerDepartmentId))
         .leftJoin(users, eq(users.id, receipts.requesterUserId))
+        // Second, separately-aliased join to the same table — the cashier who
+        // actually rang up the receipt (created_by), distinct from the
+        // requester above (who the department budget was drawn for).
+        .leftJoin(cashiers, eq(cashiers.id, receipts.createdBy))
         .where(and(...conds))
         .orderBy(
-            asc(departments.departmentCode),
+            departmentSortOrder === "asc" ? asc(departments.departmentCode) : desc(departments.departmentCode),
             sortOrder === "asc" ? asc(receipts.transactionDate) : desc(receipts.transactionDate),
             sortOrder === "asc" ? asc(receipts.id) : desc(receipts.id),
         );
@@ -1338,6 +1355,7 @@ export async function internalUsedReport(args: {
             staff_name: r.requesterFullName || r.requesterUsername || "—",
             remarks: r.notes ?? null,
             status: String(r.status ?? ""),
+            cashier_id: r.cashierExternalId ?? "—",
         });
         group.subtotal += amount;
         grandTotal += amount;

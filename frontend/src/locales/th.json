@@ -645,6 +645,8 @@
     "departmentExpenseReportDesc": "สรุปการใช้จ่ายแยกตามแผนก/หน่วยงาน",
     "canteenScope": "ขอบเขตโรงอาหาร",
     "canteenScopeAll": "ทุกจุดขาย (รวมทั้งหมด)",
+    "deptAll": "ทั้งหมด",
+    "sortByDepartment": "เรียงตามรหัสแผนก",
     "selectDateRange": "เลือกช่วงวันที่",
     "selectDateRangeDesc": "กรุณาเลือกช่วงวันที่สำหรับออกรายงาน",
     "startDate": "วันที่เริ่มต้น",
@@ -1218,9 +1220,14 @@
       "colIsbId": "รหัส ISB",
       "colStaffName": "ชื่อ-นามสกุล",
       "colRemarks": "หมายเหตุ",
+      "colSeq": "ลำดับ",
+      "colCashierId": "รหัสแคชเชียร์",
+      "colAmtBilling": "จำนวนเงิน",
+      "colRemark": "หมายเหตุ",
       "totalByDepartment": "รวมตามแผนก",
       "total": "รวม",
-      "grandTotal": "ยอดรวมทั้งหมด"
+      "grandTotal": "ยอดรวมทั้งหมด",
+      "grandTotalCaps": "ยอดรวมทั้งหมด"
     },
     "kioskMonitoring": {
       "title": "ตรวจสอบเครื่อง Kiosk",

@@ -33,6 +33,15 @@ interface ISBCustomerLookupResult {
     wallet_balance: number;
     wallet_id: number | null;
     external_id?: string | null;
+    card_frozen?: boolean;
+}
+
+/** Thrown when a student card is found but blocked (card_frozen). */
+export class CardBlockedError extends Error {
+    constructor() {
+        super('Card blocked');
+        this.name = 'CardBlockedError';
+    }
 }
 
 interface ISBChildSummary {
@@ -348,6 +357,10 @@ export const realApi = {
                 c.student_code?.toLowerCase() === lower ||
                 c.customer_code?.toLowerCase() === lower,
         ) ?? results[0];
+
+        if (exact.card_frozen && exact.user_id == null) {
+            throw new CardBlockedError();
+        }
 
         // If this is a parent/staff User (not a student Customer), fetch family
         let family: ISBFamilyResponse = { children: [], coparents: [] };

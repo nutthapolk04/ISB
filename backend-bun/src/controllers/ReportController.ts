@@ -238,6 +238,7 @@ export const ReportController = {
 				shopId: effectiveShopId,
 				module: effMod,
 				sortOrder: query.sort_order ?? null,
+				departmentSortOrder: query.department_sort_order ?? null,
 			});
 			logger.info(`[${reqContext.requestId} (RP-09)] ReportController.internalUsed() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
