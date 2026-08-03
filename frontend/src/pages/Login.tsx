@@ -366,6 +366,7 @@ const Login = () => {
         ux_mode: "redirect",
         redirect_uri: GOOGLE_REDIRECT_URI,
         state: googleOAuthState,
+        ...({ prompt: '' } as any)
     });
 
     return (
