@@ -182,7 +182,7 @@ def get_user_payer_by_card(
     """
     target = db.query(User).filter(User.card_uid.ilike(uid)).first()
     if not target:
-        raise HTTPException(status_code=404, detail="Card not found")
+        raise HTTPException(status_code=404, detail="This card has been blocked")
     if not target.is_active:
         raise HTTPException(status_code=400, detail="User is inactive")
 

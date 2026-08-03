@@ -200,7 +200,12 @@ export default function Canteen() {
             if (meta.products_order_version != null) setProductsOrderVersion(meta.products_order_version);
         } catch { /* use cached version */ }
         const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
-        setReorderItems(panelIds ? products.filter((p) => panelIds.has(p.id)) : [...products]);
+        if (panelIds) {
+            const byId = new Map(products.map((p) => [p.id, p]));
+            setReorderItems([...panelIds].map((id) => byId.get(id)).filter((p): p is CanteenProduct => Boolean(p)));
+        } else {
+            setReorderItems([...products]);
+        }
         setReorderMode(true);
     };
 
@@ -208,31 +213,25 @@ export default function Canteen() {
         setReorderSaving(true);
         try {
             const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
-            const sortMap: Record<string, number> = {};
-            if (panelIds) {
-                const panelSlots: number[] = [];
-                products.forEach((p, idx) => { if (panelIds.has(p.id)) panelSlots.push(idx + 1); });
-                reorderItems.forEach((p, idx) => { sortMap[String(p.id)] = panelSlots[idx]; });
-            } else {
+            if (panelIds && activePanelId !== null) {
+                // Panel-scoped reorder: new endpoint, no version/conflict handling
+                const sortMap: Record<string, number> = {};
                 reorderItems.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
-            }
-            const version = productsOrderVersion ?? 1;
-            const res = await api.post<{ version: number; updated: number }>(
-                `/shops/${CANTEEN_SHOP_ID}/products/reorder`,
-                { version, sort_map: sortMap },
-            );
-            setProductsOrderVersion(res.version);
-            if (panelIds) {
-                setProducts((prev) => {
-                    const result = [...prev];
-                    const slots = prev
-                        .map((p, idx) => ({ p, idx }))
-                        .filter(({ p }) => panelIds.has(p.id))
-                        .map(({ idx }) => idx);
-                    slots.forEach((slot, i) => { result[slot] = reorderItems[i]; });
-                    return result;
-                });
+                await api.post<{ success: true; updated: number }>(
+                    `/shops/${CANTEEN_SHOP_ID}/price-panels/${activePanelId}/reorder`,
+                    { sort_map: sortMap },
+                );
+                await refetchPanelProducts(activePanelId);
             } else {
+                // Global reorder: existing endpoint with version/conflict handling
+                const sortMap: Record<string, number> = {};
+                reorderItems.forEach((p, idx) => { sortMap[String(p.id)] = idx + 1; });
+                const version = productsOrderVersion ?? 1;
+                const res = await api.post<{ version: number; updated: number }>(
+                    `/shops/${CANTEEN_SHOP_ID}/products/reorder`,
+                    { version, sort_map: sortMap },
+                );
+                setProductsOrderVersion(res.version);
                 setProducts([...reorderItems]);
             }
             setReorderDirty(false);
@@ -426,10 +425,10 @@ export default function Canteen() {
                         : undefined;
                     rfid.showNotif({ type: "success", title: result.name, sub: bal });
                 } else {
-                    rfid.showNotif({ type: "error", title: "Card not found" });
+                    rfid.showNotif({ type: "error", title: "This card has been blocked" });
                 }
             } catch {
-                rfid.showNotif({ type: "error", title: "Card not found" });
+                rfid.showNotif({ type: "error", title: "This card has been blocked" });
             }
         },
     });
@@ -497,6 +496,7 @@ export default function Canteen() {
         panelPrices,
         panelTabsLoading,
         handlePanelChange,
+        refetchPanelProducts,
     } = usePricePanels(CANTEEN_SHOP_ID);
 
     useEffect(() => {
@@ -526,14 +526,24 @@ export default function Canteen() {
         const q = search.trim().toLowerCase();
         const panelIds = activePanelId !== null ? panelProductIds[activePanelId] : null;
         const priceMap = activePanelId !== null ? panelPrices[activePanelId] : null;
-        const filtered = products.filter((p) => {
-            if (panelIds && !panelIds.has(p.id)) return false;
+
+        let baseList: CanteenProduct[];
+        if (panelIds) {
+            // Use panel-specific order from the Set
+            const byId = new Map(products.map((p) => [p.id, p]));
+            baseList = [...panelIds].map((id) => byId.get(id)).filter((p): p is CanteenProduct => Boolean(p));
+        } else {
+            baseList = products;
+        }
+
+        const filtered = baseList.filter((p) => {
             if (!q) return true;
             return (
                 p.name.toLowerCase().includes(q) ||
                 p.productCode.toLowerCase().includes(q)
             );
         });
+
         if (!priceMap) return filtered;
         return filtered.map((p) => {
             const override = priceMap[p.id];

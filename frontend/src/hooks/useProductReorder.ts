@@ -68,7 +68,13 @@ export function useProductReorder({ shopId, role, allProducts, setAllProducts, a
         } catch { /* use cached version */ }
         const panelIds = activePanelId !== null ? panelIncluded[activePanelId] : null;
         const shopProds = allProducts.filter((p) => p.subMerchantId === sid);
-        setReorderItems(panelIds ? shopProds.filter((p) => panelIds.has(p.id)) : shopProds);
+        if (panelIds) {
+            // Use panel-specific order from the Set
+            const byId = new Map(shopProds.map((p) => [p.id, p]));
+            setReorderItems([...panelIds].map((id) => byId.get(id)).filter((p): p is Product => Boolean(p)));
+        } else {
+            setReorderItems(shopProds);
+        }
         setReorderMode(true);
     };
 
@@ -88,35 +94,36 @@ export function useProductReorder({ shopId, role, allProducts, setAllProducts, a
             const prods = reorderItems.filter((p) => !p.isBundle);
             const bunds = reorderItems.filter((p) => p.isBundle && p.bundleId != null);
 
-            const productSortMap: Record<string, number> = {};
-            if (panelIds) {
-                const slots: number[] = [];
-                shopProds.filter((p) => !p.isBundle).forEach((p, idx) => {
-                    if (panelIds.has(p.id)) slots.push(idx + 1);
-                });
-                prods.forEach((p, idx) => { productSortMap[String(p.id)] = slots[idx]; });
-            } else {
+            if (panelIds && activePanelId !== null) {
+                // Panel-scoped product reorder: new endpoint, no version/conflict handling
+                const productSortMap: Record<string, number> = {};
                 prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
-            }
-            const version = sortVersions[sid] ?? 1;
-            const result = await api.post<{ version: number; updated: number }>(
-                `/shops/${sid}/products/reorder`,
-                { version, sort_map: productSortMap },
-            );
-            setSortVersions((prev) => ({ ...prev, [sid]: result.version }));
-
-            if (bunds.length > 0) {
-                const bundleSortMap: Record<string, number> = {};
-                if (panelIds) {
-                    const bSlots: number[] = [];
-                    shopProds.filter((p) => p.isBundle && p.bundleId != null).forEach((p, idx) => {
-                        if (panelIds.has(p.id)) bSlots.push(idx + 1);
-                    });
-                    bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = bSlots[idx]; });
-                } else {
+                await api.post<{ success: true; updated: number }>(
+                    `/shops/${sid}/price-panels/${activePanelId}/reorder`,
+                    { sort_map: productSortMap },
+                );
+                // Bundle reorder still uses global endpoint (no panel-scoped version yet)
+                if (bunds.length > 0) {
+                    const bundleSortMap: Record<string, number> = {};
                     bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
+                    await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
                 }
-                await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
+            } else {
+                // Global reorder: existing endpoint with version/conflict handling
+                const productSortMap: Record<string, number> = {};
+                prods.forEach((p, idx) => { productSortMap[String(p.id)] = idx + 1; });
+                const version = sortVersions[sid] ?? 1;
+                const result = await api.post<{ version: number; updated: number }>(
+                    `/shops/${sid}/products/reorder`,
+                    { version, sort_map: productSortMap },
+                );
+                setSortVersions((prev) => ({ ...prev, [sid]: result.version }));
+
+                if (bunds.length > 0) {
+                    const bundleSortMap: Record<string, number> = {};
+                    bunds.forEach((b, idx) => { bundleSortMap[String(b.bundleId!)] = idx + 1; });
+                    await api.post(`/shops/${sid}/bundles/reorder`, { sort_map: bundleSortMap });
+                }
             }
 
             setAllProducts((prev) => {

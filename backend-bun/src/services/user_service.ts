@@ -272,7 +272,7 @@ export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDT
     const candidates = cardUidLookupAttempts(uid);
     console.log("[getUserPayerByCard] candidates=", candidates);
     if (candidates.length === 0) {
-        const err = new Error("Card not found");
+        const err = new Error("This card has been blocked");
         (err as { status?: number }).status = 404;
         throw err;
     }
@@ -284,7 +284,7 @@ export async function getUserPayerByCard(uid: string): Promise<UserPayerLookupDT
         .limit(1);
     console.log("[getUserPayerByCard] user found:", rows[0]?.id, "isActive:", rows[0]?.isActive);
     if (!rows[0]) {
-        const err = new Error("Card not found");
+        const err = new Error("This card has been blocked");
         (err as { status?: number }).status = 404;
         throw err;
     }

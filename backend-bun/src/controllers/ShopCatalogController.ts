@@ -30,6 +30,7 @@ import {
 	getPanelItems,
 	setItemPrice,
 	setBundleItemPrice,
+	reorderPanelItems,
 } from "@/services/price_panel_service";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
@@ -305,25 +306,48 @@ export const ShopCatalogController = {
 		}
 	},
 
+	reorderPricePanelItems: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params, body } = reqContext;
+		logger.info(`[${reqContext.requestId} (SC-15)] ShopCatalogController.reorderPricePanelItems() called.`);
+		if (!hasRole(user.roles, "admin", "manager")) {
+			logger.warn(`[${reqContext.requestId} (SC-15)] ShopCatalogController.reorderPricePanelItems() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const panelId = parseIntParam(params.panelId, "panel id", reqContext.set);
+		if (panelId === null) {
+			return errorResponse(reqContext, "Invalid panel id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			logger.info(`[${reqContext.requestId} (SC-15)] ShopCatalogController.reorderPricePanelItems() calling reorderPanelItems().`);
+			const result = await reorderPanelItems(params.shopId, panelId, body.sort_map);
+			logger.info(`[${reqContext.requestId} (SC-15)] ShopCatalogController.reorderPricePanelItems() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SC-15)] ShopCatalogController.reorderPricePanelItems() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
 	createProduct: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
-		logger.info(`[${reqContext.requestId} (SC-15)] ShopCatalogController.createProduct() called.`);
+		logger.info(`[${reqContext.requestId} (SC-16)] ShopCatalogController.createProduct() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
-			logger.warn(`[${reqContext.requestId} (SC-15)] ShopCatalogController.createProduct() forbidden.`);
+			logger.warn(`[${reqContext.requestId} (SC-16)] ShopCatalogController.createProduct() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			logger.info(`[${reqContext.requestId} (SC-15)] ShopCatalogController.createProduct() calling createShopProduct().`);
+			logger.info(`[${reqContext.requestId} (SC-16)] ShopCatalogController.createProduct() calling createShopProduct().`);
 			const result = await createShopProduct(
 				params.shopId,
 				body as Parameters<typeof createShopProduct>[1],
 				Number(user.sub),
 			);
-			logger.info(`[${reqContext.requestId} (SC-15)] ShopCatalogController.createProduct() completed.`);
+			logger.info(`[${reqContext.requestId} (SC-16)] ShopCatalogController.createProduct() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.CREATED);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (SC-15)] ShopCatalogController.createProduct() error:`, e);
+			logger.error(`[${reqContext.requestId} (SC-16)] ShopCatalogController.createProduct() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -331,16 +355,16 @@ export const ShopCatalogController = {
 	updateProduct: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
-		logger.info(`[${reqContext.requestId} (SC-16)] ShopCatalogController.updateProduct() called.`);
+		logger.info(`[${reqContext.requestId} (SC-17)] ShopCatalogController.updateProduct() called.`);
 		const id = parseIntParam(params.productId, "product id", reqContext.set);
 		if (id === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
 		try {
-			logger.info(`[${reqContext.requestId} (SC-16)] ShopCatalogController.updateProduct() calling updateShopProduct().`);
+			logger.info(`[${reqContext.requestId} (SC-17)] ShopCatalogController.updateProduct() calling updateShopProduct().`);
 			const result = await updateShopProduct(user, params.shopId, id, body);
-			logger.info(`[${reqContext.requestId} (SC-16)] ShopCatalogController.updateProduct() completed.`);
+			logger.info(`[${reqContext.requestId} (SC-17)] ShopCatalogController.updateProduct() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (SC-16)] ShopCatalogController.updateProduct() error:`, e);
+			logger.error(`[${reqContext.requestId} (SC-17)] ShopCatalogController.updateProduct() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -348,20 +372,20 @@ export const ShopCatalogController = {
 	deleteProduct: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params } = reqContext;
-		logger.info(`[${reqContext.requestId} (SC-17)] ShopCatalogController.deleteProduct() called.`);
+		logger.info(`[${reqContext.requestId} (SC-18)] ShopCatalogController.deleteProduct() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
-			logger.warn(`[${reqContext.requestId} (SC-17)] ShopCatalogController.deleteProduct() forbidden.`);
+			logger.warn(`[${reqContext.requestId} (SC-18)] ShopCatalogController.deleteProduct() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		const id = parseIntParam(params.productId, "product id", reqContext.set);
 		if (id === null) return errorResponse(reqContext, "Invalid product id", ResponseStatus.UNPROCESSABLE);
 		try {
-			logger.info(`[${reqContext.requestId} (SC-17)] ShopCatalogController.deleteProduct() calling deleteShopProduct().`);
+			logger.info(`[${reqContext.requestId} (SC-18)] ShopCatalogController.deleteProduct() calling deleteShopProduct().`);
 			await deleteShopProduct(user, params.shopId, id);
-			logger.info(`[${reqContext.requestId} (SC-17)] ShopCatalogController.deleteProduct() completed.`);
+			logger.info(`[${reqContext.requestId} (SC-18)] ShopCatalogController.deleteProduct() completed.`);
 			return successResponse(reqContext, undefined, ResponseStatus.NO_CONTENT);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (SC-17)] ShopCatalogController.deleteProduct() error:`, e);
+			logger.error(`[${reqContext.requestId} (SC-18)] ShopCatalogController.deleteProduct() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -369,22 +393,22 @@ export const ShopCatalogController = {
 	receiveStock: async (ctx: any) => {
 		const { reqContext, user } = authedCtx(ctx);
 		const { params, body } = reqContext;
-		logger.info(`[${reqContext.requestId} (SC-18)] ShopCatalogController.receiveStock() called.`);
+		logger.info(`[${reqContext.requestId} (SC-19)] ShopCatalogController.receiveStock() called.`);
 		if (!hasRole(user.roles, "admin", "manager")) {
-			logger.warn(`[${reqContext.requestId} (SC-18)] ShopCatalogController.receiveStock() forbidden.`);
+			logger.warn(`[${reqContext.requestId} (SC-19)] ShopCatalogController.receiveStock() forbidden.`);
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
-			logger.info(`[${reqContext.requestId} (SC-18)] ShopCatalogController.receiveStock() calling receiveStock().`);
+			logger.info(`[${reqContext.requestId} (SC-19)] ShopCatalogController.receiveStock() calling receiveStock().`);
 			const result = await receiveStock({
 				shopId: params.shopId,
 				items: body.items as Parameters<typeof receiveStock>[0]["items"],
 				userId: Number(user.sub),
 			});
-			logger.info(`[${reqContext.requestId} (SC-18)] ShopCatalogController.receiveStock() completed.`);
+			logger.info(`[${reqContext.requestId} (SC-19)] ShopCatalogController.receiveStock() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (SC-18)] ShopCatalogController.receiveStock() error:`, e);
+			logger.error(`[${reqContext.requestId} (SC-19)] ShopCatalogController.receiveStock() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
