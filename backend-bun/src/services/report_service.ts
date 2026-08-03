@@ -361,7 +361,7 @@ export async function stockReport(args: {
         .from(shopProducts)
         .innerJoin(shops, eq(shops.id, shopProducts.shopId))
         .where(and(...conds))
-        .orderBy(desc(shopProducts.updatedAt), asc(shopProducts.shopId), asc(shopProducts.name));
+        .orderBy(asc(shopProducts.shopId), asc(shopProducts.productCode));
 
     return {
         shop_id: effectiveShopId,
@@ -929,7 +929,7 @@ export async function stockCardReport(args: {
         .select()
         .from(shopProducts)
         .where(and(...productConds))
-        .orderBy(asc(shopProducts.category), asc(shopProducts.productCode));
+        .orderBy(asc(shopProducts.productCode));
 
     process.stdout.write(`[SC] db returned ${productsRows.length} rows\n`);
 
