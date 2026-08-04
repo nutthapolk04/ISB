@@ -271,11 +271,6 @@ export async function createShopProduct(
       `;
         }
 
-        // Auto-register in existing price panels for this shop
-        await sqlTx`
-      INSERT INTO price_panel_items (panel_id, product_id, price, included)
-      SELECT id, ${newId}, NULL, true FROM price_panels WHERE shop_id = ${shopId}
-    `;
         return newId;
     });
 
