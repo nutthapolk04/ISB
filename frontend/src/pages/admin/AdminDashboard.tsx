@@ -406,14 +406,20 @@ export default function AdminDashboard() {
     const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
     const [recentPage, setRecentPage] = useState(1);
 
+    // Same `Array.isArray` reasoning as `allRecent` below — every list this
+    // landing page derives from a query is shape-checked so a single bad
+    // response degrades that card instead of crashing the whole dashboard.
+    const shops = Array.isArray(shopsQuery.data) ? shopsQuery.data : [];
+    const perShop = Array.isArray(perShopQuery.data) ? perShopQuery.data : [];
+
     // Shop id → display name (lower-cased keys) for badges.
     const shopMap: Record<string, string> = Object.fromEntries(
-        (shopsQuery.data ?? []).map((s) => [s.id, s.name]),
+        shops.map((s) => [s.id, s.name]),
     );
 
     // Aggregate per-shop into module totals + grand totals.
     const aggregates = useMemo(() => {
-        const rows = perShopQuery.data ?? [];
+        const rows = perShop;
         let canteenTotal = 0;
         let storeTotal = 0;
         let totalReceipts = 0;
@@ -425,17 +431,25 @@ export default function AdminDashboard() {
             else storeTotal += r.total;
         }
         return { canteenTotal, storeTotal, totalReceipts, grandTotal };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [perShopQuery.data]);
 
     // Per-shop rows sorted by total desc.
     const perShopRows = useMemo(
-        () => (perShopQuery.data ?? []).slice().sort((a, b) => b.total - a.total),
+        () => perShop.slice().sort((a, b) => b.total - a.total),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [perShopQuery.data],
     );
 
     // Recent activity — paginated client-side (data already fetched). Page is
     // clamped (not reset) so the 30s auto-refetch doesn't yank the user back.
-    const allRecent = receiptsQuery.data ?? [];
+    //
+    // `Array.isArray` rather than `?? []`: this dashboard is the admin's
+    // landing page straight after login, and a non-array here (bad response
+    // shape) used to throw on `.slice()` below and take the WHOLE page down
+    // via the global ErrorBoundary. Degrade to an empty list instead so one
+    // misbehaving endpoint can't block the entire dashboard.
+    const allRecent = Array.isArray(receiptsQuery.data) ? receiptsQuery.data : [];
     const recentTotal = allRecent.length;
     const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
     const recentCurrentPage = Math.min(recentPage, recentTotalPages);

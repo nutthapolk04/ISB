@@ -91,7 +91,19 @@ export interface ReceiptListResponse {
     stats?: ReceiptListStats;
 }
 
-/** Unwrap list endpoint — supports legacy bare-array callers during transition. */
+/**
+ * Unwrap list endpoint — supports legacy bare-array callers during transition.
+ *
+ * Always returns a real array. `items` used to be handed back unchecked, so any
+ * response-shape drift (an envelope wrapper, a cached/proxied body, an error
+ * payload served with 200, a backend deployed out of step with this bundle)
+ * put a non-array into caller state — and the first `.slice()`/`.map()` on it
+ * threw, which the global ErrorBoundary turned into a full-page crash rather
+ * than one broken card (e.g. AdminDashboard's Recent Activity list, seen as
+ * "TypeError: <x>.slice is not a function" right after signing in).
+ */
 export function receiptListItems(data: ReceiptApi[] | ReceiptListResponse): ReceiptApi[] {
-    return Array.isArray(data) ? data : data.items;
+    if (Array.isArray(data)) return data;
+    const items = (data as ReceiptListResponse | null | undefined)?.items;
+    return Array.isArray(items) ? items : [];
 }
