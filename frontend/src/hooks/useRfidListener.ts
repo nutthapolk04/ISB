@@ -115,6 +115,13 @@ export function useRfidListener({ onCapture, minLength = 3 }: UseRfidListenerOpt
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Let barcode/product search inputs receive keystrokes — otherwise this
+      // listener steals fast wedge scans before useStoreRfidScanner can act.
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) {
+        return;
+      }
+
       const now = Date.now();
       const gap = now - lastKey.current;
 

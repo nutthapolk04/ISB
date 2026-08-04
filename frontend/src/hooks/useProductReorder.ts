@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import {
     closestCenter,
@@ -14,11 +14,11 @@ import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import type { Product } from "@/pages/store/storeTypes";
 
-interface UseProductReorderArgs {
+export interface UseProductReorderArgs {
     shopId: string | null | undefined;
     role: string | null | undefined;
     allProducts: Product[];
-    setAllProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+    setAllProducts: Dispatch<SetStateAction<Product[]>>;
     activePanelId: number | null;
     panelIncluded: Record<number, Set<number>>;
     /**
