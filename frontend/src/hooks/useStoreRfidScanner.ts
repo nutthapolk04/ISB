@@ -92,6 +92,19 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
         }
     }
 
+    function flushScanBuffer(e: KeyboardEvent) {
+        if (buffer.current.length >= 3) {
+            e.preventDefault();
+            e.stopPropagation();
+            const captured = buffer.current;
+            buffer.current = "";
+            lastKey.current = 0;
+            routeScan(captured);
+        } else {
+            buffer.current = "";
+        }
+    }
+
     // PC/SC WebSocket path — try to connect to rfid-bridge on ws://localhost:9001.
     // This is how the physical ACR1252 reader actually reaches the browser;
     // the keyboard path below is a fallback for keyboard-emulation readers.
@@ -156,17 +169,9 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
             const now = Date.now();
             const gap = now - lastKey.current;
 
-            if (e.key === "Enter") {
-                if (buffer.current.length >= 3) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const captured = buffer.current;
-                    buffer.current = "";
-                    lastKey.current = 0;
-                    routeScan(captured);
-                } else {
-                    buffer.current = "";
-                }
+            // Many barcode guns send Tab (not Enter) as suffix — treat both as scan end.
+            if (e.key === "Enter" || e.key === "NumpadEnter" || e.key === "Tab") {
+                flushScanBuffer(e);
                 return;
             }
 
