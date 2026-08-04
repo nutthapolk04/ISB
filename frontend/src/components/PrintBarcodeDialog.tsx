@@ -305,7 +305,13 @@ export function PrintBarcodeDialog({
                 try {
                     JsBarcode(canvas, item.barcodeValue, {
                         format: "CODE128",
-                        width: labelSize === "small" ? 1 : labelSize === "medium" ? 1.5 : isSticker ? 1.2 : 2,
+                        // Module width MUST be a whole number of canvas pixels — a
+                        // fractional value (e.g. 1.2, 1.5) makes the canvas renderer
+                        // anti-alias each bar's edge into a grey/blurred pixel instead
+                        // of a crisp black/white boundary, which real scanners (and
+                        // zbar, verified locally) then fail to decode. Height can be
+                        // any value; only width breaks decodability.
+                        width: labelSize === "small" ? 1 : labelSize === "medium" ? 2 : isSticker ? 1 : 2,
                         height: labelSize === "small" ? 30 : labelSize === "medium" ? 40 : isSticker ? 25 : 50,
                         displayValue: false,
                         margin: 2,
