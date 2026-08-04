@@ -173,10 +173,79 @@ const Store = () => {
         refetchPanelProducts,
     });
 
+    const loadShopProducts = async (sid: string): Promise<Product[]> => {
+        const out: Product[] = [];
+        try {
+            const data = await api.get<any[]>(`/shops/${sid}/products`);
+            out.push(
+                ...data.map((p: any) => ({
+                    id: p.id,
+                    productCode: p.product_code,
+                    barcode: p.barcode ?? "",
+                    name: p.name,
+                    price: Number(p.external_price ?? 0),
+                    internalPrice: p.internal_price != null ? Number(p.internal_price) : undefined,
+                    stock: p.stock,
+                    category: p.category,
+                    subMerchantId: p.shop_id,
+                    photoUrl: p.photo_url ?? null,
+                    color: p.color ?? null,
+                    extraBarcodes: p.extra_barcodes ?? [],
+                })),
+            );
+        } catch { /* shop unavailable */ }
+
+        // ── Bundles for this shop ──────────────────────────────────────────
+        try {
+            const bundles = await api.get<any[]>(`/shops/${sid}/bundles`);
+            out.push(
+                ...bundles.map((b: any) => ({
+                    // Use a negative ID space to avoid collision with real product IDs.
+                    // The bundleId field carries the real bundle PK.
+                    id: -(b.id),
+                    productCode: b.bundle_code,
+                    barcode: b.bundle_code,
+                    name: b.name,
+                    price: Number(b.external_price ?? 0),
+                    internalPrice: Number(b.internal_price ?? b.external_price ?? 0),
+                    // Bundles don't have a single stock counter — use a large sentinel
+                    // so the "out of stock" badge never triggers for bundles.
+                    stock: 9999,
+                    category: "Bundle",
+                    subMerchantId: sid,
+                    photoUrl: b.photo_url ?? null,
+                    color: b.color ?? null,
+                    isBundle: true,
+                    bundleId: b.id,
+                })),
+            );
+        } catch { /* bundles unavailable — tolerate */ }
+        return out;
+    };
+
+    // Shop ids this POS instance covers, set by the initial-load effect below
+    // and reused by refreshAllProducts so a scan-triggered refetch doesn't
+    // need to re-query the shops list.
+    const shopIdsRef = useRef<string[]>([]);
+
+    // Re-pulls every shop's product+bundle list and replaces `allProducts`.
+    // Called on window focus and whenever a barcode scan doesn't match
+    // anything in the current (possibly stale) in-memory list — a product
+    // created after this page loaded won't be in `allProducts` until this
+    // runs, so a scan miss must trigger one before falling back to a member
+    // lookup.
+    const refreshAllProducts = async (): Promise<Product[]> => {
+        const shopIds = shopIdsRef.current;
+        if (!shopIds.length) return allProducts;
+        const lists = await Promise.all(shopIds.map(loadShopProducts));
+        const result = lists.flat();
+        setAllProducts(result);
+        return result;
+    };
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
-            const result: Product[] = [];
             let shopsList: Array<{ id: string; products_order_version?: number }> = [];
             try {
                 shopsList = await api.get<Array<{ id: string; products_order_version?: number }>>(
@@ -191,57 +260,26 @@ const Store = () => {
             } catch { /* ignore */ }
 
             const shopIds: string[] = user?.shopId ? [user.shopId] : shopsList.map((s) => s.id);
-            for (const sid of shopIds) {
-                try {
-                    const data = await api.get<any[]>(`/shops/${sid}/products`);
-                    result.push(
-                        ...data.map((p: any) => ({
-                            id: p.id,
-                            productCode: p.product_code,
-                            barcode: p.barcode ?? "",
-                            name: p.name,
-                            price: Number(p.external_price ?? 0),
-                            internalPrice: p.internal_price != null ? Number(p.internal_price) : undefined,
-                            stock: p.stock,
-                            category: p.category,
-                            subMerchantId: p.shop_id,
-                            photoUrl: p.photo_url ?? null,
-                            color: p.color ?? null,
-                            extraBarcodes: p.extra_barcodes ?? [],
-                        })),
-                    );
-                } catch { /* shop unavailable */ }
-
-                // ── Bundles for this shop ──────────────────────────────────────
-                try {
-                    const bundles = await api.get<any[]>(`/shops/${sid}/bundles`);
-                    result.push(
-                        ...bundles.map((b: any) => ({
-                            // Use a negative ID space to avoid collision with real product IDs.
-                            // The bundleId field carries the real bundle PK.
-                            id: -(b.id),
-                            productCode: b.bundle_code,
-                            barcode: b.bundle_code,
-                            name: b.name,
-                            price: Number(b.external_price ?? 0),
-                            internalPrice: Number(b.internal_price ?? b.external_price ?? 0),
-                            // Bundles don't have a single stock counter — use a large sentinel
-                            // so the "out of stock" badge never triggers for bundles.
-                            stock: 9999,
-                            category: "Bundle",
-                            subMerchantId: sid,
-                            photoUrl: b.photo_url ?? null,
-                            color: b.color ?? null,
-                            isBundle: true,
-                            bundleId: b.id,
-                        })),
-                    );
-                } catch { /* bundles unavailable — tolerate */ }
-            }
-            if (!cancelled) setAllProducts(result);
+            shopIdsRef.current = shopIds;
+            const lists = await Promise.all(shopIds.map(loadShopProducts));
+            if (!cancelled) setAllProducts(lists.flat());
         })();
         return () => { cancelled = true; };
     }, [user?.shopId]);
+
+    // Belt-and-suspenders refresh: pick up products/barcodes created from
+    // another tab or device while this POS tab was left open by refetching
+    // whenever the tab regains focus.
+    useEffect(() => {
+        const handleFocus = () => { void refreshAllProducts(); };
+        window.addEventListener("focus", handleFocus);
+        document.addEventListener("visibilitychange", handleFocus);
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+            document.removeEventListener("visibilitychange", handleFocus);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // ── Fetch price panels for shop-scoped users ────────────────────────────
     useEffect(() => {
@@ -330,6 +368,7 @@ const Store = () => {
     // ── Passive RFID/barcode listener (page-level, no input focused) ────────
     const rfidScanner = useStoreRfidScanner({
         products: allProducts,
+        refetchProducts: refreshAllProducts,
         onProductMatch: checkout.addToCart,
         onMemberFound: (member) => {
             // A member is already selected (or a payment modal is open) —
