@@ -42,7 +42,9 @@ export function memberSubtitleLine(
 
     if (m.user_id != null) {
         if (role === "staff") {
-            const parts = ["Staff"];
+            const parts: string[] = [];
+            if (m.external_id) parts.push(m.external_id);
+            parts.push("Staff");
             if (m.staff_type) parts.push(formatStaffType(m.staff_type));
             return parts.join(" · ");
         }
@@ -51,6 +53,8 @@ export function memberSubtitleLine(
         if (role) parts.push(capitalize(role));
         return parts.join(" · ");
     }
+
+
 
     const parts = [studentIdLine(m, isbCardPrefix)];
     if (m.grade) parts.push(`Grade ${m.grade}`);
