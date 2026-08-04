@@ -888,6 +888,7 @@
     "intakeUnitCostFromTotal": "= ฿{{v}} ต่อชิ้น",
     "intakeTotalFromUnit": "= ฿{{v}} รวมทั้งหมด",
     "intakeProductNotFound": "ไม่พบสินค้า \"{{q}}\"",
+    "intakeNoProductsMatch": "ไม่พบสินค้าที่ตรงกัน",
     "intakeUnits": "ชิ้น",
     "intakePerUnit": "ต่อชิ้น",
     "intakeNewAvgCallout": "ต้นทุนเฉลี่ยใหม่จะเปลี่ยนเป็น ฿{{v}}",

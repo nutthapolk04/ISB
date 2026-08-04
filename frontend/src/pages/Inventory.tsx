@@ -41,6 +41,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
     Package,
     Plus,
@@ -63,9 +65,12 @@ import {
     Barcode,
     CalendarCheck,
     BookOpen,
+    Check,
+    ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { calcFifoAvgCost, calcNewAvgCost, type FifoLot } from "@/lib/fifo";
 import { useBatchQueue } from "@/hooks/useBatchQueue";
 import RequisitionDialog from "./store/RequisitionDialog";
@@ -143,6 +148,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
     const [intakeNote, setIntakeNote] = useState("");
     const [intakeSearch, setIntakeSearch] = useState("");
     const [intakeCostMode, setIntakeCostMode] = useState<"unit" | "total">("unit");
+    const [isIntakeProductPickerOpen, setIsIntakeProductPickerOpen] = useState(false);
 
     // Categories (per-shop; only active in embedded mode)
     const [categories, setCategories] = useState<Category[]>([]);
@@ -267,6 +273,12 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
 
     const intakeProduct = products.find(
         (p) => p.id === parseInt(intakeProductId),
+    );
+
+    /** Products eligible for the intake picker/scan — same shop scope used by handleIntakeSearchEnter */
+    const scopedIntakeProducts = useMemo(
+        () => (lockedShopId ? products.filter((p) => p.subMerchantId === lockedShopId) : products),
+        [products, lockedShopId],
     );
 
     /** Unit cost derived from the cost field, accounting for unit vs total mode */
@@ -442,16 +454,13 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         const raw = intakeSearch.trim();
         if (!raw) return;
         const q = raw.toLowerCase();
-        const scopedProducts = lockedShopId
-            ? products.filter((p) => p.subMerchantId === lockedShopId)
-            : products;
         // 1. Exact barcode match
-        let found = scopedProducts.find((p) => p.barcode === raw);
+        let found = scopedIntakeProducts.find((p) => p.barcode === raw);
         // 2. Exact product code match
-        if (!found) found = scopedProducts.find((p) => p.productCode.toLowerCase() === q);
+        if (!found) found = scopedIntakeProducts.find((p) => p.productCode.toLowerCase() === q);
         // 3. Single partial name/code match
         if (!found) {
-            const matches = scopedProducts.filter(
+            const matches = scopedIntakeProducts.filter(
                 (p) => p.name.toLowerCase().includes(q) || p.productCode.toLowerCase().includes(q),
             );
             if (matches.length === 1) found = matches[0];
@@ -830,25 +839,60 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground">{t("inventory.intakeScanHint")}</p>
-                                    {/* Manual dropdown fallback */}
-                                    <Select
-                                        value={intakeProductId}
-                                        onValueChange={(v) => { setIntakeProductId(v); setIntakeSearch(""); }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={t("inventory.selectProductPlaceholder")} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {(lockedShopId
-                                                ? products.filter((p) => p.subMerchantId === lockedShopId)
-                                                : products
-                                            ).map((p) => (
-                                                <SelectItem key={p.id} value={p.id.toString()}>
-                                                    [{p.productCode}] {p.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    {/* Manual searchable fallback — type to filter by name/code/barcode */}
+                                    <Popover open={isIntakeProductPickerOpen} onOpenChange={setIsIntakeProductPickerOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={isIntakeProductPickerOpen}
+                                                className="w-full justify-between font-normal"
+                                            >
+                                                <span className={cn("truncate", !intakeProduct && "text-muted-foreground")}>
+                                                    {intakeProduct
+                                                        ? `[${intakeProduct.productCode}] ${intakeProduct.name}`
+                                                        : t("inventory.selectProductPlaceholder")}
+                                                </span>
+                                                <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                            <Command
+                                                filter={(id, search) => {
+                                                    const p = scopedIntakeProducts.find((x) => x.id.toString() === id);
+                                                    if (!p) return 0;
+                                                    const blob = `${p.name} ${p.productCode} ${p.barcode}`.toLowerCase();
+                                                    return blob.includes(search.toLowerCase()) ? 1 : 0;
+                                                }}
+                                            >
+                                                <CommandInput placeholder={t("inventory.selectProductPlaceholder")} />
+                                                <CommandList onWheel={(e) => e.stopPropagation()}>
+                                                    <CommandEmpty>{t("inventory.intakeNoProductsMatch")}</CommandEmpty>
+                                                    {scopedIntakeProducts.map((p) => (
+                                                        <CommandItem
+                                                            key={p.id}
+                                                            value={p.id.toString()}
+                                                            onSelect={() => {
+                                                                setIntakeProductId(p.id.toString());
+                                                                setIntakeSearch("");
+                                                                setIsIntakeProductPickerOpen(false);
+                                                            }}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "h-4 w-4 shrink-0",
+                                                                    intakeProductId === p.id.toString() ? "opacity-100" : "opacity-0",
+                                                                )}
+                                                            />
+                                                            <span className="truncate">[{p.productCode}] {p.name}</span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
 
                                 {/* 2 ── Current Status (shown once a product is selected) */}

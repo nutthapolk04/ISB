@@ -46,6 +46,11 @@ export interface Product {
     externalPrice: number;
     category?: string;
     extraBarcodes?: ExtraBarcode[];
+    // Bundles share this dialog but aren't shop_products — there's no
+    // per-shop /products/:id/barcodes resource for them (product_bundles has
+    // one flat `barcode` column, no extra-barcodes table), so saveBarcodes()
+    // must skip these rather than POST against an unrelated shop_product id.
+    isBundle?: boolean;
 }
 
 interface PrintItem {
@@ -213,6 +218,11 @@ export function PrintBarcodeDialog({
     };
 
     const saveBarcodes = async () => {
+        // Bundle barcodes are already persisted on product_bundles.barcode at
+        // creation time — nothing to save, and no shop is required to print them.
+        const productItems = printItems.filter((item) => !item.product.isBundle);
+        if (productItems.length === 0) return true;
+
         if (!shopId) {
             toast.error("Shop ID not available");
             return false;
@@ -221,7 +231,7 @@ export function PrintBarcodeDialog({
         setIsSaving(true);
         try {
             // Save each barcode to database
-            for (const item of printItems) {
+            for (const item of productItems) {
                 try {
                     await api.post(`/shops/${shopId}/products/${item.product.id}/barcodes`, {
                         barcode: item.barcodeValue,

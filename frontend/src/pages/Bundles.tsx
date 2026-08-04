@@ -475,6 +475,7 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                                                             barcode: bundle.barcode || bundle.bundle_code,
                                                             name: bundle.name,
                                                             externalPrice: bundle.external_price,
+                                                            isBundle: true,
                                                         });
                                                         setPrintBarcodeOpen(true);
                                                     }}
@@ -826,8 +827,10 @@ const Bundles = ({ lockedShopId }: BundlesProps) => {
                     barcode: b.barcode || b.bundle_code,
                     name: b.name,
                     externalPrice: b.external_price,
+                    isBundle: true,
                 }))}
                 selectedProduct={selectedBundleForBarcode}
+                shopId={shopId}
             />
         </div>
     );

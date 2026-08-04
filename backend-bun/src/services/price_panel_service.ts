@@ -141,7 +141,6 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
     const out: InternalItem[] = [];
     for (const p of products) {
         const r = productMap.get(p.id);
-        if (!r) continue;
         out.push({
             kind: "product",
             product_id: p.id,
@@ -153,13 +152,12 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
             short_name: r?.shortName ?? null,
             included: r ? r.included : false,
             is_bundle: false,
-            _sortOrder: r.sortOrder,
+            _sortOrder: r?.sortOrder ?? 0,
             _globalIndex: productGlobalIndex.get(p.id) ?? globalIndexCounter,
         });
     }
     for (const b of bundles) {
         const r = bundleMap.get(b.id);
-        if (!r) continue;
         out.push({
             kind: "bundle",
             product_id: b.id,
@@ -171,7 +169,7 @@ export async function getPanelItems(shopId: string, panelId: number): Promise<Pr
             short_name: r?.shortName ?? null,
             included: r ? r.included : false,
             is_bundle: true,
-            _sortOrder: r.sortOrder,
+            _sortOrder: r?.sortOrder ?? 0,
             _globalIndex: bundleGlobalIndex.get(b.id) ?? globalIndexCounter,
         });
     }

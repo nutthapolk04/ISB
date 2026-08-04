@@ -888,6 +888,7 @@
     "intakeUnitCostFromTotal": "= ฿{{v}} per unit",
     "intakeTotalFromUnit": "= ฿{{v}} total value",
     "intakeProductNotFound": "No product found for \"{{q}}\"",
+    "intakeNoProductsMatch": "No product matched",
     "intakeUnits": "units",
     "intakePerUnit": "per unit",
     "intakeNewAvgCallout": "New avg cost will be ฿{{v}}",
