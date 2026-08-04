@@ -9,7 +9,7 @@
 import { and, desc, eq, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
-import { pgNumber, pgToIso } from "@/lib/dates";
+import { pgNumber, pgToIso, bangkokTodayCompact } from "@/lib/dates";
 import { logger } from "@/logger";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import {
@@ -232,7 +232,7 @@ export async function userCanAccessWallet(
 // ── Ref code generator ────────────────────────────────────────────────────
 
 async function generateRefCode(): Promise<string> {
-    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const todayStr = bangkokTodayCompact();
     const prefix = `TOP-${todayStr}-`;
     const lastRows = await db
         .select({ refCode: paymentIntents.refCode })

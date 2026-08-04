@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, ilike, lte, ne, or, sql, isNull } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { returnRequests, receipts, receiptItems, shopProducts, customers, users, departments } from "@/db/schema";
-import { pgNumber } from "@/lib/dates";
+import { pgNumber, bangkokRangeStart, bangkokRangeEndInclusive, bangkokTodayIso } from "@/lib/dates";
 import { fifoRefundLot, fifoDeductInTx } from "@/services/inventory_fifo";
 
 export interface ReturnRequestDTO {
@@ -381,7 +381,7 @@ export async function processRefund(args: {
         if (pr[0]) normalProductId = pr[0].id;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = bangkokTodayIso();
     let derivedMethod = "cash";
     let refundedTo: Record<string, unknown> = { type: "cash", label: "Cash drawer (receipt not found)" };
 
@@ -568,7 +568,7 @@ export async function processExchange(args: {
     }
     const rr = rrRows[0];
     const returnValue = (pgNumber(rr.price) ?? 0) * rr.returnQuantity;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = bangkokTodayIso();
 
     // Pre-load bundle items if bundle return
     let bundleItemRows: Array<{ product_id: number; quantity: number }> = [];
@@ -844,10 +844,10 @@ export async function searchReceipts(args: {
     }
 
     if (args.dateFrom) {
-        conds.push(gte(receipts.transactionDate, `${args.dateFrom} 00:00:00+00`));
+        conds.push(gte(receipts.transactionDate, bangkokRangeStart(args.dateFrom)));
     }
     if (args.dateTo) {
-        conds.push(lte(receipts.transactionDate, `${args.dateTo} 23:59:59.999999+00`));
+        conds.push(lte(receipts.transactionDate, bangkokRangeEndInclusive(args.dateTo)));
     }
 
     if (args.paymentMethod && args.paymentMethod.toLowerCase() !== "all") {

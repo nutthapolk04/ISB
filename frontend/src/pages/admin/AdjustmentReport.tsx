@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { fmtDate, todayBangkok } from "@/lib/dateFormat";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,7 @@ export default function AdjustmentReport() {
   const { t } = useTranslation();
   const schoolInfo = useSchoolInfo();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayBangkok();
   const firstOfMonth = today.slice(0, 7) + "-01";
 
   const [dateFrom, setDateFrom] = useState(firstOfMonth);

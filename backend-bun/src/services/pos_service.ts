@@ -12,7 +12,7 @@ import {
     walletTransactions,
     bundleItems,
 } from "@/db/schema";
-import { pgNumber, pgToIso } from "@/lib/dates";
+import { pgNumber, pgToIso, bangkokTodayIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { fifoRefundLot } from "@/services/inventory_fifo";
 import { dateRange } from "@/services/report_service";
@@ -427,7 +427,7 @@ export async function voidReceipt(args: {
     }
 
     const voidLines: Array<{ name: string; qty: number; price: number }> = [];
-    const today = new Date().toISOString().slice(0, 10);
+    const today = bangkokTodayIso();
 
     await pgClient.begin(async (sqlTx) => {
         // Lock the receipt row and re-check status under the lock — closes

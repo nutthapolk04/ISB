@@ -41,7 +41,7 @@ import {
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
-import { fmtDateTime } from "@/lib/dateFormat";
+import { fmtDateTime, todayBangkok } from "@/lib/dateFormat";
 import { Minus, Plus, Search, Wallet as WalletIcon, FileSpreadsheet, FileText, ClipboardList } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -152,7 +152,7 @@ export default function WalletAdjust() {
     const [submitting, setSubmitting] = useState(false);
 
     // ── Adjustment Report state ───────────────────────────────────────────────
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayBangkok();
     const firstOfMonth = today.slice(0, 7) + "-01";
     const [rptDateFrom, setRptDateFrom] = useState(firstOfMonth);
     const [rptDateTo, setRptDateTo] = useState(today);

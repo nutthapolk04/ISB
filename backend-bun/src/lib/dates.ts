@@ -41,7 +41,35 @@ export function bangkokTodayCompact(at: Date = new Date()): string {
 export function bangkokDayRange(dateIso?: string): { start: string; end: string } {
   const d = dateIso ?? bangkokTodayIso();
   return {
-    start: `${d}T00:00:00+07:00`,
-    end: `${d}T23:59:59.999999+07:00`,
+    start: bangkokRangeStart(d),
+    end: bangkokRangeEndInclusive(d),
   };
+}
+
+/** Start of a Bangkok calendar day (`YYYY-MM-DD` → `…T00:00:00+07:00`). */
+export function bangkokRangeStart(dateIso: string): string {
+  return `${dateIso}T00:00:00+07:00`;
+}
+
+/** End of a Bangkok calendar day (inclusive upper bound for `lte`). */
+export function bangkokRangeEndInclusive(dateIso: string): string {
+  return `${dateIso}T23:59:59.999999+07:00`;
+}
+
+/** First instant of the day after `dateIso` (exclusive upper bound for `lt`). */
+export function bangkokRangeEndExclusive(dateIso: string): string {
+  return bangkokRangeStart(addBangkokCalendarDays(dateIso, 1));
+}
+
+/** Inclusive ISO bounds for a Bangkok calendar date range. */
+export function bangkokDateRange(dateFrom: string, dateTo: string): { start: string; end: string } {
+  return {
+    start: bangkokRangeStart(dateFrom),
+    end: bangkokRangeEndInclusive(dateTo),
+  };
+}
+
+function addBangkokCalendarDays(dateIso: string, days: number): string {
+  const t = new Date(`${dateIso}T12:00:00+07:00`).getTime() + days * 86_400_000;
+  return new Date(t).toLocaleDateString("sv-SE", { timeZone: BANGKOK_TZ });
 }
