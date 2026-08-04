@@ -44,6 +44,11 @@ export function classifyTopupChannel(opts: {
      *  below. Only meaningful for gateway (TOPUP) rows — cash top-ups always
      *  require a physical POS register regardless of who owns the wallet. */
     isSelfTopup?: boolean;
+    /** Gateway top-up into a linked child's wallet by their parent/guardian
+     *  via the parent portal (includes staff-parent accounts whose role is
+     *  "staff" but who have no shop_id). POS staff topping up at a register
+     *  keep the Cashier channel even when the recipient is their own child. */
+    isFamilyPortalTopup?: boolean;
 }): TopupChannel {
     const text = `${opts.reason ?? ""} ${opts.description ?? ""}`;
     const role = (opts.creatorRole ?? "").toLowerCase();
@@ -52,6 +57,7 @@ export function classifyTopupChannel(opts: {
         return "cashier";
     }
     if (opts.isSelfTopup) return "online";
+    if (opts.isFamilyPortalTopup) return "online";
     if (role === "parent") return "online";
     if (["cashier", "manager", "admin", "staff", "kitchen"].includes(role)) return "cashier";
     // Gateway TOPUP without a parent role — treat as online (parent portal / card).

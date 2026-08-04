@@ -16,6 +16,7 @@ import {
     shops,
     kioskLogs,
     emailAlertsLog,
+    parentChildLinks,
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
@@ -531,6 +532,32 @@ export async function topupReport(args: {
         : [];
     const shopNameById = new Map(shopRows.map((s) => [s.id, s.name] as const));
 
+    // Parent/guardian → linked child gateway top-ups (parent portal), keyed
+    // as "parentUserId:childCustomerId". Used so staff-parent accounts (role
+    // "staff", no shop_id) classify as Online instead of Cashier.
+    const linkParentIds = [...new Set(
+        combined.filter((r) => r.creator != null).map((r) => r.creator!.id),
+    )];
+    const linkChildIds = [...new Set(
+        combined.filter((r) => r.w.customerId != null).map((r) => r.w.customerId!),
+    )];
+    const parentChildLinkSet = new Set<string>();
+    if (linkParentIds.length > 0 && linkChildIds.length > 0) {
+        const linkRows = await db
+            .select({
+                parentUserId: parentChildLinks.parentUserId,
+                childCustomerId: parentChildLinks.childCustomerId,
+            })
+            .from(parentChildLinks)
+            .where(and(
+                inArray(parentChildLinks.parentUserId, linkParentIds),
+                inArray(parentChildLinks.childCustomerId, linkChildIds),
+            ));
+        for (const l of linkRows) {
+            parentChildLinkSet.add(`${l.parentUserId}:${l.childCustomerId}`);
+        }
+    }
+
     const channelFilter = (args.channel ?? "all").toLowerCase();
     const items: TopupReportRow[] = [];
     for (const r of combined) {
@@ -542,12 +569,18 @@ export async function topupReport(args: {
         // Wallet") is self-service online, not a POS/cashier event, even
         // though their role would otherwise land in the cashier bucket.
         const isSelfTopup = r.w.userId != null && r.creator != null && r.creator.id === r.w.userId;
+        const isFamilyPortalTopup = r.tx.transactionType === "TOPUP"
+            && r.w.customerId != null
+            && r.creator != null
+            && !r.creator.shopId
+            && parentChildLinkSet.has(`${r.creator.id}:${r.w.customerId}`);
         const channel = classifyTopupChannel({
             transactionType: r.tx.transactionType,
             reason: r.tx.reason,
             description: r.tx.description,
             creatorRole,
             isSelfTopup,
+            isFamilyPortalTopup,
         });
         if (channelFilter !== "all" && channel !== channelFilter) continue;
 
