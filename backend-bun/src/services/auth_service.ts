@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, roles, userRoles, permissions, rolePermissions, shops, userLoginEmails } from "@/db/schema";
 import { config } from "@/lib/config";
+import { logger } from "@/logger";
 
 const ACCESS_TOKEN_EXPIRE_MINUTES = 30;
 const REFRESH_TOKEN_EXPIRE_DAYS = 3;
@@ -156,9 +157,36 @@ async function findUserById(id: number): Promise<typeof users.$inferSelect | nul
     return rows[0] ?? null;
 }
 
-export async function login(username: string, password: string): Promise<TokenResponseDTO> {
+export interface LoginAttemptMeta {
+    requestId?: string;
+    clientIp?: string;
+}
+
+function logLoginFailure(
+    reason: "user_not_found" | "password_mismatch" | "inactive",
+    attemptedUsername: string,
+    meta: LoginAttemptMeta | undefined,
+    user?: typeof users.$inferSelect | null,
+): void {
+    logger.warn("Login failed", {
+        reason,
+        attempted_username: attemptedUsername.trim(),
+        user_id: user?.id ?? null,
+        matched_username: user?.username ?? null,
+        role: user?.role ?? null,
+        request_id: meta?.requestId ?? null,
+        client_ip: meta?.clientIp ?? null,
+    });
+}
+
+export async function login(
+    username: string,
+    password: string,
+    meta?: LoginAttemptMeta,
+): Promise<TokenResponseDTO> {
     const user = await findUserByUsername(username);
     if (!user) {
+        logLoginFailure("user_not_found", username, meta);
         const err = new Error("Invalid username or password");
         (err as { status?: number }).status = 401;
         throw err;
@@ -166,11 +194,13 @@ export async function login(username: string, password: string): Promise<TokenRe
     // Bun.password.verify handles bcrypt $2a / $2b / $2y prefixes natively.
     const ok = await Bun.password.verify(password, user.hashedPassword);
     if (!ok) {
+        logLoginFailure("password_mismatch", username, meta, user);
         const err = new Error("Invalid username or password");
         (err as { status?: number }).status = 401;
         throw err;
     }
     if (!user.isActive) {
+        logLoginFailure("inactive", username, meta, user);
         const err = new Error("Account is inactive");
         (err as { status?: number }).status = 403;
         throw err;
