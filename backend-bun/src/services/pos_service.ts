@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import {
     receipts,
@@ -12,7 +12,7 @@ import {
     walletTransactions,
     bundleItems,
 } from "@/db/schema";
-import { pgNumber, pgToIso, bangkokTodayIso } from "@/lib/dates";
+import { pgNumber, pgToIso, bangkokTodayIso, bangkokDateRange } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { fifoRefundLot } from "@/services/inventory_fifo";
 import { dateRange } from "@/services/report_service";
@@ -144,9 +144,13 @@ async function balanceAtReceipt(walletId: number | null, receiptId: number): Pro
     return w[0] ? pgNumber(w[0].b) : null;
 }
 
-async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<ReceiptDTO> {
+async function receiptToDTO(
+    receipt: typeof receipts.$inferSelect,
+    opts?: { includeItems?: boolean },
+): Promise<ReceiptDTO> {
+    const includeItems = opts?.includeItems !== false;
     const [items, shopRow, creator, customer, payerUser, payerDept, requester] = await Promise.all([
-        loadItems(receipt.id),
+        includeItems ? loadItems(receipt.id) : Promise.resolve([] as ReceiptItemDTO[]),
         receipt.shopId
             ? db.select({ name: shops.name }).from(shops).where(eq(shops.id, receipt.shopId)).limit(1)
             : Promise.resolve([] as Array<{ name: string }>),
@@ -278,6 +282,8 @@ async function receiptToDTO(receipt: typeof receipts.$inferSelect): Promise<Rece
 export interface ListReceiptsParams {
     caller: AccessTokenPayload & { shop_id?: string | null };
     q?: string;
+    payerQ?: string;
+    paymentMethod?: string;
     shopId?: string;
     shopIds?: string;
     transactionMode?: string;
@@ -286,10 +292,58 @@ export interface ListReceiptsParams {
     dateTo?: string;
     page?: number;
     pageSize?: number;
+    includeStats?: boolean;
 }
 
-export async function listReceipts(p: ListReceiptsParams): Promise<ReceiptDTO[]> {
-    // Auto-scope: if caller specifies a shop they can't see → 403.
+export interface ReceiptListStats {
+    today_active_sales: number;
+    month_active_sales: number;
+    month_receipt_count: number;
+    filtered_active_sales: number;
+}
+
+export interface ListReceiptsResponse {
+    items: ReceiptDTO[];
+    total: number;
+    page: number;
+    pages: number;
+    page_size: number;
+    stats?: ReceiptListStats;
+}
+
+const PAYMENT_FILTER_MAP: Record<string, typeof receipts.$inferSelect.paymentMethod> = {
+    wallet: "WALLET",
+    cash: "CASH",
+    qr_promptpay: "QR_PROMPTPAY",
+    edc: "EDC",
+    department: "DEPARTMENT",
+};
+
+function payerSearchCondition(payerQ: string): SQL {
+    const pattern = `%${payerQ.trim()}%`;
+    return or(
+        sql`EXISTS (
+            SELECT 1 FROM ${customers} c
+            WHERE c.id = ${receipts.customerId}
+              AND (c.name ILIKE ${pattern} OR c.student_code ILIKE ${pattern})
+        )`,
+        sql`EXISTS (
+            SELECT 1 FROM ${users} u
+            WHERE u.id = ${receipts.payerUserId}
+              AND (u.full_name ILIKE ${pattern} OR u.username ILIKE ${pattern} OR u.external_id ILIKE ${pattern})
+        )`,
+        sql`EXISTS (
+            SELECT 1 FROM ${departments} d
+            WHERE d.id = ${receipts.payerDepartmentId}
+              AND d.department_name ILIKE ${pattern}
+        )`,
+    )!;
+}
+
+function buildReceiptScope(p: ListReceiptsParams): {
+    effectiveShopId?: string;
+    shopIds?: string;
+} {
     let effectiveShopId = p.shopId;
     const callerShop = p.caller.shop_id ?? null;
     if (p.shopId && !userCanAccessShop(p.caller, p.shopId)) {
@@ -300,17 +354,24 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ReceiptDTO[]>
     if (!p.caller.is_superuser && callerShop && !p.shopId && !p.shopIds) {
         effectiveShopId = callerShop;
     }
+    return { effectiveShopId, shopIds: p.shopIds };
+}
 
-    const page = Math.max(1, p.page ?? 1);
-    const pageSize = Math.min(p.pageSize ?? 50, 500);
-    const offset = (page - 1) * pageSize;
-
-    const conds = [];
+function buildReceiptFilters(
+    p: ListReceiptsParams,
+    scope: { effectiveShopId?: string; shopIds?: string },
+): SQL[] {
+    const conds: SQL[] = [];
     if (p.q?.trim()) conds.push(ilike(receipts.receiptNumber, `%${p.q.trim()}%`));
-    if (effectiveShopId) {
-        conds.push(eq(receipts.shopId, effectiveShopId));
-    } else if (p.shopIds) {
-        const ids = p.shopIds.split(",").map((s) => s.trim()).filter(Boolean);
+    if (p.payerQ?.trim()) conds.push(payerSearchCondition(p.payerQ));
+    if (p.paymentMethod?.trim() && p.paymentMethod !== "all") {
+        const mapped = PAYMENT_FILTER_MAP[p.paymentMethod.toLowerCase()];
+        if (mapped) conds.push(eq(receipts.paymentMethod, mapped));
+    }
+    if (scope.effectiveShopId) {
+        conds.push(eq(receipts.shopId, scope.effectiveShopId));
+    } else if (scope.shopIds) {
+        const ids = scope.shopIds.split(",").map((s) => s.trim()).filter(Boolean);
         if (ids.length > 0) {
             conds.push(or(inArray(receipts.shopId, ids), isNull(receipts.shopId))!);
         }
@@ -319,22 +380,84 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ReceiptDTO[]>
         conds.push(eq(receipts.transactionMode, p.transactionMode as typeof receipts.$inferSelect.transactionMode));
     }
     if (p.requesterUserId !== undefined) conds.push(eq(receipts.requesterUserId, p.requesterUserId));
-    // receipts.transaction_date is timestamptz — a bare YYYY-MM-DD compares
-    // against UTC midnight, not end-of-day Bangkok time, silently excluding
-    // most of the business day (Bangkok is UTC+7). Anchor both bounds to
-    // Asia/Bangkok like report_service.ts's dateRange() does.
     if (p.dateFrom) conds.push(gte(receipts.transactionDate, dateRange(p.dateFrom, p.dateFrom).start));
     if (p.dateTo) conds.push(lte(receipts.transactionDate, dateRange(p.dateTo, p.dateTo).end));
+    return conds;
+}
 
-    const rows = await db
-        .select()
+async function aggregateActiveSales(conds: SQL[]): Promise<{ count: number; activeSales: number }> {
+    const where = conds.length > 0 ? and(...conds) : undefined;
+    const [row] = await db
+        .select({
+            count: count(),
+            activeSales: sql<string>`coalesce(sum(case when ${receipts.status} = 'ACTIVE' then ${receipts.total}::numeric else 0 end), 0)`,
+        })
         .from(receipts)
-        .where(conds.length > 0 ? and(...conds) : undefined)
-        .orderBy(desc(receipts.createdAt))
-        .limit(pageSize)
-        .offset(offset);
+        .where(where);
+    return {
+        count: Number(row?.count ?? 0),
+        activeSales: Number(row?.activeSales ?? 0),
+    };
+}
 
-    return Promise.all(rows.map(receiptToDTO));
+export async function listReceipts(p: ListReceiptsParams): Promise<ListReceiptsResponse> {
+    const scope = buildReceiptScope(p);
+    const page = Math.max(1, p.page ?? 1);
+    const pageSize = Math.min(p.pageSize ?? 50, 500);
+    const offset = (page - 1) * pageSize;
+    const conds = buildReceiptFilters(p, scope);
+    const where = conds.length > 0 ? and(...conds) : undefined;
+
+    const [countRow, rows] = await Promise.all([
+        db.select({ total: count() }).from(receipts).where(where),
+        db
+            .select()
+            .from(receipts)
+            .where(where)
+            .orderBy(desc(receipts.createdAt))
+            .limit(pageSize)
+            .offset(offset),
+    ]);
+
+    const total = Number(countRow[0]?.total ?? 0);
+    const items = await Promise.all(rows.map((row) => receiptToDTO(row, { includeItems: false })));
+
+    let stats: ReceiptListStats | undefined;
+    if (p.includeStats) {
+        const today = bangkokTodayIso();
+        const monthStart = `${today.slice(0, 7)}-01`;
+        const scopeConds = buildReceiptFilters({ ...p, q: undefined, payerQ: undefined, paymentMethod: undefined, dateFrom: undefined, dateTo: undefined }, scope);
+        const todayRange = bangkokDateRange(today, today);
+        const monthRange = bangkokDateRange(monthStart, today);
+        const [todayAgg, monthAgg, filteredAgg] = await Promise.all([
+            aggregateActiveSales([
+                ...scopeConds,
+                gte(receipts.transactionDate, todayRange.start),
+                lte(receipts.transactionDate, todayRange.end),
+            ]),
+            aggregateActiveSales([
+                ...scopeConds,
+                gte(receipts.transactionDate, monthRange.start),
+                lte(receipts.transactionDate, monthRange.end),
+            ]),
+            aggregateActiveSales(conds),
+        ]);
+        stats = {
+            today_active_sales: todayAgg.activeSales,
+            month_active_sales: monthAgg.activeSales,
+            month_receipt_count: monthAgg.count,
+            filtered_active_sales: filteredAgg.activeSales,
+        };
+    }
+
+    return {
+        items,
+        total,
+        page,
+        pages: Math.max(1, Math.ceil(total / pageSize)),
+        page_size: pageSize,
+        stats,
+    };
 }
 
 export async function getReceipt(receiptId: number): Promise<ReceiptDTO> {

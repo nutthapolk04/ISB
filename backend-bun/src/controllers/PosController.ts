@@ -30,6 +30,8 @@ export const PosController = {
 			const result = await listReceipts({
 				caller: user as PosUser,
 				q: query.q ?? undefined,
+				payerQ: query.payer_q ?? undefined,
+				paymentMethod: query.payment_method ?? undefined,
 				shopId: query.shop_id ?? undefined,
 				shopIds: query.shop_ids ?? undefined,
 				transactionMode: query.transaction_mode ?? undefined,
@@ -38,6 +40,7 @@ export const PosController = {
 				dateTo: query.date_to ?? undefined,
 				page: query.page ? Number(query.page) : undefined,
 				pageSize: query.page_size ? Number(query.page_size) : undefined,
+				includeStats: query.include_stats === "1" || query.include_stats === "true",
 			});
 			logger.info(`[${reqContext.requestId} (PC-01)] PosController.listReceipts() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

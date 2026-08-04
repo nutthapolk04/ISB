@@ -33,6 +33,8 @@ const checkoutCartSchema = t.Object({
 export const posListReceipts = {
     query: t.Object({
         q: t.Optional(t.Nullable(t.String())),
+        payer_q: t.Optional(t.Nullable(t.String())),
+        payment_method: t.Optional(t.Nullable(t.String())),
         shop_id: t.Optional(t.Nullable(t.String())),
         shop_ids: t.Optional(t.Nullable(t.String())),
         transaction_mode: t.Optional(t.Nullable(t.String())),
@@ -41,6 +43,7 @@ export const posListReceipts = {
         date_to: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        include_stats: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["POS"], summary: "List receipts" },
 };

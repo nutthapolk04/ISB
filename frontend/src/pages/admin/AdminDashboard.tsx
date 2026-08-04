@@ -28,6 +28,7 @@ import {
 
 import { api } from "@/lib/api";
 import { fmtDate, todayBangkok } from "@/lib/dateFormat";
+import { receiptListItems, type ReceiptListResponse, type ReceiptApi } from "@/pages/receipts/receiptTypes";
 import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
@@ -182,7 +183,12 @@ const RECENT_PAGE_SIZE = 10;
 function useRecentReceipts() {
     return useQuery<ReceiptRow[]>({
         queryKey: ["admin", "dashboard", "recent-receipts"],
-        queryFn: () => api.get<ReceiptRow[]>("/pos/receipt?page=1"),
+        queryFn: async () => {
+            const data = await api.get<ReceiptListResponse | ReceiptApi[]>(
+                "/pos/receipt?page=1&page_size=10",
+            );
+            return receiptListItems(data) as ReceiptRow[];
+        },
         staleTime: STALE,
         refetchInterval: STALE,
         refetchOnWindowFocus: true,

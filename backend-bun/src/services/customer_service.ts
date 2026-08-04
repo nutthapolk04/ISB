@@ -42,6 +42,8 @@ export interface StudentProfileDTO {
     wallet_id: number | null;
     wallet_balance: number | null;
     user_id: number | null;
+    staff_type: string | null;
+    role: string | null;
 }
 
 async function walletByCustomerIds(ids: number[]): Promise<Map<number, { id: number; balance: number }>> {
@@ -109,6 +111,8 @@ function customerToProfile(
         wallet_id: wallet?.id ?? null,
         wallet_balance: wallet?.balance ?? null,
         user_id: null,
+        staff_type: null,
+        role: null,
     };
 }
 
@@ -155,6 +159,8 @@ function userToProfile(
         family_code: u.familyCode ?? null,
         wallet_id: wallet?.id ?? null,
         wallet_balance: wallet?.balance ?? null,
+        staff_type: u.role === "staff" ? u.staffType : null,
+        role: u.role ?? null,
     };
 }
 

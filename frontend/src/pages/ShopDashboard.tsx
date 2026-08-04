@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, ShoppingBag, Calendar, CreditCard, Banknote, QrCode, Building2, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { receiptListItems, type ReceiptListResponse, type ReceiptApi } from "@/pages/receipts/receiptTypes";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -268,10 +269,12 @@ export default function ShopDashboard() {
     // Recent transactions — last 5 receipts of this shop for the selected date, refreshed live.
     const { data: recentReceipts } = useQuery<RecentReceipt[]>({
         queryKey: ["shop-dashboard", effectiveShopId, "recent", today],
-        queryFn: () =>
-            api.get<RecentReceipt[]>(
+        queryFn: async () => {
+            const data = await api.get<ReceiptListResponse | ReceiptApi[]>(
                 `/pos/receipt?page=1&page_size=10&date_from=${today}&date_to=${today}${effectiveShopId ? `&shop_id=${encodeURIComponent(effectiveShopId)}` : ""}`,
-            ),
+            );
+            return receiptListItems(data) as RecentReceipt[];
+        },
         enabled: !!effectiveShopId || !isAdmin,
         ...LIVE_OPTS,
     });

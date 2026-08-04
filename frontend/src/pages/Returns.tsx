@@ -20,6 +20,7 @@ import { RefreshCw, Search, Calendar, Package, Printer, ArrowLeftRight } from "l
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/components/ui/sonner";
 import { fmtDateTime, fmtDateApi, todayBangkok } from "@/lib/dateFormat";
+import { receiptListItems, type ReceiptListResponse, type ReceiptApi as ReceiptListItem } from "@/pages/receipts/receiptTypes";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -98,8 +99,8 @@ const Returns = () => {
         try {
             const params = new URLSearchParams({ page: "1", page_size: "100" });
             if (q) params.set("q", q);
-            const data = await api.get<PosReceipt[]>(`/pos/receipt?${params}`);
-            setPosReceipts(data);
+            const data = await api.get<ReceiptListResponse | ReceiptListItem[]>(`/pos/receipt?${params}`);
+            setPosReceipts(receiptListItems(data) as PosReceipt[]);
         } catch { /* silent */ } finally {
             setPosReceiptsLoading(false);
         }
@@ -1014,10 +1015,10 @@ const Returns = () => {
                 onItemSelect={handleItemSelect}
                 onQuantityChange={handleQuantityChange}
                 onCancel={() => {
-                            setIsEditDialogOpen(false);
-                            setSelectedItems({});
-                            setViewingReceipt(null);
-                            setExchangeItems({});
+                    setIsEditDialogOpen(false);
+                    setSelectedItems({});
+                    setViewingReceipt(null);
+                    setExchangeItems({});
                 }}
                 onRequestRefund={() => handleUpdateReturn("refund")}
                 onRequestExchange={() => handleUpdateReturn("exchange")}

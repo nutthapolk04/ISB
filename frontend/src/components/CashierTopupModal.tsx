@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import { useRfidListener } from "@/hooks/useRfidListener";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,16 +14,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Search,
-  Loader2,
-  Wallet,
-  ArrowLeft,
-  Check,
-  Banknote,
-  QrCode,
-  CreditCard,
-  AlertCircle,
-  Printer,
+    Search,
+    Loader2,
+    Wallet,
+    ArrowLeft,
+    Check,
+    Banknote,
+    QrCode,
+    CreditCard,
+    AlertCircle,
+    Printer,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -35,1021 +35,1021 @@ import { printTopupReceipt, type TopupReceiptData } from "@/lib/printReceipt";
 import { EdcPaymentModal, type EdcMode } from "@/pages/store/EdcPaymentModal";
 
 interface CustomerResult {
-  id: number;
-  name: string;
-  customer_code?: string;
-  student_code?: string;
-  grade?: string;
-  photo_url?: string | null;
-  wallet_balance?: number;
-  card_frozen?: boolean;
-  wallet_id?: number;
-  user_id?: number | null;
+    id: number;
+    name: string;
+    customer_code?: string;
+    student_code?: string;
+    grade?: string;
+    photo_url?: string | null;
+    wallet_balance?: number;
+    card_frozen?: boolean;
+    wallet_id?: number;
+    user_id?: number | null;
 }
 
 interface TopupSuccessResult {
-  wallet_id: number;
-  customer_name: string;
-  amount: number;
-  balance_before: number;
-  balance_after: number;
-  transaction_id: number;
+    wallet_id: number;
+    customer_name: string;
+    amount: number;
+    balance_before: number;
+    balance_after: number;
+    transaction_id: number;
 }
 
 interface TopupIntent {
-  ref_code: string;
-  wallet_id: number;
-  amount: number;
-  qr_payload: string;
-  status: string;
-  created_at: string;
-  payment_page_url: string | null;
-  payment_form_params: Record<string, string> | null;
-  txn_no: string | null;
+    ref_code: string;
+    wallet_id: number;
+    amount: number;
+    qr_payload: string;
+    status: string;
+    created_at: string;
+    payment_page_url: string | null;
+    payment_form_params: Record<string, string> | null;
+    txn_no: string | null;
 }
 
 interface IntentStatus {
-  status: string;
+    status: string;
 }
 
 interface WalletBalance {
-  id: number;
-  balance: number;
+    id: number;
+    balance: number;
 }
 
 type PaymentMethod = "cash" | "bay_qr" | "edc";
 type QrStatus = "waiting" | "confirmed" | "cancelled" | "timeout";
 
 interface CashierTopupPrintConfig {
-  enabled: boolean;
-  school: SchoolInfo;
-  shopName?: string | null;
-  shopReceipt?: { receiptHeader?: string | null; receiptFooter?: string | null };
-  cashierName?: string | null;
+    enabled: boolean;
+    school: SchoolInfo;
+    shopName?: string | null;
+    shopReceipt?: { receiptHeader?: string | null; receiptFooter?: string | null };
+    cashierName?: string | null;
 }
 
 interface CashierTopupModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: (result: TopupSuccessResult) => void;
-  printConfig?: CashierTopupPrintConfig;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess?: (result: TopupSuccessResult) => void;
+    printConfig?: CashierTopupPrintConfig;
 }
 
 type ModalStep = "search" | "topup" | "qr" | "success";
 
 interface CashTopupAttempt {
-  key: string;
-  walletId: number;
-  amount: number;
+    key: string;
+    walletId: number;
+    amount: number;
 }
 
 function getCashIdempotencyKey(
-  attemptRef: MutableRefObject<CashTopupAttempt | null>,
-  walletId: number,
-  amount: number,
+    attemptRef: MutableRefObject<CashTopupAttempt | null>,
+    walletId: number,
+    amount: number,
 ): string {
-  const prev = attemptRef.current;
-  if (prev && prev.walletId === walletId && prev.amount === amount) {
-    return prev.key;
-  }
-  const key = crypto.randomUUID();
-  attemptRef.current = { key, walletId, amount };
-  return key;
+    const prev = attemptRef.current;
+    if (prev && prev.walletId === walletId && prev.amount === amount) {
+        return prev.key;
+    }
+    const key = crypto.randomUUID();
+    attemptRef.current = { key, walletId, amount };
+    return key;
 }
 
 export function CashierTopupModal({
-  open,
-  onOpenChange,
-  onSuccess,
-  printConfig,
+    open,
+    onOpenChange,
+    onSuccess,
+    printConfig,
 }: CashierTopupModalProps) {
-  const { t } = useTranslation();
+    const { t } = useTranslation();
 
-  const [step, setStep] = useState<ModalStep>("search");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<CustomerResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    const [step, setStep] = useState<ModalStep>("search");
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState<CustomerResult[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerResult | null>(null);
+    const [selectedCustomer, setSelectedCustomer] = useState<CustomerResult | null>(null);
 
-  // RFID listener for card tap — auto-lookup customer when card is scanned
-  const rfid = useRfidListener({
-    onCapture: async (code: string) => {
-      if (open && step === "search") {
-        setQuery(code);
-        await lookupCustomerByCode(code);
-      }
-    },
-  });
-  const [amount, setAmount] = useState("");
-  const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [submitting, setSubmitting] = useState(false);
+    // RFID listener for card tap — auto-lookup customer when card is scanned
+    const rfid = useRfidListener({
+        onCapture: async (code: string) => {
+            if (open && step === "search") {
+                setQuery(code);
+                await lookupCustomerByCode(code);
+            }
+        },
+    });
+    const [amount, setAmount] = useState("");
+    const [notes, setNotes] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+    const [submitting, setSubmitting] = useState(false);
 
-  // QR & EDC top-up have no backend minimum floor beyond ฿1 (see topup_service.ts);
-  // cash keeps the ฿100 floor since that's a separate, unaffected backend path.
-  const minTopupAmount = paymentMethod === "cash" ? 100 : 1;
+    // QR & EDC top-up have no backend minimum floor beyond ฿1 (see topup_service.ts);
+    // cash keeps the ฿100 floor since that's a separate, unaffected backend path.
+    const minTopupAmount = paymentMethod === "cash" ? 100 : 1;
 
-  const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
-  const [lastPaymentMethod, setLastPaymentMethod] = useState<PaymentMethod>("cash");
-  const [lastRefCode, setLastRefCode] = useState<string | null>(null);
-  const [lastNotes, setLastNotes] = useState("");
-  const printedForResultRef = useRef<string | null>(null);
-  const [intent, setIntent] = useState<TopupIntent | null>(null);
-  const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
-  const [confirming, setConfirming] = useState(false);
-  const [edcOpen, setEdcOpen] = useState(false);
-  const [edcAmount, setEdcAmount] = useState(0);
-  const cashAttemptRef = useRef<CashTopupAttempt | null>(null);
+    const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
+    const [lastPaymentMethod, setLastPaymentMethod] = useState<PaymentMethod>("cash");
+    const [lastRefCode, setLastRefCode] = useState<string | null>(null);
+    const [lastNotes, setLastNotes] = useState("");
+    const printedForResultRef = useRef<string | null>(null);
+    const [intent, setIntent] = useState<TopupIntent | null>(null);
+    const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
+    const [confirming, setConfirming] = useState(false);
+    const [edcOpen, setEdcOpen] = useState(false);
+    const [edcAmount, setEdcAmount] = useState(0);
+    const cashAttemptRef = useRef<CashTopupAttempt | null>(null);
 
-  const clearCashAttempt = useCallback(() => {
-    cashAttemptRef.current = null;
-  }, []);
+    const clearCashAttempt = useCallback(() => {
+        cashAttemptRef.current = null;
+    }, []);
 
-  // Reset state when modal opens
-  useEffect(() => {
-    if (open) {
-      setStep("search");
-      setQuery("");
-      setResults([]);
-      setError(null);
-      setSelectedCustomer(null);
-      setAmount("");
-      setNotes("");
-      setPaymentMethod("cash");
-      setTopupResult(null);
-      setLastPaymentMethod("cash");
-      setLastRefCode(null);
-      setLastNotes("");
-      printedForResultRef.current = null;
-      setIntent(null);
-      setQrStatus("waiting");
-      clearCashAttempt();
-    }
-  }, [open, clearCashAttempt]);
-
-  // Direct lookup by card/code (for RFID scanning)
-  const lookupCustomerByCode = useCallback(async (code: string) => {
-    const q = code.trim();
-    if (!q) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      let customer: CustomerResult | null = null;
-
-      // 1. Try by card UID
-      try {
-        const result = await api.get<CustomerResult>(
-          `/customers/by-card/${encodeURIComponent(q)}`
-        );
-        customer = result;
-      } catch (e) {
-        if (!(e instanceof ApiError && e.status === 404)) throw e;
-      }
-
-      // 2. Try by customer code
-      if (!customer) {
-        try {
-          const result = await api.get<CustomerResult>(
-            `/customers/by-code/${encodeURIComponent(q)}`
-          );
-          customer = result;
-        } catch (e) {
-          if (!(e instanceof ApiError && e.status === 404)) throw e;
+    // Reset state when modal opens
+    useEffect(() => {
+        if (open) {
+            setStep("search");
+            setQuery("");
+            setResults([]);
+            setError(null);
+            setSelectedCustomer(null);
+            setAmount("");
+            setNotes("");
+            setPaymentMethod("cash");
+            setTopupResult(null);
+            setLastPaymentMethod("cash");
+            setLastRefCode(null);
+            setLastNotes("");
+            printedForResultRef.current = null;
+            setIntent(null);
+            setQrStatus("waiting");
+            clearCashAttempt();
         }
-      }
+    }, [open, clearCashAttempt]);
 
-      if (customer) {
+    // Direct lookup by card/code (for RFID scanning)
+    const lookupCustomerByCode = useCallback(async (code: string) => {
+        const q = code.trim();
+        if (!q) return;
+
+        setLoading(true);
+        setError(null);
+        try {
+            let customer: CustomerResult | null = null;
+
+            // 1. Try by card UID
+            try {
+                const result = await api.get<CustomerResult>(
+                    `/customers/by-card/${encodeURIComponent(q)}`
+                );
+                customer = result;
+            } catch (e) {
+                if (!(e instanceof ApiError && e.status === 404)) throw e;
+            }
+
+            // 2. Try by customer code
+            if (!customer) {
+                try {
+                    const result = await api.get<CustomerResult>(
+                        `/customers/by-code/${encodeURIComponent(q)}`
+                    );
+                    customer = result;
+                } catch (e) {
+                    if (!(e instanceof ApiError && e.status === 404)) throw e;
+                }
+            }
+
+            if (customer) {
+                clearCashAttempt();
+                setSelectedCustomer(customer);
+                setStep("topup");
+            } else {
+                setError(t("topup.notFound", "Customer not found"));
+                setResults([]);
+            }
+        } catch (e) {
+            setError(e instanceof ApiError ? e.detail : t("topup.searchError", "Search failed"));
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [t, clearCashAttempt]);
+
+    // Debounced search
+    const searchCustomers = useCallback(async (searchQuery: string) => {
+        const q = searchQuery.trim();
+        if (q.length < 2) {
+            setResults([]);
+            setError(null);
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await api.get<CustomerResult[]>(
+                `/customers/search?q=${encodeURIComponent(q)}&limit=10`
+            );
+            setResults(data);
+            if (data.length === 0) {
+                setError(t("topup.noResults", "No customers found"));
+            }
+        } catch (e) {
+            setError(e instanceof ApiError ? e.detail : t("topup.searchError", "Search failed"));
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [t]);
+
+    // Debounce effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (step === "search") {
+                searchCustomers(query);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [query, searchCustomers, step]);
+
+    const buildTopupReceiptPayload = useCallback((
+        result: TopupSuccessResult,
+        paymentMethod: PaymentMethod,
+        refCode: string | null,
+        noteText: string,
+    ): TopupReceiptData => ({
+        transaction_id: result.transaction_id > 0 ? result.transaction_id : undefined,
+        ref_code: refCode,
+        transaction_date: new Date().toISOString(),
+        cashier_name: printConfig?.cashierName ?? null,
+        customer_name: result.customer_name,
+        customer_code: selectedCustomer?.student_code ?? selectedCustomer?.customer_code ?? null,
+        grade: selectedCustomer?.grade ? `Grade ${selectedCustomer.grade}` : null,
+        payment_method: paymentMethod === "bay_qr" ? "bay_qr" : "cash",
+        amount: result.amount,
+        balance_before: result.balance_before,
+        balance_after: result.balance_after,
+        notes: noteText.trim() || null,
+    }), [printConfig?.cashierName, selectedCustomer]);
+
+    const handlePrintReceipt = useCallback((
+        result: TopupSuccessResult,
+        paymentMethod: PaymentMethod,
+        refCode: string | null,
+        noteText: string,
+    ) => {
+        if (!printConfig) return;
+        try {
+            printTopupReceipt(
+                buildTopupReceiptPayload(result, paymentMethod, refCode, noteText),
+                printConfig.school,
+                printConfig.shopName,
+                "en",
+                printConfig.shopReceipt,
+            );
+        } catch (err) {
+            console.warn("Top-up receipt print failed:", err);
+        }
+    }, [buildTopupReceiptPayload, printConfig]);
+
+    const maybeAutoPrint = useCallback((
+        result: TopupSuccessResult,
+        paymentMethod: PaymentMethod,
+        refCode: string | null,
+        noteText: string,
+    ) => {
+        if (!printConfig?.enabled) return;
+        const key = `${result.wallet_id}:${result.transaction_id}:${result.amount}:${refCode ?? ""}`;
+        if (printedForResultRef.current === key) return;
+        printedForResultRef.current = key;
+        handlePrintReceipt(result, paymentMethod, refCode, noteText);
+    }, [handlePrintReceipt, printConfig?.enabled]);
+
+    useEffect(() => {
+        if (step !== "success" || !topupResult) return;
+        maybeAutoPrint(topupResult, lastPaymentMethod, lastRefCode, lastNotes);
+    }, [step, topupResult, lastPaymentMethod, lastRefCode, lastNotes, maybeAutoPrint]);
+
+    const handleSelectCustomer = (customer: CustomerResult) => {
         clearCashAttempt();
         setSelectedCustomer(customer);
         setStep("topup");
-      } else {
-        setError(t("topup.notFound", "Customer not found"));
-        setResults([]);
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail : t("topup.searchError", "Search failed"));
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [t, clearCashAttempt]);
+    };
 
-  // Debounced search
-  const searchCustomers = useCallback(async (searchQuery: string) => {
-    const q = searchQuery.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.get<CustomerResult[]>(
-        `/customers/search?q=${encodeURIComponent(q)}&limit=10`
-      );
-      setResults(data);
-      if (data.length === 0) {
-        setError(t("topup.noResults", "No customers found"));
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail : t("topup.searchError", "Search failed"));
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  // Debounce effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (step === "search") {
-        searchCustomers(query);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, searchCustomers, step]);
-
-  const buildTopupReceiptPayload = useCallback((
-    result: TopupSuccessResult,
-    paymentMethod: PaymentMethod,
-    refCode: string | null,
-    noteText: string,
-  ): TopupReceiptData => ({
-    transaction_id: result.transaction_id > 0 ? result.transaction_id : undefined,
-    ref_code: refCode,
-    transaction_date: new Date().toISOString(),
-    cashier_name: printConfig?.cashierName ?? null,
-    customer_name: result.customer_name,
-    customer_code: selectedCustomer?.student_code ?? selectedCustomer?.customer_code ?? null,
-    grade: selectedCustomer?.grade ? `Grade ${selectedCustomer.grade}` : null,
-    payment_method: paymentMethod === "bay_qr" ? "bay_qr" : "cash",
-    amount: result.amount,
-    balance_before: result.balance_before,
-    balance_after: result.balance_after,
-    notes: noteText.trim() || null,
-  }), [printConfig?.cashierName, selectedCustomer]);
-
-  const handlePrintReceipt = useCallback((
-    result: TopupSuccessResult,
-    paymentMethod: PaymentMethod,
-    refCode: string | null,
-    noteText: string,
-  ) => {
-    if (!printConfig) return;
-    try {
-      printTopupReceipt(
-        buildTopupReceiptPayload(result, paymentMethod, refCode, noteText),
-        printConfig.school,
-        printConfig.shopName,
-        "en",
-        printConfig.shopReceipt,
-      );
-    } catch (err) {
-      console.warn("Top-up receipt print failed:", err);
-    }
-  }, [buildTopupReceiptPayload, printConfig]);
-
-  const maybeAutoPrint = useCallback((
-    result: TopupSuccessResult,
-    paymentMethod: PaymentMethod,
-    refCode: string | null,
-    noteText: string,
-  ) => {
-    if (!printConfig?.enabled) return;
-    const key = `${result.wallet_id}:${result.transaction_id}:${result.amount}:${refCode ?? ""}`;
-    if (printedForResultRef.current === key) return;
-    printedForResultRef.current = key;
-    handlePrintReceipt(result, paymentMethod, refCode, noteText);
-  }, [handlePrintReceipt, printConfig?.enabled]);
-
-  useEffect(() => {
-    if (step !== "success" || !topupResult) return;
-    maybeAutoPrint(topupResult, lastPaymentMethod, lastRefCode, lastNotes);
-  }, [step, topupResult, lastPaymentMethod, lastRefCode, lastNotes, maybeAutoPrint]);
-
-  const handleSelectCustomer = (customer: CustomerResult) => {
-    clearCashAttempt();
-    setSelectedCustomer(customer);
-    setStep("topup");
-  };
-
-  const handleBack = () => {
-    if (step === "topup") {
-      clearCashAttempt();
-      setStep("search");
-      setAmount("");
-      setNotes("");
-    } else if (step === "qr") {
-      setStep("topup");
-      setIntent(null);
-      setQrStatus("waiting");
-    } else if (step === "success") {
-      clearCashAttempt();
-      setStep("search");
-      setSelectedCustomer(null);
-      setAmount("");
-      setNotes("");
-      setTopupResult(null);
-      setIntent(null);
-      setQrStatus("waiting");
-    }
-  };
-
-  const handleSubmitTopup = async () => {
-    if (!selectedCustomer) return;
-
-    const amountNum = parseFloat(amount);
-    const minAmount = paymentMethod === "cash" ? 100 : 1;
-    if (isNaN(amountNum) || amountNum < minAmount || amountNum > 50000) {
-      toast.error(t("topup.invalidAmount", { min: minAmount, max: 50000, defaultValue: `Amount must be between ฿${minAmount} and ฿50,000` }));
-      return;
-    }
-
-    // bay_qr & edc require an existing wallet — use cash if no wallet yet (intent needs wallet_id)
-    const hasWallet = !!selectedCustomer.wallet_id;
-    const effectiveMethod: PaymentMethod = (!hasWallet && (paymentMethod === "bay_qr" || paymentMethod === "edc")) ? "cash" : paymentMethod;
-    if (!hasWallet && (paymentMethod === "bay_qr" || paymentMethod === "edc")) {
-      toast.warning(t("topup.noWalletFallback", "Payment method not available — wallet will be created and topped up as cash"));
-    }
-
-    setSubmitting(true);
-    try {
-      if (effectiveMethod === "edc" && hasWallet) {
-        // EDC payment — open EDC modal instead of creating intent
-        setEdcAmount(amountNum);
-        setLastNotes(notes);
-        setEdcOpen(true);
-        setSubmitting(false);
-      } else if (effectiveMethod === "bay_qr" && hasWallet) {
-        const resp = await api.post<TopupIntent>(
-          `/wallets/${selectedCustomer.wallet_id}/topup`,
-          {
-            amount: amountNum,
-            payment_method: "bay_qr",
-            notes: notes.trim() || null,
-          }
-        );
-        setIntent(resp);
-        setLastPaymentMethod("bay_qr");
-        setLastRefCode(resp.ref_code);
-        setLastNotes(notes);
-        setQrStatus("waiting");
-        setStep("qr");
-      } else {
-        // Cash topup: route to the right endpoint based on entity type
-        const url = hasWallet
-          ? `/wallets/${selectedCustomer.wallet_id}/cashier-topup`
-          : selectedCustomer.user_id
-            ? `/users/${selectedCustomer.user_id}/cashier-topup`
-            : `/customers/${selectedCustomer.id}/cashier-topup`;
-        const idempotencyKey = getCashIdempotencyKey(
-          cashAttemptRef,
-          selectedCustomer.wallet_id ?? selectedCustomer.id,
-          amountNum,
-        );
-        const result = await api.post<TopupSuccessResult>(url, {
-          amount: amountNum,
-          notes: notes.trim() || null,
-          idempotency_key: idempotencyKey,
-        });
-
-        clearCashAttempt();
-        setLastPaymentMethod(effectiveMethod);
-        setLastRefCode(null);
-        setLastNotes(notes);
-        setTopupResult(result);
-        setStep("success");
-        onSuccess?.(result);
-        toast.success(t("topup.success", "Top-up successful"));
-      }
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed");
-      if (effectiveMethod === "bay_qr") {
-        toast.error(t("topup.qrCreateFailed", "Failed to create QR"));
-      } else if (effectiveMethod === "edc") {
-        toast.error(t("topup.edcCreateFailed", "Failed to initiate EDC payment"));
-      } else {
-        toast.error(msg);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Poll BAY QR status while waiting
-  useEffect(() => {
-    if (step !== "qr" || !intent) return;
-    let cancelled = false;
-    const MAX_WAIT_MS = QR_TOPUP_TIMEOUT_SEC * 1000;
-    const POLL_INTERVAL_MS = 3_000;
-    const startTime = Date.now();
-    const refCode = intent.ref_code;
-    const walletId = intent.wallet_id;
-    const customerName = selectedCustomer?.name ?? "";
-    const intentAmount = intent.amount;
-
-    async function poll() {
-      while (Date.now() - startTime < MAX_WAIT_MS) {
-        if (cancelled) return;
-        await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
-        if (cancelled) return;
-        try {
-          const s = await api.get<IntentStatus>(`/wallets/topup/${refCode}/status`);
-          if (s.status === "confirmed") {
-            if (cancelled) return;
-            setQrStatus("confirmed");
-            try {
-              const wallet = await api.get<WalletBalance>(`/wallets/${walletId}`);
-              const balanceAfter = wallet.balance;
-              const balanceBefore = balanceAfter - intentAmount;
-              const successResult: TopupSuccessResult = {
-                wallet_id: walletId,
-                customer_name: customerName,
-                amount: intentAmount,
-                balance_before: balanceBefore,
-                balance_after: balanceAfter,
-                transaction_id: 0,
-              };
-              if (cancelled) return;
-              setTopupResult(successResult);
-              setStep("success");
-              onSuccess?.(successResult);
-            } catch {
-              // Wallet fetch failed — still surface success
-              const successResult: TopupSuccessResult = {
-                wallet_id: walletId,
-                customer_name: customerName,
-                amount: intentAmount,
-                balance_before: selectedCustomer?.wallet_balance ?? 0,
-                balance_after: (selectedCustomer?.wallet_balance ?? 0) + intentAmount,
-                transaction_id: 0,
-              };
-              if (cancelled) return;
-              setTopupResult(successResult);
-              setStep("success");
-              onSuccess?.(successResult);
-            }
-            toast.success(t("topup.success", "Top-up successful"));
-            return;
-          }
-          if (s.status === "cancelled") {
-            if (cancelled) return;
-            setQrStatus("cancelled");
-            return;
-          }
-        } catch { /* ignore poll errors */ }
-      }
-      if (!cancelled) setQrStatus("timeout");
-    }
-    poll();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, intent?.ref_code]);
-
-  const handleCancelQr = () => {
-    setIntent(null);
-    setQrStatus("waiting");
-    setStep("topup");
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-  };
-
-  // Quick amount buttons
-  const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
-
-  return (
-    <>
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-emerald-500" />
-            {t("topup.title", "Top-up")}
-            {step === "qr" && (
-              <Badge variant="secondary" className="ml-1">
-                {t("topup.methodBayQr", "QR Code")}
-              </Badge>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-
-        {step === "search" && (
-          <div className="space-y-4">
-            {/* Search input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("topup.searchPlaceholder", "Search by name or student code...")}
-                className="pl-9"
-                autoFocus
-              />
-              {loading && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              {t("topup.searchHint", "Type at least 2 characters to search")}
-            </p>
-
-            {/* Results list */}
-            {results.length > 0 && (
-              <div className="max-h-80 overflow-y-auto space-y-2">
-                {results.map((customer) => (
-                  <button
-                    key={customer.id}
-                    type="button"
-                    onClick={() => handleSelectCustomer(customer)}
-                    disabled={customer.card_frozen}
-                    className={cn(
-                      "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
-                      customer.card_frozen
-                        ? "border-red-200 bg-red-50 opacity-60 cursor-not-allowed"
-                        : "border-border bg-card hover:border-emerald-400 hover:bg-emerald-50/50"
-                    )}
-                  >
-                    {/* Photo */}
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-                      <img
-                        src={resolveAvatarUrl(customer.photo_url, customer.name || String(customer.id))}
-                        alt={customer.name}
-                        className="h-full w-full object-cover"
-                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(customer.name || String(customer.id)); }}
-                      />
-                    </div>
-
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-sm truncate">
-                          {customer.name}
-                        </span>
-                        {customer.grade && (
-                          <Badge variant="secondary" className="h-4 text-[10px] px-1">
-                            Grade {customer.grade}
-                          </Badge>
-                        )}
-                        {customer.card_frozen && (
-                          <Badge variant="destructive" className="h-4 text-[10px] px-1">
-                            Frozen
-                          </Badge>
-                        )}
-                        {!customer.wallet_id && (
-                          <Badge variant="outline" className="h-4 text-[10px] px-1">
-                            No Wallet
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {customer.student_code ?? customer.customer_code}
-                      </div>
-                    </div>
-
-                    {/* Balance */}
-                    <div className="text-right shrink-0">
-                      <div
-                        className={cn(
-                          "text-sm font-bold tabular-nums",
-                          (customer.wallet_balance ?? 0) < 0
-                            ? "text-destructive"
-                            : "text-foreground"
-                        )}
-                      >
-                        ฿{(customer.wallet_balance ?? 0).toFixed(2)}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Error message */}
-            {error && !loading && (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                {error}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === "topup" && selectedCustomer && (
-          <div className="space-y-4">
-            {/* Back button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="mb-2 -ml-2"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              {t("common.back", "Back")}
-            </Button>
-
-            {/* Customer card */}
-            <div className="flex gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
-              <div className="h-32 w-32 shrink-0 overflow-hidden rounded-xl bg-emerald-100 ring-2 ring-emerald-300">
-                <img
-                  src={resolveAvatarUrl(selectedCustomer.photo_url, selectedCustomer.name || String(selectedCustomer.id))}
-                  alt={selectedCustomer.name}
-                  className="h-full w-full object-cover"
-                  onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedCustomer.name || String(selectedCustomer.id)); }}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-lg font-bold truncate">
-                  {selectedCustomer.name}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {selectedCustomer.student_code ?? selectedCustomer.customer_code}
-                  {selectedCustomer.grade && ` · Grade ${selectedCustomer.grade}`}
-                </div>
-                <div className="mt-1 text-base font-bold tabular-nums">
-                  {t("topup.currentBalance", "Current Balance")}:{" "}
-                  <span
-                    className={cn(
-                      (selectedCustomer.wallet_balance ?? 0) < 0
-                        ? "text-destructive"
-                        : "text-emerald-600"
-                    )}
-                  >
-                    ฿{(selectedCustomer.wallet_balance ?? 0).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment method picker */}
-            <div className="space-y-2">
-              <Label>{t("topup.methodLabel", "Payment Method")}</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("cash")}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
-                    paymentMethod === "cash"
-                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                      : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
-                  )}
-                >
-                  <Banknote className="h-4 w-4" />
-                  {t("topup.methodCash", "Cash")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("bay_qr")}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
-                    paymentMethod === "bay_qr"
-                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                      : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
-                  )}
-                >
-                  <QrCode className="h-4 w-4" />
-                  {t("topup.methodBayQr", "QR Code")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("edc")}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
-                    paymentMethod === "edc"
-                      ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                      : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
-                  )}
-                >
-                  <CreditCard className="h-4 w-4" />
-                  {t("topup.methodEdc", "EDC")}
-                </button>
-              </div>
-            </div>
-
-            {/* Amount input */}
-            <div className="space-y-2">
-              <Label>{t("topup.amount", "Top-up Amount")} (THB)</Label>
-              <div className="relative">
-                <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="number"
-                  min={minTopupAmount}
-                  max="50000"
-                  step="any"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-9 text-lg font-bold"
-                  autoFocus
-                />
-              </div>
-
-              {/* Quick amount buttons */}
-              <div className="flex gap-2 flex-wrap">
-                {quickAmounts.map((qa) => (
-                  <Button
-                    key={qa}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAmount(String(qa))}
-                    className={cn(
-                      "flex-1 min-w-16",
-                      amount === String(qa) && "border-emerald-500 bg-emerald-50"
-                    )}
-                  >
-                    ฿{qa.toLocaleString()}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label>{t("topup.notes", "Notes")} ({t("common.optional", "Optional")})</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder={t("topup.notesPlaceholder", "e.g., Received cash from parent")}
-                rows={2}
-              />
-            </div>
-
-            {/* Preview new balance */}
-            {amount && parseFloat(amount) > 0 && (
-              <div className="rounded-lg bg-muted p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("topup.currentBalance", "Current Balance")}:</span>
-                  <span className="tabular-nums">฿{(selectedCustomer.wallet_balance ?? 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-emerald-600">
-                  <span>+ {t("topup.topupAmount", "Top-up")}:</span>
-                  <span className="tabular-nums">฿{parseFloat(amount).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold border-t mt-2 pt-2">
-                  <span>{t("topup.newBalance", "New Balance")}:</span>
-                  <span className="tabular-nums text-emerald-600">
-                    ฿{((selectedCustomer.wallet_balance ?? 0) + parseFloat(amount)).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Submit button */}
-            <Button
-              onClick={handleSubmitTopup}
-              disabled={submitting || !amount || parseFloat(amount) < minTopupAmount || parseFloat(amount) > 50000}
-              className="w-full h-12 text-base font-bold bg-emerald-500 hover:bg-emerald-600"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  {t("topup.processing", "Processing...")}
-                </>
-              ) : (
-                <>
-                  {paymentMethod === "bay_qr" ? (
-                    <QrCode className="h-5 w-5 mr-2" />
-                  ) : (
-                    <Wallet className="h-5 w-5 mr-2" />
-                  )}
-                  {t("topup.confirmTopup", "Confirm Top-up")}
-                  {amount && parseFloat(amount) > 0 && ` ฿${parseFloat(amount).toLocaleString()}`}
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {step === "qr" && intent && selectedCustomer && (
-          <div className="space-y-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="mb-2 -ml-2"
-              disabled={qrStatus === "waiting" && confirming}
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              {t("common.back", "Back")}
-            </Button>
-
-            <div className="text-center space-y-1">
-              <p className="text-sm font-medium text-foreground">
-                {selectedCustomer.name}
-              </p>
-              <p className="text-2xl font-bold tabular-nums text-emerald-600">
-                ฿{intent.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("topup.scanQr", "Ask customer to scan this QR with their banking app")}
-              </p>
-            </div>
-
-            <div className="flex justify-center rounded-xl bg-white p-4 border border-emerald-100 shadow-inner">
-              <QRCodeSVG value={intent.qr_payload} size={220} />
-            </div>
-
-            {qrStatus === "waiting" && (
-              <QrCountdownBar
-                active
-                resetKey={intent.ref_code}
-                onExpired={() => setQrStatus("timeout")}
-              />
-            )}
-
-            <div className="space-y-1 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-emerald-700">{t("topup.qrRefCode", "Reference")}</span>
-                <span className="font-mono text-emerald-900">{intent.ref_code}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-emerald-700">{t("topup.amount", "Top-up Amount")}</span>
-                <span className="font-semibold text-emerald-900 tabular-nums">
-                  ฿{intent.amount.toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            {qrStatus === "waiting" && (
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                <span>{t("topup.waitingPayment", "Waiting for payment...")}</span>
-              </div>
-            )}
-            {qrStatus === "cancelled" && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{t("topup.qrCancelled", "Payment cancelled")}</span>
-              </div>
-            )}
-            {qrStatus === "timeout" && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{t("topup.qrTimedOut", "QR timed out")}</span>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 h-11"
-                onClick={handleCancelQr}
-                disabled={confirming}
-              >
-                {t("topup.cancel", "Cancel")}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === "success" && topupResult && (
-          <div className="space-y-4 text-center">
-            {/* Success icon */}
-            <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-              <Check className="h-8 w-8 text-emerald-600" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold text-emerald-600">
-                {t("topup.successTitle", "Top-up Successful!")}
-              </h3>
-              <p className="text-muted-foreground mt-1">
-                {topupResult.customer_name}
-              </p>
-            </div>
-
-            {/* Transaction details */}
-            <div className="rounded-xl bg-muted p-4 space-y-2 text-sm text-left">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("topup.amount", "Amount")}:</span>
-                <span className="font-bold text-emerald-600 tabular-nums">
-                  +฿{topupResult.amount.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("topup.balanceBefore", "Balance Before")}:</span>
-                <span className="tabular-nums">฿{topupResult.balance_before.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-bold">
-                <span>{t("topup.balanceAfter", "Balance After")}:</span>
-                <span className="text-emerald-600 tabular-nums">
-                  ฿{topupResult.balance_after.toFixed(2)}
-                </span>
-              </div>
-              {topupResult.transaction_id > 0 && (
-                <div className="flex justify-between text-xs pt-2 border-t">
-                  <span className="text-muted-foreground">Transaction ID:</span>
-                  <span className="font-mono">{topupResult.transaction_id}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col gap-2">
-              {printConfig && topupResult && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => handlePrintReceipt(topupResult, lastPaymentMethod, lastRefCode, lastNotes)}
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  {t("topup.printReceipt", "Print Receipt")}
-                </Button>
-              )}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleBack}
-                >
-                  {t("topup.topupAnother", "Top-up Another")}
-                </Button>
-                <Button
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-                  onClick={handleClose}
-                >
-                  {t("common.done", "Done")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-
-    <EdcPaymentModal
-      open={edcOpen}
-      onOpenChange={setEdcOpen}
-      total={edcAmount}
-      onBack={() => {
-        setEdcOpen(false);
-        setStep("topup");
-      }}
-      onConfirm={async (refs) => {
-        if (!selectedCustomer) return;
-        try {
-          setConfirming(true);
-          await api.post(`/wallets/${selectedCustomer.wallet_id}/topup`, {
-            amount: edcAmount,
-            payment_method: "edc",
-            edc_approval_code: refs.approval_code,
-            edc_terminal_ref: refs.terminal_ref,
-            edc_masked_card: refs.masked_card,
-            edc_mode: refs.mode,
-            notes: lastNotes.trim() || null,
-          });
-
-          // Fetch updated wallet to show success
-          try {
-            const wallet = await api.get<WalletBalance>(`/wallets/${selectedCustomer.wallet_id}`);
-            const balanceAfter = wallet.balance;
-            const balanceBefore = balanceAfter - edcAmount;
-            const successResult: TopupSuccessResult = {
-              wallet_id: selectedCustomer.wallet_id,
-              customer_name: selectedCustomer.name,
-              amount: edcAmount,
-              balance_before: balanceBefore,
-              balance_after: balanceAfter,
-              transaction_id: 0,
-            };
-            setTopupResult(successResult);
-            setStep("success");
-            onSuccess?.(successResult);
-          } catch {
-            const successResult: TopupSuccessResult = {
-              wallet_id: selectedCustomer.wallet_id,
-              customer_name: selectedCustomer.name,
-              amount: edcAmount,
-              balance_before: selectedCustomer.wallet_balance ?? 0,
-              balance_after: (selectedCustomer.wallet_balance ?? 0) + edcAmount,
-              transaction_id: 0,
-            };
-            setTopupResult(successResult);
-            setStep("success");
-            onSuccess?.(successResult);
-          }
-          toast.success(t("topup.success", "Top-up successful"));
-          setEdcOpen(false);
-        } catch (error) {
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : t("topup.edcFailed", "EDC payment failed")
-          );
-        } finally {
-          setConfirming(false);
+    const handleBack = () => {
+        if (step === "topup") {
+            clearCashAttempt();
+            setStep("search");
+            setAmount("");
+            setNotes("");
+        } else if (step === "qr") {
+            setStep("topup");
+            setIntent(null);
+            setQrStatus("waiting");
+        } else if (step === "success") {
+            clearCashAttempt();
+            setStep("search");
+            setSelectedCustomer(null);
+            setAmount("");
+            setNotes("");
+            setTopupResult(null);
+            setIntent(null);
+            setQrStatus("waiting");
         }
-      }}
-      confirming={confirming}
-    />
-    </>
-  );
+    };
+
+    const handleSubmitTopup = async () => {
+        if (!selectedCustomer) return;
+
+        const amountNum = parseFloat(amount);
+        const minAmount = paymentMethod === "cash" ? 100 : 1;
+        if (isNaN(amountNum) || amountNum < minAmount || amountNum > 50000) {
+            toast.error(t("topup.invalidAmount", { min: minAmount, max: 50000, defaultValue: `Amount must be between ฿${minAmount} and ฿50,000` }));
+            return;
+        }
+
+        // bay_qr & edc require an existing wallet — use cash if no wallet yet (intent needs wallet_id)
+        const hasWallet = !!selectedCustomer.wallet_id;
+        const effectiveMethod: PaymentMethod = (!hasWallet && (paymentMethod === "bay_qr" || paymentMethod === "edc")) ? "cash" : paymentMethod;
+        if (!hasWallet && (paymentMethod === "bay_qr" || paymentMethod === "edc")) {
+            toast.warning(t("topup.noWalletFallback", "Payment method not available — wallet will be created and topped up as cash"));
+        }
+
+        setSubmitting(true);
+        try {
+            if (effectiveMethod === "edc" && hasWallet) {
+                // EDC payment — open EDC modal instead of creating intent
+                setEdcAmount(amountNum);
+                setLastNotes(notes);
+                setEdcOpen(true);
+                setSubmitting(false);
+            } else if (effectiveMethod === "bay_qr" && hasWallet) {
+                const resp = await api.post<TopupIntent>(
+                    `/wallets/${selectedCustomer.wallet_id}/topup`,
+                    {
+                        amount: amountNum,
+                        payment_method: "bay_qr",
+                        notes: notes.trim() || null,
+                    }
+                );
+                setIntent(resp);
+                setLastPaymentMethod("bay_qr");
+                setLastRefCode(resp.ref_code);
+                setLastNotes(notes);
+                setQrStatus("waiting");
+                setStep("qr");
+            } else {
+                // Cash topup: route to the right endpoint based on entity type
+                const url = hasWallet
+                    ? `/wallets/${selectedCustomer.wallet_id}/cashier-topup`
+                    : selectedCustomer.user_id
+                        ? `/users/${selectedCustomer.user_id}/cashier-topup`
+                        : `/customers/${selectedCustomer.id}/cashier-topup`;
+                const idempotencyKey = getCashIdempotencyKey(
+                    cashAttemptRef,
+                    selectedCustomer.wallet_id ?? selectedCustomer.id,
+                    amountNum,
+                );
+                const result = await api.post<TopupSuccessResult>(url, {
+                    amount: amountNum,
+                    notes: notes.trim() || null,
+                    idempotency_key: idempotencyKey,
+                });
+
+                clearCashAttempt();
+                setLastPaymentMethod(effectiveMethod);
+                setLastRefCode(null);
+                setLastNotes(notes);
+                setTopupResult(result);
+                setStep("success");
+                onSuccess?.(result);
+                toast.success(t("topup.success", "Top-up successful"));
+            }
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.detail : t("topup.failed", "Top-up failed");
+            if (effectiveMethod === "bay_qr") {
+                toast.error(t("topup.qrCreateFailed", "Failed to create QR"));
+            } else if (effectiveMethod === "edc") {
+                toast.error(t("topup.edcCreateFailed", "Failed to initiate EDC payment"));
+            } else {
+                toast.error(msg);
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // Poll BAY QR status while waiting
+    useEffect(() => {
+        if (step !== "qr" || !intent) return;
+        let cancelled = false;
+        const MAX_WAIT_MS = QR_TOPUP_TIMEOUT_SEC * 1000;
+        const POLL_INTERVAL_MS = 3_000;
+        const startTime = Date.now();
+        const refCode = intent.ref_code;
+        const walletId = intent.wallet_id;
+        const customerName = selectedCustomer?.name ?? "";
+        const intentAmount = intent.amount;
+
+        async function poll() {
+            while (Date.now() - startTime < MAX_WAIT_MS) {
+                if (cancelled) return;
+                await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
+                if (cancelled) return;
+                try {
+                    const s = await api.get<IntentStatus>(`/wallets/topup/${refCode}/status`);
+                    if (s.status === "confirmed") {
+                        if (cancelled) return;
+                        setQrStatus("confirmed");
+                        try {
+                            const wallet = await api.get<WalletBalance>(`/wallets/${walletId}`);
+                            const balanceAfter = wallet.balance;
+                            const balanceBefore = balanceAfter - intentAmount;
+                            const successResult: TopupSuccessResult = {
+                                wallet_id: walletId,
+                                customer_name: customerName,
+                                amount: intentAmount,
+                                balance_before: balanceBefore,
+                                balance_after: balanceAfter,
+                                transaction_id: 0,
+                            };
+                            if (cancelled) return;
+                            setTopupResult(successResult);
+                            setStep("success");
+                            onSuccess?.(successResult);
+                        } catch {
+                            // Wallet fetch failed — still surface success
+                            const successResult: TopupSuccessResult = {
+                                wallet_id: walletId,
+                                customer_name: customerName,
+                                amount: intentAmount,
+                                balance_before: selectedCustomer?.wallet_balance ?? 0,
+                                balance_after: (selectedCustomer?.wallet_balance ?? 0) + intentAmount,
+                                transaction_id: 0,
+                            };
+                            if (cancelled) return;
+                            setTopupResult(successResult);
+                            setStep("success");
+                            onSuccess?.(successResult);
+                        }
+                        toast.success(t("topup.success", "Top-up successful"));
+                        return;
+                    }
+                    if (s.status === "cancelled") {
+                        if (cancelled) return;
+                        setQrStatus("cancelled");
+                        return;
+                    }
+                } catch { /* ignore poll errors */ }
+            }
+            if (!cancelled) setQrStatus("timeout");
+        }
+        poll();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step, intent?.ref_code]);
+
+    const handleCancelQr = () => {
+        setIntent(null);
+        setQrStatus("waiting");
+        setStep("topup");
+    };
+
+    const handleClose = () => {
+        onOpenChange(false);
+    };
+
+    // Quick amount buttons
+    const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
+
+    return (
+        <>
+            <Dialog open={open} onOpenChange={handleClose}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Wallet className="h-5 w-5 text-emerald-500" />
+                            {t("topup.title", "Top-up")}
+                            {step === "qr" && (
+                                <Badge variant="secondary" className="ml-1">
+                                    {t("topup.methodBayQr", "QR Code")}
+                                </Badge>
+                            )}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {step === "search" && (
+                        <div className="space-y-4">
+                            {/* Search input */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    placeholder={t("topup.searchPlaceholder", "Search by name or student code...")}
+                                    className="pl-9"
+                                    autoFocus
+                                />
+                                {loading && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                            </div>
+
+                            <p className="text-xs text-muted-foreground">
+                                {t("topup.searchHint", "Type at least 2 characters to search")}
+                            </p>
+
+                            {/* Results list */}
+                            {results.length > 0 && (
+                                <div className="max-h-80 overflow-y-auto space-y-2">
+                                    {results.map((customer) => (
+                                        <button
+                                            key={customer.id}
+                                            type="button"
+                                            onClick={() => handleSelectCustomer(customer)}
+                                            disabled={customer.card_frozen}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
+                                                customer.card_frozen
+                                                    ? "border-red-200 bg-red-50 opacity-60 cursor-not-allowed"
+                                                    : "border-border bg-card hover:border-emerald-400 hover:bg-emerald-50/50"
+                                            )}
+                                        >
+                                            {/* Photo */}
+                                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                                                <img
+                                                    src={resolveAvatarUrl(customer.photo_url, customer.name || String(customer.id))}
+                                                    alt={customer.name}
+                                                    className="h-full w-full object-cover"
+                                                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(customer.name || String(customer.id)); }}
+                                                />
+                                            </div>
+
+                                            {/* Info */}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-semibold text-sm truncate">
+                                                        {customer.name}
+                                                    </span>
+                                                    {customer.grade && (
+                                                        <Badge variant="secondary" className="h-4 text-[10px] px-1">
+                                                            Grade {customer.grade}
+                                                        </Badge>
+                                                    )}
+                                                    {customer.card_frozen && (
+                                                        <Badge variant="destructive" className="h-4 text-[10px] px-1">
+                                                            Frozen
+                                                        </Badge>
+                                                    )}
+                                                    {!customer.wallet_id && (
+                                                        <Badge variant="outline" className="h-4 text-[10px] px-1">
+                                                            No Wallet
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {customer.student_code ?? customer.customer_code}
+                                                </div>
+                                            </div>
+
+                                            {/* Balance */}
+                                            <div className="text-right shrink-0">
+                                                <div
+                                                    className={cn(
+                                                        "text-sm font-bold tabular-nums",
+                                                        (customer.wallet_balance ?? 0) < 0
+                                                            ? "text-destructive"
+                                                            : "text-foreground"
+                                                    )}
+                                                >
+                                                    ฿{(customer.wallet_balance ?? 0).toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Error message */}
+                            {error && !loading && (
+                                <div className="text-center py-4 text-sm text-muted-foreground">
+                                    {error}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {step === "topup" && selectedCustomer && (
+                        <div className="space-y-4">
+                            {/* Back button */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleBack}
+                                className="mb-2 -ml-2"
+                            >
+                                <ArrowLeft className="h-4 w-4 mr-1" />
+                                {t("common.back", "Back")}
+                            </Button>
+
+                            {/* Customer card */}
+                            <div className="flex gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
+                                <div className="h-32 w-32 shrink-0 overflow-hidden rounded-xl bg-emerald-100 ring-2 ring-emerald-300">
+                                    <img
+                                        src={resolveAvatarUrl(selectedCustomer.photo_url, selectedCustomer.name || String(selectedCustomer.id))}
+                                        alt={selectedCustomer.name}
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedCustomer.name || String(selectedCustomer.id)); }}
+                                    />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-lg font-bold truncate">
+                                        {selectedCustomer.name}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {selectedCustomer.student_code ?? selectedCustomer.customer_code}
+                                        {selectedCustomer.grade && ` · Grade ${selectedCustomer.grade}`}
+                                    </div>
+                                    <div className="mt-1 text-base font-bold tabular-nums">
+                                        {t("topup.currentBalance", "Current Balance")}:{" "}
+                                        <span
+                                            className={cn(
+                                                (selectedCustomer.wallet_balance ?? 0) < 0
+                                                    ? "text-destructive"
+                                                    : "text-emerald-600"
+                                            )}
+                                        >
+                                            ฿{(selectedCustomer.wallet_balance ?? 0).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payment method picker */}
+                            <div className="space-y-2">
+                                <Label>{t("topup.methodLabel", "Payment Method")}</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentMethod("cash")}
+                                        className={cn(
+                                            "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                                            paymentMethod === "cash"
+                                                ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
+                                                : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
+                                        )}
+                                    >
+                                        <Banknote className="h-4 w-4" />
+                                        {t("topup.methodCash", "Cash")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentMethod("bay_qr")}
+                                        className={cn(
+                                            "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                                            paymentMethod === "bay_qr"
+                                                ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
+                                                : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
+                                        )}
+                                    >
+                                        <QrCode className="h-4 w-4" />
+                                        {t("topup.methodBayQr", "QR Code")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentMethod("edc")}
+                                        className={cn(
+                                            "flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                                            paymentMethod === "edc"
+                                                ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
+                                                : "border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-700",
+                                        )}
+                                    >
+                                        <CreditCard className="h-4 w-4" />
+                                        {t("topup.methodEdc", "EDC")}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Amount input */}
+                            <div className="space-y-2">
+                                <Label>{t("topup.amount", "Top-up Amount")} (THB)</Label>
+                                <div className="relative">
+                                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="number"
+                                        min={minTopupAmount}
+                                        max="50000"
+                                        step="any"
+                                        value={amount}
+                                        onChange={(e) => setAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        className="pl-9 text-lg font-bold"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {/* Quick amount buttons */}
+                                <div className="flex gap-2 flex-wrap">
+                                    {quickAmounts.map((qa) => (
+                                        <Button
+                                            key={qa}
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setAmount(String(qa))}
+                                            className={cn(
+                                                "flex-1 min-w-16",
+                                                amount === String(qa) && "border-emerald-500 bg-emerald-50"
+                                            )}
+                                        >
+                                            ฿{qa.toLocaleString()}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Notes */}
+                            <div className="space-y-2">
+                                <Label>{t("topup.notes", "Notes")} ({t("common.optional", "Optional")})</Label>
+                                <Textarea
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    placeholder={t("topup.notesPlaceholder", "e.g., Received cash from parent")}
+                                    rows={2}
+                                />
+                            </div>
+
+                            {/* Preview new balance */}
+                            {amount && parseFloat(amount) > 0 && (
+                                <div className="rounded-lg bg-muted p-3 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{t("topup.currentBalance", "Current Balance")}:</span>
+                                        <span className="tabular-nums">฿{(selectedCustomer.wallet_balance ?? 0).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-emerald-600">
+                                        <span>+ {t("topup.topupAmount", "Top-up")}:</span>
+                                        <span className="tabular-nums">฿{parseFloat(amount).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between font-bold border-t mt-2 pt-2">
+                                        <span>{t("topup.newBalance", "New Balance")}:</span>
+                                        <span className="tabular-nums text-emerald-600">
+                                            ฿{((selectedCustomer.wallet_balance ?? 0) + parseFloat(amount)).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Submit button */}
+                            <Button
+                                onClick={handleSubmitTopup}
+                                disabled={submitting || !amount || parseFloat(amount) < minTopupAmount || parseFloat(amount) > 50000}
+                                className="w-full h-12 text-base font-bold bg-emerald-500 hover:bg-emerald-600"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                        {t("topup.processing", "Processing...")}
+                                    </>
+                                ) : (
+                                    <>
+                                        {paymentMethod === "bay_qr" ? (
+                                            <QrCode className="h-5 w-5 mr-2" />
+                                        ) : (
+                                            <Wallet className="h-5 w-5 mr-2" />
+                                        )}
+                                        {t("topup.confirmTopup", "Confirm Top-up")}
+                                        {amount && parseFloat(amount) > 0 && ` ฿${parseFloat(amount).toLocaleString()}`}
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    )}
+
+                    {step === "qr" && intent && selectedCustomer && (
+                        <div className="space-y-4">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleBack}
+                                className="mb-2 -ml-2"
+                                disabled={qrStatus === "waiting" && confirming}
+                            >
+                                <ArrowLeft className="h-4 w-4 mr-1" />
+                                {t("common.back", "Back")}
+                            </Button>
+
+                            <div className="text-center space-y-1">
+                                <p className="text-sm font-medium text-foreground">
+                                    {selectedCustomer.name}
+                                </p>
+                                <p className="text-2xl font-bold tabular-nums text-emerald-600">
+                                    ฿{intent.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("topup.scanQr", "Ask customer to scan this QR with their banking app")}
+                                </p>
+                            </div>
+
+                            <div className="flex justify-center rounded-xl bg-white p-4 border border-emerald-100 shadow-inner">
+                                <QRCodeSVG value={intent.qr_payload} size={220} />
+                            </div>
+
+                            {qrStatus === "waiting" && (
+                                <QrCountdownBar
+                                    active
+                                    resetKey={intent.ref_code}
+                                    onExpired={() => setQrStatus("timeout")}
+                                />
+                            )}
+
+                            <div className="space-y-1 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-emerald-700">{t("topup.qrRefCode", "Reference")}</span>
+                                    <span className="font-mono text-emerald-900">{intent.ref_code}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-emerald-700">{t("topup.amount", "Top-up Amount")}</span>
+                                    <span className="font-semibold text-emerald-900 tabular-nums">
+                                        ฿{intent.amount.toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {qrStatus === "waiting" && (
+                                <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                                    <span>{t("topup.waitingPayment", "Waiting for payment...")}</span>
+                                </div>
+                            )}
+                            {qrStatus === "cancelled" && (
+                                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <span>{t("topup.qrCancelled", "Payment cancelled")}</span>
+                                </div>
+                            )}
+                            {qrStatus === "timeout" && (
+                                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <span>{t("topup.qrTimedOut", "QR timed out")}</span>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 h-11"
+                                    onClick={handleCancelQr}
+                                    disabled={confirming}
+                                >
+                                    {t("topup.cancel", "Cancel")}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === "success" && topupResult && (
+                        <div className="space-y-4 text-center">
+                            {/* Success icon */}
+                            <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                                <Check className="h-8 w-8 text-emerald-600" />
+                            </div>
+
+                            <div>
+                                <h3 className="text-xl font-bold text-emerald-600">
+                                    {t("topup.successTitle", "Top-up Successful!")}
+                                </h3>
+                                <p className="text-muted-foreground mt-1">
+                                    {topupResult.customer_name}
+                                </p>
+                            </div>
+
+                            {/* Transaction details */}
+                            <div className="rounded-xl bg-muted p-4 space-y-2 text-sm text-left">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">{t("topup.amount", "Amount")}:</span>
+                                    <span className="font-bold text-emerald-600 tabular-nums">
+                                        +฿{topupResult.amount.toFixed(2)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">{t("topup.balanceBefore", "Balance Before")}:</span>
+                                    <span className="tabular-nums">฿{topupResult.balance_before.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between font-bold">
+                                    <span>{t("topup.balanceAfter", "Balance After")}:</span>
+                                    <span className="text-emerald-600 tabular-nums">
+                                        ฿{topupResult.balance_after.toFixed(2)}
+                                    </span>
+                                </div>
+                                {topupResult.transaction_id > 0 && (
+                                    <div className="flex justify-between text-xs pt-2 border-t">
+                                        <span className="text-muted-foreground">Transaction ID:</span>
+                                        <span className="font-mono">{topupResult.transaction_id}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex flex-col gap-2">
+                                {printConfig && topupResult && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => handlePrintReceipt(topupResult, lastPaymentMethod, lastRefCode, lastNotes)}
+                                    >
+                                        <Printer className="h-4 w-4 mr-2" />
+                                        {t("topup.printReceipt", "Print Receipt")}
+                                    </Button>
+                                )}
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1"
+                                        onClick={handleBack}
+                                    >
+                                        {t("topup.topupAnother", "Top-up Another")}
+                                    </Button>
+                                    <Button
+                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                                        onClick={handleClose}
+                                    >
+                                        {t("common.done", "Done")}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <EdcPaymentModal
+                open={edcOpen}
+                onOpenChange={setEdcOpen}
+                total={edcAmount}
+                onBack={() => {
+                    setEdcOpen(false);
+                    setStep("topup");
+                }}
+                onConfirm={async (refs) => {
+                    if (!selectedCustomer) return;
+                    try {
+                        setConfirming(true);
+                        await api.post(`/wallets/${selectedCustomer.wallet_id}/topup`, {
+                            amount: edcAmount,
+                            payment_method: "edc",
+                            edc_approval_code: refs.approval_code,
+                            edc_terminal_ref: refs.terminal_ref,
+                            edc_masked_card: refs.masked_card,
+                            edc_mode: refs.mode,
+                            notes: lastNotes.trim() || null,
+                        });
+
+                        // Fetch updated wallet to show success
+                        try {
+                            const wallet = await api.get<WalletBalance>(`/wallets/${selectedCustomer.wallet_id}`);
+                            const balanceAfter = wallet.balance;
+                            const balanceBefore = balanceAfter - edcAmount;
+                            const successResult: TopupSuccessResult = {
+                                wallet_id: selectedCustomer.wallet_id,
+                                customer_name: selectedCustomer.name,
+                                amount: edcAmount,
+                                balance_before: balanceBefore,
+                                balance_after: balanceAfter,
+                                transaction_id: 0,
+                            };
+                            setTopupResult(successResult);
+                            setStep("success");
+                            onSuccess?.(successResult);
+                        } catch {
+                            const successResult: TopupSuccessResult = {
+                                wallet_id: selectedCustomer.wallet_id,
+                                customer_name: selectedCustomer.name,
+                                amount: edcAmount,
+                                balance_before: selectedCustomer.wallet_balance ?? 0,
+                                balance_after: (selectedCustomer.wallet_balance ?? 0) + edcAmount,
+                                transaction_id: 0,
+                            };
+                            setTopupResult(successResult);
+                            setStep("success");
+                            onSuccess?.(successResult);
+                        }
+                        toast.success(t("topup.success", "Top-up successful"));
+                        setEdcOpen(false);
+                    } catch (error) {
+                        toast.error(
+                            error instanceof Error
+                                ? error.message
+                                : t("topup.edcFailed", "EDC payment failed")
+                        );
+                    } finally {
+                        setConfirming(false);
+                    }
+                }}
+                confirming={confirming}
+            />
+        </>
+    );
 }
