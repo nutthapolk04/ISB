@@ -250,26 +250,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 } catch {
                     /* keep fallback */
                 }
-
-                // Prototype mock fallback — lets demo accounts login even if backend
-                // is stale/down. Safe because mock credentials are well-known (docs).
-                const found = MOCK_USERS.find(
-                    (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password,
-                );
-                if (found) {
-                    const { password: _pw, ...authUser } = found;
-                    // Reset activeRole to primary on each fresh login
-                    authUser.activeRole = authUser.role;
-                    if (!MULTI_ROLE_ENABLED) authUser.allRoles = [authUser.role];
-                    flushSync(() => setUser(authUser));
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
-                    console.warn(
-                        "[AuthContext] mock fallback — backend returned",
-                        res.status,
-                        "(prototype demo mode)",
-                    );
-                    return { success: true, allRoles: authUser.allRoles };
-                }
                 return { success: false, error: detail };
             }
 

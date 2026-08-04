@@ -2,6 +2,10 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, roles, userRoles, permissions, rolePermissions, shops, userLoginEmails } from "@/db/schema";
 import { config } from "@/lib/config";
+import {
+    isSyncPlaceholderPasswordHash,
+    passwordLoginBlockedInCurrentEnv,
+} from "@/lib/placeholder_password";
 import { logger } from "@/logger";
 
 const ACCESS_TOKEN_EXPIRE_MINUTES = 30;
@@ -163,7 +167,7 @@ export interface LoginAttemptMeta {
 }
 
 function logLoginFailure(
-    reason: "user_not_found" | "password_mismatch" | "inactive",
+    reason: "user_not_found" | "password_mismatch" | "inactive" | "placeholder_password_blocked",
     attemptedUsername: string,
     meta: LoginAttemptMeta | undefined,
     user?: typeof users.$inferSelect | null,
@@ -203,6 +207,15 @@ export async function login(
         logLoginFailure("inactive", username, meta, user);
         const err = new Error("Account is inactive");
         (err as { status?: number }).status = 403;
+        throw err;
+    }
+    if (
+        passwordLoginBlockedInCurrentEnv()
+        && await isSyncPlaceholderPasswordHash(user.hashedPassword)
+    ) {
+        logLoginFailure("placeholder_password_blocked", username, meta, user);
+        const err = new Error("Invalid username or password");
+        (err as { status?: number }).status = 401;
         throw err;
     }
     return createTokens(user);

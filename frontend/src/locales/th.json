@@ -2036,7 +2036,10 @@
   "login": {
     "demoBanner": "บัญชีเดโม — กระเป๋าของฉัน + POS spending",
     "demoHint": "คลิกเพื่อเข้าระบบทันที — ทดลอง topup, family transfer และจ่ายเงินที่ POS ด้วยกระเป๋าตัวเอง",
-    "otherAccounts": "บัญชีอื่นๆ (Reference)"
+    "otherAccounts": "บัญชีอื่นๆ (Reference)",
+    "invalidCredentials": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+    "tryGooglePrefix": "ลอง",
+    "googleSignIn": "เข้าสู่ระบบด้วย Google"
   },
   "pos": {
     "autoPrint": "พิมพ์อัตโนมัติ",

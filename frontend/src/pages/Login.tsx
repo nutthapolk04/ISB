@@ -184,7 +184,7 @@ const REF_SLIDES: RefSlide[] = [
     },
 ];
 
-// ── Credential Carousel ──────────────────────────────────────────────────────
+// ── Credential Carousel (dev/local only — keep commented on prod/uat) ─────
 function CredentialCarousel() {
     const [idx, setIdx] = useState(0);
     const slide = REF_SLIDES[idx];
@@ -253,6 +253,28 @@ function CredentialCarousel() {
     );
 }
 
+function PasswordLoginError({ onGoogleSignIn }: { onGoogleSignIn?: () => void }) {
+    const { t } = useTranslation();
+    return (
+        <p className="text-sm text-destructive">
+            {t("login.invalidCredentials")}
+            {onGoogleSignIn && (
+                <>
+                    {" "}
+                    {t("login.tryGooglePrefix")}{" "}
+                    <button
+                        type="button"
+                        className="underline font-medium hover:text-destructive/80"
+                        onClick={onGoogleSignIn}
+                    >
+                        {t("login.googleSignIn")}
+                    </button>
+                </>
+            )}
+        </p>
+    );
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 const Login = () => {
     const { t } = useTranslation();
@@ -261,12 +283,18 @@ const Login = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [passwordLoginFailed, setPasswordLoginFailed] = useState(false);
     const [loading, setLoading] = useState(false);
     const [ssoLoading, setSsoLoading] = useState(false);
     const [ssoStep, setSsoStep] = useState<SsoStep>(null);
     const [pendingGoogleCredential, setPendingGoogleCredential] = useState("");
     const [coverBg, setCoverBg] = useState("/login-bg.png");
     const fetchedCover = useRef(false);
+    const googleBtnRef = useRef<HTMLButtonElement>(null);
+
+    const triggerGoogleLogin = () => {
+        googleBtnRef.current?.click();
+    };
 
     useEffect(() => {
         if (isAuthenticated) navigate("/", { replace: true });
@@ -284,21 +312,30 @@ const Login = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!username || !password) { setError("Please enter username and password"); return; }
-        setLoading(true); setError("");
+        if (!username || !password) {
+            setPasswordLoginFailed(false);
+            setError("Please enter username and password");
+            return;
+        }
+        setLoading(true);
+        setError("");
+        setPasswordLoginFailed(false);
         const result = await login(username.trim(), password);
         setLoading(false);
         if (result.success) navigate("/", { replace: true });
-        else setError(result.error ?? "Login failed");
+        else setPasswordLoginFailed(true);
     };
 
     const handleQuickLogin = async (acct: DemoAccount) => {
-        setUsername(acct.username); setPassword(acct.password); setError("");
+        setUsername(acct.username);
+        setPassword(acct.password);
+        setError("");
+        setPasswordLoginFailed(false);
         setLoading(true);
         const result = await login(acct.username, acct.password);
         setLoading(false);
         if (result.success) navigate("/", { replace: true });
-        else setError(result.error ?? "Login failed");
+        else setPasswordLoginFailed(true);
     };
 
     const handlePdpaAccept = async () => {
@@ -379,6 +416,11 @@ const Login = () => {
                                         />
                                     </div>
                                     {error && <p className="text-sm text-destructive">{error}</p>}
+                                    {passwordLoginFailed && (
+                                        <PasswordLoginError
+                                            onGoogleSignIn={GOOGLE_CLIENT_ID ? triggerGoogleLogin : undefined}
+                                        />
+                                    )}
                                     <Button type="submit" className="w-full" disabled={loading || ssoLoading}>
                                         <LogIn className="mr-2 h-4 w-4" />
                                         {loading ? "Signing in…" : "Sign In"}
@@ -401,12 +443,13 @@ const Login = () => {
                             {GOOGLE_CLIENT_ID && ssoStep === null && (
                                 <div className="flex justify-center">
                                     <Button type="button"
+                                        ref={googleBtnRef}
                                         variant="outline"
                                         className="w-full relative gap-2"
                                         disabled=
                                         {loading || ssoLoading}>
                                         <GoogleLogo />
-                                        Sign in with Google
+                                        {t("login.googleSignIn")}
                                         <div className="absolute inset-0 w-full h-full opacity-0 overflow-hidden">
                                             <GoogleLogin
                                                 onSuccess={handleGoogleLoginSuccess}
