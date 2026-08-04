@@ -24,6 +24,9 @@ function isTextInputFocused(): boolean {
 
 interface UseStoreRfidScannerArgs {
     products: Product[];
+    // Re-pulls the product list; called on a scan miss in case `products` is
+    // a stale snapshot that predates a barcode created after page load.
+    refetchProducts?: () => Promise<Product[] | void>;
     onProductMatch: (p: Product) => void;
     onMemberFound: (m: StudentLookupResult) => void;
 }
@@ -37,7 +40,7 @@ interface UseStoreRfidScannerArgs {
  * what was scanned. The keyboard path only acts when no input has focus
  * (checked via `document.activeElement`).
  */
-export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }: UseStoreRfidScannerArgs) {
+export function useStoreRfidScanner({ products, onProductMatch, onMemberFound ,refetchProducts}: UseStoreRfidScannerArgs) {
     const { t } = useTranslation();
     const [notif, setNotif] = useState<StoreRfidNotif | null>(null);
     const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,10 +56,12 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
     const wsReconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const productsRef = useRef<Product[]>(products);
+    const refetchProductsRef = useRef(refetchProducts);
     const onProductMatchRef = useRef(onProductMatch);
     const onMemberFoundRef = useRef(onMemberFound);
 
     useEffect(() => { productsRef.current = products; }, [products]);
+    useEffect(() => { refetchProductsRef.current = refetchProducts; }, [refetchProducts]);
     useEffect(() => { onProductMatchRef.current = onProductMatch; }, [onProductMatch]);
     useEffect(() => { onMemberFoundRef.current = onMemberFound; }, [onMemberFound]);
 
@@ -99,17 +104,34 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
         }
     }
 
-    // Shared by both the keyboard path and the PC/SC WebSocket path: a scanned
-    // barcode always wins over a member lookup so a product barcode that
-    // happens to also resemble a card UID still adds to cart.
-    function routeScan(scanned: string) {
-        const normalized = scanned.trim().toLowerCase();
-        const matchedProduct = productsRef.current.find(
+    function findProductMatch(list: Product[], normalized: string) {
+        return list.find(
             (p) =>
                 p.barcode.toLowerCase() === normalized ||
                 p.productCode.toLowerCase() === normalized ||
                 (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase() === normalized),
         );
+    }
+
+    // Shared by both the keyboard path and the PC/SC WebSocket path: a scanned
+    // barcode always wins over a member lookup so a product barcode that
+    // happens to also resemble a card UID still adds to cart.
+    //
+    // `products` is a snapshot fetched when this POS page loaded, so a
+    // barcode created afterward (from another tab/device) won't be in it
+    // yet. On a miss, refetch once before falling back to a member lookup —
+    // otherwise a freshly created barcode never scans until the page reloads.
+    async function routeScan(scanned: string) {
+        const normalized = scanned.trim().toLowerCase();
+        let matchedProduct = findProductMatch(productsRef.current, normalized);
+        if (!matchedProduct && refetchProductsRef.current) {
+            try {
+                const fresh = await refetchProductsRef.current();
+                if (fresh) matchedProduct = findProductMatch(fresh, normalized);
+            } catch {
+                // Refetch failed — fall through to the member lookup below.
+            }
+        }
         if (matchedProduct) {
             onProductMatchRef.current(matchedProduct);
             showRfidNotif({
@@ -179,7 +201,7 @@ export function useStoreRfidScanner({ products, onProductMatch, onMemberFound }:
                     try {
                         const data = JSON.parse(event.data);
                         if (data.type === "card_detected" && data.uid) {
-                            routeScan(data.uid);
+                            void routeScan(data.uid);
                         }
                     } catch (err) {
                         console.warn("Failed to parse WebSocket message:", err);
