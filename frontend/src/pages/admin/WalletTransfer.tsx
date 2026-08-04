@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
-import { fmtDateTime } from "@/lib/dateFormat";
+import { fmtDateTime, todayBangkok } from "@/lib/dateFormat";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,7 @@ export default function WalletTransfer() {
   useEffect(() => { loadHistory(1); }, []);
 
   const handleTxExcel = () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayBangkok();
     exportToExcel(
       { meta: { title: "Wallet Transfer Report", schoolName: schoolInfo?.name ?? "ISB", filters: [`All transfers — page ${txPage}`] }, columns: TX_COLUMNS, rows: txHistory.map((r) => ({ ...r, note: r.note ?? "" })), totals: { from_name: `${txTotal} records`, amount: txHistory.reduce((s, r) => s + r.amount, 0) } },
       `WalletTransfers_${today}`,
@@ -112,7 +112,7 @@ export default function WalletTransfer() {
   };
 
   const handleTxPdf = () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayBangkok();
     exportToPDF(
       { meta: { title: "Wallet Transfer Report", schoolName: schoolInfo?.name ?? "ISB", schoolLogoUrl: schoolInfo?.logoUrl || undefined, filters: [`All transfers — page ${txPage}`] }, columns: TX_COLUMNS, rows: txHistory.map((r) => ({ ...r, note: r.note ?? "" })), totals: { from_name: `${txTotal} records`, amount: txHistory.reduce((s, r) => s + r.amount, 0) } },
       `WalletTransfers_${today}.pdf`,

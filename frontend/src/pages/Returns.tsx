@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { RefreshCw, Search, Calendar, Package, Printer, ArrowLeftRight } from "lucide-react";
 import { InfoCallout } from "@/components/InfoCallout";
 import { toast } from "@/components/ui/sonner";
-import { fmtDateTime } from "@/lib/dateFormat";
+import { fmtDateTime, fmtDateApi, todayBangkok } from "@/lib/dateFormat";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -105,10 +105,10 @@ const Returns = () => {
         }
     }, []);
 
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = todayBangkok();
     const displayedReceipts = receiptSearchTerm.trim()
         ? posReceipts
-        : posReceipts.filter((r) => r.transaction_date?.startsWith(todayIso));
+        : posReceipts.filter((r) => fmtDateApi(r.transaction_date) === todayIso);
 
     const handleStartReturn = async (receiptNumber: string, intent: "refund" | "exchange" = "refund") => {
         setReturnMode("with-receipt");

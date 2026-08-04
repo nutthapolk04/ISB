@@ -21,36 +21,16 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
-
-        ComponentName admin = new ComponentName(this, MyDeviceAdminReceiver.class);
-
-        if (dpm.isDeviceOwnerApp(getPackageName())) {
-            dpm.setLockTaskPackages(
-                    admin,
-                    new String[]{ getPackageName() }
-            );
-
-            dpm.setStatusBarDisabled(admin, true);
-
-            dpm.setLockTaskFeatures(
-                admin,
-                DevicePolicyManager.LOCK_TASK_FEATURE_NONE
-            );
-
-            startLockTask();
-        }
-
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
-        hideSystemUI();
+        setupKioskMode();
     }
 
     @Override
     public void onResume() {
         super.onResume();
 
-        hideSystemUI();
+        setupKioskMode();
         // configureWebViewMediaAutoplay();
     }
 
@@ -85,5 +65,33 @@ public class MainActivity extends BridgeActivity {
         if (webView == null) return;
         WebSettings settings = webView.getSettings();
         settings.setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    private void setupKioskMode() {
+        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
+
+        ComponentName admin = new ComponentName(this, MyDeviceAdminReceiver.class);
+
+        if (dpm.isDeviceOwnerApp(getPackageName())) {
+            dpm.setLockTaskPackages(
+                    admin,
+                    new String[]{ getPackageName() }
+            );
+
+            dpm.setStatusBarDisabled(admin, true);
+
+            dpm.setLockTaskFeatures(
+                admin,
+                DevicePolicyManager.LOCK_TASK_FEATURE_NONE
+            );
+
+            try {
+                startLockTask();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            hideSystemUI();
+        }
     }
 }

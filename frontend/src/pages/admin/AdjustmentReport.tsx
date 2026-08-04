@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { fmtDate, todayBangkok } from "@/lib/dateFormat";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { FileSpreadsheet, FileText, Search, ClipboardList } from "lucide-react";
 
 interface AdjustmentRow {
@@ -44,14 +46,6 @@ interface AdjustmentRow {
 }
 
 
-const formatDT = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-};
-
 const ENTITY_COLORS: Record<string, string> = {
   student: "bg-blue-100 text-blue-800",
   parent: "bg-purple-100 text-purple-800",
@@ -64,7 +58,7 @@ export default function AdjustmentReport() {
   const { t } = useTranslation();
   const schoolInfo = useSchoolInfo();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayBangkok();
   const firstOfMonth = today.slice(0, 7) + "-01";
 
   const [dateFrom, setDateFrom] = useState(firstOfMonth);
@@ -285,7 +279,7 @@ export default function AdjustmentReport() {
                     rows.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="whitespace-nowrap text-xs font-mono">
-                          {formatDT(r.created_at)}
+                          {fmtDateTime(r.created_at)}
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entity_type] ?? "bg-gray-100 text-gray-700"}`}>

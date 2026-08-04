@@ -65,3 +65,8 @@ export function fmtDateApi(v: string | Date | number | null | undefined): string
   if (!d) return "";
   return d.toLocaleDateString("en-CA", { timeZone: APP_TZ });
 }
+
+/** Today's calendar date in Asia/Bangkok as `YYYY-MM-DD`. */
+export function todayBangkok(): string {
+  return fmtDateApi(new Date());
+}

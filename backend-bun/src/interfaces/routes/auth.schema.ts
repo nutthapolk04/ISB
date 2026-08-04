@@ -39,6 +39,13 @@ export const googleSsoCallback = {
     detail: { tags: ["Auth"], summary: "Google SSO login (auth-code redirect flow)" },
 };
 
+export const googleSsoIdToken = {
+    body: t.Object({
+        credential: t.String(),
+    }),
+    detail: { tags: ["Auth"], summary: "Google SSO login (GIS ID token from Sign in with Google button)" },
+};
+
 export const logout = {
     detail: { tags: ["Auth"], summary: "Logout current session" },
 };

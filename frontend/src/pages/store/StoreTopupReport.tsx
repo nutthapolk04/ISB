@@ -10,6 +10,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import { fmtDateTime } from "@/lib/dateFormat";
 import { displayIsbId, displayTopupRecipientExternalId } from "@/lib/topupReportDisplay";
 import {
   exportToPDF,
@@ -298,7 +299,7 @@ export default function StoreTopupReport() {
                     ) : (
                       data.items.map((r) => (
                         <tr key={r.id} className="border-t">
-                          <td className="px-2 py-1.5 whitespace-nowrap">{r.created_at.slice(0, 19).replace("T", " ")}</td>
+                          <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
                           <td className="px-2 py-1.5">{CHANNEL_LABEL[r.channel] ?? r.channel}</td>
                           <td className="px-2 py-1.5 font-mono text-muted-foreground">{displayIsbId(r.topped_by_external_id)}</td>
                           <td className="px-2 py-1.5">{r.topped_by}</td>

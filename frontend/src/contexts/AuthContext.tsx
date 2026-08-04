@@ -49,6 +49,7 @@ interface AuthContextValue {
     login: (username: string, password: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
     loginWithMockSSO: (email: string, fullName?: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
     loginWithGoogleCode: (code: string, redirectUri: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
+    loginWithGoogleCredential: (credential: string) => Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }>;
     logout: () => void;
     hasRole: (...roles: UserRole[]) => boolean;
     hasShopAccess: (shopId: ShopId) => boolean;
@@ -514,6 +515,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const loginWithGoogleCredential = async (
+        credential: string,
+    ): Promise<{ success: boolean; error?: string; allRoles?: UserRole[] }> => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/sso/google/id-token`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ credential }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: "Google login failed" }));
+                return { success: false, error: err.detail };
+            }
+            const data = await res.json();
+            localStorage.setItem(TOKEN_KEY, data.access_token);
+            if (data.refresh_token) localStorage.setItem("refresh_token", data.refresh_token);
+
+            const meRes = await fetch(`${API_BASE_URL}/auth/me`, {
+                headers: { Authorization: `Bearer ${data.access_token}` },
+            });
+            if (!meRes.ok) return { success: false, error: "Failed to load profile" };
+
+            const meData = await meRes.json();
+            const backendUser = meData.user ?? meData;
+            const resolvedRole: UserRole = (backendUser.role as UserRole) ?? "parent";
+            const secondaryRoles: UserRole[] = (backendUser.roles ?? [])
+                .map((r: { name: string }) => r.name as UserRole)
+                .filter((r: UserRole) => r !== resolvedRole);
+            const allRoles: UserRole[] = MULTI_ROLE_ENABLED
+                ? [...new Set([resolvedRole, ...secondaryRoles])]
+                : [resolvedRole];
+            const shopId = backendUser.shop_id ?? null;
+            const backendModule = (backendUser.shop_module as AppModule | undefined) ?? null;
+            const authUser: AuthUser = {
+                id: backendUser.id,
+                username: backendUser.username,
+                fullName: backendUser.full_name ?? backendUser.username,
+                role: resolvedRole,
+                allRoles,
+                activeRole: resolvedRole,
+                shopId,
+                shopName: backendUser.shop_name ?? null,
+                shopModule: backendModule ?? moduleOf(shopId),
+            };
+            flushSync(() => setUser(authUser));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
+
+            if (shopId && !backendModule) {
+                fetch(`${API_BASE_URL}/shops/${shopId}`, {
+                    headers: { Authorization: `Bearer ${data.access_token}` },
+                })
+                    .then((r) => r.ok ? r.json() : null)
+                    .then((shop) => {
+                        if (!shop) return;
+                        const enriched = { ...authUser, shopModule: (shop.module as AppModule) ?? authUser.shopModule, shopName: shop.name ?? authUser.shopName };
+                        setUser(enriched);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(enriched));
+                    })
+                    .catch(() => { });
+            }
+            return { success: true, allRoles };
+        } catch (e: any) {
+            return { success: false, error: e?.message ?? "Google login unavailable" };
+        }
+    };
+
     const logout = () => {
         setUser(null);
         localStorage.removeItem(STORAGE_KEY);
@@ -544,7 +611,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, login, loginWithMockSSO, loginWithGoogleCode, logout, hasRole, hasShopAccess, setActiveRole }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, login, loginWithMockSSO, loginWithGoogleCode, loginWithGoogleCredential, logout, hasRole, hasShopAccess, setActiveRole }}>
             {children}
         </AuthContext.Provider>
     );

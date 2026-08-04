@@ -15,6 +15,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
+import { fmtDate, fmtDateTime } from "@/lib/dateFormat";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import {
@@ -237,7 +238,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
     }
     if (stockCardIncludeEmpty) filterLines.push("Includes empty products");
     filterLines.push(`User ID: ${user?.username ?? user?.fullName ?? "-"}`);
-    filterLines.push(`Print Date: ${new Date().toLocaleString("en-GB")}`);
+    filterLines.push(`Print Date: ${fmtDateTime(new Date())}`);
 
     return {
       meta: {
@@ -434,7 +435,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                           {block.rows.map((row, i) => (
                             <tr key={`${block.product_variant_id}-${i}`} className="border-t">
                               <td className="px-2 py-1 whitespace-nowrap">
-                                {row.date ? row.date.slice(0, 10) : ""}
+                                {row.date ? fmtDate(row.date) : ""}
                               </td>
                               <td className="px-2 py-1">{row.description}</td>
                               <td className="px-2 py-1">{row.invoice_no ?? ""}</td>

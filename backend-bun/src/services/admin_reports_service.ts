@@ -16,11 +16,17 @@ import {
     shops,
     kioskLogs,
     emailAlertsLog,
+    parentChildLinks,
 } from "@/db/schema";
-import { pgNumber, pgToIso } from "@/lib/dates";
+import { pgNumber, pgToIso, bangkokRangeStart, bangkokRangeEndExclusive } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
 import { resolvePaymentMethodLabelKey } from "@/lib/payment_method_labels";
-import { classifyWalletTxKind, classifyTopupChannel, type TopupChannel } from "@/services/wallet_tx_classify";
+import {
+    classifyWalletTxKind,
+    classifyTopupChannel,
+    isFamilyPortalGatewayTopup,
+    type TopupChannel,
+} from "@/services/wallet_tx_classify";
 import { moduleShopIds } from "@/services/report_service";
 
 export interface AdjustmentReportRow {
@@ -70,14 +76,12 @@ export async function adjustmentReport(args: {
     const sortOrder = parseSortOrder(args.sortOrder);
     const conds = [eq(walletTransactions.transactionType, "ADJUSTMENT"), isNull(wallets.departmentId)];
     if (args.dateFrom) {
-        try { conds.push(gte(walletTransactions.createdAt, args.dateFrom)); }
+        try { conds.push(gte(walletTransactions.createdAt, bangkokRangeStart(args.dateFrom))); }
         catch { /* ignore */ }
     }
     if (args.dateTo) {
         try {
-            const end = new Date(`${args.dateTo}T00:00:00Z`);
-            end.setUTCDate(end.getUTCDate() + 1);
-            conds.push(lt(walletTransactions.createdAt, end.toISOString()));
+            conds.push(lt(walletTransactions.createdAt, bangkokRangeEndExclusive(args.dateTo)));
         } catch { /* ignore */ }
     }
 
@@ -231,11 +235,9 @@ export async function transferReport(args: {
         eq(walletTransactions.referenceType, "family_transfer"),
         eq(walletTransactions.transactionType, "DEDUCTION"),
     ];
-    if (args.dateFrom) conds.push(gte(walletTransactions.createdAt, args.dateFrom));
+    if (args.dateFrom) conds.push(gte(walletTransactions.createdAt, bangkokRangeStart(args.dateFrom)));
     if (args.dateTo) {
-        const end = new Date(`${args.dateTo}T00:00:00Z`);
-        end.setUTCDate(end.getUTCDate() + 1);
-        conds.push(lt(walletTransactions.createdAt, end.toISOString()));
+        conds.push(lt(walletTransactions.createdAt, bangkokRangeEndExclusive(args.dateTo)));
     }
     if (args.amountMin != null) conds.push(gte(walletTransactions.amount, String(args.amountMin)));
     if (args.amountMax != null) conds.push(lte(walletTransactions.amount, String(args.amountMax)));
@@ -399,9 +401,7 @@ export async function topupReport(args: {
     const dateFrom = args.dateFrom?.trim() || null;
     let dateToExclusive: string | null = null;
     if (args.dateTo) {
-        const end = new Date(`${args.dateTo}T00:00:00Z`);
-        end.setUTCDate(end.getUTCDate() + 1);
-        dateToExclusive = end.toISOString();
+        dateToExclusive = bangkokRangeEndExclusive(args.dateTo.trim());
     }
 
     const cashConds = [
@@ -409,7 +409,7 @@ export async function topupReport(args: {
         isNull(wallets.departmentId),
         sql`${walletTransactions.reason} LIKE 'Cash top-up at POS%'`,
     ];
-    if (dateFrom) cashConds.push(gte(walletTransactions.createdAt, dateFrom));
+    if (dateFrom) cashConds.push(gte(walletTransactions.createdAt, bangkokRangeStart(dateFrom)));
     if (dateToExclusive) cashConds.push(lt(walletTransactions.createdAt, dateToExclusive));
     if (args.recipientUserId != null) cashConds.push(eq(wallets.userId, args.recipientUserId));
     if (args.recipientCustomerId != null) cashConds.push(eq(wallets.customerId, args.recipientCustomerId));
@@ -441,7 +441,7 @@ export async function topupReport(args: {
         or(isNull(paymentIntents.intentType), eq(paymentIntents.intentType, "wallet_topup")),
         eq(paymentIntents.status, "confirmed"),
     ];
-    if (dateFrom) gatewayConds.push(gte(walletTransactions.createdAt, dateFrom));
+    if (dateFrom) gatewayConds.push(gte(walletTransactions.createdAt, bangkokRangeStart(dateFrom)));
     if (dateToExclusive) gatewayConds.push(lt(walletTransactions.createdAt, dateToExclusive));
     if (args.recipientUserId != null) gatewayConds.push(eq(wallets.userId, args.recipientUserId));
     if (args.recipientCustomerId != null) gatewayConds.push(eq(wallets.customerId, args.recipientCustomerId));
@@ -531,6 +531,32 @@ export async function topupReport(args: {
         : [];
     const shopNameById = new Map(shopRows.map((s) => [s.id, s.name] as const));
 
+    // Parent/guardian → linked child gateway top-ups (parent portal), keyed
+    // as "parentUserId:childCustomerId". Co-parent → co-parent top-ups use
+    // matching users.family_code instead (see isFamilyPortalGatewayTopup).
+    const linkParentIds = [...new Set(
+        combined.filter((r) => r.creator != null).map((r) => r.creator!.id),
+    )];
+    const linkChildIds = [...new Set(
+        combined.filter((r) => r.w.customerId != null).map((r) => r.w.customerId!),
+    )];
+    const parentChildLinkSet = new Set<string>();
+    if (linkParentIds.length > 0 && linkChildIds.length > 0) {
+        const linkRows = await db
+            .select({
+                parentUserId: parentChildLinks.parentUserId,
+                childCustomerId: parentChildLinks.childCustomerId,
+            })
+            .from(parentChildLinks)
+            .where(and(
+                inArray(parentChildLinks.parentUserId, linkParentIds),
+                inArray(parentChildLinks.childCustomerId, linkChildIds),
+            ));
+        for (const l of linkRows) {
+            parentChildLinkSet.add(`${l.parentUserId}:${l.childCustomerId}`);
+        }
+    }
+
     const channelFilter = (args.channel ?? "all").toLowerCase();
     const items: TopupReportRow[] = [];
     for (const r of combined) {
@@ -542,12 +568,26 @@ export async function topupReport(args: {
         // Wallet") is self-service online, not a POS/cashier event, even
         // though their role would otherwise land in the cashier bucket.
         const isSelfTopup = r.w.userId != null && r.creator != null && r.creator.id === r.w.userId;
+        const isFamilyPortalTopup = r.creator != null && isFamilyPortalGatewayTopup({
+            transactionType: r.tx.transactionType,
+            creatorShopId: r.creator.shopId,
+            creatorId: r.creator.id,
+            creatorFamilyCode: r.creator.familyCode,
+            walletUserId: r.w.userId,
+            walletCustomerId: r.w.customerId,
+            hasParentChildLink: r.w.customerId != null
+                && parentChildLinkSet.has(`${r.creator.id}:${r.w.customerId}`),
+            walletOwnerFamilyCode: r.w.userId != null
+                ? ownerById.get(r.w.userId)?.familyCode
+                : null,
+        });
         const channel = classifyTopupChannel({
             transactionType: r.tx.transactionType,
             reason: r.tx.reason,
             description: r.tx.description,
             creatorRole,
             isSelfTopup,
+            isFamilyPortalTopup,
         });
         if (channelFilter !== "all" && channel !== channelFilter) continue;
 
@@ -724,8 +764,8 @@ export async function transactionReport(args: {
 
     // ── Sale rows (POS receipts) — unchanged from before this rewrite ──────
     const saleConds = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
-    if (dateFrom) saleConds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
-    if (dateTo) saleConds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
+    if (dateFrom) saleConds.push(gte(receipts.transactionDate, bangkokRangeStart(dateFrom)));
+    if (dateTo) saleConds.push(lt(receipts.transactionDate, bangkokRangeEndExclusive(dateTo)));
     if (args.status) saleConds.push(eq(receipts.status, args.status as "ACTIVE" | "VOIDED"));
     if (args.paymentMethod) saleConds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
     if (args.shopId) saleConds.push(eq(receipts.shopId, args.shopId));
@@ -820,8 +860,8 @@ export async function transactionReport(args: {
     let otherItems: (TransactionReportRow & { _createdBy: number | null })[] = [];
     if (includeOther) {
         const otherConds = [sql`(${walletTransactions.referenceType} IS NULL OR ${walletTransactions.referenceType} NOT IN ('receipt', 'receipt_void'))`];
-        if (dateFrom) otherConds.push(sql`${walletTransactions.createdAt} >= ${dateFrom}::date`);
-        if (dateTo) otherConds.push(sql`${walletTransactions.createdAt} < (${dateTo}::date + interval '1 day')`);
+        if (dateFrom) otherConds.push(gte(walletTransactions.createdAt, bangkokRangeStart(dateFrom)));
+        if (dateTo) otherConds.push(lt(walletTransactions.createdAt, bangkokRangeEndExclusive(dateTo)));
         if (args.cashierId != null) {
             otherConds.push(eq(walletTransactions.createdBy, args.cashierId));
         } else if (args.cashierRole) {
@@ -1081,8 +1121,8 @@ export async function kioskLogReport(args: {
 
     const conds = [];
     if (args.kioskUserId != null) conds.push(eq(kioskLogs.kioskUserId, args.kioskUserId));
-    if (dateFrom) conds.push(sql`${kioskLogs.ts} >= ${dateFrom}::date`);
-    if (dateTo) conds.push(sql`${kioskLogs.ts} < (${dateTo}::date + interval '1 day')`);
+    if (dateFrom) conds.push(gte(kioskLogs.ts, bangkokRangeStart(dateFrom)));
+    if (dateTo) conds.push(lt(kioskLogs.ts, bangkokRangeEndExclusive(dateTo)));
     if (args.level) conds.push(eq(kioskLogs.level, args.level));
     if (args.category) conds.push(eq(kioskLogs.category, args.category));
 
@@ -1170,8 +1210,8 @@ export async function lowBalanceAlertReport(args: {
 }): Promise<LowBalanceAlertReportResponseDTO> {
     const sortOrder = parseSortOrder(args.sortOrder);
     const conds = [eq(emailAlertsLog.alertType, "low_balance")];
-    if (args.dateFrom) conds.push(sql`${emailAlertsLog.sentAt} >= ${args.dateFrom}::date`);
-    if (args.dateTo) conds.push(sql`${emailAlertsLog.sentAt} < (${args.dateTo}::date + interval '1 day')`);
+    if (args.dateFrom) conds.push(gte(emailAlertsLog.sentAt, bangkokRangeStart(args.dateFrom)));
+    if (args.dateTo) conds.push(lt(emailAlertsLog.sentAt, bangkokRangeEndExclusive(args.dateTo)));
     if (args.status && args.status !== "all") conds.push(eq(emailAlertsLog.status, args.status));
 
     const totalRows = await db.select({ id: emailAlertsLog.id }).from(emailAlertsLog).where(and(...conds));
@@ -1284,8 +1324,8 @@ export async function internalUsedReport(args: {
     const dateTo = args.dateTo?.trim() || null;
 
     const conds = [eq(receipts.transactionMode, "INTERNAL_ISSUE")];
-    if (dateFrom) conds.push(sql`${receipts.transactionDate} >= ${dateFrom}::date`);
-    if (dateTo) conds.push(sql`${receipts.transactionDate} < (${dateTo}::date + interval '1 day')`);
+    if (dateFrom) conds.push(gte(receipts.transactionDate, bangkokRangeStart(dateFrom)));
+    if (dateTo) conds.push(lt(receipts.transactionDate, bangkokRangeEndExclusive(dateTo)));
     if (args.departmentId != null) conds.push(eq(receipts.payerDepartmentId, args.departmentId));
     if (args.requesterUserId != null) conds.push(eq(receipts.requesterUserId, args.requesterUserId));
     if (args.shopId) {
@@ -1410,14 +1450,12 @@ export async function balanceReport(args: {
     const sortOrder = parseSortOrder(args.sortOrder);
     const conds = [];
     if (args.dateFrom) {
-        try { conds.push(gte(walletTransactions.createdAt, args.dateFrom)); }
+        try { conds.push(gte(walletTransactions.createdAt, bangkokRangeStart(args.dateFrom))); }
         catch { /* ignore */ }
     }
     if (args.dateTo) {
         try {
-            const end = new Date(`${args.dateTo}T00:00:00Z`);
-            end.setUTCDate(end.getUTCDate() + 1);
-            conds.push(lt(walletTransactions.createdAt, end.toISOString()));
+            conds.push(lt(walletTransactions.createdAt, bangkokRangeEndExclusive(args.dateTo)));
         } catch { /* ignore */ }
     }
 

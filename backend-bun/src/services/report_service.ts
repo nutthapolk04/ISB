@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
+import { bangkokDateRange } from "@/lib/dates";
 import { formatAggregatedPaymentMethodLabel, formatPaymentMethodLabel } from "@/lib/payment_method_labels";
 import { nextCostState } from "@/services/balance_file_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
@@ -55,10 +56,7 @@ export function effectiveModule(user: AccessTokenPayload, module: string | null 
 
 /** Asia/Bangkok-anchored ISO bounds for inclusive date filtering. */
 export function dateRange(dateFrom: string, dateTo: string): { start: string; end: string } {
-    return {
-        start: `${dateFrom}T00:00:00+07:00`,
-        end: `${dateTo}T23:59:59.999999+07:00`,
-    };
+    return bangkokDateRange(dateFrom, dateTo);
 }
 
 export async function moduleShopIds(module: string): Promise<string[]> {
@@ -361,7 +359,7 @@ export async function stockReport(args: {
         .from(shopProducts)
         .innerJoin(shops, eq(shops.id, shopProducts.shopId))
         .where(and(...conds))
-        .orderBy(desc(shopProducts.updatedAt), asc(shopProducts.shopId), asc(shopProducts.name));
+        .orderBy(asc(shopProducts.shopId), asc(shopProducts.productCode));
 
     return {
         shop_id: effectiveShopId,
@@ -929,7 +927,7 @@ export async function stockCardReport(args: {
         .select()
         .from(shopProducts)
         .where(and(...productConds))
-        .orderBy(asc(shopProducts.category), asc(shopProducts.productCode));
+        .orderBy(asc(shopProducts.productCode));
 
     process.stdout.write(`[SC] db returned ${productsRows.length} rows\n`);
 

@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { getPaginationRange } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
-import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
+import { fmtDateTime as fmtDateTimeShared, fmtDateApi, todayBangkok } from "@/lib/dateFormat";
 import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 import type { ReceiptApi, ModuleScope } from "./receipts/receiptTypes";
@@ -35,11 +35,7 @@ function fmtDate(iso: string, _locale?: string): string {
 }
 
 function fmtDateOnly(iso: string): string {
-    try {
-        return new Date(iso).toISOString().slice(0, 10);
-    } catch {
-        return "";
-    }
+    return fmtDateApi(iso) || "";
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -155,7 +151,11 @@ const Receipts = () => {
     const fetchReceipts = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await api.get<ReceiptApi[]>(`/pos/receipt${queryParams}`);
+            const sep = queryParams.includes("?") ? "&" : "?";
+            let url = `/pos/receipt${queryParams}`;
+            if (appliedSearch.dateFrom) url += `${url.includes("?") ? "&" : sep}date_from=${appliedSearch.dateFrom}`;
+            if (appliedSearch.dateTo) url += `${url.includes("?") ? "&" : sep}date_to=${appliedSearch.dateTo}`;
+            const data = await api.get<ReceiptApi[]>(url);
             setReceipts(data);
         } catch (err) {
             const msg = err instanceof ApiError ? err.message : "Failed to load receipts";
@@ -163,7 +163,7 @@ const Receipts = () => {
         } finally {
             setLoading(false);
         }
-    }, [queryParams]);
+    }, [queryParams, appliedSearch.dateFrom, appliedSearch.dateTo]);
 
     useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
 
@@ -174,7 +174,7 @@ const Receipts = () => {
             // anchors these to Bangkok midnight/end-of-day itself; sending a
             // full ISO instant here double-appends a timezone offset and
             // fails to parse in postgres.
-            const todayBkk = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+            const todayBkk = todayBangkok();
             const dateFrom = `${todayBkk.slice(0, 7)}-01`;
             const dateTo = todayBkk;
             const sep = queryParams.includes("?") ? "&" : "?";
@@ -192,15 +192,12 @@ const Receipts = () => {
 
     // ── Derived ─────────────────────────────────────────────────────────────
     const filteredReceipts = receipts.filter((r) => {
-        const { receiptId, payer, dateFrom, dateTo, paymentType } = appliedSearch;
+        const { receiptId, payer, paymentType } = appliedSearch;
         if (receiptId && !r.receipt_number.toLowerCase().includes(receiptId.toLowerCase())) return false;
         if (payer) {
             const q = payer.toLowerCase();
             if (!(r.payer_label ?? "").toLowerCase().includes(q)) return false;
         }
-        const txDate = fmtDateOnly(r.transaction_date);
-        if (dateFrom && txDate < dateFrom) return false;
-        if (dateTo && txDate > dateTo) return false;
         if (paymentType !== "all" && r.payment_method.toLowerCase() !== paymentType) return false;
         return true;
     });
@@ -236,7 +233,7 @@ const Receipts = () => {
             : [{ receipt, leg: "sale" as const }],
     );
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayBangkok();
     const todaySales = receipts
         .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
         .reduce((s, r) => s + r.total, 0);

@@ -30,6 +30,7 @@ import { buildVendorSections, isMultiVendor, type CanteenShop } from "./reportHe
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import { fmtDateTime } from "@/lib/dateFormat";
 
 const SS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -536,7 +537,7 @@ export function SalesSummaryReport({
                                             ssDisplayRows.slice((ssPage - 1) * ssPageSize, ssPage * ssPageSize).map((r) => (
                                                 <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                     <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
-                                                    <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
+                                                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.transaction_date)}</td>
                                                     <td className="px-2 py-1.5 font-mono">{r.receipt_number}</td>
                                                     <td className="px-2 py-1.5 font-mono">{r.customer_id ?? "—"}</td>
                                                     <td className="px-2 py-1.5">{r.customer_name ?? "—"}</td>

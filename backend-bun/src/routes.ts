@@ -416,7 +416,8 @@ const publicAuthPlugin = new Elysia({ name: "public-auth", prefix: "/api/v1/auth
     .post("/refresh", AuthController.refresh, AuthSchema.refresh)
     .post("/sso/mock", AuthController.mockSso, AuthSchema.mockSso)
     .post("/sso/google", AuthController.googleSso, AuthSchema.googleSso)
-    .post("/sso/google/callback", AuthController.googleSsoCallback, AuthSchema.googleSsoCallback);
+    .post("/sso/google/callback", AuthController.googleSsoCallback, AuthSchema.googleSsoCallback)
+    .post("/sso/google/id-token", AuthController.googleSsoIdToken, AuthSchema.googleSsoIdToken);
 
 const router = (app: Elysia) =>
     app

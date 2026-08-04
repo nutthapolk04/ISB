@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
-import { fmtDate } from "@/lib/dateFormat";
+import { fmtDate, todayBangkok } from "@/lib/dateFormat";
 import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import type { Receipt } from "@/types/receipt";
 import { Card, CardContent } from "@/components/ui/card";
@@ -112,7 +112,7 @@ const formatTHB = (n: number) =>
         minimumFractionDigits: 2,
     }).format(n);
 
-const todayIso = () => format(new Date(), "yyyy-MM-dd");
+const todayIso = () => todayBangkok();
 
 const formatDateLong = (d: Date, lang: string) =>
     format(d, "EEEE d MMMM yyyy", { locale: lang === "th" ? th : enUS });

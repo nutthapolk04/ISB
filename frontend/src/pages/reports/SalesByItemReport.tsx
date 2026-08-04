@@ -30,6 +30,7 @@ import {
 import { PaginationBar } from "@/components/PaginationBar";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
+import { fmtDateTime } from "@/lib/dateFormat";
 import type { CanteenShop } from "./reportHelpers";
 
 const SI_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -521,7 +522,7 @@ export function SalesByItemReport({
                                                 siData.rows.slice((siPage - 1) * siPageSize, siPage * siPageSize).map((r) => (
                                                     <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
-                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.transaction_date.slice(0, 19).replace("T", " ")}</td>
+                                                        <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.transaction_date)}</td>
                                                         <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
                                                         <td className="px-2 py-1.5">
                                                             {r.item_name}

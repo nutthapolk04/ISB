@@ -430,6 +430,32 @@ export async function mockSso(email: string): Promise<TokenResponseDTO> {
     return createTokens(user);
 }
 
+async function loginWithGoogleEmail(email: string, emailVerified: boolean): Promise<TokenResponseDTO> {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) {
+        const err = new Error("Email not found in Google token");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    if (!emailVerified) {
+        const err = new Error("Google email is not verified");
+        (err as { status?: number }).status = 400;
+        throw err;
+    }
+    const user = await findUserByAnyLoginEmail(trimmed);
+    if (!user) {
+        const err = new Error("This Google account is not registered in the system. Please contact your school administrator.");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+    if (!user.isActive) {
+        const err = new Error("Account is inactive");
+        (err as { status?: number }).status = 403;
+        throw err;
+    }
+    return createTokens(user);
+}
+
 export async function googleSso(accessToken: string): Promise<TokenResponseDTO> {
     if (!accessToken) {
         const err = new Error("access_token is required");
@@ -454,29 +480,41 @@ export async function googleSso(accessToken: string): Promise<TokenResponseDTO> 
         (err as { status?: number }).status = 503;
         throw err;
     }
-    const email = (userinfo.email ?? "").trim().toLowerCase();
-    if (!email) {
-        const err = new Error("Email not found in Google token");
+    return loginWithGoogleEmail(userinfo.email ?? "", !!userinfo.email_verified);
+}
+
+/** Sign in with Google GIS button — verifies the ID-token JWT returned as `credential`. */
+export async function googleSsoIdToken(credential: string): Promise<TokenResponseDTO> {
+    if (!credential) {
+        const err = new Error("credential is required");
         (err as { status?: number }).status = 400;
         throw err;
     }
-    if (!userinfo.email_verified) {
-        const err = new Error("Google email is not verified");
-        (err as { status?: number }).status = 400;
+    let payload: { email?: string; email_verified?: string | boolean; aud?: string };
+    try {
+        const resp = await fetch(
+            `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
+            { signal: AbortSignal.timeout(10_000) },
+        );
+        if (!resp.ok) {
+            const err = new Error("Invalid or expired Google token");
+            (err as { status?: number }).status = 401;
+            throw err;
+        }
+        payload = (await resp.json()) as typeof payload;
+    } catch (e) {
+        if ((e as { status?: number }).status) throw e;
+        const err = new Error("Cannot reach Google authentication service");
+        (err as { status?: number }).status = 503;
         throw err;
     }
-    const user = await findUserByAnyLoginEmail(email);
-    if (!user) {
-        const err = new Error("This Google account is not registered in the system. Please contact your school administrator.");
-        (err as { status?: number }).status = 404;
+    if (config.googleClientId && payload.aud !== config.googleClientId) {
+        const err = new Error("Invalid Google token audience");
+        (err as { status?: number }).status = 401;
         throw err;
     }
-    if (!user.isActive) {
-        const err = new Error("Account is inactive");
-        (err as { status?: number }).status = 403;
-        throw err;
-    }
-    return createTokens(user);
+    const verified = payload.email_verified === true || payload.email_verified === "true";
+    return loginWithGoogleEmail(payload.email ?? "", verified);
 }
 
 /**

@@ -10,6 +10,7 @@ import { logKioskEvent } from '../lib/kioskLog';
 import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
+import { playTopupSuccessSound, stopTopupSuccessSound } from '../lib/topupSuccessSound';
 import QRCode from 'qrcode';
 
 const router = useRouter();
@@ -470,6 +471,7 @@ onUnmounted(() => {
     clearSuccessLogoutTimer();
     clearQrTimer();
     clearCashIdleTimer();
+    stopTopupSuccessSound();
     store.setSuppressGlobalIdle(false);
     window.removeEventListener('mousedown', onTopupActivity);
     window.removeEventListener('touchstart', onTopupActivity);
@@ -672,6 +674,7 @@ watch(currentStep, (step) => {
     }
 
     if (step === 'success') {
+        playTopupSuccessSound();
         if (!autoPrinted) {
             autoPrinted = true;
             void printReceipt();
