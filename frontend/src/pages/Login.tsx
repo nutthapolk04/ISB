@@ -253,21 +253,41 @@ function CredentialCarousel() {
     );
 }
 
-function PasswordLoginError({ onGoogleSignIn }: { onGoogleSignIn?: () => void }) {
+function PasswordLoginError({
+    googleLogin,
+}: {
+    googleLogin?: {
+        onSuccess: (response: CredentialResponse) => void;
+        onError: () => void;
+        disabled?: boolean;
+    };
+}) {
     const { t } = useTranslation();
     return (
         <p className="text-sm text-destructive">
             {t("login.invalidCredentials")}
-            {onGoogleSignIn && (
+            {googleLogin && (
                 <>
                     {" "}
                     {t("login.tryGooglePrefix")}{" "}
                     <button
                         type="button"
-                        className="underline font-medium hover:text-destructive/80"
-                        onClick={onGoogleSignIn}
+                        disabled={googleLogin.disabled}
+                        className="relative inline underline font-medium hover:text-destructive/80 disabled:opacity-50"
                     >
                         {t("login.googleSignIn")}
+                        {!googleLogin.disabled && (
+                            <span className="absolute inset-0 w-full h-full opacity-0 overflow-hidden">
+                                <GoogleLogin
+                                    onSuccess={googleLogin.onSuccess}
+                                    onError={googleLogin.onError}
+                                    width="200px"
+                                    text="signin_with"
+                                    theme="outline"
+                                    containerProps={{ className: "w-full h-full" }}
+                                />
+                            </span>
+                        )}
                     </button>
                 </>
             )}
@@ -290,11 +310,6 @@ const Login = () => {
     const [pendingGoogleCredential, setPendingGoogleCredential] = useState("");
     const [coverBg, setCoverBg] = useState("/login-bg.png");
     const fetchedCover = useRef(false);
-    const googleBtnRef = useRef<HTMLButtonElement>(null);
-
-    const triggerGoogleLogin = () => {
-        googleBtnRef.current?.click();
-    };
 
     useEffect(() => {
         if (isAuthenticated) navigate("/", { replace: true });
@@ -418,7 +433,11 @@ const Login = () => {
                                     {error && <p className="text-sm text-destructive">{error}</p>}
                                     {passwordLoginFailed && (
                                         <PasswordLoginError
-                                            onGoogleSignIn={GOOGLE_CLIENT_ID ? triggerGoogleLogin : undefined}
+                                            googleLogin={GOOGLE_CLIENT_ID ? {
+                                                onSuccess: handleGoogleLoginSuccess,
+                                                onError: handleGoogleLoginError,
+                                                disabled: loading || ssoLoading,
+                                            } : undefined}
                                         />
                                     )}
                                     <Button type="submit" className="w-full" disabled={loading || ssoLoading}>
@@ -443,7 +462,6 @@ const Login = () => {
                             {GOOGLE_CLIENT_ID && ssoStep === null && (
                                 <div className="flex justify-center">
                                     <Button type="button"
-                                        ref={googleBtnRef}
                                         variant="outline"
                                         className="w-full relative gap-2"
                                         disabled=
