@@ -21,7 +21,12 @@ import {
 import { pgNumber, pgToIso, bangkokRangeStart, bangkokRangeEndExclusive } from "@/lib/dates";
 import { compareDateTime, parseSortOrder } from "@/lib/sort_order";
 import { resolvePaymentMethodLabelKey } from "@/lib/payment_method_labels";
-import { classifyWalletTxKind, classifyTopupChannel, type TopupChannel } from "@/services/wallet_tx_classify";
+import {
+    classifyWalletTxKind,
+    classifyTopupChannel,
+    isFamilyPortalGatewayTopup,
+    type TopupChannel,
+} from "@/services/wallet_tx_classify";
 import { moduleShopIds } from "@/services/report_service";
 
 export interface AdjustmentReportRow {
@@ -527,8 +532,8 @@ export async function topupReport(args: {
     const shopNameById = new Map(shopRows.map((s) => [s.id, s.name] as const));
 
     // Parent/guardian → linked child gateway top-ups (parent portal), keyed
-    // as "parentUserId:childCustomerId". Used so staff-parent accounts (role
-    // "staff", no shop_id) classify as Online instead of Cashier.
+    // as "parentUserId:childCustomerId". Co-parent → co-parent top-ups use
+    // matching users.family_code instead (see isFamilyPortalGatewayTopup).
     const linkParentIds = [...new Set(
         combined.filter((r) => r.creator != null).map((r) => r.creator!.id),
     )];
@@ -563,11 +568,19 @@ export async function topupReport(args: {
         // Wallet") is self-service online, not a POS/cashier event, even
         // though their role would otherwise land in the cashier bucket.
         const isSelfTopup = r.w.userId != null && r.creator != null && r.creator.id === r.w.userId;
-        const isFamilyPortalTopup = r.tx.transactionType === "TOPUP"
-            && r.w.customerId != null
-            && r.creator != null
-            && !r.creator.shopId
-            && parentChildLinkSet.has(`${r.creator.id}:${r.w.customerId}`);
+        const isFamilyPortalTopup = r.creator != null && isFamilyPortalGatewayTopup({
+            transactionType: r.tx.transactionType,
+            creatorShopId: r.creator.shopId,
+            creatorId: r.creator.id,
+            creatorFamilyCode: r.creator.familyCode,
+            walletUserId: r.w.userId,
+            walletCustomerId: r.w.customerId,
+            hasParentChildLink: r.w.customerId != null
+                && parentChildLinkSet.has(`${r.creator.id}:${r.w.customerId}`),
+            walletOwnerFamilyCode: r.w.userId != null
+                ? ownerById.get(r.w.userId)?.familyCode
+                : null,
+        });
         const channel = classifyTopupChannel({
             transactionType: r.tx.transactionType,
             reason: r.tx.reason,

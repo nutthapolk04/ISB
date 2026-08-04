@@ -44,10 +44,10 @@ export function classifyTopupChannel(opts: {
      *  below. Only meaningful for gateway (TOPUP) rows — cash top-ups always
      *  require a physical POS register regardless of who owns the wallet. */
     isSelfTopup?: boolean;
-    /** Gateway top-up into a linked child's wallet by their parent/guardian
-     *  via the parent portal (includes staff-parent accounts whose role is
-     *  "staff" but who have no shop_id). POS staff topping up at a register
-     *  keep the Cashier channel even when the recipient is their own child. */
+    /** Gateway top-up via the parent portal (not a POS register): parent →
+     *  linked child, or co-parent → co-parent (same family_code). Staff-parent
+     *  accounts with role "staff" and no shop_id are included. POS staff at a
+     *  register keep the Cashier channel even when topping a family member. */
     isFamilyPortalTopup?: boolean;
 }): TopupChannel {
     const text = `${opts.reason ?? ""} ${opts.description ?? ""}`;
@@ -63,4 +63,34 @@ export function classifyTopupChannel(opts: {
     // Gateway TOPUP without a parent role — treat as online (parent portal / card).
     if (opts.transactionType === "TOPUP") return "online";
     return "cashier";
+}
+
+/** True when a gateway TOPUP was created via the parent portal (not POS). */
+export function isFamilyPortalGatewayTopup(opts: {
+    transactionType: string;
+    creatorShopId: string | null | undefined;
+    creatorId: number;
+    creatorFamilyCode: string | null | undefined;
+    walletUserId: number | null;
+    walletCustomerId: number | null;
+    hasParentChildLink: boolean;
+    walletOwnerFamilyCode: string | null | undefined;
+}): boolean {
+    if (opts.transactionType !== "TOPUP") return false;
+    if (opts.creatorShopId) return false;
+
+    if (opts.walletCustomerId != null && opts.hasParentChildLink) {
+        return true;
+    }
+
+    if (
+        opts.walletUserId != null
+        && opts.walletUserId !== opts.creatorId
+        && opts.creatorFamilyCode
+        && opts.walletOwnerFamilyCode === opts.creatorFamilyCode
+    ) {
+        return true;
+    }
+
+    return false;
 }
