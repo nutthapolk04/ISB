@@ -16,8 +16,9 @@ import {
     familyProfiles, customerTypes, userLoginEmails,
 } from "@/db/schema";
 import { createHash } from "node:crypto";
+import { SYNC_PLACEHOLDER_PASSWORD } from "@/lib/placeholder_password";
 
-const PARENT_DEFAULT_PASSWORD = "parent";
+const PARENT_DEFAULT_PASSWORD = SYNC_PLACEHOLDER_PASSWORD;
 
 /**
  * bcrypt cost for sync-created placeholder accounts (this file only — real,

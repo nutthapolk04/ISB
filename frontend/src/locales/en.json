@@ -2036,7 +2036,10 @@
   "login": {
     "demoBanner": "Demo accounts — Personal Wallet + POS spending",
     "demoHint": "Click to log in instantly — try top-up, family transfer, and pay at POS from your own wallet",
-    "otherAccounts": "Other accounts (Reference)"
+    "otherAccounts": "Other accounts (Reference)",
+    "invalidCredentials": "Invalid username or password.",
+    "tryGooglePrefix": "Try",
+    "googleSignIn": "Sign in with Google"
   },
   "pos": {
     "autoPrint": "Auto-print",

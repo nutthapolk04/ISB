@@ -34,6 +34,16 @@ export interface AdjustmentReportRow {
     created_at: string;
     entity_type: string;
     entity_name: string;
+    /**
+     * The owner's ISB ID (`external_id`) — surfaced as the report's "ISB ID"
+     * column. Falls back to the owner's local code (student_code /
+     * customer_code for a customer, username for a user) when PowerSchool
+     * hasn't synced an external_id yet, so a row is never unidentifiable.
+     *
+     * The wire name stays `entity_code` deliberately: frontend and backend are
+     * deployed separately here, and keeping the key stable means either can
+     * ship first without breaking the report in between.
+     */
     entity_code: string;
     direction: "credit" | "debit";
     amount: number;
@@ -53,7 +63,56 @@ export interface AdjustmentReportResponseDTO {
     pages: number;
 }
 
-function parseAdjDescription(desc: string | null): { reason: string; ticket: string | null } {
+/** Wallet owner shapes the adjustment report can resolve. Only the fields the
+ *  resolver reads are required, so tests can pass plain literals. */
+export type AdjustmentCustomerLike = Pick<
+    typeof customers.$inferSelect,
+    "name" | "externalId" | "studentCode" | "customerCode"
+>;
+export type AdjustmentUserLike = Pick<
+    typeof users.$inferSelect,
+    "fullName" | "username" | "role" | "externalId"
+>;
+
+export interface AdjustmentEntity {
+    type: string;
+    name: string;
+    /** ISB ID (external_id) when synced, else the owner's local code. */
+    code: string;
+}
+
+/**
+ * Resolve the entity columns (Type / Name / ISB ID) for one adjustment row.
+ *
+ * Department wallets are excluded by `adjustmentReport`'s WHERE clause, so only
+ * the customer and user branches are reachable; an owner row that can't be
+ * found (deleted mid-report) degrades to the "unknown" placeholder rather than
+ * throwing. Extracted from the loop so the ID-precedence rules are unit
+ * testable without a database.
+ */
+export function resolveAdjustmentEntity(owner: {
+    customer?: AdjustmentCustomerLike | null;
+    user?: AdjustmentUserLike | null;
+}): AdjustmentEntity {
+    const { customer, user } = owner;
+    if (customer) {
+        return {
+            type: "student",
+            name: customer.name,
+            code: customer.externalId || customer.studentCode || customer.customerCode,
+        };
+    }
+    if (user) {
+        return {
+            type: user.role ?? "staff",
+            name: user.fullName || user.username,
+            code: user.externalId || user.username,
+        };
+    }
+    return { type: "unknown", name: "—", code: "—" };
+}
+
+export function parseAdjDescription(desc: string | null): { reason: string; ticket: string | null } {
     if (!desc) return { reason: "", ticket: null };
     let ticket: string | null = null;
     const m = /\[ref:([^\]]+)\]/.exec(desc);
@@ -74,7 +133,28 @@ export async function adjustmentReport(args: {
     pageSize: number;
 }): Promise<AdjustmentReportResponseDTO> {
     const sortOrder = parseSortOrder(args.sortOrder);
-    const conds = [eq(walletTransactions.transactionType, "ADJUSTMENT"), isNull(wallets.departmentId)];
+    // This report is specifically "what did an admin change by hand on
+    // /admin/wallet-adjust", so `transaction_type = 'ADJUSTMENT'` alone is too
+    // wide — four different code paths write that type:
+    //
+    //   reference_type='admin_adjustment'  adjustBalance() — the admin page  ← want
+    //   reference_type='admin_adjustment'  cashierTopup() wraps adjustBalance,
+    //                                      so a POS/kiosk CASH top-up lands here
+    //                                      too, distinguishable only by `reason` ← drop
+    //   reference_type='initial_balance'   opening balance written when a student
+    //                                      or cardholder is created             ← drop
+    //   reference_type='initial_balance'   ditto for a new department            ← drop
+    //                                      (already excluded by departmentId below)
+    //
+    // Narrow to admin_adjustment in SQL (kills both initial_balance writers and
+    // anything future that reuses the type), then drop cash top-ups in the loop
+    // via classifyWalletTxKind — the shared classifier wallet_tx_classify.ts
+    // documents as mandatory for any code displaying a wallet_transactions row.
+    const conds = [
+        eq(walletTransactions.transactionType, "ADJUSTMENT"),
+        eq(walletTransactions.referenceType, "admin_adjustment"),
+        isNull(wallets.departmentId),
+    ];
     if (args.dateFrom) {
         try { conds.push(gte(walletTransactions.createdAt, bangkokRangeStart(args.dateFrom))); }
         catch { /* ignore */ }
@@ -117,6 +197,19 @@ export async function adjustmentReport(args: {
     for (const r of rows) {
         const tx = r.tx;
         const w = r.w;
+
+        // Drop cash top-ups. cashierTopup() delegates to adjustBalance(), so a
+        // POS/kiosk cash top-up is written with the same
+        // transaction_type='ADJUSTMENT' + reference_type='admin_adjustment' as a
+        // manual correction and is only separable by `reason` — which is exactly
+        // what classifyWalletTxKind() encapsulates. Those belong to the Top-up
+        // Report, not here.
+        if (classifyWalletTxKind({
+            transactionType: tx.transactionType,
+            referenceType: tx.referenceType,
+            reason: tx.reason,
+        }) !== "adjustment") continue;
+
         const before = pgNumber(tx.balanceBefore) ?? 0;
         const after = pgNumber(tx.balanceAfter) ?? 0;
         const delta = after - before;
@@ -125,14 +218,13 @@ export async function adjustmentReport(args: {
             if (dir !== args.direction) continue;
         }
 
-        let entityType = "unknown", entityName = "—", entityCode = "—";
-        if (w.customerId !== null) {
-            const c = customerById.get(w.customerId);
-            if (c) { entityType = "student"; entityName = c.name; entityCode = c.studentCode ?? c.customerCode; }
-        } else if (w.userId !== null) {
-            const u = userById.get(w.userId);
-            if (u) { entityType = u.role ?? "staff"; entityName = u.fullName || u.username; entityCode = u.username; }
-        }
+        const entity = resolveAdjustmentEntity({
+            customer: w.customerId !== null ? customerById.get(w.customerId) : null,
+            user: w.userId !== null ? userById.get(w.userId) : null,
+        });
+        const entityType = entity.type;
+        const entityName = entity.name;
+        const entityCode = entity.code;
 
         const creator = userById.get(tx.createdBy);
         const creatorName = creator ? (creator.fullName || creator.username) : String(tx.createdBy);
