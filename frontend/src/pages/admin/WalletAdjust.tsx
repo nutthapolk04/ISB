@@ -54,6 +54,9 @@ interface AdjustmentRow {
     created_at: string;
     entity_type: string;
     entity_name: string;
+    /** ISB ID (external_id), falling back to the owner's local code when
+     *  PowerSchool hasn't synced one. Wire name kept as `entity_code` so
+     *  frontend and backend stay deploy-order independent. */
     entity_code: string;
     direction: "credit" | "debit";
     amount: number;
@@ -78,7 +81,7 @@ const RPT_COLUMNS = [
     { header: "Date / Time", key: "created_at", format: "datetime" as const, width: 18 },
     { header: "Type", key: "entity_type", format: "text" as const, width: 12 },
     { header: "Name", key: "entity_name", format: "text" as const, width: 24 },
-    { header: "Code", key: "entity_code", format: "text" as const, width: 16 },
+    { header: "ISB ID", key: "entity_code", format: "text" as const, width: 16 },
     // Sign carries the direction instead of a separate column — see
     // signedAmount() below.
     { header: "Amount (฿)", key: "amount", format: "text" as const, width: 22, align: "right" as const },
@@ -682,7 +685,7 @@ export default function WalletAdjust() {
                                             </TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead>Name</TableHead>
-                                            <TableHead>Code</TableHead>
+                                            <TableHead>ISB ID</TableHead>
                                             <TableHead>Direction</TableHead>
                                             <TableHead className="text-right min-w-[8.5rem] whitespace-nowrap">Amount</TableHead>
                                             <TableHead className="text-right">Balance Before</TableHead>
