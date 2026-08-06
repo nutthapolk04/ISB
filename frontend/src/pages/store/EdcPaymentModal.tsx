@@ -51,6 +51,11 @@ interface DeclineInfo {
     message: string;
 }
 
+/** VTI: UC/CN/XC. LinkPOS: UC. All mean "cancelled at the terminal" — bounce
+ * back to the choice screen instead of showing a decline card. See
+ * docs/edc/sdk-js/GUIDELINE.md §5. */
+const CANCEL_RESPONSE_CODES = new Set(["UC", "CN", "XC"]);
+
 export function EdcPaymentModal({
     open,
     onOpenChange,
@@ -112,6 +117,7 @@ export function EdcPaymentModal({
         // Subscribe before ready() so the first /status message is never missed.
         const unsubscribe = edc.onTerminalStatus((s) => {
             if (!active) return;
+            console.log("[EDC] terminal status:", s.state);
             setTerminalStatus(s.state === "connected" ? "connected" : "disconnected");
         });
 
@@ -120,7 +126,8 @@ export function EdcPaymentModal({
                 if (!active) return;
                 setTerminalStatus(edc.terminalConnected ? "connected" : "disconnected");
             })
-            .catch(() => {
+            .catch((err) => {
+                console.error("[EDC] readyEdc() failed", err);
                 if (active) setTerminalStatus("disconnected");
             });
 
@@ -144,10 +151,12 @@ export function EdcPaymentModal({
         setEdcMode(mode);
         resetAttemptState();
         setStep("processing");
+        console.log(`[EDC] attempt #${attemptId} start`, { mode, idempotencyKey: idempotencyKeyRef.current, total });
 
         try {
             await readyEdc();
             if (!isCurrent()) return;
+            console.log(`[EDC] attempt #${attemptId} bridge ready`);
 
             const edc = getEdcClient();
             // Card swipe/tap carries a 3% surcharge the customer pays on top of
@@ -184,6 +193,7 @@ export function EdcPaymentModal({
 
             for await (const ev of stream) {
                 if (!isCurrent()) return;
+                console.log(`[EDC] attempt #${attemptId} event:`, ev.kind, ev);
 
                 if (ev.kind === "qr-shown") {
                     // LinkPOS does not emit this — keep it as a nice-to-have, never depended on.
@@ -228,6 +238,10 @@ export function EdcPaymentModal({
                             if (nextApprovalCode.trim().length > 0) {
                                 // Auto-confirm — no manual entry needed when the terminal already
                                 // gave us an approval code.
+                                console.log(`[EDC] attempt #${attemptId} approved`, {
+                                    terminalRef: nextTerminalRef.trim() || undefined,
+                                    maskedCard: nextMaskedCard.trim() || undefined,
+                                });
                                 setStep("approved");
                                 if (!pendingRef.current) {
                                     pendingRef.current = true;
@@ -238,6 +252,7 @@ export function EdcPaymentModal({
                                             masked_card: nextMaskedCard.trim() || undefined,
                                             mode,
                                         });
+                                        console.log(`[EDC] attempt #${attemptId} onConfirm recorded`);
                                     } catch (err) {
                                         // onConfirm already closes the modal and shows its own error
                                         // toast — this catch only prevents an unhandled rejection.
@@ -251,6 +266,7 @@ export function EdcPaymentModal({
                                 // receipt with — cannot auto-confirm, and manual entry is
                                 // intentionally not offered (see below). Surfaced as a distinct
                                 // "approved but unrecorded" state so cashiers never retry blindly.
+                                console.log(`[EDC] attempt #${attemptId} approved but no approval code returned`);
                                 setApprovedNoRecord(true);
                                 setDeclineInfo({
                                     code: "",
@@ -262,7 +278,15 @@ export function EdcPaymentModal({
                                 setStep("declined");
                             }
                         }
+                    } else if (CANCEL_RESPONSE_CODES.has(String(ev.responseCode))) {
+                        // Cancelled at the terminal (not a bank decline) — go straight back
+                        // to the choice screen instead of a decline card with "Try again".
+                        console.log(`[EDC] attempt #${attemptId} cancelled at terminal`, ev.responseCode);
+                        resetAttemptState();
+                        setStep("choice");
+                        setEdcMode(null);
                     } else {
+                        console.log(`[EDC] attempt #${attemptId} declined`, ev.responseCode, ev.responseMessage);
                         setDeclineInfo({
                             code: String(ev.responseCode),
                             message: ev.responseMessage ?? "",
@@ -300,18 +324,12 @@ export function EdcPaymentModal({
     };
 
     const handleSelectMode = (mode: EdcMode) => {
+        console.log("[EDC] mode selected:", mode);
         void runAttempt(mode);
     };
 
-    const handleCancelProcessing = () => {
-        // Invalidates result handling for this attempt — cannot abort the terminal-side
-        // transaction itself, it will just be ignored when/if it eventually resolves.
-        attemptRef.current += 1;
-        setStep("choice");
-        setEdcMode(null);
-    };
-
     const handleBackToChoice = () => {
+        console.log("[EDC] back to choice");
         attemptRef.current += 1;
         resetAttemptState();
         setStep("choice");
@@ -319,16 +337,18 @@ export function EdcPaymentModal({
     };
 
     const handleTryAgain = () => {
+        console.log("[EDC] try again:", edcMode);
         if (edcMode) void runAttempt(edcMode);
     };
 
     // Once a QR/card attempt is in flight (or has just been approved and is
-    // being recorded), block Escape/outside-click dismissal — the cashier
-    // must use the explicit Cancel button (which only resets the step, it
-    // never closes the dialog) rather than accidentally losing the modal
-    // mid-transaction. Does not affect the parent's own `setEdcOpen(false)`
-    // call after a successful onConfirm, since that happens outside
-    // onOpenChange entirely.
+    // being recorded), block Escape/outside-click dismissal AND hide the
+    // footer button entirely — there is no cashier-side way to abort a
+    // submitted terminal transaction. The only way out is the terminal's own
+    // result: a cancel-type response code (see CANCEL_RESPONSE_CODES) bounces
+    // straight back to "choice", anything else lands on "declined"/"approved".
+    // Does not affect the parent's own `setEdcOpen(false)` call after a
+    // successful onConfirm, since that happens outside onOpenChange entirely.
     const dismissLocked = step === "processing" || step === "approved";
 
     const showModeHeader = step !== "choice" && edcMode !== null;
@@ -355,10 +375,8 @@ export function EdcPaymentModal({
                     : t("storePos.edcDeclinedDesc", "The transaction was not approved.");
 
     const footerBackDisabled = confirming;
-    const footerBackLabel =
-        step === "processing" ? t("storePos.cancel", "Cancel") : t("storePos.back", "Back");
-    const handleFooterBack =
-        step === "choice" ? onBack : step === "processing" ? handleCancelProcessing : handleBackToChoice;
+    const footerBackLabel = t("storePos.back", "Back");
+    const handleFooterBack = step === "choice" ? onBack : handleBackToChoice;
 
     return (
         <Dialog
@@ -506,7 +524,7 @@ export function EdcPaymentModal({
                 )}
 
                 <DialogFooter className="gap-2">
-                    {step !== "approved" && (
+                    {step !== "approved" && step !== "processing" && (
                         <Button
                             variant="outline"
                             onClick={handleFooterBack}
