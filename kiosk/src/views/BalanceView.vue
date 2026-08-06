@@ -2,7 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { User, LogOut, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle, ArrowLeftRight } from 'lucide-vue-next';
+import { User, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle, ArrowLeftRight } from 'lucide-vue-next';
+import LogoutButton from '../components/LogoutButton.vue';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -225,7 +226,7 @@ onUnmounted(() => {
             <!-- Nav arrows for desktop -->
             <button v-if="hasMultipleWallets" class="carousel-nav prev" :disabled="store.activeWalletIndex === 0"
                 @click="navPrev">
-                <ChevronLeft :size="32" />
+                <ChevronLeft :size="36" />
             </button>
 
             <div class="wallet-carousel" ref="carouselRef" @touchstart="handleTouchStart" @touchmove="handleTouchMove"
@@ -251,9 +252,7 @@ onUnmounted(() => {
                             </div>
                             <p class="balance-sub">{{ currT.balance }} {{ currT.balanceUnit }}</p>
                         </div>
-                        <button class="logout-icon-btn" @click.stop="handleLogout">
-                            <LogOut :size="24" />
-                        </button>
+                        <LogoutButton @click.stop="handleLogout" />
                     </div>
                     <div class="balance-row">
                         <div class="balance-display">
@@ -270,7 +269,7 @@ onUnmounted(() => {
 
             <button v-if="hasMultipleWallets" class="carousel-nav next"
                 :disabled="store.activeWalletIndex === wallets.length - 1" @click="navNext">
-                <ChevronRight :size="32" />
+                <ChevronRight :size="36" />
             </button>
         </div>
 
@@ -465,19 +464,6 @@ onUnmounted(() => {
     opacity: 0.8;
 }
 
-.logout-icon-btn {
-    background: rgba(255, 255, 255, 0.15);
-    border: none;
-    color: white;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
-
 .balance-row {
     text-align: center;
     margin: 1rem 0;
@@ -522,7 +508,7 @@ onUnmounted(() => {
     top: 50%;
     transform: translateY(-50%);
     z-index: 10;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0);
     border: none;
     color: white;
     width: 44px;

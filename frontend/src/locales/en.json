@@ -1159,7 +1159,7 @@
       "otherStudents": "Other students",
       "reconciliation": {
         "title": "Needs attention — {{parents}} parent + {{students}} student not linked",
-        "description": "These parents / students have a ISB family_code but no link in Schooney yet · click 'Link' to open the dialog pre-filled",
+        "description": "These parents / students have a ISB family_code but no link yet · click 'Link' to open the dialog pre-filled",
         "parentsHeader": "Parents with no children linked ({{count}})",
         "studentsHeader": "Students with no parent ({{count}})",
         "linkSuggestion": "Link ({{count}} match)",
