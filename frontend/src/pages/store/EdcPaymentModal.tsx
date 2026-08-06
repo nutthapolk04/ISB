@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, ChevronLeft, CreditCard, Loader2, Nfc, QrCode, XCircle } from "lucide-react";
 import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
 import { logEdcEvent } from "@/lib/paywire/edcTelemetry";
+import { classifyEdcResponse, isNonStandardApproval } from "@/lib/paywire/edcResponseCodes";
 
 interface EdcRefs {
     approval_code: string;
@@ -51,10 +52,9 @@ interface DeclineInfo {
     message: string;
 }
 
-/** VTI: UC/CN/XC. LinkPOS: UC. All mean "cancelled at the terminal" — bounce
- * back to the choice screen instead of showing a decline card. See
- * docs/edc/sdk-js/GUIDELINE.md §5. */
-const CANCEL_RESPONSE_CODES = new Set(["UC", "CN", "XC"]);
+// Response-code meanings live in lib/paywire/edcResponseCodes.ts so they can be
+// unit-tested away from this component — see GUIDELINE.md §5 for the source
+// tables. The cancel set that used to live here moved there unchanged.
 
 export function EdcPaymentModal({
     open,
@@ -205,8 +205,14 @@ export function EdcPaymentModal({
                     const nextApprovalCode = ev.approvalCode ?? "";
                     const nextTerminalRef = ev.fields?.["invoice_no"] ?? ev.rrn ?? "";
                     const nextMaskedCard = ev.maskedPan ?? ev.payerId ?? "";
+                    // "Approved" is wider than "00": VTI offline approvals
+                    // (Y1/Y3) and duplicate-reference echoes (DR/DI) are real
+                    // charges per GUIDELINE.md §5. Treating them as declines is
+                    // what put a "Try again" button in front of a cashier whose
+                    // customer had already been charged.
+                    const outcome = classifyEdcResponse(ev.responseCode);
                     const willAttemptCheckout =
-                        ev.responseCode === "00" && nextApprovalCode.trim().length > 0 && isCurrent();
+                        outcome === "approved" && nextApprovalCode.trim().length > 0 && isCurrent();
 
                     // Report BEFORE branching. The branch below can decide not to
                     // call checkout at all (approved with no approval code), and
@@ -230,7 +236,7 @@ export function EdcPaymentModal({
                         checkout_attempted: willAttemptCheckout,
                     });
 
-                    if (ev.responseCode === "00") {
+                    if (outcome === "approved") {
                         // Stale results (cashier cancelled or closed the modal mid-transaction)
                         // are ignored, matching handleCancelProcessing's contract — the
                         // terminal-side charge, if any, is reconciled manually.
@@ -257,6 +263,25 @@ export function EdcPaymentModal({
                                         // onConfirm already closes the modal and shows its own error
                                         // toast — this catch only prevents an unhandled rejection.
                                         console.error("[EDC] auto-confirm error", err);
+                                        // The customer HAS been charged and the sale did not
+                                        // record. The `result` row above says only that we
+                                        // were going to try; without this the failure itself
+                                        // is invisible server-side whenever the checkout
+                                        // request died before reaching the backend.
+                                        logEdcEvent({
+                                            event: "error",
+                                            context: telemetry?.context ?? "unknown",
+                                            shop_id: telemetry?.shopId ?? null,
+                                            idempotency_key: idempotencyKeyRef.current,
+                                            edc_mode: mode,
+                                            amount: chargeAmount,
+                                            response_code: String(ev.responseCode),
+                                            approval_code: nextApprovalCode.trim() || null,
+                                            masked_card: nextMaskedCard.trim() || null,
+                                            rrn: ev.rrn ?? null,
+                                            checkout_attempted: true,
+                                            client_error: `checkout failed after approval: ${err instanceof Error ? err.message : String(err)}`,
+                                        });
                                     } finally {
                                         pendingRef.current = false;
                                     }
@@ -269,7 +294,10 @@ export function EdcPaymentModal({
                                 console.log(`[EDC] attempt #${attemptId} approved but no approval code returned`);
                                 setApprovedNoRecord(true);
                                 setDeclineInfo({
-                                    code: "",
+                                    // Show the raw code for the non-"00" approvals (offline /
+                                    // duplicate) — the cashier needs it when they call it in,
+                                    // and it explains why the slip and the screen disagree.
+                                    code: isNonStandardApproval(ev.responseCode) ? String(ev.responseCode) : "",
                                     message: t(
                                         "storePos.edcApprovedNoCode",
                                         "เครื่องอนุมัติรายการแล้วแต่ไม่ได้รับรหัสยืนยันกลับมา — ห้ามลองใหม่ซ้ำ (อาจตัดเงินซ้ำ) กรุณาติดต่อผู้ดูแลระบบเพื่อบันทึกใบเสร็จด้วยตนเอง",
@@ -278,7 +306,7 @@ export function EdcPaymentModal({
                                 setStep("declined");
                             }
                         }
-                    } else if (CANCEL_RESPONSE_CODES.has(String(ev.responseCode))) {
+                    } else if (outcome === "cancelled") {
                         // Cancelled at the terminal (not a bank decline) — go straight back
                         // to the choice screen instead of a decline card with "Try again".
                         console.log(`[EDC] attempt #${attemptId} cancelled at terminal`, ev.responseCode);
@@ -345,7 +373,7 @@ export function EdcPaymentModal({
     // being recorded), block Escape/outside-click dismissal AND hide the
     // footer button entirely — there is no cashier-side way to abort a
     // submitted terminal transaction. The only way out is the terminal's own
-    // result: a cancel-type response code (see CANCEL_RESPONSE_CODES) bounces
+    // result: a cancel-type response code (see classifyEdcResponse) bounces
     // straight back to "choice", anything else lands on "declined"/"approved".
     // Does not affect the parent's own `setEdcOpen(false)` call after a
     // successful onConfirm, since that happens outside onOpenChange entirely.

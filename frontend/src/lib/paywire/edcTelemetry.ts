@@ -189,3 +189,26 @@ export function logEdcEvent(payload: EdcEventPayload): void {
         }
     })();
 }
+
+// ── Recovery triggers ─────────────────────────────────────────────────────
+
+/**
+ * Drain on page load and whenever the browser regains connectivity.
+ *
+ * Without these the queue only moves on the *next* successful send, so a
+ * station that went offline during its last EDC sale of the day would keep that
+ * row — a record of a real terminal charge — sitting in localStorage until
+ * someone happened to run another EDC transaction.
+ *
+ * Both triggers are best-effort: flushEdcTelemetry() never throws, and a flush
+ * before login simply fails on the first item and puts everything back.
+ */
+if (typeof window !== "undefined") {
+    window.addEventListener("online", () => {
+        void flushEdcTelemetry();
+    });
+    // Deferred so this never competes with first paint on a POS station.
+    setTimeout(() => {
+        void flushEdcTelemetry();
+    }, 5_000);
+}
