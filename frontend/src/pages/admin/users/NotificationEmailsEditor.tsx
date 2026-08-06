@@ -172,9 +172,14 @@ export function NotificationEmailsEditor({
                         {
                             loginIds.join(", ")
                         }
-                        {displayedSyncedEmails.length > 0 && (
-                            displayedSyncedEmails.join(", ")
-                        )}
+                    </span>
+                </div>
+            )}
+            {displayedSyncedEmails.length > 0 && loginIds.length <= 0 && (
+                <div className="pt-2 border-t text-xs">
+                    <span className="text-muted-foreground">Login Emails:</span>{" "}
+                    <span className="font-mono">
+                        {displayedSyncedEmails.join(", ")}
                     </span>
                 </div>
             )}
