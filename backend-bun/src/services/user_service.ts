@@ -40,6 +40,7 @@ export interface UserPayerLookupDTO {
     department_id: number | null;
     department_code: string | null;
     department_name: string | null;
+    staff_type: string | null;
 }
 
 export interface FamilyMemberLookupDTO {
@@ -236,6 +237,9 @@ async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLo
         throw err;
     }
     console.log("[payerView] OK: wallet found, returning payerView");
+
+    const staffType = target.role === "staff" ? target.staffType : null;
+
     return {
         user_id: target.id,
         username: target.username,
@@ -249,6 +253,7 @@ async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLo
         department_id: target.departmentId ?? null,
         department_code: deptCode,
         department_name: deptName,
+        staff_type: staffType,
     };
 }
 

@@ -148,6 +148,10 @@
     "addedToCart": "Added to cart",
     "removedFromCart": "Removed from cart",
     "productNotFound": "Product not found",
+    "scanProductAdded": "Added to cart",
+    "scanNotFound": "Not found — no product or member",
+    "scanTooShort": "Scan too short",
+    "scanLookupError": "Lookup failed — try again",
     "pleaseAddProducts": "Please add products to cart",
     "pleaseEnterStudentCard": "Please enter student card number",
     "invalidEmployeeCode": "Employee code must be 4-6 digits",
@@ -1155,7 +1159,7 @@
       "otherStudents": "Other students",
       "reconciliation": {
         "title": "Needs attention — {{parents}} parent + {{students}} student not linked",
-        "description": "These parents / students have a ISB family_code but no link in Schooney yet · click 'Link' to open the dialog pre-filled",
+        "description": "These parents / students have a ISB family_code but no link yet · click 'Link' to open the dialog pre-filled",
         "parentsHeader": "Parents with no children linked ({{count}})",
         "studentsHeader": "Students with no parent ({{count}})",
         "linkSuggestion": "Link ({{count}} match)",
@@ -2032,7 +2036,10 @@
   "login": {
     "demoBanner": "Demo accounts — Personal Wallet + POS spending",
     "demoHint": "Click to log in instantly — try top-up, family transfer, and pay at POS from your own wallet",
-    "otherAccounts": "Other accounts (Reference)"
+    "otherAccounts": "Other accounts (Reference)",
+    "invalidCredentials": "Invalid username or password.",
+    "tryGooglePrefix": "Try",
+    "googleSignIn": "Sign in with Google"
   },
   "pos": {
     "autoPrint": "Auto-print",

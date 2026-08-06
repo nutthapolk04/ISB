@@ -2,8 +2,9 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { ChevronLeft, ArrowUpCircle, ArrowDownCircle, ReceiptText, LogOut } from 'lucide-vue-next';
+import { ChevronLeft, ArrowUpCircle, ArrowDownCircle, ReceiptText } from 'lucide-vue-next';
 import ReceiptPreview from '../components/ReceiptPreview.vue';
+import LogoutButton from '../components/LogoutButton.vue';
 import type { Transaction } from '../api/mockApi';
 
 const router = useRouter();
@@ -95,9 +96,7 @@ const rowLabel = (tx: Transaction) => {
                 <h2>{{ currT.title }}</h2>
                 <span v-if="viewingWallet" class="viewing-name">{{ viewingWallet.holderName }}</span>
             </div>
-            <button class="logout-btn" @click="handleLogout">
-                <LogOut :size="28" />
-            </button>
+            <LogoutButton @click="handleLogout" />
         </div>
 
         <div class="list-container" v-if="store.transactions.length > 0">
@@ -390,23 +389,5 @@ const rowLabel = (tx: Transaction) => {
     justify-content: center;
     color: var(--text-muted);
     font-style: italic;
-}
-
-.logout-btn {
-    background: none;
-    border: 2px solid var(--text-muted);
-    color: var(--text-color);
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0.7;
-}
-
-.logout-btn:hover {
-    opacity: 1;
 }
 </style>

@@ -1,371 +1,361 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Search,
-  Building2,
-  Loader2,
-  AlertTriangle,
-  X,
+    Search,
+    Building2,
+    Loader2,
+    AlertTriangle,
+    X,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
+import { memberSubtitleLine } from "@/lib/posMemberDisplay";
 import type { StudentLookupResult, DepartmentLookupResult } from "./RfidPaymentModal";
 
 interface MemberSearchModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** Called when a member is selected - returns the student profile */
-  onSelect?: (member: StudentLookupResult) => void;
-}
-
-/** "ISBCard: {external_id}" when the school-issued external_id is set,
- * falling back to student_code/customer_code (no "ISBCard" label — those
- * aren't ISB card codes) for records not yet synced with one. */
-function idLineFor(m: Pick<StudentLookupResult, "external_id" | "student_code" | "customer_code">): string {
-  return m.external_id ? `ISBCard: ${m.external_id}` : (m.student_code ?? m.customer_code);
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    /** Called when a member is selected - returns the student profile */
+    onSelect?: (member: StudentLookupResult) => void;
 }
 
 export function MemberSearchModal({
-  open,
-  onOpenChange,
-  onSelect,
+    open,
+    onOpenChange,
+    onSelect,
 }: MemberSearchModalProps) {
-  const { t } = useTranslation();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<StudentLookupResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedMember, setSelectedMember] = useState<StudentLookupResult | null>(null);
+    const { t } = useTranslation();
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState<StudentLookupResult[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedMember, setSelectedMember] = useState<StudentLookupResult | null>(null);
 
-  // Reset state when modal opens
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setResults([]);
-      setError(null);
-      setSelectedMember(null);
-    }
-  }, [open]);
+    // Reset state when modal opens
+    useEffect(() => {
+        if (open) {
+            setQuery("");
+            setResults([]);
+            setError(null);
+            setSelectedMember(null);
+        }
+    }, [open]);
 
-  // Debounced search
-  const searchMembers = useCallback(async (searchQuery: string) => {
-    const q = searchQuery.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setError(null);
-      return;
-    }
+    // Debounced search
+    const searchMembers = useCallback(async (searchQuery: string) => {
+        const q = searchQuery.trim();
+        if (q.length < 2) {
+            setResults([]);
+            setError(null);
+            return;
+        }
 
-    setLoading(true);
-    setError(null);
-    try {
-      // Run customer search + department search in parallel
-      const [customers, depts] = await Promise.all([
-        // narrow=1 — match only name / family_code / external_id (see
-        // customer_service.ts) so a query that happens to overlap someone
-        // else's phone/email/student_code/card_uid doesn't surface a false hit.
-        api.get<StudentLookupResult[]>(
-          `/customers/search?q=${encodeURIComponent(q)}&limit=10&narrow=1`
-        ).catch(() => [] as StudentLookupResult[]),
-        api.get<DepartmentLookupResult[]>(
-          `/departments/?q=${encodeURIComponent(q)}&active_only=false`
-        ).catch(() => [] as DepartmentLookupResult[]),
-      ]);
+        setLoading(true);
+        setError(null);
+        try {
+            // Run customer search + department search in parallel
+            const [customers, depts] = await Promise.all([
+                // narrow=1 — match only name / family_code / external_id (see
+                // customer_service.ts) so a query that happens to overlap someone
+                // else's phone/email/student_code/card_uid doesn't surface a false hit.
+                api.get<StudentLookupResult[]>(
+                    `/customers/search?q=${encodeURIComponent(q)}&limit=10&narrow=1`
+                ).catch(() => [] as StudentLookupResult[]),
+                api.get<DepartmentLookupResult[]>(
+                    `/departments/?q=${encodeURIComponent(q)}&active_only=false`
+                ).catch(() => [] as DepartmentLookupResult[]),
+            ]);
 
-      // Map departments to StudentLookupResult shape using customer_kind="department"
-      const deptResults: StudentLookupResult[] = depts.map((d) => ({
-        id: d.id,
-        name: d.department_name,
-        customer_code: d.department_code,
-        student_code: d.department_code,
-        customer_kind: "department",
-        wallet_balance: d.wallet_balance ?? 0,
-        wallet_id: d.wallet_id ?? null,
-      }));
+            // Map departments to StudentLookupResult shape using customer_kind="department"
+            const deptResults: StudentLookupResult[] = depts.map((d) => ({
+                id: d.id,
+                name: d.department_name,
+                customer_code: d.department_code,
+                student_code: d.department_code,
+                department_code: d.department_code,
+                customer_kind: "department",
+                wallet_balance: d.wallet_balance ?? 0,
+                wallet_id: d.wallet_id ?? null,
+            }));
 
-      const combined = [...customers, ...deptResults];
-      setResults(combined);
-      if (combined.length === 0) {
-        setError(t("canteen.memberSearch.noResults"));
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail : t("canteen.memberSearch.error"));
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+            const combined = [...customers, ...deptResults];
+            setResults(combined);
+            if (combined.length === 0) {
+                setError(t("canteen.memberSearch.noResults"));
+            }
+        } catch (e) {
+            setError(e instanceof ApiError ? e.detail : t("canteen.memberSearch.error"));
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  const debouncedQuery = useDebounce(query, 300);
-  useEffect(() => {
-    searchMembers(debouncedQuery);
-  }, [debouncedQuery, searchMembers]);
+    const debouncedQuery = useDebounce(query, 300);
+    useEffect(() => {
+        searchMembers(debouncedQuery);
+    }, [debouncedQuery, searchMembers]);
 
-  const handleSelect = async (member: StudentLookupResult) => {
-    setSelectedMember(member);
-    // Search results don't include spent_today_*. Re-fetch the full profile
-    // for customers so the daily limit panel renders with live usage.
-    if (member.user_id == null && member.customer_kind !== "department") {
-      try {
-        const full = await api.get<StudentLookupResult>(`/customers/${member.id}`);
-        setSelectedMember(full);
-      } catch {
-        // Keep partial data — limits will show as 0 / not configured.
-      }
-    }
-  };
+    const handleSelect = async (member: StudentLookupResult) => {
+        setSelectedMember(member);
+        // Search results don't include spent_today_*. Re-fetch the full profile
+        // for customers so the daily limit panel renders with live usage.
+        if (member.user_id == null && member.customer_kind !== "department") {
+            try {
+                const full = await api.get<StudentLookupResult>(`/customers/${member.id}`);
+                setSelectedMember(full);
+            } catch {
+                // Keep partial data — limits will show as 0 / not configured.
+            }
+        }
+    };
 
-  const handleConfirm = () => {
-    if (selectedMember && onSelect) {
-      onSelect(selectedMember);
-      onOpenChange(false);
-    }
-  };
+    const handleConfirm = () => {
+        if (selectedMember && onSelect) {
+            onSelect(selectedMember);
+            onOpenChange(false);
+        }
+    };
 
-  const handleClose = () => {
-    setSelectedMember(null);
-    onOpenChange(false);
-  };
+    const handleClose = () => {
+        setSelectedMember(null);
+        onOpenChange(false);
+    };
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-amber-500" />
-            {t("canteen.memberSearch.title")}
-          </DialogTitle>
-        </DialogHeader>
+    return (
+        <Dialog open={open} onOpenChange={handleClose}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Search className="h-5 w-5 text-amber-500" />
+                        {t("canteen.memberSearch.title")}
+                    </DialogTitle>
+                </DialogHeader>
 
-        {!selectedMember ? (
-          // Search mode
-          <div className="space-y-4">
-            {/* Search input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("canteen.memberSearch.placeholder")}
-                className="pl-9"
-                autoFocus
-              />
-              {loading && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              {t("canteen.memberSearch.minChars")}
-            </p>
-
-            {/* Results list */}
-            {results.length > 0 && (
-              <div className="max-h-80 overflow-y-auto space-y-2">
-                {results.map((member) => (
-                  <button
-                    key={member.id}
-                    type="button"
-                    onClick={() => handleSelect(member)}
-                    className={cn(
-                      "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
-                      member.card_frozen
-                        ? "border-red-200 bg-red-50 opacity-60"
-                        : "border-border bg-card hover:border-amber-400 hover:bg-amber-50/50"
-                    )}
-                  >
-                    {/* Photo / icon */}
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-                      {member.customer_kind === "department" ? (
-                        <Building2 className="h-11 w-11 text-rose-500" />
-                      ) : (
-                        <img
-                          src={resolveAvatarUrl(member.photo_url, member.name || String(member.id))}
-                          alt={member.name}
-                          className="h-full w-full object-cover"
-                          onError={(e) => { e.currentTarget.src = getFallbackAvatar(member.name || String(member.id)); }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-sm truncate">
-                          {member.name}
-                        </span>
-                        {member.customer_kind === "department" && (
-                          <Badge className="h-4 text-[10px] px-1 bg-rose-100 text-rose-700 border-rose-200">
-                            {t("canteen.memberSearch.department")}
-                          </Badge>
-                        )}
-                        {member.grade && member.customer_kind !== "department" && (
-                          <Badge variant="secondary" className="h-4 text-[10px] px-1">
-                            Grade {member.grade}
-                          </Badge>
-                        )}
-                        {member.user_id != null && (
-                          <Badge className="h-4 text-[10px] px-1 bg-blue-100 text-blue-700 border-blue-200">
-                            {t(`roles.${member.customer_kind}`, member.customer_kind ?? t("canteen.memberSearch.member"))}
-                          </Badge>
-                        )}
-                        {member.card_frozen && (
-                          <Badge variant="destructive" className="h-4 text-[10px] px-1">
-                            Frozen
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {member.customer_kind === "department"
-                          ? member.customer_code
-                          : idLineFor(member)}
-                      </div>
-                      {member.customer_kind !== "department" && member.family_code && (
-                        <div className="text-xs text-muted-foreground">
-                          Family: {member.family_code}
+                {!selectedMember ? (
+                    // Search mode
+                    <div className="space-y-4">
+                        {/* Search input */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder={t("canteen.memberSearch.placeholder")}
+                                className="pl-9"
+                                autoFocus
+                            />
+                            {loading && (
+                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                            )}
                         </div>
-                      )}
-                    </div>
 
-                    {/* Balance */}
-                    <div className="text-right shrink-0">
-                      <div
-                        className={cn(
-                          "text-sm font-bold tabular-nums",
-                          (member.wallet_balance ?? 0) < 0
-                            ? "text-destructive"
-                            : "text-foreground"
+                        <p className="text-xs text-muted-foreground">
+                            {t("canteen.memberSearch.minChars")}
+                        </p>
+
+                        {/* Results list */}
+                        {results.length > 0 && (
+                            <div className="max-h-80 overflow-y-auto space-y-2">
+                                {results.map((member) => (
+                                    <button
+                                        key={member.id}
+                                        type="button"
+                                        onClick={() => handleSelect(member)}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 rounded-xl border p-3 text-left transition",
+                                            member.card_frozen
+                                                ? "border-red-200 bg-red-50 opacity-60"
+                                                : "border-border bg-card hover:border-amber-400 hover:bg-amber-50/50"
+                                        )}
+                                    >
+                                        {/* Photo / icon */}
+                                        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                                            {member.customer_kind === "department" ? (
+                                                <Building2 className="h-11 w-11 text-rose-500" />
+                                            ) : (
+                                                <img
+                                                    src={resolveAvatarUrl(member.photo_url, member.name || String(member.id))}
+                                                    alt={member.name}
+                                                    className="h-full w-full object-cover"
+                                                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(member.name || String(member.id)); }}
+                                                />
+                                            )}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="font-semibold text-sm truncate">
+                                                    {member.name}
+                                                </span>
+                                                {member.customer_kind === "department" && (
+                                                    <Badge className="h-4 text-[10px] px-1 bg-rose-100 text-rose-700 border-rose-200">
+                                                        {t("canteen.memberSearch.department")}
+                                                    </Badge>
+                                                )}
+                                                {member.grade && member.customer_kind !== "department" && (
+                                                    <Badge variant="secondary" className="h-4 text-[10px] px-1">
+                                                        Grade {member.grade}
+                                                    </Badge>
+                                                )}
+                                                {member.user_id != null && (
+                                                    <Badge className="h-4 text-[10px] px-1 bg-blue-100 text-blue-700 border-blue-200">
+                                                        {t(`roles.${member.customer_kind}`, member.customer_kind ?? t("canteen.memberSearch.member"))}
+                                                    </Badge>
+                                                )}
+                                                {member.card_frozen && (
+                                                    <Badge variant="destructive" className="h-4 text-[10px] px-1">
+                                                        Frozen
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {memberSubtitleLine(member, { isbCardPrefix: true })}
+                                            </div>
+                                            {member.customer_kind !== "department" && member.family_code && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    Family: {member.family_code}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Balance */}
+                                        <div className="text-right shrink-0">
+                                            <div
+                                                className={cn(
+                                                    "text-sm font-bold tabular-nums",
+                                                    (member.wallet_balance ?? 0) < 0
+                                                        ? "text-destructive"
+                                                        : "text-foreground"
+                                                )}
+                                            >
+                                                ฿{(member.wallet_balance ?? 0).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         )}
-                      >
-                        ฿{(member.wallet_balance ?? 0).toFixed(2)}
-                      </div>
+
+                        {/* Error message */}
+                        {error && !loading && (
+                            <div className="text-center py-4 text-sm text-muted-foreground">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Empty state */}
+                        {query.length >= 2 && results.length === 0 && !loading && !error && (
+                            <div className="text-center py-4 text-sm text-muted-foreground">
+                                {t("canteen.memberSearch.searching")}
+                            </div>
+                        )}
                     </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Error message */}
-            {error && !loading && (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                {error}
-              </div>
-            )}
-
-            {/* Empty state */}
-            {query.length >= 2 && results.length === 0 && !loading && !error && (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                {t("canteen.memberSearch.searching")}
-              </div>
-            )}
-          </div>
-        ) : (
-          // Selected member detail view
-          <div className="space-y-4">
-            {/* Member card */}
-            <div className="flex flex-col sm:flex-row gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="h-24 w-24 sm:h-40 sm:w-40 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300 mx-auto sm:mx-0">
-                {selectedMember.customer_kind === "department" ? (
-                  <div className="flex h-full w-full items-center justify-center text-rose-500">
-                    <Building2 className="h-12 w-12 sm:h-20 sm:w-20" />
-                  </div>
                 ) : (
-                  <img
-                    src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
-                    alt={selectedMember.name}
-                    className="h-full w-full object-cover"
-                    onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
-                  />
+                    // Selected member detail view
+                    <div className="space-y-4">
+                        {/* Member card */}
+                        <div className="flex flex-col sm:flex-row gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+                            <div className="h-24 w-24 sm:h-40 sm:w-40 shrink-0 overflow-hidden rounded-xl bg-amber-100 ring-2 ring-amber-300 mx-auto sm:mx-0">
+                                {selectedMember.customer_kind === "department" ? (
+                                    <div className="flex h-full w-full items-center justify-center text-rose-500">
+                                        <Building2 className="h-12 w-12 sm:h-20 sm:w-20" />
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={resolveAvatarUrl(selectedMember.photo_url, selectedMember.name || String(selectedMember.id))}
+                                        alt={selectedMember.name}
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => { e.currentTarget.src = getFallbackAvatar(selectedMember.name || String(selectedMember.id)); }}
+                                    />
+                                )}
+                            </div>
+                            <div className="min-w-0 flex-1 text-center sm:text-left">
+                                <div className="text-lg sm:text-xl font-bold break-words">
+                                    {selectedMember.name}
+                                </div>
+                                <div className="text-sm text-muted-foreground break-words">
+                                    {memberSubtitleLine(selectedMember, { isbCardPrefix: true })}
+                                </div>
+                                {selectedMember.customer_kind !== "department" && selectedMember.family_code && (
+                                    <div className="text-sm text-muted-foreground break-words">
+                                        Family: {selectedMember.family_code}
+                                    </div>
+                                )}
+                                <div className="mt-2 text-lg font-bold tabular-nums">
+                                    {t("canteen.memberSearch.balance")}:{" "}
+                                    <span
+                                        className={cn(
+                                            (selectedMember.wallet_balance ?? 0) < 0
+                                                ? "text-destructive"
+                                                : "text-emerald-600"
+                                        )}
+                                    >
+                                        ฿{(selectedMember.wallet_balance ?? 0).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Allergy warning */}
+                        {selectedMember.allergies && (
+                            <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                                <AlertTriangle className="h-5 w-5 shrink-0" />
+                                <div>
+                                    <div className="font-semibold">Allergies</div>
+                                    <div className="text-xs">{selectedMember.allergies}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Frozen warning */}
+                        {selectedMember.card_frozen && (
+                            <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
+                                <AlertTriangle className="h-5 w-5 shrink-0" />
+                                <div>
+                                    <div className="font-semibold">{t("parent.dashboard.cardFrozen")}</div>
+                                    <div className="text-xs">
+                                        {t("canteen.memberSearch.cardFrozenDesc")}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => setSelectedMember(null)}
+                            >
+                                <X className="h-4 w-4 mr-1" />
+                                {t("canteen.memberSearch.searchAgain")}
+                            </Button>
+                            {onSelect && (
+                                <Button
+                                    className="flex-1 bg-amber-500 hover:bg-amber-600"
+                                    onClick={handleConfirm}
+                                    disabled={selectedMember.card_frozen}
+                                >
+                                    {t("canteen.memberSearch.selectMember")}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 )}
-              </div>
-              <div className="min-w-0 flex-1 text-center sm:text-left">
-                <div className="text-lg sm:text-xl font-bold break-words">
-                  {selectedMember.name}
-                </div>
-                <div className="text-sm text-muted-foreground break-words">
-                  {selectedMember.customer_kind === "department"
-                    ? selectedMember.customer_code
-                    : idLineFor(selectedMember)}
-                  {selectedMember.grade && ` · Grade ${selectedMember.grade}`}
-                </div>
-                {selectedMember.customer_kind !== "department" && selectedMember.family_code && (
-                  <div className="text-sm text-muted-foreground break-words">
-                    Family: {selectedMember.family_code}
-                  </div>
-                )}
-                <div className="mt-2 text-lg font-bold tabular-nums">
-                  {t("canteen.memberSearch.balance")}:{" "}
-                  <span
-                    className={cn(
-                      (selectedMember.wallet_balance ?? 0) < 0
-                        ? "text-destructive"
-                        : "text-emerald-600"
-                    )}
-                  >
-                    ฿{(selectedMember.wallet_balance ?? 0).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Allergy warning */}
-            {selectedMember.allergies && (
-              <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                <AlertTriangle className="h-5 w-5 shrink-0" />
-                <div>
-                  <div className="font-semibold">Allergies</div>
-                  <div className="text-xs">{selectedMember.allergies}</div>
-                </div>
-              </div>
-            )}
-
-            {/* Frozen warning */}
-            {selectedMember.card_frozen && (
-              <div className="flex items-start gap-2 rounded-lg bg-red-100 p-3 text-sm text-red-800">
-                <AlertTriangle className="h-5 w-5 shrink-0" />
-                <div>
-                  <div className="font-semibold">{t("parent.dashboard.cardFrozen")}</div>
-                  <div className="text-xs">
-                    {t("canteen.memberSearch.cardFrozenDesc")}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setSelectedMember(null)}
-              >
-                <X className="h-4 w-4 mr-1" />
-                {t("canteen.memberSearch.searchAgain")}
-              </Button>
-              {onSelect && (
-                <Button
-                  className="flex-1 bg-amber-500 hover:bg-amber-600"
-                  onClick={handleConfirm}
-                  disabled={selectedMember.card_frozen}
-                >
-                  {t("canteen.memberSearch.selectMember")}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
+            </DialogContent>
+        </Dialog>
+    );
 }

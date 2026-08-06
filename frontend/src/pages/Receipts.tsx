@@ -19,10 +19,10 @@ import { cn } from "@/lib/utils";
 import { getPaginationRange } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
-import { fmtDateTime as fmtDateTimeShared, fmtDateApi, todayBangkok } from "@/lib/dateFormat";
+import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
-import type { ReceiptApi, ModuleScope } from "./receipts/receiptTypes";
+import type { ReceiptApi, ModuleScope, ReceiptListResponse } from "./receipts/receiptTypes";
 import { ReceiptStatsPanel } from "./receipts/ReceiptStatsPanel";
 import { ReceiptSearchPanel } from "./receipts/ReceiptSearchPanel";
 import { ReceiptVoidDialog } from "./receipts/ReceiptVoidDialog";
@@ -34,9 +34,7 @@ function fmtDate(iso: string, _locale?: string): string {
     return fmtDateTimeShared(iso);
 }
 
-function fmtDateOnly(iso: string): string {
-    return fmtDateApi(iso) || "";
-}
+const PAGE_SIZE = 10;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -46,28 +44,26 @@ const Receipts = () => {
     const { pathname } = useLocation();
     const schoolInfo = useSchoolInfo();
 
-    // Defined inside component to avoid module-level TDZ issues in bundled output
     const STORE_SHOPS = ["coop", "sports", "bookstore"] as const;
     const CANTEEN_SHOPS = ["canteen", "canteen_thai", "canteen_drinks"] as const;
 
-    // ── Module scope detection (from URL) ───────────────────────────────────
     const moduleScope: ModuleScope = pathname.startsWith("/canteen")
         ? "canteen"
         : "store";
 
     const [receipts, setReceipts] = useState<ReceiptApi[]>([]);
     const [loading, setLoading] = useState(true);
-    const [monthlySales, setMonthlySales] = useState<number>(0);
-    const [monthlyCount, setMonthlyCount] = useState<number>(0);
+    const [totalReceipts, setTotalReceipts] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [listStats, setListStats] = useState<ReceiptListResponse["stats"]>(null);
+    const [currentPage, setCurrentPage] = useState(1);
 
-    // ── Structured search fields (inputs) ──────────────────────────────────
     const [searchReceiptId, setSearchReceiptId] = useState("");
     const [searchPayer, setSearchPayer] = useState("");
     const [searchDateFrom, setSearchDateFrom] = useState("");
     const [searchDateTo, setSearchDateTo] = useState("");
     const [searchPaymentType, setSearchPaymentType] = useState("all");
 
-    // Applied criteria — only updated when Search button is clicked
     const [appliedSearch, setAppliedSearch] = useState({
         receiptId: "",
         payer: "",
@@ -99,10 +95,7 @@ const Receipts = () => {
 
     const [selectedReceipt, setSelectedReceipt] = useState<ReceiptApi | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-    // ── Void / cancel ───────────────────────────────────────────────────────
     const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
-    // Admin-only picker for store scope (dynamic) / canteen scope (dynamic).
     const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
     const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
     const [canteenStalls, setCanteenStalls] = useState<{ id: string; name: string }[]>([]);
@@ -124,7 +117,6 @@ const Receipts = () => {
         }
     }, [moduleScope, user?.shopId]);
 
-    // ── Build shop-scope query params ───────────────────────────────────────
     const queryParams = useMemo(() => {
         if (moduleScope === "canteen") {
             if (user?.shopId) return `?shop_id=${user.shopId}`;
@@ -134,7 +126,6 @@ const Receipts = () => {
                 : CANTEEN_SHOPS.join(",");
             return `?shop_ids=${ids}`;
         }
-        // Store scope
         if (!user?.shopId) {
             const ids = storeShops.length > 0
                 ? storeShops.map((s) => s.id).join(",")
@@ -143,64 +134,38 @@ const Receipts = () => {
                 ? `?shop_ids=${ids}`
                 : `?shop_id=${pickedStoreShop}`;
         }
-        // manager / cashier on store: lock to their own shop
         return `?shop_id=${user.shopId}`;
     }, [moduleScope, user, pickedStoreShop, pickedCanteenShop, storeShops, canteenStalls]);
 
-    // ── Fetch receipts from API ─────────────────────────────────────────────
     const fetchReceipts = useCallback(async () => {
         try {
             setLoading(true);
-            const sep = queryParams.includes("?") ? "&" : "?";
-            let url = `/pos/receipt${queryParams}`;
-            if (appliedSearch.dateFrom) url += `${url.includes("?") ? "&" : sep}date_from=${appliedSearch.dateFrom}`;
-            if (appliedSearch.dateTo) url += `${url.includes("?") ? "&" : sep}date_to=${appliedSearch.dateTo}`;
-            const data = await api.get<ReceiptApi[]>(url);
-            setReceipts(data);
+            const params = new URLSearchParams(queryParams.startsWith("?") ? queryParams.slice(1) : queryParams);
+            params.set("page", String(currentPage));
+            params.set("page_size", String(PAGE_SIZE));
+            params.set("include_stats", "1");
+            if (appliedSearch.receiptId) params.set("q", appliedSearch.receiptId);
+            if (appliedSearch.payer) params.set("payer_q", appliedSearch.payer);
+            if (appliedSearch.dateFrom) params.set("date_from", appliedSearch.dateFrom);
+            if (appliedSearch.dateTo) params.set("date_to", appliedSearch.dateTo);
+            if (appliedSearch.paymentType !== "all") params.set("payment_method", appliedSearch.paymentType);
+
+            const data = await api.get<ReceiptListResponse>(`/pos/receipt?${params.toString()}`);
+            setReceipts(data.items);
+            setTotalReceipts(data.total);
+            setTotalPages(data.pages);
+            setListStats(data.stats ?? null);
         } catch (err) {
             const msg = err instanceof ApiError ? err.message : "Failed to load receipts";
             toast.error(msg);
         } finally {
             setLoading(false);
         }
-    }, [queryParams, appliedSearch.dateFrom, appliedSearch.dateTo]);
+    }, [queryParams, appliedSearch, currentPage]);
+
+    useEffect(() => { setCurrentPage(1); }, [queryParams]);
 
     useEffect(() => { fetchReceipts(); }, [fetchReceipts]);
-
-    // ── Monthly stats fetch (no-filter state) ────────────────────────────────
-    const fetchMonthlyStats = useCallback(async () => {
-        try {
-            // Bare YYYY-MM-DD (Asia/Bangkok) — the backend's dateRange() helper
-            // anchors these to Bangkok midnight/end-of-day itself; sending a
-            // full ISO instant here double-appends a timezone offset and
-            // fails to parse in postgres.
-            const todayBkk = todayBangkok();
-            const dateFrom = `${todayBkk.slice(0, 7)}-01`;
-            const dateTo = todayBkk;
-            const sep = queryParams.includes("?") ? "&" : "?";
-            const params = `${queryParams}${sep}date_from=${dateFrom}&date_to=${dateTo}&page_size=500`;
-            const data = await api.get<ReceiptApi[]>(`/pos/receipt${params}`);
-            const active = data.filter((r) => r.status === "active");
-            setMonthlySales(active.reduce((s, r) => s + r.total, 0));
-            setMonthlyCount(data.length);
-        } catch {
-            // non-critical — leave previous values
-        }
-    }, [queryParams]);
-
-    useEffect(() => { fetchMonthlyStats(); }, [fetchMonthlyStats]);
-
-    // ── Derived ─────────────────────────────────────────────────────────────
-    const filteredReceipts = receipts.filter((r) => {
-        const { receiptId, payer, paymentType } = appliedSearch;
-        if (receiptId && !r.receipt_number.toLowerCase().includes(receiptId.toLowerCase())) return false;
-        if (payer) {
-            const q = payer.toLowerCase();
-            if (!(r.payer_label ?? "").toLowerCase().includes(q)) return false;
-        }
-        if (paymentType !== "all" && r.payment_method.toLowerCase() !== paymentType) return false;
-        return true;
-    });
 
     const hasActiveSearch =
         appliedSearch.receiptId !== "" ||
@@ -209,43 +174,24 @@ const Receipts = () => {
         appliedSearch.dateTo !== "" ||
         appliedSearch.paymentType !== "all";
 
-    // ── Pagination ──────────────────────────────────────────────────────────
-    const PAGE_SIZE = 10;
-    const [currentPage, setCurrentPage] = useState(1);
-
-    // Reset to page 1 when search changes
-    const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
-    const pagedReceipts = filteredReceipts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-    // A voided receipt must show as its own two lines — the original sale
-    // AND its void reversal — instead of the single mutated-status row this
-    // page used to render (which made a receipt look like it was simply
-    // "voided" from the start, with the actual sale amount invisible).
-    // Mirrors report_service.ts::buildLegRow's sale/void leg convention
-    // (Daily Sales Report), just built client-side since /pos/receipt still
-    // returns one row per receipt — pagination stays receipt-count-based
-    // (PAGE_SIZE per page), only the final render expands voided ones to 2 rows.
     type ReceiptLeg = { receipt: ReceiptApi; leg: "sale" | "void" };
-    const displayRows: ReceiptLeg[] = pagedReceipts.flatMap((receipt) =>
+    const displayRows: ReceiptLeg[] = receipts.flatMap((receipt) =>
         receipt.status === "voided"
             ? [{ receipt, leg: "sale" as const }, { receipt, leg: "void" as const }]
             : [{ receipt, leg: "sale" as const }],
     );
 
-    const todayStr = todayBangkok();
-    const todaySales = receipts
-        .filter((r) => r.status === "active" && fmtDateOnly(r.transaction_date) === todayStr)
-        .reduce((s, r) => s + r.total, 0);
-
+    const todaySales = listStats?.today_active_sales ?? 0;
     const displayMonthlySales = hasActiveSearch
-        ? filteredReceipts.filter((r) => r.status === "active").reduce((s, r) => s + r.total, 0)
-        : monthlySales;
-
-    const displayMonthlyCount = hasActiveSearch ? filteredReceipts.length : monthlyCount;
+        ? (listStats?.filtered_active_sales ?? 0)
+        : (listStats?.month_active_sales ?? 0);
+    const displayMonthlyCount = hasActiveSearch
+        ? totalReceipts
+        : (listStats?.month_receipt_count ?? 0);
 
     const handleViewReceipt = async (receipt: ReceiptApi) => {
-        // Show immediately with what we have, then enrich with payer_detail from single-receipt endpoint
         setSelectedReceipt(receipt);
         setIsDialogOpen(true);
         try {
@@ -256,8 +202,7 @@ const Receipts = () => {
         }
     };
 
-    // ── Loading ─────────────────────────────────────────────────────────────
-    if (loading) {
+    if (loading && receipts.length === 0) {
         return (
             <div className="page-shell flex items-center justify-center min-h-[50vh]">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -285,7 +230,7 @@ const Receipts = () => {
                                 : t("receipts.scopeStore")}
                         </Badge>
                         {moduleScope === "canteen" && !user?.shopId && canteenStalls.length > 0 && (
-                            <Select value={pickedCanteenShop} onValueChange={setPickedCanteenShop}>
+                            <Select value={pickedCanteenShop} onValueChange={(v) => { setPickedCanteenShop(v); setCurrentPage(1); }}>
                                 <SelectTrigger className="w-48">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -298,7 +243,7 @@ const Receipts = () => {
                             </Select>
                         )}
                         {moduleScope === "store" && !user?.shopId && storeShops.length > 0 && (
-                            <Select value={pickedStoreShop} onValueChange={setPickedStoreShop}>
+                            <Select value={pickedStoreShop} onValueChange={(v) => { setPickedStoreShop(v); setCurrentPage(1); }}>
                                 <SelectTrigger className="w-48">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -341,26 +286,26 @@ const Receipts = () => {
                 onPaymentTypeChange={setSearchPaymentType}
                 appliedSearch={appliedSearch}
                 hasActiveSearch={hasActiveSearch}
-                resultsCount={filteredReceipts.length}
+                resultsCount={totalReceipts}
                 onSearch={handleSearch}
                 onClearSearch={handleClearSearch}
             />
 
-            {/* Receipts List */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center">
                         <Receipt className="h-6 w-6 mr-2 text-primary" />
                         <CardTitle>{t("receipts.allReceipts")}</CardTitle>
+                        {loading && <Loader2 className="h-4 w-4 ml-2 animate-spin text-muted-foreground" />}
                         {hasActiveSearch && (
                             <Badge variant="secondary" className="ml-2 text-xs">
-                                {filteredReceipts.length} / {receipts.length}
+                                {totalReceipts}
                             </Badge>
                         )}
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {filteredReceipts.length === 0 ? (
+                    {totalReceipts === 0 && !loading ? (
                         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                             <Receipt className="h-10 w-10 mb-3" />
                             <p>{t("receipts.noReceipts")}</p>
@@ -467,14 +412,13 @@ const Receipts = () => {
                         </Table>
                     )}
 
-                    {/* ── Pagination ────────────────────────────────────────────────── */}
-                    {filteredReceipts.length > PAGE_SIZE && (
+                    {totalReceipts > PAGE_SIZE && (
                         <div className="flex items-center justify-between pt-4 border-t mt-2">
                             <p className="text-xs text-muted-foreground">
                                 {t("receipts.paginationRange", {
                                     start: (safePage - 1) * PAGE_SIZE + 1,
-                                    end: Math.min(safePage * PAGE_SIZE, filteredReceipts.length),
-                                    total: filteredReceipts.length,
+                                    end: Math.min(safePage * PAGE_SIZE, totalReceipts),
+                                    total: totalReceipts,
                                     defaultValue: "Showing {{start}}–{{end}} of {{total}} items",
                                 })}
                             </p>
@@ -483,7 +427,7 @@ const Receipts = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage(1)}
-                                    disabled={safePage === 1}
+                                    disabled={safePage === 1 || loading}
                                     className="h-8 w-8 p-0 text-xs"
                                 >
                                     «
@@ -492,7 +436,7 @@ const Receipts = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                    disabled={safePage === 1}
+                                    disabled={safePage === 1 || loading}
                                     className="h-8 px-3 text-xs"
                                 >
                                     {t("receipts.prev", "‹ Prev")}
@@ -506,6 +450,7 @@ const Receipts = () => {
                                             variant={safePage === p ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => setCurrentPage(p)}
+                                            disabled={loading}
                                             className={cn("h-8 w-8 p-0 text-xs", safePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
                                         >
                                             {p}
@@ -516,7 +461,7 @@ const Receipts = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                    disabled={safePage === totalPages}
+                                    disabled={safePage === totalPages || loading}
                                     className="h-8 px-3 text-xs"
                                 >
                                     {t("receipts.next", "Next ›")}
@@ -525,7 +470,7 @@ const Receipts = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage(totalPages)}
-                                    disabled={safePage === totalPages}
+                                    disabled={safePage === totalPages || loading}
                                     className="h-8 w-8 p-0 text-xs"
                                 >
                                     »
@@ -539,7 +484,10 @@ const Receipts = () => {
             <ReceiptVoidDialog
                 receipt={voidTarget}
                 onOpenChange={(open) => { if (!open) setVoidTarget(null); }}
-                onVoided={(updated) => setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r))}
+                onVoided={(updated) => {
+                    setReceipts((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+                    fetchReceipts();
+                }}
                 moduleScope={moduleScope}
                 pickedCanteenShop={pickedCanteenShop}
                 pickedStoreShop={pickedStoreShop}

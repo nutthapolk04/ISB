@@ -21,6 +21,14 @@ import { logger } from "@/logger";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 
+function loginClientIp(ctx: { request: Request }): string | undefined {
+	return (
+		ctx.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+		?? ctx.request.headers.get("x-real-ip")
+		?? undefined
+	);
+}
+
 export const AuthController = {
 	login: async (ctx: any) => {
 		const reqContext = publicCtx(ctx);
@@ -28,11 +36,19 @@ export const AuthController = {
 		logger.info(`[${reqContext.requestId} (AU-01)] AuthController.login() called.`);
 		try {
 			logger.info(`[${reqContext.requestId} (AU-01)] AuthController.login() calling login().`);
-			const result = await loginService(body.username, body.password);
+			const result = await loginService(body.username, body.password, {
+				requestId: reqContext.requestId,
+				clientIp: loginClientIp(reqContext),
+			});
 			logger.info(`[${reqContext.requestId} (AU-01)] AuthController.login() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
-			logger.error(`[${reqContext.requestId} (AU-01)] AuthController.login() error:`, e);
+			const status = (e as { status?: number }).status;
+			if (status === 401 || status === 403) {
+				logger.warn(`[${reqContext.requestId} (AU-01)] AuthController.login() rejected (${status})`);
+			} else {
+				logger.error(`[${reqContext.requestId} (AU-01)] AuthController.login() error:`, e);
+			}
 			return errorFromService(reqContext, e);
 		}
 	},

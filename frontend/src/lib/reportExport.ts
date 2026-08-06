@@ -182,9 +182,28 @@ export interface ReportFooterRow {
     valueMerge?: { key: string; colSpan: number };
 }
 
+/**
+ * One cell of an optional second header band drawn ABOVE the column headers,
+ * letting related columns sit under a shared caption — e.g. Wallet Transfer's
+ *
+ *     |  No. | Date / Time |      From      |       To       | Amount | Note |
+ *     |      |             | ISB ID | Name  | ISB ID | Name  |        |      |
+ *
+ * Entries are laid out left to right and must cover every column exactly once:
+ * Σ colSpan === columns.length. A `label: ""` (or omitted) with colSpan 1 marks
+ * a column that has no group — its own header is then row-spanned over both
+ * bands so it reads as one tall cell instead of an empty box above a title.
+ */
+export interface ReportColumnGroup {
+    label?: string;
+    colSpan: number;
+}
+
 export interface ReportPayload<TRow extends Record<string, unknown>> {
     meta: ReportMeta;
     columns: ReportColumn[];
+    /** Optional grouped-header band — see ReportColumnGroup. */
+    columnGroups?: ReportColumnGroup[];
     rows: TRow[];
     /**
      * Optional totals row rendered in bold at the bottom. Map column.key → display value
@@ -230,6 +249,30 @@ function emphasisTotalLabel(columns: ReportColumn[], row: Record<string, unknown
     return "TOTAL";
 }
 
+/**
+ * Collapse the run of empty cells AFTER the last populated column into a single
+ * merged cell.
+ *
+ * With theme "grid" every emitted cell draws its own full border, so a TOTAL row
+ * like `TOTAL | | | | 21,000.00 | |` used to fragment the footer into stray
+ * boxes. exportToExcel already merges this tail (see buildExcelEmphasisTotalRow's
+ * lastNonEmpty logic); this brings the PDF in line so both outputs agree.
+ *
+ * Mutates and returns the same array for convenience.
+ */
+function mergeTrailingEmptyCells(cells: AutoTableCell[]): AutoTableCell[] {
+    let last = cells.length - 1;
+    const isBlank = (c: AutoTableCell) => typeof c !== "string" && !c.content;
+    while (last >= 0 && isBlank(cells[last])) last -= 1;
+    const tail = cells.length - 1 - last;
+    if (tail <= 1) return cells; // nothing to merge (0 blanks, or a lone one)
+    const first = cells[last + 1];
+    if (typeof first === "string") return cells;
+    first.colSpan = (first.colSpan ?? 1) + (tail - 1);
+    cells.splice(last + 2);
+    return cells;
+}
+
 function buildPdfEmphasisTotalRow(columns: ReportColumn[], row: Record<string, unknown>): AutoTableCell[] {
     const fill: [number, number, number] = [240, 240, 240];
     const bold = { fontStyle: "bold" as const, fillColor: fill, textColor: PDF_TEXT_COLOR };
@@ -259,7 +302,7 @@ function buildPdfEmphasisTotalRow(columns: ReportColumn[], row: Record<string, u
             styles: { ...bold, halign: defaultAlign(c) },
         });
     }
-    return cells;
+    return mergeTrailingEmptyCells(cells);
 }
 
 function buildExcelEmphasisTotalRow(
@@ -350,6 +393,9 @@ const defaultAlign = (col: ReportColumn): ColumnAlign =>
 type AutoTableCell = string | {
     content: string;
     colSpan?: number;
+    /** Needed for grouped headers: an ungrouped column's header spans both
+     *  header bands rather than leaving an empty cell above it. */
+    rowSpan?: number;
     styles?: Record<string, unknown>;
 };
 
@@ -384,7 +430,7 @@ function buildPdfFooterRowCells(columns: ReportColumn[], row: ReportFooterRow): 
         });
         colIdx += 1;
     }
-    return cells;
+    return mergeTrailingEmptyCells(cells);
 }
 
 // ─── Image loading (PDF logo) ────────────────────────────────────────────
@@ -464,14 +510,14 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     payload: ReportPayload<TRow>,
     filename: string,
 ): Promise<void> {
-    const { meta, columns, rows, totals, totalsLabel, footerRows } = payload;
+    const { meta, columns, columnGroups, rows, totals, totalsLabel, footerRows } = payload;
     const reportId = meta.reportId ?? generateReportId();
     const generatedAt = meta.generatedAt ?? new Date();
     const printDateTime = fmtDateTime(generatedAt);
 
     // Landscape A4 — most reports have many columns. Switch to portrait if a
     // particular report ever proves it needs that.
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true });
     const pageWidth = doc.internal.pageSize.getWidth();
     const marginX = 32;
     let cursorY = 36;
@@ -539,12 +585,49 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
     // independently of the body column alignment (which stays right-aligned
     // for numeric and left-aligned for text). columnStyles.halign normally
     // wins over headStyles.halign, so we declare the override per-cell.
-    const head = [
+    // Header is normally one band. With columnGroups it becomes two: the group
+    // captions on top, the per-column headers beneath. A column that belongs to
+    // no group is emitted once in the TOP band with rowSpan 2 and omitted from
+    // the second — autoTable fills the vacated slot from the spanning cell, so
+    // "No." reads as one tall cell rather than a blank above a title.
+    const head: AutoTableCell[][] = [
         columns.map((c) => ({
             content: c.header,
             styles: { halign: "center" as const },
         })),
     ];
+    if (columnGroups?.length) {
+        const groupBand: AutoTableCell[] = [];
+        const subBand: AutoTableCell[] = [];
+        let col = 0;
+        for (const g of columnGroups) {
+            const span = Math.max(1, g.colSpan);
+            if (g.label) {
+                groupBand.push({
+                    content: g.label,
+                    colSpan: span,
+                    styles: { halign: "center" as const },
+                });
+                for (let i = 0; i < span && col + i < columns.length; i += 1) {
+                    subBand.push({
+                        content: columns[col + i].header,
+                        styles: { halign: "center" as const },
+                    });
+                }
+            } else {
+                // Ungrouped: the column's own header spans both bands.
+                groupBand.push({
+                    content: columns[col]?.header ?? "",
+                    colSpan: span,
+                    rowSpan: 2,
+                    styles: { halign: "center" as const, valign: "middle" as const },
+                });
+            }
+            col += span;
+        }
+        head.length = 0;
+        head.push(groupBand, subBand);
+    }
     // Rows are either plain arrays of cell strings OR — for section markers —
     // a single merged cell that spans every column. autoTable accepts both
     // shapes inside the same body array.
@@ -622,7 +705,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
                 cells.push({ content: "", styles: { halign: align } });
             }
         }
-        foot = [cells];
+        foot = [mergeTrailingEmptyCells(cells)];
     }
 
     // Auto-size font when there are many columns so we stop wrapping headers
@@ -711,7 +794,7 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
     payload: ReportPayload<TRow>,
     filename: string,
 ): void {
-    const { meta, columns, rows, totals, totalsLabel, footerRows } = payload;
+    const { meta, columns, columnGroups, rows, totals, totalsLabel, footerRows } = payload;
     const generatedAt = meta.generatedAt ?? new Date();
     const reportId = meta.reportId ?? generateReportId();
 
@@ -728,12 +811,44 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
         aoa.push([`Filters: ${meta.filters.join(" · ")}`]);
     }
     aoa.push([]); // blank spacer
-    aoa.push(columns.map((c) => c.header));
 
     // Track row indices that need a merge across all columns (section headers)
     // so we can apply ws["!merges"] after the sheet exists.
     const sectionMergeRows: number[] = [];
     const footerMergeRanges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
+
+    // Optional grouped-header band above the column headers. Group captions get
+    // a horizontal merge; an ungrouped column's header gets a vertical merge so
+    // it spans both bands (matching the PDF's rowSpan behaviour).
+    const headerRow = aoa.length + (columnGroups?.length ? 1 : 0);
+    if (columnGroups?.length) {
+        const groupBand: string[] = [];
+        let col = 0;
+        for (const g of columnGroups) {
+            const span = Math.max(1, g.colSpan);
+            if (g.label) {
+                groupBand.push(g.label);
+                for (let i = 1; i < span; i += 1) groupBand.push("");
+                if (span > 1) {
+                    footerMergeRanges.push({
+                        s: { r: aoa.length, c: col },
+                        e: { r: aoa.length, c: col + span - 1 },
+                    });
+                }
+            } else {
+                // Ungrouped: repeat the header here and merge it down one row.
+                groupBand.push(columns[col]?.header ?? "");
+                for (let i = 1; i < span; i += 1) groupBand.push("");
+                footerMergeRanges.push({
+                    s: { r: aoa.length, c: col },
+                    e: { r: aoa.length + 1, c: col + span - 1 },
+                });
+            }
+            col += span;
+        }
+        aoa.push(groupBand);
+    }
+    aoa.push(columns.map((c) => c.header));
 
     for (const row of rows) {
         const label = sectionLabel(row);
@@ -846,9 +961,13 @@ export function exportToExcel<TRow extends Record<string, unknown>>(
 
     // Apply number/currency formatting on the data cells so the value reads
     // "1,234.56" in Excel instead of plain 1234.56.
-    // Locate the column-header row dynamically — it's the first row that has
-    // as many cells as there are columns (i.e. the actual column names row).
-    const headerRowIndex = aoa.findIndex((r) => r.length === columns.length && r[0] === columns[0].header);
+    //
+    // The row index is tracked as the band is written rather than searched for.
+    // The old findIndex() looked for the first row whose width matches and whose
+    // first cell equals columns[0].header — with a grouped header that also
+    // describes the GROUP band (an ungrouped column repeats its header there),
+    // so it matched one row too early and shifted every formatted cell.
+    const headerRowIndex = headerRow;
     if (headerRowIndex >= 0) {
         const firstDataRow = headerRowIndex + 1;
         const totalRow = totals ? aoa.length - 1 : -1;

@@ -6,12 +6,12 @@ import { ref, computed, onMounted } from 'vue';
 import {
     ChevronLeft,
     ChevronRight,
-    LogOut,
     User,
     ArrowLeftRight,
     CheckCircle2,
     XCircle,
 } from 'lucide-vue-next';
+import LogoutButton from '../components/LogoutButton.vue';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -216,9 +216,7 @@ const walletRoleLabel = (role: string | null | undefined): string => {
                 <span>{{ currT.back }}</span>
             </button>
             <h2>{{ currT.title }}</h2>
-            <button class="logout-btn" @click="handleLogout">
-                <LogOut :size="28" />
-            </button>
+            <LogoutButton @click="handleLogout" />
         </div>
 
         <!-- Wallet Info Bar -->
@@ -393,24 +391,6 @@ const walletRoleLabel = (role: string | null | undefined): string => {
     font-size: 1.25rem;
     font-weight: 700;
     cursor: pointer;
-}
-
-.logout-btn {
-    background: none;
-    border: 2px solid var(--text-muted);
-    color: var(--text-color);
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0.7;
-}
-
-.logout-btn:hover {
-    opacity: 1;
 }
 
 /* Wallet Bar */

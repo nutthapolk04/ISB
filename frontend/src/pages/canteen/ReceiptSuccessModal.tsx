@@ -98,7 +98,7 @@ export function ReceiptSuccessModal({
                         </div>
                         {remainingBalance !== null && (
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Remaining balance</span>
+                                <span className="text-muted-foreground">Remaining balance from this transaction</span>
                                 <span
                                     className={
                                         remainingBalance < 0

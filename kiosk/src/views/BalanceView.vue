@@ -2,7 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { User, LogOut, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle, ArrowLeftRight } from 'lucide-vue-next';
+import { User, ChevronRight, ChevronLeft, Wallet, History, AlertTriangle, ArrowLeftRight } from 'lucide-vue-next';
+import LogoutButton from '../components/LogoutButton.vue';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -225,7 +226,7 @@ onUnmounted(() => {
             <!-- Nav arrows for desktop -->
             <button v-if="hasMultipleWallets" class="carousel-nav prev" :disabled="store.activeWalletIndex === 0"
                 @click="navPrev">
-                <ChevronLeft :size="32" />
+                <ChevronLeft :size="36" />
             </button>
 
             <div class="wallet-carousel" ref="carouselRef" @touchstart="handleTouchStart" @touchmove="handleTouchMove"
@@ -233,27 +234,26 @@ onUnmounted(() => {
                 <div v-for="(wallet, index) in wallets" :key="wallet.id" class="user-balance-card"
                     :class="{ active: index === store.activeWalletIndex, 'wallet-child': wallet.type === 'child' }"
                     :style="{ background: wallet.colorTheme }" @click="goToWallet(index)">
-                    <!-- Wallet Type Badge -->
-                    <div class="wallet-type-badge">
-                        {{ wallet.type === 'personal' ? currT.personal : wallet.type === 'coparent' ? currT.personal :
-                            currT.child }}
-                    </div>
-
                     <div class="user-row">
                         <div class="avatar" :class="wallet.type === 'child' ? 'avatar-child' : ''">
                             <img v-if="wallet.photoUrl" :src="wallet.photoUrl" class="avatar-photo" alt="photo" />
                             <User v-else :size="36" />
                         </div>
                         <div class="user-details">
-                            <h2 class="user-name">{{ wallet.holderName }}</h2>
+                            <div class="user-name-row">
+                                <h2 class="user-name">{{ wallet.holderName }}</h2>
+                                <div class="user-name-actions">
+                                    <span class="wallet-type-badge wallet-type-badge--inline">
+                                        {{ wallet.type === 'personal' ? currT.personal : wallet.type === 'coparent' ? currT.personal : currT.child }}
+                                    </span>
+                                    <LogoutButton class="balance-logout-btn" @click="handleLogout" />
+                                </div>
+                            </div>
                             <div class="role-row">
                                 <span class="role-badge role-account">{{ walletRoleLabel(wallet.role) }}</span>
                             </div>
                             <p class="balance-sub">{{ currT.balance }} {{ currT.balanceUnit }}</p>
                         </div>
-                        <button class="logout-icon-btn" @click.stop="handleLogout">
-                            <LogOut :size="24" />
-                        </button>
                     </div>
                     <div class="balance-row">
                         <div class="balance-display">
@@ -270,7 +270,7 @@ onUnmounted(() => {
 
             <button v-if="hasMultipleWallets" class="carousel-nav next"
                 :disabled="store.activeWalletIndex === wallets.length - 1" @click="navNext">
-                <ChevronRight :size="32" />
+                <ChevronRight :size="36" />
             </button>
         </div>
 
@@ -381,9 +381,6 @@ onUnmounted(() => {
 }
 
 .wallet-type-badge {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
     background: rgba(255, 255, 255, 0.25);
     backdrop-filter: blur(4px);
     padding: 0.25rem 1rem;
@@ -392,6 +389,18 @@ onUnmounted(() => {
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.wallet-type-badge--inline {
+    flex-shrink: 0;
+}
+
+.user-name-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .user-row {
@@ -452,30 +461,41 @@ onUnmounted(() => {
 
 .user-details {
     flex: 1;
+    min-width: 0;
+}
+
+.user-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
 }
 
 .user-name {
     font-size: 1.5rem;
     font-weight: 800;
     margin-bottom: 0.1rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-name-row .user-name {
+    margin-bottom: 0;
+}
+
+.balance-logout-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.95rem;
+    flex-shrink: 0;
 }
 
 .balance-sub {
     font-size: 0.95rem;
     opacity: 0.8;
-}
-
-.logout-icon-btn {
-    background: rgba(255, 255, 255, 0.15);
-    border: none;
-    color: white;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
 }
 
 .balance-row {
@@ -522,7 +542,7 @@ onUnmounted(() => {
     top: 50%;
     transform: translateY(-50%);
     z-index: 10;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0);
     border: none;
     color: white;
     width: 44px;

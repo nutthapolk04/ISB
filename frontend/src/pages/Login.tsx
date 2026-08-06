@@ -184,7 +184,7 @@ const REF_SLIDES: RefSlide[] = [
     },
 ];
 
-// ── Credential Carousel ──────────────────────────────────────────────────────
+// ── Credential Carousel (dev/local only — keep commented on prod/uat) ─────
 function CredentialCarousel() {
     const [idx, setIdx] = useState(0);
     const slide = REF_SLIDES[idx];
@@ -253,6 +253,48 @@ function CredentialCarousel() {
     );
 }
 
+function PasswordLoginError({
+    googleLogin,
+}: {
+    googleLogin?: {
+        onSuccess: (response: CredentialResponse) => void;
+        onError: () => void;
+        disabled?: boolean;
+    };
+}) {
+    const { t } = useTranslation();
+    return (
+        <p className="text-sm text-destructive">
+            {t("login.invalidCredentials")}
+            {googleLogin && (
+                <>
+                    {" "}
+                    {t("login.tryGooglePrefix")}{" "}
+                    <button
+                        type="button"
+                        disabled={googleLogin.disabled}
+                        className="relative inline underline font-medium hover:text-destructive/80 disabled:opacity-50"
+                    >
+                        {t("login.googleSignIn")}
+                        {!googleLogin.disabled && (
+                            <span className="absolute inset-0 w-full h-full opacity-0 overflow-hidden">
+                                <GoogleLogin
+                                    onSuccess={googleLogin.onSuccess}
+                                    onError={googleLogin.onError}
+                                    width="200px"
+                                    text="signin_with"
+                                    theme="outline"
+                                    containerProps={{ className: "w-full h-full" }}
+                                />
+                            </span>
+                        )}
+                    </button>
+                </>
+            )}
+        </p>
+    );
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 const Login = () => {
     const { t } = useTranslation();
@@ -261,6 +303,7 @@ const Login = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [passwordLoginFailed, setPasswordLoginFailed] = useState(false);
     const [loading, setLoading] = useState(false);
     const [ssoLoading, setSsoLoading] = useState(false);
     const [ssoStep, setSsoStep] = useState<SsoStep>(null);
@@ -284,21 +327,30 @@ const Login = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!username || !password) { setError("Please enter username and password"); return; }
-        setLoading(true); setError("");
+        if (!username || !password) {
+            setPasswordLoginFailed(false);
+            setError("Please enter username and password");
+            return;
+        }
+        setLoading(true);
+        setError("");
+        setPasswordLoginFailed(false);
         const result = await login(username.trim(), password);
         setLoading(false);
         if (result.success) navigate("/", { replace: true });
-        else setError(result.error ?? "Login failed");
+        else setPasswordLoginFailed(true);
     };
 
     const handleQuickLogin = async (acct: DemoAccount) => {
-        setUsername(acct.username); setPassword(acct.password); setError("");
+        setUsername(acct.username);
+        setPassword(acct.password);
+        setError("");
+        setPasswordLoginFailed(false);
         setLoading(true);
         const result = await login(acct.username, acct.password);
         setLoading(false);
         if (result.success) navigate("/", { replace: true });
-        else setError(result.error ?? "Login failed");
+        else setPasswordLoginFailed(true);
     };
 
     const handlePdpaAccept = async () => {
@@ -360,6 +412,37 @@ const Login = () => {
                             <CardDescription>Enter your credentials to access the system</CardDescription>
                         </CardHeader>
                         <CardContent>
+                            {GOOGLE_CLIENT_ID && ssoStep === null && (
+                                <div className="flex justify-center">
+                                    <Button type="button"
+                                        variant="outline"
+                                        className="w-full relative gap-2"
+                                        disabled=
+                                        {loading || ssoLoading}>
+                                        <GoogleLogo />
+                                        {t("login.googleSignIn")}
+                                        <div className="absolute inset-0 w-full h-full opacity-0 overflow-hidden">
+                                            <GoogleLogin
+                                                onSuccess={handleGoogleLoginSuccess}
+                                                onError={handleGoogleLoginError}
+                                                width={"330px"}
+                                                auto_select
+                                                text="signin_with"
+                                                theme="outline"
+                                                containerProps={{ className: "w-full" }}
+                                            />
+                                        </div>
+                                    </Button>
+                                </div>
+                            )}
+                            {ssoStep != "pdpa" && (
+                                <div className="relative my-4">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-background px-2 text-muted-foreground">or</span>
+                                    </div>
+                                </div>
+                            )}
                             {ssoStep != "pdpa" && (
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div className="space-y-1.5">
@@ -379,47 +462,20 @@ const Login = () => {
                                         />
                                     </div>
                                     {error && <p className="text-sm text-destructive">{error}</p>}
+                                    {passwordLoginFailed && (
+                                        <PasswordLoginError
+                                            googleLogin={GOOGLE_CLIENT_ID ? {
+                                                onSuccess: handleGoogleLoginSuccess,
+                                                onError: handleGoogleLoginError,
+                                                disabled: loading || ssoLoading,
+                                            } : undefined}
+                                        />
+                                    )}
                                     <Button type="submit" className="w-full" disabled={loading || ssoLoading}>
                                         <LogIn className="mr-2 h-4 w-4" />
                                         {loading ? "Signing in…" : "Sign In"}
                                     </Button>
                                 </form>
-                            )}
-                            {/* Google SSO — only shown when VITE_GOOGLE_CLIENT_ID is
-                  configured. The provider in App.tsx mounts unconditionally
-                  with a placeholder when the env is missing so the page
-                  doesn't crash, but we hide the button here because clicking
-                  it would fail against the placeholder. */}
-                            {ssoStep != "pdpa" && (
-                                <div className="relative my-4">
-                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-background px-2 text-muted-foreground">or</span>
-                                    </div>
-                                </div>
-                            )}
-                            {GOOGLE_CLIENT_ID && ssoStep === null && (
-                                <div className="flex justify-center">
-                                    <Button type="button"
-                                        variant="outline"
-                                        className="w-full relative gap-2"
-                                        disabled=
-                                        {loading || ssoLoading}>
-                                        <GoogleLogo />
-                                        Sign in with Google
-                                        <div className="absolute inset-0 w-full h-full opacity-0 overflow-hidden">
-                                            <GoogleLogin
-                                                onSuccess={handleGoogleLoginSuccess}
-                                                onError={handleGoogleLoginError}
-                                                width={"330px"}
-                                                auto_select
-                                                text="signin_with"
-                                                theme="outline"
-                                                containerProps={{ className: "w-full" }}
-                                            />
-                                        </div>
-                                    </Button>
-                                </div>
                             )}
 
                             {/* PDPA step */}

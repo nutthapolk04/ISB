@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { VoidDialog, type VoidCartItem } from "@/components/VoidDialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { api } from "@/lib/api";
+import { receiptListItems, type ReceiptListResponse, type ReceiptApi } from "@/pages/receipts/receiptTypes";
 import { fmtDate } from "@/lib/dateFormat";
 
 // ---------------------------------------------------------------------------
@@ -61,9 +62,10 @@ const Void = () => {
     const fetchTransactions = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await api.get<any[]>("/pos/receipt?page=1&page_size=100");
+            const data = await api.get<ReceiptListResponse | ReceiptApi[]>("/pos/receipt?page=1&page_size=100");
+            const rows = receiptListItems(data);
             setTransactions(
-                data.map((r: any): Transaction => ({
+                rows.map((r: any): Transaction => ({
                     id: r.id,
                     receiptId: r.receipt_number,
                     timestamp: r.transaction_date,
@@ -187,8 +189,8 @@ const Void = () => {
                     <div
                         key={tx.id}
                         className={`rounded-xl border bg-card/80 p-4 flex items-start justify-between gap-4 transition-colors ${tx.status === "voided"
-                                ? "opacity-50 border-border/40"
-                                : "hover:bg-accent/30 cursor-pointer"
+                            ? "opacity-50 border-border/40"
+                            : "hover:bg-accent/30 cursor-pointer"
                             }`}
                         onClick={() => tx.status !== "voided" && handleSelectTransaction(tx)}
                     >

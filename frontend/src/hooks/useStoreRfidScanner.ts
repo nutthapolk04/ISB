@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { lookupPosMemberPassive } from "@/lib/posCardLookup";
 import type { StudentLookupResult } from "@/pages/canteen/RfidPaymentModal";
 import type { Product } from "@/pages/store/storeTypes";
@@ -8,6 +9,17 @@ export interface StoreRfidNotif {
     type: "success" | "error";
     title: string;
     sub?: string;
+}
+
+/** Idle delay after the last keystroke before auto-flushing the scan buffer.
+ *  Covers barcode guns that send no Enter/Tab suffix. */
+const SCAN_IDLE_FLUSH_MS = 80;
+
+function isTextInputFocused(): boolean {
+    const ae = document.activeElement as HTMLElement | null;
+    return Boolean(
+        ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable),
+    );
 }
 
 interface UseStoreRfidScannerArgs {
@@ -28,7 +40,8 @@ interface UseStoreRfidScannerArgs {
  * what was scanned. The keyboard path only acts when no input has focus
  * (checked via `document.activeElement`).
  */
-export function useStoreRfidScanner({ products, refetchProducts, onProductMatch, onMemberFound }: UseStoreRfidScannerArgs) {
+export function useStoreRfidScanner({ products, onProductMatch, onMemberFound ,refetchProducts}: UseStoreRfidScannerArgs) {
+    const { t } = useTranslation();
     const [notif, setNotif] = useState<StoreRfidNotif | null>(null);
     const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const notifKey = useRef(0);
@@ -36,6 +49,7 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
     // Keyboard path state
     const buffer = useRef<string>("");
     const lastKey = useRef<number>(0);
+    const idleFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // WebSocket path state
     const wsRef = useRef<WebSocket | null>(null);
@@ -74,9 +88,19 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
                     ? `฿${Number(result.wallet_balance).toFixed(2)}`
                     : undefined;
                 showRfidNotif({ type: "success", title: result.name, sub: bal });
+            } else {
+                showRfidNotif({
+                    type: "error",
+                    title: t("store.scanNotFound"),
+                    sub: trimmed,
+                });
             }
         } catch {
-            // Stay silent on unexpected errors during passive scan.
+            showRfidNotif({
+                type: "error",
+                title: t("store.scanLookupError"),
+                sub: trimmed,
+            });
         }
     }
 
@@ -84,6 +108,7 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
         return list.find(
             (p) =>
                 p.barcode.toLowerCase() === normalized ||
+                p.productCode.toLowerCase() === normalized ||
                 (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase() === normalized),
         );
     }
@@ -109,9 +134,54 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
         }
         if (matchedProduct) {
             onProductMatchRef.current(matchedProduct);
+            showRfidNotif({
+                type: "success",
+                title: matchedProduct.name,
+                sub: t("store.scanProductAdded"),
+            });
         } else {
             void lookupAndSet(scanned);
         }
+    }
+
+    function clearIdleFlushTimer() {
+        if (idleFlushTimer.current) {
+            clearTimeout(idleFlushTimer.current);
+            idleFlushTimer.current = null;
+        }
+    }
+
+    function commitBuffer() {
+        clearIdleFlushTimer();
+        const captured = buffer.current;
+        buffer.current = "";
+        lastKey.current = 0;
+
+        if (captured.length >= 3) {
+            routeScan(captured);
+        } else if (captured.length > 0) {
+            showRfidNotif({
+                type: "error",
+                title: t("store.scanTooShort"),
+                sub: captured,
+            });
+        }
+    }
+
+    function scheduleIdleFlush() {
+        clearIdleFlushTimer();
+        idleFlushTimer.current = setTimeout(() => {
+            idleFlushTimer.current = null;
+            if (buffer.current.length === 0) return;
+            commitBuffer();
+        }, SCAN_IDLE_FLUSH_MS);
+    }
+
+    function flushScanBuffer(e: KeyboardEvent) {
+        if (buffer.current.length === 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        commitBuffer();
     }
 
     // PC/SC WebSocket path — try to connect to rfid-bridge on ws://localhost:9001.
@@ -170,25 +240,16 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
             // If the user has explicitly focused a text input (search box, dialog field,
             // price input, etc.), let keys flow through normally. The RFID handler only
             // acts when the page has no focused input.
-            const ae = document.activeElement as HTMLElement | null;
-            if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) {
+            if (isTextInputFocused()) {
                 return;
             }
 
             const now = Date.now();
             const gap = now - lastKey.current;
 
-            if (e.key === "Enter") {
-                if (buffer.current.length >= 3) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const captured = buffer.current;
-                    buffer.current = "";
-                    lastKey.current = 0;
-                    void routeScan(captured);
-                } else {
-                    buffer.current = "";
-                }
+            // Many barcode guns send Tab (not Enter) as suffix — treat both as scan end.
+            if (e.key === "Enter" || e.key === "NumpadEnter" || e.key === "Tab") {
+                flushScanBuffer(e);
                 return;
             }
 
@@ -196,11 +257,13 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
 
             // Reset stale buffer if there's been a long pause (>500ms since last key)
             if (gap > 500 && buffer.current.length > 0) {
+                clearIdleFlushTimer();
                 buffer.current = "";
             }
 
             lastKey.current = now;
             buffer.current += e.key;
+            scheduleIdleFlush();
 
             // Always intercept — page has no focused input, so all keystrokes belong to RFID.
             e.preventDefault();
@@ -208,7 +271,10 @@ export function useStoreRfidScanner({ products, refetchProducts, onProductMatch,
         }
 
         document.addEventListener("keydown", handleKeyDown, true);
-        return () => document.removeEventListener("keydown", handleKeyDown, true);
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown, true);
+            clearIdleFlushTimer();
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

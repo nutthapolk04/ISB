@@ -85,7 +85,7 @@ function fmtBangkok(iso: string | null): string {
 }
 
 const EMAIL_FOOTER = `<p style="color:#888;font-size:12px">This is an auto generated email. Please do not respond to this email.<br/>
-       — ISB Schooney</p>`;
+       — ISB</p>`;
 
 async function notifyOffline(kiosk: { id: number; username: string; fullName: string }, lastHeartbeatAt: string | null): Promise<void> {
     const custodians = await getCustodians(kiosk.id);

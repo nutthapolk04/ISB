@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/IconButton";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
+import { memberSubtitleLine } from "@/lib/posMemberDisplay";
 import { cn } from "@/lib/utils";
 import {
     Plus,
@@ -127,8 +128,7 @@ export function CartPanel({
                             <div className="min-w-0 flex-1">
                                 <div className="font-semibold text-sm truncate">{preSelectedMember.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                    {preSelectedMember.student_code ?? preSelectedMember.customer_code}
-                                    {preSelectedMember.grade && ` · Grade ${preSelectedMember.grade}`}
+                                    {memberSubtitleLine(preSelectedMember)}
                                 </div>
                                 <div className="text-sm font-bold tabular-nums text-emerald-600">
                                     ฿{(preSelectedMember.wallet_balance ?? 0).toFixed(2)}

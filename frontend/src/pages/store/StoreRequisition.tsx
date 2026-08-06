@@ -602,6 +602,9 @@ export default function StoreRequisition() {
                   </svg>
                 </div>
                 <div className="text-base font-semibold text-red-700">{rfidScanner.notif.title}</div>
+                {rfidScanner.notif.sub && (
+                  <div className="text-sm font-mono text-red-600/80 mt-1 break-all">{rfidScanner.notif.sub}</div>
+                )}
               </>
             )}
           </div>

@@ -6,6 +6,7 @@ import type { Transaction } from '../api/mockApi';
 import { usePrinter } from '../hooks/usePrinter';
 import type { ReceiptData, ReceiptItem } from '../lib/escpos';
 import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
+import { maskReceiptPayerName } from '../lib/maskReceiptPayerName';
 
 const props = defineProps<{
     transaction: Transaction
@@ -25,7 +26,7 @@ const t = {
         device: 'Machine',
         before: 'Previous Balance',
         amount: 'Amount',
-        after: 'Remaining Balance',
+        after: 'Remaining Balance from this transaction',
         close: 'Close',
         print: 'Print Receipt',
         printing: 'Printing…',
@@ -150,8 +151,9 @@ const payerInfo = computed(() => {
     if (!store.currentUser) return null;
     const idx = store.transactionWalletIndex >= 0 ? store.transactionWalletIndex : store.activeWalletIndex;
     const wallet = store.currentUser.wallets[idx] ?? store.currentWallet;
+    const rawName = wallet?.holderName ?? store.currentUser.name;
     return {
-        name: wallet?.holderName ?? store.currentUser.name,
+        name: maskReceiptPayerName(rawName),
         externalId: wallet?.externalId ?? store.currentUser.externalId ?? null,
     };
 });
