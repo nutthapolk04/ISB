@@ -20,7 +20,7 @@ const label = computed(() => (store.language === 'TH' ? 'ออกจากร�
         type="button"
         class="kiosk-logout-btn"
         :disabled="disabled"
-        @click="$emit('click')"
+        @click.stop="$emit('click')"
     >
         <LogOut :size="22" aria-hidden="true" />
         <span>{{ label }}</span>

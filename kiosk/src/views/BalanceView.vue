@@ -234,25 +234,26 @@ onUnmounted(() => {
                 <div v-for="(wallet, index) in wallets" :key="wallet.id" class="user-balance-card"
                     :class="{ active: index === store.activeWalletIndex, 'wallet-child': wallet.type === 'child' }"
                     :style="{ background: wallet.colorTheme }" @click="goToWallet(index)">
-                    <!-- Wallet Type Badge -->
-                    <div class="wallet-type-badge">
-                        {{ wallet.type === 'personal' ? currT.personal : wallet.type === 'coparent' ? currT.personal :
-                            currT.child }}
-                    </div>
-
                     <div class="user-row">
                         <div class="avatar" :class="wallet.type === 'child' ? 'avatar-child' : ''">
                             <img v-if="wallet.photoUrl" :src="wallet.photoUrl" class="avatar-photo" alt="photo" />
                             <User v-else :size="36" />
                         </div>
                         <div class="user-details">
-                            <h2 class="user-name">{{ wallet.holderName }}</h2>
+                            <div class="user-name-row">
+                                <h2 class="user-name">{{ wallet.holderName }}</h2>
+                                <div class="user-name-actions">
+                                    <span class="wallet-type-badge wallet-type-badge--inline">
+                                        {{ wallet.type === 'personal' ? currT.personal : wallet.type === 'coparent' ? currT.personal : currT.child }}
+                                    </span>
+                                    <LogoutButton class="balance-logout-btn" @click="handleLogout" />
+                                </div>
+                            </div>
                             <div class="role-row">
                                 <span class="role-badge role-account">{{ walletRoleLabel(wallet.role) }}</span>
                             </div>
                             <p class="balance-sub">{{ currT.balance }} {{ currT.balanceUnit }}</p>
                         </div>
-                        <LogoutButton @click.stop="handleLogout" />
                     </div>
                     <div class="balance-row">
                         <div class="balance-display">
@@ -380,9 +381,6 @@ onUnmounted(() => {
 }
 
 .wallet-type-badge {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
     background: rgba(255, 255, 255, 0.25);
     backdrop-filter: blur(4px);
     padding: 0.25rem 1rem;
@@ -391,6 +389,18 @@ onUnmounted(() => {
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.wallet-type-badge--inline {
+    flex-shrink: 0;
+}
+
+.user-name-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .user-row {
@@ -451,12 +461,36 @@ onUnmounted(() => {
 
 .user-details {
     flex: 1;
+    min-width: 0;
+}
+
+.user-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
 }
 
 .user-name {
     font-size: 1.5rem;
     font-weight: 800;
     margin-bottom: 0.1rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-name-row .user-name {
+    margin-bottom: 0;
+}
+
+.balance-logout-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.95rem;
+    flex-shrink: 0;
 }
 
 .balance-sub {

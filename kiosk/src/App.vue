@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useKioskStore } from './stores/kioskStore';
+import { useKioskStore } from './stores/kioskStore.ts';
 import { Hardware } from 'capacitor-hardware';
-import { retryPendingCashTopup } from './hooks/useBillAcceptor';
-import { connectPrinter } from './hooks/usePrinter';
+import { retryPendingCashTopup } from './hooks/useBillAcceptor.ts';
+import { connectPrinter } from './hooks/usePrinter.ts';
 import BootSplashScreen from './components/BootSplashScreen.vue';
 
 const router = useRouter();
