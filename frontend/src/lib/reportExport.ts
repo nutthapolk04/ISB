@@ -471,7 +471,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
 
     // Landscape A4 — most reports have many columns. Switch to portrait if a
     // particular report ever proves it needs that.
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true });
     const pageWidth = doc.internal.pageSize.getWidth();
     const marginX = 32;
     let cursorY = 36;

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useKioskStore } from '../stores/kioskStore';
-import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, LogOut, Printer } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, AlertTriangle, XCircle, Timer, ArrowLeft, Printer } from 'lucide-vue-next';
+import LogoutButton from '../components/LogoutButton.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
 import { useBillAcceptor } from '../hooks/useBillAcceptor';
@@ -10,6 +11,7 @@ import { logKioskEvent } from '../lib/kioskLog';
 import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
+import { maskReceiptPayerName } from '../lib/maskReceiptPayerName';
 import { playTopupSuccessSound, stopTopupSuccessSound } from '../lib/topupSuccessSound';
 import QRCode from 'qrcode';
 
@@ -87,7 +89,7 @@ const t = {
         receiptPayerIsbId: 'Payer ISB ID',
         receiptPayer: 'Payer',
         receiptDevice: 'Machine',
-        receiptBalanceAfter: 'Remaining Balance',
+        receiptBalanceAfter: 'Remaining Balance from this transaction',
         receiptThankYou: 'Thank you for using our service',
         receiptPoweredBy: 'This document is system-generated',
         printReceipt: 'Print Receipt',
@@ -630,7 +632,7 @@ const buildReceiptData = (): TopupReceiptData => {
         if (wallet.externalId) {
             rows.push({ label: tt.receiptPayerIsbId, value: wallet.externalId });
         }
-        rows.push({ label: tt.receiptPayer, value: wallet.holderName });
+        rows.push({ label: tt.receiptPayer, value: maskReceiptPayerName(wallet.holderName) });
     }
     rows.push({ label: tt.successMethod, value: methodLabel });
 
@@ -735,10 +737,8 @@ const overpayExceedsCap = computed(() => {
             </button>
             <div v-else class="back-btn back-btn-placeholder" aria-hidden="true" />
             <h2>{{ currT.title }}</h2>
-            <button v-if="!cashLocked" class="logout-btn" @click="cancelTopup">
-                <LogOut :size="28" />
-            </button>
-            <div v-else class="logout-btn logout-btn-placeholder" aria-hidden="true" />
+            <LogoutButton v-if="!cashLocked" @click="cancelTopup" />
+            <LogoutButton v-else class="kiosk-logout-btn-placeholder" disabled aria-hidden="true" />
         </div>
 
         <!-- Wallet Info Bar (shown in amount & methods steps; hidden on QR to avoid outside-click targets) -->
@@ -826,7 +826,7 @@ const overpayExceedsCap = computed(() => {
                     <span>{{ currT.timeRemaining }}: </span>
                     <span class="timer-value">{{ Math.floor(qrTimeLeft / 60) }}:{{ (qrTimeLeft %
                         60).toString().padStart(2, '0')
-                    }}</span>
+                        }}</span>
                 </div>
 
                 <!-- Timer Progress Bar -->
@@ -996,14 +996,14 @@ const overpayExceedsCap = computed(() => {
                     {{ currT.printFailed }}
                     <span v-if="printer.lastPrinterError.value" class="print-error-detail">({{
                         printer.lastPrinterError.value
-                    }})</span>
+                        }})</span>
                 </p>
 
                 <button class="kiosk-btn btn-secondary print-receipt-btn" :disabled="printState === 'printing'"
                     @click="printReceipt">
                     <Printer :size="22" />
                     <span>{{ printState === 'done' || printState === 'error' ? currT.reprint : currT.printReceipt
-                    }}</span>
+                        }}</span>
                 </button>
             </div>
 
@@ -1864,7 +1864,7 @@ const overpayExceedsCap = computed(() => {
 }
 
 .back-btn-placeholder,
-.logout-btn-placeholder {
+.kiosk-logout-btn-placeholder {
     visibility: hidden;
     pointer-events: none;
 }
@@ -1875,24 +1875,6 @@ const overpayExceedsCap = computed(() => {
 
 .cash-cancel-only {
     width: 100%;
-}
-
-.logout-btn {
-    background: none;
-    border: 2px solid var(--text-muted);
-    color: var(--text-color);
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0.7;
-}
-
-.logout-btn:hover {
-    opacity: 1;
 }
 
 .qr-image {
