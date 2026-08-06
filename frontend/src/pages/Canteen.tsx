@@ -1360,6 +1360,7 @@ export default function Canteen() {
                 onBack={() => { setEdcOpen(false); setMethodPickerOpen(true); }}
                 onConfirm={handleConfirmEdc}
                 confirming={confirming}
+                telemetry={{ context: "canteen_pos", shopId: CANTEEN_SHOP_ID }}
             />
             <ReceiptSuccessModal
                 // The cashier dismissing the success modal frees the customer

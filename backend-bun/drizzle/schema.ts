@@ -298,6 +298,81 @@ export const receiptItems = pgTable("receipt_items", {
 		}).onDelete("cascade"),
 ]);
 
+/**
+ * Raw telemetry from the Paywire EDC bridge, reported by the cashier's browser.
+ *
+ * Why this exists: the bridge runs on the cashier's own machine and talks to
+ * the terminal over localhost, so nothing about that conversation ever reached
+ * the server. On 2026-08-06 a debit-card sale was approved and the terminal
+ * printed its slip, but the POS never called /pos/checkout at all — the modal
+ * only calls it when an approval code came back, and none did. The result was
+ * a real-world sale with ZERO trace server-side: no receipt, no stock movement,
+ * no log line to investigate.
+ *
+ * Rows are written from the browser the moment a terminal result (or bridge
+ * error) is observed, BEFORE any branching, so the silent path is captured too.
+ * `checkout_attempted` is the discriminator that was missing: false means the
+ * POS gave up without ever asking the server.
+ *
+ * PCI: `fields` is the bridge's raw field bag, needed because approval codes
+ * arrive under different keys per protocol (LinkPOS `approval_code` vs VTI
+ * numeric fields). Card-number-shaped values and known track/PIN keys are
+ * stripped client-side before sending and again server-side — never store a PAN.
+ *
+ * Append-only; nothing reads it in the hot path. Safe to prune by created_at.
+ */
+export const edcTxnEvents = pgTable("edc_txn_events", {
+	id: serial().primaryKey().notNull(),
+	/** 'result' (terminal replied), 'error' (bridge/transaction threw), 'started'. */
+	event: varchar({ length: 20 }).notNull(),
+	/** Which screen produced it: store_pos / canteen_pos / cashier_topup. */
+	context: varchar({ length: 30 }).notNull(),
+	shopId: varchar("shop_id", { length: 50 }),
+	cashierUserId: integer("cashier_user_id"),
+	/** Per-attempt key the SDK sends as the bridge request id. */
+	idempotencyKey: varchar("idempotency_key", { length: 64 }),
+	/** Terminal-facing POS reference — the handle LinkPOS QUERY needs to recover
+	 *  a lost result. Null until the POS starts sending one. */
+	posRef: varchar("pos_ref", { length: 64 }),
+	/** 'card' | 'qr' — the customer's choice on the terminal. */
+	edcMode: varchar("edc_mode", { length: 10 }),
+	/** Amount actually sent to the terminal, in baht. */
+	amount: numeric({ precision: 10, scale:  2 }),
+	/** "00" = approved. Null on bridge errors that never got a reply. */
+	responseCode: varchar("response_code", { length: 10 }),
+	responseMessage: text("response_message"),
+	approvalCode: varchar("approval_code", { length: 32 }),
+	/** Stored explicitly rather than inferred from approval_code IS NULL: this
+	 *  is the exact condition that decides whether checkout runs, so it must be
+	 *  queryable without re-deriving the frontend's trim() semantics. */
+	hasApprovalCode: boolean("has_approval_code").notNull(),
+	maskedCard: varchar("masked_card", { length: 30 }),
+	rrn: varchar({ length: 64 }),
+	/** Sanitised copy of the bridge's raw field bag — see the PCI note above. */
+	fields: jsonb(),
+	/** False = the POS never called /pos/checkout for this approval. */
+	checkoutAttempted: boolean("checkout_attempted").notNull(),
+	/** Error text from the browser (bridge unreachable, checkout rejection). */
+	clientError: text("client_error"),
+	/** When the browser observed the event. Differs from created_at whenever a
+	 *  row was queued offline and flushed later. */
+	clientAt: timestamp("client_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("ix_edc_txn_events_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+	index("ix_edc_txn_events_shop").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
+	index("ix_edc_txn_events_idempotency_key").using("btree", table.idempotencyKey.asc().nullsLast().op("text_ops")),
+	index("ix_edc_txn_events_approval_code").using("btree", table.approvalCode.asc().nullsLast().op("text_ops")),
+	// The investigation query: approved at the terminal, never sent to checkout.
+	index("ix_edc_txn_events_unrecorded").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops"))
+		.where(sql`((response_code)::text = '00'::text AND checkout_attempted = false)`),
+	foreignKey({
+			columns: [table.cashierUserId],
+			foreignColumns: [users.id],
+			name: "edc_txn_events_cashier_user_id_fkey"
+		}).onDelete("set null"),
+]);
+
 export const emailAlertsLog = pgTable("email_alerts_log", {
 	id: serial().primaryKey().notNull(),
 	alertType: varchar("alert_type", { length: 40 }).notNull(),

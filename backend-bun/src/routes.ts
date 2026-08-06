@@ -291,6 +291,8 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .get("/qr-intent/:refCode/status", PosController.getQrIntentStatus, PosSchema.posQrIntentStatus)
             .post("/qr-intent/:refCode/inquiry", PosController.inquireQrIntent, PosSchema.posQrIntentInquiry)
             .post("/qr-intent/:refCode/cancel", PosController.cancelQrIntent, PosSchema.posQrIntentCancel)
+            .post("/edc-events", PosController.recordEdcEvent, PosSchema.posRecordEdcEvent)
+            .get("/edc-events", PosController.listEdcEvents, PosSchema.posListEdcEvents)
     )
     // ── Returns ─────────────────────────────────────────────────────────────
     .group("/returns", (app) =>

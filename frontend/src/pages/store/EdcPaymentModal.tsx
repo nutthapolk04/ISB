@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ChevronLeft, CreditCard, Loader2, Nfc, QrCode, XCircle } from "lucide-react";
 import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
+import { logEdcEvent } from "@/lib/paywire/edcTelemetry";
 
 interface EdcRefs {
     approval_code: string;
@@ -36,6 +37,13 @@ interface EdcPaymentModalProps {
     onBack: () => void;
     onConfirm: (refs: EdcRefs) => Promise<void>;
     confirming: boolean;
+    /**
+     * Where this modal is mounted, for the server-side EDC event log. The
+     * bridge runs on the cashier's own machine, so without this the backend has
+     * no idea which POS produced a terminal charge. Optional so the three
+     * existing call sites can adopt it independently; falls back to "unknown".
+     */
+    telemetry?: { context: string; shopId?: string | null };
 }
 
 interface DeclineInfo {
@@ -50,6 +58,7 @@ export function EdcPaymentModal({
     onBack,
     onConfirm,
     confirming,
+    telemetry,
 }: EdcPaymentModalProps) {
     const { t } = useTranslation();
     const [step, setStep] = useState<"choice" | "processing" | "approved" | "declined">(
@@ -147,6 +156,20 @@ export function EdcPaymentModal({
             const cardFee = mode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
             const chargeAmount = total + cardFee;
             const satang = Math.round(chargeAmount * 100);
+
+            // Bookend for the worst case: a terminal that charges the card and
+            // then never yields a result event at all. Without this row the
+            // attempt is invisible server-side — no result, no error, nothing.
+            logEdcEvent({
+                event: "started",
+                context: telemetry?.context ?? "unknown",
+                shop_id: telemetry?.shopId ?? null,
+                idempotency_key: idempotencyKeyRef.current,
+                edc_mode: mode,
+                amount: chargeAmount,
+                checkout_attempted: false,
+            });
+
             const stream =
                 mode === "qr"
                     ? edc.qrSale({
@@ -169,11 +192,35 @@ export function EdcPaymentModal({
                 }
 
                 if (ev.kind === "result") {
-                    if (ev.responseCode === "00") {
-                        const nextApprovalCode = ev.approvalCode ?? "";
-                        const nextTerminalRef = ev.fields?.["invoice_no"] ?? ev.rrn ?? "";
-                        const nextMaskedCard = ev.maskedPan ?? ev.payerId ?? "";
+                    const nextApprovalCode = ev.approvalCode ?? "";
+                    const nextTerminalRef = ev.fields?.["invoice_no"] ?? ev.rrn ?? "";
+                    const nextMaskedCard = ev.maskedPan ?? ev.payerId ?? "";
+                    const willAttemptCheckout =
+                        ev.responseCode === "00" && nextApprovalCode.trim().length > 0 && isCurrent();
 
+                    // Report BEFORE branching. The branch below can decide not to
+                    // call checkout at all (approved with no approval code), and
+                    // that silent path is precisely the one that left the
+                    // 2026-08-06 charge with no server-side trace whatsoever.
+                    // `fields` is the raw bag: which key actually carried the
+                    // approval code is the open question this is here to answer.
+                    logEdcEvent({
+                        event: "result",
+                        context: telemetry?.context ?? "unknown",
+                        shop_id: telemetry?.shopId ?? null,
+                        idempotency_key: idempotencyKeyRef.current,
+                        edc_mode: mode,
+                        amount: chargeAmount,
+                        response_code: String(ev.responseCode),
+                        response_message: ev.responseMessage ?? null,
+                        approval_code: nextApprovalCode.trim() || null,
+                        masked_card: nextMaskedCard.trim() || null,
+                        rrn: ev.rrn ?? null,
+                        fields: ev.fields,
+                        checkout_attempted: willAttemptCheckout,
+                    });
+
+                    if (ev.responseCode === "00") {
                         // Stale results (cashier cancelled or closed the modal mid-transaction)
                         // are ignored, matching handleCancelProcessing's contract — the
                         // terminal-side charge, if any, is reconciled manually.
@@ -225,6 +272,19 @@ export function EdcPaymentModal({
                 }
             }
         } catch (err) {
+            // Reported before the isCurrent() bail-out: a cashier who cancelled
+            // mid-transaction is exactly when a terminal-side charge goes
+            // unreconciled, so the server should hear about it either way.
+            logEdcEvent({
+                event: "error",
+                context: telemetry?.context ?? "unknown",
+                shop_id: telemetry?.shopId ?? null,
+                idempotency_key: idempotencyKeyRef.current,
+                edc_mode: mode,
+                amount: total,
+                checkout_attempted: false,
+                client_error: err instanceof Error ? err.message : String(err),
+            });
             if (!isCurrent()) return;
             // Never log full card data — the SDK never exposes it, but keep this guard in mind.
             console.error("[EDC] bridge/transaction error", err);

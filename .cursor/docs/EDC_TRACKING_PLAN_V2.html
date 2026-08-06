@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>แผน EDC POS v2 — ต้นเหตุจริง + 4 ระยะ</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #d4362a;
+      --accent: #eacb46;
+      --border: #e2e8f0;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      margin: 0;
+      padding: 2rem 1rem 4rem;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin: 0 0 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.25rem;
+      margin: 2.5rem 0 0.75rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 2px solid var(--primary);
+    }
+    h3 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin: 1rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .alert {
+      border-left: 4px solid var(--bad);
+      background: #fef2f2;
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+    }
+    .alert.ok { border-color: var(--ok); background: #f0fdf4; }
+    .alert.warn { border-color: var(--warn); background: #fffbeb; }
+    .alert.info { border-color: #2563eb; background: #eff6ff; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: var(--code-bg); font-weight: 600; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      background: var(--code-bg);
+      border-radius: 6px;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    pre { padding: 1rem; overflow-x: auto; border: 1px solid var(--border); }
+    .flow {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      white-space: pre;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge-done { background: #dcfce7; color: #166534; }
+    .badge-next { background: #fef3c7; color: #92400e; }
+    .badge-later { background: #e2e8f0; color: #475569; }
+    .badge-bad { background: #fee2e2; color: #991b1b; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+    li { margin: 0.35rem 0; }
+    .meta { font-size: 0.85rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+    .phase-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .phase-head h3 { margin: 0; }
+    .kv { font-size: 0.85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>แผน EDC POS v2 — ต้นเหตุจริง + 4 ระยะ</h1>
+    <p class="subtitle">
+      ISB Campus Card · Store / Canteen POS · 6 ส.ค. 2026<br />
+      แทนที่ <code>EDC_POS_SALE_TRACKING_PLAN.html</code> (ฉบับแรกตั้งสมมติฐานต้นเหตุผิด — ดู §1)
+    </p>
+
+    <h2>1. ต้นเหตุ — แก้จากแผนฉบับแรก</h2>
+
+    <div class="alert">
+      <strong>แผนฉบับแรกเข้าใจว่า</strong> <code>POST /pos/checkout</code> ถูกเรียกแล้วล้มเหลว<br />
+      <strong>ความจริงคือ</strong> POS <em>ไม่ได้เรียก</em> <code>/pos/checkout</code> เลยแม้แต่ครั้งเดียว
+    </div>
+
+    <div class="card">
+      <h3>หลักฐานจาก log prod วันที่ 6 ส.ค. (ครอบ 07:00–11:32 น. ซึ่งรวมเวลาเกิดเหตุ)</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ผล checkout</th><th>จำนวน</th><th>คือเรื่องอะไร</th></tr></thead>
+          <tbody>
+            <tr><td>200</td><td>343</td><td>สำเร็จปกติ</td></tr>
+            <tr><td>400</td><td>4</td><td><strong>wallet balance ไม่พอทั้ง 4 ตัว</strong> ไม่มีตัวไหนเกี่ยว EDC</td></tr>
+            <tr><td>401</td><td>6</td><td>token หมดอายุ → auto refresh → ยิงซ้ำ → <strong>200 ทุกตัว</strong></td></tr>
+            <tr><td>5xx</td><td><strong>0</strong></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>ไม่มีร่องรอย EDC ที่ล้มเหลวเลย → request ไม่เคยไปถึง backend</p>
+    </div>
+
+    <div class="card">
+      <h3>โค้ดที่ทำให้เงียบ</h3>
+      <p><code>frontend/src/pages/store/EdcPaymentModal.tsx</code> — เดิมเรียก checkout เฉพาะเมื่อมี approval code:</p>
+      <pre>if (nextApprovalCode.trim().length > 0) {
+    ... await onConfirm(...)      // ← เรียก /pos/checkout ตรงนี้ที่เดียว
+} else {
+    setApprovedNoRecord(true);    // ← ไม่ติดต่อ server เลย จบแค่หน้าจอ
+    setStep("declined");
+}</pre>
+      <p>
+        เครื่องตอบ <code>responseCode = "00"</code> (อนุมัติ · ปรินท์สลิปแล้ว) แต่ <code>approvalCode</code> ว่าง
+        → เข้า branch ล่าง → ขึ้นจอเหลือง <em>"APPROVED — NOT RECORDED"</em> → **ไม่มี network request ออกไปเลย**
+        → ไม่มี receipt · ไม่หักสต็อก · ไม่มี log
+      </p>
+    </div>
+
+    <div class="alert warn">
+      <strong>ทำไม approval code ถึงว่าง — ยังเป็นสมมติฐาน</strong><br />
+      <code>frontend/src/lib/paywire/client.ts</code> map แบบนี้:
+      <pre>const approvalCode    = raw.approvalCode ?? fields["approval_code"];
+const maskedPan       = fields["30"];               // VTI numeric
+const rrn             = fields["D3"] ?? fields["ref_no"];
+const responseMessage = fields["response_msg"] ?? fields["02"];</pre>
+      masked PAN / RRN / message <strong>มี fallback เป็นเลข VTI</strong> แต่ <code>approvalCode</code> ไม่มี
+      ถ้าเครื่องส่ง auth code มาเป็น <code>fields["38"]</code> (ISO-8583 field 38) เราจะมองไม่เห็น
+      <br /><br />
+      เคสนี้เป็น <strong>debit card</strong> ซึ่งอาจ map ไม่เหมือน credit
+      <strong>ยืนยันไม่ได้จนกว่าจะเห็น payload จริง</strong> — ซึ่งเป็นเหตุผลที่ระยะ 1 มาก่อนระยะ 2
+    </div>
+
+    <h2>2. ระยะการทำงาน</h2>
+
+    <div class="card">
+      <div class="phase-head">
+        <h3>ระยะ 1 — เห็นก่อน</h3>
+        <span class="badge badge-done">เสร็จแล้ว</span>
+        <span class="kv">6 ส.ค. 2026</span>
+      </div>
+      <p>เป้า: ถ้าเกิดอีก ต้องเช็คจาก backend ได้ — ไม่ต้องไปนั่งหน้าเครื่องแคชเชียร์</p>
+
+      <h3>สิ่งที่ทำไปแล้ว</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ไฟล์</th><th>ทำอะไร</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>backend-bun/drizzle/schema.ts</code><br /><code>drizzle/0011_add_edc_txn_events.sql</code></td>
+              <td>ตาราง <code>edc_txn_events</code> ใหม่ — <strong>additive ล้วน ไม่ ALTER ตารางเดิมเลย</strong></td>
+            </tr>
+            <tr>
+              <td><code>src/services/edc_telemetry_service.ts</code></td>
+              <td><code>recordEdcEvent()</code> · <code>listEdcEvents()</code> · <code>sanitiseFields()</code> · <code>sanitiseText()</code></td>
+            </tr>
+            <tr>
+              <td><code>src/controllers/PosController.ts</code></td>
+              <td><code>PC-09</code> เขียน (cashier/manager/admin/kiosk) · <code>PC-10</code> อ่าน (manager/admin เท่านั้น)</td>
+            </tr>
+            <tr>
+              <td><code>src/routes.ts</code> · <code>interfaces/routes/pos.schema.ts</code></td>
+              <td><code>POST /api/v1/pos/edc-events</code> · <code>GET /api/v1/pos/edc-events</code></td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/lib/paywire/edcTelemetry.ts</code></td>
+              <td>scrub → ยิง → คิวลง localStorage ถ้ายิงไม่ออก</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/store/EdcPaymentModal.tsx</code></td>
+              <td>log <strong>ก่อนแตก branch</strong> + log ตอน <code>started</code> และ <code>catch</code></td>
+            </tr>
+            <tr>
+              <td>Store.tsx · Canteen.tsx · CashierTopupModal.tsx</td>
+              <td>ส่ง prop <code>telemetry</code> บอก context + shopId</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>จุดที่วางโค้ด — สำคัญที่สุดของทั้งระยะ</h3>
+      <div class="flow">for await (const ev of stream) {
+    if (ev.kind === "result") {
+
+        logEdcEvent({ ... })        ◀── อยู่ตรงนี้ ก่อน if ทุกตัว
+                                       branch ไหนก็ถูกบันทึก
+        if (responseCode === "00") {
+            if (มี approval code)  → checkout_attempted: true   → เรียก checkout
+            else                   → checkout_attempted: false  ◀── เคส 6 ส.ค.
+        } else                     → decline</div>
+
+      <h3>3 กติกาที่ห้ามพลาด</h3>
+      <ol>
+        <li><strong>log ก่อนแตก branch</strong> — เส้นทางเงียบคือเส้นที่ต้องบันทึกที่สุด</li>
+        <li><strong>fire-and-forget</strong> — ไม่ await ไม่ throw การขายต้องไม่พังเพราะ log
+          (controller ตอบ 200 แม้ insert ล้ม)</li>
+        <li><strong>ยิงไม่ออกให้คิวไว้</strong> — เน็ตร้านเป็นผู้ต้องสงสัย เก็บ localStorage สูงสุด 50 รายการ
+          แล้ว flush ตอนยิงสำเร็จครั้งถัดไป</li>
+      </ol>
+
+      <h3>คอลัมน์ที่ตอบคำถามได้ทันที</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>คอลัมน์</th><th>ทำไมต้องมี</th></tr></thead>
+          <tbody>
+            <tr><td><code>checkout_attempted</code></td>
+                <td><strong>ตัวชี้ขาด</strong> — <code>false</code> = POS ยอมแพ้โดยไม่ถาม server เลย</td></tr>
+            <tr><td><code>has_approval_code</code></td>
+                <td>เก็บแยกไม่ derive จาก <code>approval_code IS NULL</code> เพราะต้อง match กฎ <code>trim()</code> ของ frontend เป๊ะๆ</td></tr>
+            <tr><td><code>fields</code> (jsonb)</td>
+                <td>field bag ดิบ — <strong>คำตอบว่า approval code อยู่ key ไหน</strong> อยู่ในนี้</td></tr>
+            <tr><td><code>event</code></td>
+                <td><code>started</code> ครอบเคสที่เครื่องตัดเงินแล้วไม่ตอบอะไรเลย · <code>error</code> = bridge พัง</td></tr>
+            <tr><td><code>client_at</code> vs <code>created_at</code></td>
+                <td>ต่างกันเมื่อ row ถูกคิวไว้ตอน offline แล้วส่งทีหลัง</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert ok">
+        <strong>PCI</strong> — <code>fields</code> เก็บดิบเพราะจำเป็น แต่ไม่มีทางเก็บ PAN ได้:
+        <ul>
+          <li>redact ค่าที่เป็นเลข 13–19 หลัก (มี/ไม่มีเว้นวรรค-ขีด) → masked card <code>****8433</code> รอด</li>
+          <li>blank key ที่มีคำว่า track / pin / pan / cvv / emv / icc / ksn / dukpt (<strong>เก็บชื่อ key ไว้</strong> เพราะต้องรู้ว่าเครื่องส่งอะไรมา)</li>
+          <li>cap 80 field · value 512 ตัวอักษร</li>
+          <li><strong>scrub 2 ชั้น</strong> — browser (ขอบเขตจริง PAN ไม่ออกจากเครื่อง) + backend (กัน client เก่า/ปลอม)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="phase-head">
+        <h3>ระยะ 2 — แก้ต้นเหตุ</h3>
+        <span class="badge badge-next">รอข้อมูลจากระยะ 1</span>
+      </div>
+      <ul>
+        <li>รอ EDC ยิงจริงบน prod สัก 1–2 วัน แล้วดูว่า <code>fields</code> มี key อะไร</li>
+        <li>เพิ่ม fallback ให้ <code>approvalCode</code> ตาม key ที่เจอ (คาดว่า <code>"38"</code>)</li>
+        <li>เขียน test ล็อกการ map ไว้</li>
+      </ul>
+      <div class="alert warn">
+        <strong>ห้ามเดาแก้ก่อน</strong> — หยิบ field ผิดมาเป็น approval code จะได้ใบเสร็จที่มีเลขอนุมัติผิด
+        ซึ่งแย่กว่าไม่มีใบเสร็จ เพราะ reconcile กับธนาคารไม่ได้และไม่มีใครรู้ตัว
+      </div>
+
+      <p><strong>SQL ที่จะใช้ตอบคำถามนี้:</strong></p>
+      <pre>-- เคสที่เครื่องอนุมัติแต่ POS ไม่ยิง checkout (ใช้ partial index)
+SELECT created_at, shop_id, amount, approval_code, fields
+FROM edc_txn_events
+WHERE response_code = '00' AND checkout_attempted = false
+ORDER BY created_at DESC;
+
+-- key ที่ bridge ส่งมาจริง เรียงตามความถี่
+SELECT k, count(*)
+FROM edc_txn_events, jsonb_object_keys(fields) AS k
+WHERE event = 'result'
+GROUP BY k ORDER BY count(*) DESC;</pre>
+      <p class="kv">หรือ grep จาก backend log ได้เลย: <code>grep '\[EDC\] terminal event' | grep fieldKeys</code></p>
+    </div>
+
+    <div class="card">
+      <div class="phase-head">
+        <h3>ระยะ 3 — ไม่ให้เป็นทางตัน</h3>
+        <span class="badge badge-later">ยังไม่ทำ</span>
+      </div>
+      <p>ตอนนี้เจอจอเหลืองแล้วกดอะไรไม่ได้เลยนอกจาก Back</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>เพิ่ม</th><th>ผล</th></tr></thead>
+          <tbody>
+            <tr><td>ส่ง <code>posRef</code> เข้า <code>sale()</code></td>
+                <td>ปลดล็อก <code>query()</code> ที่ SDK มีอยู่แล้ว — comment ในโค้ดเขียนว่า
+                    <em>"recover a sale whose response was lost (timeout)"</em>
+                    ตอนนี้ส่งแค่ <code>idempotencyKey</code> เลยเรียก query ไม่ได้</td></tr>
+            <tr><td>ปุ่ม "ตรวจสอบรายการล่าสุด"</td>
+                <td>เรียก <code>query(posRef)</code> ดึง approval code กลับมาเอง</td></tr>
+            <tr><td>ช่องกรอก APPR จากสลิป</td>
+                <td>ทางออกสุดท้าย + audit ว่าใครกรอก
+                    (<code>pos_checkout_service.ts</code> บังคับ <code>edc_approval_code</code> ไม่ว่าง
+                    → ถ้าไม่มีช่องนี้ retry จะได้ 400 ตลอด)</td></tr>
+            <tr><td>timeout + AbortController ใน <code>api.ts</code></td>
+                <td>ตอนนี้ไม่มี fetch แขวนได้ไม่จำกัด + <code>dismissLocked</code> ทำให้ปิด modal ไม่ได้
+                    → จอค้าง "Recording receipt…" ตลอดกาล</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="kv">
+        เก็บ field ที่ <code>void()</code> ต้องใช้ให้ครบตั้งแต่ตอนนี้
+        (<code>invoice</code> · <code>posRef</code> · <code>transactionId</code> · <code>cardApprovalCode</code>)
+        แม้ยังไม่ทำ auto-void — ไม่ต้อง migrate รอบสอง
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="phase-head">
+        <h3>ระยะ 4 — intent + admin UI</h3>
+        <span class="badge badge-later">ยังไม่ทำ</span>
+      </div>
+      <p>คือแผนฉบับแรกทั้งหมด: สร้าง intent + cart snapshot <strong>ก่อน</strong>ยิงเครื่อง แล้วมีหน้า admin ให้ retry / reconcile</p>
+      <p>ยังควรทำ ประโยชน์คือ "รู้ว่าตะกร้ามีอะไร" แต่ไม่ได้แก้ต้นเหตุนี้ → อยู่ท้ายสุด</p>
+
+      <h3>5 จุดที่ต้องแก้จากแผนฉบับแรกก่อนลงมือ</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>แผนเดิมเขียนว่า</th><th>ต้องเปลี่ยนเพราะ</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>เพิ่ม status 5 ตัวใน <code>payment_intents.status</code></td>
+              <td><code>status</code> เป็น <strong>Postgres ENUM</strong> <code>paymentintentstatus</code>
+                  มีแค่ <code>pending / confirmed / cancelled</code> —
+                  <code>ALTER TYPE ADD VALUE</code> ใช้ค่าใหม่ใน transaction เดียวกันไม่ได้ และ Drizzle รัน migration ใน transaction
+                  → <strong>migration พัง</strong><br />
+                  <em>ทางแก้:</em> คอลัมน์ <code>edc_status varchar</code> แยก อย่าแตะ enum เดิม</td>
+            </tr>
+            <tr>
+              <td><code>bridge_idempotency_key</code> = POS REF</td>
+              <td>ใน SDK เป็น <strong>คนละ field</strong> — <code>QueryRequest.posRef</code> vs <code>idempotencyKey</code>
+                  → ต้องเก็บ 2 คอลัมน์ ไม่งั้น <code>query()</code> เรียกไม่ได้</td>
+            </tr>
+            <tr>
+              <td>Admin กด "Retry confirm"</td>
+              <td>ได้ 400 ทันทีถ้าไม่มี approval code (backend บังคับ) → ต้องมีช่องกรอกก่อน (ระยะ 3)</td>
+            </tr>
+            <tr>
+              <td>"ไม่มี double receipt เมื่อ retry ซ้ำ"</td>
+              <td>ไม่มี unique index กันที่ DB เลย (มีแค่บน <code>receipt_number</code>)
+                  → ลอก 3-phase claim จาก <code>pos_qr_service.ts</code>
+                  (<strong>ใช้ค่า sentinel ต่างกัน</strong> ไม่งั้นชน logic QR) + partial unique index เป็นตาข่ายชั้นสอง</td>
+            </tr>
+            <tr>
+              <td>กังวลว่า retry จะติด "สต็อกหมด"</td>
+              <td>checkout <strong>ไม่ block</strong> สต็อกไม่พอ — มันหักลงติดลบ<br />
+                  ข่าวดี: retry ไม่พัง · ข่าวร้าย: ระหว่างค้าง ระบบขายของชิ้นเดิมซ้ำได้</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>3. ผลกระทบของระยะ 1</h2>
+
+    <div class="alert ok">
+      <strong>ไม่กระทบอะไรเลย</strong> — เป็นการเพิ่มล้วน
+      <ul>
+        <li><strong>DB:</strong> ตารางใหม่ 1 ตัว ไม่มี <code>ALTER</code> บนตารางเดิม ไม่แตะ <code>payment_intents</code>
+            → rollback = <code>DROP TABLE</code></li>
+        <li><strong>เส้นทางการขาย:</strong> ไม่แตะ <code>/pos/checkout</code> · <code>pos_checkout_service</code> ·
+            wallet · stock · receipt เลย</li>
+        <li><strong>modal:</strong> prop <code>telemetry</code> เป็น optional → ถ้าลืมส่ง ก็ log เป็น <code>"unknown"</code> ไม่ crash</li>
+        <li><strong>ถ้า telemetry ล้มทั้งหมด:</strong> การขายเดินต่อได้ปกติเหมือนก่อนมีระบบนี้</li>
+        <li><strong>สิทธิ์:</strong> เขียนได้ = cashier / manager / admin / kiosk · <strong>อ่านได้ = manager / admin เท่านั้น</strong>
+            (traffic ดิบของเครื่อง ไม่ใช่ feature ของ POS)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>ที่ยังต้องเฝ้า</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>เรื่อง</th><th>สถานะ</th></tr></thead>
+          <tbody>
+            <tr><td>ตารางโตเรื่อยๆ</td>
+                <td>~3 row ต่อการขาย EDC 1 ครั้ง (started + result + อาจมี error)
+                    append-only ไม่มีใครอ่านใน hot path → prune ด้วย <code>created_at</code> ได้
+                    <strong>ยังไม่มี retention policy — ควรตั้ง</strong></td></tr>
+            <tr><td>คิว localStorage</td>
+                <td>cap 50 รายการ เกินแล้วทิ้งตัวเก่าสุด ไม่ล้าง quota
+                    <strong>ไม่เคลียร์ตอน logout</strong> (เหมือน <code>inventory_batch_queue_v2</code>)</td></tr>
+            <tr><td><code>context: "unknown"</code></td>
+                <td>ถ้ามี call site ใหม่ที่ลืมส่ง prop จะเป็น unknown — ไม่ error แต่ต้องคอยดู</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>4. ผลการทดสอบ</h2>
+    <div class="card">
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ชุด</th><th>ผล</th></tr></thead>
+          <tbody>
+            <tr><td><code>bun test</code> (backend ทั้งหมด)</td>
+                <td><strong>187 pass / 3 fail</strong> — 3 ตัวที่ fail คือตัวเดิมที่ fail มาก่อนแล้ว
+                    (<code>shops/:shopId/products</code> · <code>categories</code> · <code>shops contract</code>) เพิ่มจาก 167 pass</td></tr>
+            <tr><td><code>tests/edc_telemetry.test.ts</code> (ใหม่)</td><td><strong>20 pass</strong> — 15 pure + 5 DB</td></tr>
+            <tr><td><code>src/lib/paywire/edcTelemetry.test.ts</code> (ใหม่)</td><td><strong>8 pass</strong></td></tr>
+            <tr><td><code>adjustment_report</code> · <code>email_service</code> · <code>transfer_report</code> (ที่เคยทำไว้)</td>
+                <td><strong>63 pass / 0 fail</strong> — ไม่มี regression</td></tr>
+            <tr><td><code>tsc --noEmit</code> ทั้ง 2 ฝั่ง</td><td>clean</td></tr>
+            <tr><td>HTTP smoke test จริง</td>
+                <td>POST 200 · <code>cashier_user_id</code> มาจาก JWT ไม่ใช่ body ·
+                    <code>"38": "139350"</code> รอด · <code>track2</code> และ PAN ที่แทรกใน text ถูก redact ทั้งคู่ ·
+                    filter <code>unrecorded_only</code> คืนแถวถูกต้อง</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="kv">
+        test DB มี guard localhost-only — <code>.env</code> ของ repo นี้ถูกสลับไปชี้ Railway บ่อย
+        และ bun auto-load <code>.env</code> เคยมี fixture หลุดขึ้น prod มาแล้ว
+      </p>
+    </div>
+
+    <h2>5. ขั้นตอน deploy ระยะ 1</h2>
+    <div class="card">
+      <ol>
+        <li>deploy backend แล้วรัน <code>bun run db:migrate</code> (สร้างตารางใหม่ 1 ตัว ไม่ต้อง downtime)</li>
+        <li>deploy frontend (dist ผ่าน SFTP ตามเดิม)</li>
+        <li>ยิง EDC ทดสอบ 1 ครั้งบน prod แล้วเช็ค:
+          <pre>grep '\[EDC\] terminal event' /path/to/backend.log | tail -5</pre>
+        </li>
+        <li>ปล่อยเก็บข้อมูล 1–2 วัน แล้วดู key ที่ bridge ส่งมาจริง → เริ่มระยะ 2</li>
+      </ol>
+      <p class="kv">
+        ลำดับ backend-ก่อน-frontend สำคัญ: frontend ที่ยิง <code>/pos/edc-events</code> ไปยัง backend เก่าจะได้ 404
+        แต่เพราะ fire-and-forget มันจะเข้าคิวแล้วส่งใหม่ทีหลัง ไม่กระทบการขาย
+      </p>
+    </div>
+
+    <h2>6. ยังต้องตัดสินใจ</h2>
+    <div class="card alert info">
+      <ol>
+        <li><strong>ถามแคชเชียร์ก่อนเลย (ฟรี)</strong> — เห็นจอ<strong>เหลือง</strong> "APPROVED — NOT RECORDED"
+            หรือจอ<strong>แดง</strong> / toast แดง "Checkout failed"?
+            แยกได้ทันทีว่าเป็นเส้นทางไหน โดยไม่ต้องรอข้อมูลใหม่</li>
+        <li><strong>retention</strong> ของ <code>edc_txn_events</code> — 90 วัน? 1 ปี? (มี PII น้อย ไม่มี cart แต่มี masked card)</li>
+        <li><strong>นโยบายส่งของตอนค้าง</strong> — แคชเชียร์ตัดสินเองได้ หรือต้องมีคนอนุมัติ</li>
+        <li><strong>ระยะ 4 ครอบ Canteen + Cashier EDC top-up ไหม</strong> — ใช้ modal ตัวเดียวกันทั้ง 3 ที่
+            (top-up ไม่มี cart เลย) ตอนนี้ระยะ 1 ครอบทั้ง 3 แล้ว</li>
+      </ol>
+    </div>
+
+    <h2>7. Out of scope</h2>
+    <div class="card">
+      <ul>
+        <li>Auto void EDC จากระบบ</li>
+        <li>Kiosk EDC top-up (flow แยก)</li>
+        <li>แก้เคส 12,520 ย้อนหลัง — ไม่มีข้อมูลใน DB ต้อง manual จากใบ EDC
+            (ทำหลังระยะ 4 ผ่าน flow ใหม่จะได้ audit trail ครบ ดีกว่า INSERT receipt ตรงๆ)</li>
+        <li>หน้า UI สำหรับดู <code>edc_txn_events</code> — ระยะ 1 ใช้ SQL / grep log ก่อน
+            (API <code>GET /pos/edc-events</code> พร้อมแล้วถ้าจะทำ)</li>
+      </ul>
+    </div>
+
+    <p class="meta">
+      เอกสารนี้: <code>.cursor/docs/EDC_TRACKING_PLAN_V2.html</code><br />
+      ฉบับแรก (เก็บไว้อ้างอิง): <code>.cursor/docs/EDC_POS_SALE_TRACKING_PLAN.html</code><br />
+      โค้ดที่เกี่ยวข้อง: <code>edc_telemetry_service.ts</code> · <code>edcTelemetry.ts</code> ·
+      <code>EdcPaymentModal.tsx</code> · <code>paywire/client.ts</code> · <code>pos_qr_service.ts</code> ·
+      <code>pos_checkout_service.ts</code>
+    </p>
+  </div>
+</body>
+</html>

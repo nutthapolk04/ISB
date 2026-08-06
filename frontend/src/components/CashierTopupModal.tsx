@@ -989,6 +989,8 @@ export function CashierTopupModal({
                 open={edcOpen}
                 onOpenChange={setEdcOpen}
                 total={edcAmount}
+                // Wallet top-up, not a sale — no shop scope applies here.
+                telemetry={{ context: "cashier_topup" }}
                 onBack={() => {
                     setEdcOpen(false);
                     setStep("topup");

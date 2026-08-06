@@ -106,3 +106,43 @@ export const posQrIntentCancel = {
     params: t.Object({ refCode: t.String() }),
     detail: { tags: ["POS"], summary: "Cancel POS QR intent" },
 };
+
+/**
+ * EDC bridge telemetry. Every field except `event` and `context` is optional
+ * on purpose: this is best-effort forensics written from the browser, and a
+ * partial row beats a 422 that throws away the only record of a terminal
+ * charge. `fields` is t.Unknown() because the bag's shape is exactly what we
+ * don't know yet — the service sanitises and clamps it.
+ */
+export const posRecordEdcEvent = {
+    body: t.Object({
+        event: t.Union([t.Literal("started"), t.Literal("result"), t.Literal("error")]),
+        context: t.String({ maxLength: 30 }),
+        shop_id: t.Optional(t.Nullable(t.String({ maxLength: 50 }))),
+        idempotency_key: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
+        pos_ref: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
+        edc_mode: t.Optional(t.Nullable(t.String({ maxLength: 10 }))),
+        amount: t.Optional(t.Nullable(t.Number())),
+        response_code: t.Optional(t.Nullable(t.String({ maxLength: 10 }))),
+        response_message: t.Optional(t.Nullable(t.String())),
+        approval_code: t.Optional(t.Nullable(t.String({ maxLength: 32 }))),
+        masked_card: t.Optional(t.Nullable(t.String({ maxLength: 30 }))),
+        rrn: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
+        fields: t.Optional(t.Unknown()),
+        checkout_attempted: t.Optional(t.Nullable(t.Boolean())),
+        client_error: t.Optional(t.Nullable(t.String())),
+        client_at: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: { tags: ["POS"], summary: "Record an EDC bridge event (best-effort telemetry)" },
+};
+
+export const posListEdcEvents = {
+    query: t.Object({
+        date_from: t.Optional(t.String()),
+        date_to: t.Optional(t.String()),
+        shop_id: t.Optional(t.String()),
+        unrecorded_only: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+    }),
+    detail: { tags: ["POS"], summary: "List EDC bridge events (manager/admin)" },
+};

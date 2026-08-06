@@ -11,6 +11,11 @@ import {
 	cancelPosQrIntent,
 	confirmPosQrSale,
 } from "@/services/pos_qr_service";
+import {
+	recordEdcEvent,
+	listEdcEvents,
+	type RecordEdcEventInput,
+} from "@/services/edc_telemetry_service";
 import { qrInquiry as bayQrInquiry } from "@/services/pymt_gateway";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
@@ -218,6 +223,65 @@ export const PosController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	/**
+	 * Append one EDC bridge event (terminal result or bridge error).
+	 *
+	 * Best-effort telemetry called by the cashier's browser, so it is
+	 * deliberately forgiving: it never 4xx/5xx's on bad content, because the
+	 * caller fires and forgets and an error here would be silently dropped
+	 * anyway. Malformed payloads are logged and acknowledged rather than
+	 * rejected — losing a row is worse than storing an imperfect one, since
+	 * the whole point is to have *something* to read after an incident.
+	 */
+	recordEdcEvent: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-09)] PosController.recordEdcEvent() called.`);
+		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-09)] PosController.recordEdcEvent() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			const result = await recordEdcEvent({
+				...(body as Omit<RecordEdcEventInput, "cashierUserId">),
+				// Never trust a cashier id from the body.
+				cashierUserId: Number(user.sub) || null,
+			});
+			logger.info(`[${reqContext.requestId} (PC-09)] PosController.recordEdcEvent() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			// Swallow: telemetry must never surface as an error to the POS.
+			logger.error(`[${reqContext.requestId} (PC-09)] PosController.recordEdcEvent() error:`, e);
+			return successResponse(reqContext, { id: null }, ResponseStatus.OK);
+		}
+	},
+
+	listEdcEvents: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-10)] PosController.listEdcEvents() called.`);
+		// Reading raw terminal traffic is an investigation tool, not a POS
+		// feature — managers and admins only, never plain cashiers or kiosks.
+		if (!hasRole(user.roles, "manager", "admin")) {
+			logger.warn(`[${reqContext.requestId} (PC-10)] PosController.listEdcEvents() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			const result = await listEdcEvents({
+				dateFrom: query.date_from ?? undefined,
+				dateToExclusive: query.date_to ?? undefined,
+				shopId: query.shop_id ?? undefined,
+				unrecordedOnly: query.unrecorded_only === "true",
+				limit: query.limit ? Number(query.limit) : undefined,
+			});
+			logger.info(`[${reqContext.requestId} (PC-10)] PosController.listEdcEvents() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-10)] PosController.listEdcEvents() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
