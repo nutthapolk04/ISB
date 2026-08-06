@@ -13,164 +13,171 @@ import type { FamilyProfileData } from "./userDetailTypes";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface NotificationEmailsEditorProps {
-  familyCode: string;
-  /** From PowerSchool sync (family_profiles.notification_emails) — read-only
-   * here since upsertFamilyProfile() blanket-overwrites this column every
-   * sync round; editing it in this UI would just be undone next sync. */
-  syncedEmails: string[];
-  /** Admin-added contacts (family_profiles.admin_notification_emails) —
-   * stored in a separate column PowerSchool sync never touches, so these
-   * survive every sync round. This is the only list this editor can add to. */
-  adminEmails: string[];
-  /** Shown in the synced list when notification_emails is empty (staff login email). */
-  fallbackLoginEmail?: string | null;
-  loginIds: string[];
-  onUpdated: (updated: FamilyProfileData) => void;
+    familyCode: string;
+    /** From PowerSchool sync (family_profiles.notification_emails) — read-only
+     * here since upsertFamilyProfile() blanket-overwrites this column every
+     * sync round; editing it in this UI would just be undone next sync. */
+    syncedEmails: string[];
+    /** Admin-added contacts (family_profiles.admin_notification_emails) —
+     * stored in a separate column PowerSchool sync never touches, so these
+     * survive every sync round. This is the only list this editor can add to. */
+    adminEmails: string[];
+    /** Shown in the synced list when notification_emails is empty (staff login email). */
+    fallbackLoginEmail?: string | null;
+    loginIds: string[];
+    onUpdated: (updated: FamilyProfileData) => void;
 }
 
 export function NotificationEmailsEditor({
-  familyCode,
-  syncedEmails,
-  adminEmails,
-  fallbackLoginEmail,
-  loginIds,
-  onUpdated,
+    familyCode,
+    syncedEmails,
+    adminEmails,
+    fallbackLoginEmail,
+    loginIds,
+    onUpdated,
 }: NotificationEmailsEditorProps) {
-  const { t } = useTranslation();
-  const [notifDraft, setNotifDraft] = useState("");
-  const [savingNotif, setSavingNotif] = useState(false);
+    const { t } = useTranslation();
+    const [notifDraft, setNotifDraft] = useState("");
+    const [savingNotif, setSavingNotif] = useState(false);
 
-  const displayedSyncedEmails =
-    syncedEmails.length > 0
-      ? syncedEmails
-      : fallbackLoginEmail?.trim()
-        ? [fallbackLoginEmail.trim()]
-        : [];
-  const usingLoginFallback = syncedEmails.length === 0 && !!fallbackLoginEmail?.trim();
+    const displayedSyncedEmails =
+        syncedEmails.length > 0
+            ? syncedEmails
+            : fallbackLoginEmail?.trim()
+                ? [fallbackLoginEmail.trim()]
+                : [];
+    const usingLoginFallback = syncedEmails.length === 0 && !!fallbackLoginEmail?.trim();
 
-  const addNotifEmail = async () => {
-    const raw = notifDraft.trim().toLowerCase();
-    if (!raw) return;
-    if (!EMAIL_RE.test(raw)) {
-      toast({ title: t("admin.users.invalidEmail"), variant: "destructive" });
-      return;
-    }
-    if (adminEmails.includes(raw)) {
-      setNotifDraft("");
-      return;
-    }
-    setSavingNotif(true);
-    try {
-      const updated = await api.patch<FamilyProfileData>(
-        `/users-admin/family-profile/${familyCode}`,
-        { admin_notification_emails: [...adminEmails, raw] },
-      );
-      onUpdated(updated);
-      setNotifDraft("");
-    } catch (e) {
-      toast({
-        title: t("admin.users.addEmailError"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingNotif(false);
-    }
-  };
+    const addNotifEmail = async () => {
+        const raw = notifDraft.trim().toLowerCase();
+        if (!raw) return;
+        if (!EMAIL_RE.test(raw)) {
+            toast({ title: t("admin.users.invalidEmail"), variant: "destructive" });
+            return;
+        }
+        if (adminEmails.includes(raw)) {
+            setNotifDraft("");
+            return;
+        }
+        setSavingNotif(true);
+        try {
+            const updated = await api.patch<FamilyProfileData>(
+                `/users-admin/family-profile/${familyCode}`,
+                { admin_notification_emails: [...adminEmails, raw] },
+            );
+            onUpdated(updated);
+            setNotifDraft("");
+        } catch (e) {
+            toast({
+                title: t("admin.users.addEmailError"),
+                description: e instanceof ApiError ? e.detail : "Unknown error",
+                variant: "destructive",
+            });
+        } finally {
+            setSavingNotif(false);
+        }
+    };
 
-  const removeNotifEmail = async (email: string) => {
-    setSavingNotif(true);
-    try {
-      const updated = await api.patch<FamilyProfileData>(
-        `/users-admin/family-profile/${familyCode}`,
-        { admin_notification_emails: adminEmails.filter((e) => e !== email) },
-      );
-      onUpdated(updated);
-    } catch (e) {
-      toast({
-        title: t("admin.users.removeEmailError"),
-        description: e instanceof ApiError ? e.detail : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingNotif(false);
-    }
-  };
+    const removeNotifEmail = async (email: string) => {
+        setSavingNotif(true);
+        try {
+            const updated = await api.patch<FamilyProfileData>(
+                `/users-admin/family-profile/${familyCode}`,
+                { admin_notification_emails: adminEmails.filter((e) => e !== email) },
+            );
+            onUpdated(updated);
+        } catch (e) {
+            toast({
+                title: t("admin.users.removeEmailError"),
+                description: e instanceof ApiError ? e.detail : "Unknown error",
+                variant: "destructive",
+            });
+        } finally {
+            setSavingNotif(false);
+        }
+    };
 
-  return (
-    <div className="rounded-md border bg-muted/30 p-3 space-y-3">
-      <div>
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          {t("admin.users.notificationEmails")}
-          <span className="text-xs text-muted-foreground">(From API Data Sync)</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-1.5">
-          {displayedSyncedEmails.length === 0 && (
-            <span className="text-xs text-muted-foreground">{t("admin.users.noNotifEmails")}</span>
-          )}
-          {displayedSyncedEmails.map((email) => (
-            <Badge key={email} variant="secondary" className="pl-2 pr-2 py-1 font-normal">
-              {email}
-            </Badge>
-          ))}
-        </div>
-        {usingLoginFallback && (
-          <p className="text-xs text-muted-foreground mt-1.5">
-            {t("admin.users.notificationEmailLoginFallback", "Using login email — no notification email from sync")}
-          </p>
-        )}
-      </div>
+    return (
+        <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+            <div>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    {t("admin.users.notificationEmails")}
+                    <span className="text-xs text-muted-foreground">(From API Data Sync)</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {displayedSyncedEmails.length === 0 && (
+                        <span className="text-xs text-muted-foreground">{t("admin.users.noNotifEmails")}</span>
+                    )}
+                    {displayedSyncedEmails.map((email) => (
+                        <Badge key={email} variant="secondary" className="pl-2 pr-2 py-1 font-normal">
+                            {email}
+                        </Badge>
+                    ))}
+                </div>
+                {usingLoginFallback && (
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                        {t("admin.users.notificationEmailLoginFallback", "Using login email — no notification email from sync")}
+                    </p>
+                )}
+            </div>
 
-      <div className="pt-2 border-t">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          {t("admin.users.adminNotificationEmails", "Added manually")}
-          <span className="text-xs text-muted-foreground">
-            {t("admin.users.adminNotificationEmailsDesc", "kept separate — never overwritten by sync")}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-1.5">
-          {adminEmails.length === 0 && (
-            <span className="text-xs text-muted-foreground">{t("admin.users.noNotifEmails")}</span>
-          )}
-          {adminEmails.map((email) => (
-            <Badge key={email} variant="secondary" className="gap-1 pl-2 pr-1 py-1 font-normal">
-              {email}
-              <button
-                className="ml-1 h-4 w-4 rounded hover:bg-background disabled:opacity-50"
-                onClick={() => removeNotifEmail(email)}
-                disabled={savingNotif}
-                aria-label={`Remove ${email}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <div className="flex gap-2 mt-2">
-          <Input
-            type="email"
-            value={notifDraft}
-            onChange={(e) => setNotifDraft(e.target.value)}
-            placeholder="parent@example.com"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); addNotifEmail(); }
-            }}
-            className="h-8 text-sm"
-          />
-          <Button size="sm" onClick={addNotifEmail} disabled={savingNotif || !notifDraft.trim()}>
-            Add
-          </Button>
-        </div>
-      </div>
+            <div className="pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    {t("admin.users.adminNotificationEmails", "Added manually")}
+                    <span className="text-xs text-muted-foreground">
+                        {t("admin.users.adminNotificationEmailsDesc", "kept separate — never overwritten by sync")}
+                    </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {adminEmails.length === 0 && (
+                        <span className="text-xs text-muted-foreground">{t("admin.users.noNotifEmails")}</span>
+                    )}
+                    {adminEmails.map((email) => (
+                        <Badge key={email} variant="secondary" className="gap-1 pl-2 pr-1 py-1 font-normal">
+                            {email}
+                            <button
+                                className="ml-1 h-4 w-4 rounded hover:bg-background disabled:opacity-50"
+                                onClick={() => removeNotifEmail(email)}
+                                disabled={savingNotif}
+                                aria-label={`Remove ${email}`}
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                    <Input
+                        type="email"
+                        value={notifDraft}
+                        onChange={(e) => setNotifDraft(e.target.value)}
+                        placeholder="parent@example.com"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") { e.preventDefault(); addNotifEmail(); }
+                        }}
+                        className="h-8 text-sm"
+                    />
+                    <Button size="sm" onClick={addNotifEmail} disabled={savingNotif || !notifDraft.trim()}>
+                        Add
+                    </Button>
+                </div>
+            </div>
 
-      {loginIds.length > 0 && (
-        <div className="pt-2 border-t text-xs">
-          <span className="text-muted-foreground">Login IDs (PS):</span>{" "}
-          <span className="font-mono">{loginIds.join(", ")}</span>
+            {loginIds.length > 0 && (
+                <div className="pt-2 border-t text-xs">
+                    <span className="text-muted-foreground">Login Emails:</span>{" "}
+                    <span className="font-mono">
+                        {
+                            loginIds.join(", ")
+                        }
+                        {displayedSyncedEmails.length > 0 && (
+                            displayedSyncedEmails.join(", ")
+                        )}
+                    </span>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
