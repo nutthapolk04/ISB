@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>แผน EDC POS — Payment Intent + บันทึกรายการซื้อขาย</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #d4362a;
+      --primary-dark: #b6352a;
+      --accent: #eacb46;
+      --border: #e2e8f0;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0;
+      padding: 2rem 1rem 4rem;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin: 0 0 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.25rem;
+      margin: 2rem 0 0.75rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 2px solid var(--primary);
+    }
+    h3 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin: 1rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .alert {
+      border-left: 4px solid var(--bad);
+      background: #fef2f2;
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+    }
+    .alert.ok { border-color: var(--ok); background: #f0fdf4; }
+    .alert.warn { border-color: var(--warn); background: #fffbeb; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: var(--code-bg); font-weight: 600; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      background: var(--code-bg);
+      border-radius: 6px;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    pre {
+      padding: 1rem;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    .flow {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      white-space: pre;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    .badge-bad { background: #fee2e2; color: #991b1b; }
+    .badge-info { background: #dbeafe; color: #1e40af; }
+    ul { margin: 0.5rem 0; padding-left: 1.25rem; }
+    li { margin: 0.35rem 0; }
+    .meta { font-size: 0.85rem; color: var(--muted); margin-top: 2rem; }
+    .phase { counter-increment: phase; }
+    .phase h3::before {
+      content: "Phase " counter(phase) " — ";
+      color: var(--primary);
+    }
+    body { counter-reset: phase; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>แผน EDC POS: Payment Intent + บันทึกรายการซื้อขาย</h1>
+    <p class="subtitle">
+      ISB Campus Card · Store / BookStore POS · อัปเดต 6 ส.ค. 2026<br />
+      อ้างอิงเคส: EDC อนุมัติ 12,520 บาท (APPR 139350) แต่หน้าเว็บไม่สำเร็จ · สต็อกไม่ถูกหัก
+    </p>
+
+    <div class="alert">
+      <strong>ปัญหาหลักวันนี้</strong><br />
+      EDC ตัดเงินที่เครื่องแล้ว แต่ <code>POST /pos/checkout</code> ไม่สำเร็จ → ไม่มี receipt, ไม่หักสต็อก,
+      ไม่มี audit trail ใน DB ว่า cart มีอะไร · แคชเชียร์ไม่รู้ว่าควรส่งของให้ลูกค้าหรือไม่
+    </div>
+
+    <h2>1. สถานะระบบปัจจุบัน</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>สิ่งที่มี</th><th>เก็บอะไร</th><th>ข้อจำกัดกับ EDC</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>receipts</code> + <code>receipt_items</code></td>
+            <td>ใบเสร็จสมบูรณ์, สินค้า, ราคา, ผู้จ่าย, หักสต็อก</td>
+            <td>สร้างได้เฉพาะเมื่อ checkout สำเร็จเท่านั้น</td>
+          </tr>
+          <tr>
+            <td><code>payment_intents</code> (<code>intent_type=pos_sale</code>)</td>
+            <td><code>cart_snapshot</code> JSON, สถานะ pending/confirmed</td>
+            <td>ใช้เฉพาะ <strong>QR PromptPay (BAY)</strong> — EDC ไม่ใช้</td>
+          </tr>
+          <tr>
+            <td><code>audit_logs</code></td>
+            <td>CREATE receipt หลัง checkout</td>
+            <td>ไม่มี log ก่อน checkout / ไม่มี EDC approval code</td>
+          </tr>
+          <tr>
+            <td>EDC Bridge (local)</td>
+            <td><code>/txn/sale</code>, POS REF, approval</td>
+            <td>อยู่เครื่องแคชเชียร์ ไม่ sync ขึ้น server</td>
+          </tr>
+          <tr>
+            <td>Backend access log</td>
+            <td><code>PC-03 PosController.checkout()</code> [200/4xx]</td>
+            <td>ไม่ log body, ไม่มี approval code / รายการสินค้า</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert ok">
+      <strong>สรุป:</strong> รายการสินค้า + ผู้ซื้อ + ราคา <em>มีเก็บแล้ว</em> ใน <code>cart_snapshot</code> ของ POS QR
+      แต่ <strong>EDC ยังไม่มี</strong> — ต้องเพิ่ม flow เดียวกัน + หน้า admin สำหรับเคสค้าง
+    </div>
+
+    <h2>2. เป้าหมาย (Goals)</h2>
+    <div class="card">
+      <ol>
+        <li><strong>บันทึกรายการซื้อขายก่อนยิง EDC</strong> — สินค้า, จำนวน, ราคา, ส่วนลด, ผู้จ่าย (ถ้ามี), ร้าน, แคชเชียร์</li>
+        <li><strong>ติดตามสถานะทุกขั้น</strong> — ตั้งแต่สร้าง intent → รอ EDC → อนุมัติ → checkout → สำเร็จ/ล้มเหลว</li>
+        <li><strong>แก้เฉพาะหน้าได้</strong> — เคส EDC ผ่านแต่ระบบไม่บันทึก: แคชเชียร์/ผู้ดูแลเห็นรายการ → ส่งของให้ลูกค้า → admin confirm ทีหลัง</li>
+        <li><strong>ตรวจสอบย้อนหลัง</strong> — reconcile สต็อก vs ยอดขาย EDC ที่ค้าง / void ที่ EDC แล้ว</li>
+        <li><strong>กัน double charge</strong> — idempotency จาก bridge key + status guard</li>
+      </ol>
+    </div>
+
+    <h2>3. แนวคิดหลัก: <code>pos_sale_attempt</code></h2>
+    <p>
+      ขยายจาก <code>payment_intents</code> (reuse pattern ของ POS QR) หรือสร้างตารางใหม่
+      <code>pos_sale_attempts</code> ที่ผูก 1:1 กับ intent — แผนนี้แนะนำ <strong>ขยาย payment_intents</strong>
+      เพื่อลด migration ซ้ำซ้อน
+    </p>
+
+    <h3>3.1 ฟิลด์ที่เพิ่ม / ใช้</h3>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>ฟิลด์</th><th>ตัวอย่าง</th><th>หมายเหตุ</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>intent_type</code></td><td><code>pos_edc</code></td><td>แยกจาก <code>pos_sale</code> (QR), <code>wallet_topup</code></td></tr>
+          <tr><td><code>ref_code</code></td><td><code>EDC-20260806-A1B2C3</code></td><td>อ้างอิงภายใน + แสดงบนหน้าจอแคชเชียร์</td></tr>
+          <tr><td><code>status</code></td><td>ดู §4</td><td>lifecycle ครบทุกขั้น</td></tr>
+          <tr><td><code>amount</code></td><td>12520.00</td><td>ยอดที่ยิง EDC (รวม fee ถ้ามี)</td></tr>
+          <tr><td><code>cart_snapshot</code></td><td>JSON</td><td>reuse โครงสร้าง <code>CheckoutInput</code> เหมือน POS QR</td></tr>
+          <tr><td><code>shop_id</code></td><td><code>S0001</code></td><td>denormalize จาก cart เพื่อ query เร็ว</td></tr>
+          <tr><td><code>created_by</code></td><td>user id แคชเชียร์</td><td>มีอยู่แล้ว</td></tr>
+          <tr><td><code>payer_label</code></td><td>ชื่อลูกค้า / walk-in</td><td>denormalize ตอนสร้าง — อ่านง่ายบน admin</td></tr>
+          <tr><td><code>payer_external_id</code></td><td>ISB ID</td><td>ถ้า wallet / member scan</td></tr>
+          <tr><td><code>bridge_idempotency_key</code></td><td><code>56d032721d23411a011</code></td><td>= POS REF บนใบ EDC</td></tr>
+          <tr><td><code>edc_approval_code</code></td><td><code>139350</code></td><td>หลัง terminal approve</td></tr>
+          <tr><td><code>edc_terminal_ref</code></td><td><code>000065</code></td><td>invoice / trace</td></tr>
+          <tr><td><code>edc_masked_card</code></td><td><code>****8433</code></td><td>ไม่เก็บ PAN เต็ม</td></tr>
+          <tr><td><code>edc_mode</code></td><td><code>card</code> / <code>qr</code></td><td>ช่องทางบนเครื่อง EDC</td></tr>
+          <tr><td><code>receipt_id</code></td><td>FK</td><td>หลัง confirm สำเร็จ</td></tr>
+          <tr><td><code>failure_reason</code></td><td>text</td><td>ข้อความ error จาก checkout</td></tr>
+          <tr><td><code>resolved_at</code> / <code>resolved_by</code></td><td></td><td>เมื่อ admin ปิดเคส manual</td></tr>
+          <tr><td><code>resolution_note</code></td><td></td><td>เช่น "void EDC แล้ว" / "confirm ซ้ำสำเร็จ"</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.2 สิ่งที่อยู่ใน <code>cart_snapshot</code> (รายการซื้อขาย)</h3>
+    <div class="card">
+      <p>เก็บ snapshot ตอนสร้าง intent — ไม่พึ่ง cart บน browser หลัง EDC:</p>
+      <pre>{
+  "transaction_mode": "sale",
+  "shop_id": "S0001",
+  "payer_kind": "customer",
+  "customer_id": 12345,
+  "items": [
+    {
+      "product_variant_id": 101,
+      "product_name": "Math Textbook G7",   // denormalize สำหรับอ่านบน admin
+      "product_code": "BK-001",
+      "quantity": 2,
+      "unit_price": 450.00,
+      "discount": 0,
+      "line_total": 900.00
+    }
+  ],
+  "discount": 0,
+  "subtotal": 12520.00,
+  "total": 12520.00,
+  "notes": null
+}</pre>
+      <p><em>หมายเหตุ:</em> backend ควร enrich ชื่อสินค้าตอน create intent จาก <code>shop_products</code>
+      เพื่อ admin อ่านได้โดยไม่ต้อง join ย้อนหลัง</p>
+    </div>
+
+    <h3>3.3 ตาราง event log: <code>pos_sale_attempt_events</code></h3>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>คอลัมน์</th><th>รายละเอียด</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>serial</td></tr>
+          <tr><td><code>intent_id</code></td><td>FK → payment_intents</td></tr>
+          <tr><td><code>event</code></td><td>ดู §4.2</td></tr>
+          <tr><td><code>payload</code></td><td>JSONB (response_code, error, ip, …)</td></tr>
+          <tr><td><code>created_at</code></td><td>timestamptz</td></tr>
+          <tr><td><code>actor_user_id</code></td><td>แคชเชียร์ / admin</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4. Lifecycle สถานะ</h2>
+
+    <h3>4.1 สถานะหลัก (<code>payment_intents.status</code>)</h3>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Status</th><th>ความหมาย</th><th>แอคชันที่ทำได้</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-pending">pending</span></td>
+            <td>สร้าง intent + cart snapshot แล้ว ยังไม่ยิง EDC</td>
+            <td>ยิง EDC / ยกเลิก</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">edc_processing</span></td>
+            <td>กำลังรอลูกค้าแตะบัตร / รอ terminal</td>
+            <td>รอ / timeout → cancelled</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warn">edc_approved</span></td>
+            <td>Terminal อนุมัติ กำลังเรียก checkout</td>
+            <td>รอ checkout</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-ok">confirmed</span></td>
+            <td>checkout สำเร็จ มี receipt + หักสต็อก</td>
+            <td>ดู receipt / void ตามปกติ</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-bad">approved_unrecorded</span></td>
+            <td><strong>EDC ผ่าน แต่ checkout ล้มเหลว</strong> — เคส 12,520</td>
+            <td>ส่งของได้ (ตามนโยบาย) · admin retry confirm · mark resolved</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-bad">declined</span></td>
+            <td>Terminal ปฏิเสธ</td>
+            <td>ลองใหม่ (intent ใหม่)</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-pending">cancelled</span></td>
+            <td>แคชเชียร์ยกเลิกก่อน EDC / timeout</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">resolved_manual</span></td>
+            <td>ปิดเคสแล้ว (void EDC / บันทึก manual / ไม่เรียกเก็บ)</td>
+            <td>audit only</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>4.2 Event types</h3>
+    <div class="card">
+      <ul>
+        <li><code>intent_created</code></li>
+        <li><code>bridge_sale_started</code></li>
+        <li><code>bridge_approved</code> / <code>bridge_declined</code></li>
+        <li><code>checkout_started</code></li>
+        <li><code>checkout_succeeded</code> / <code>checkout_failed</code></li>
+        <li><code>admin_retry_confirm</code></li>
+        <li><code>admin_mark_resolved</code></li>
+        <li><code>cashier_acknowledged</code> — แคชเชียร์กด "ส่งของแล้ว" (optional)</li>
+      </ul>
+    </div>
+
+    <h2>5. Flow ใหม่ (Store POS + EDC)</h2>
+    <div class="flow">[Cashier] เลือกสินค้า → ชำระ EDC
+        │
+        ▼
+POST /api/v1/pos/edc-intent
+  • validate cart
+  • enrich product names
+  • INSERT payment_intents (pos_edc, pending, cart_snapshot)
+  • event: intent_created
+        │
+        ▼
+[Browser] EDC Bridge: POST /txn/sale (idempotency_key จาก server)
+  • PATCH .../edc-intent/:ref/status → edc_processing
+  • event: bridge_sale_started
+        │
+        ├── Terminal DECLINED → declined + event
+        │
+        └── Terminal APPROVED (response 00)
+              • PATCH .../edc-result (approval_code, terminal_ref, masked_card)
+              • status → edc_approved
+              • event: bridge_approved
+              │
+              ▼
+            POST .../edc-intent/:ref/confirm  (เรียก checkout ภายใน)
+              ├── 200 → confirmed + receipt_id + หักสต็อก
+              │         event: checkout_succeeded
+              │
+              └── fail → approved_unrecorded + failure_reason
+                        event: checkout_failed
+                        [UI] แสดง ref_code + รายการสินค้า + "ติดต่อผู้ดูแล"
+                        [นโยบาย] ส่งของให้ลูกค้าได้ (มีหลักฐานใน DB)</div>
+
+    <h2>6. API Endpoints (Backend)</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Method</th><th>Path</th><th>หน้าที่</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>POST</td><td><code>/pos/edc-intent</code></td><td>สร้าง intent + cart snapshot</td></tr>
+          <tr><td>GET</td><td><code>/pos/edc-intent/:ref</code></td><td>สถานะ + รายการสินค้า + EDC fields</td></tr>
+          <tr><td>PATCH</td><td><code>/pos/edc-intent/:ref/status</code></td><td>edc_processing / cancelled</td></tr>
+          <tr><td>PATCH</td><td><code>/pos/edc-intent/:ref/edc-result</code></td><td>บันทึกผล terminal</td></tr>
+          <tr><td>POST</td><td><code>/pos/edc-intent/:ref/confirm</code></td><td>checkout จาก snapshot (idempotent)</td></tr>
+          <tr><td>POST</td><td><code>/pos/edc-intent/:ref/events</code></td><td>append event (frontend best-effort)</td></tr>
+          <tr><td>POST</td><td><code>/pos/edc-intent/:ref/resolve</code></td><td>admin ปิดเคส manual</td></tr>
+          <tr><td>GET</td><td><code>/admin/pos-sale-attempts</code></td><td>รายการค้าง + filter (shop, status, date)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>7. Frontend (Store POS)</h2>
+    <div class="card">
+      <h3>7.1 <code>EdcPaymentModal.tsx</code></h3>
+      <ul>
+        <li>เปิด modal → สร้าง intent ก่อน <code>edc.sale()</code></li>
+        <li>แสดง <strong>Ref</strong> บนหน้าจอ (ให้แคชเชียร์แจ้ง IT)</li>
+        <li>หลัง approve → confirm ผ่าน API (ไม่เรียก checkout ตรง)</li>
+        <li>ถ้า <code>approved_unrecorded</code> → modal แสดงรายการสินค้า + คำเตือน <strong>ห้ามยิง EDC ซ้ำ</strong></li>
+      </ul>
+
+      <h3>7.2 หน้าจอแคชเชียร์เมื่อค้าง (เฉพาะหน้า)</h3>
+      <ul>
+        <li>รายการสินค้า + ยอดรวม + APPR code (ถ้ามี)</li>
+        <li>ปุ่ม "พิมพ์สลิปชั่วคราว" (ไม่หักสต็อก — แค่ให้ลูกค้า/ร้านถือ)</li>
+        <li>ปุ่ม optional: "ส่งของให้ลูกค้าแล้ว" → event <code>cashier_acknowledged</code></li>
+      </ul>
+    </div>
+
+    <h2>8. Admin UI — ตรวจสอบย้อนหลัง &amp; Reconcile</h2>
+    <div class="card">
+      <p>หน้าใหม่: <strong>POS Sale Attempts</strong> (หรือแท็บใน Reports)</p>
+
+      <h3>8.1 รายการ (ตาราง)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>คอลัมน์</th><th>ตัวอย่าง</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>เวลา</td><td>6 ส.ค. 11:09</td></tr>
+          <tr><td>Ref</td><td>EDC-20260806-XXXX</td></tr>
+          <tr><td>ร้าน</td><td>BookStore</td></tr>
+          <tr><td>แคชเชียร์</td><td>somchai</td></tr>
+          <tr><td>ผู้ซื้อ</td><td>Walk-in / ชื่อ + ISB ID</td></tr>
+          <tr><td>ยอด</td><td>12,520</td></tr>
+          <tr><td>สถานะ</td><td><span class="badge badge-bad">approved_unrecorded</span></td></tr>
+          <tr><td>EDC</td><td>APPR 139350 · ****8433</td></tr>
+          <tr><td>Receipt</td><td>— / R-S0001-…</td></tr>
+        </tbody>
+      </table>
+
+      <h3>8.2 รายละเอียด (drawer)</h3>
+      <ul>
+        <li>ตาราง line items จาก <code>cart_snapshot</code></li>
+        <li>Timeline events</li>
+        <li>ปุ่ม <strong>Retry confirm</strong> — เรียก checkout ซ้ำจาก snapshot</li>
+        <li>ปุ่ม <strong>Mark resolved</strong> + note (void EDC แล้ว / บันทึก manual แล้ว)</li>
+        <li>ลิงก์ไป receipt ถ้า confirm สำเร็จแล้ว</li>
+      </ul>
+
+      <h3>8.3 Filter สำหรับ reconcile สต็อก</h3>
+      <ul>
+        <li><code>approved_unrecorded</code> + ช่วงวันที่ → รายการที่ "ขายจริงที่ EDC แต่ระบบยังไม่หักสต็อก"</li>
+        <li>เปรียบเทียบกับรายงาน EDC จากธนาคาร (APPR code)</li>
+        <li>Export CSV สำหรับ audit</li>
+      </ul>
+    </div>
+
+    <h2>9. นโยบายปฏิบัติการ (Ops)</h2>
+    <div class="card alert warn">
+      <strong>เมื่อ status = approved_unrecorded</strong>
+      <ol>
+        <li>ห้ามกดชำระ EDC ซ้ำ (เสี่ยง double charge)</li>
+        <li>ตรวจรายการใน Admin จาก ref / APPR code</li>
+        <li>ส่งของให้ลูกค้าได้ตามรายการใน snapshot (นโยบายร้าน)</li>
+        <li>Admin กด Retry confirm — ถ้าสำเร็จ → สต็อกหัก + มี receipt</li>
+        <li>ถ้า void ที่ EDC แล้ว → Mark resolved + note</li>
+      </ol>
+    </div>
+
+    <h2>10. แผนดำเนินงาน (Phases)</h2>
+
+    <div class="card phase">
+      <h3>Sprint 1 — MVP ป้องกันข้อมูลหาย (ประมาณ 3–5 วัน)</h3>
+      <ul>
+        <li>Migration: ขยาย <code>payment_intents</code> + สร้าง <code>pos_sale_attempt_events</code></li>
+        <li><code>pos_edc_service.ts</code>: create / edc-result / confirm / get</li>
+        <li>Enrich cart_snapshot ด้วยชื่อสินค้า + payer label</li>
+        <li>Frontend: EdcPaymentModal ผูก intent flow</li>
+        <li>UI error state: แสดงรายการสินค้าเมื่อ <code>approved_unrecorded</code></li>
+        <li>Tests: approve → confirm OK; approve → confirm fail</li>
+      </ul>
+    </div>
+
+    <div class="card phase">
+      <h3>Sprint 2 — Admin &amp; Reconcile (ประมาณ 3–4 วัน)</h3>
+      <ul>
+        <li>หน้า Admin: รายการ attempts + filter + detail drawer</li>
+        <li>Retry confirm + Mark resolved</li>
+        <li>Export CSV</li>
+        <li>Structured log บน <code>PC-03</code> เมื่อ confirm จาก EDC intent</li>
+      </ul>
+    </div>
+
+    <div class="card phase">
+      <h3>Sprint 3 — แข็งแรงขึ้น (optional)</h3>
+      <ul>
+        <li>สลิปชั่วคราว (ไม่หักสต็อก) จาก cart_snapshot</li>
+        <li>ปุ่ม cashier_acknowledged</li>
+        <li>Alert email/Slack เมื่อ <code>approved_unrecorded</code></li>
+        <li>EDC bridge webhook → server (ถ้าแก้ Paywire bridge ได้)</li>
+        <li>ขยาย pattern เดียวกันไป Canteen POS (ถ้าใช้ EDC)</li>
+      </ul>
+    </div>
+
+    <h2>11. SQL ตรวจสอบ (หลัง deploy)</h2>
+    <div class="card">
+      <pre>-- เคสค้างที่ EDC ผ่านแต่ยังไม่มี receipt
+SELECT ref_code, status, amount, edc_approval_code, edc_terminal_ref,
+       payer_label, cart_snapshot, created_at, failure_reason
+FROM payment_intents
+WHERE intent_type = 'pos_edc'
+  AND status IN ('approved_unrecorded', 'edc_approved')
+ORDER BY created_at DESC;
+
+-- รายการสินค้าใน snapshot (PostgreSQL JSON)
+SELECT ref_code,
+       jsonb_array_elements(cart_snapshot->'items') AS line_item
+FROM payment_intents
+WHERE ref_code = 'EDC-20260806-XXXX';</pre>
+    </div>
+
+    <h2>12. Out of scope (รอบนี้)</h2>
+    <div class="card">
+      <ul>
+        <li>Auto void EDC จากระบบ</li>
+        <li>Kiosk EDC top-up (flow แยก)</li>
+        <li>แก้ไขเคส 12,520 ย้อนหลัง (ไม่มีข้อมูลใน DB — ต้อง manual จากใบ EDC)</li>
+      </ul>
+    </div>
+
+    <h2>13. เกณฑ์สำเร็จ (Acceptance)</h2>
+    <div class="card">
+      <ul>
+        <li>ทุกครั้งที่เปิด EDC payment มี row ใน <code>payment_intents</code> พร้อม cart_snapshot ก่อนยิงเครื่อง</li>
+        <li>เคส EDC approve + checkout fail → status <code>approved_unrecorded</code> + เห็นรายการสินค้าบน admin</li>
+        <li>Admin retry confirm สำเร็จ → มี receipt + สต็อกถูกหักครั้งเดียว</li>
+        <li>ค้นหาด้วย APPR code / ref_code / วันที่ได้</li>
+        <li>ไม่มี double receipt เมื่อ retry confirm ซ้ำ</li>
+      </ul>
+    </div>
+
+    <p class="meta">
+      เอกสารนี้: <code>.cursor/docs/EDC_POS_SALE_TRACKING_PLAN.html</code><br />
+      อ้างอิงโค้ด: <code>pos_qr_service.ts</code>, <code>pos_checkout_service.ts</code>, <code>EdcPaymentModal.tsx</code>
+    </p>
+  </div>
+</body>
+</html>
