@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/components/ui/sonner";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, RequestTimeoutError } from "@/lib/api";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import {
     afterPaymentPayer,
@@ -23,6 +23,10 @@ function storeSpendingLimit(s: { daily_limit_store?: number | null; spent_today_
     const spent = s.spent_today_store ?? 0;
     return { daily_limit: s.daily_limit_store, spent_today: spent, remaining: Math.max(0, s.daily_limit_store - spent), group_name: "Daily Store Limit" };
 }
+
+/** Upper bound for a checkout round-trip. Production p100 is ~120ms, so this
+ *  only ever fires on a request that is genuinely stuck. */
+const CHECKOUT_TIMEOUT_MS = 30_000;
 
 interface UseStoreCheckoutArgs {
     shopId: string | null | undefined;
@@ -391,9 +395,16 @@ export function useStoreCheckout({
                 edc_mode: ctx.edcRefs?.mode,
             };
 
+            // A checkout that has not answered in 30s is not going to. Without a
+            // bound the promise never settles, `confirming` stays true and the
+            // EDC modal sits on "Recording receipt…" with dismissal locked —
+            // exactly the dead end a cashier hit on 2026-08-06. 30s is far above
+            // the observed p100 (~120ms in production) so it can only fire on a
+            // genuinely stuck request.
             const receipt = await api.post<{ receipt_number: string; total: number }>(
                 "/pos/checkout",
                 payload,
+                { timeoutMs: CHECKOUT_TIMEOUT_MS },
             );
 
             // Compute remaining balance for wallet payments to show in success modal
@@ -480,7 +491,20 @@ export function useStoreCheckout({
                 receiptNumber: receipt.receipt_number,
             });
         } catch (err: any) {
-            if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
+            if (err instanceof RequestTimeoutError) {
+                // The request may well have been processed — saying "failed"
+                // here is what makes a cashier charge the customer twice.
+                toast.error(
+                    t("checkout.timeoutTitle", "ไม่ทราบผลการบันทึก"),
+                    {
+                        description: t(
+                            "checkout.timeoutHint",
+                            "เซิร์ฟเวอร์ไม่ตอบกลับ — ห้ามชำระซ้ำ ตรวจสอบในรายการขายก่อนว่ามีใบเสร็จแล้วหรือยัง",
+                        ),
+                        duration: 15000,
+                    },
+                );
+            } else if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
                 setWalletLimitError(err.detail);
             } else {
                 const detail = err instanceof ApiError ? err.detail : err?.message ?? "";

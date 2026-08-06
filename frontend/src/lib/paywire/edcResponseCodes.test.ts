@@ -14,7 +14,46 @@
  * Every expectation below cites `docs/edc/sdk-js/GUIDELINE.md` §5/§6.
  */
 import { describe, expect, it } from "vitest";
-import { classifyEdcResponse, isNonStandardApproval } from "./edcResponseCodes";
+import {
+    classifyEdcResponse,
+    isNonStandardApproval,
+    posRefFromIdempotencyKey,
+} from "./edcResponseCodes";
+
+describe("posRefFromIdempotencyKey", () => {
+    it("reproduces the POS reference the bridge actually used in production", () => {
+        // Captured 2026-08-06 from a real terminal: the bridge echoed
+        // pos_ref_no "d31c1a4bc30749859292" for this idempotency key. If this
+        // derivation drifts, QUERY recovery silently targets a reference the
+        // terminal has never heard of, and the slip can no longer be matched to
+        // a telemetry row.
+        expect(posRefFromIdempotencyKey("d31c1a4b-c307-4985-9292-00618832257e"))
+            .toBe("d31c1a4bc30749859292");
+    });
+
+    it("is always 20 characters and hex-only for a UUID input", () => {
+        for (let i = 0; i < 20; i += 1) {
+            const ref = posRefFromIdempotencyKey(crypto.randomUUID());
+            expect(ref).toHaveLength(20);
+            expect(ref).toMatch(/^[0-9a-f]{20}$/);
+        }
+    });
+
+    it("round-trips the POS REF printed on the 2026-08-06 slip", () => {
+        // The failing slip showed POS REF. NO 56d032721d234111a011. Any key
+        // whose first 20 hex characters match must resolve to it, which is what
+        // makes "find the telemetry row for this paper slip" possible.
+        expect(posRefFromIdempotencyKey("56d03272-1d23-4111-a011-000000000000"))
+            .toBe("56d032721d234111a011");
+    });
+
+    it("does not blow up on a short or dashless key", () => {
+        expect(posRefFromIdempotencyKey("abc")).toBe("abc");
+        expect(posRefFromIdempotencyKey("")).toBe("");
+        expect(posRefFromIdempotencyKey("0123456789abcdef0123456789abcdef"))
+            .toBe("0123456789abcdef0123");
+    });
+});
 
 describe("classifyEdcResponse — money is committed", () => {
     it("treats 00 as approved (both protocols)", () => {

@@ -9,10 +9,15 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CheckCircle2, ChevronLeft, CreditCard, Loader2, Nfc, QrCode, XCircle } from "lucide-react";
 import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
 import { logEdcEvent } from "@/lib/paywire/edcTelemetry";
-import { classifyEdcResponse, isNonStandardApproval } from "@/lib/paywire/edcResponseCodes";
+import {
+    classifyEdcResponse,
+    isNonStandardApproval,
+    posRefFromIdempotencyKey,
+} from "@/lib/paywire/edcResponseCodes";
 
 interface EdcRefs {
     approval_code: string;
@@ -80,6 +85,22 @@ export function EdcPaymentModal({
     const [terminalStatus, setTerminalStatus] = useState<"connected" | "disconnected" | "unknown">(
         "unknown",
     );
+    // ── Recovery, for the "terminal charged but we can't record it" dead end ──
+    // Before this existed the cashier's only option was Back: the sale was lost
+    // and the customer had already paid. Two ways out now, in order of
+    // preference: ask the terminal what really happened (LinkPOS QUERY), or let
+    // the cashier type the approval code printed on the slip in front of them.
+    const [recovering, setRecovering] = useState(false);
+    const [recoveryNote, setRecoveryNote] = useState<string | null>(null);
+    const [manualCode, setManualCode] = useState("");
+    /** Details of the attempt that dead-ended, so recovery can finish it. */
+    const lastAttemptRef = useRef<{
+        posRef: string;
+        mode: EdcMode;
+        terminalRef: string;
+        maskedCard: string;
+        responseCode: string;
+    } | null>(null);
 
     // Guards against setState after the modal is closed/unmounted mid-transaction —
     // any in-flight attempt bumps this ref to invalidate itself before touching state.
@@ -141,6 +162,110 @@ export function EdcPaymentModal({
         setDeclineInfo(null);
         setApprovedNoRecord(false);
         setQrShown(false);
+        setRecoveryNote(null);
+        setManualCode("");
+    };
+
+    /**
+     * Finish a dead-ended attempt with an approval code obtained after the fact
+     * — either recovered from the terminal via QUERY, or read off the slip by
+     * the cashier. Same onConfirm path as a normal sale, so it produces a real
+     * receipt and deducts stock exactly once.
+     */
+    const finishWithApprovalCode = async (approvalCode: string, source: "query" | "manual") => {
+        const last = lastAttemptRef.current;
+        if (!last || pendingRef.current) return;
+        pendingRef.current = true;
+        setRecovering(true);
+        try {
+            logEdcEvent({
+                event: "result",
+                context: telemetry?.context ?? "unknown",
+                shop_id: telemetry?.shopId ?? null,
+                idempotency_key: idempotencyKeyRef.current,
+                pos_ref: last.posRef,
+                edc_mode: last.mode,
+                amount: total,
+                response_code: last.responseCode,
+                approval_code: approvalCode,
+                masked_card: last.maskedCard || null,
+                checkout_attempted: true,
+                // Recorded so an audit can tell a normal sale from one rescued
+                // after the fact, and by which route.
+                client_error: `recovered via ${source}`,
+            });
+            setStep("approved");
+            await onConfirm({
+                approval_code: approvalCode,
+                terminal_ref: last.terminalRef || undefined,
+                masked_card: last.maskedCard || undefined,
+                mode: last.mode,
+            });
+        } catch (err) {
+            console.error("[EDC] recovery confirm failed", err);
+            setStep("declined");
+            setRecoveryNote(
+                t("storePos.edcRecoveryConfirmFailed", "บันทึกใบเสร็จไม่สำเร็จ — ลองอีกครั้งหรือแจ้งผู้ดูแลระบบ"),
+            );
+        } finally {
+            pendingRef.current = false;
+            setRecovering(false);
+        }
+    };
+
+    /**
+     * Ask the terminal what actually happened to the dead-ended sale.
+     *
+     * GUIDELINE.md §6: QUERY is the sanctioned way to learn the real outcome
+     * after a lost response, instead of blindly re-charging. The POS reference
+     * is derived from the original idempotency key, so this works even though
+     * we never passed one explicitly.
+     */
+    const runQueryRecovery = async () => {
+        const last = lastAttemptRef.current;
+        if (!last || recovering) return;
+        setRecovering(true);
+        setRecoveryNote(null);
+        try {
+            const edc = getEdcClient();
+            let resolved = false;
+            for await (const ev of edc.query({
+                posRef: last.posRef,
+                idempotencyKey: crypto.randomUUID(),
+            })) {
+                if (ev.kind !== "result") continue;
+                resolved = true;
+                const code = (ev.approvalCode ?? "").trim();
+                const outcome = classifyEdcResponse(ev.responseCode);
+                if (outcome === "approved" && code) {
+                    await finishWithApprovalCode(code, "query");
+                } else if (outcome === "approved") {
+                    setRecoveryNote(
+                        t("storePos.edcQueryApprovedNoCode", "เครื่องยืนยันว่าอนุมัติแล้ว แต่ยังไม่ได้รหัสอนุมัติ — กรอกจากสลิปด้านล่าง"),
+                    );
+                } else {
+                    // NE = "transaction does not exist" per GUIDELINE §5, i.e.
+                    // nothing was charged after all.
+                    setRecoveryNote(
+                        t(
+                            "storePos.edcQueryNotCharged",
+                            "เครื่องแจ้งว่าไม่มีรายการนี้ ({{code}}) — แปลว่ายังไม่ถูกตัดเงิน เริ่มรายการใหม่ได้",
+                            { code: String(ev.responseCode) },
+                        ),
+                    );
+                }
+            }
+            if (!resolved) {
+                setRecoveryNote(t("storePos.edcQueryNoAnswer", "เครื่องไม่ตอบกลับ — กรอกรหัสจากสลิปด้านล่างแทน"));
+            }
+        } catch (err) {
+            console.error("[EDC] query recovery failed", err);
+            setRecoveryNote(
+                t("storePos.edcQueryFailed", "ตรวจสอบกับเครื่องไม่สำเร็จ — กรอกรหัสจากสลิปด้านล่างแทน"),
+            );
+        } finally {
+            setRecovering(false);
+        }
     };
 
     const runAttempt = async (mode: EdcMode) => {
@@ -174,6 +299,7 @@ export function EdcPaymentModal({
                 context: telemetry?.context ?? "unknown",
                 shop_id: telemetry?.shopId ?? null,
                 idempotency_key: idempotencyKeyRef.current,
+                pos_ref: posRefFromIdempotencyKey(idempotencyKeyRef.current),
                 edc_mode: mode,
                 amount: chargeAmount,
                 checkout_attempted: false,
@@ -225,6 +351,10 @@ export function EdcPaymentModal({
                         context: telemetry?.context ?? "unknown",
                         shop_id: telemetry?.shopId ?? null,
                         idempotency_key: idempotencyKeyRef.current,
+                        // Prefer what the bridge echoed; fall back to the derived
+                        // value so this column is never empty.
+                        pos_ref: ev.fields?.["pos_ref_no"]?.trim()
+                            || posRefFromIdempotencyKey(idempotencyKeyRef.current),
                         edc_mode: mode,
                         amount: chargeAmount,
                         response_code: String(ev.responseCode),
@@ -273,6 +403,8 @@ export function EdcPaymentModal({
                                             context: telemetry?.context ?? "unknown",
                                             shop_id: telemetry?.shopId ?? null,
                                             idempotency_key: idempotencyKeyRef.current,
+                                            pos_ref: ev.fields?.["pos_ref_no"]?.trim()
+                                                || posRefFromIdempotencyKey(idempotencyKeyRef.current),
                                             edc_mode: mode,
                                             amount: chargeAmount,
                                             response_code: String(ev.responseCode),
@@ -292,6 +424,16 @@ export function EdcPaymentModal({
                                 // intentionally not offered (see below). Surfaced as a distinct
                                 // "approved but unrecorded" state so cashiers never retry blindly.
                                 console.log(`[EDC] attempt #${attemptId} approved but no approval code returned`);
+                                // Stash what recovery needs — the POS reference
+                                // above all, since QUERY is keyed on it.
+                                lastAttemptRef.current = {
+                                    posRef: ev.fields?.["pos_ref_no"]?.trim()
+                                        || posRefFromIdempotencyKey(idempotencyKeyRef.current),
+                                    mode,
+                                    terminalRef: nextTerminalRef.trim(),
+                                    maskedCard: nextMaskedCard.trim(),
+                                    responseCode: String(ev.responseCode),
+                                };
                                 setApprovedNoRecord(true);
                                 setDeclineInfo({
                                     // Show the raw code for the non-"00" approvals (offline /
@@ -332,6 +474,7 @@ export function EdcPaymentModal({
                 context: telemetry?.context ?? "unknown",
                 shop_id: telemetry?.shopId ?? null,
                 idempotency_key: idempotencyKeyRef.current,
+                pos_ref: posRefFromIdempotencyKey(idempotencyKeyRef.current),
                 edc_mode: mode,
                 amount: total,
                 checkout_attempted: false,
@@ -547,6 +690,59 @@ export function EdcPaymentModal({
                             >
                                 {t("storePos.edcTryAgain", "Try again")}
                             </Button>
+                        )}
+
+                        {/* Way out of the dead end. Never a "Try again" here —
+                            the customer has already been charged, so the only
+                            safe moves are to ask the terminal what happened or
+                            to record the code printed on the slip. */}
+                        {approvedNoRecord && lastAttemptRef.current && (
+                            <div className="space-y-3 rounded-xl border border-border p-3">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="w-full gap-2 h-11"
+                                    disabled={recovering || confirming}
+                                    onClick={() => void runQueryRecovery()}
+                                >
+                                    {recovering
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <Nfc className="h-4 w-4" />}
+                                    {t("storePos.edcQueryTerminal", "ตรวจสอบรายการล่าสุดกับเครื่อง")}
+                                </Button>
+
+                                {recoveryNote && (
+                                    <p className="text-xs text-amber-700 dark:text-amber-400">{recoveryNote}</p>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs text-muted-foreground" htmlFor="edc-manual-appr">
+                                        {t("storePos.edcManualApprLabel", "หรือกรอก APPR.CODE จากสลิป")}
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="edc-manual-appr"
+                                            value={manualCode}
+                                            inputMode="numeric"
+                                            autoComplete="off"
+                                            placeholder="139350"
+                                            maxLength={32}
+                                            disabled={recovering || confirming}
+                                            onChange={(e) => setManualCode(e.target.value)}
+                                        />
+                                        <Button
+                                            type="button"
+                                            disabled={!manualCode.trim() || recovering || confirming}
+                                            onClick={() => void finishWithApprovalCode(manualCode.trim(), "manual")}
+                                        >
+                                            {t("storePos.edcRecordSale", "บันทึกการขาย")}
+                                        </Button>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        POS REF: <span className="font-mono">{lastAttemptRef.current.posRef}</span>
+                                    </p>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}

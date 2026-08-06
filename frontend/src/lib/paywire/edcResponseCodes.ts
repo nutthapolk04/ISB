@@ -36,6 +36,28 @@ const APPROVED_RESPONSE_CODES = new Set(["00", "Y1", "Y3", "DR", "DI"]);
  */
 const CANCELLED_RESPONSE_CODES = new Set(["UC", "CN", "XC"]);
 
+/**
+ * The POS reference the bridge will use for a given idempotency key.
+ *
+ * GUIDELINE.md §6: "It becomes the request id and (on LinkPOS) the POS
+ * reference if you don't pass `posRef` explicitly." Confirmed against a real
+ * production transaction on 2026-08-06 — the bridge echoed
+ * `pos_ref_no: "d31c1a4bc30749859292"` for idempotency key
+ * `d31c1a4b-c307-4985-9292-00618832257e`, i.e. the dashes stripped and the
+ * result truncated to 20 characters.
+ *
+ * Deriving it rather than passing one buys two things:
+ *   1. `query()` recovery works for an attempt whose result was lost, because
+ *      the reference is known from the moment the key is generated — even if
+ *      the terminal never replied.
+ *   2. The POS REF printed on the paper slip can be matched back to a
+ *      telemetry row, which is the only bridge between "the customer has a
+ *      slip" and "what our system saw".
+ */
+export function posRefFromIdempotencyKey(key: string): string {
+    return key.replace(/-/g, "").slice(0, 20);
+}
+
 export type EdcOutcome = "approved" | "cancelled" | "declined";
 
 /**
