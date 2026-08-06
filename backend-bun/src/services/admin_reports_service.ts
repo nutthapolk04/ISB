@@ -291,12 +291,88 @@ export interface TransferReportRow {
     id: number;
     created_at: string;
     from_name: string;
+    /**
+     * The sender's ISB ID (`external_id`) — the report's "From › ISB ID"
+     * sub-column. Falls back to the party's local code when PowerSchool hasn't
+     * synced one (student_code/customer_code for a customer, username for a
+     * user, department_code for a department — departments have no external_id
+     * at all), so a row is never unidentifiable.
+     *
+     * Wire name stays `from_code`/`to_code` on purpose: frontend and backend
+     * deploy separately here, so a stable key lets either ship first.
+     */
     from_code: string;
     to_name: string;
     to_code: string;
     amount: number;
     note: string | null;
+    /**
+     * Creator of the transfer. No longer rendered as a column, but kept in the
+     * DTO so an older frontend build still works during a split deploy — and
+     * it still feeds the `q` free-text search server-side.
+     */
     transferred_by: string;
+}
+
+/** Wallet-owner shapes the transfer report can resolve. Only the fields the
+ *  resolver reads are required, so tests can pass plain literals. */
+export type TransferCustomerLike = Pick<
+    typeof customers.$inferSelect,
+    "name" | "externalId" | "studentCode" | "customerCode"
+>;
+export type TransferUserLike = Pick<
+    typeof users.$inferSelect,
+    "fullName" | "username" | "externalId"
+>;
+export type TransferDepartmentLike = Pick<
+    typeof departments.$inferSelect,
+    "departmentName" | "departmentCode"
+>;
+
+export interface TransferParty {
+    name: string;
+    /** ISB ID (external_id) when synced, else the party's local code. */
+    code: string;
+}
+
+export const TRANSFER_PARTY_UNKNOWN: TransferParty = { name: "—", code: "—" };
+
+/**
+ * Resolve one side (From or To) of a transfer into its display name + ISB ID.
+ *
+ * A wallet is owned by exactly one of customer / user / department, but the
+ * caller passes whichever it looked up so this stays a pure function — mirrors
+ * resolveAdjustmentEntity() above, and is extracted from transferReport()'s
+ * closure for the same reason: so the ID-precedence rules are unit testable
+ * without a database.
+ *
+ * `||` rather than `??` throughout: PowerSchool sync has historically written
+ * "" instead of NULL, and `??` would let an empty string through as a blank
+ * ISB ID column.
+ */
+export function resolveTransferParty(owner: {
+    customer?: TransferCustomerLike | null;
+    user?: TransferUserLike | null;
+    department?: TransferDepartmentLike | null;
+}): TransferParty {
+    const { customer, user, department } = owner;
+    if (customer) {
+        return {
+            name: customer.name,
+            code: customer.externalId || customer.studentCode || customer.customerCode,
+        };
+    }
+    if (user) {
+        return {
+            name: user.fullName || user.username,
+            code: user.externalId || user.username,
+        };
+    }
+    if (department) {
+        // departments carry no external_id — department_code is the only ID.
+        return { name: department.departmentName, code: department.departmentCode };
+    }
+    return { ...TRANSFER_PARTY_UNKNOWN };
 }
 
 export interface TransferReportResponseDTO {
@@ -365,23 +441,43 @@ export async function transferReport(args: {
     const userById = new Map(userRows.map((u) => [u.id, u] as const));
     const departmentById = new Map(departmentRows.map((d) => [d.id, d] as const));
 
-    function resolveWalletNameCode(walletId: number | null): { name: string; code: string } {
-        if (walletId === null) return { name: "—", code: "—" };
+    function resolveWalletNameCode(walletId: number | null): TransferParty {
+        if (walletId === null) return { ...TRANSFER_PARTY_UNKNOWN };
         const w = walletById.get(walletId);
-        if (!w) return { name: "—", code: "—" };
+        if (!w) return { ...TRANSFER_PARTY_UNKNOWN };
+        return resolveTransferParty({
+            customer: w.customerId !== null ? customerById.get(w.customerId) : null,
+            user: w.userId !== null ? userById.get(w.userId) : null,
+            department: w.departmentId !== null ? departmentById.get(w.departmentId) : null,
+        });
+    }
+
+    /**
+     * Every identifier a wallet's owner can be searched by.
+     *
+     * The displayed code is now external_id, so matching `q` against the row's
+     * visible fields alone would silently stop finding a student by their
+     * student_code / customer_code (or a staff member by username) — searches
+     * that worked before this column became "ISB ID". Search over all of them.
+     */
+    function walletSearchAliases(walletId: number | null): string[] {
+        if (walletId === null) return [];
+        const w = walletById.get(walletId);
+        if (!w) return [];
+        const out: (string | null | undefined)[] = [];
         if (w.customerId !== null) {
             const c = customerById.get(w.customerId);
-            if (c) return { name: c.name, code: c.studentCode ?? c.customerCode };
+            if (c) out.push(c.externalId, c.studentCode, c.customerCode);
         }
         if (w.userId !== null) {
             const u = userById.get(w.userId);
-            if (u) return { name: u.fullName || u.username, code: u.username };
+            if (u) out.push(u.externalId, u.username);
         }
         if (w.departmentId !== null) {
             const d = departmentById.get(w.departmentId);
-            if (d) return { name: d.departmentName, code: d.departmentCode };
+            if (d) out.push(d.departmentCode);
         }
-        return { name: "—", code: "—" };
+        return out.filter((v): v is string => Boolean(v));
     }
 
     const q = args.q?.trim().toLowerCase() || null;
@@ -398,7 +494,11 @@ export async function transferReport(args: {
         const by = creator ? (creator.fullName || creator.username) : "—";
 
         if (q) {
-            const haystack = [from.name, from.code, to.name, to.code, by, note ?? ""].join(" ").toLowerCase();
+            const haystack = [
+                from.name, from.code, to.name, to.code, by, note ?? "",
+                ...walletSearchAliases(tx.walletId),
+                ...walletSearchAliases(tx.referenceId),
+            ].join(" ").toLowerCase();
             if (!haystack.includes(q)) continue;
         }
 
