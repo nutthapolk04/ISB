@@ -92,6 +92,13 @@
       "when": 1786084866974,
       "tag": "0012_add_cart_snapshot_to_edc_events",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786102354501,
+      "tag": "0013_add_received_date_to_shop_movements",
+      "breakpoints": true
     }
   ]
 }

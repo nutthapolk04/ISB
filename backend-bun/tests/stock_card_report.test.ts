@@ -28,6 +28,7 @@ import {
     sumStockCardGrandTotal,
     type StockCardProductBlockDTO,
 } from "@/services/report_service";
+import { receiveStock } from "@/services/shop_product_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
 const DB_URL = process.env.DATABASE_URL ?? "";
@@ -147,6 +148,7 @@ async function seedMovement(opts: {
     saleAmount: number | null;
     date: string;
     createdAt: string;
+    receivedDate?: string | null;
 }): Promise<number> {
     const [m] = await db
         .insert(shopMovements)
@@ -162,6 +164,7 @@ async function seedMovement(opts: {
             costPerUnit: opts.costPerUnit === null ? null : String(opts.costPerUnit),
             saleAmount: opts.saleAmount === null ? null : String(opts.saleAmount),
             createdAt: opts.createdAt,
+            receivedDate: opts.receivedDate ?? null,
         })
         .returning({ id: shopMovements.id });
     return m.id;
@@ -387,6 +390,183 @@ describe("stockCardReport (DB) — Grand Total", () => {
             expect(res.grand_total.qty_out).toBe(expected.qty_out);
             expect(res.grand_total.amount_in).toBeCloseTo(expected.amount_in, 2);
             expect(res.grand_total.amount_out).toBeCloseTo(expected.amount_out, 2);
+        },
+        DB_TIMEOUT_MS,
+    );
+});
+
+// ── received_date ─────────────────────────────────────────────────────────
+
+describe("stockCardReport (DB) — received_date is display-only", () => {
+    it.if(HAS_DB)(
+        "surfaces the delivery date on receive rows and null everywhere else",
+        async () => {
+            if (!dbOk) return;
+            const code = `${TAG}-RD`;
+            const productIds: number[] = [];
+            const movementIds: number[] = [];
+            try {
+                const pid = await seedProduct({ code, avgCost: 30, stock: 8 });
+                productIds.push(pid);
+                // Goods arrived on the 1st, keyed in on the 5th.
+                movementIds.push(await seedMovement({
+                    productId: pid, type: "receive", quantity: 10,
+                    stockBefore: 0, stockAfter: 10, costPerUnit: 30, saleAmount: null,
+                    date: "2026-05-05", createdAt: "2026-05-05T03:00:00.000Z",
+                    receivedDate: "2026-05-01",
+                }));
+                movementIds.push(await seedMovement({
+                    productId: pid, type: "sale", quantity: 2,
+                    stockBefore: 10, stockAfter: 8, costPerUnit: null, saleAmount: 500,
+                    date: "2026-05-06", createdAt: "2026-05-06T03:00:00.000Z",
+                    receivedDate: null,
+                }));
+
+                const res = await stockCardReport({
+                    user: adminUser, shopId: SHOP_ID,
+                    dateFrom: "2026-05-01", dateTo: "2026-05-31",
+                    productSearch: code,
+                });
+                const b = res.products.find((x) => x.product_code === code)!;
+
+                const recv = b.rows.find((r) => r.description === "Receive")!;
+                expect(recv.received_date).toBe("2026-05-01");
+                // The Date column still shows the entry date, not the delivery
+                // date — the two are meant to sit side by side.
+                expect(recv.date?.slice(0, 10)).toBe("2026-05-05");
+
+                // Only a receive has a delivery date; the UI prints "-" for the rest.
+                for (const r of b.rows.filter((x) => x.description !== "Receive")) {
+                    expect(r.received_date).toBeNull();
+                }
+            } finally {
+                if (movementIds.length) await db.delete(shopMovements).where(inArray(shopMovements.id, movementIds));
+                if (productIds.length) await db.delete(shopProducts).where(inArray(shopProducts.id, productIds));
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "changes NOTHING about ordering, balances or cost when a receive is backdated",
+        async () => {
+            if (!dbOk) return;
+            // The load-bearing guarantee of this feature: received_date is
+            // informational. Two products with identical histories — one with a
+            // backdated delivery, one without — must produce identical rows in
+            // every column except received_date itself. If that ever stops
+            // being true, balances and average cost have started depending on a
+            // hand-typed date and will disagree with balance_file_service and
+            // shop_products.avg_cost.
+            const plain = `${TAG}-N1`;
+            const backdated = `${TAG}-N2`;
+            const productIds: number[] = [];
+            const movementIds: number[] = [];
+            try {
+                for (const [code, recvDate] of [[plain, null], [backdated, "2026-06-01"]] as const) {
+                    const pid = await seedProduct({ code, avgCost: 50, stock: 5 });
+                    productIds.push(pid);
+                    movementIds.push(await seedMovement({
+                        productId: pid, type: "receive", quantity: 10,
+                        stockBefore: 0, stockAfter: 10, costPerUnit: 50, saleAmount: null,
+                        date: "2026-06-10", createdAt: "2026-06-10T03:00:00.000Z",
+                        receivedDate: recvDate,
+                    }));
+                    movementIds.push(await seedMovement({
+                        productId: pid, type: "sale", quantity: 5,
+                        stockBefore: 10, stockAfter: 5, costPerUnit: null, saleAmount: 800,
+                        date: "2026-06-11", createdAt: "2026-06-11T03:00:00.000Z",
+                        receivedDate: null,
+                    }));
+                }
+
+                const res = await stockCardReport({
+                    user: adminUser, shopId: SHOP_ID,
+                    dateFrom: "2026-06-01", dateTo: "2026-06-30",
+                    productSearch: `${TAG}-N`,
+                });
+                const a = res.products.find((x) => x.product_code === plain)!;
+                const c = res.products.find((x) => x.product_code === backdated)!;
+
+                const strip = (b: typeof a) => b.rows.map(({ received_date, ...rest }) => rest);
+                expect(strip(c)).toEqual(strip(a));
+                expect(c.total_qty_in).toBe(a.total_qty_in);
+                expect(c.total_amount_out).toBe(a.total_amount_out);
+                expect(c.closing_amount_balance).toBe(a.closing_amount_balance);
+
+                // …and the delivery date really did differ, so the comparison
+                // above was not vacuous.
+                expect(c.rows.find((r) => r.description === "Receive")!.received_date).toBe("2026-06-01");
+                expect(a.rows.find((r) => r.description === "Receive")!.received_date).toBeNull();
+            } finally {
+                if (movementIds.length) await db.delete(shopMovements).where(inArray(shopMovements.id, movementIds));
+                if (productIds.length) await db.delete(shopProducts).where(inArray(shopProducts.id, productIds));
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+});
+
+// ── Write path ────────────────────────────────────────────────────────────
+
+describe("receiveStock — received_date", () => {
+    it.if(HAS_DB)(
+        "stores the entered delivery date without moving the entry date",
+        async () => {
+            if (!dbOk) return;
+            const code = `${TAG}-W1`;
+            const productIds: number[] = [];
+            try {
+                const pid = await seedProduct({ code, avgCost: 0, stock: 0 });
+                productIds.push(pid);
+                await receiveStock({
+                    shopId: SHOP_ID,
+                    userId: 1,
+                    items: [{ product_id: pid, qty: 5, cost_per_unit: 12, received_date: "2026-02-14" }],
+                });
+                const [m] = await db.select().from(shopMovements)
+                    .where(eq(shopMovements.productId, pid));
+                expect(m.receivedDate).toBe("2026-02-14");
+                // `date` is what balance_file / monthly_stock / the period-close
+                // backdate check read — it must stay the day of entry.
+                expect(m.date).toBe(new Date().toISOString().slice(0, 10));
+            } finally {
+                await db.delete(shopMovements).where(inArray(shopMovements.productId, productIds));
+                if (productIds.length) await db.delete(shopProducts).where(inArray(shopProducts.id, productIds));
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "falls back to today when the date is omitted or malformed",
+        async () => {
+            if (!dbOk) return;
+            // Callers that predate this field (an older frontend bundle, the
+            // xlsx importer) send nothing — they must keep working, stamped
+            // with today exactly as before.
+            const today = new Date().toISOString().slice(0, 10);
+            const productIds: number[] = [];
+            try {
+                for (const bad of [undefined, null, "", "14/02/2026", "not-a-date", "2026-2-4"]) {
+                    const code = `${TAG}-W-${String(bad).slice(0, 6)}-${productIds.length}`;
+                    const pid = await seedProduct({ code, avgCost: 0, stock: 0 });
+                    productIds.push(pid);
+                    await receiveStock({
+                        shopId: SHOP_ID,
+                        userId: 1,
+                        items: [{ product_id: pid, qty: 1, cost_per_unit: 1, received_date: bad as string | null | undefined }],
+                    });
+                    const [m] = await db.select().from(shopMovements)
+                        .where(eq(shopMovements.productId, pid));
+                    expect(m.receivedDate).toBe(today);
+                }
+            } finally {
+                if (productIds.length) {
+                    await db.delete(shopMovements).where(inArray(shopMovements.productId, productIds));
+                    await db.delete(shopProducts).where(inArray(shopProducts.id, productIds));
+                }
+            }
         },
         DB_TIMEOUT_MS,
     );

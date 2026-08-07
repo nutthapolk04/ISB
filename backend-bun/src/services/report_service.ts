@@ -683,6 +683,14 @@ export async function voidReport(args: {
 
 export interface StockCardRowDTO {
     date: string | null;
+    /**
+     * When the goods physically arrived, for `receive` rows only — null on
+     * every other movement type, which the UI renders as "-".
+     *
+     * Purely informational: the report still orders, filters and values by
+     * `date` (the entry timestamp), so this column cannot move a balance.
+     */
+    received_date: string | null;
     description: string;
     invoice_no: string | null;
     qty_in: number;
@@ -802,6 +810,7 @@ async function buildProductBlock(
     const rows: StockCardRowDTO[] = [
         {
             date: null,
+            received_date: null,
             description: "Beginning Balance",
             invoice_no: null,
             qty_in: 0,
@@ -858,6 +867,7 @@ async function buildProductBlock(
         const balance = m.stockAfter;
         rows.push({
             date: pgToIso(m.createdAt),
+            received_date: m.receivedDate ?? null,
             description: MOVEMENT_DESCRIPTION[typeStr] ?? typeStr,
             invoice_no: m.reference ?? null,
             qty_in: qtyIn,
@@ -883,6 +893,7 @@ async function buildProductBlock(
     const closingCost = state.avg;
     rows.push({
         date: null,
+        received_date: null,
         description: "Closing Balance",
         invoice_no: null,
         qty_in: 0,

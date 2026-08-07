@@ -742,6 +742,20 @@ export const shopMovements = pgTable("shop_movements", {
 	reversesId: integer("reverses_id"),
 	reversedById: integer("reversed_by_id"),
 	saleAmount: numeric("sale_amount", { precision: 10, scale:  2 }),
+	/**
+	 * When the goods physically arrived, as entered by the person receiving
+	 * them — which can be earlier than when they got keyed in (delivered on the
+	 * 1st, entered on the 5th).
+	 *
+	 * Display only. Nothing sorts, filters or values by this: the Stock Card
+	 * still orders and prices by created_at, so balances and average cost are
+	 * untouched and stay consistent with balance_file_service and
+	 * shop_products.avg_cost. It exists so a reader can see the real delivery
+	 * date next to the entry date, nothing more.
+	 *
+	 * Only meaningful on type='receive'; null everywhere else.
+	 */
+	receivedDate: date("received_date"),
 }, (table) => [
 	index("ix_shop_movements_date").using("btree", table.date.asc().nullsLast().op("date_ops")),
 	index("ix_shop_movements_product_id").using("btree", table.productId.asc().nullsLast().op("int4_ops")),

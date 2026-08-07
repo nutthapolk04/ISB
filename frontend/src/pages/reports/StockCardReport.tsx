@@ -32,6 +32,8 @@ interface ShopOption { id: string; name: string; }
 
 interface StockCardRow {
   date: string | null;
+  /** Real delivery date — receive rows only, null elsewhere (rendered "-"). */
+  received_date?: string | null;
   description: string;
   invoice_no: string | null;
   qty_in: number;
@@ -182,6 +184,10 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
 
     const columns: ReportColumn[] = [
       { header: "Date", key: "date", format: "date", width: 60 },
+      // Pre-formatted as text, not format:"date" — the placeholder for rows
+      // with no delivery date has to be the same character the web table
+      // shows, and a date formatter would render its own dash instead.
+      { header: "Received Date", key: "received_date", width: 62 },
       { header: "Description", key: "description", width: 80 },
       { header: "Invoice No.", key: "invoice_no", width: 95 },
       { header: "Qty In", key: "qty_in", format: "number", width: 45 },
@@ -211,6 +217,9 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
         body.push({
           ...(isClosing ? { [EMPHASIS_KEY]: "subtotal" as const } : {}),
           date: r.date ?? "",
+          // "-" rather than blank: a movement that simply has no delivery date
+          // should read as "not applicable", not as missing data.
+          received_date: r.received_date ? fmtDate(r.received_date) : "-",
           description: r.description,
           invoice_no: r.invoice_no ?? "",
           qty_in: r.qty_in || "",
@@ -227,6 +236,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
       body.push({
         [EMPHASIS_KEY]: "total" as const,
         date: "",
+        received_date: "",
         description: "Total :",
         invoice_no: "",
         qty_in: block.total_qty_in,
@@ -441,6 +451,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="px-2 py-2 text-left">{t("reports.colDate")}</th>
+                        <th className="px-2 py-2 text-left">Received Date</th>
                         <th className="px-2 py-2 text-left">Description</th>
                         <th className="px-2 py-2 text-left">Invoice No.</th>
                         <th className="px-2 py-2 text-right">Qty In</th>
@@ -456,7 +467,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                       {stockCardData.products.map((block) => (
                         <React.Fragment key={block.product_variant_id}>
                           <tr className="border-t bg-secondary/40">
-                            <td className="px-2 py-2 font-semibold" colSpan={10}>
+                            <td className="px-2 py-2 font-semibold" colSpan={11}>
                               Product Code {block.product_code} &nbsp;&nbsp; {block.product_name}
                             </td>
                           </tr>
@@ -464,6 +475,9 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                             <tr key={`${block.product_variant_id}-${i}`} className="border-t">
                               <td className="px-2 py-1 whitespace-nowrap">
                                 {row.date ? fmtDate(row.date) : ""}
+                              </td>
+                              <td className="px-2 py-1 whitespace-nowrap">
+                                {row.received_date ? fmtDate(row.received_date) : "-"}
                               </td>
                               <td className="px-2 py-1">{row.description}</td>
                               <td className="px-2 py-1">{row.invoice_no ?? ""}</td>
@@ -477,6 +491,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                             </tr>
                           ))}
                           <tr className="border-t font-semibold bg-muted/30">
+                            <td className="px-2 py-1"></td>
                             <td className="px-2 py-1"></td>
                             <td className="px-2 py-1">Total :</td>
                             <td></td>
@@ -496,6 +511,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                           number with no meaning. */}
                       {stockCardData.grand_total && (
                         <tr className="border-t-2 border-foreground/30 font-bold bg-muted/60">
+                          <td className="px-2 py-1"></td>
                           <td className="px-2 py-1"></td>
                           <td className="px-2 py-1">Grand Total</td>
                           <td></td>
