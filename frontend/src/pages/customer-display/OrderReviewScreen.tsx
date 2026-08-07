@@ -114,8 +114,24 @@ export function OrderReviewScreen({ items, total, payer }: Props) {
           </span>
         </div>
         {payer && (
-          <div className="max-w-3xl mx-auto mt-3 text-amber-50 text-sm">
-            <span>Paying as <b>{payer.name}</b>{payer.role ? ` · ${payer.role}` : ""}</span>
+          <div className="max-w-3xl mx-auto mt-4 flex items-baseline justify-between gap-4 text-black">
+            <span className="text-3xl font-bold truncate">
+              {payer.name}
+              {payer.role && (
+                <span className="ml-2 text-lg font-normal text-zinc-800">
+                  · {payer.role}
+                </span>
+              )}
+            </span>
+            {payer.balanceBefore !== null && (
+              <span className="text-2xl font-semibold tabular-nums whitespace-nowrap">
+                Balance ฿
+                {payer.balanceBefore.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            )}
           </div>
         )}
       </footer>
