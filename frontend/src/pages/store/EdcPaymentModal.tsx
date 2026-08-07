@@ -170,6 +170,18 @@ export function EdcPaymentModal({
         };
     }, [open]);
 
+    // EDC only offers card for now (QR is commented out below) — jump straight
+    // into the sale the instant the modal opens instead of making the cashier
+    // pick from a sub-menu with a single option. The "choice" screen still
+    // exists as the retry launchpad a cancel/decline bounces back to; it just
+    // isn't shown on first entry anymore.
+    useEffect(() => {
+        if (open) {
+            handleSelectMode("card");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+
     const resetAttemptState = () => {
         setDeclineInfo(null);
         setApprovedNoRecord(false);
@@ -656,7 +668,10 @@ export function EdcPaymentModal({
                 </DialogHeader>
 
                 {step === "choice" && (
-                    <div className="grid grid-cols-2 gap-4 pt-1">
+                    <div className="grid grid-cols-1 gap-4 pt-1">
+                        {/* QR Code temporarily disabled — EDC now goes straight to
+                        card (see the auto-start effect above), this screen only
+                        ever renders as a retry launchpad after a cancel/decline.
                         <button
                             type="button"
                             onClick={() => handleSelectMode("qr")}
@@ -668,6 +683,7 @@ export function EdcPaymentModal({
                             </div>
                             <div className="font-semibold">{t("storePos.edcModeQr", "QR CODE")}</div>
                         </button>
+                        */}
                         <button
                             type="button"
                             onClick={() => handleSelectMode("card")}
