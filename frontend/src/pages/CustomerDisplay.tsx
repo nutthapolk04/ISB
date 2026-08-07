@@ -27,10 +27,36 @@ export default function CustomerDisplay() {
     const display = useDisplayState();
     const [forceStandby, setForceStandby] = useState(false);
 
+    // Most browsers reject a Fullscreen API call that isn't a direct result of
+    // a user gesture, so firing it here on mount often gets silently rejected
+    // (the `.catch` below just swallows that). Try it anyway — some browsers
+    // carry the opener's click activation over to a freshly `window.open()`'d
+    // popup — but also arm a one-time click listener as a guaranteed fallback:
+    // the cashier's first tap on this window (e.g. while dragging it to the
+    // second monitor) is a real gesture the API will always honour. Re-armed
+    // on fullscreenchange so leaving fullscreen (Escape, alt-tab) doesn't
+    // strand the display outside it with no way back short of a reload.
     useEffect(() => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => { });
-        }
+        const enterFullscreen = () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => { });
+            }
+        };
+
+        enterFullscreen();
+        document.addEventListener("click", enterFullscreen, { once: true });
+
+        const onFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                document.addEventListener("click", enterFullscreen, { once: true });
+            }
+        };
+        document.addEventListener("fullscreenchange", onFullscreenChange);
+
+        return () => {
+            document.removeEventListener("click", enterFullscreen);
+            document.removeEventListener("fullscreenchange", onFullscreenChange);
+        };
     }, []);
 
     // Whenever a fresh non-terminal state arrives, clear the "force standby"
