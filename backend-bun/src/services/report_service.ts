@@ -703,6 +703,26 @@ export interface StockCardProductBlockDTO {
     total_qty_out: number;
     total_amount_in: number;
     total_amount_out: number;
+    /** Value of this product's stock at the end of the period (the Closing
+     *  Balance row's amount). Surfaced so the report-level grand total can add
+     *  up inventory value without the caller re-reading the last row. */
+    closing_amount_balance: number;
+}
+
+/**
+ * Report-wide totals, rendered as the single Grand Total line at the very end.
+ *
+ * Only the additive columns are here. Quantity balance is deliberately absent:
+ * summing units across products that have different units of measure produces
+ * a number with no meaning. Amount balance IS summable — money is money — and
+ * is the useful figure (total inventory value at the end of the period).
+ */
+export interface StockCardGrandTotalDTO {
+    qty_in: number;
+    qty_out: number;
+    amount_in: number;
+    amount_out: number;
+    amount_balance: number;
 }
 
 export interface StockCardReportDTO {
@@ -711,6 +731,7 @@ export interface StockCardReportDTO {
     date_from: string;
     date_to: string;
     products: StockCardProductBlockDTO[];
+    grand_total: StockCardGrandTotalDTO;
 }
 
 const MOVEMENT_DESCRIPTION: Record<string, string> = {
@@ -812,9 +833,16 @@ async function buildProductBlock(
         // delivery; every other movement type shows the avg cost basis in
         // effect at that moment (the value COGS is valued at) — never the
         // selling price or any other per-row value. Matches
-        // balance_file_service.ts's in_unit_cost / out_avg_cost split. This is
-        // still the Cost/Unit column's value, deliberately unchanged below —
-        // only Amt Out / Amt In switch to real sale revenue when available.
+        // balance_file_service.ts's in_unit_cost / out_avg_cost split.
+        //
+        // Amt In / Amt Out are valued on this same basis. They used to switch
+        // to `sale_amount` (the real receipt line_total) for sale legs, added
+        // in c451005 for revenue tracking — reverted on request 2026-08-07:
+        // this is a stock card, so both amount columns must read as inventory
+        // value moving in and out, not as revenue. `sale_amount` is still
+        // written to shop_movements and still used by balance_file_service —
+        // only this report's interpretation changed, so the two now answer
+        // different questions on purpose. Do not "re-align" them.
         const cost = typeStr === "receive" ? receivedCost : avgBefore;
         // Bucket by the actual stock change (stock_after - stock_before), not by
         // the sign of `quantity` — `quantity`'s sign convention isn't consistent
@@ -825,15 +853,8 @@ async function buildProductBlock(
         const delta = m.stockAfter - m.stockBefore;
         const qtyIn = delta > 0 ? delta : 0;
         const qtyOut = delta < 0 ? -delta : 0;
-        // sale_amount is the real amount charged/refunded for this row (a
-        // receipt line_total, or the original sale's line_total for its void) —
-        // null for receive/adjustment and for bundle sub-item rows (no clean
-        // per-component allocation), which keep the cost-basis fallback.
-        const saleAmt = m.saleAmount !== null ? pgNumber(m.saleAmount) : null;
-        const isSaleOut = qtyOut > 0 && (typeStr === "sale" || typeStr === "internal_use" || typeStr === "exchange") && saleAmt !== null;
-        const isVoidIn = qtyIn > 0 && typeStr === "void" && saleAmt !== null;
-        const amountIn = isVoidIn ? saleAmt! : Math.round(qtyIn * cost * 100) / 100;
-        const amountOut = isSaleOut ? saleAmt! : Math.round(qtyOut * cost * 100) / 100;
+        const amountIn = Math.round(qtyIn * cost * 100) / 100;
+        const amountOut = Math.round(qtyOut * cost * 100) / 100;
         const balance = m.stockAfter;
         rows.push({
             date: pgToIso(m.createdAt),
@@ -882,6 +903,27 @@ async function buildProductBlock(
         total_qty_out: totalQtyOut,
         total_amount_in: Math.round(totalAmountIn * 100) / 100,
         total_amount_out: Math.round(totalAmountOut * 100) / 100,
+        closing_amount_balance: Math.round(closingQty * closingCost * 100) / 100,
+    };
+}
+
+/**
+ * Add up the per-product totals into the single Grand Total line.
+ *
+ * Each product's figures are already rounded to satang, so summing them keeps
+ * the Grand Total equal to the visible column — rounding the raw sum instead
+ * could differ by a satang from what a reader gets adding the rows by hand.
+ */
+export function sumStockCardGrandTotal(
+    products: StockCardProductBlockDTO[],
+): StockCardGrandTotalDTO {
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    return {
+        qty_in: products.reduce((s, p) => s + p.total_qty_in, 0),
+        qty_out: products.reduce((s, p) => s + p.total_qty_out, 0),
+        amount_in: round2(products.reduce((s, p) => s + p.total_amount_in, 0)),
+        amount_out: round2(products.reduce((s, p) => s + p.total_amount_out, 0)),
+        amount_balance: round2(products.reduce((s, p) => s + p.closing_amount_balance, 0)),
     };
 }
 
@@ -950,6 +992,10 @@ export async function stockCardReport(args: {
         date_from: args.dateFrom,
         date_to: args.dateTo,
         products,
+        // Computed after filtering so the Grand Total always matches the rows
+        // the reader can actually see — a total that includes products the
+        // search or include-empty filter removed would never reconcile.
+        grand_total: sumStockCardGrandTotal(products),
     };
 }
 

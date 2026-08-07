@@ -95,6 +95,8 @@ export interface EdcEventPayload {
     masked_card?: string | null;
     rrn?: string | null;
     fields?: Record<string, string>;
+    /** Cart contents, sent only with `started` — see EdcPaymentModal. */
+    cart_snapshot?: unknown;
     /** False when the POS is about to give up without calling checkout — the
      *  discriminator that was missing during the incident. */
     checkout_attempted?: boolean;

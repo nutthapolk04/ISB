@@ -85,6 +85,13 @@
       "when": 1786006542739,
       "tag": "0011_add_edc_txn_events",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786084866974,
+      "tag": "0012_add_cart_snapshot_to_edc_events",
+      "breakpoints": true
     }
   ]
 }

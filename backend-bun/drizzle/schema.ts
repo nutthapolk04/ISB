@@ -350,6 +350,20 @@ export const edcTxnEvents = pgTable("edc_txn_events", {
 	rrn: varchar({ length: 64 }),
 	/** Sanitised copy of the bridge's raw field bag — see the PCI note above. */
 	fields: jsonb(),
+	/**
+	 * What was in the cart when the terminal was asked to charge.
+	 *
+	 * Written once, on the `started` event — the only moment guaranteed to
+	 * happen before anything can go wrong. Without it a lost sale is
+	 * unreconstructable: the 2026-08-06 incident left an amount and a card, but
+	 * nobody could say which books had left the shop.
+	 *
+	 * Identity is stored as IDs only (customer_id / user_id / external_id) —
+	 * no names, grades or photos — so this stays the lightest thing that can
+	 * still answer "who bought it". `retention_scheduler` nulls this column
+	 * after 30 days while keeping the rest of the row for a year.
+	 */
+	cartSnapshot: jsonb("cart_snapshot"),
 	/** False = the POS never called /pos/checkout for this approval. */
 	checkoutAttempted: boolean("checkout_attempted").notNull(),
 	/** Error text from the browser (bridge unreachable, checkout rejection). */

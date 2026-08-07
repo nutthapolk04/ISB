@@ -1,0 +1,1 @@
+ALTER TABLE "edc_txn_events" ADD COLUMN "cart_snapshot" jsonb;

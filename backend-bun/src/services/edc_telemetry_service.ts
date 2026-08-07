@@ -97,6 +97,135 @@ export function sanitiseText(value: string | null | undefined, maxLen = 2000): s
     return cleaned ? cleaned.slice(0, maxLen) : null;
 }
 
+// ── Cart snapshot ─────────────────────────────────────────────────────────
+
+/** One line of the cart as it stood when the terminal was asked to charge. */
+export interface EdcCartItem {
+    product_code: string;
+    name: string;
+    quantity: number;
+    unit_price: number;
+    discount: number;
+    line_total: number;
+    is_bundle?: boolean;
+}
+
+/**
+ * Who was buying, as identifiers only.
+ *
+ * Deliberately no name / grade / photo: everything here is a key that can be
+ * joined back to the live record, which is all an investigation needs and is
+ * the least PII that still answers "who". Usually all-null — an EDC sale is
+ * typically a walk-in with no member selected.
+ */
+export interface EdcCartPayer {
+    customer_id: number | null;
+    user_id: number | null;
+    external_id: string | null;
+}
+
+export interface EdcCartSnapshot {
+    shop_id: string | null;
+    transaction_mode: string | null;
+    payer: EdcCartPayer | null;
+    items: EdcCartItem[];
+    discount: number;
+    total: number;
+}
+
+/** A cart with more lines than this is not a real POS transaction. */
+const MAX_CART_ITEMS = 200;
+
+function num(value: unknown): number {
+    const n = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+}
+
+function optInt(value: unknown): number | null {
+    const n = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+}
+
+/**
+ * Normalise a client-supplied cart snapshot.
+ *
+ * Everything here arrives from a browser, so it is rebuilt field by field
+ * rather than stored as received: an unbounded blob on an append-only table is
+ * a storage problem waiting to happen, and free text from a POS can carry
+ * anything. Names are the one string kept — without them the snapshot cannot
+ * be read without joining against products that may since have been renamed or
+ * deleted, which is the whole point of a snapshot.
+ */
+export function sanitiseCartSnapshot(input: unknown): EdcCartSnapshot | null {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+    const raw = input as Record<string, unknown>;
+    const rawItems = Array.isArray(raw.items) ? raw.items : [];
+
+    const items: EdcCartItem[] = rawItems.slice(0, MAX_CART_ITEMS).map((it) => {
+        const item = (it ?? {}) as Record<string, unknown>;
+        return {
+            product_code: sanitiseText(String(item.product_code ?? ""), 64) ?? "",
+            name: sanitiseText(String(item.name ?? ""), 200) ?? "",
+            quantity: num(item.quantity),
+            unit_price: num(item.unit_price),
+            discount: num(item.discount),
+            line_total: num(item.line_total),
+            ...(item.is_bundle === true ? { is_bundle: true } : {}),
+        };
+    });
+
+    const rawPayer = raw.payer && typeof raw.payer === "object" && !Array.isArray(raw.payer)
+        ? (raw.payer as Record<string, unknown>)
+        : null;
+    const payer: EdcCartPayer | null = rawPayer
+        ? {
+            customer_id: optInt(rawPayer.customer_id),
+            user_id: optInt(rawPayer.user_id),
+            external_id: sanitiseText(
+                rawPayer.external_id == null ? null : String(rawPayer.external_id),
+                64,
+            ),
+        }
+        : null;
+
+    return {
+        shop_id: sanitiseText(raw.shop_id == null ? null : String(raw.shop_id), 50),
+        transaction_mode: sanitiseText(
+            raw.transaction_mode == null ? null : String(raw.transaction_mode),
+            30,
+        ),
+        // Drop a payer object that turned out to hold nothing — an all-null
+        // payer is noise, and "walk-in" is better expressed as absence.
+        payer: payer && (payer.customer_id || payer.user_id || payer.external_id) ? payer : null,
+        items,
+        discount: num(raw.discount),
+        total: num(raw.total),
+    };
+}
+
+/** Tolerance for the snapshot-vs-terminal comparison, in satang — a rounding
+ *  cent, not a discrepancy. Compared in integer satang because |12520 -
+ *  12520.01| is 0.010000000000218 in binary floating point, which a naive
+ *  `<= 0.01` rejects. */
+const AMOUNT_MATCH_TOLERANCE_SATANG = 1;
+
+/**
+ * Does the cart total agree with what was actually sent to the terminal?
+ *
+ * `null` when either side is missing (nothing to compare). A `false` means the
+ * row's two halves disagree and the snapshot should not be trusted to describe
+ * that charge — worth showing prominently, and the control that any future
+ * "record this sale" action would have to respect.
+ */
+export function amountsMatch(
+    snapshot: EdcCartSnapshot | null,
+    terminalAmount: number | null,
+): boolean | null {
+    if (!snapshot || terminalAmount == null || !Number.isFinite(terminalAmount)) return null;
+    const diffSatang = Math.abs(Math.round(snapshot.total * 100) - Math.round(terminalAmount * 100));
+    return diffSatang <= AMOUNT_MATCH_TOLERANCE_SATANG;
+}
+
 // ── Input ─────────────────────────────────────────────────────────────────
 
 export type EdcTelemetryEvent = "started" | "result" | "error";
@@ -115,6 +244,8 @@ export interface RecordEdcEventInput {
     masked_card?: string | null;
     rrn?: string | null;
     fields?: unknown;
+    /** Only sent on the `started` event — see the schema comment. */
+    cart_snapshot?: unknown;
     checkout_attempted?: boolean | null;
     client_error?: string | null;
     client_at?: string | null;
@@ -161,6 +292,7 @@ export async function recordEdcEvent(input: RecordEdcEventInput): Promise<Record
             maskedCard: short(input.masked_card, 30),
             rrn: short(input.rrn, 64),
             fields: sanitiseFields(input.fields),
+            cartSnapshot: sanitiseCartSnapshot(input.cart_snapshot),
             checkoutAttempted: input.checkout_attempted === true,
             clientError: sanitiseText(input.client_error),
             clientAt: input.client_at ?? null,
@@ -210,6 +342,9 @@ export interface EdcTxnEventDTO {
     masked_card: string | null;
     rrn: string | null;
     fields: Record<string, string> | null;
+    cart_snapshot: EdcCartSnapshot | null;
+    /** null when there is nothing to compare — see amountsMatch(). */
+    amounts_match: boolean | null;
     checkout_attempted: boolean;
     client_error: string | null;
     client_at: string | null;
@@ -260,9 +395,52 @@ export async function listEdcEvents(args: ListEdcEventsArgs = {}): Promise<EdcTx
         masked_card: r.maskedCard ?? null,
         rrn: r.rrn ?? null,
         fields: (r.fields as Record<string, string> | null) ?? null,
+        cart_snapshot: (r.cartSnapshot as EdcCartSnapshot | null) ?? null,
+        amounts_match: amountsMatch(
+            (r.cartSnapshot as EdcCartSnapshot | null) ?? null,
+            pgNumber(r.amount),
+        ),
         checkout_attempted: r.checkoutAttempted,
         client_error: r.clientError ?? null,
         client_at: pgToIso(r.clientAt),
         created_at: pgToIso(r.createdAt)!,
     }));
+}
+
+// ── Retention ─────────────────────────────────────────────────────────────
+
+/** Personal identifiers live only this long — see the scheduler's comment. */
+export const SNAPSHOT_RETENTION_DAYS = 30;
+/** The terminal's side of the conversation outlives it, for disputes. */
+export const ROW_RETENTION_DAYS = 365;
+
+export interface PruneResult {
+    snapshotsCleared: number;
+    rowsDeleted: number;
+}
+
+/**
+ * Two-stage prune: clear the identity-bearing snapshot first, drop the whole
+ * row much later. Ordering matters only in that the delete also removes rows
+ * whose snapshot was already cleared, which is harmless.
+ */
+export async function pruneEdcTelemetry(now: Date = new Date()): Promise<PruneResult> {
+    const snapshotCutoff = new Date(now.getTime() - SNAPSHOT_RETENTION_DAYS * 86_400_000).toISOString();
+    const rowCutoff = new Date(now.getTime() - ROW_RETENTION_DAYS * 86_400_000).toISOString();
+
+    const cleared = await db
+        .update(edcTxnEvents)
+        .set({ cartSnapshot: null })
+        .where(and(
+            lt(edcTxnEvents.createdAt, snapshotCutoff),
+            sql`${edcTxnEvents.cartSnapshot} IS NOT NULL`,
+        ))
+        .returning({ id: edcTxnEvents.id });
+
+    const deleted = await db
+        .delete(edcTxnEvents)
+        .where(lt(edcTxnEvents.createdAt, rowCutoff))
+        .returning({ id: edcTxnEvents.id });
+
+    return { snapshotsCleared: cleared.length, rowsDeleted: deleted.length };
 }

@@ -129,6 +129,7 @@ export const posRecordEdcEvent = {
         masked_card: t.Optional(t.Nullable(t.String({ maxLength: 30 }))),
         rrn: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
         fields: t.Optional(t.Unknown()),
+        cart_snapshot: t.Optional(t.Unknown()),
         checkout_attempted: t.Optional(t.Nullable(t.Boolean())),
         client_error: t.Optional(t.Nullable(t.String())),
         client_at: t.Optional(t.Nullable(t.String())),

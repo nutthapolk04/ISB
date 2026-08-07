@@ -250,27 +250,50 @@ function emphasisTotalLabel(columns: ReportColumn[], row: Record<string, unknown
 }
 
 /**
- * Collapse the run of empty cells AFTER the last populated column into a single
- * merged cell.
+ * Collapse every run of two-or-more empty cells in a summary row into a single
+ * merged cell — interior gaps as well as the trailing one.
  *
- * With theme "grid" every emitted cell draws its own full border, so a TOTAL row
- * like `TOTAL | | | | 21,000.00 | |` used to fragment the footer into stray
- * boxes. exportToExcel already merges this tail (see buildExcelEmphasisTotalRow's
- * lastNonEmpty logic); this brings the PDF in line so both outputs agree.
+ * With theme "grid" each emitted cell draws its own full border, so a row like
+ * `TOTAL | | | 12 | 8 | | 900.00 | | ` fragments into stray boxes: one before
+ * the money columns, one after. Merging only the tail (the original behaviour)
+ * left the interior gaps visible, which is what a Stock Card TOTAL row shows
+ * between Qty Out and Amt In.
  *
- * Mutates and returns the same array for convenience.
+ * A lone blank is left alone — one empty cell in a grid reads as a column with
+ * no value, which is correct; it is only a *run* of them that looks broken.
+ *
+ * Returns a new array; the cell objects themselves are reused and the first
+ * cell of each merged run is mutated to carry the span.
  */
-function mergeTrailingEmptyCells(cells: AutoTableCell[]): AutoTableCell[] {
-    let last = cells.length - 1;
+export function mergeEmptyCellRuns(cells: AutoTableCell[]): AutoTableCell[] {
     const isBlank = (c: AutoTableCell) => typeof c !== "string" && !c.content;
-    while (last >= 0 && isBlank(cells[last])) last -= 1;
-    const tail = cells.length - 1 - last;
-    if (tail <= 1) return cells; // nothing to merge (0 blanks, or a lone one)
-    const first = cells[last + 1];
-    if (typeof first === "string") return cells;
-    first.colSpan = (first.colSpan ?? 1) + (tail - 1);
-    cells.splice(last + 2);
-    return cells;
+    const out: AutoTableCell[] = [];
+    let i = 0;
+    while (i < cells.length) {
+        const cell = cells[i];
+        if (!isBlank(cell)) {
+            out.push(cell);
+            i += 1;
+            continue;
+        }
+        // Measure the run of blanks starting here. Each cell may already carry
+        // a colSpan (the label cell does), so span is summed rather than counted.
+        let j = i;
+        let span = 0;
+        while (j < cells.length && isBlank(cells[j])) {
+            const c = cells[j] as Exclude<AutoTableCell, string>;
+            span += c.colSpan ?? 1;
+            j += 1;
+        }
+        if (j - i === 1) {
+            out.push(cell);
+        } else {
+            (cell as Exclude<AutoTableCell, string>).colSpan = span;
+            out.push(cell);
+        }
+        i = j;
+    }
+    return out;
 }
 
 function buildPdfEmphasisTotalRow(columns: ReportColumn[], row: Record<string, unknown>): AutoTableCell[] {
@@ -302,7 +325,7 @@ function buildPdfEmphasisTotalRow(columns: ReportColumn[], row: Record<string, u
             styles: { ...bold, halign: defaultAlign(c) },
         });
     }
-    return mergeTrailingEmptyCells(cells);
+    return mergeEmptyCellRuns(cells);
 }
 
 function buildExcelEmphasisTotalRow(
@@ -390,7 +413,7 @@ export function formatCell(value: unknown, format: ColumnFormat = "text"): strin
 const defaultAlign = (col: ReportColumn): ColumnAlign =>
     col.align ?? (col.format === "currency" || col.format === "number" ? "right" : "left");
 
-type AutoTableCell = string | {
+export type AutoTableCell = string | {
     content: string;
     colSpan?: number;
     /** Needed for grouped headers: an ungrouped column's header spans both
@@ -430,7 +453,7 @@ function buildPdfFooterRowCells(columns: ReportColumn[], row: ReportFooterRow): 
         });
         colIdx += 1;
     }
-    return mergeTrailingEmptyCells(cells);
+    return mergeEmptyCellRuns(cells);
 }
 
 // ─── Image loading (PDF logo) ────────────────────────────────────────────
@@ -705,7 +728,7 @@ export async function exportToPDF<TRow extends Record<string, unknown>>(
                 cells.push({ content: "", styles: { halign: align } });
             }
         }
-        foot = [mergeTrailingEmptyCells(cells)];
+        foot = [mergeEmptyCellRuns(cells)];
     }
 
     // Auto-size font when there are many columns so we stop wrapping headers

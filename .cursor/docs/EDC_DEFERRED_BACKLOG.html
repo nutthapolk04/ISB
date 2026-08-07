@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EDC — งานที่พักไว้ (Deferred backlog)</title>
+  <style>
+    :root {
+      --bg: #f8fafc; --card: #fff; --text: #0f172a; --muted: #64748b;
+      --primary: #d4362a; --border: #e2e8f0;
+      --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.65;
+      margin: 0; padding: 2rem 1rem 4rem;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin: 0 0 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.25rem; margin: 2.5rem 0 0.75rem;
+      padding-bottom: 0.35rem; border-bottom: 2px solid var(--primary);
+    }
+    h3 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.25rem 1.5rem; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .alert {
+      border-left: 4px solid var(--bad); background: #fef2f2;
+      padding: 1rem 1.25rem; border-radius: 0 8px 8px 0; margin: 1rem 0;
+    }
+    .alert.ok { border-color: var(--ok); background: #f0fdf4; }
+    .alert.warn { border-color: var(--warn); background: #fffbeb; }
+    .alert.info { border-color: #2563eb; background: #eff6ff; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: var(--code-bg); font-weight: 600; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem; background: var(--code-bg); border-radius: 6px;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    pre { padding: 1rem; overflow-x: auto; border: 1px solid var(--border); }
+    .flow {
+      font-family: ui-monospace, monospace; font-size: 0.8rem; white-space: pre;
+      background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto;
+    }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; white-space: nowrap;
+    }
+    .badge-blocked { background: #e2e8f0; color: #475569; }
+    .badge-ready { background: #dbeafe; color: #1e40af; }
+    .badge-bug { background: #fee2e2; color: #991b1b; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+    li { margin: 0.35rem 0; }
+    .meta { font-size: 0.85rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+    .item-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .item-head h3 { margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>EDC — งานที่พักไว้</h1>
+    <p class="subtitle">
+      ISB Campus Card · บันทึกไว้กันลืม · 6 ส.ค. 2026<br />
+      ทุกอย่างในนี้ <strong>ตัดสินใจแล้วว่ายังไม่ทำ</strong> ไม่ใช่งานค้างที่ลืม
+    </p>
+
+    <div class="alert info">
+      <strong>ทำไปแล้ว</strong> (ไม่อยู่ในเอกสารนี้): telemetry <code>edc_txn_events</code> ·
+      <code>Y1/Y3/DR/DI</code> นับเป็นอนุมัติ · <code>query()</code> + กรอก APPR ในจอ POS ·
+      <code>pos_ref</code> ผูกสลิปกระดาษ · timeout <code>/pos/checkout</code> ·
+      <code>cart_snapshot</code> + retention · หน้าลับ <code>/dev/edc-events</code><br />
+      รายละเอียดอยู่ที่ <code>.cursor/docs/EDC_TRACKING_PLAN_V2.html</code>
+    </div>
+
+    <h2>1. Flow หน้าร้าน — รอคุยกับลูกค้าและทีม</h2>
+
+    <div class="card">
+      <div class="item-head">
+        <h3>ปุ่ม "ชำระเงินแล้วค้าง?" ให้แคชเชียร์กดเอง</h3>
+        <span class="badge badge-blocked">รอ consensus</span>
+      </div>
+      <p>ออกแบบไว้แล้วแต่ยังไม่ลงมือ — ตอนนี้ให้ dev ดูแลข้อมูลไปก่อน</p>
+
+      <div class="flow">รอเครื่อง 90 วิ
+   │
+   ├─ เครื่องตอบ  → flow ปกติ
+   │
+   └─ ครบ 90 วิ  → ขึ้นปุ่ม "ชำระเงินแล้วค้าง?"
+                      │
+                      └─ กด → dialog ยืนยัน (ระบุว่าจะออกใบเสร็จ + ตัดสต็อก)
+                               │
+                               └─ ยืนยัน → ใบเสร็จออก · สต็อกลด · สถานะ "รอตรวจสอบ"
+                                            │
+                                            └─ background อีก 20 วิ
+                                                 ├─ เครื่องอนุมัติ → เปลี่ยนเป็น success
+                                                 └─ เครื่องปฏิเสธ  → ??? ยังไม่ตัดสินใจ</div>
+
+      <h3>เรื่องที่ต้องตัดสินใจก่อนทำ</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>เรื่อง</th><th>รายละเอียด</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>ช่องทุจริต</strong></td>
+              <td>ยิงของเข้าตะกร้า → เลือก EDC → ไม่ให้ลูกค้าจ่าย → รอ 90 วิ → กดปุ่ม →
+                  <strong>ใบเสร็จออก สต็อกลด แต่ไม่มีเงินเข้า</strong><br />
+                  ตัวป้องกันคือสถานะ "รอตรวจสอบ" + การกระทบยอดกับ settlement ธนาคาร —
+                  เป็น <em>detective control</em> ไม่ใช่ preventive จึงต้องมีคนดูจริง</td>
+            </tr>
+            <tr>
+              <td><strong>ต้องมีคนเห็น</strong></td>
+              <td>ถ้าโชว์แค่ในหน้าลับที่ไม่มีลิงก์ ไม่มี alert → control มีแต่ไม่ทำงาน<br />
+                  เสนอ: ให้รายการ "รอตรวจสอบ" โผล่ในรายงานที่บัญชี/ผู้จัดการดูทุกวันอยู่แล้ว
+                  (เช่นบรรทัด "EDC รอตรวจสอบ: 2 รายการ ฿1,340") — ไม่ต้องสร้างระบบแจ้งเตือนใหม่</td>
+            </tr>
+            <tr>
+              <td><strong>ใบเสร็จจะบอกยังไงว่ารอตรวจสอบ</strong></td>
+              <td><code>pos_checkout_service.ts:295</code> บังคับว่า EDC ต้องมี <code>edc_approval_code</code>
+                  แต่เคสนี้ไม่มี<br />
+                  เสนอ: เพิ่มคอลัมน์ <code>edc_verified</code> ใน <code>receipts</code> (additive)
+                  ดีกว่าใส่ค่าปลอมแบบ <code>PENDING-xxxx</code> ที่จะไปปนกับ approval code จริงในรายงาน</td>
+            </tr>
+            <tr>
+              <td><strong>ถ้า 20 วิแล้วเครื่องตอบ "ปฏิเสธ"</strong></td>
+              <td>ใบเสร็จออกไปแล้ว ของอาจส่งลูกค้าไปแล้ว<br />
+                  ตัวเลือก: auto-void (เสี่ยง สต็อกผิดอีกทาง) หรือ ขึ้นธงแดงให้คนตัดสิน (เชียร์อันนี้)</td>
+            </tr>
+            <tr>
+              <td><strong>ตัวฟังผล 20 วิ อยู่ที่ไหน</strong></td>
+              <td>ตอนนี้ loop ที่ฟังผลอยู่ใน <code>EdcPaymentModal</code> — ถ้าแคชเชียร์กดปุ่มแล้ว modal ปิด
+                  component unmount → loop ตาย รอไม่ครบ 20 วิ<br />
+                  ต้องย้ายตัวฟังออกไปนอก modal</td>
+            </tr>
+            <tr>
+              <td><strong>เช็คยอด</strong></td>
+              <td><code>amountsMatch()</code> ทำไว้แล้วในระยะนี้ — ถ้าทำปุ่ม <strong>ต้อง block เมื่อยอดไม่ตรง</strong>
+                  ปิดช่อง "ใส่ของแพงแล้วรูดจริง 1 บาท"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Wording ที่ร่างไว้แล้ว</h3>
+      <pre>ยืนยันการบันทึกรายการขาย
+
+ระบบจะออกใบเสร็จและตัดสต็อกสินค้าตามรายการนี้ทันที
+
+กรุณาตรวจสอบว่าเครื่อง EDC ชำระเงินสำเร็จและพิมพ์สลิปเรียบร้อยแล้ว
+ก่อนดำเนินการต่อ
+
+รายการนี้จะถูกบันทึกสถานะ "รอตรวจสอบ" เพื่อให้ผู้ดูแลระบบ
+ตรวจสอบกับรายงานธนาคารภายหลัง
+
+              [ ยกเลิก ]  [ ยืนยันบันทึกรายการ ]</pre>
+    </div>
+
+    <div class="card">
+      <div class="item-head">
+        <h3>timeout 90 วิ ที่ <code>/txn/sale</code></h3>
+        <span class="badge badge-blocked">รอ consensus</span>
+      </div>
+      <p>
+        SDK ยิง <code>POST /txn/sale</code> โดยไม่มี timeout (<code>paywire/client.ts:300</code>)
+        ถ้า bridge ไม่ตอบ loop ไม่จบ และตอน <code>processing</code> ปุ่ม Back ถูกซ่อน +
+        <code>dismissLocked</code> → <strong>ค้างถาวร ต้อง F5</strong>
+      </p>
+      <div class="alert warn">
+        <strong>ข้อแลกเปลี่ยนที่ต้องรู้:</strong> timeout ยกเลิกรายการที่เครื่องไม่ได้ —
+        ถ้าลูกค้าแตะบัตรวินาทีที่ 95 เงินจะตัดจริงทั้งที่จอขึ้น error ไปแล้ว
+        กลายเป็นเคสค้างที่เราสร้างเอง<br />
+        ตัวลดผลกระทบมีอยู่แล้ว: row <code>started</code> + <code>cart_snapshot</code> +
+        <code>pos_ref</code> ที่ใช้ <code>query()</code> ได้
+      </div>
+    </div>
+
+    <h2>2. บั๊กที่รู้แล้วแต่พักไว้</h2>
+
+    <div class="card">
+      <div class="item-head">
+        <h3>Modal ค้างที่ "Recording receipt…" ถาวร</h3>
+        <span class="badge badge-bug">บั๊ก</span>
+        <span class="badge badge-ready">แก้ได้เลย ไม่ต้องรอใคร</span>
+      </div>
+      <p>
+        เมื่อ checkout ล้มเหลว <code>doCheckout</code> ไม่ได้ปิด modal
+        (<code>setEdcOpen(false)</code> อยู่แค่ใน success path) → step ค้างที่ <code>approved</code> →
+        ปุ่มถูกซ่อน (<code>step !== "approved"</code>) + <code>dismissLocked</code> →
+        <strong>ปิดไม่ได้ ต้อง F5</strong>
+      </p>
+      <p>
+        timeout 30 วิ ที่ใส่ไปแล้วทำให้ <em>รู้</em> ว่าพัง (มี toast) แต่ modal ยังค้างเหมือนเดิม
+        — การแก้คือแค่ให้ปิด modal ได้เมื่อ checkout ไม่สำเร็จ ไม่ต้องตัดสินใจเรื่อง flow อะไรเลย
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="item-head">
+        <h3>bridge error ยังโชว์ปุ่ม "Try again"</h3>
+        <span class="badge badge-blocked">ตั้งใจไม่แตะ</span>
+      </div>
+      <p>
+        ถ้า bridge ดับตั้งแต่แรก = ยังไม่ได้ส่งอะไรไปเครื่อง → retry ปลอดภัย จึงปล่อยไว้
+        แต่ถ้า bridge ดับ <em>ระหว่าง</em> รายการ retry จะเสี่ยงตัดซ้ำ — แยกสองกรณีนี้จากกันไม่ได้ง่ายๆ
+      </p>
+    </div>
+
+    <h2>3. ปิดไปแล้ว ไม่ต้องทำ</h2>
+    <div class="card">
+      <div class="scroll">
+        <table>
+          <thead><tr><th>เคยวางแผนไว้</th><th>ทำไมไม่ต้องทำ</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>เพิ่ม fallback <code>fields["38"]</code> สำหรับ approval code</td>
+              <td><strong>สมมติฐานตกไป</strong> — ข้อมูลจริงจาก prod (6 ส.ค. 17:24) แสดงว่า bridge ส่ง key
+                  ชื่อ <code>approval_code</code> ตรงๆ เป็น LinkPOS naming ล้วน ไม่มี VTI numeric field เลย
+                  ซึ่ง <code>client.ts:339</code> อ่านอยู่แล้ว</td>
+            </tr>
+            <tr>
+              <td>ส่ง <code>posRef</code> เข้า <code>sale()</code> เพื่อให้ <code>query()</code> ใช้ได้</td>
+              <td>ไม่ต้องส่ง — bridge derive เองจาก idempotencyKey (20 ตัวแรก ตัดขีด)
+                  ยืนยันด้วยข้อมูลจริงแล้ว ดู <code>posRefFromIdempotencyKey()</code></td>
+            </tr>
+            <tr>
+              <td>สร้าง intent ใน <code>payment_intents</code> (<code>intent_type='pos_edc'</code>)</td>
+              <td>ไม่ทำ — <code>edc_txn_events</code> ทำเรื่องสถานะไปแล้ว การเพิ่ม intent จะได้ตารางสองใบ
+                  ที่เล่าเรื่องเดียวกัน และ <code>payment_intents.status</code> เป็น PG enum 3 ค่า
+                  ที่ <code>ALTER TYPE</code> ใน migration transaction จะพัง</td>
+            </tr>
+            <tr>
+              <td>email แจ้ง dev เมื่อเจอรายการค้าง</td>
+              <td>ตัดออกตามที่ตกลง (และ email ถูกปิดอยู่แล้วถ้า <code>APP_ENV != prod</code>)</td>
+            </tr>
+            <tr>
+              <td>แถบแจ้งเตือนในหน้า POS</td>
+              <td>ตัดออก</td>
+            </tr>
+            <tr>
+              <td>แสดง POS REF ใน error dialog</td>
+              <td>ไม่จำเป็นแล้ว ถ้าทำปุ่มแจ้งปัญหา (ระบบบันทึกเองไม่ต้องให้คนอ่านเลขทางโทรศัพท์)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>4. ยังไม่มีคำตอบ — ต้นเหตุจริงของเคส 6 ส.ค.</h2>
+    <div class="alert">
+      <strong>ยังไม่ปิดเคส</strong> — วันที่ 6 ส.ค. เย็น debit ใช้งานได้ปกติแล้ว แต่ข้อมูล telemetry
+      แสดง <code>code=00 appr=true checkout=true</code> คือ <strong>เครื่องกลับมาปกติเอง
+      ไม่ใช่เพราะโค้ดที่แก้</strong>
+      <br /><br />
+      สลิปที่พังเขียน <code>REF. NO.: TBA</code> / <code>CARD TYPE: TBA</code> = host ตอบไม่ครบ
+      (offline / stand-in approval) ซึ่งเข้ากับ <code>Y1/Y3</code> ที่แก้ไปแล้ว แต่ยังไม่เคยเห็นของจริง
+      <br /><br />
+      <strong>ถ้าเกิดอีก:</strong> ดูที่ <code>/dev/edc-events</code> หรือ
+      <code>bun run backend-bun/scripts/edc-log.ts &lt;log&gt; --unrecorded --keys</code>
+      แล้วเทียบ <code>response_code</code> กับ GUIDELINE §5
+    </div>
+
+    <p class="meta">
+      เอกสารนี้: <code>.cursor/docs/EDC_DEFERRED_BACKLOG.html</code><br />
+      แผนหลัก: <code>.cursor/docs/EDC_TRACKING_PLAN_V2.html</code> ·
+      ฉบับแรก (สมมติฐานผิด เก็บไว้อ้างอิง): <code>.cursor/docs/EDC_POS_SALE_TRACKING_PLAN.html</code><br />
+      อ้างอิงโค้ด: <code>edc_telemetry_service.ts</code> · <code>edcResponseCodes.ts</code> ·
+      <code>EdcPaymentModal.tsx</code> · <code>paywire/client.ts</code> ·
+      <code>pos_checkout_service.ts</code> · <code>docs/edc/sdk-js/GUIDELINE.md</code>
+    </p>
+  </div>
+</body>
+</html>

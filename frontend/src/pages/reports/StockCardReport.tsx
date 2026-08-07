@@ -51,6 +51,16 @@ interface StockCardProductBlock {
   total_qty_out: number;
   total_amount_in: number;
   total_amount_out: number;
+  closing_amount_balance: number;
+}
+/** Report-wide totals for the single Grand Total line. Qty Balance is absent
+ *  by design — summing units across different products has no meaning. */
+interface StockCardGrandTotal {
+  qty_in: number;
+  qty_out: number;
+  amount_in: number;
+  amount_out: number;
+  amount_balance: number;
 }
 interface StockCardReportData {
   shop_id: string | null;
@@ -58,6 +68,7 @@ interface StockCardReportData {
   date_from: string;
   date_to: string;
   products: StockCardProductBlock[];
+  grand_total?: StockCardGrandTotal;
 }
 
 interface StockCardReportProps {
@@ -240,6 +251,8 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
     filterLines.push(`User ID: ${user?.username ?? user?.fullName ?? "-"}`);
     filterLines.push(`Print Date: ${fmtDateTime(new Date())}`);
 
+    const grand = stockCardData.grand_total;
+
     return {
       meta: {
         title: `Stockcard Report From ${date_from} To ${date_to}`,
@@ -250,6 +263,21 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
       },
       columns,
       rows: body,
+      totalsLabel: "Grand Total",
+      // Rendered by the exporter as the footer row — PDF shows it on the last
+      // page only (showFoot: "lastPage"). Qty Balance and Cost/Unit are left
+      // out on purpose: neither is meaningful summed across products.
+      ...(grand
+        ? {
+          totals: {
+            qty_in: grand.qty_in,
+            qty_out: grand.qty_out,
+            amount_in: grand.amount_in,
+            amount_out: grand.amount_out,
+            amount_balance: grand.amount_balance,
+          },
+        }
+        : {}),
     };
   };
 
@@ -462,6 +490,34 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                           </tr>
                         </React.Fragment>
                       ))}
+                      {/* Grand Total — one line for the whole report, matching
+                          the exporter's footer row. Qty Balance and Cost/Unit
+                          stay empty: summing them across products would be a
+                          number with no meaning. */}
+                      {stockCardData.grand_total && (
+                        <tr className="border-t-2 border-foreground/30 font-bold bg-muted/60">
+                          <td className="px-2 py-1"></td>
+                          <td className="px-2 py-1">Grand Total</td>
+                          <td></td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.qty_in || ""}
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.qty_out || ""}
+                          </td>
+                          <td></td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.amount_in.toFixed(2)}
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.amount_out.toFixed(2)}
+                          </td>
+                          <td></td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.amount_balance.toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

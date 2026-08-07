@@ -49,7 +49,17 @@ interface EdcPaymentModalProps {
      * no idea which POS produced a terminal charge. Optional so the three
      * existing call sites can adopt it independently; falls back to "unknown".
      */
-    telemetry?: { context: string; shopId?: string | null };
+    telemetry?: {
+        context: string;
+        shopId?: string | null;
+        /**
+         * Cart as it stands right now, evaluated once per attempt and attached
+         * to the `started` telemetry event. A function so the modal never
+         * closes over a stale cart, and so nothing is computed on renders where
+         * no sale is in flight.
+         */
+        getCartSnapshot?: () => unknown;
+    };
 }
 
 interface DeclineInfo {
@@ -329,6 +339,7 @@ export function EdcPaymentModal({
                 edc_mode: mode,
                 amount: chargeAmount,
                 checkout_attempted: false,
+                cart_snapshot: telemetry?.getCartSnapshot?.(),
             });
 
             const stream =

@@ -240,6 +240,46 @@ export function useStoreCheckout({
     // the cashier owes that amount back to the customer.
     const total = subtotal - billDiscountAmount;
 
+    /**
+     * What the cart looked like at the moment the EDC terminal was asked to
+     * charge, for the server-side telemetry log.
+     *
+     * Sent once, on the `started` event, because that is the only point
+     * guaranteed to happen before anything can fail. When a terminal charge
+     * ends up unrecorded this is the only record of what left the shop — on
+     * 2026-08-06 there was an amount and a card, but no way to say which books
+     * the customer walked out with.
+     *
+     * A function rather than a value so it is evaluated at attempt time, not on
+     * every render, and so the modal never holds a stale cart.
+     *
+     * Identity is IDs only — no names, grades or photos. Product names ARE
+     * kept, since a snapshot that needs a live join to be readable is not a
+     * snapshot.
+     */
+    const buildEdcCartSnapshot = () => ({
+        shop_id: shopId ?? null,
+        transaction_mode: priceMode === "internal" ? "internal_issue" : "sale",
+        payer: preSelectedMember
+            ? {
+                customer_id: preSelectedMember.user_id ? null : preSelectedMember.id,
+                user_id: preSelectedMember.user_id ?? null,
+                external_id: preSelectedMember.external_id ?? null,
+            }
+            : null,
+        items: cart.map((item) => ({
+            product_code: item.productCode,
+            name: item.name,
+            quantity: item.quantity,
+            unit_price: getPriceForItem(item),
+            discount: getItemDiscountAmount(item),
+            line_total: getItemLineTotal(item),
+            ...(item.isBundle ? { is_bundle: true } : {}),
+        })),
+        discount: billDiscountAmount,
+        total,
+    });
+
     // ── Live-broadcast cart to the customer display ─────────────────────────────
     // Mirrors the Canteen behaviour: as the cashier builds the cart or picks a
     // member, the second screen previews the order before any payment modal opens.
@@ -774,6 +814,7 @@ export function useStoreCheckout({
         handleQrConfirmed,
         handleConfirmDept,
         handleConfirmEdc,
+        buildEdcCartSnapshot,
         availableMethods,
     };
 }

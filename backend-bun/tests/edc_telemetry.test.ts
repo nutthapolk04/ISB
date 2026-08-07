@@ -28,6 +28,9 @@ import {
     listEdcEvents,
     sanitiseFields,
     sanitiseText,
+    sanitiseCartSnapshot,
+    amountsMatch,
+    pruneEdcTelemetry,
     REDACTED,
 } from "@/services/edc_telemetry_service";
 
@@ -335,6 +338,191 @@ describe("recordEdcEvent (DB)", () => {
             } finally {
                 if (ids.length) await db.delete(edcTxnEvents).where(inArray(edcTxnEvents.id, ids));
             }
+        },
+        DB_TIMEOUT_MS,
+    );
+});
+
+// ── Cart snapshot ─────────────────────────────────────────────────────────
+
+describe("sanitiseCartSnapshot", () => {
+    const cart = {
+        shop_id: "S0001",
+        transaction_mode: "sale",
+        payer: { customer_id: 12, user_id: null, external_id: "202849" },
+        items: [
+            { product_code: "BK-001", name: "Math Textbook G7", quantity: 2, unit_price: 450, discount: 0, line_total: 900 },
+        ],
+        discount: 0,
+        total: 900,
+    };
+
+    it("keeps the fields an investigation needs", () => {
+        const out = sanitiseCartSnapshot(cart);
+        expect(out?.shop_id).toBe("S0001");
+        expect(out?.total).toBe(900);
+        expect(out?.items).toHaveLength(1);
+        expect(out?.items[0].name).toBe("Math Textbook G7");
+        expect(out?.payer).toEqual({ customer_id: 12, user_id: null, external_id: "202849" });
+    });
+
+    it("drops a payer that carries no identifier at all", () => {
+        // An all-null payer is noise; "walk-in" is better expressed as absence,
+        // and an EDC sale usually has no member selected.
+        const out = sanitiseCartSnapshot({
+            ...cart,
+            payer: { customer_id: null, user_id: null, external_id: null },
+        });
+        expect(out?.payer).toBeNull();
+    });
+
+    it("keeps no personal fields even when the client sends them", () => {
+        // The contract is identifiers only. A client that starts sending names
+        // must not be able to widen what this table stores.
+        const out = sanitiseCartSnapshot({
+            ...cart,
+            payer: { customer_id: 12, name: "Somchai Student", grade: "G7", photo_url: "http://x/y.jpg" },
+        });
+        // Assert on the payer specifically: "G7" legitimately appears in the
+        // product name, and dropping that would defeat the snapshot.
+        expect(out?.payer).toEqual({ customer_id: 12, user_id: null, external_id: null });
+        expect(JSON.stringify(out?.payer)).not.toContain("Somchai");
+        expect(JSON.stringify(out?.payer)).not.toContain("photo");
+    });
+
+    it("redacts a PAN that leaked into a product name", () => {
+        const out = sanitiseCartSnapshot({
+            ...cart,
+            items: [{ ...cart.items[0], name: "gift card 4111111111111111" }],
+        });
+        expect(out?.items[0].name).not.toContain("4111111111111111");
+    });
+
+    it("caps the item count and coerces junk numbers to 0", () => {
+        const many = Array.from({ length: 500 }, () => cart.items[0]);
+        expect(sanitiseCartSnapshot({ ...cart, items: many })?.items.length).toBeLessThanOrEqual(200);
+        const junk = sanitiseCartSnapshot({ ...cart, items: [{ quantity: "abc", unit_price: null }], total: "x" });
+        expect(junk?.items[0].quantity).toBe(0);
+        expect(junk?.total).toBe(0);
+    });
+
+    it("returns null for anything that is not an object", () => {
+        for (const bad of [null, undefined, "nope", 42, [1, 2]]) {
+            expect(sanitiseCartSnapshot(bad)).toBeNull();
+        }
+    });
+});
+
+describe("amountsMatch", () => {
+    const snap = (total: number) => sanitiseCartSnapshot({ items: [], total, discount: 0 });
+
+    it("is true when the cart agrees with what was charged", () => {
+        expect(amountsMatch(snap(12520), 12520)).toBe(true);
+    });
+
+    it("tolerates a rounding cent but not a real gap", () => {
+        expect(amountsMatch(snap(12520), 12520.01)).toBe(true);
+        expect(amountsMatch(snap(12520), 12521)).toBe(false);
+    });
+
+    it("flags the shape that would matter most — a big cart charged as a token amount", () => {
+        // Ringing up expensive goods and charging ฿1 is the abuse this check
+        // exists to make visible.
+        expect(amountsMatch(snap(12520), 1)).toBe(false);
+    });
+
+    it("is null when there is nothing to compare", () => {
+        expect(amountsMatch(null, 100)).toBeNull();
+        expect(amountsMatch(snap(100), null)).toBeNull();
+    });
+});
+
+// ── Retention ─────────────────────────────────────────────────────────────
+
+describe("pruneEdcTelemetry (DB)", () => {
+    it.if(HAS_DB)(
+        "clears the identity-bearing snapshot at 30 days but keeps the row",
+        async () => {
+            if (!dbOk) return;
+            // The snapshot is the only part of this table carrying identifiers
+            // for a person. Its deletion is what makes storing it acceptable at
+            // all, so this is the test that must never be allowed to rot.
+            const ids: number[] = [];
+            try {
+                const { id } = await recordEdcEvent({
+                    event: "started",
+                    context: "store_pos",
+                    shop_id: `${TAG}-ret`,
+                    cashierUserId: null,
+                    amount: 900,
+                    cart_snapshot: {
+                        items: [{ product_code: "BK-1", name: "Book", quantity: 1, unit_price: 900, line_total: 900 }],
+                        total: 900,
+                        payer: { customer_id: 42, external_id: "202849" },
+                    },
+                });
+                ids.push(id);
+
+                // Age it past the snapshot cutoff but well inside the row's year.
+                const aged = new Date(Date.now() - 31 * 86_400_000).toISOString();
+                await db.update(edcTxnEvents).set({ createdAt: aged }).where(eq(edcTxnEvents.id, id));
+
+                const res = await pruneEdcTelemetry();
+                expect(res.snapshotsCleared).toBeGreaterThanOrEqual(1);
+
+                const [row] = await db.select().from(edcTxnEvents).where(eq(edcTxnEvents.id, id));
+                expect(row).toBeDefined();                    // row survives
+                expect(row.cartSnapshot).toBeNull();          // identity is gone
+                expect(row.amount).toBe("900.00");            // reconciliation data stays
+            } finally {
+                if (ids.length) await db.delete(edcTxnEvents).where(inArray(edcTxnEvents.id, ids));
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "leaves a recent row completely untouched",
+        async () => {
+            if (!dbOk) return;
+            const ids: number[] = [];
+            try {
+                const { id } = await recordEdcEvent({
+                    event: "started",
+                    context: "store_pos",
+                    shop_id: `${TAG}-fresh`,
+                    cashierUserId: null,
+                    cart_snapshot: { items: [], total: 10 },
+                });
+                ids.push(id);
+                await pruneEdcTelemetry();
+                const [row] = await db.select().from(edcTxnEvents).where(eq(edcTxnEvents.id, id));
+                expect(row.cartSnapshot).not.toBeNull();
+            } finally {
+                if (ids.length) await db.delete(edcTxnEvents).where(inArray(edcTxnEvents.id, ids));
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "deletes the whole row once it passes a year",
+        async () => {
+            if (!dbOk) return;
+            const { id } = await recordEdcEvent({
+                event: "result",
+                context: "store_pos",
+                shop_id: `${TAG}-old`,
+                cashierUserId: null,
+                response_code: "00",
+            });
+            const aged = new Date(Date.now() - 366 * 86_400_000).toISOString();
+            await db.update(edcTxnEvents).set({ createdAt: aged }).where(eq(edcTxnEvents.id, id));
+
+            const res = await pruneEdcTelemetry();
+            expect(res.rowsDeleted).toBeGreaterThanOrEqual(1);
+            const found = await db.select().from(edcTxnEvents).where(eq(edcTxnEvents.id, id));
+            expect(found).toHaveLength(0);
         },
         DB_TIMEOUT_MS,
     );

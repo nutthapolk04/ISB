@@ -1360,7 +1360,33 @@ export default function Canteen() {
                 onBack={() => { setEdcOpen(false); setMethodPickerOpen(true); }}
                 onConfirm={handleConfirmEdc}
                 confirming={confirming}
-                telemetry={{ context: "canteen_pos", shopId: CANTEEN_SHOP_ID }}
+                telemetry={{
+                    context: "canteen_pos",
+                    shopId: CANTEEN_SHOP_ID,
+                    // Same snapshot contract as the Store POS — see
+                    // useStoreCheckout.buildEdcCartSnapshot for why.
+                    getCartSnapshot: () => ({
+                        shop_id: CANTEEN_SHOP_ID,
+                        transaction_mode: "sale",
+                        payer: preSelectedMember
+                            ? {
+                                customer_id: preSelectedMember.user_id ? null : preSelectedMember.id,
+                                user_id: preSelectedMember.user_id ?? null,
+                                external_id: preSelectedMember.external_id ?? null,
+                            }
+                            : null,
+                        items: cart.items.map((i) => ({
+                            product_code: i.productCode,
+                            name: i.name,
+                            quantity: i.quantity,
+                            unit_price: cart.unitPriceFor(i),
+                            discount: cart.lineDiscountAmountFor(i),
+                            line_total: cart.unitPriceFor(i) * i.quantity - cart.lineDiscountAmountFor(i),
+                        })),
+                        discount: cart.billDiscountAmount,
+                        total: cart.total,
+                    }),
+                }}
             />
             <ReceiptSuccessModal
                 // The cashier dismissing the success modal frees the customer

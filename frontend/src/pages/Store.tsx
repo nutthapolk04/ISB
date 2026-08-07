@@ -803,7 +803,11 @@ const Store = () => {
                 onBack={checkout.handleBackToPicker}
                 onConfirm={checkout.handleConfirmEdc}
                 confirming={checkout.confirming}
-                telemetry={{ context: "store_pos", shopId: user?.shopId ?? null }}
+                telemetry={{
+                    context: "store_pos",
+                    shopId: user?.shopId ?? null,
+                    getCartSnapshot: checkout.buildEdcCartSnapshot,
+                }}
             />
 
             {/* Receipt success */}
