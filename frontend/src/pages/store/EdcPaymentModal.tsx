@@ -258,14 +258,14 @@ export function EdcPaymentModal({
                     );
                 } else {
                     // NE = "transaction does not exist" per GUIDELINE §5, i.e.
-                    // nothing was charged after all.
-                    setRecoveryNote(
-                        t(
-                            "storePos.edcQueryNotCharged",
-                            "เครื่องแจ้งว่าไม่มีรายการนี้ ({{code}}) — แปลว่ายังไม่ถูกตัดเงิน เริ่มรายการใหม่ได้",
-                            { code: String(ev.responseCode) },
-                        ),
-                    );
+                    // nothing was charged after all — confirmed safe, so skip
+                    // the extra "cashier reads the note, then clicks Back"
+                    // step and go straight back to choice.
+                    console.log(`[EDC] query recovery confirmed not charged (${ev.responseCode}) — back to choice`);
+                    resetAttemptState();
+                    setStep("choice");
+                    setEdcMode(null);
+                    return;
                 }
             }
             if (!resolved) {
