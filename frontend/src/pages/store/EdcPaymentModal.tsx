@@ -271,12 +271,13 @@ export function EdcPaymentModal({
                 } else {
                     // NE = "transaction does not exist" per GUIDELINE §5, i.e.
                     // nothing was charged after all — confirmed safe, so skip
-                    // the extra "cashier reads the note, then clicks Back"
-                    // step and go straight back to choice.
-                    console.log(`[EDC] query recovery confirmed not charged (${ev.responseCode}) — back to choice`);
+                    // both the "cashier reads the note, then clicks Back" step
+                    // AND the single-button card choice screen (there's only
+                    // one EDC method now), straight out to the POS's own
+                    // payment-method picker.
+                    console.log(`[EDC] query recovery confirmed not charged (${ev.responseCode}) — back to payment picker`);
                     resetAttemptState();
-                    setStep("choice");
-                    setEdcMode(null);
+                    onBack();
                     return;
                 }
             }
@@ -501,12 +502,13 @@ export function EdcPaymentModal({
                             }
                         }
                     } else if (outcome === "cancelled") {
-                        // Cancelled at the terminal (not a bank decline) — go straight back
-                        // to the choice screen instead of a decline card with "Try again".
-                        console.log(`[EDC] attempt #${attemptId} cancelled at terminal`, ev.responseCode);
+                        // Cancelled at the terminal (not a bank decline) — nothing was
+                        // charged, and there's only one EDC method now, so skip both
+                        // the decline card AND the single-button card choice screen —
+                        // straight back out to the POS's own payment-method picker.
+                        console.log(`[EDC] attempt #${attemptId} cancelled at terminal — back to payment picker`, ev.responseCode);
                         resetAttemptState();
-                        setStep("choice");
-                        setEdcMode(null);
+                        onBack();
                     } else {
                         console.log(`[EDC] attempt #${attemptId} declined`, ev.responseCode, ev.responseMessage);
                         setDeclineInfo({
