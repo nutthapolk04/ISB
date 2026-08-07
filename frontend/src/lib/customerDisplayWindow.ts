@@ -17,6 +17,38 @@
 const WINDOW_NAME = "isb-customer-display";
 const FALLBACK_FEATURES = "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
 
+/**
+ * Best-effort fullscreen for the just-opened/just-focused popup, called from
+ * the opener right after `window.open()` while the click that triggered it is
+ * still "fresh" — the browser can delegate the click's transient activation to
+ * a same-origin auxiliary browsing context for a short window, but that
+ * window is easy to miss once the popup's own bundle has to load, boot React,
+ * and mount before it can try for itself. Firing from here instead — as soon
+ * as the popup's `load` fires (or immediately, if we're just re-focusing an
+ * already-loaded window) — gets there sooner. Not a substitute for
+ * CustomerDisplay.tsx's own click-to-fullscreen fallback, since browsers are
+ * free to reject this regardless of timing; just improves the odds the
+ * cashier never has to tap the second screen at all.
+ */
+function tryFullscreenPopup(w: Window): void {
+  const attempt = () => {
+    try {
+      w.document.documentElement.requestFullscreen?.().catch(() => { });
+    } catch {
+      // Cross-origin or otherwise inaccessible — nothing we can do from here.
+    }
+  };
+  try {
+    if (w.document?.readyState === "complete") {
+      attempt();
+    } else {
+      w.addEventListener("load", attempt, { once: true });
+    }
+  } catch {
+    // Cross-origin — ignore, CustomerDisplay.tsx's own click fallback covers it.
+  }
+}
+
 /** Probe whether the host station has ≥2 monitors available. Returns false
  *  on Safari / Firefox (no API), when the permission is denied, or when
  *  only the primary screen is connected. */
@@ -64,6 +96,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         const w = window.open("/customer-display", WINDOW_NAME, features);
         if (w) {
           try { w.focus(); } catch { /* cross-origin — ignore */ }
+          tryFullscreenPopup(w);
           return true;
         }
       }
@@ -77,6 +110,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
     const w = window.open("/customer-display", WINDOW_NAME, FALLBACK_FEATURES);
     if (!w) return false;
     try { w.focus(); } catch { /* ignore */ }
+    tryFullscreenPopup(w);
     return true;
   } catch {
     return false;
