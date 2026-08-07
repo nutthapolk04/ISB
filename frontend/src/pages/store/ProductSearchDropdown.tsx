@@ -1,4 +1,5 @@
 import type { RefObject, KeyboardEvent } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,16 @@ export function ProductSearchDropdown({
     getPrice,
 }: ProductSearchDropdownProps) {
     const { t } = useTranslation();
+    const listRef = useRef<HTMLDivElement>(null);
+
+    // Keep the highlighted row in view when arrow-key navigation moves it
+    // outside the now-scrollable dropdown (previously everything fit within
+    // the 6-item cap, so this was never needed).
+    useEffect(() => {
+        listRef.current
+            ?.querySelector('[aria-selected="true"]')
+            ?.scrollIntoView({ block: "nearest" });
+    }, [highlightedIndex]);
 
     return (
         <div ref={dropdownRef} className="relative flex-1 min-w-48">
@@ -56,8 +67,9 @@ export function ProductSearchDropdown({
 
             {dropdownOpen && suggestions.length > 0 && (
                 <div
+                    ref={listRef}
                     role="listbox"
-                    className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
+                    className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
                 >
                     {suggestions.map((p, i) => (
                         <div

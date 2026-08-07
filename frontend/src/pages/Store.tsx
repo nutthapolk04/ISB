@@ -405,7 +405,7 @@ const Store = () => {
                     (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase().includes(q))
                 );
             })
-            .slice(0, 6)
+            .slice(0, 30)
         : [];
 
     // Panel-aware price lookup for a product (used when adding to cart)
