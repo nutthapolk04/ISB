@@ -67,6 +67,18 @@ export type EdcOutcome = "approved" | "cancelled" | "declined";
  * a decline shows an error and takes no money-affecting action, whereas
  * wrongly reporting success would create a receipt and deduct stock for a sale
  * that never happened.
+ *
+ * Deliberately pure protocol-table lookup — no mode/context awareness. `TO`
+ * (timeout) always classifies as "declined" here, even for a QR sale where a
+ * cashier-initiated cancel confirmed 2026-08-07 comes back as `TO` too: our
+ * side has no timeout of its own on the request, so a `TO` is whatever the
+ * bridge/terminal decided, and that can legitimately fire before the
+ * terminal's own ~3-minute on-screen QR window ends. Unlike `UC`/`CN`/`XC`
+ * (an explicit, unambiguous "cancelled at the terminal" signal), `TO` alone
+ * doesn't prove the terminal is actually done — treating it as a safe,
+ * automatic "nothing happened" would reopen the exact "charged but nothing
+ * recorded" gap this module exists to close. See EdcPaymentModal's QR-timeout
+ * branch, which confirms via `query()` before deciding it's safe to reset.
  */
 export function classifyEdcResponse(responseCode: string | null | undefined): EdcOutcome {
     const code = String(responseCode ?? "").trim().toUpperCase();

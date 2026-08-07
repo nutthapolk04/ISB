@@ -80,6 +80,17 @@ export function EdcPaymentModal({
     // from a genuine bank decline so "declined" doesn't offer a naive "Try
     // again" that could double-charge the customer.
     const [approvedNoRecord, setApprovedNoRecord] = useState(false);
+    // True whenever the outcome is genuinely unknown, not just unfavourable —
+    // covers two distinct causes: (1) we lost the connection to the bridge
+    // mid-attempt, so the terminal itself never answered, or (2) a QR sale
+    // came back `TO` (timeout), which our side has no way to distinguish from
+    // a bridge/terminal timeout that fired before the terminal's own on-screen
+    // QR window actually ended. Either way, the terminal may still be running
+    // the sale. Same "don't guess, go recover" treatment as approvedNoRecord:
+    // no naive "Try again" (would fire a second live attempt against a
+    // terminal that might still complete the first), recovery via
+    // QUERY/manual code instead.
+    const [connectionLost, setConnectionLost] = useState(false);
     const [declineInfo, setDeclineInfo] = useState<DeclineInfo | null>(null);
     const [qrShown, setQrShown] = useState(false);
     const [terminalStatus, setTerminalStatus] = useState<"connected" | "disconnected" | "unknown">(
@@ -116,6 +127,7 @@ export function EdcPaymentModal({
             setStep("choice");
             setEdcMode(null);
             setApprovedNoRecord(false);
+            setConnectionLost(false);
             setDeclineInfo(null);
             setQrShown(false);
         }
@@ -161,6 +173,7 @@ export function EdcPaymentModal({
     const resetAttemptState = () => {
         setDeclineInfo(null);
         setApprovedNoRecord(false);
+        setConnectionLost(false);
         setQrShown(false);
         setRecoveryNote(null);
         setManualCode("");
@@ -337,6 +350,7 @@ export function EdcPaymentModal({
                     // what put a "Try again" button in front of a cashier whose
                     // customer had already been charged.
                     const outcome = classifyEdcResponse(ev.responseCode);
+                    const isQrTimeout = mode === "qr" && String(ev.responseCode).trim().toUpperCase() === "TO";
                     const willAttemptCheckout =
                         outcome === "approved" && nextApprovalCode.trim().length > 0 && isCurrent();
 
@@ -366,7 +380,33 @@ export function EdcPaymentModal({
                         checkout_attempted: willAttemptCheckout,
                     });
 
-                    if (outcome === "approved") {
+                    if (isQrTimeout) {
+                        // Our request has no timeout of its own (see classifyEdcResponse's
+                        // doc comment) — TO here is whatever the bridge/terminal decided,
+                        // which can fire before the terminal's own ~3-minute on-screen QR
+                        // window ends. Don't assume "nothing happened": confirm with the
+                        // terminal via QUERY first, same as the approved-no-code dead end,
+                        // before it's safe to bounce back to choice.
+                        console.log(`[EDC] attempt #${attemptId} QR timeout — confirming with terminal before resetting`);
+                        lastAttemptRef.current = {
+                            posRef: ev.fields?.["pos_ref_no"]?.trim()
+                                || posRefFromIdempotencyKey(idempotencyKeyRef.current),
+                            mode,
+                            terminalRef: nextTerminalRef.trim(),
+                            maskedCard: nextMaskedCard.trim(),
+                            responseCode: "TO",
+                        };
+                        setConnectionLost(true);
+                        setDeclineInfo({
+                            code: "TO",
+                            message: t(
+                                "storePos.edcQrTimeoutChecking",
+                                "หมดเวลารอสแกน QR ฝั่งเรา — เครื่อง EDC อาจยังทำรายการค้างอยู่จริง (ยังไม่ครบ 3 นาทีของเครื่อง) ระบบกำลังตรวจสอบกับเครื่องอัตโนมัติ ห้ามลองรายการใหม่จนกว่าจะยืนยันผล",
+                            ),
+                        });
+                        setStep("declined");
+                        void runQueryRecovery();
+                    } else if (outcome === "approved") {
                         // Stale results (cashier cancelled or closed the modal mid-transaction)
                         // are ignored, matching handleCancelProcessing's contract — the
                         // terminal-side charge, if any, is reconciled manually.
@@ -483,11 +523,25 @@ export function EdcPaymentModal({
             if (!isCurrent()) return;
             // Never log full card data — the SDK never exposes it, but keep this guard in mind.
             console.error("[EDC] bridge/transaction error", err);
+            console.log(`[EDC] attempt #${attemptId} connection lost — outcome unknown`);
+            // We never got a result event, so the terminal may still be mid-sale
+            // (e.g. a QR still live on-screen, customer yet to scan). Stash what
+            // recovery needs, same as the approved-no-code dead end — QUERY is
+            // keyed on posRef alone, so this works even though nothing else about
+            // the attempt is known.
+            lastAttemptRef.current = {
+                posRef: posRefFromIdempotencyKey(idempotencyKeyRef.current),
+                mode,
+                terminalRef: "",
+                maskedCard: "",
+                responseCode: "",
+            };
+            setConnectionLost(true);
             setDeclineInfo({
                 code: "",
                 message: t(
-                    "storePos.edcBridgeUnreachable",
-                    "เชื่อมต่อ EDC bridge ไม่ได้ — ลองใหม่อีกครั้ง หรือแจ้งผู้ดูแลระบบ",
+                    "storePos.edcConnectionLost",
+                    "ขาดการเชื่อมต่อกับเครื่อง EDC ระหว่างทำรายการ — เครื่องอาจยังทำรายการค้างอยู่ (เช่น QR ยังไม่หมดเวลา) ห้ามลองรายการใหม่จนกว่าจะตรวจสอบกับเครื่องก่อน",
                 ),
             });
             setStep("declined");
@@ -516,9 +570,11 @@ export function EdcPaymentModal({
     // being recorded), block Escape/outside-click dismissal AND hide the
     // footer button entirely — there is no cashier-side way to abort a
     // submitted terminal transaction. The only way out is the terminal's own
-    // result: a cancel-type response code (see classifyEdcResponse) bounces
-    // straight back to "choice", anything else lands on "declined"/"approved".
-    // Does not affect the parent's own `setEdcOpen(false)` call after a
+    // result: an explicit cancel-type response code (see classifyEdcResponse)
+    // bounces straight back to "choice"; a QR timeout goes through an extra
+    // QUERY confirmation first (see the isQrTimeout branch); anything else
+    // lands on "declined"/"approved". Does not affect the parent's own
+    // `setEdcOpen(false)` call after a
     // successful onConfirm, since that happens outside onOpenChange entirely.
     const dismissLocked = step === "processing" || step === "approved";
 
@@ -543,7 +599,9 @@ export function EdcPaymentModal({
                 ? t("storePos.edcProcessingDesc", "Waiting for the terminal…")
                 : step === "approved"
                     ? t("storePos.edcAutoConfirmDesc", "Transaction approved — recording the receipt…")
-                    : t("storePos.edcDeclinedDesc", "The transaction was not approved.");
+                    : connectionLost
+                        ? t("storePos.edcUnknownOutcomeDesc", "ยังไม่ทราบผลลัพธ์จริงของรายการ")
+                        : t("storePos.edcDeclinedDesc", "The transaction was not approved.");
 
     const footerBackDisabled = confirming;
     const footerBackLabel = t("storePos.back", "Back");
@@ -663,26 +721,28 @@ export function EdcPaymentModal({
                 {step === "declined" && (
                     <div className="space-y-4">
                         <div
-                            className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center ${approvedNoRecord
+                            className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center ${approvedNoRecord || connectionLost
                                 ? "border-amber-400/50 bg-amber-50 dark:bg-amber-950/30"
                                 : "border-destructive/40 bg-destructive/10"
                                 }`}
                         >
                             <XCircle
-                                className={`h-8 w-8 ${approvedNoRecord ? "text-amber-600 dark:text-amber-400" : "text-destructive"}`}
+                                className={`h-8 w-8 ${approvedNoRecord || connectionLost ? "text-amber-600 dark:text-amber-400" : "text-destructive"}`}
                             />
                             <div
-                                className={`font-semibold ${approvedNoRecord ? "text-amber-800 dark:text-amber-300" : "text-destructive"}`}
+                                className={`font-semibold ${approvedNoRecord || connectionLost ? "text-amber-800 dark:text-amber-300" : "text-destructive"}`}
                             >
                                 {approvedNoRecord
                                     ? t("storePos.edcApprovedUnrecorded", "APPROVED — NOT RECORDED")
-                                    : t("storePos.edcDeclined", "DECLINED")}
+                                    : connectionLost
+                                        ? t("storePos.edcConnectionLostTitle", "ไม่ทราบผลการทำรายการ")
+                                        : t("storePos.edcDeclined", "DECLINED")}
                             </div>
                             <div className="text-sm text-muted-foreground">
                                 {[declineInfo?.code, declineInfo?.message].filter(Boolean).join(" — ")}
                             </div>
                         </div>
-                        {!approvedNoRecord && (
+                        {!approvedNoRecord && !connectionLost && (
                             <Button
                                 type="button"
                                 onClick={handleTryAgain}
@@ -693,10 +753,12 @@ export function EdcPaymentModal({
                         )}
 
                         {/* Way out of the dead end. Never a "Try again" here —
-                            the customer has already been charged, so the only
-                            safe moves are to ask the terminal what happened or
-                            to record the code printed on the slip. */}
-                        {approvedNoRecord && lastAttemptRef.current && (
+                            the customer may already have been charged (or the
+                            terminal may still be mid-sale after a lost
+                            connection), so the only safe moves are to ask the
+                            terminal what happened or to record the code printed
+                            on the slip. */}
+                        {(approvedNoRecord || connectionLost) && lastAttemptRef.current && (
                             <div className="space-y-3 rounded-xl border border-border p-3">
                                 <Button
                                     type="button"

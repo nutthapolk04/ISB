@@ -96,6 +96,21 @@ describe("classifyEdcResponse — cancelled at the terminal", () => {
     });
 });
 
+describe("classifyEdcResponse — QR timeout is NOT auto-classified as cancelled", () => {
+    it("treats TO as declined regardless of sale mode", () => {
+        // Confirmed 2026-08-07: cancelling a Thai QR sale from the terminal
+        // before the customer scans also comes back as TO, not UC/CN/XC — but
+        // this classifier has no way to tell that apart from an ordinary
+        // network timeout that fires before the terminal's own ~3-minute QR
+        // window ends (nothing here imposes a client-side deadline). Auto-
+        // treating TO as "safe, nothing happened" would risk exactly the
+        // "charged but not recorded" gap this module exists to prevent.
+        // EdcPaymentModal handles QR + TO specially: it confirms via query()
+        // before resetting to choice, rather than trusting the code alone.
+        expect(classifyEdcResponse("TO")).toBe("declined");
+    });
+});
+
 describe("classifyEdcResponse — genuine declines", () => {
     it("treats the issuer decline family and error codes as declined", () => {
         for (const code of ["01", "05", "51", "96", "ND", "EN", "TO", "NE", "PT", "ER", "EA", "CE", "LE", "NS"]) {
