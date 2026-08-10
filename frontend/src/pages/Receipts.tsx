@@ -10,8 +10,9 @@ import {
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Eye, Download, Loader2, Ban } from "lucide-react";
+import { Receipt, Eye, Download, Loader2, Ban, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
 import { api, ApiError } from "@/lib/api";
@@ -23,10 +24,13 @@ import { fmtDateTime as fmtDateTimeShared } from "@/lib/dateFormat";
 import { formatPaymentMethodLabel } from "@/lib/paymentMethodLabels";
 import { downloadReceiptHtml, type ReceiptApi as LibReceiptApi } from "@/lib/printReceipt";
 import type { ReceiptApi, ModuleScope, ReceiptListResponse } from "./receipts/receiptTypes";
+import type { TransactionApi, TransactionDetailApi, TransactionListResponse, TransactionStatus } from "./receipts/transactionTypes";
 import { ReceiptStatsPanel } from "./receipts/ReceiptStatsPanel";
 import { ReceiptSearchPanel } from "./receipts/ReceiptSearchPanel";
+import { TransactionSearchPanel } from "./receipts/TransactionSearchPanel";
 import { ReceiptVoidDialog } from "./receipts/ReceiptVoidDialog";
 import { ReceiptDetailDialog } from "./receipts/ReceiptDetailDialog";
+import { TransactionDetailDialog } from "./receipts/TransactionDetailDialog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,6 +99,9 @@ const Receipts = () => {
 
     const [selectedReceipt, setSelectedReceipt] = useState<ReceiptApi | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetailApi | null>(null);
+    const [isTxnDialogOpen, setIsTxnDialogOpen] = useState(false);
+    const [txnCheckLoading, setTxnCheckLoading] = useState(false);
     const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
     const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
     const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
@@ -174,6 +181,93 @@ const Receipts = () => {
         appliedSearch.dateTo !== "" ||
         appliedSearch.paymentType !== "all";
 
+    // ── Transactions tab — every checkout attempt (pending/success/failed/
+    // cancelled) across every payment method, not just completed sales.
+    // Reuses `queryParams` above unchanged: same shop scoping as the
+    // Receipts tab, since this is the same page just a different view of it.
+    const [activeTab, setActiveTab] = useState<"receipts" | "transactions">("receipts");
+    const [transactions, setTransactions] = useState<TransactionApi[]>([]);
+    const [txnLoading, setTxnLoading] = useState(false);
+    const [txnTotal, setTxnTotal] = useState(0);
+    const [txnPages, setTxnPages] = useState(1);
+    const [txnCurrentPage, setTxnCurrentPage] = useState(1);
+
+    const [txnSearchDateFrom, setTxnSearchDateFrom] = useState("");
+    const [txnSearchDateTo, setTxnSearchDateTo] = useState("");
+    const [txnSearchPaymentType, setTxnSearchPaymentType] = useState("all");
+    const [txnSearchStatus, setTxnSearchStatus] = useState("all");
+    const [txnAppliedSearch, setTxnAppliedSearch] = useState({
+        dateFrom: "",
+        dateTo: "",
+        paymentType: "all",
+        status: "all",
+    });
+
+    const handleTxnSearch = () => {
+        setTxnAppliedSearch({
+            dateFrom: txnSearchDateFrom,
+            dateTo: txnSearchDateTo,
+            paymentType: txnSearchPaymentType,
+            status: txnSearchStatus,
+        });
+        setTxnCurrentPage(1);
+    };
+
+    const handleTxnClearSearch = () => {
+        setTxnSearchDateFrom("");
+        setTxnSearchDateTo("");
+        setTxnSearchPaymentType("all");
+        setTxnSearchStatus("all");
+        setTxnAppliedSearch({ dateFrom: "", dateTo: "", paymentType: "all", status: "all" });
+        setTxnCurrentPage(1);
+    };
+
+    const hasActiveTxnSearch =
+        txnAppliedSearch.dateFrom !== "" ||
+        txnAppliedSearch.dateTo !== "" ||
+        txnAppliedSearch.paymentType !== "all" ||
+        txnAppliedSearch.status !== "all";
+
+    const fetchTransactions = useCallback(async () => {
+        try {
+            setTxnLoading(true);
+            const params = new URLSearchParams(queryParams.startsWith("?") ? queryParams.slice(1) : queryParams);
+            params.set("page", String(txnCurrentPage));
+            params.set("page_size", String(PAGE_SIZE));
+            if (txnAppliedSearch.dateFrom) params.set("date_from", txnAppliedSearch.dateFrom);
+            if (txnAppliedSearch.dateTo) params.set("date_to", txnAppliedSearch.dateTo);
+            if (txnAppliedSearch.paymentType !== "all") params.set("payment_method", txnAppliedSearch.paymentType);
+            if (txnAppliedSearch.status !== "all") params.set("status", txnAppliedSearch.status);
+
+            const data = await api.get<TransactionListResponse>(`/pos/transactions?${params.toString()}`);
+            setTransactions(data.items);
+            setTxnTotal(data.total);
+            setTxnPages(data.pages);
+        } catch (err) {
+            const msg = err instanceof ApiError ? err.message : "Failed to load transactions";
+            toast.error(msg);
+        } finally {
+            setTxnLoading(false);
+        }
+    }, [queryParams, txnAppliedSearch, txnCurrentPage]);
+
+    useEffect(() => { setTxnCurrentPage(1); }, [queryParams]);
+
+    // Only fetch once the tab has actually been opened — no need to hit the
+    // transactions endpoint for cashiers who never click that tab.
+    useEffect(() => {
+        if (activeTab === "transactions") fetchTransactions();
+    }, [activeTab, fetchTransactions]);
+
+    const txnSafePage = Math.min(txnCurrentPage, txnPages);
+
+    const TXN_STATUS_BADGE: Record<TransactionStatus, "warning" | "success" | "destructive" | "secondary"> = {
+        pending: "warning",
+        success: "success",
+        failed: "destructive",
+        cancelled: "secondary",
+    };
+
     const safePage = Math.min(currentPage, totalPages);
 
     type ReceiptLeg = { receipt: ReceiptApi; leg: "sale" | "void" };
@@ -199,6 +293,48 @@ const Receipts = () => {
             setSelectedReceipt(full);
         } catch {
             // fallback — keep the list data already shown
+        }
+    };
+
+    const handleViewTransaction = async (txn: TransactionApi) => {
+        setSelectedTransaction(txn);
+        setIsTxnDialogOpen(true);
+        try {
+            const full = await api.get<TransactionDetailApi>(`/pos/transactions/${txn.id}`);
+            setSelectedTransaction(full);
+        } catch {
+            // fallback — keep the summary row already shown, just no items list
+        }
+    };
+
+    const handleCheckTransactionNow = async () => {
+        if (!selectedTransaction?.ref_code) return;
+        setTxnCheckLoading(true);
+        try {
+            // Same endpoint the QR modal's own background poll uses — asks BAY
+            // directly, and updates the row (and creates the receipt) if the
+            // bank confirms it went through. This is the only way a stuck
+            // 'pending' row can ever resolve once the cashier's screen closed
+            // and the webhook never arrived.
+            await api.post(`/pos/qr-intent/${selectedTransaction.ref_code}/inquiry`, {});
+            const full = await api.get<TransactionDetailApi>(`/pos/transactions/${selectedTransaction.id}`);
+            setSelectedTransaction(full);
+            setTransactions((prev) => prev.map((t) => (t.id === full.id ? full : t)));
+        } catch {
+            toast.error(t("receipts.transactions.checkFailed", "Could not check with the bank"));
+        } finally {
+            setTxnCheckLoading(false);
+        }
+    };
+
+    const handleViewReceiptFromTransaction = async (receiptId: number) => {
+        setIsTxnDialogOpen(false);
+        try {
+            const full = await api.get<ReceiptApi>(`/pos/receipt/${receiptId}`);
+            setSelectedReceipt(full);
+            setIsDialogOpen(true);
+        } catch {
+            toast.error(t("receipts.transactions.receiptLoadFailed", "Could not load the receipt"));
         }
     };
 
@@ -258,6 +394,20 @@ const Receipts = () => {
                     </div>
                 </div>
             </div>
+
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "receipts" | "transactions")}>
+                <TabsList>
+                    <TabsTrigger value="receipts" className="gap-2">
+                        <Receipt className="h-4 w-4" />
+                        {t("receipts.tabReceipts", "Receipts")}
+                    </TabsTrigger>
+                    <TabsTrigger value="transactions" className="gap-2">
+                        <Activity className="h-4 w-4" />
+                        {t("receipts.tabTransactions", "Transactions")}
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="receipts" className="space-y-4">
 
             <InfoCallout
                 id="receipts.statusGuide"
@@ -481,6 +631,190 @@ const Receipts = () => {
                 </CardContent>
             </Card>
 
+                </TabsContent>
+
+                <TabsContent value="transactions" className="space-y-4">
+                    <InfoCallout
+                        id="receipts.transactions.guide"
+                        variant="tip"
+                        title={t("receipts.transactions.guideTitle", "What is this?")}
+                    >
+                        {t(
+                            "receipts.transactions.guideBody",
+                            "Every checkout attempt from the moment a payment method is picked — including ones still pending (e.g. a Thai QR sale waiting for bank confirmation) or that failed before a receipt was created.",
+                        )}
+                    </InfoCallout>
+
+                    <TransactionSearchPanel
+                        searchDateFrom={txnSearchDateFrom}
+                        onDateFromChange={setTxnSearchDateFrom}
+                        searchDateTo={txnSearchDateTo}
+                        onDateToChange={setTxnSearchDateTo}
+                        searchPaymentType={txnSearchPaymentType}
+                        onPaymentTypeChange={setTxnSearchPaymentType}
+                        searchStatus={txnSearchStatus}
+                        onStatusChange={setTxnSearchStatus}
+                        appliedSearch={txnAppliedSearch}
+                        hasActiveSearch={hasActiveTxnSearch}
+                        resultsCount={txnTotal}
+                        onSearch={handleTxnSearch}
+                        onClearSearch={handleTxnClearSearch}
+                    />
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center">
+                                <Activity className="h-6 w-6 mr-2 text-primary" />
+                                <CardTitle>{t("receipts.transactions.all", "All Transactions")}</CardTitle>
+                                {txnLoading && <Loader2 className="h-4 w-4 ml-2 animate-spin text-muted-foreground" />}
+                                {hasActiveTxnSearch && (
+                                    <Badge variant="secondary" className="ml-2 text-xs">
+                                        {txnTotal}
+                                    </Badge>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {txnTotal === 0 && !txnLoading ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                    <Activity className="h-10 w-10 mb-3" />
+                                    <p>{t("receipts.transactions.none", "No transactions found")}</p>
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{t("receipts.transactions.startedAt", "Start Time")}</TableHead>
+                                            <TableHead>{t("receipts.transactions.endedAt", "End Time")}</TableHead>
+                                            {!user?.shopId && (
+                                                <TableHead>{t("receipts.shop", "Shop")}</TableHead>
+                                            )}
+                                            <TableHead>{t("receipts.seller")}</TableHead>
+                                            <TableHead>{t("receipts.paymentMethod")}</TableHead>
+                                            <TableHead>{t("receipts.transactions.bankRef", "Bank Ref. No.")}</TableHead>
+                                            <TableHead className="text-right">{t("receipts.total")}</TableHead>
+                                            <TableHead className="text-center">{t("receipts.transactions.status", "Status")}</TableHead>
+                                            <TableHead>{t("receipts.transactions.result", "Result")}</TableHead>
+                                            <TableHead className="text-center">{t("receipts.transactions.actions", "Actions")}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {transactions.map((txn) => (
+                                            <TableRow key={txn.id}>
+                                                <TableCell>{fmtDate(txn.created_at)}</TableCell>
+                                                <TableCell>
+                                                    {txn.resolved_at ? (
+                                                        fmtDate(txn.resolved_at)
+                                                    ) : (
+                                                        <span className="text-xs text-amber-600 italic">
+                                                            {t("receipts.transactions.stillWaiting", "Still waiting…")}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                {!user?.shopId && (
+                                                    <TableCell className="text-sm">{txn.shop_name ?? txn.shop_id ?? "—"}</TableCell>
+                                                )}
+                                                <TableCell className="text-sm">{txn.cashier_name ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">
+                                                        {formatPaymentMethodLabel(t, txn.payment_method)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {/* The reference tied to the bank/gateway side of the sale —
+                                                        BAY's ref_code for Thai QR, the terminal's invoice_no/RRN
+                                                        for EDC. Blank for cash/wallet/department, which never
+                                                        leave the school's own system. */}
+                                                    {txn.ref_code ? (
+                                                        <span className="font-mono text-xs">{txn.ref_code}</span>
+                                                    ) : (
+                                                        "—"
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right font-semibold data-number">
+                                                    {txn.amount != null ? `฿${txn.amount.toLocaleString()}` : "—"}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge variant={TXN_STATUS_BADGE[txn.status]}>
+                                                        {t(`receipts.transactions.status${txn.status.charAt(0).toUpperCase()}${txn.status.slice(1)}`, txn.status)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {txn.status === "success" && txn.receipt_number ? (
+                                                        <span className="font-mono">{txn.receipt_number}</span>
+                                                    ) : txn.status === "failed" && txn.error_message ? (
+                                                        <span className="text-xs text-destructive italic">{txn.error_message}</span>
+                                                    ) : (
+                                                        "—"
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <IconButton
+                                                        tooltip={t("receipts.tooltip.view")}
+                                                        onClick={() => handleViewTransaction(txn)}
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </IconButton>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+
+                            {txnTotal > PAGE_SIZE && (
+                                <div className="flex items-center justify-between pt-4 border-t mt-2">
+                                    <p className="text-xs text-muted-foreground">
+                                        {t("receipts.paginationRange", {
+                                            start: (txnSafePage - 1) * PAGE_SIZE + 1,
+                                            end: Math.min(txnSafePage * PAGE_SIZE, txnTotal),
+                                            total: txnTotal,
+                                            defaultValue: "Showing {{start}}–{{end}} of {{total}} items",
+                                        })}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setTxnCurrentPage((p) => Math.max(1, p - 1))}
+                                            disabled={txnSafePage === 1 || txnLoading}
+                                            className="h-8 px-3 text-xs"
+                                        >
+                                            {t("receipts.prev", "‹ Prev")}
+                                        </Button>
+                                        {getPaginationRange(txnSafePage, txnPages).map((p, i) =>
+                                            p === "ellipsis" ? (
+                                                <span key={`ellipsis-${i}`} className="text-xs px-1 text-muted-foreground">…</span>
+                                            ) : (
+                                                <Button
+                                                    key={p}
+                                                    variant={txnSafePage === p ? "default" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => setTxnCurrentPage(p)}
+                                                    disabled={txnLoading}
+                                                    className={cn("h-8 w-8 p-0 text-xs", txnSafePage === p && "bg-orange-500 hover:bg-orange-600 border-orange-500")}
+                                                >
+                                                    {p}
+                                                </Button>
+                                            ),
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setTxnCurrentPage((p) => Math.min(txnPages, p + 1))}
+                                            disabled={txnSafePage === txnPages || txnLoading}
+                                            className="h-8 px-3 text-xs"
+                                        >
+                                            {t("receipts.next", "Next ›")}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+
             <ReceiptVoidDialog
                 receipt={voidTarget}
                 onOpenChange={(open) => { if (!open) setVoidTarget(null); }}
@@ -497,6 +831,15 @@ const Receipts = () => {
                 receipt={selectedReceipt}
                 open={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
+            />
+
+            <TransactionDetailDialog
+                transaction={selectedTransaction}
+                open={isTxnDialogOpen}
+                onOpenChange={setIsTxnDialogOpen}
+                onViewReceipt={handleViewReceiptFromTransaction}
+                onCheckNow={handleCheckTransactionNow}
+                checking={txnCheckLoading}
             />
         </div>
     );
