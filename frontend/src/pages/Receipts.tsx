@@ -69,7 +69,7 @@ const Receipts = () => {
 
     const [searchReceiptId, setSearchReceiptId] = useState("");
     const [searchPayer, setSearchPayer] = useState("");
-    // const [activeTab, setActiveTab] = useState("all");
+    const [innerReceiptsTab, setInnerReceiptsTab] = useState<"all" | "unsuccessful">("all");
     const [searchDateFrom, setSearchDateFrom] = useState("");
     const [searchDateTo, setSearchDateTo] = useState("");
     const [searchPaymentType, setSearchPaymentType] = useState("all");
@@ -451,7 +451,7 @@ const Receipts = () => {
                 views can never be one query. They do share the date filter above,
                 which is the thing a reader compares them by. Hidden entirely from
                 cashiers — it exposes carts and payer ids across the whole shop. */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "receipts" | "transactions")}>
+            <Tabs value={innerReceiptsTab} onValueChange={(v) => setInnerReceiptsTab(v as "all" | "unsuccessful")}>
                 {canSeeUnsuccessful && (
                     <TabsList className="mb-3">
                         <TabsTrigger value="all">{t("receipts.allReceipts")}</TabsTrigger>
