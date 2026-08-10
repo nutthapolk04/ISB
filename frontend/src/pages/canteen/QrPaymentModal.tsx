@@ -174,7 +174,7 @@ export function QrPaymentModal({
             }
             if (!cancelledRef.current) {
                 setError(
-                    "Bank has not confirmed in 5 minutes. If money was deducted it will appear shortly — use Check Now or cancel.",
+                    "Bank has not confirmed in 5 minutes. Safe to skip and move on — this stays pending and will complete on its own once the bank answers. Use Check Now to check right away.",
                 );
                 setPhase("expired");
             }
@@ -212,16 +212,47 @@ export function QrPaymentModal({
         }
     };
 
-    const handleCancel = async () => {
+    // Used by both the mid-wait "Cancel" button and the post-timeout "Skip for
+    // now" button — leaving this modal must never blindly mark the intent
+    // cancelled. It used to call /cancel directly, which just force-set
+    // status='cancelled' on OUR row with no idea what BAY actually did; if the
+    // customer had in fact paid and the webhook was only delayed (exactly the
+    // failure mode "waited too long" implies), confirmPosQrSale's Phase A skips
+    // cancelled intents outright — the payment would be captured with no
+    // receipt ever created, permanently. Ask BAY directly via /inquiry instead
+    // (same endpoint "Check Now" uses): it only cancels locally when BAY
+    // itself confirms nothing happened, and auto-completes the receipt if BAY
+    // says it went through after all. If BAY still can't say either way, the
+    // intent is left exactly as 'pending' — safe to pick up later from a
+    // webhook redelivery or another inquiry — instead of us guessing.
+    const handleLeave = async () => {
         if (!intent) {
             onBack();
             return;
         }
         cancelledRef.current = true;
         try {
-            await api.post(`/pos/qr-intent/${intent.ref_code}/cancel`, {});
-        } catch {
-            // best-effort; cashier moves on either way
+            const fresh = await api.post<PosQrIntent>(`/pos/qr-intent/${intent.ref_code}/inquiry`, {});
+            if (fresh.status === "confirmed") {
+                // Rare race: BAY confirmed between the last poll and this call.
+                onPaidRef.current({
+                    refCode: fresh.ref_code,
+                    receiptId: fresh.receipt_id,
+                    receiptNumber: fresh.receipt_number,
+                });
+                return;
+            }
+            if (fresh.status === "pending") {
+                console.log(
+                    `[POS QR] left waiting — ref=${intent.ref_code} still pending at BAY, left for a later callback/inquiry (not cancelled)`,
+                );
+            }
+        } catch (e) {
+            // Could not reach BAY/our backend to check — still don't guess.
+            console.log(
+                `[POS QR] could not confirm outcome before leaving — ref=${intent.ref_code} left pending`,
+                e,
+            );
         }
         onBack();
     };
@@ -241,7 +272,7 @@ export function QrPaymentModal({
                         <Button
                             size="icon"
                             variant="ghost"
-                            onClick={handleCancel}
+                            onClick={handleLeave}
                             className="-ml-2 h-7 w-7"
                             aria-label="Back"
                             disabled={phase === "creating"}
@@ -300,7 +331,7 @@ export function QrPaymentModal({
                             <Button
                                 variant="outline"
                                 className="flex-1"
-                                onClick={handleCancel}
+                                onClick={handleLeave}
                                 disabled={phase === "checking"}
                             >
                                 Cancel
@@ -336,8 +367,8 @@ export function QrPaymentModal({
                         <AlertTriangle className="h-10 w-10 text-amber-500" />
                         <p className="text-sm text-center text-muted-foreground">{error}</p>
                         <div className="flex gap-2 w-full">
-                            <Button variant="outline" className="flex-1" onClick={handleCancel}>
-                                Back
+                            <Button variant="outline" className="flex-1" onClick={handleLeave}>
+                                {phase === "expired" ? "Skip for now" : "Back"}
                             </Button>
                             {phase === "expired" && intent && (
                                 <Button className="flex-1" onClick={handleCheckNow}>
