@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import KioskOverlay from '../components/KioskOverlay.vue';
 import KioskExitPinDialog from '../components/KioskExitPinDialog.vue';
+import { isRfidAccepting } from '../lib/kioskSession';
 import { Languages, Wrench } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -81,6 +82,15 @@ async function handleRfidLogin(code: string) {
 
 function handleKeyDown(e: KeyboardEvent) {
     if (store.isLoading || !store.isReady) return;
+
+    if (!isRfidAccepting()) {
+        if (e.key === 'Enter') {
+            rfidBuffer.value = '';
+            rfidMode.value = false;
+            rfidLastKey.value = 0;
+        }
+        return;
+    }
 
     const now = Date.now();
     const gap = now - rfidLastKey.value;

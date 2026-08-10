@@ -6,6 +6,7 @@
  */
 
 import type { User, Wallet, Transaction } from './mockApi';
+import { cardUidLookupAttempts } from '../lib/cardUid';
 import { getKioskDeviceId, getKioskDeviceName, logKioskEvent } from '../lib/kioskLog';
 import { verifyTechnicianPassword as verifyTechnicianPasswordLib } from '../lib/technicianPassword';
 
@@ -34,6 +35,18 @@ interface ISBCustomerLookupResult {
     wallet_id: number | null;
     external_id?: string | null;
     card_frozen?: boolean;
+    card_uid?: string | null;
+}
+
+interface ISBUserPayerLookup {
+    user_id: number;
+    username: string;
+    full_name: string;
+    role: string;
+    photo_url: string | null;
+    external_id: string | null;
+    wallet_id: number;
+    wallet_balance: number;
 }
 
 /** Thrown when a student card is found but blocked (card_frozen). */
@@ -331,6 +344,65 @@ function mapTransaction(tx: ISBWalletTransaction): Transaction {
     };
 }
 
+function isNotFoundError(e: unknown): boolean {
+    if (!(e instanceof Error)) return false;
+    const msg = e.message.toLowerCase();
+    return msg.includes('404')
+        || msg.includes('not found')
+        || msg.includes('card not bound');
+}
+
+async function requestGetOrNull<T>(path: string): Promise<T | null> {
+    try {
+        return await request<T>(path);
+    } catch (e) {
+        if (isNotFoundError(e)) return null;
+        throw e;
+    }
+}
+
+async function getByCardWithFallback<T>(pathPrefix: string, raw: string): Promise<T | null> {
+    for (const attempt of cardUidLookupAttempts(raw)) {
+        const hit = await requestGetOrNull<T>(`${pathPrefix}/${encodeURIComponent(attempt)}`);
+        if (hit) return hit;
+    }
+    return null;
+}
+
+function userPayerToLookup(user: ISBUserPayerLookup): ISBCustomerLookupResult {
+    return {
+        id: user.user_id,
+        user_id: user.user_id,
+        name: user.full_name,
+        student_code: null,
+        customer_code: user.username,
+        customer_kind: user.role,
+        grade: null,
+        photo_url: user.photo_url,
+        wallet_balance: user.wallet_balance,
+        wallet_id: user.wallet_id,
+        external_id: user.external_id,
+        card_frozen: false,
+    };
+}
+
+async function buildUserFromLookup(exact: ISBCustomerLookupResult): Promise<User> {
+    if (exact.card_frozen && exact.user_id == null) {
+        throw new CardBlockedError();
+    }
+
+    let family: ISBFamilyResponse = { children: [], coparents: [] };
+    if (exact.user_id != null) {
+        try {
+            family = await request<ISBFamilyResponse>(`/family/by-user/${exact.user_id}`);
+        } catch (err) {
+            console.warn('[Kiosk] /family/by-user failed:', err);
+        }
+    }
+
+    return mapCustomer(exact, family);
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export const realApi = {
@@ -342,36 +414,45 @@ export const realApi = {
         const q = identifier.trim();
         if (!q) return null;
 
+        const customerByCard = await getByCardWithFallback<ISBCustomerLookupResult>('/customers/by-card', q);
+        if (customerByCard) {
+            return buildUserFromLookup(customerByCard);
+        }
+
+        const userByCard = await getByCardWithFallback<ISBUserPayerLookup>('/users/by-card', q);
+        if (userByCard) {
+            return buildUserFromLookup(userPayerToLookup(userByCard));
+        }
+
+        const byCode = await requestGetOrNull<ISBCustomerLookupResult>(
+            `/customers/by-code/${encodeURIComponent(q)}`,
+        );
+        if (byCode) {
+            return buildUserFromLookup(byCode);
+        }
+
         const results = await request<ISBCustomerLookupResult[]>(
             `/customers/search?q=${encodeURIComponent(q)}&limit=10`,
         );
-
         if (results.length === 0) return null;
 
-        // Prefer exact match on student_code / customer_code (case-insensitive)
         const lower = q.toLowerCase();
-        const exact = results.find(
-            c =>
-                c.student_code?.toLowerCase() === lower ||
-                c.customer_code?.toLowerCase() === lower,
-        ) ?? results[0];
+        const uidCandidates = new Set(cardUidLookupAttempts(q).map((c) => c.toLowerCase()));
+        const exact = results.find((c) =>
+            c.student_code?.toLowerCase() === lower
+            || c.customer_code?.toLowerCase() === lower
+            || (c.card_uid && uidCandidates.has(c.card_uid.toLowerCase())),
+        );
 
-        if (exact.card_frozen && exact.user_id == null) {
-            throw new CardBlockedError();
+        if (exact) {
+            return buildUserFromLookup(exact);
         }
 
-        // If this is a parent/staff User (not a student Customer), fetch family
-        let family: ISBFamilyResponse = { children: [], coparents: [] };
-        if (exact.user_id != null) {
-            try {
-                family = await request<ISBFamilyResponse>(`/family/by-user/${exact.user_id}`);
-                console.log('[Kiosk] family for user', exact.user_id, family);
-            } catch (err) {
-                console.warn('[Kiosk] /family/by-user failed:', err);
-            }
+        if (results.length === 1) {
+            return buildUserFromLookup(results[0]);
         }
 
-        return mapCustomer(exact, family);
+        return null;
     },
 
     /**

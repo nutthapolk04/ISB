@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { App } from '@capacitor/app';
 import { useKioskStore } from './stores/kioskStore.ts';
 import { Hardware } from 'capacitor-hardware';
 import { retryPendingCashTopup } from './hooks/useBillAcceptor.ts';
 import { connectPrinter } from './hooks/usePrinter.ts';
+import { blockRfidAfterBoot, resetKioskSession } from './lib/kioskSession.ts';
 import BootSplashScreen from './components/BootSplashScreen.vue';
 
 const router = useRouter();
@@ -18,6 +20,7 @@ const splashDone = ref(false);
 function onSplashFinished() {
     contentVisible.value = true;
     showSplash.value = false;
+    blockRfidAfterBoot();
 }
 
 function onSplashAfterLeave() {
@@ -49,11 +52,19 @@ const handleInteraction = () => {
 };
 
 onMounted(async () => {
+    resetKioskSession(store, router);
+    blockRfidAfterBoot();
+
     window.addEventListener('mousedown', handleInteraction);
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
     void store.bootstrap().then(() => retryPendingCashTopup());
+
+    void App.addListener('resume', () => {
+        resetKioskSession(store, router);
+        blockRfidAfterBoot();
+    });
 
     Hardware.connect({
         port: '/dev/ttyS2',

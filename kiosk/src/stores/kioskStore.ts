@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { realApi, CardBlockedError, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { initKioskLogs, logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
+import { blockRfidAfterBoot } from '../lib/kioskSession';
 import { memberLogData, resolveMemberLogId, techLogAtKiosk } from '../lib/techLogMessage';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
 import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
@@ -93,11 +94,13 @@ export const useKioskStore = defineStore('kiosk', () => {
     async function bootstrap() {
         bootStatus.value = 'loading';
         bootError.value = null;
+        logout();
         try {
             await initKioskLogs();
             await realApi.init();
             await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
             bootStatus.value = 'ready';
+            blockRfidAfterBoot();
             logKioskEvent('system', 'info', techLogAtKiosk('Kiosk bootstrap ready'));
             startKioskLogUploader();
             startKioskHeartbeat();
@@ -120,6 +123,8 @@ export const useKioskStore = defineStore('kiosk', () => {
         }
 
         isLoading.value = true;
+        currentUser.value = null;
+        transactions.value = [];
         try {
             const user = await realApi.checkBalance(identifier);
             if (user) {

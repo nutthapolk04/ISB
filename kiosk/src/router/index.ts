@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { useKioskStore } from '../stores/kioskStore';
 import WelcomeView from '../views/WelcomeView.vue';
 import TechnicianView from '../views/TechnicianView.vue';
 import BalanceView from '../views/BalanceView.vue';
@@ -58,6 +59,17 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes
+});
+
+const AUTH_ROUTE_NAMES = new Set(['balance', 'history', 'topup', 'transfer']);
+
+router.beforeEach((to) => {
+    if (!AUTH_ROUTE_NAMES.has(String(to.name ?? ''))) return true;
+    const store = useKioskStore();
+    if (!store.isAuthenticated) {
+        return { name: 'welcome' };
+    }
+    return true;
 });
 
 export default router;
