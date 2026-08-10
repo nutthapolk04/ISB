@@ -4,6 +4,7 @@ import ResponseStatus from "@/constants/ResponseStatus";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { hasRole } from "@/middleware/AuthMiddleware";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
+import { listTransactions, getTransactionDetail, markTransactionCancelledByRefCode } from "@/services/pos_transaction_service";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
 import {
 	createPosQrIntent,
@@ -73,6 +74,51 @@ export const PosController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (PC-02)] PosController.getReceipt() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	listTransactions: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-11)] PosController.listTransactions() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (PC-11)] PosController.listTransactions() calling listTransactions().`);
+			const result = await listTransactions({
+				caller: user as PosUser,
+				status: query.status ?? undefined,
+				paymentMethod: query.payment_method ?? undefined,
+				shopId: query.shop_id ?? undefined,
+				shopIds: query.shop_ids ?? undefined,
+				dateFrom: query.date_from ?? undefined,
+				dateTo: query.date_to ?? undefined,
+				page: query.page ? Number(query.page) : undefined,
+				pageSize: query.page_size ? Number(query.page_size) : undefined,
+			});
+			logger.info(`[${reqContext.requestId} (PC-11)] PosController.listTransactions() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-11)] PosController.listTransactions() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	getTransaction: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-13)] PosController.getTransaction() called.`);
+		const id = parseIntParam(params.id, "transaction id", reqContext.set);
+		if (id === null) {
+			logger.warn(`[${reqContext.requestId} (PC-13)] PosController.getTransaction() invalid id.`);
+			return errorResponse(reqContext, "Invalid transaction id", ResponseStatus.UNPROCESSABLE);
+		}
+		try {
+			logger.info(`[${reqContext.requestId} (PC-13)] PosController.getTransaction() calling getTransactionDetail().`);
+			const result = await getTransactionDetail(id, user as PosUser);
+			logger.info(`[${reqContext.requestId} (PC-13)] PosController.getTransaction() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-13)] PosController.getTransaction() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -292,6 +338,27 @@ export const PosController = {
 			logger.error(`[${reqContext.requestId} (PC-08)] PosController.cancelQrIntent() error:`, e);
 			return errorFromService(reqContext, e);
 		}
+	},
+
+	/**
+	 * Cashier gave up on this QR screen (Cancel / Skip for now / Back).
+	 * Marks only the Transactions-tab row cancelled — the payment_intent
+	 * itself is left untouched (still 'pending') so a late webhook can still
+	 * complete the sale; if it does, checkout()'s markTransactionSuccess call
+	 * flips this same row back to 'success' automatically. Best-effort: a
+	 * logging miss here must never surface as an error to the cashier.
+	 */
+	abandonQrIntent: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-12)] PosController.abandonQrIntent() called.`);
+		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-12)] PosController.abandonQrIntent() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		await markTransactionCancelledByRefCode(params.refCode);
+		logger.info(`[${reqContext.requestId} (PC-12)] PosController.abandonQrIntent() completed.`);
+		return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
 	},
 
 	/**

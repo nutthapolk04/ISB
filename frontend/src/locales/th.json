@@ -505,6 +505,32 @@
     "receiptCount": "จำนวนใบเสร็จ",
     "todaySales": "ยอดขายวันนี้",
     "allReceipts": "รายการใบเสร็จทั้งหมด",
+    "tabReceipts": "ใบเสร็จ",
+    "tabTransactions": "รายการทำธุรกรรม",
+    "transactions": {
+      "searchTitle": "ค้นหารายการทำธุรกรรม",
+      "status": "สถานะ",
+      "statusPending": "รอดำเนินการ",
+      "statusSuccess": "สำเร็จ",
+      "statusFailed": "ล้มเหลว",
+      "statusCancelled": "ยกเลิกแล้ว",
+      "guideTitle": "หน้านี้คืออะไร",
+      "guideBody": "ทุกความพยายามเช็คเอาท์ตั้งแต่เลือกวิธีชำระเงิน รวมถึงรายการที่ยังรอผล (เช่น จ่ายด้วย Thai QR ที่ยังรอธนาคารยืนยัน) หรือที่ล้มเหลวก่อนจะออกใบเสร็จได้",
+      "all": "รายการทำธุรกรรมทั้งหมด",
+      "none": "ไม่พบรายการทำธุรกรรม",
+      "result": "ผลลัพธ์",
+      "startedAt": "เวลาเริ่ม",
+      "endedAt": "เวลาสิ้นสุด",
+      "stillWaiting": "กำลังรอผล…",
+      "bankRef": "เลขอ้างอิงธนาคาร",
+      "actions": "จัดการ",
+      "details": "รายละเอียดธุรกรรม",
+      "receiptLoadFailed": "โหลดใบเสร็จไม่สำเร็จ",
+      "itemsLoading": "กำลังโหลดตะกร้า…",
+      "itemsNone": "ไม่มีข้อมูลตะกร้าสำหรับรายการนี้",
+      "checkNow": "เช็คกับธนาคารตอนนี้",
+      "checkFailed": "เช็คกับธนาคารไม่สำเร็จ"
+    },
     "searchReceipt": "ค้นหาด้วยเลขที่ใบเสร็จ, ชื่อ, ยอดเงิน, หรือวันที่...",
     "searchPanel": {
       "title": "ค้นหาใบเสร็จ",
@@ -2452,7 +2478,8 @@
       "UPDATE_BALANCE": "ปรับยอดเงิน",
       "UPDATE_PRICE": "ปรับราคา",
       "UPDATE_SETTING": "แก้ค่าระบบ",
-      "DELETE_PRODUCT": "ลบสินค้า"
+      "DELETE_PRODUCT": "ลบสินค้า",
+      "REJECT": "ล้มเหลว"
     },
     "field": {
       "items": "จำนวนรายการ",
@@ -2495,6 +2522,8 @@
     "summary": {
       "createReceipt": "ขาย {{items}} รายการ รวม ฿{{total}} จ่ายด้วย{{payment}}",
       "createReceiptNoPayment": "ออกใบเสร็จ {{items}} รายการ รวม ฿{{total}}",
+      "rejectReceipt": "เช็คเอาท์ล้มเหลว ({{payment}}) — {{reason}}",
+      "rejectReceiptNoPayment": "เช็คเอาท์ล้มเหลว — {{reason}}",
       "voidReceipt": "ยกเลิกใบเสร็จ คืนเงิน ฿{{total}}",
       "updatePrice": "เปลี่ยนราคา จาก ฿{{from}} เป็น ฿{{to}}",
       "updateBalance": "ปรับยอดเงิน จาก ฿{{from}} เป็น ฿{{to}}",

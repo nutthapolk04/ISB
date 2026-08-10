@@ -59,6 +59,22 @@ export default function CustomerDisplay() {
         };
     }, []);
 
+    // This window must survive the cashier's whole shift undisturbed — guard
+    // against an accidental Ctrl+W or navigation closing it. Doesn't stop an
+    // OS-level Alt+F4 (browsers can't intercept that), and modern Chrome shows
+    // its own generic "Leave site?" prompt rather than custom text — but it's
+    // still a real confirm step between an accidental keystroke and the window
+    // actually closing. customerDisplayWindow.ts's watchdog reopens it
+    // automatically if it does close, as a second line of defense.
+    useEffect(() => {
+        const onBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = "";
+        };
+        window.addEventListener("beforeunload", onBeforeUnload);
+        return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    }, []);
+
     // Whenever a fresh non-terminal state arrives, clear the "force standby"
     // override so the next transaction is rendered normally.
     useEffect(() => {

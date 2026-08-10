@@ -28,6 +28,7 @@ import { pgNumber, pgToIso } from "@/lib/dates";
 import { logger } from "@/logger";
 import { createQrPayment, isPymtConfigured, PymtGatewayError } from "@/services/pymt_gateway";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
+import { startTransaction, markTransactionCancelledByRefCode } from "@/services/pos_transaction_service";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,22 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
         })
         .returning();
 
+    // Best-effort — this is the "picked QR and confirmed" moment for the
+    // Transactions tab. A logging failure here must never block a real QR
+    // sale, so startTransaction swallows its own errors.
+    await startTransaction({
+        refCode,
+        transactionMode: input.cart.transaction_mode ?? null,
+        paymentMethod: "bay_qr",
+        shopId: input.cart.shop_id ?? null,
+        cashierUserId: input.cashierUserId,
+        payerKind: input.cart.payer_kind ?? null,
+        payerId: input.cart.customer_id ?? input.cart.payer_user_id ?? input.cart.payer_department_id ?? null,
+        itemsCount: input.cart.items.length,
+        amount: input.amount,
+        items: input.cart.items,
+    });
+
     try {
         const r = await createQrPayment({
             amount: input.amount,
@@ -131,6 +148,7 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
             .set({ status: "cancelled" })
             .where(eq(paymentIntents.id, inserted.id))
             .catch(() => { });
+        await markTransactionCancelledByRefCode(refCode);
         throw e;
     }
 }
@@ -238,6 +256,13 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
         if (intent.status === "cancelled") return { kind: "skip", receiptId: null };
         // Another worker has already taken the claim — back off. They (or the
         // next retry after a phase-B crash) will finish stamping the receipt.
+        // Note this only matches the in-flight sentinel, not
+        // 'gateway_webhook_failed' (see phase B below) — a failed attempt
+        // must remain retryable, or a checkout() bug permanently bricks the
+        // intent: money already captured by BAY, but no receipt ever created
+        // and no future call — webhook redelivery, /inquiry, "Check Now" —
+        // able to try again. That is exactly what happened on 2026-08-10
+        // (ref=POS-20260810-2H13YJ, "Product id=-3 not found").
         if (intent.confirmed_via === "gateway_webhook_claimed") {
             return { kind: "skip", receiptId: null };
         }
@@ -286,7 +311,30 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
         payment_method: "qr_promptpay",
         userId: claim.cart.userId ?? claim.createdBy ?? 0,
     };
-    const receipt = await checkout(checkoutInput);
+    let receipt: Awaited<ReturnType<typeof checkout>>;
+    try {
+        // Linked by refCode — updates the transaction row created back at
+        // createPosQrIntent time rather than starting a second one.
+        receipt = await checkout(checkoutInput, { linkToTransactionRefCode: refCode });
+    } catch (err) {
+        // The customer's money is already captured by BAY at this point — this
+        // is now a "charged but not recorded" case that must stay visible and
+        // retryable, never silently stuck. Release the claim (distinct sentinel
+        // so phase A's "in-flight" skip above doesn't match it) so the next
+        // webhook redelivery, /inquiry call, or "Check Now" click gets another
+        // shot instead of skipping forever.
+        logger.error("[POS QR] confirmPosQrSale checkout failed after claim — releasing for retry", {
+            refCode,
+            intentId: claim.intentId,
+            error: err instanceof Error ? err.message : String(err),
+        });
+        await db.execute(
+            sql`UPDATE payment_intents
+            SET confirmed_via = 'gateway_webhook_failed'
+            WHERE id = ${claim.intentId} AND receipt_id IS NULL`,
+        );
+        throw err;
+    }
     const receiptId = receipt.id;
     const phaseBMs = performance.now() - tPhaseB;
 
@@ -330,4 +378,5 @@ export async function cancelPosQrIntent(refCode: string): Promise<void> {
         .where(
             sql`${paymentIntents.refCode} = ${refCode} AND ${paymentIntents.status} = 'pending' AND ${paymentIntents.intentType} = 'pos_sale'`,
         );
+    await markTransactionCancelledByRefCode(refCode);
 }

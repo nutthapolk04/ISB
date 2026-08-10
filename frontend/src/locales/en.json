@@ -505,6 +505,32 @@
     "receiptCount": "Receipt Count",
     "todaySales": "Today's Sales",
     "allReceipts": "All Receipts",
+    "tabReceipts": "Receipts",
+    "tabTransactions": "Transactions",
+    "transactions": {
+      "searchTitle": "Search Transactions",
+      "status": "Status",
+      "statusPending": "Pending",
+      "statusSuccess": "Success",
+      "statusFailed": "Failed",
+      "statusCancelled": "Cancelled",
+      "guideTitle": "What is this?",
+      "guideBody": "Every checkout attempt from the moment a payment method is picked — including ones still pending (e.g. a Thai QR sale waiting for bank confirmation) or that failed before a receipt was created.",
+      "all": "All Transactions",
+      "none": "No transactions found",
+      "result": "Result",
+      "startedAt": "Start Time",
+      "endedAt": "End Time",
+      "stillWaiting": "Still waiting…",
+      "bankRef": "Bank Ref. No.",
+      "actions": "Actions",
+      "details": "Transaction Details",
+      "receiptLoadFailed": "Could not load the receipt",
+      "itemsLoading": "Loading cart…",
+      "itemsNone": "No cart snapshot for this attempt",
+      "checkNow": "Check with Bank Now",
+      "checkFailed": "Could not check with the bank"
+    },
     "searchReceipt": "Search by receipt ID, name, amount, or date...",
     "searchPanel": {
       "title": "Search Receipt",
@@ -2454,7 +2480,8 @@
       "UPDATE_BALANCE": "Adjusted balance",
       "UPDATE_PRICE": "Updated price",
       "UPDATE_SETTING": "Updated setting",
-      "DELETE_PRODUCT": "Deleted product"
+      "DELETE_PRODUCT": "Deleted product",
+      "REJECT": "Failed"
     },
     "field": {
       "items": "Items",
@@ -2497,6 +2524,8 @@
     "summary": {
       "createReceipt": "Sold {{items}} items for ฿{{total}} via {{payment}}",
       "createReceiptNoPayment": "Issued receipt for {{items}} items, total ฿{{total}}",
+      "rejectReceipt": "Checkout failed ({{payment}}) — {{reason}}",
+      "rejectReceiptNoPayment": "Checkout failed — {{reason}}",
       "voidReceipt": "Voided receipt, refund ฿{{total}}",
       "updatePrice": "Price changed from ฿{{from}} to ฿{{to}}",
       "updateBalance": "Balance changed from ฿{{from}} to ฿{{to}}",

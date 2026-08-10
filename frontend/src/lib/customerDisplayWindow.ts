@@ -49,6 +49,37 @@ function tryFullscreenPopup(w: Window): void {
   }
 }
 
+// ── Watchdog: keep the display window alive no matter what happens on the
+// cashier's own screen ──────────────────────────────────────────────────────
+//
+// The cashier alt-tabbing / switching apps on the main monitor must never take
+// the customer display down with it — it's a second, independent top-level
+// window on its own monitor, so normal window-switching on screen 1 can't
+// touch it directly, but it CAN still end up closed by an accidental Ctrl+W,
+// a crash, or someone closing it on purpose without meaning to for the whole
+// shift. Track the last window we opened/focused and, once a watchdog timer
+// notices `.closed` flip true, silently reopen it — no cashier action needed.
+//
+// This self-heal only works if the reopen isn't eaten by the popup blocker:
+// window.open() calls outside a user gesture (which this is — it fires from
+// a timer, not a click) are blocked by default. The installer sets Chrome's
+// PopupsAllowedForUrls enterprise policy for our origin specifically so this
+// works in the field (see installer.nsi) — without that policy the watchdog
+// can detect the close but can't act on it.
+let trackedWindow: Window | null = null;
+let watchdogTimer: ReturnType<typeof setInterval> | null = null;
+
+function trackAndWatch(w: Window): void {
+  trackedWindow = w;
+  if (watchdogTimer) return;
+  watchdogTimer = setInterval(() => {
+    if (trackedWindow && trackedWindow.closed) {
+      trackedWindow = null;
+      void openCustomerDisplayWindow();
+    }
+  }, 3000);
+}
+
 /** Probe whether the host station has ≥2 monitors available. Returns false
  *  on Safari / Firefox (no API), when the permission is denied, or when
  *  only the primary screen is connected. */
@@ -97,6 +128,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         if (w) {
           try { w.focus(); } catch { /* cross-origin — ignore */ }
           tryFullscreenPopup(w);
+          trackAndWatch(w);
           return true;
         }
       }
@@ -111,6 +143,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
     if (!w) return false;
     try { w.focus(); } catch { /* ignore */ }
     tryFullscreenPopup(w);
+    trackAndWatch(w);
     return true;
   } catch {
     return false;

@@ -83,7 +83,7 @@ export interface ReceiptDTO {
     items: ReceiptItemDTO[];
 }
 
-function userCanAccessShop(caller: AccessTokenPayload & { shop_id?: string | null }, shopId: string): boolean {
+export function userCanAccessShop(caller: AccessTokenPayload & { shop_id?: string | null }, shopId: string): boolean {
     // Mirrors `user_can_access_shop` in FastAPI deps.py:
     // - admin / superuser: all shops
     // - unscoped manager (shop_id null) AND has manager role: all shops

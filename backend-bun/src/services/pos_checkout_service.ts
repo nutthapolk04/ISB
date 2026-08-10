@@ -16,12 +16,20 @@ import {
     menuOptions,
     spendingGroups,
     shopSpendingGroups,
+    auditLogs,
 } from "@/db/schema";
+import { logger } from "@/logger";
 import { bangkokDayRange, bangkokTodayCompact, bangkokTodayIso, pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
 import { fifoDeductInTx } from "@/services/inventory_fifo";
 import { checkAndSendLowBalanceAlerts } from "@/services/low_balance_notification";
+import {
+    startTransaction,
+    markTransactionSuccess,
+    markTransactionFailed,
+    getTransactionIdByRefCode,
+} from "@/services/pos_transaction_service";
 
 const ALLOWED_PAYMENT_METHODS = new Set([
     "CASH",
@@ -285,52 +293,94 @@ async function resolveSpendingGroupForShop(
 }
 
 /**
- * Look up the receipt a previous call already created for this key.
- *
- * Used twice: once up front as a cheap fast path, and again after a unique
- * violation, which is the case that actually matters — two requests racing
- * with the same key both pass any "does it exist yet" check, so the database
- * constraint is the real guard and this is how the loser recovers.
+ * Best-effort audit trail for a checkout attempt that never became a receipt.
+ * Reuses the existing `audit_logs` table/enum (action 'REJECT', already
+ * defined but unused before this) so failed cash/wallet/department/EDC/QR
+ * attempts show up in the same admin Audit Log screen as successful sales
+ * (entity_type='receipt') instead of vanishing after a toast the cashier saw
+ * once. Never throws — a logging failure must not mask the real error.
  */
-async function findReceiptByIdempotencyKey(key: string): Promise<number | null> {
-    const rows = await pgClient<Array<{ id: number }>>`
-    SELECT id FROM receipts WHERE idempotency_key = ${key} LIMIT 1
-  `;
-    return rows[0]?.id ?? null;
+async function logFailedCheckoutAttempt(input: CheckoutInput, err: unknown): Promise<void> {
+    try {
+        await db.insert(auditLogs).values({
+            entityType: "receipt",
+            entityId: null,
+            action: "REJECT",
+            userId: input.userId,
+            shopId: input.shop_id ?? null,
+            changesJson: {
+                payment_method: (input.payment_method ?? "").toLowerCase(),
+                items: input.items?.length ?? 0,
+                payer_kind: input.payer_kind ?? null,
+                payer_id: input.customer_id ?? input.payer_user_id ?? input.payer_department_id ?? null,
+                reason: err instanceof Error ? err.message : String(err),
+            },
+        });
+    } catch (logErr) {
+        logger.error("[checkout] failed to log rejected checkout attempt", logErr);
+    }
 }
 
-/** Postgres unique-violation SQLSTATE. */
-const PG_UNIQUE_VIOLATION = "23505";
+/** Rough pre-checkout estimate for the transaction log — the exact total
+ *  (with EDC surcharge etc.) is only known once runCheckout finishes, so this
+ *  is overwritten with the real receipt.total on success. Good enough for
+ *  display on a still-pending row. */
+function estimateAttemptedAmount(input: CheckoutInput): number | null {
+    if (!input.items || input.items.length === 0) return null;
+    const itemsTotal = input.items.reduce(
+        (s, i) => s + i.unit_price * i.quantity - (i.discount ?? 0),
+        0,
+    );
+    return Math.round((itemsTotal - (input.discount ?? 0)) * 100) / 100;
+}
 
 /**
- * Did this failure come from a unique index?
+ * Public entry point — wraps the real checkout logic so every attempt is
+ * recorded to pos_checkout_transactions (the Transactions tab) from the
+ * moment it starts, and every failure is also recorded via
+ * logFailedCheckoutAttempt (audit_logs) — all without touching the logic
+ * below.
  *
- * Deliberately not narrowed to the idempotency index. When two requests
- * carrying the same key race, the one that loses does not necessarily trip
- * *that* index first: generateReceiptNumber() derives the next sequence with a
- * plain read, so both transactions compute the same receipt_number and the
- * loser usually fails on `ix_receipts_receipt_number` instead. Either way the
- * meaning for us is identical — someone else got there first — and the caller
- * resolves it by looking the key up, which only succeeds if a receipt really
- * exists. A collision that is not ours still throws, because the lookup finds
- * nothing.
+ * `linkToTransactionRefCode` is set by confirmPosQrSale: a QR sale's
+ * transaction row is created back when the intent was created
+ * (createPosQrIntent), so this call must UPDATE that existing row instead of
+ * starting a new one.
  */
-function isUniqueViolation(e: unknown): boolean {
-    return (e as { code?: string })?.code === PG_UNIQUE_VIOLATION;
+export async function checkout(
+    input: CheckoutInput,
+    opts?: { linkToTransactionRefCode?: string },
+) {
+    const txnId = opts?.linkToTransactionRefCode
+        ? await getTransactionIdByRefCode(opts.linkToTransactionRefCode)
+        : await startTransaction({
+            // For EDC, the terminal has already replied by the time this runs
+            // (doCheckout only fires after approval) — its invoice_no/RRN is
+            // the reference tied to the bank/acquirer side of the sale. QR's
+            // equivalent (refCode) is set via linkToTransactionRefCode instead,
+            // since that row already exists by the time this branch would run.
+            refCode: input.edc_terminal_ref ?? null,
+            transactionMode: input.transaction_mode ?? null,
+            paymentMethod: input.payment_method,
+            shopId: input.shop_id ?? null,
+            cashierUserId: input.userId,
+            payerKind: input.payer_kind ?? null,
+            payerId: input.customer_id ?? input.payer_user_id ?? input.payer_department_id ?? null,
+            itemsCount: input.items?.length ?? 0,
+            amount: estimateAttemptedAmount(input),
+            items: input.items,
+        });
+    try {
+        const receipt = await runCheckout(input);
+        await markTransactionSuccess(txnId, receipt.id, receipt.total);
+        return receipt;
+    } catch (err) {
+        await logFailedCheckoutAttempt(input, err);
+        await markTransactionFailed(txnId, err instanceof Error ? err.message : String(err));
+        throw err;
+    }
 }
 
-export async function checkout(input: CheckoutInput) {
-    // ── Idempotency fast path ────────────────────────────────────────────
-    // A repeat of a key we've already fulfilled returns the original receipt
-    // and does no work at all — no second stock deduction, no second wallet
-    // debit. This is only the cheap path; the authoritative guard is the
-    // partial unique index, handled at the insert below.
-    const idempotencyKey = input.idempotency_key?.trim() || null;
-    if (idempotencyKey) {
-        const existingId = await findReceiptByIdempotencyKey(idempotencyKey);
-        if (existingId !== null) return getReceipt(existingId);
-    }
-
+async function runCheckout(input: CheckoutInput) {
     // ── Pre-flight validation ────────────────────────────────────────────
     const paymentMethod = (input.payment_method ?? "").toUpperCase();
     if (!ALLOWED_PAYMENT_METHODS.has(paymentMethod)) {
@@ -791,7 +841,6 @@ export async function checkout(input: CheckoutInput) {
               ${input.notes ?? null}, ${input.edc_terminal_ref ?? null},
               ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFee},
               ${paymentMethod === "CASH" ? input.cash_received ?? null : null},
-              ${receiptSpendingGroupId}, ${input.userId}, ${idempotencyKey})
       RETURNING id
     `;
         const receiptId = rIns[0].id;
@@ -844,10 +893,6 @@ export async function checkout(input: CheckoutInput) {
         // surfacing a constraint error. The lookup is what makes this safe —
         // an unrelated unique violation finds no receipt and falls through to
         // the throw below.
-        if (idempotencyKey && isUniqueViolation(e)) {
-            const existingId = await findReceiptByIdempotencyKey(idempotencyKey);
-            if (existingId !== null) return getReceipt(existingId);
-        }
         throw e;
     }
 

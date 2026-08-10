@@ -123,6 +123,13 @@ Section "Chrome kiosk auto-start (isb.schooney.tech/login)" SecKiosk
   ; "1", "2", ... under a subkey named after the policy itself.
   WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" "1" "isb.schooney.tech"
 
+  ; The customer-display popup (second monitor) is watched by a JS watchdog
+  ; (frontend/src/lib/customerDisplayWindow.ts) that silently reopens it if it
+  ; ever closes — but that reopen fires from a timer, not a click, so Chrome's
+  ; popup blocker eats it by default. This policy allow-lists our origin for
+  ; popups so the watchdog's window.open() actually goes through.
+  WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls" "1" "isb.schooney.tech"
+
   ; Resolve the installed Chrome's real path via its registered App Path
   ; instead of guessing a hardcoded Program Files location (differs between
   ; 32/64-bit and per-machine/per-user installs).
@@ -132,11 +139,11 @@ Section "Chrome kiosk auto-start (isb.schooney.tech/login)" SecKiosk
   ${Else}
     SetShellVarContext all
     CreateDirectory "$SMSTARTUP"
-    CreateShortcut "$SMSTARTUP\ISB POS Kiosk.lnk" "$0" '--kiosk "https://isb.schooney.tech/login" --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+    CreateShortcut "$SMSTARTUP\ISB POS Kiosk.lnk" "$0" '--kiosk "https://isb.schooney.tech/login" --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
     SetShellVarContext current
 
     DetailPrint "Starting Chrome in kiosk mode..."
-    Exec '"$0" --kiosk "https://isb.schooney.tech/login" --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+    Exec '"$0" --kiosk "https://isb.schooney.tech/login" --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
   ${EndIf}
 SectionEnd
 

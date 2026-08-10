@@ -1,6 +1,6 @@
 {
-  "id": "3ce190d4-5421-40f1-88ea-0639c2e25c30",
-  "prevId": "bfdd1729-50f5-4cb5-8c41-16ce3b3692a4",
+  "id": "b45c2794-60c7-4a53-b88a-eaa6d978128b",
+  "prevId": "3ce190d4-5421-40f1-88ea-0639c2e25c30",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3526,6 +3526,12 @@
         "amount": {
           "name": "amount",
           "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cart_snapshot": {
+          "name": "cart_snapshot",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

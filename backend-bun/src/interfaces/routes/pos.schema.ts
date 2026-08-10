@@ -53,6 +53,25 @@ export const posGetReceipt = {
     detail: { tags: ["POS"], summary: "Get receipt by id" },
 };
 
+export const posListTransactions = {
+    query: t.Object({
+        status: t.Optional(t.Nullable(t.String())),
+        payment_method: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        shop_ids: t.Optional(t.Nullable(t.String())),
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        page: t.Optional(t.Nullable(t.String())),
+        page_size: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: { tags: ["POS"], summary: "List checkout transactions (all statuses, all payment methods)" },
+};
+
+export const posGetTransaction = {
+    params: t.Object({ id: t.String() }),
+    detail: { tags: ["POS"], summary: "Get checkout transaction by id, with cart items resolved" },
+};
+
 export const posCheckout = {
     body: t.Object({
         transaction_mode: t.Optional(t.Nullable(t.String())),
@@ -109,6 +128,18 @@ export const posQrIntentInquiry = {
 export const posQrIntentCancel = {
     params: t.Object({ refCode: t.String() }),
     detail: { tags: ["POS"], summary: "Cancel POS QR intent" },
+};
+
+/**
+ * Marks the Transactions-tab row 'cancelled' only — does NOT touch the
+ * underlying payment_intent, which must stay 'pending' so a late webhook can
+ * still complete the sale (see cancelPosQrIntent's doc comment for why a
+ * hard cancel here would be unsafe). Cashier-initiated "give up on this QR"
+ * signal, purely for log visibility.
+ */
+export const posQrIntentAbandon = {
+    params: t.Object({ refCode: t.String() }),
+    detail: { tags: ["POS"], summary: "Mark POS QR transaction log row as cancelled (cashier gave up)" },
 };
 
 /**

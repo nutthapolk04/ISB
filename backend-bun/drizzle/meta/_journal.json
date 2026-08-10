@@ -103,8 +103,15 @@
     {
       "idx": 14,
       "version": "7",
-      "when": 1786120587646,
-      "tag": "0014_add_checkout_idempotency_and_failed_checkouts",
+      "when": 1786352276506,
+      "tag": "0014_add_pos_checkout_transactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786356399841,
+      "tag": "0015_add_cart_snapshot_to_pos_checkout_transactions",
       "breakpoints": true
     }
   ]
