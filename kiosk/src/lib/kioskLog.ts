@@ -51,7 +51,6 @@ export async function initKioskLogs(): Promise<void> {
     if (initialized) return;
     await initKioskLogFilesystem();
     initialized = true;
-    logKioskEvent('system', 'info', 'Kiosk log initialized', await getKioskLogStorageStats());
 }
 
 /** No-op — logs no longer use localStorage quota. Kept for call-site compatibility. */
@@ -108,10 +107,7 @@ export async function exportKioskLogsText(day?: string): Promise<string> {
         day ? `Day: ${day}` : 'Recent entries',
         '---',
     ].join('\n');
-    const lines = entries.map((e) => {
-        const data = e.data ? ` ${JSON.stringify(e.data)}` : '';
-        return `${e.iso} [${e.level}] [${e.category}] ${e.message}${data}`;
-    });
+    const lines = entries.map((e) => e.message);
     return [header, ...lines].join('\n');
 }
 

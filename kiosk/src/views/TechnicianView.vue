@@ -36,12 +36,10 @@ import {
     getKioskLogStorageStats,
     getKioskLogsForDay,
     listKioskLogDays,
-    logKioskEvent,
     type KioskLogCategory,
     type KioskLogEntry,
     type KioskLogLevel,
 } from '../lib/kioskLog';
-import { techLogAtKiosk } from '../lib/techLogMessage';
 import { useKioskDebugMode } from '../lib/debugMode';
 import { checkKioskUpdate, type KioskUpdateCheck } from '../lib/kioskRelease';
 import { Hardware, type PollStatusResult } from 'capacitor-hardware';
@@ -113,7 +111,7 @@ const counts = computed(() => ({
 const firmwareLabel = computed(() => `v${__APP_VERSION__} · build ${__BUILD_TIME__}`);
 
 const categories: Array<KioskLogCategory | 'all'> = [
-    'all', 'system', 'auth', 'api', 'bill', 'cash', 'qr', 'pending',
+    'all', 'PING', 'TAP', 'TOPUP', 'CLEAR-CASH-BOX', 'LOCK', 'UNLOCK', 'system',
 ];
 
 const t = computed(() => ({
@@ -245,13 +243,13 @@ const t = computed(() => ({
 
 function categoryTone(c: KioskLogCategory | 'all'): string {
     const map: Record<string, string> = {
+        PING: 'tone-api',
+        TAP: 'tone-auth',
+        TOPUP: 'tone-cash',
+        'CLEAR-CASH-BOX': 'tone-bill',
+        LOCK: 'tone-pending',
+        UNLOCK: 'tone-pending',
         system: 'tone-system',
-        auth: 'tone-auth',
-        api: 'tone-api',
-        bill: 'tone-bill',
-        cash: 'tone-cash',
-        qr: 'tone-qr',
-        pending: 'tone-pending',
         all: 'tone-system',
     };
     return map[c] ?? map.all;
@@ -294,7 +292,6 @@ function formatLogTime(ts: number): string {
 onMounted(() => {
     locationInput.value = store.deviceProfile?.full_name ?? '';
     void refreshLogView();
-    logKioskEvent('system', 'info', techLogAtKiosk('Technician console opened'));
 });
 
 watch(selectedDay, () => {
@@ -334,9 +331,6 @@ async function installLatest() {
     try {
         await Browser.open({ url });
         updateInstallMessage.value = t.value.updateOpened;
-        logKioskEvent('system', 'info', techLogAtKiosk('App update download started'), {
-            latest: updateCheck.value?.latestVersionName,
-        });
     } catch (e) {
         updateError.value = e instanceof Error ? e.message : t.value.updateCheckFailed;
     }
@@ -350,11 +344,9 @@ function tryUnlock() {
         try {
             sessionStorage.setItem(TECHNICIAN_SESSION_KEY, '1');
         } catch { /* ignore */ }
-        logKioskEvent('system', 'info', techLogAtKiosk('Technician console unlocked'));
         return;
     }
     unlockError.value = t.value.wrongPassword;
-    logKioskEvent('system', 'warn', techLogAtKiosk('Technician console unlock failed'));
 }
 
 async function saveLocation() {
@@ -379,7 +371,6 @@ async function copyLogs() {
         await navigator.clipboard.writeText(text);
         copyMessage.value = t.value.copied;
         setTimeout(() => { copyMessage.value = ''; }, 2000);
-        logKioskEvent('system', 'info', techLogAtKiosk('Technician copied logs to clipboard'), { day: selectedDay.value });
     } catch {
         copyMessage.value = t.value.copyFailed;
     }
@@ -392,7 +383,6 @@ async function clearLogs() {
     await refreshLogView();
     clearMessage.value = t.value.clearLogsDone;
     setTimeout(() => { clearMessage.value = ''; }, 2500);
-    logKioskEvent('system', 'info', techLogAtKiosk('Technician cleared all local logs'));
 }
 
 function goBack() {
@@ -405,9 +395,6 @@ function goBack() {
 function toggleDebugMode() {
     const next = !debugMode.value;
     debugMode.value = next;
-    logKioskEvent('system', 'info', techLogAtKiosk(next ? 'Debug mode enabled (min top-up 1 THB)' : 'Debug mode disabled'), {
-        minTopup: next ? 1 : 100,
-    });
 }
 
 const billPollStatusLabel = computed(() => {
@@ -431,18 +418,8 @@ async function runBillPoll() {
     try {
         const result = await Hardware.pollStatus();
         billPollResult.value = result;
-        logKioskEvent('bill', result.status === 'error' || result.status === 'timeout' ? 'warn' : 'info', techLogAtKiosk(
-            `Bill acceptor poll — ${result.status}${result.statusHex ? ` (0x${result.statusHex})` : ''}`,
-        ), {
-            status: result.status,
-            statusHex: result.statusHex,
-            message: result.message,
-        });
     } catch (e) {
         billPollError.value = e instanceof Error ? e.message : t.value.billPollFailed;
-        logKioskEvent('bill', 'error', techLogAtKiosk('Bill acceptor poll failed'), {
-            error: billPollError.value,
-        });
     } finally {
         billPollLoading.value = false;
     }
@@ -741,7 +718,7 @@ async function runBillPoll() {
                                         <span class="log-time">{{ formatLogTime(e.ts) }}</span>
                                     </div>
                                     <p class="log-message">{{ e.message }}</p>
-                                    <pre v-if="e.data && !e.message.startsWith('[')" class="log-json">{{ JSON.stringify(e.data) }}</pre>
+                                    <pre v-if="e.data && String(e.message).indexOf('[TOPUP]') === -1 && String(e.message).indexOf('[TAP]') === -1" class="log-json">{{ JSON.stringify(e.data) }}</pre>
                                 </div>
                             </li>
                         </ul>

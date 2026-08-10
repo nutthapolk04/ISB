@@ -2,31 +2,40 @@ import { computed, ref } from 'vue';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Hardware, type BillEvent } from 'capacitor-hardware';
 import { realApi } from '../api/realApi';
-import { logKioskEvent } from '../lib/kioskLog';
-import { formatThbAmount, techLogAtKiosk } from '../lib/techLogMessage';
+import {
+    auditTopupEnd,
+    billsFromStackedAmounts,
+    type BillsCount,
+    type TopupStatus,
+} from '../lib/kioskAuditLog';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
-interface PendingCashTopup {
+export interface PendingCashTopup {
     walletId: string;
     amount: number;
     ts: number;
+    ref: string;
     idempotencyKey: string;
     actingUserId: number | null;
     actingCustomerId: number | null;
-    memberLogId?: string;
-    memberName?: string;
+    payer_id: string;
+    receiver_id: string;
+    target_amount: number;
+    bills?: BillsCount;
 }
 
-export interface CashTopupLogContext {
-    memberLogId: string;
-    memberName?: string;
+export interface CashTopupContext {
+    payer_id: string;
+    receiver_id: string;
+    target_amount: number;
+    ref: string;
 }
 
 /** In-memory fallback when localStorage quota is exhausted. */
 let memoryPending: PendingCashTopup | null = null;
 
-function newIdempotencyKey(): string {
+function newSessionRef(): string {
     return crypto.randomUUID();
 }
 
@@ -35,7 +44,14 @@ function loadPending(): PendingCashTopup | null {
     try {
         const raw = localStorage.getItem(PENDING_KEY);
         if (!raw) return null;
-        return JSON.parse(raw) as PendingCashTopup;
+        const parsed = JSON.parse(raw) as PendingCashTopup & { idempotencyKey?: string; ref?: string };
+        if (!parsed.ref && parsed.idempotencyKey) {
+            parsed.ref = parsed.idempotencyKey;
+        }
+        if (!parsed.idempotencyKey && parsed.ref) {
+            parsed.idempotencyKey = parsed.ref;
+        }
+        return parsed;
     } catch {
         try {
             localStorage.removeItem(PENDING_KEY);
@@ -51,7 +67,7 @@ function savePending(pending: PendingCashTopup): void {
     try {
         localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
     } catch {
-        /* API must still run — memoryPending holds the idempotency key for retry */
+        /* API must still run — memoryPending holds the ref for retry */
     }
 }
 
@@ -64,16 +80,6 @@ function clearPending(): void {
     }
 }
 
-function pendingLogData(pending: PendingCashTopup): Record<string, unknown> {
-    return {
-        external_id: pending.memberLogId ?? '',
-        member_name: pending.memberName ?? '',
-        wallet_id: pending.walletId,
-        amount: pending.amount,
-        idempotency_key: pending.idempotencyKey,
-    };
-}
-
 const collecting = ref(false);
 const targetThb = ref(0);
 const collectedThb = ref(0);
@@ -82,90 +88,28 @@ const collectComplete = ref(false);
 const hardwareReady = ref(false);
 const lastHardwareError = ref<string | null>(null);
 
+let cashSessionRef: string | null = null;
+const stackedBillAmounts: number[] = [];
+
 let listenerHandle: PluginListenerHandle | null = null;
 
-/** Member id for the active cash top-up session — set from TopUpView. */
-let billSessionMemberLogId: string | null = null;
-
-export function setBillSessionMember(memberLogId: string | null): void {
-    const trimmed = memberLogId?.trim();
-    billSessionMemberLogId = trimmed && trimmed !== '—' ? trimmed : null;
+export function getCashSessionRef(): string | null {
+    return cashSessionRef;
 }
 
-function billMemberId(): string | null {
-    return billSessionMemberLogId;
+export function getStackedBillsCount(): BillsCount {
+    return billsFromStackedAmounts(stackedBillAmounts);
 }
 
-function billLogData(event: BillEvent): Record<string, unknown> {
-    return {
-        external_id: billSessionMemberLogId ?? '',
-        bill_amount_thb: event.billAmountThb ?? null,
-        collected_thb: event.collectedThb ?? null,
-        target_thb: event.targetThb ?? null,
-        event_type: event.type,
-        hardware_message: event.message ?? null,
-    };
+export function getCashTargetAmount(): number {
+    return targetThb.value;
 }
 
-/** Log only bill events useful for cash verification (skip escrow/accepted noise). */
-function logBillEventIfNeeded(event: BillEvent): void {
-    const memberId = billMemberId();
-    let message: string | null = null;
-    let level: 'info' | 'warn' | 'error' = 'info';
-
-    switch (event.type) {
-        case 'stacked': {
-            const bill = event.billAmountThb != null ? formatThbAmount(event.billAmountThb) : '?';
-            const total = event.collectedThb != null ? formatThbAmount(event.collectedThb) : '?';
-            message = techLogAtKiosk(
-                `${bill} THB bill accepted — inserted total ${total} THB`,
-                memberId,
-            );
-            break;
-        }
-        case 'overpayPending': {
-            const bill = event.billAmountThb != null ? formatThbAmount(event.billAmountThb) : '?';
-            const collected = event.collectedThb != null ? formatThbAmount(event.collectedThb) : '0';
-            message = techLogAtKiosk(
-                `${bill} THB bill held — would exceed target (inserted ${collected} THB so far)`,
-                memberId,
-            );
-            level = 'warn';
-            break;
-        }
-        case 'collectComplete': {
-            const total = event.collectedThb != null ? formatThbAmount(event.collectedThb) : '?';
-            message = techLogAtKiosk(
-                `Cash collection complete — ${total} THB inserted`,
-                memberId,
-            );
-            break;
-        }
-        case 'returned': {
-            const bill = event.billAmountThb != null ? formatThbAmount(event.billAmountThb) : '?';
-            message = techLogAtKiosk(`${bill} THB bill returned`, memberId);
-            break;
-        }
-        case 'rejected': {
-            message = techLogAtKiosk(`Bill rejected — ${event.message ?? 'unknown reason'}`, memberId);
-            level = 'warn';
-            break;
-        }
-        case 'error':
-        case 'exception':
-            message = techLogAtKiosk(`Cash acceptor error — ${event.message ?? event.type}`, memberId);
-            level = 'error';
-            break;
-        default:
-            return;
-    }
-
-    logKioskEvent('bill', level, message, billLogData(event));
+function resetBillCounts(): void {
+    stackedBillAmounts.length = 0;
 }
 
 function handleBillEvent(event: BillEvent) {
-    logBillEventIfNeeded(event);
-
     switch (event.type) {
         case 'ready':
             hardwareReady.value = true;
@@ -178,6 +122,9 @@ function handleBillEvent(event: BillEvent) {
             overpayPending.value = null;
             break;
         case 'stacked':
+            if (event.billAmountThb === 100 || event.billAmountThb === 500 || event.billAmountThb === 1000) {
+                stackedBillAmounts.push(event.billAmountThb);
+            }
             collectedThb.value = event.collectedThb ?? collectedThb.value;
             overpayPending.value = null;
             break;
@@ -215,46 +162,79 @@ function resetSessionState() {
     collectedThb.value = 0;
     overpayPending.value = null;
     collectComplete.value = false;
+    cashSessionRef = null;
+    resetBillCounts();
+}
+
+function logTopupEnd(
+    ctx: CashTopupContext,
+    status: TopupStatus,
+    actualAmount: number,
+    opts?: { transaction_id?: number; reason?: string; retry?: boolean },
+): void {
+    auditTopupEnd({
+        ref: ctx.ref,
+        method: 'CASH',
+        payer_id: ctx.payer_id,
+        receiver_id: ctx.receiver_id,
+        target_amount: ctx.target_amount,
+        actual_amount: actualAmount,
+        status,
+        bills: getStackedBillsCount(),
+        transaction_id: opts?.transaction_id,
+        reason: opts?.reason,
+        retry: opts?.retry,
+    });
 }
 
 /** Retry a cash top-up that stacked bills but failed to reach the server. */
 export async function retryPendingCashTopup(): Promise<boolean> {
     const pending = loadPending();
-    if (!pending) return false;
+    if (!pending?.ref) return false;
 
-    const memberId = pending.memberLogId ?? '—';
-    logKioskEvent('pending', 'warn', techLogAtKiosk(
-        `Retrying pending cash top-up ${pending.amount} THB for user ${memberId}`,
-        memberId,
-    ), pendingLogData(pending));
-
-    if (!pending.idempotencyKey) {
-        clearPending();
-        return false;
-    }
+    const ctx: CashTopupContext = {
+        ref: pending.ref,
+        payer_id: pending.payer_id,
+        receiver_id: pending.receiver_id,
+        target_amount: pending.target_amount,
+    };
 
     try {
-        await realApi.topUp(
+        const res = await realApi.topUp(
             pending.walletId,
             pending.amount,
             'cash',
-            pending.idempotencyKey,
+            pending.ref,
             pending.actingUserId ?? null,
             pending.actingCustomerId ?? null,
         );
         clearPending();
-        logKioskEvent('pending', 'info', techLogAtKiosk(
-            `Pending cash top-up ${pending.amount} THB credited for user ${memberId}`,
-            memberId,
-        ), pendingLogData(pending));
+        auditTopupEnd({
+            ref: ctx.ref,
+            method: 'CASH',
+            payer_id: ctx.payer_id,
+            receiver_id: ctx.receiver_id,
+            target_amount: ctx.target_amount,
+            actual_amount: pending.amount,
+            status: 'success',
+            bills: pending.bills,
+            transaction_id: res.transaction_id,
+            retry: true,
+        });
         return true;
     } catch (e) {
-        logKioskEvent('pending', 'error', techLogAtKiosk(
-            `Pending cash top-up ${pending.amount} THB failed for user ${memberId}`,
-            memberId,
-        ), {
-            ...pendingLogData(pending),
-            error: e instanceof Error ? e.message : String(e),
+        const errMsg = e instanceof Error ? e.message : String(e);
+        auditTopupEnd({
+            ref: ctx.ref,
+            method: 'CASH',
+            payer_id: ctx.payer_id,
+            receiver_id: ctx.receiver_id,
+            target_amount: ctx.target_amount,
+            actual_amount: pending.amount,
+            status: 'failed',
+            bills: pending.bills,
+            reason: errMsg,
+            retry: true,
         });
         return false;
     }
@@ -267,12 +247,14 @@ export function useBillAcceptor() {
     );
     const isTargetMet = computed(() => collectedThb.value >= targetThb.value && targetThb.value > 0);
 
-    async function start(target: number) {
+    async function start(target: number): Promise<string> {
         await ensureListener();
         resetSessionState();
+        cashSessionRef = newSessionRef();
         targetThb.value = target;
         lastHardwareError.value = null;
         await Hardware.startCollecting({ targetThb: target });
+        return cashSessionRef;
     }
 
     async function stop() {
@@ -281,7 +263,6 @@ export function useBillAcceptor() {
         }
         collecting.value = false;
         overpayPending.value = null;
-        setBillSessionMember(null);
     }
 
     async function acceptOverpay() {
@@ -299,59 +280,33 @@ export function useBillAcceptor() {
         amount: number,
         actingUserId: number | null = null,
         actingCustomerId: number | null = null,
-        logContext?: CashTopupLogContext,
+        ctx: CashTopupContext,
     ): Promise<{ transaction_id: number; balance_after: number }> {
-        const existing = loadPending();
-        let idempotencyKey = newIdempotencyKey();
-        if (
-            existing &&
-            existing.walletId === walletId &&
-            existing.amount === amount &&
-            existing.idempotencyKey
-        ) {
-            idempotencyKey = existing.idempotencyKey;
-        }
-
-        const memberId = logContext?.memberLogId ?? existing?.memberLogId ?? '—';
-        const memberName = logContext?.memberName ?? existing?.memberName;
+        const ref = ctx.ref || cashSessionRef || newSessionRef();
 
         const pending: PendingCashTopup = {
             walletId,
             amount,
             ts: Date.now(),
-            idempotencyKey,
+            ref,
+            idempotencyKey: ref,
             actingUserId,
             actingCustomerId,
-            memberLogId: memberId === '—' ? undefined : memberId,
-            memberName,
+            payer_id: ctx.payer_id,
+            receiver_id: ctx.receiver_id,
+            target_amount: ctx.target_amount,
+            bills: getStackedBillsCount(),
         };
         savePending(pending);
-        logKioskEvent('pending', 'warn', techLogAtKiosk(
-            `Cash top-up ${formatThbAmount(amount)} THB queued for user ${memberId} — calling server`,
-            memberId,
-        ), pendingLogData(pending));
 
         try {
-            const res = await realApi.topUp(walletId, amount, 'cash', idempotencyKey, actingUserId, actingCustomerId);
+            const res = await realApi.topUp(walletId, amount, 'cash', ref, actingUserId, actingCustomerId);
             clearPending();
-            logKioskEvent('cash', 'info', techLogAtKiosk(
-                `Cash top-up ${formatThbAmount(amount)} THB succeeded for user ${memberId} (txn ${res.transaction_id})`,
-                memberId,
-            ), {
-                ...pendingLogData(pending),
-                transaction_id: res.transaction_id,
-                balance_after: res.balance_after,
-            });
+            logTopupEnd(ctx, 'success', amount, { transaction_id: res.transaction_id });
             return res;
         } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            logKioskEvent('cash', 'error', techLogAtKiosk(
-                `Cash top-up ${formatThbAmount(amount)} THB failed for user ${memberId} — ${errMsg}`,
-                memberId,
-            ), {
-                ...pendingLogData(pending),
-                error: errMsg,
-            });
+            logTopupEnd(ctx, 'failed', amount, { reason: errMsg });
             throw e;
         }
     }
@@ -378,5 +333,13 @@ export function useBillAcceptor() {
         finalizeTopUp,
         acknowledgeCollectComplete,
         resetSessionState,
+        getCashSessionRef,
+        getStackedBillsCount,
+        getCashTargetAmount,
     };
+}
+
+/** @deprecated use session payer from store — kept for import compatibility */
+export function setBillSessionMember(_memberLogId: string | null): void {
+    /* no-op — audit logs use payer_id / receiver_id */
 }

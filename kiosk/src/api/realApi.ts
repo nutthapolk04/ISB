@@ -7,7 +7,7 @@
 
 import type { User, Wallet, Transaction } from './mockApi';
 import { cardUidLookupAttempts } from '../lib/cardUid';
-import { getKioskDeviceId, getKioskDeviceName, logKioskEvent } from '../lib/kioskLog';
+import { getKioskDeviceId, getKioskDeviceName } from '../lib/kioskLog';
 import { verifyTechnicianPassword as verifyTechnicianPasswordLib } from '../lib/technicianPassword';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -142,9 +142,8 @@ async function fetchToken(): Promise<string> {
     return _token;
 }
 
-async function request<T>(path: string, retried = false, opts: RequestOpts = {}): Promise<T> {
+async function request<T>(path: string, retried = false, _opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
-    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -152,8 +151,7 @@ async function request<T>(path: string, retried = false, opts: RequestOpts = {})
 
     if (res.status === 401 && !retried) {
         _token = null;
-        if (!opts.skipLog) logKioskEvent('api', 'warn', 'GET 401 — refreshing token', { path });
-        return request<T>(path, true, opts);
+        return request<T>(path, true, _opts);
     }
 
     if (!res.ok) {
@@ -162,7 +160,6 @@ async function request<T>(path: string, retried = false, opts: RequestOpts = {})
             const body = await res.json();
             if (body.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
         } catch { /* ignore parse errors */ }
-        if (!opts.skipLog) logKioskEvent('api', 'error', `GET ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
@@ -171,7 +168,6 @@ async function request<T>(path: string, retried = false, opts: RequestOpts = {})
 
 async function requestPost<T>(path: string, body: unknown, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
-    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
@@ -184,7 +180,6 @@ async function requestPost<T>(path: string, body: unknown, retried = false, opts
 
     if (res.status === 401 && !retried) {
         _token = null;
-        if (!opts.skipLog) logKioskEvent('api', 'warn', 'POST 401 — refreshing token', { path });
         return requestPost<T>(path, body, true, opts);
     }
 
@@ -194,7 +189,6 @@ async function requestPost<T>(path: string, body: unknown, retried = false, opts
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
-        if (!opts.skipLog) logKioskEvent('api', 'error', `POST ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
@@ -203,7 +197,6 @@ async function requestPost<T>(path: string, body: unknown, retried = false, opts
 
 async function requestPatch<T>(path: string, body: unknown, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
-    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         method: 'PATCH',
@@ -216,7 +209,6 @@ async function requestPatch<T>(path: string, body: unknown, retried = false, opt
 
     if (res.status === 401 && !retried) {
         _token = null;
-        if (!opts.skipLog) logKioskEvent('api', 'warn', 'PATCH 401 — refreshing token', { path });
         return requestPatch<T>(path, body, true, opts);
     }
 
@@ -226,7 +218,6 @@ async function requestPatch<T>(path: string, body: unknown, retried = false, opt
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
-        if (!opts.skipLog) logKioskEvent('api', 'error', `PATCH ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 

@@ -5,10 +5,9 @@ import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, 
 import LogoutButton from '../components/LogoutButton.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
-import { useBillAcceptor, setBillSessionMember } from '../hooks/useBillAcceptor';
+import { useBillAcceptor, type CashTopupContext } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
-import { logKioskEvent } from '../lib/kioskLog';
-import { formatThbAmount, memberLogData, resolveMemberLogId, techLogAtKiosk } from '../lib/techLogMessage';
+import { auditTopupBegin, auditTopupEnd } from '../lib/kioskAuditLog';
 import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
@@ -19,15 +18,56 @@ import QRCode from 'qrcode';
 const router = useRouter();
 const store = useKioskStore();
 
-function topupMemberId(): string {
-    return resolveMemberLogId(store.currentUser, store.currentWallet);
+function topupPayerId(): string {
+    return store.sessionPayerId ?? '—';
 }
 
-function topupLogExtra(extra?: Record<string, unknown>): Record<string, unknown> {
+function topupReceiverId(): string {
+    return store.currentWallet?.externalId?.trim() || '—';
+}
+
+function cashTopupContext(ref: string): CashTopupContext {
     return {
-        ...memberLogData(store.currentUser, store.currentWallet),
-        ...extra,
+        ref,
+        payer_id: topupPayerId(),
+        receiver_id: topupReceiverId(),
+        target_amount: bill.getCashTargetAmount() || amountNumber.value,
     };
+}
+
+function logCashTopupEnd(
+    status: 'cancelled' | 'timeout',
+    ref: string,
+    actualAmount: number,
+): void {
+    auditTopupEnd({
+        ref,
+        method: 'CASH',
+        payer_id: topupPayerId(),
+        receiver_id: topupReceiverId(),
+        target_amount: bill.getCashTargetAmount() || amountNumber.value,
+        actual_amount: actualAmount,
+        status,
+        bills: bill.getStackedBillsCount(),
+    });
+}
+
+function logQrTopupEnd(
+    status: 'cancelled' | 'timeout' | 'success' | 'failed',
+    opts?: { transaction_id?: number; actual_amount?: number; reason?: string },
+): void {
+    if (!activeRefCode.value) return;
+    auditTopupEnd({
+        ref: activeRefCode.value,
+        method: 'QR',
+        payer_id: topupPayerId(),
+        receiver_id: topupReceiverId(),
+        target_amount: amountNumber.value,
+        actual_amount: opts?.actual_amount ?? 0,
+        status,
+        transaction_id: opts?.transaction_id,
+        reason: opts?.reason,
+    });
 }
 
 if (!store.isAuthenticated) {
@@ -272,13 +312,15 @@ const selectMethod = async (key: string) => {
     autoPrinted = false;
     if (key === 'cash') {
         currentStep.value = 'cash-confirm';
-        setBillSessionMember(topupMemberId());
-        logKioskEvent('cash', 'info', techLogAtKiosk(
-            `User ${topupMemberId()} started cash top-up ${formatThbAmount(amountNumber.value)} THB`,
-            topupMemberId(),
-        ), topupLogExtra({ amount: amountNumber.value, wallet_id: store.currentWallet?.id }));
         try {
-            await bill.start(amountNumber.value);
+            const ref = await bill.start(amountNumber.value);
+            auditTopupBegin({
+                ref,
+                method: 'CASH',
+                payer_id: topupPayerId(),
+                receiver_id: topupReceiverId(),
+                target_amount: amountNumber.value,
+            });
         } catch (e) {
             console.warn('[TopUp] startCollecting failed:', e);
             failType.value = 'server';
@@ -287,10 +329,6 @@ const selectMethod = async (key: string) => {
         }
     } else {
         currentStep.value = 'qr';
-        logKioskEvent('qr', 'info', techLogAtKiosk(
-            `User ${topupMemberId()} started QR top-up ${amountNumber.value} THB`,
-            topupMemberId(),
-        ), topupLogExtra({ amount: amountNumber.value, wallet_id: store.currentWallet?.id }));
         await initQrPayment();
     }
 };
@@ -316,10 +354,7 @@ const isQrExpired = computed(() => qrTimeLeft.value <= 0);
 const handleQrSessionExpired = () => {
     if (currentStep.value !== 'qr') return;
     stopPolling();
-    logKioskEvent('qr', 'warn', techLogAtKiosk(
-        `User ${topupMemberId()} QR session timed out`,
-        topupMemberId(),
-    ), topupLogExtra({ ref_code: activeRefCode.value }));
+    logQrTopupEnd('timeout');
     store.setSuppressGlobalIdle(false);
     void bill.stop();
     store.logout();
@@ -370,10 +405,10 @@ const clearCashIdleTimer = () => {
 const handleCashIdleExpired = () => {
     if (currentStep.value !== 'cash-confirm') return;
     clearCashIdleTimer();
-    logKioskEvent('cash', 'info', techLogAtKiosk(
-        `User ${topupMemberId()} cash top-up idle timeout (${bill.collectedThb.value} THB inserted)`,
-        topupMemberId(),
-    ), topupLogExtra({ collected: bill.collectedThb.value }));
+    const ref = bill.getCashSessionRef();
+    if (ref && bill.collectedThb.value <= 0) {
+        logCashTopupEnd('timeout', ref, 0);
+    }
     void executeCancelTopup();
 };
 
@@ -403,10 +438,13 @@ const initQrPayment = async () => {
     try {
         const intent = await realApi.createTopupIntent(walletId, amountNumber.value, store.currentUser?.actingUserId ?? null, store.currentUser?.actingCustomerId ?? null);
         activeRefCode.value = intent.ref_code;
-        logKioskEvent('qr', 'info', techLogAtKiosk(
-            `User ${topupMemberId()} QR code created for ${amountNumber.value} THB`,
-            topupMemberId(),
-        ), topupLogExtra({ ref_code: intent.ref_code, amount: amountNumber.value }));
+        auditTopupBegin({
+            ref: intent.ref_code,
+            method: 'QR',
+            payer_id: topupPayerId(),
+            receiver_id: topupReceiverId(),
+            target_amount: amountNumber.value,
+        });
         qrDataUrl.value = await QRCode.toDataURL(intent.qr_payload, {
             width: 240,
             margin: 2,
@@ -432,10 +470,10 @@ const startPolling = () => {
             if (s.status === 'confirmed') {
                 stopPolling();
                 clearQrTimer();
-                logKioskEvent('qr', 'info', techLogAtKiosk(
-                    `User ${topupMemberId()} QR payment confirmed ${s.amount} THB (txn ${s.transaction_id ?? '—'})`,
-                    topupMemberId(),
-                ), topupLogExtra({ ref_code: activeRefCode.value, transaction_id: s.transaction_id, amount: s.amount }));
+                logQrTopupEnd('success', {
+                    transaction_id: s.transaction_id ?? undefined,
+                    actual_amount: s.amount,
+                });
                 if (s.transaction_id != null) {
                     receiptTxId.value = s.transaction_id;
                 }
@@ -445,10 +483,7 @@ const startPolling = () => {
             } else if (s.status === 'cancelled') {
                 stopPolling();
                 clearQrTimer();
-                logKioskEvent('qr', 'warn', techLogAtKiosk(
-                    `User ${topupMemberId()} QR payment cancelled or expired`,
-                    topupMemberId(),
-                ), topupLogExtra({ ref_code: activeRefCode.value }));
+                logQrTopupEnd('cancelled', { reason: 'Payment was cancelled or expired' });
                 failType.value = 'server';
                 failDetail.value = 'Payment was cancelled or expired';
                 currentStep.value = 'fail';
@@ -498,10 +533,6 @@ const scheduleSuccessLogout = () => {
         successLogoutSecondsLeft.value = Math.max(0, successLogoutSecondsLeft.value - 1);
     }, 1000);
     successLogoutTimer = window.setTimeout(() => {
-        logKioskEvent('auth', 'info', techLogAtKiosk(
-            `User ${topupMemberId()} auto logout after successful top-up`,
-            topupMemberId(),
-        ), topupLogExtra());
         finishAndLogout();
     }, SUCCESS_LOGOUT_MS);
 };
@@ -539,15 +570,14 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
     failDetail.value = null;
     try {
         await bill.stop();
+        const ref = bill.getCashSessionRef();
+        if (!ref) return false;
         const res = await bill.finalizeTopUp(
             walletId,
             amount,
             store.currentUser?.actingUserId ?? null,
             store.currentUser?.actingCustomerId ?? null,
-            {
-                memberLogId: topupMemberId(),
-                memberName: store.currentUser?.name,
-            },
+            cashTopupContext(ref),
         );
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
@@ -575,6 +605,14 @@ const handleHeaderBack = () => {
 };
 
 const backToMethods = async () => {
+    if (currentStep.value === 'cash-confirm') {
+        const ref = bill.getCashSessionRef();
+        if (ref && bill.collectedThb.value <= 0) {
+            logCashTopupEnd('cancelled', ref, 0);
+        }
+    } else if (currentStep.value === 'qr') {
+        logQrTopupEnd('cancelled');
+    }
     await bill.stop();
     bill.resetSessionState();
     selectedMethod.value = null;
@@ -607,9 +645,16 @@ const goBackToBalance = () => {
 
 const executeCancelTopup = async () => {
     clearQrTimer();
-    if (currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0) {
-        const ok = await finalizeCashTopUp();
-        if (ok) return;
+    if (currentStep.value === 'cash-confirm') {
+        if (bill.collectedThb.value > 0) {
+            const ok = await finalizeCashTopUp();
+            if (ok) return;
+        } else {
+            const ref = bill.getCashSessionRef();
+            if (ref) logCashTopupEnd('cancelled', ref, 0);
+        }
+    } else if (currentStep.value === 'qr') {
+        logQrTopupEnd('cancelled');
     }
     await bill.stop();
     bill.resetSessionState();

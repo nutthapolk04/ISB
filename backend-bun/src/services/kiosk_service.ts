@@ -66,7 +66,24 @@ export async function updateKioskLocation(
 }
 
 const VALID_LEVELS = new Set(["info", "warn", "error"]);
-const VALID_CATEGORIES = new Set(["system", "auth", "api", "bill", "cash", "qr", "pending"]);
+const VALID_CATEGORIES = new Set([
+    "PING",
+    "TAP",
+    "TOPUP",
+    "CLEAR-CASH-BOX",
+    "LOCK",
+    "UNLOCK",
+    "system",
+    // legacy entries (pre-audit-format uploads)
+    "auth",
+    "api",
+    "bill",
+    "cash",
+    "qr",
+    "pending",
+]);
+/** Matches kiosk_logs.message varchar — see drizzle migration 0016. */
+const MAX_MESSAGE_LENGTH = 1000;
 /** Defensive cap — the uploader batches its own backlog, but never trust a
  * single request body size regardless of what the client claims to send. */
 const MAX_ENTRIES_PER_REQUEST = 500;
@@ -97,7 +114,7 @@ export async function ingestKioskLogs(
             ts: e.ts,
             level: e.level,
             category: e.category,
-            message: e.message.slice(0, 500),
+            message: e.message.slice(0, MAX_MESSAGE_LENGTH),
             data: e.data ?? null,
         }));
     if (rows.length === 0) return { inserted: 0 };

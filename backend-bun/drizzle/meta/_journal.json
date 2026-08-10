@@ -113,6 +113,13 @@
       "when": 1786356399841,
       "tag": "0015_add_cart_snapshot_to_pos_checkout_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786126000000,
+      "tag": "0016_extend_kiosk_logs_message",
+      "breakpoints": true
     }
   ]
 }

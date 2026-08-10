@@ -4,8 +4,6 @@ import { Capacitor } from '@capacitor/core';
 import { Hardware } from 'capacitor-hardware';
 import { Delete } from 'lucide-vue-next';
 import { kioskPasscodeLength, verifyTechnicianPassword } from '../lib/technicianPassword';
-import { logKioskEvent } from '../lib/kioskLog';
-import { techLogAtKiosk } from '../lib/techLogMessage';
 import { useKioskStore } from '../stores/kioskStore';
 
 const props = defineProps<{
@@ -81,13 +79,11 @@ function deleteDigit() {
 
 async function submitPin() {
     if (!verifyTechnicianPassword(pin.value)) {
-        logKioskEvent('system', 'warn', techLogAtKiosk('Exit passcode entered incorrectly'));
         triggerShake(t.value.wrong);
         return;
     }
 
     exiting.value = true;
-    logKioskEvent('system', 'info', techLogAtKiosk('Exit passcode accepted'));
 
     if (Capacitor.getPlatform() !== 'android') {
         emit('close');
@@ -96,7 +92,6 @@ async function submitPin() {
 
     try {
         await Hardware.exitKiosk();
-        logKioskEvent('system', 'info', techLogAtKiosk('Exited Android kiosk lock task'));
         emit('close');
     } catch (e) {
         const message = e instanceof Error ? e.message : t.value.failed;

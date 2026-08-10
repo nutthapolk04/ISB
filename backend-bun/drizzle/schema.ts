@@ -1658,7 +1658,7 @@ export const kioskLogs = pgTable("kiosk_logs", {
 	ts: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
 	level: varchar({ length: 10 }).notNull(),
 	category: varchar({ length: 20 }).notNull(),
-	message: varchar({ length: 500 }).notNull(),
+	message: varchar({ length: 1000 }).notNull(),
 	data: json(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [

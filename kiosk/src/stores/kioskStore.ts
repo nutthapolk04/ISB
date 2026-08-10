@@ -3,8 +3,9 @@ import { ref, computed } from 'vue';
 import { realApi, CardBlockedError, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { initKioskLogs, logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
+import { auditTap } from '../lib/kioskAuditLog';
 import { blockRfidAfterBoot } from '../lib/kioskSession';
-import { memberLogData, resolveMemberLogId, techLogAtKiosk } from '../lib/techLogMessage';
+import { resolveMemberLogId } from '../lib/techLogMessage';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
 import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
 
@@ -31,6 +32,8 @@ export const useKioskStore = defineStore('kiosk', () => {
     const transactionWalletIndex = ref(-1);
     /** When true, App.vue skips the global idle logout (TopUpView manages QR/cash timers). */
     const suppressGlobalIdleTimeout = ref(false);
+    /** external_id (ISB ID) of the member who tapped in — fixed for the session. */
+    const sessionPayerId = ref<string | null>(null);
 
     const isReady = computed(() => bootStatus.value === 'ready');
     const isAuthenticated = computed(() => !!currentUser.value);
@@ -72,14 +75,8 @@ export const useKioskStore = defineStore('kiosk', () => {
             const profile = await realApi.getKioskProfile();
             deviceProfile.value = profile;
             setKioskDeviceName(profile.full_name);
-            logKioskEvent('system', 'info', techLogAtKiosk('Device profile loaded'), {
-                username: profile.username,
-                location: profile.full_name,
-            });
         } catch (e) {
-            logKioskEvent('system', 'warn', techLogAtKiosk('Device profile load failed'), {
-                error: e instanceof Error ? e.message : String(e),
-            });
+            console.warn('[KioskStore] device profile load failed:', e);
         }
     }
 
@@ -87,7 +84,6 @@ export const useKioskStore = defineStore('kiosk', () => {
         const profile = await realApi.updateKioskLocation(fullName);
         deviceProfile.value = profile;
         setKioskDeviceName(profile.full_name);
-        logKioskEvent('system', 'info', techLogAtKiosk(`Installation location set to "${fullName}"`), { location: profile.full_name });
         return profile;
     }
 
@@ -101,15 +97,12 @@ export const useKioskStore = defineStore('kiosk', () => {
             await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
             bootStatus.value = 'ready';
             blockRfidAfterBoot();
-            logKioskEvent('system', 'info', techLogAtKiosk('Kiosk bootstrap ready'));
             startKioskLogUploader();
             startKioskHeartbeat();
         } catch (e) {
             bootStatus.value = 'error';
             bootError.value = e instanceof Error ? e.message : 'Could not connect to server';
-            logKioskEvent('system', 'error', techLogAtKiosk('Kiosk bootstrap failed'), {
-                error: bootError.value,
-            });
+            logKioskEvent('system', 'error', `Bootstrap failed: ${bootError.value}`);
             console.warn('[KioskStore] bootstrap failed:', e);
         }
     }
@@ -143,32 +136,17 @@ export const useKioskStore = defineStore('kiosk', () => {
                 transactionWalletIndex.value = activeWalletIndex.value;
 
                 const wallet = user.wallets[activeWalletIndex.value];
-                const memberId = resolveMemberLogId(user, wallet);
-                const loginVerb = source === 'rfid' ? 'tapped card' : 'signed in manually';
+                const payerId = resolveMemberLogId(user, wallet);
+                sessionPayerId.value = payerId;
                 updateActivity();
-                logKioskEvent('auth', 'info', techLogAtKiosk(`User ${memberId} ${loginVerb}`, memberId), {
-                    ...memberLogData(user, wallet),
-                    source,
-                });
+                auditTap(payerId);
                 return { ok: true };
             }
-            logKioskEvent('auth', 'warn', techLogAtKiosk(`Unknown card scanned (${identifier.trim()})`, identifier.trim()), {
-                identifier: identifier.trim(),
-                source,
-            });
             return { ok: false, reason: 'not_found' };
         } catch (e) {
             if (e instanceof CardBlockedError) {
-                logKioskEvent('auth', 'warn', techLogAtKiosk(`Card blocked (${identifier.trim()})`, identifier.trim()), {
-                    identifier: identifier.trim(),
-                    source,
-                });
                 return { ok: false, reason: 'blocked' };
             }
-            logKioskEvent('auth', 'error', techLogAtKiosk(`Login failed (${identifier.trim()})`), {
-                identifier: identifier.trim(),
-                error: e instanceof Error ? e.message : String(e),
-            });
             console.warn('[KioskStore] login failed:', e);
             return { ok: false, reason: 'network' };
         } finally {
@@ -177,13 +155,7 @@ export const useKioskStore = defineStore('kiosk', () => {
     }
 
     function logout() {
-        if (currentUser.value) {
-            const wallet = currentUser.value.wallets[activeWalletIndex.value];
-            const memberId = resolveMemberLogId(currentUser.value, wallet);
-            logKioskEvent('auth', 'info', techLogAtKiosk(`User ${memberId} ended session`, memberId), {
-                ...memberLogData(currentUser.value, wallet),
-            });
-        }
+        sessionPayerId.value = null;
         currentUser.value = null;
         transactions.value = [];
         activeWalletIndex.value = 0;
@@ -237,6 +209,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         loginSource,
         transactionWalletIndex,
         suppressGlobalIdleTimeout,
+        sessionPayerId,
         setLanguage,
         setActiveWallet,
         updateActivity,
