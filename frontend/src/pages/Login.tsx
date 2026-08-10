@@ -415,7 +415,7 @@ const Login = () => {
                             {GOOGLE_CLIENT_ID && ssoStep === null && (
                                 <div className="flex justify-center">
                                     <Button type="button"
-                                        variant="outline"
+                                        variant="default"
                                         className="w-full relative gap-2"
                                         disabled=
                                         {loading || ssoLoading}>
@@ -471,7 +471,7 @@ const Login = () => {
                                             } : undefined}
                                         />
                                     )}
-                                    <Button type="submit" className="w-full" disabled={loading || ssoLoading}>
+                                    <Button variant="outline" type="submit" className="w-full" disabled={loading || ssoLoading}>
                                         <LogIn className="mr-2 h-4 w-4" />
                                         {loading ? "Signing in…" : "Sign In"}
                                     </Button>
