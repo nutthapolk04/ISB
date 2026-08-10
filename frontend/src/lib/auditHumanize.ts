@@ -131,6 +131,12 @@ export function humanizeSummary(
         : t("audit.summary.createReceiptNoPayment", { items, total });
     return productHint ? `${base} — ${productHint}` : base;
   }
+  if (entityType === "receipt" && action === "REJECT") {
+    const reason = typeof c.reason === "string" && c.reason ? c.reason : t("audit.labelEmpty");
+    return typeof c.payment_method === "string"
+      ? t("audit.summary.rejectReceipt", { payment: paymentLabel(t, c.payment_method), reason })
+      : t("audit.summary.rejectReceiptNoPayment", { reason });
+  }
   if (entityType === "receipt" && action === "VOID") {
     const total = isNumeric(c.total) ? fmtMoney(toNumber(c.total)) : "0.00";
     const productHint = productSummaryHint(t, c.products);

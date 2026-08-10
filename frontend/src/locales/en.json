@@ -2454,7 +2454,8 @@
       "UPDATE_BALANCE": "Adjusted balance",
       "UPDATE_PRICE": "Updated price",
       "UPDATE_SETTING": "Updated setting",
-      "DELETE_PRODUCT": "Deleted product"
+      "DELETE_PRODUCT": "Deleted product",
+      "REJECT": "Failed"
     },
     "field": {
       "items": "Items",
@@ -2497,6 +2498,8 @@
     "summary": {
       "createReceipt": "Sold {{items}} items for ฿{{total}} via {{payment}}",
       "createReceiptNoPayment": "Issued receipt for {{items}} items, total ฿{{total}}",
+      "rejectReceipt": "Checkout failed ({{payment}}) — {{reason}}",
+      "rejectReceiptNoPayment": "Checkout failed — {{reason}}",
       "voidReceipt": "Voided receipt, refund ฿{{total}}",
       "updatePrice": "Price changed from ฿{{from}} to ฿{{to}}",
       "updateBalance": "Balance changed from ฿{{from}} to ฿{{to}}",

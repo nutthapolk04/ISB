@@ -16,7 +16,9 @@ import {
     menuOptions,
     spendingGroups,
     shopSpendingGroups,
+    auditLogs,
 } from "@/db/schema";
+import { logger } from "@/logger";
 import { bangkokDayRange, bangkokTodayCompact, bangkokTodayIso, pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
@@ -273,7 +275,51 @@ async function resolveSpendingGroupForShop(
     return { id: rows[0].id, dailyLimit: pgNumber(rows[0].dailyLimit) ?? 0 };
 }
 
+/**
+ * Best-effort audit trail for a checkout attempt that never became a receipt.
+ * Reuses the existing `audit_logs` table/enum (action 'REJECT', already
+ * defined but unused before this) so failed cash/wallet/department/EDC/QR
+ * attempts show up in the same admin Audit Log screen as successful sales
+ * (entity_type='receipt') instead of vanishing after a toast the cashier saw
+ * once. Never throws — a logging failure must not mask the real error.
+ */
+async function logFailedCheckoutAttempt(input: CheckoutInput, err: unknown): Promise<void> {
+    try {
+        await db.insert(auditLogs).values({
+            entityType: "receipt",
+            entityId: null,
+            action: "REJECT",
+            userId: input.userId,
+            shopId: input.shop_id ?? null,
+            changesJson: {
+                payment_method: (input.payment_method ?? "").toLowerCase(),
+                items: input.items?.length ?? 0,
+                payer_kind: input.payer_kind ?? null,
+                payer_id: input.customer_id ?? input.payer_user_id ?? input.payer_department_id ?? null,
+                reason: err instanceof Error ? err.message : String(err),
+            },
+        });
+    } catch (logErr) {
+        logger.error("[checkout] failed to log rejected checkout attempt", logErr);
+    }
+}
+
+/**
+ * Public entry point — wraps the real checkout logic so every failure (fast
+ * validation error or a throw deep inside the sale transaction) is recorded
+ * via logFailedCheckoutAttempt before propagating, without touching any of
+ * the logic below.
+ */
 export async function checkout(input: CheckoutInput) {
+    try {
+        return await runCheckout(input);
+    } catch (err) {
+        await logFailedCheckoutAttempt(input, err);
+        throw err;
+    }
+}
+
+async function runCheckout(input: CheckoutInput) {
     // ── Pre-flight validation ────────────────────────────────────────────
     const paymentMethod = (input.payment_method ?? "").toUpperCase();
     if (!ALLOWED_PAYMENT_METHODS.has(paymentMethod)) {

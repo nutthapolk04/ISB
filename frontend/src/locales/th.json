@@ -2452,7 +2452,8 @@
       "UPDATE_BALANCE": "ปรับยอดเงิน",
       "UPDATE_PRICE": "ปรับราคา",
       "UPDATE_SETTING": "แก้ค่าระบบ",
-      "DELETE_PRODUCT": "ลบสินค้า"
+      "DELETE_PRODUCT": "ลบสินค้า",
+      "REJECT": "ล้มเหลว"
     },
     "field": {
       "items": "จำนวนรายการ",
@@ -2495,6 +2496,8 @@
     "summary": {
       "createReceipt": "ขาย {{items}} รายการ รวม ฿{{total}} จ่ายด้วย{{payment}}",
       "createReceiptNoPayment": "ออกใบเสร็จ {{items}} รายการ รวม ฿{{total}}",
+      "rejectReceipt": "เช็คเอาท์ล้มเหลว ({{payment}}) — {{reason}}",
+      "rejectReceiptNoPayment": "เช็คเอาท์ล้มเหลว — {{reason}}",
       "voidReceipt": "ยกเลิกใบเสร็จ คืนเงิน ฿{{total}}",
       "updatePrice": "เปลี่ยนราคา จาก ฿{{from}} เป็น ฿{{to}}",
       "updateBalance": "ปรับยอดเงิน จาก ฿{{from}} เป็น ฿{{to}}",
