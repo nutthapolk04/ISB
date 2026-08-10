@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { realApi, CardBlockedError, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { logKioskEvent, setKioskDeviceName, ensureStorageSpace } from '../lib/kioskLog';
+import { memberLogData, resolveMemberLogId, techLogAtKiosk } from '../lib/techLogMessage';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
 import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
 
@@ -70,12 +71,12 @@ export const useKioskStore = defineStore('kiosk', () => {
             const profile = await realApi.getKioskProfile();
             deviceProfile.value = profile;
             setKioskDeviceName(profile.full_name);
-            logKioskEvent('system', 'info', 'Device profile loaded', {
+            logKioskEvent('system', 'info', techLogAtKiosk('Device profile loaded'), {
                 username: profile.username,
                 location: profile.full_name,
             });
         } catch (e) {
-            logKioskEvent('system', 'warn', 'Device profile load failed', {
+            logKioskEvent('system', 'warn', techLogAtKiosk('Device profile load failed'), {
                 error: e instanceof Error ? e.message : String(e),
             });
         }
@@ -85,7 +86,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         const profile = await realApi.updateKioskLocation(fullName);
         deviceProfile.value = profile;
         setKioskDeviceName(profile.full_name);
-        logKioskEvent('system', 'info', 'Installation location updated', { location: profile.full_name });
+        logKioskEvent('system', 'info', techLogAtKiosk(`Installation location set to "${fullName}"`), { location: profile.full_name });
         return profile;
     }
 
@@ -97,13 +98,13 @@ export const useKioskStore = defineStore('kiosk', () => {
             await realApi.init();
             await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
             bootStatus.value = 'ready';
-            logKioskEvent('system', 'info', 'Kiosk bootstrap ready');
+            logKioskEvent('system', 'info', techLogAtKiosk('Kiosk bootstrap ready'));
             startKioskLogUploader();
             startKioskHeartbeat();
         } catch (e) {
             bootStatus.value = 'error';
             bootError.value = e instanceof Error ? e.message : 'Could not connect to server';
-            logKioskEvent('system', 'error', 'Kiosk bootstrap failed', {
+            logKioskEvent('system', 'error', techLogAtKiosk('Kiosk bootstrap failed'), {
                 error: bootError.value,
             });
             console.warn('[KioskStore] bootstrap failed:', e);
@@ -136,22 +137,30 @@ export const useKioskStore = defineStore('kiosk', () => {
                     : [];
                 transactionWalletIndex.value = activeWalletIndex.value;
 
+                const wallet = user.wallets[activeWalletIndex.value];
+                const memberId = resolveMemberLogId(user, wallet);
+                const loginVerb = source === 'rfid' ? 'tapped card' : 'signed in manually';
                 updateActivity();
-                logKioskEvent('auth', 'info', 'Member login', {
-                    identifier: identifier.trim(),
+                logKioskEvent('auth', 'info', techLogAtKiosk(`User ${memberId} ${loginVerb}`, memberId), {
+                    ...memberLogData(user, wallet),
                     source,
-                    member: user.name,
                 });
                 return { ok: true };
             }
-            logKioskEvent('auth', 'warn', 'Member not found', { identifier: identifier.trim(), source });
+            logKioskEvent('auth', 'warn', techLogAtKiosk(`Unknown card scanned (${identifier.trim()})`, identifier.trim()), {
+                identifier: identifier.trim(),
+                source,
+            });
             return { ok: false, reason: 'not_found' };
         } catch (e) {
             if (e instanceof CardBlockedError) {
-                logKioskEvent('auth', 'warn', 'Card blocked', { identifier: identifier.trim(), source });
+                logKioskEvent('auth', 'warn', techLogAtKiosk(`Card blocked (${identifier.trim()})`, identifier.trim()), {
+                    identifier: identifier.trim(),
+                    source,
+                });
                 return { ok: false, reason: 'blocked' };
             }
-            logKioskEvent('auth', 'error', 'Member login failed', {
+            logKioskEvent('auth', 'error', techLogAtKiosk(`Login failed (${identifier.trim()})`), {
                 identifier: identifier.trim(),
                 error: e instanceof Error ? e.message : String(e),
             });
@@ -164,7 +173,11 @@ export const useKioskStore = defineStore('kiosk', () => {
 
     function logout() {
         if (currentUser.value) {
-            logKioskEvent('auth', 'info', 'Member logout', { member: currentUser.value.name });
+            const wallet = currentUser.value.wallets[activeWalletIndex.value];
+            const memberId = resolveMemberLogId(currentUser.value, wallet);
+            logKioskEvent('auth', 'info', techLogAtKiosk(`User ${memberId} ended session`, memberId), {
+                ...memberLogData(currentUser.value, wallet),
+            });
         }
         currentUser.value = null;
         transactions.value = [];

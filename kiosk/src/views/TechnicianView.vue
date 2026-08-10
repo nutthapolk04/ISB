@@ -42,6 +42,7 @@ import {
     type KioskLogEntry,
     type KioskLogLevel,
 } from '../lib/kioskLog';
+import { techLogAtKiosk } from '../lib/techLogMessage';
 import { useKioskDebugMode } from '../lib/debugMode';
 import { checkKioskUpdate, type KioskUpdateCheck } from '../lib/kioskRelease';
 import { Hardware, type PollStatusResult } from 'capacitor-hardware';
@@ -277,7 +278,7 @@ function formatLogTime(ts: number): string {
 onMounted(() => {
     selectedDay.value = days.value[0] ?? new Date().toISOString().slice(0, 10);
     locationInput.value = store.deviceProfile?.full_name ?? '';
-    logKioskEvent('system', 'info', 'Technician screen opened');
+    logKioskEvent('system', 'info', techLogAtKiosk('Technician console opened'));
 });
 
 watch(unlocked, (isUnlocked) => {
@@ -313,7 +314,7 @@ async function installLatest() {
     try {
         await Browser.open({ url });
         updateInstallMessage.value = t.value.updateOpened;
-        logKioskEvent('system', 'info', 'Kiosk update download opened', {
+        logKioskEvent('system', 'info', techLogAtKiosk('App update download started'), {
             latest: updateCheck.value?.latestVersionName,
         });
     } catch (e) {
@@ -329,11 +330,11 @@ function tryUnlock() {
         try {
             sessionStorage.setItem(TECHNICIAN_SESSION_KEY, '1');
         } catch { /* ignore */ }
-        logKioskEvent('system', 'info', 'Technician unlocked');
+        logKioskEvent('system', 'info', techLogAtKiosk('Technician console unlocked'));
         return;
     }
     unlockError.value = t.value.wrongPassword;
-    logKioskEvent('system', 'warn', 'Technician unlock failed');
+    logKioskEvent('system', 'warn', techLogAtKiosk('Technician console unlock failed'));
 }
 
 async function saveLocation() {
@@ -358,7 +359,7 @@ async function copyLogs() {
         await navigator.clipboard.writeText(text);
         copyMessage.value = t.value.copied;
         setTimeout(() => { copyMessage.value = ''; }, 2000);
-        logKioskEvent('system', 'info', 'Technician exported logs', { day: selectedDay.value });
+        logKioskEvent('system', 'info', techLogAtKiosk('Technician copied logs to clipboard'), { day: selectedDay.value });
     } catch {
         copyMessage.value = t.value.copyFailed;
     }
@@ -371,7 +372,7 @@ function clearLogs() {
     selectedDay.value = new Date().toISOString().slice(0, 10);
     clearMessage.value = t.value.clearLogsDone;
     setTimeout(() => { clearMessage.value = ''; }, 2500);
-    logKioskEvent('system', 'info', 'Technician cleared all local logs');
+    logKioskEvent('system', 'info', techLogAtKiosk('Technician cleared all local logs'));
 }
 
 function goBack() {
@@ -384,7 +385,7 @@ function goBack() {
 function toggleDebugMode() {
     const next = !debugMode.value;
     debugMode.value = next;
-    logKioskEvent('system', 'info', next ? 'Debug mode enabled' : 'Debug mode disabled', {
+    logKioskEvent('system', 'info', techLogAtKiosk(next ? 'Debug mode enabled (min top-up 1 THB)' : 'Debug mode disabled'), {
         minTopup: next ? 1 : 100,
     });
 }
@@ -410,14 +411,16 @@ async function runBillPoll() {
     try {
         const result = await Hardware.pollStatus();
         billPollResult.value = result;
-        logKioskEvent('bill', result.status === 'error' || result.status === 'timeout' ? 'warn' : 'info', 'Technician bill poll', {
+        logKioskEvent('bill', result.status === 'error' || result.status === 'timeout' ? 'warn' : 'info', techLogAtKiosk(
+            `Bill acceptor poll — ${result.status}${result.statusHex ? ` (0x${result.statusHex})` : ''}`,
+        ), {
             status: result.status,
             statusHex: result.statusHex,
             message: result.message,
         });
     } catch (e) {
         billPollError.value = e instanceof Error ? e.message : t.value.billPollFailed;
-        logKioskEvent('bill', 'error', 'Technician bill poll failed', {
+        logKioskEvent('bill', 'error', techLogAtKiosk('Bill acceptor poll failed'), {
             error: billPollError.value,
         });
     } finally {
@@ -718,7 +721,7 @@ async function runBillPoll() {
                                         <span class="log-time">{{ formatLogTime(e.ts) }}</span>
                                     </div>
                                     <p class="log-message">{{ e.message }}</p>
-                                    <pre v-if="e.data" class="log-json">{{ JSON.stringify(e.data) }}</pre>
+                                    <pre v-if="e.data && !e.message.startsWith('[')" class="log-json">{{ JSON.stringify(e.data) }}</pre>
                                 </div>
                             </li>
                         </ul>

@@ -12,6 +12,7 @@
  */
 import { realApi } from '../api/realApi';
 import { logKioskEvent } from './kioskLog';
+import { techLogAtKiosk } from './techLogMessage';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute
 
@@ -19,7 +20,7 @@ async function sendHeartbeat(): Promise<void> {
     try {
         await realApi.sendHeartbeat();
     } catch (e) {
-        logKioskEvent('system', 'warn', 'Heartbeat failed', {
+        logKioskEvent('system', 'warn', techLogAtKiosk('Heartbeat failed — server not reachable'), {
             error: e instanceof Error ? e.message : String(e),
         });
     }

@@ -126,7 +126,6 @@ async function fetchToken(): Promise<string> {
 
     const data: ISBTokenResponse = await res.json();
     _token = data.access_token;
-    logKioskEvent('api', 'info', 'Service account authenticated', { username });
     return _token;
 }
 
@@ -154,7 +153,6 @@ async function request<T>(path: string, retried = false, opts: RequestOpts = {})
         throw new Error(detail);
     }
 
-    if (!opts.skipLog) logKioskEvent('api', 'info', `GET ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
@@ -187,7 +185,6 @@ async function requestPost<T>(path: string, body: unknown, retried = false, opts
         throw new Error(detail);
     }
 
-    if (!opts.skipLog) logKioskEvent('api', 'info', `POST ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
@@ -220,7 +217,6 @@ async function requestPatch<T>(path: string, body: unknown, retried = false, opt
         throw new Error(detail);
     }
 
-    if (!opts.skipLog) logKioskEvent('api', 'info', `PATCH ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 

@@ -177,12 +177,8 @@ const t = {
 
         <div class="welcome-content">
             <div class="rfid-animation mb-12">
-                <div
-                    :class="['card-icon', { 'card-error': rfidError || rfidBlocked }]"
-                    role="button"
-                    tabindex="-1"
-                    @click="onCardSecretTap"
-                >
+                <div :class="['card-icon', { 'card-error': rfidError || rfidBlocked }]" role="button" tabindex="-1"
+                    @click="onCardSecretTap">
                     <!-- <CreditCard :size="120" stroke-width="1.5" /> -->
                     <img src="/images/decor-card.png" alt="Card icon" class="object-cover" />
                 </div>
@@ -195,7 +191,7 @@ const t = {
 
             <h1 class="mb-4">{{ currT.welcome }}</h1>
             <p class=" text-center mb-12 text-breathe" style="font-size: 1.75rem; font-weight: 300; ">{{ currT.sub
-            }}
+                }}
             </p>
             <p v-if="rfidBlocked" class="rfid-error-msg">{{ currT.cardBlocked }}</p>
             <p v-else-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
@@ -227,8 +223,8 @@ const t = {
 
 .tech-entry-btn {
     background: none;
-    border: 2px solid #94a3b8;
-    color: var(--text-muted);
+    border: transparent;
+    color: transparent;
     padding: 0.75rem 1.25rem;
     border-radius: 3rem;
     display: flex;

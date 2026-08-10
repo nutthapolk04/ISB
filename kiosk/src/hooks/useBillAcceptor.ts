@@ -3,6 +3,7 @@ import type { PluginListenerHandle } from '@capacitor/core';
 import { Hardware, type BillEvent } from 'capacitor-hardware';
 import { realApi } from '../api/realApi';
 import { ensureStorageSpace, logKioskEvent } from '../lib/kioskLog';
+import { formatThbAmount, techLogAtKiosk } from '../lib/techLogMessage';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
@@ -13,6 +14,13 @@ interface PendingCashTopup {
     idempotencyKey: string;
     actingUserId: number | null;
     actingCustomerId: number | null;
+    memberLogId?: string;
+    memberName?: string;
+}
+
+export interface CashTopupLogContext {
+    memberLogId: string;
+    memberName?: string;
 }
 
 /** In-memory fallback when localStorage quota is exhausted. */
@@ -57,6 +65,16 @@ function clearPending(): void {
     }
 }
 
+function pendingLogData(pending: PendingCashTopup): Record<string, unknown> {
+    return {
+        external_id: pending.memberLogId ?? '',
+        member_name: pending.memberName ?? '',
+        wallet_id: pending.walletId,
+        amount: pending.amount,
+        idempotency_key: pending.idempotencyKey,
+    };
+}
+
 const collecting = ref(false);
 const targetThb = ref(0);
 const collectedThb = ref(0);
@@ -67,12 +85,87 @@ const lastHardwareError = ref<string | null>(null);
 
 let listenerHandle: PluginListenerHandle | null = null;
 
+/** Member id for the active cash top-up session — set from TopUpView. */
+let billSessionMemberLogId: string | null = null;
+
+export function setBillSessionMember(memberLogId: string | null): void {
+    const trimmed = memberLogId?.trim();
+    billSessionMemberLogId = trimmed && trimmed !== '—' ? trimmed : null;
+}
+
+function billMemberId(): string | null {
+    return billSessionMemberLogId;
+}
+
+function billLogData(event: BillEvent): Record<string, unknown> {
+    return {
+        external_id: billSessionMemberLogId ?? '',
+        bill_amount_thb: event.billAmountThb ?? null,
+        collected_thb: event.collectedThb ?? null,
+        target_thb: event.targetThb ?? null,
+        event_type: event.type,
+        hardware_message: event.message ?? null,
+    };
+}
+
+/** Log only bill events useful for cash verification (skip escrow/accepted noise). */
+function logBillEventIfNeeded(event: BillEvent): void {
+    const memberId = billMemberId();
+    let message: string | null = null;
+    let level: 'info' | 'warn' | 'error' = 'info';
+
+    switch (event.type) {
+        case 'stacked': {
+            const bill = event.billAmountThb != null ? formatThbAmount(event.billAmountThb) : '?';
+            const total = event.collectedThb != null ? formatThbAmount(event.collectedThb) : '?';
+            message = techLogAtKiosk(
+                `${bill} THB bill accepted — inserted total ${total} THB`,
+                memberId,
+            );
+            break;
+        }
+        case 'overpayPending': {
+            const bill = event.billAmountThb != null ? formatThbAmount(event.billAmountThb) : '?';
+            const collected = event.collectedThb != null ? formatThbAmount(event.collectedThb) : '0';
+            message = techLogAtKiosk(
+                `${bill} THB bill held — would exceed target (inserted ${collected} THB so far)`,
+                memberId,
+            );
+            level = 'warn';
+            break;
+        }
+        case 'collectComplete': {
+            const total = event.collectedThb != null ? formatThbAmount(event.collectedThb) : '?';
+            message = techLogAtKiosk(
+                `Cash collection complete — ${total} THB inserted`,
+                memberId,
+            );
+            break;
+        }
+        case 'returned': {
+            const bill = event.billAmountThb != null ? formatThbAmount(event.billAmountThb) : '?';
+            message = techLogAtKiosk(`${bill} THB bill returned`, memberId);
+            break;
+        }
+        case 'rejected': {
+            message = techLogAtKiosk(`Bill rejected — ${event.message ?? 'unknown reason'}`, memberId);
+            level = 'warn';
+            break;
+        }
+        case 'error':
+        case 'exception':
+            message = techLogAtKiosk(`Cash acceptor error — ${event.message ?? event.type}`, memberId);
+            level = 'error';
+            break;
+        default:
+            return;
+    }
+
+    logKioskEvent('bill', level, message, billLogData(event));
+}
+
 function handleBillEvent(event: BillEvent) {
-    logKioskEvent('bill', event.type === 'error' || event.type === 'exception' ? 'error' : 'info', `bill:${event.type}`, {
-        targetThb: event.targetThb,
-        collectedThb: event.collectedThb,
-        message: event.message,
-    });
+    logBillEventIfNeeded(event);
 
     switch (event.type) {
         case 'ready':
@@ -130,7 +223,11 @@ export async function retryPendingCashTopup(): Promise<boolean> {
     const pending = loadPending();
     if (!pending) return false;
 
-    logKioskEvent('pending', 'warn', 'Retrying pending cash top-up', { ...pending });
+    const memberId = pending.memberLogId ?? '—';
+    logKioskEvent('pending', 'warn', techLogAtKiosk(
+        `Retrying pending cash top-up ${pending.amount} THB for user ${memberId}`,
+        memberId,
+    ), pendingLogData(pending));
 
     if (!pending.idempotencyKey) {
         clearPending();
@@ -147,11 +244,17 @@ export async function retryPendingCashTopup(): Promise<boolean> {
             pending.actingCustomerId ?? null,
         );
         clearPending();
-        logKioskEvent('pending', 'info', 'Pending cash top-up retry succeeded', { amount: pending.amount });
+        logKioskEvent('pending', 'info', techLogAtKiosk(
+            `Pending cash top-up ${pending.amount} THB credited for user ${memberId}`,
+            memberId,
+        ), pendingLogData(pending));
         return true;
     } catch (e) {
-        logKioskEvent('pending', 'error', 'Pending cash top-up retry failed', {
-            amount: pending.amount,
+        logKioskEvent('pending', 'error', techLogAtKiosk(
+            `Pending cash top-up ${pending.amount} THB failed for user ${memberId}`,
+            memberId,
+        ), {
+            ...pendingLogData(pending),
             error: e instanceof Error ? e.message : String(e),
         });
         return false;
@@ -179,6 +282,7 @@ export function useBillAcceptor() {
         }
         collecting.value = false;
         overpayPending.value = null;
+        setBillSessionMember(null);
     }
 
     async function acceptOverpay() {
@@ -191,15 +295,12 @@ export function useBillAcceptor() {
         overpayPending.value = null;
     }
 
-    /**
-     * Credit the wallet for cash already stacked in the acceptor.
-     * Persists idempotency key best-effort (localStorage + memory) then calls the API.
-     */
     async function finalizeTopUp(
         walletId: string,
         amount: number,
         actingUserId: number | null = null,
         actingCustomerId: number | null = null,
+        logContext?: CashTopupLogContext,
     ): Promise<{ transaction_id: number; balance_after: number }> {
         const existing = loadPending();
         let idempotencyKey = newIdempotencyKey();
@@ -212,6 +313,9 @@ export function useBillAcceptor() {
             idempotencyKey = existing.idempotencyKey;
         }
 
+        const memberId = logContext?.memberLogId ?? existing?.memberLogId ?? '—';
+        const memberName = logContext?.memberName ?? existing?.memberName;
+
         const pending: PendingCashTopup = {
             walletId,
             amount,
@@ -219,26 +323,35 @@ export function useBillAcceptor() {
             idempotencyKey,
             actingUserId,
             actingCustomerId,
+            memberLogId: memberId === '—' ? undefined : memberId,
+            memberName,
         };
         savePending(pending);
-        logKioskEvent('pending', 'warn', 'Pending cash top-up saved before API', { ...pending });
+        logKioskEvent('pending', 'warn', techLogAtKiosk(
+            `Cash top-up ${formatThbAmount(amount)} THB queued for user ${memberId} — calling server`,
+            memberId,
+        ), pendingLogData(pending));
 
         try {
             const res = await realApi.topUp(walletId, amount, 'cash', idempotencyKey, actingUserId, actingCustomerId);
             clearPending();
-            logKioskEvent('cash', 'info', 'Cash top-up API succeeded', {
-                walletId,
-                amount,
+            logKioskEvent('cash', 'info', techLogAtKiosk(
+                `Cash top-up ${formatThbAmount(amount)} THB succeeded for user ${memberId} (txn ${res.transaction_id})`,
+                memberId,
+            ), {
+                ...pendingLogData(pending),
                 transaction_id: res.transaction_id,
-                idempotencyKey,
+                balance_after: res.balance_after,
             });
             return res;
         } catch (e) {
-            logKioskEvent('cash', 'error', 'Cash top-up API failed — pending retained for retry', {
-                walletId,
-                amount,
-                idempotencyKey,
-                error: e instanceof Error ? e.message : String(e),
+            const errMsg = e instanceof Error ? e.message : String(e);
+            logKioskEvent('cash', 'error', techLogAtKiosk(
+                `Cash top-up ${formatThbAmount(amount)} THB failed for user ${memberId} — ${errMsg}`,
+                memberId,
+            ), {
+                ...pendingLogData(pending),
+                error: errMsg,
             });
             throw e;
         }
